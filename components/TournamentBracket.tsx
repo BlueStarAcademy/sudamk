@@ -2375,6 +2375,40 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 // 다음 회차의 선수 정보로 갱신하기 위해 초기화
                 setInitialMatchPlayers({ p1: null, p2: null });
                 initialMatchPlayersSetRef.current = false;
+                
+                // 다음 경기의 선수 정보를 즉시 설정
+                let nextMatch: Match | undefined = undefined;
+                if (tournament.type === 'neighborhood') {
+                    const currentRound = tournament.currentRoundRobinRound || 1;
+                    const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}회차`);
+                    if (currentRoundObj) {
+                        nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
+                    }
+                } else {
+                    // 전국/월드챔피언십: 다음 경기 찾기
+                    nextMatch = safeRounds.flatMap(r => r.matches).find(m => m.isUserMatch && !m.isFinished);
+                }
+                
+                if (nextMatch) {
+                    const p1 = tournament.players.find(p => p.id === nextMatch.players[0]?.id) || null;
+                    const p2 = tournament.players.find(p => p.id === nextMatch.players[1]?.id) || null;
+                    if (p1 || p2) {
+                        const createPlayerCopy = (player: PlayerForTournament): PlayerForTournament => {
+                            const statsToUse = player.originalStats || player.stats;
+                            return {
+                                ...player,
+                                stats: statsToUse ? { ...statsToUse } : player.stats,
+                                originalStats: player.originalStats ? { ...player.originalStats } : (player.stats ? { ...player.stats } : undefined)
+                            };
+                        };
+                        
+                        setInitialMatchPlayers({
+                            p1: p1 ? createPlayerCopy(p1) : null,
+                            p2: p2 ? createPlayerCopy(p2) : null,
+                        });
+                        initialMatchPlayersSetRef.current = true;
+                    }
+                }
             }
             
             if (!hasNextMatch) {
@@ -2532,6 +2566,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         
                         // 선수 ID가 변경되었거나, 컨디션이 변경되었거나, initialMatchPlayersSetRef가 false이면 업데이트
                         // 특히 전국/월드챔피언십에서 다음 라운드로 이동할 때 선수 ID가 변경되므로 항상 확인
+                        // round_complete에서 bracket_ready로 변경될 때는 항상 업데이트 (이전 경기 정보가 남아있을 수 있음)
                         const shouldUpdate = isTransitionFromRoundComplete ||
                             !initialMatchPlayersSetRef.current || 
                             initialMatchPlayers.p1?.id !== p1?.id || 

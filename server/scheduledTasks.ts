@@ -893,9 +893,14 @@ export async function updateBotLeagueScores(user: types.User): Promise<types.Use
                 }
                 updatedUser.weeklyCompetitorsBotScores[competitor.id] = {
                     score: newScore,
-                    lastUpdate: now,
+                    lastUpdate: now, // 오늘 날짜로 업데이트하여 하루에 한번만 실행되도록 함
                     yesterdayScore: yesterdayScore // 어제 점수 저장
                 };
+                
+                // 디버깅: 봇 점수 업데이트 로그 (개발 환경에서만)
+                if (process.env.NODE_ENV === 'development' && daysDiff > 0) {
+                    console.log(`[BotScore] ${competitor.id} (${competitor.nickname}): +${totalGain}점 (${daysDiff}일치, 현재: ${currentScore} -> ${newScore})`);
+                }
                 
                 hasChanges = true;
             } else if (!botScoreData?.yesterdayScore && currentScore > 0) {
@@ -1190,113 +1195,110 @@ export async function processTowerRankingRewards(): Promise<void> {
     const now = Date.now();
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
-    const kstDate = getKSTDate_UTC(now);
-    const isMidnight = kstHours === 0 && kstMinutes < 5;
+    const kstMonth = getKSTMonth(now);
+    const kstYear = getKSTFullYear(now);
     
-    // 디버깅: 현재 KST 시간 정보 로그
-    if (process.env.NODE_ENV === 'development' && kstHours === 0) {
-        console.log(`[TowerRankingReward] Checking: KST Date=${kstDate}, Hours=${kstHours}, Minutes=${kstMinutes}, isMidnight=${isMidnight}`);
-    }
+    // 매월 1일 0시에만 처리
+    const isFirstDayOfMonth = kstHours === 0 && kstMinutes < 5 && getKSTDate_UTC(now) === 1;
     
-    if (!isMidnight) {
+    if (!isFirstDayOfMonth) {
         return;
     }
     
-    // 이미 오늘 처리했는지 확인
+    // 이미 이번 달에 처리했는지 확인
     if (lastTowerRankingRewardTimestamp !== null) {
-        const todayStart = getStartOfDayKST(now);
-        const lastUpdateStart = getStartOfDayKST(lastTowerRankingRewardTimestamp);
+        const lastMonth = getKSTMonth(lastTowerRankingRewardTimestamp);
+        const lastYear = getKSTFullYear(lastTowerRankingRewardTimestamp);
         
-        if (lastUpdateStart === todayStart) {
-            return; // Already processed today
+        if (lastYear === kstYear && lastMonth === kstMonth) {
+            return; // Already processed this month
         }
     }
     
-    console.log(`[TowerRankingReward] Processing tower ranking rewards at midnight KST`);
+    console.log(`[TowerRankingReward] Processing tower monthly rewards at first day of month KST`);
     
     const allUsers = await db.getAllUsers();
     
-    // 1층 이상 클리어한 사용자만 필터링
-    const eligibleUsers = allUsers.filter(user => {
-        const towerFloor = (user as any).towerFloor ?? 0;
-        return towerFloor > 0;
-    });
-    
-    // 랭킹 계산: 층수 높은 순, 같은 층이면 먼저 클리어한 순
-    const sortedUsers = eligibleUsers.sort((a, b) => {
-        const floorA = (a as any).towerFloor ?? 0;
-        const floorB = (b as any).towerFloor ?? 0;
-        
-        if (floorA !== floorB) {
-            return floorB - floorA; // 층수 높은 순
-        }
-        
-        // 같은 층이면 먼저 클리어한 순
-        const timeA = (a as any).lastTowerClearTime ?? Infinity;
-        const timeB = (b as any).lastTowerClearTime ?? Infinity;
-        return timeA - timeB;
-    });
-    
-    // 보상 정의
-    const getRewardForRank = (rank: number): { gold: number; diamonds: number; items: { itemId: string; quantity: number }[] } => {
-        if (rank === 1) {
-            return {
-                gold: 50000,
-                diamonds: 300,
-                items: [{ itemId: '장비상자6', quantity: 3 }]
-            };
-        } else if (rank === 2) {
-            return {
-                gold: 30000,
-                diamonds: 200,
-                items: [{ itemId: '장비상자6', quantity: 2 }]
-            };
-        } else if (rank >= 3 && rank <= 5) {
-            return {
-                gold: 20000,
-                diamonds: 150,
-                items: [{ itemId: '장비상자6', quantity: 1 }]
-            };
-        } else if (rank >= 6 && rank <= 10) {
+    // 최고 층수 기반 보상 정의
+    const getRewardForFloor = (floor: number): { gold: number; diamonds: number; items: { itemId: string; quantity: number }[] } | null => {
+        if (floor >= 100) {
             return {
                 gold: 10000,
                 diamonds: 100,
-                items: [{ itemId: '장비상자5', quantity: 1 }]
+                items: [{ itemId: '장비상자6', quantity: 2 }]
             };
-        } else if (rank >= 11 && rank <= 50) {
+        } else if (floor >= 90) {
             return {
                 gold: 7500,
                 diamonds: 75,
-                items: [{ itemId: '장비상자4', quantity: 2 }]
+                items: [{ itemId: '장비상자6', quantity: 1 }]
             };
-        } else if (rank >= 51 && rank <= 100) {
+        } else if (floor >= 80) {
             return {
                 gold: 5000,
                 diamonds: 50,
+                items: [{ itemId: '장비상자5', quantity: 2 }]
+            };
+        } else if (floor >= 65) {
+            return {
+                gold: 2500,
+                diamonds: 25,
+                items: [{ itemId: '장비상자5', quantity: 1 }]
+            };
+        } else if (floor >= 50) {
+            return {
+                gold: 1500,
+                diamonds: 20,
                 items: [{ itemId: '장비상자4', quantity: 1 }]
             };
+        } else if (floor >= 35) {
+            return {
+                gold: 1000,
+                diamonds: 15,
+                items: [{ itemId: '장비상자3', quantity: 1 }]
+            };
+        } else if (floor >= 20) {
+            return {
+                gold: 500,
+                diamonds: 10,
+                items: [{ itemId: '장비상자2', quantity: 1 }]
+            };
+        } else if (floor >= 10) {
+            return {
+                gold: 300,
+                diamonds: 5,
+                items: [{ itemId: '장비상자1', quantity: 1 }]
+            };
         }
-        // 순위권 밖 (101위 이상이지만 1층 이상 클리어)
-        return {
-            gold: 1000,
-            diamonds: 25,
-            items: [{ itemId: '장비상자3', quantity: 1 }]
-        };
+        return null; // 10층 미만은 보상 없음
     };
     
-    // 각 사용자에게 보상 지급
+    // 각 사용자에게 최고 층수 기반 보상 지급
     let rewardCount = 0;
-    for (let i = 0; i < sortedUsers.length; i++) {
-        const user = sortedUsers[i];
-        const rank = i + 1;
-        const reward = getRewardForRank(rank);
+    for (const user of allUsers) {
+        const monthlyTowerFloor = (user as any).monthlyTowerFloor ?? 0;
+        
+        if (monthlyTowerFloor < 10) {
+            // 10층 미만은 보상 없음, monthlyTowerFloor 리셋만 수행
+            (user as any).monthlyTowerFloor = 0;
+            await db.updateUser(user);
+            continue;
+        }
+        
+        const reward = getRewardForFloor(monthlyTowerFloor);
+        if (!reward) {
+            // 보상이 없으면 monthlyTowerFloor 리셋만 수행
+            (user as any).monthlyTowerFloor = 0;
+            await db.updateUser(user);
+            continue;
+        }
         
         // 메일 생성
-        const mailTitle = `도전의 탑 랭킹 보상 (${rank}위)`;
-        const mailMessage = `도전의 탑 랭킹에서 ${rank}위를 기록하셨습니다.\n\n보상이 지급되었습니다. 30일 이내에 수령해주세요.`;
+        const mailTitle = `도전의 탑 월간 보상 (${monthlyTowerFloor}층 클리어)`;
+        const mailMessage = `한 달 동안 ${monthlyTowerFloor}층을 클리어하셨습니다.\n\n보상이 지급되었습니다. 30일 이내에 수령해주세요.`;
         
         const mail: types.Mail = {
-            id: `mail-tower-ranking-${randomUUID()}`,
+            id: `mail-tower-monthly-${randomUUID()}`,
             from: 'System',
             title: mailTitle,
             message: mailMessage,
@@ -1314,10 +1316,13 @@ export async function processTowerRankingRewards(): Promise<void> {
         if (!user.mail) user.mail = [];
         user.mail.unshift(mail);
         
+        // monthlyTowerFloor 리셋
+        (user as any).monthlyTowerFloor = 0;
+        
         await db.updateUser(user);
         rewardCount++;
     }
     
     lastTowerRankingRewardTimestamp = now;
-    console.log(`[TowerRankingReward] Sent rewards to ${rewardCount} users`);
+    console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
 }

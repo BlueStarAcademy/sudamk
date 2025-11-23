@@ -4,7 +4,7 @@ import Button from './Button.js';
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
-import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
+import { GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS } from '../constants';
 
 interface BulkItemObtainedModalProps {
     items: InventoryItem[];
@@ -29,9 +29,7 @@ const gradeBorderStyles: Partial<Record<ItemGrade, string>> = {
     mythic: 'border-pulse-mythic',
 };
 
-
 const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, onClose, isTopmost, tournamentScoreChange }) => {
-    // 등급별 글로우 효과 클래스
     const getGlowClass = (grade: ItemGrade | undefined) => {
         if (!grade) return '';
         switch (grade) {
@@ -57,14 +55,12 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
         }
     }, [items]);
 
-    const totalItems = useMemo(() => {
-        return items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-    }, [items]);
+    const hasItems = items && items.length > 0;
 
     return (
         <DraggableWindow title="보상 수령" onClose={onClose} windowId="bulk-item-obtained" initialWidth={600} closeOnOutsideClick={false} isTopmost={isTopmost} zIndex={70}>
             <div className="text-center">
-                <h2 className="text-xl font-bold mb-4">아이템을 획득했습니다.</h2>
+                {hasItems && <h2 className="text-xl font-bold mb-4">아이템을 획득했습니다.</h2>}
                 {tournamentScoreChange && (
                     <div className="mb-4 p-4 bg-gradient-to-r from-green-900/40 to-green-800/40 rounded-lg border-2 border-green-600/60 shadow-lg">
                         <div className="flex flex-col items-center gap-2">
@@ -86,55 +82,76 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                         </div>
                     </div>
                 )}
-                <div className="grid grid-cols-5 gap-2 max-h-[60vh] overflow-y-auto p-2 bg-gray-900/50 rounded-lg justify-items-center">
-                    {items.map((item, index) => {
-                        // grade가 없는 아이템(골드, 다이아, 재료 등)을 위한 기본 스타일
-                        const itemGrade = item.grade || 'normal';
-                        const styles = gradeStyles[itemGrade] || gradeStyles.normal;
-                        const borderClass = itemGrade ? gradeBorderStyles[itemGrade] : undefined;
-                        const requiredLevel = item.type === 'equipment' && itemGrade ? GRADE_LEVEL_REQUIREMENTS[itemGrade] : null;
-                        const titleText = `${item.name}${requiredLevel ? ` (착용 레벨 합: ${requiredLevel})` : ''}`;
-                        const isCurrency = item.image === '/images/icon/Gold.png' || item.image === '/images/icon/Zem.png';
-
-                        const isHighGrade = ['rare', 'epic', 'legendary', 'mythic'].includes(itemGrade);
-                        const glowClass = getGlowClass(itemGrade);
-                        
-                        return (
-                            <div key={index} className="relative aspect-square rounded-md overflow-visible" title={titleText}>
-                                <div className={`relative w-full h-full rounded-md flex items-center justify-center ${borderClass || 'border-2 border-black/20'} ${styles.bg} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
-                                    {styles.background && <img src={styles.background} alt={itemGrade} className="absolute inset-0 w-full h-full object-cover rounded-sm" />}
-                                    {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain p-1" />}
-                                    
-                                    {isCurrency ? (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-sm p-1">
-                                            <span className="text-white text-lg font-bold text-center break-words" style={{ textShadow: '1px 1px 2px black' }}>
-                                                +{item.quantity?.toLocaleString()}
+                {hasItems ? (
+                    <div className="grid grid-cols-5 gap-2 max-h-[60vh] overflow-y-auto p-2 bg-gray-900/50 rounded-lg justify-items-center">
+                        {items.map((item, index) => {
+                            const itemGrade = item.grade || 'normal';
+                            const styles = gradeStyles[itemGrade] || gradeStyles.normal;
+                            const borderClass = itemGrade ? gradeBorderStyles[itemGrade] : undefined;
+                            const isCurrency = item.image === '/images/icon/Gold.png' || item.image === '/images/icon/Zem.png';
+                            const isHighGrade = ['rare', 'epic', 'legendary', 'mythic'].includes(itemGrade);
+                            const glowClass = getGlowClass(itemGrade);
+                            
+                            // 이미지 경로가 없으면 MATERIAL_ITEMS에서 찾기
+                            let imagePath = item.image;
+                            if (!imagePath && item.name && MATERIAL_ITEMS[item.name]) {
+                                imagePath = MATERIAL_ITEMS[item.name].image;
+                            }
+                            
+                            return (
+                                <div key={index} className="relative w-full aspect-square rounded-lg overflow-visible">
+                                    <div className={`relative w-full h-full rounded-lg flex items-center justify-center ${borderClass || 'border-2 border-black/50'} overflow-hidden ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
+                                        <img src={styles.background} alt={itemGrade} className="absolute inset-0 w-full h-full object-cover" />
+                                        {imagePath && (
+                                            <img 
+                                                src={imagePath} 
+                                                alt={item.name} 
+                                                className="absolute object-contain p-2" 
+                                                style={{ 
+                                                    width: '90%', 
+                                                    height: '90%', 
+                                                    left: '50%', 
+                                                    top: '50%', 
+                                                    transform: 'translate(-50%, -50%)' 
+                                                }} 
+                                            />
+                                        )}
+                                        {isCurrency && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-sm p-1">
+                                                <span className="text-white text-lg font-bold text-center break-words" style={{ textShadow: '1px 1px 2px black' }}>
+                                                    +{item.quantity?.toLocaleString()}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {!isCurrency && item.quantity && item.quantity > 1 && (
+                                            <span className="absolute bottom-0 right-0 text-xs font-bold text-white bg-black/60 px-1 rounded-tl-md z-10">
+                                                {item.quantity}
                                             </span>
-                                        </div>
-                                    ) : (
-                                        item.quantity && item.quantity > 1 && (
-                                            <span className="absolute bottom-0 right-0 text-xs font-bold text-white bg-black/60 px-1 rounded-tl-md">{item.quantity}</span>
-                                        )
-                                    )}
-                                    {item.isDivineMythic && (
-                                        <div 
-                                            className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
-                                            style={{ 
-                                                textShadow: '1px 1px 2px black',
-                                                padding: '2px 3px',
-                                                fontSize: '8px',
-                                                fontWeight: 'bold',
-                                                color: '#FFD700'
-                                            }}
-                                        >
-                                            D
-                                        </div>
-                                    )}
+                                        )}
+                                        {item.isDivineMythic && (
+                                            <div 
+                                                className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
+                                                style={{ 
+                                                    textShadow: '1px 1px 2px black',
+                                                    padding: '2px 3px',
+                                                    fontSize: '8px',
+                                                    fontWeight: 'bold',
+                                                    color: '#FFD700'
+                                                }}
+                                            >
+                                                D
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="p-4 bg-gray-900/50 rounded-lg">
+                        <p className="text-gray-400">획득한 아이템이 없습니다.</p>
+                    </div>
+                )}
                 <Button onClick={onClose} className="w-full mt-6 py-2.5">확인</Button>
             </div>
         </DraggableWindow>

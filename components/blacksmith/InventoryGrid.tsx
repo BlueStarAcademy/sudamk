@@ -81,7 +81,7 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({ inventory, inventorySlots
                             <>
                                 <div className={`absolute inset-0 rounded-md border-2 ${selectedItemId === item.id ? 'border-accent ring-2 ring-accent' : 'border-black/20'} ${selectedItemIdsForDisassembly?.has(item.id) ? 'bg-gray-700/70' : ''} ${item.isDivineMythic ? 'divine-mythic-border' : ''}`} style={{ border: item.isDivineMythic ? undefined : undefined }} />
                                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 object-cover rounded-sm" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />
-                                {item.image && <img src={item.image} alt={item.name} className="relative object-contain p-1" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />}
+                                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', maxWidth: '80%', maxHeight: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                                 {renderStarDisplay(item.stars)}
                                 {item.isEquipped && <div className="absolute top-0.5 right-0.5 text-xs font-bold text-white bg-blue-600/80 px-1 rounded-bl-md">E</div>}
                                 {item.quantity && item.quantity > 1 && <span className="absolute bottom-0 right-0 text-xs font-bold text-white bg-black/60 px-1 rounded-tl-md">{item.quantity}</span>}

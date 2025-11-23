@@ -41,7 +41,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
                     <div className="flex items-center justify-center gap-4 my-4">
                         {item.image && (
                             <div className="relative w-20 h-20 rounded-lg flex-shrink-0">
-                                <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
+                                <img src={item.image} alt={item.name} className="absolute object-contain" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
                             </div>
                         )}
                         <div className="text-left">

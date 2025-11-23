@@ -32,6 +32,7 @@ model User {
   tournamentScore  Int      @default(0)
   towerFloor       Int      @default(0)
   lastTowerClearTime BigInt?
+  monthlyTowerFloor Int     @default(0)
   status           Json?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

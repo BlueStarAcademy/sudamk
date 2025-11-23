@@ -361,10 +361,9 @@ export const processMatchCompletion = (state: TournamentState, user: User, compl
             // 다음 라운드 준비
             prepareNextRound(state, user);
             // round_complete 상태로 설정 (다음 경기 버튼 표시를 위해)
-            // startNextRound에서 round_complete 상태를 감지하여 컨디션을 부여함
+            // startNextRound는 START_TOURNAMENT_ROUND 액션에서만 호출하여 컨디션을 제대로 리셋하도록 함
             state.status = 'round_complete';
-            // 다음 라운드 준비 후 startNextRound 호출하여 bracket_ready 상태로 설정
-            startNextRound(state, user);
+            // startNextRound는 호출하지 않음 - 사용자가 "다음 경기" 버튼을 눌렀을 때만 호출됨
         }
     }
 
@@ -848,14 +847,16 @@ export const startNextRound = (state: TournamentState, user: User) => {
     if (isComingFromRoundComplete) {
         // round_complete에서 다음 라운드로 넘어갈 때: 다음 경기 버튼을 눌렀으므로 모든 플레이어의 컨디션을 랜덤 부여
         // (회복제로 조절한 컨디션은 다음 경기 버튼을 누르면 초기화되고 새로 부여됨)
+        // 상태를 bracket_ready로 변경하기 전에 컨디션을 리셋해야 함
         state.players.forEach(p => {
-            // 모든 플레이어의 컨디션을 랜덤 부여 (40-100)
+            // 모든 플레이어의 컨디션을 랜덤 부여 (40-100) - 이전 경기의 컨디션 완전히 초기화
             p.condition = Math.floor(Math.random() * 61) + 40; // 40-100
             // 모든 플레이어의 능력치는 originalStats로 리셋 (토너먼트 생성 시점의 고정 능력치)
             if (p.originalStats) {
                 p.stats = JSON.parse(JSON.stringify(p.originalStats));
             }
         });
+        console.log(`[startNextRound] Reset all player conditions from round_complete status`);
     } else if (!hasConditionAlreadyAssigned) {
         // bracket_ready 상태에서 컨디션이 부여되지 않은 경우: 컨디션 부여
         // (뒤로가기 후 다시 들어온 경우 등)

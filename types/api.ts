@@ -285,7 +285,7 @@ export type ServerAction =
     | { type: 'GUILD_DEMOTE_MEMBER', payload: { guildId?: string; memberId?: string; targetMemberId?: string } }
     | { type: 'GUILD_TRANSFER_MASTERSHIP', payload: { guildId?: string; memberId?: string; targetMemberId?: string } }
     | { type: 'UPDATE_GUILD_SETTINGS', payload: { settings: any } }
-    | { type: 'GUILD_UPDATE_PROFILE', payload: { guildId?: string; name?: string; description?: string; emblem?: string; icon?: string; isPublic?: boolean } }
+    | { type: 'GUILD_UPDATE_PROFILE', payload: { guildId?: string; name?: string; description?: string; emblem?: string; icon?: string; isPublic?: boolean; joinType?: 'application' | 'free' } }
     | { type: 'GUILD_UPDATE_ANNOUNCEMENT', payload: { guildId?: string; announcement: string } }
     | { type: 'SEND_GUILD_MESSAGE', payload: { content: string } }
     | { type: 'SEND_GUILD_CHAT_MESSAGE', payload: { content: string } }

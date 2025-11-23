@@ -35,7 +35,7 @@ const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
         <div className="flex flex-col items-center">
             <div className="relative w-20 h-20 mb-2">
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
-                {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain p-1" />}
+                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                 <div className="absolute bottom-0 left-0 right-0 text-center text-xs font-bold bg-black/50 py-0.5">
                     <span className={starInfo.colorClass}>★{item.stars}</span>
                 </div>

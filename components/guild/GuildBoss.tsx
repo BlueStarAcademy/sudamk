@@ -102,7 +102,7 @@ export const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: Invent
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-sm" />
                 {renderStarDisplay(item.stars)}
-                {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain p-1"/>}
+                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
             </div>
         );
     } else {
@@ -350,7 +350,7 @@ const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers })
                             {damageNumbers.map(dn => (
                                 <div 
                                     key={dn.id} 
-                                    className={`absolute top-0 left-1/2 -translate-x-1/2 font-bold ${dn.isCrit ? 'text-3xl' : 'text-xl'} ${dn.color} ${dn.isHeal ? 'animate-float-up-and-fade' : 'animate-float-down-and-fade'}`}
+                                    className={`absolute top-0 left-1/2 -translate-x-1/2 font-bold ${dn.isCrit ? 'text-3xl' : 'text-xl'} ${dn.color} ${dn.isHeal ? 'animate-float-up-and-fade-1s' : 'animate-float-down-and-fade-1s'}`}
                                     style={{ textShadow: dn.isCrit ? '0 0 5px yellow, 0 0 8px orange' : '1px 1px 3px black' }}
                                 >
                                     {dn.text}
@@ -484,6 +484,21 @@ const GuildBoss: React.FC = () => {
     useEffect(() => { if (userLogContainerRef.current) userLogContainerRef.current.scrollTop = userLogContainerRef.current.scrollHeight; }, [userLogs]);
     useEffect(() => { if (bossLogContainerRef.current) bossLogContainerRef.current.scrollTop = bossLogContainerRef.current.scrollHeight; }, [bossLogs]);
     useEffect(() => { if (!isSimulating) setSimulatedBossHp(currentHp); }, [currentHp, isSimulating]);
+
+    // 보스 데미지 숫자가 1초 후 자동으로 제거되도록
+    useEffect(() => {
+        if (bossDamageNumbers.length === 0) return;
+        
+        const timers = bossDamageNumbers.map(dn => {
+            return setTimeout(() => {
+                setBossDamageNumbers(prev => prev.filter(item => item.id !== dn.id));
+            }, 1000);
+        });
+
+        return () => {
+            timers.forEach(timer => clearTimeout(timer));
+        };
+    }, [bossDamageNumbers]);
 
     const handleBattleStart = useCallback(() => {
         if (!currentUserWithStatus || !myGuild || simulationInFlight.current) return;
@@ -646,7 +661,7 @@ const GuildBoss: React.FC = () => {
     const attemptsLeft = GUILD_BOSS_MAX_ATTEMPTS - (guildBossAttempts || 0);
     
     return (
-        <div style={backgroundStyle} className="p-2 sm:p-4 lg:p-6 max-w-7xl mx-auto h-full flex flex-col relative">
+        <div style={backgroundStyle} className="p-2 sm:p-4 lg:p-6 w-full max-w-[95%] xl:max-w-[98%] mx-auto h-full flex flex-col relative">
             <header className="relative flex justify-center items-center mb-4 flex-shrink-0 py-2">
                 <div className="absolute left-0 top-1/2 -translate-y-1/2">
                     <BackButton onClick={() => window.location.hash = '#/guild'} />
@@ -675,7 +690,7 @@ const GuildBoss: React.FC = () => {
             </div>
 
             <main className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
-                <div className="w-full lg:w-1/4 flex flex-col gap-4">
+                <div className="w-full lg:w-[22%] xl:w-[20%] flex flex-col gap-4">
                     <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={currentBoss.maxHp} damageNumbers={bossDamageNumbers} />
                     <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
                 </div>
@@ -707,7 +722,7 @@ const GuildBoss: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="w-full lg:w-1/3 flex-shrink-0 flex flex-col gap-4">
+                <div className="w-full lg:w-[28%] xl:w-[26%] flex-shrink-0 flex flex-col gap-4">
                     <UserStatsPanel 
                         user={currentUserWithStatus} 
                         guild={myGuild} 

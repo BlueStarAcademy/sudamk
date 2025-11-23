@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { User, UserWithStatus, GameMode } from '../../types.js';
 import Avatar from '../Avatar.js';
 import { RANKING_TIERS, AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
@@ -108,7 +108,42 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
         score: allRankedUsers[myRankIndex].avgScore 
     } : null;
 
-    const topUsers = allRankedUsers.slice(0, 50);
+    // 페이지네이션: 초기 10명, 스크롤 시 10명씩 추가
+    const [displayCount, setDisplayCount] = useState(10);
+    const loadMoreRef = useRef<HTMLLIElement>(null);
+    const observerRef = useRef<IntersectionObserver | null>(null);
+
+    useEffect(() => {
+        // displayCount가 변경되면 observer 재설정
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+        }
+
+        if (loadMoreRef.current && displayCount < allRankedUsers.length) {
+            observerRef.current = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting) {
+                        setDisplayCount(prev => Math.min(prev + 10, allRankedUsers.length));
+                    }
+                },
+                { threshold: 0.1 }
+            );
+            observerRef.current.observe(loadMoreRef.current);
+        }
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+            }
+        };
+    }, [displayCount, allRankedUsers.length]);
+
+    // 탭 변경 시 displayCount 리셋
+    useEffect(() => {
+        setDisplayCount(10);
+    }, [lobbyType]);
+
+    const topUsers = allRankedUsers.slice(0, displayCount);
 
     const getTierForUser = useCallback((user: User & { avgScore: number }) => {
         const rankAmongEligible = eligibleRankedUsers.findIndex(u => u.id === user.id) + 1;
@@ -209,10 +244,19 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
             )}
 
             <ul className="space-y-2 overflow-y-auto pr-2 h-72">
-                 {topUsers.length > 0 ? topUsers.map((user, index) => {
-                     const rank = (user as any).rank || (index + 1);
-                     return renderRankItem(user, rank, false);
-                 }) : (
+                 {topUsers.length > 0 ? (
+                     <>
+                         {topUsers.map((user, index) => {
+                             const rank = (user as any).rank || (index + 1);
+                             return renderRankItem(user, rank, false);
+                         })}
+                         {displayCount < allRankedUsers.length && (
+                             <li ref={loadMoreRef} className="text-center text-tertiary py-2 text-xs">
+                                 로딩 중...
+                             </li>
+                         )}
+                     </>
+                 ) : (
                      <p className="text-center text-tertiary pt-8">랭킹 정보가 없습니다.</p>
                  )}
             </ul>

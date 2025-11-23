@@ -1013,3 +1013,48 @@ input[type="range"]::-moz-range-thumb {
 .animate-float-up-and-fade {
   animation: float-up-and-fade 2s ease-out forwards;
 }
+
+@keyframes float-down-and-fade {
+  from {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(50px) scale(1.2);
+    opacity: 0;
+  }
+}
+
+.animate-float-down-and-fade {
+  animation: float-down-and-fade 2s ease-out forwards;
+}
+
+@keyframes float-up-and-fade-1s {
+  from {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-50px) scale(1.2);
+    opacity: 0;
+  }
+}
+
+.animate-float-up-and-fade-1s {
+  animation: float-up-and-fade-1s 1s ease-out forwards;
+}
+
+@keyframes float-down-and-fade-1s {
+  from {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(50px) scale(1.2);
+    opacity: 0;
+  }
+}
+
+.animate-float-down-and-fade-1s {
+  animation: float-down-and-fade-1s 1s ease-out forwards;
+}

@@ -112,7 +112,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                     <div className="relative w-48 h-48 mx-auto rounded-lg mb-4 overflow-visible">
                         <div className={`relative w-full h-full rounded-lg flex items-center justify-center ${borderClass || 'border-2 border-black/50'} overflow-hidden ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
                             <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover" />
-                            {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain p-4" />}
+                            {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-4" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                             {isCurrency && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-sm p-1">
                                     <span className="text-white text-3xl font-bold text-center break-words" style={{ textShadow: '1px 1px 2px black' }}>

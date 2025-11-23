@@ -45,7 +45,7 @@ type HandleActionResult = {
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
 const GRADE_ORDER: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
 
-const currencyBundles: Record<string, { type: 'gold' | 'diamonds', min: number, max: number }> = {
+export const currencyBundles: Record<string, { type: 'gold' | 'diamonds', min: number, max: number }> = {
     '골드 꾸러미1': { type: 'gold', min: 10, max: 500 },
     '골드 꾸러미2': { type: 'gold', min: 100, max: 1000 },
     '골드 꾸러미3': { type: 'gold', min: 500, max: 3000 },
@@ -293,6 +293,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             // 실제로 인벤토리에 추가된 아이템 (ID가 변경되었을 수 있음)
             const actualAddedItem = finalItemsToAdd[0] || newItem;
+            // 새로 만든 아이템의 createdAt 시간 저장 (나중에 정확히 찾기 위해)
+            const newItemCreatedAt = actualAddedItem.createdAt;
 
             // 6. Add blacksmith XP
             const xpGainRange = BLACKSMITH_COMBINATION_XP_GAIN[grade];
@@ -339,13 +341,35 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             if (shouldSendMessage) {
                 try {
-                    // DB에서 다시 읽은 후 인벤토리에서 실제 아이템 찾기
-                    const actualItem = user.inventory.find(i => 
+                    // DB에서 다시 읽은 후 인벤토리에서 방금 만든 아이템 찾기
+                    // createdAt 시간으로 정확히 찾기 (가장 최근에 만들어진 같은 조건의 아이템)
+                    // 모든 공유되는 장비는 방금 만들어진 장비여야 함
+                    let actualItem = user.inventory.find(i => 
                         i.name === actualAddedItem.name && 
-                        i.grade === 'mythic' && 
+                        i.grade === outcomeGrade && 
                         i.slot === actualAddedItem.slot &&
-                        (!actualAddedItem.isDivineMythic || i.isDivineMythic === actualAddedItem.isDivineMythic)
-                    ) || actualAddedItem;
+                        i.isDivineMythic === actualAddedItem.isDivineMythic &&
+                        i.createdAt === newItemCreatedAt
+                    );
+                    
+                    // createdAt이 정확히 일치하지 않으면, 같은 조건의 아이템 중 가장 최근 것을 찾기
+                    if (!actualItem) {
+                        const candidates = user.inventory.filter(i => 
+                            i.name === actualAddedItem.name && 
+                            i.grade === outcomeGrade && 
+                            i.slot === actualAddedItem.slot &&
+                            i.isDivineMythic === actualAddedItem.isDivineMythic
+                        );
+                        if (candidates.length > 0) {
+                            // 가장 최근에 만들어진 아이템 선택
+                            actualItem = candidates.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+                        }
+                    }
+                    
+                    // 그래도 찾지 못하면 actualAddedItem 사용
+                    if (!actualItem) {
+                        actualItem = actualAddedItem;
+                    }
                     
                     const itemName = actualItem.name;
                     

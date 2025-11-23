@@ -22,7 +22,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
     const effects = calculateUserEffects(user, guild);
     const BATTLE_TURNS = 30; // Boss will use finisher on turn 30
     
-    let userHp = 10000 + (totalStats[CoreStat.Concentration] * 10);
+    let userHp = 20000 + (totalStats[CoreStat.Concentration] * 10);
     const hpIncreaseLevel = guild.research?.boss_hp_increase?.level || 0;
     if (hpIncreaseLevel > 0) userHp *= (1 + (GUILD_RESEARCH_PROJECTS[GuildResearchId.boss_hp_increase].baseEffect * hpIncreaseLevel) / 100);
     userHp = Math.round(userHp);

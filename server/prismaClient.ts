@@ -11,9 +11,12 @@ const getDatabaseUrl = () => {
     return url;
   }
   
-  // 연결 풀링 파라미터 추가
+  // 연결 풀링 파라미터 추가 (Railway 환경 최적화)
+  // connection_limit: 최대 연결 수 증가
+  // pool_timeout: 연결 대기 시간
+  // connect_timeout: 연결 타임아웃
   const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}connection_limit=20&pool_timeout=10`;
+  return `${url}${separator}connection_limit=25&pool_timeout=20&connect_timeout=10`;
 };
 
 const prisma = new PrismaClient({

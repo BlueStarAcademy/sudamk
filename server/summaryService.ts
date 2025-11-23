@@ -348,18 +348,27 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
         if (user) {
             const currentFloor = game.towerFloor;
             const userTowerFloor = user.towerFloor ?? 0;
+            const userMonthlyTowerFloor = user.monthlyTowerFloor ?? 0;
             
             // 현재 층이 사용자의 최고 층수보다 높거나 같으면 업데이트
             if (currentFloor >= userTowerFloor) {
                 user.towerFloor = currentFloor;
                 user.lastTowerClearTime = now;
+            }
+            
+            // 현재 층이 사용자의 월간 최고 층수보다 높으면 업데이트
+            if (currentFloor > userMonthlyTowerFloor) {
+                user.monthlyTowerFloor = currentFloor;
+            }
+            
+            if (currentFloor >= userTowerFloor || currentFloor > userMonthlyTowerFloor) {
                 await db.updateUser(user);
                 
                 // 사용자 업데이트 브로드캐스트
                 const { broadcast } = await import('./socket.js');
                 broadcast({ type: 'USER_UPDATE', payload: { [user.id]: user } });
                 
-                console.log(`[Tower] User ${user.nickname} cleared floor ${currentFloor}`);
+                console.log(`[Tower] User ${user.nickname} cleared floor ${currentFloor} (monthly: ${user.monthlyTowerFloor ?? 0})`);
             }
         }
     }

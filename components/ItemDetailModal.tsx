@@ -67,7 +67,7 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, isOwnedByCurren
                     {/* Left: Image */}
                     <div className="relative w-24 h-24 rounded-lg flex-shrink-0">
                         <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                        {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain p-2"/>}
+                        {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-2" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                         {renderStarDisplay(item.stars)}
                         {item.isDivineMythic && (
                             <div 

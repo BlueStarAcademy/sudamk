@@ -30,6 +30,7 @@ const buildPersistentFields = (user: User) => {
     tournamentScore: user.tournamentScore ?? 0,
     towerFloor: user.towerFloor ?? 0,
     lastTowerClearTime: user.lastTowerClearTime != null ? BigInt(user.lastTowerClearTime) : null,
+    monthlyTowerFloor: user.monthlyTowerFloor ?? 0,
     status: statusJson
   };
 };

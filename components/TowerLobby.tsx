@@ -206,65 +206,74 @@ const TowerLobby: React.FC = () => {
                         </div>
                             <div className="text-sm text-amber-100 space-y-3">
                                 <div>
-                                    <h3 className="text-base font-bold text-yellow-300 mb-2">랭킹 보상 (매월 1일 0시 KST 지급)</h3>
+                                    <h3 className="text-base font-bold text-yellow-300 mb-2">월간 보상 (매월 1일 0시 KST 지급)</h3>
+                                    <p className="text-xs text-amber-200/80 mb-3">한 달 동안 클리어한 최고 층수에 따라 보상이 지급됩니다. (누적이 아닌 최고 층수만)</p>
                                     <div className="space-y-2 text-xs">
                                         <div className="flex items-start gap-2">
-                                            <span className="min-w-[52px] text-yellow-300 font-bold">1위</span>
+                                            <span className="min-w-[60px] text-yellow-300 font-bold">100층</span>
                                             <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />50,000</span>
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />300</span>
-                                                <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox6.png" alt="장비상자 VI" className="w-4 h-4" />장비상자6 ×3</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-start gap-2">
-                                            <span className="min-w-[52px] text-gray-300 font-bold">2위</span>
-                                            <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />30,000</span>
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />200</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />10,000</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />100</span>
                                                 <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox6.png" alt="장비상자 VI" className="w-4 h-4" />장비상자6 ×2</span>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-2">
-                                            <span className="min-w-[52px] text-amber-600 font-bold">3~5위</span>
+                                            <span className="min-w-[60px] text-gray-300 font-bold">90층</span>
                                             <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />20,000</span>
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />150</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />7,500</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />75</span>
                                                 <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox6.png" alt="장비상자 VI" className="w-4 h-4" />장비상자6 ×1</span>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-2">
-                                            <span className="min-w-[52px] text-amber-300 font-bold">6~10위</span>
+                                            <span className="min-w-[60px] text-amber-600 font-bold">80층</span>
                                             <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />10,000</span>
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />100</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />5,000</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />50</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox5.png" alt="장비상자 V" className="w-4 h-4" />장비상자5 ×2</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <span className="min-w-[60px] text-amber-300 font-bold">65층</span>
+                                            <div className="flex items-center gap-3 flex-wrap">
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />2,500</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />25</span>
                                                 <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox5.png" alt="장비상자 V" className="w-4 h-4" />장비상자5 ×1</span>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-2">
-                                            <span className="min-w-[52px] text-amber-300 font-bold">11~50위</span>
+                                            <span className="min-w-[60px] text-amber-300 font-bold">50층</span>
                                             <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />7,500</span>
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />75</span>
-                                                <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox4.png" alt="장비상자 IV" className="w-4 h-4" />장비상자4 ×2</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-start gap-2">
-                                            <span className="min-w-[52px] text-amber-300 font-bold">51~100위</span>
-                                            <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />5,000</span>
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />50</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />1,500</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />20</span>
                                                 <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox4.png" alt="장비상자 IV" className="w-4 h-4" />장비상자4 ×1</span>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-2">
-                                            <span className="min-w-[52px] text-amber-300 font-bold">순위권 밖</span>
+                                            <span className="min-w-[60px] text-amber-300 font-bold">35층</span>
                                             <div className="flex items-center gap-3 flex-wrap">
                                                 <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />1,000</span>
-                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />25</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />15</span>
                                                 <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox3.png" alt="장비상자 III" className="w-4 h-4" />장비상자3 ×1</span>
                                             </div>
                                         </div>
-                                        <p className="text-amber-200/80 mt-2 text-[10px]">* 순위권 밖: 1층 이상 클리어한 사용자</p>
+                                        <div className="flex items-start gap-2">
+                                            <span className="min-w-[60px] text-amber-300 font-bold">20층</span>
+                                            <div className="flex items-center gap-3 flex-wrap">
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />500</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />10</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox2.png" alt="장비상자 II" className="w-4 h-4" />장비상자2 ×1</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <span className="min-w-[60px] text-amber-300 font-bold">10층</span>
+                                            <div className="flex items-center gap-3 flex-wrap">
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />300</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-4 h-4" />5</span>
+                                                <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox1.png" alt="장비상자 I" className="w-4 h-4" />장비상자1 ×1</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-amber-200/80 mt-2 text-[10px]">* 10층 미만 클리어 시 보상이 지급되지 않습니다.</p>
                                         <p className="text-amber-200/80 text-[10px]">* 보상은 매월 1일 0시(KST)에 메일로 지급되며, 30일 이내에 수령해주세요.</p>
                                     </div>
                                 </div>

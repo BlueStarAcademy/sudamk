@@ -240,11 +240,21 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             const fullUserForBroadcast = JSON.parse(JSON.stringify(user));
             broadcast({ type: 'USER_UPDATE', payload: { [user.id]: fullUserForBroadcast } });
 
-            const aggregated: Record<string, number> = {};
+            // 아이템을 이름별로 집계하되, 원본 아이템의 모든 속성(image 포함)을 보존
+            const itemMap = new Map<string, InventoryItem>();
             allObtainedItems.forEach(item => {
-                aggregated[item.name] = (aggregated[item.name] || 0) + (item.quantity || 1);
+                if (itemMap.has(item.name)) {
+                    const existing = itemMap.get(item.name)!;
+                    existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
+                } else {
+                    // 원본 아이템을 깊은 복사하여 보존
+                    itemMap.set(item.name, {
+                        ...item,
+                        quantity: item.quantity || 1
+                    });
+                }
             });
-            const itemsToAdd = Object.keys(aggregated).map(name => ({ ...allObtainedItems.find(i => i.name === name)!, quantity: aggregated[name] }));
+            const itemsToAdd = Array.from(itemMap.values());
 
             return { clientResponse: { obtainedItemsBulk: itemsToAdd, updatedUser } };
         }

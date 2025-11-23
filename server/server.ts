@@ -241,8 +241,19 @@ const startServer = async () => {
         }
     }));
     
-    // TODO: compression 패키지 설치 후 압축 미들웨어 추가
-    // npm install compression @types/compression
+    // 응답 압축 미들웨어 (네트워크 전송량 감소)
+    const compression = (await import('compression')).default;
+    app.use(compression({
+        filter: (req, res) => {
+            // JSON 응답과 텍스트만 압축 (이미지 등은 제외)
+            if (req.headers['x-no-compression']) {
+                return false;
+            }
+            return compression.filter(req, res);
+        },
+        level: 6, // 압축 레벨 (1-9, 6이 속도와 압축률의 균형)
+        threshold: 1024, // 1KB 이상만 압축
+    }));
 
     // --- Constants ---
     const LOBBY_TIMEOUT_MS = 90 * 1000;

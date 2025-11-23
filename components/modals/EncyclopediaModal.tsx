@@ -254,7 +254,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                                     >
                                         <div className="relative w-8 h-8 flex-shrink-0">
                                             <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-sm" />
-                                            {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain p-0.5" />}
+                                            {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-0.5" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                                         </div>
                                         <span className={`${gradeStyles[item.grade].color} truncate`}>{item.name}</span>
                                     </button>
@@ -269,7 +269,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                              <>
                                 <div className={`relative flex-shrink-0 ${mainTab === 'equipment' ? 'w-20 h-20 md:w-40 md:h-40' : 'w-24 h-24 md:w-40 md:h-40'}`}>
                                     <img src={gradeBackgrounds[selectedItem.grade]} alt={selectedItem.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
-                                    {selectedItem.image && <img src={selectedItem.image} alt={selectedItem.name} className="relative w-full h-full object-contain p-[15%]"/>}
+                                    {selectedItem.image && <img src={selectedItem.image} alt={selectedItem.name} className="absolute object-contain" style={{ width: '80%', height: '80%', padding: '15%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                                 </div>
                                 <h3 className={`font-bold mt-2 md:mt-4 ${gradeStyles[selectedItem.grade].color} text-center ${mainTab === 'equipment' ? 'text-lg md:text-2xl' : 'text-xl md:text-2xl'}`}>{selectedItem.name}</h3>
                                 <p className={`text-xs md:text-sm text-center ${selectedItem.type === 'equipment' ? gradeStyles[selectedItem.grade].color : 'text-gray-400'}`}>

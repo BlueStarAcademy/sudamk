@@ -19,6 +19,9 @@ import { calculateRanks } from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 
+const getRandomInt = (min: number, max: number): number => {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+};
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -560,7 +563,34 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 return { clientResponse: { obtainedItemsBulk: allObtainedItems, updatedUser, tournamentScoreChange: { oldScore: oldCumulativeScore, newScore: freshUser.cumulativeTournamentScore, scoreReward: scoreReward } }};
             }
 
-            const itemsToCreate = itemReward.items ? createItemInstancesFromReward(itemReward.items as {itemId: string, quantity: number}[]) : [];
+            // 다이아 꾸러미와 골드 꾸러미는 직접 골드/다이아로 변환하여 지급
+            const { currencyBundles } = await import('./inventoryActions.js');
+            let bundleGold = 0;
+            let bundleDiamonds = 0;
+            const regularItems: { itemId: string; quantity: number }[] = [];
+            
+            if (itemReward.items) {
+                for (const itemRef of itemReward.items as { itemId: string; quantity: number }[]) {
+                    const bundleInfo = currencyBundles[itemRef.itemId];
+                    if (bundleInfo) {
+                        // 골드/다이아 꾸러미는 직접 골드/다이아로 변환
+                        const quantity = itemRef.quantity || 1;
+                        for (let i = 0; i < quantity; i++) {
+                            const amount = getRandomInt(bundleInfo.min, bundleInfo.max);
+                            if (bundleInfo.type === 'gold') {
+                                bundleGold += amount;
+                            } else if (bundleInfo.type === 'diamonds') {
+                                bundleDiamonds += amount;
+                            }
+                        }
+                    } else {
+                        // 일반 아이템은 그대로 추가
+                        regularItems.push(itemRef);
+                    }
+                }
+            }
+            
+            const itemsToCreate = regularItems.length > 0 ? createItemInstancesFromReward(regularItems) : [];
             
             // 전국바둑대회: 누적 재료 추가
             if (tournamentType === 'national' && tournamentState.accumulatedMaterials) {
@@ -614,8 +644,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 accumulatedGold = tournamentState.accumulatedGold;
             }
             
-            freshUser.gold += (itemReward.gold || 0) + accumulatedGold;
-            freshUser.diamonds += itemReward.diamonds || 0;
+            freshUser.gold += (itemReward.gold || 0) + accumulatedGold + bundleGold;
+            freshUser.diamonds += (itemReward.diamonds || 0) + bundleDiamonds;
             freshUser.inventory = updatedInventory;
             
             updateQuestProgress(freshUser, 'tournament_complete');
@@ -666,32 +696,34 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 } as InventoryItem);
             }
 
-            if (itemReward.gold) {
+            const totalGoldFromReward = (itemReward.gold || 0) + bundleGold;
+            if (totalGoldFromReward > 0) {
                 allObtainedItems.unshift({
                     id: `display-gold-direct-${Date.now()}`,
-                    name: `${itemReward.gold} 골드`,
+                    name: `${totalGoldFromReward} 골드${bundleGold > 0 ? ' (꾸러미 포함)' : ''}`,
                     description: '순위 보상으로 획득한 골드입니다.',
                     type: 'consumable',
                     slot: null,
                     image: '/images/icon/Gold.png',
                     grade: 'rare',
-                    quantity: itemReward.gold,
+                    quantity: totalGoldFromReward,
                     createdAt: Date.now(),
                     isEquipped: false,
                     level: 1,
                     stars: 0,
                 } as InventoryItem);
             }
-            if (itemReward.diamonds) {
+            const totalDiamonds = (itemReward.diamonds || 0) + bundleDiamonds;
+            if (totalDiamonds > 0) {
                 allObtainedItems.unshift({
                     id: `display-diamond-direct-${Date.now()}`,
-                    name: `${itemReward.diamonds} 다이아`,
+                    name: `${totalDiamonds} 다이아${bundleDiamonds > 0 ? ' (꾸러미 포함)' : ''}`,
                     description: '순위 보상으로 획득한 다이아입니다.',
                     type: 'consumable',
                     slot: null,
                     image: '/images/icon/Zem.png',
                     grade: 'epic',
-                    quantity: itemReward.diamonds,
+                    quantity: totalDiamonds,
                     createdAt: Date.now(),
                     isEquipped: false,
                     level: 1,

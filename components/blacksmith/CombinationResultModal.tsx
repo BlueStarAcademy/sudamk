@@ -37,7 +37,7 @@ const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
             <div className="flex mb-2">
                 <div className="relative w-20 h-20 rounded-lg flex-shrink-0 mr-3">
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                    {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain p-1"/>}
+                    {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                     {renderStarDisplay(item.stars)}
                     {item.isDivineMythic && (
                         <div 

@@ -209,6 +209,10 @@ export function openMaterialBox(boxId: 'material_box_1' | 'material_box_2' | 'ma
 
     return Object.entries(results).map(([name, quantity]) => {
         const template = MATERIAL_ITEMS[name];
+        if (!template) {
+            console.error(`[openMaterialBox] Template not found for: ${name}`);
+            return null;
+        }
         return {
             ...template,
             id: `item-${randomUUID()}`,
@@ -218,7 +222,7 @@ export function openMaterialBox(boxId: 'material_box_1' | 'material_box_2' | 'ma
             level: 1,
             stars: 0,
         };
-    });
+    }).filter((item): item is InventoryItem => item !== null);
 }
 
 export const SHOP_ITEMS: { [key: string]: { type: 'equipment' | 'material'; name: string; description: string; cost: { gold?: number, diamonds?: number }; onPurchase: () => any, image: string, dailyLimit?: number, weeklyLimit?: number } } = {

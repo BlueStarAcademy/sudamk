@@ -16,16 +16,20 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild }) =>
 
     const [description, setDescription] = useState(guild.description);
     const [isPublic, setIsPublic] = useState(guild.isPublic);
+    const [joinType, setJoinType] = useState<'application' | 'free'>(guild.joinType || 'application');
     const [isEditingProfile, setIsEditingProfile] = useState(false);
 
     const applicantsWithUserData = useMemo(() => {
         // This would ideally fetch user data for applicants, but for now we'll assume we don't have it
         // and just show IDs or a placeholder.
-        return guild.applicants?.map(app => ({ 
-            id: app.userId, 
-            nickname: `User-${app.userId.slice(0, 4)}`,
-            appliedAt: app.appliedAt
-        })) || [];
+        return guild.applicants?.map((app: any) => {
+            const userId = typeof app === 'string' ? app : app.userId;
+            return {
+                id: userId,
+                nickname: `User-${userId.slice(0, 4)}`,
+                appliedAt: typeof app === 'string' ? Date.now() : (app.appliedAt || Date.now())
+            };
+        }) || [];
     }, [guild.applicants]);
 
     const handleSaveAnnouncement = () => {
@@ -34,7 +38,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild }) =>
     };
 
     const handleSaveProfile = () => {
-        handlers.handleAction({ type: 'GUILD_UPDATE_PROFILE', payload: { guildId: guild.id, description, isPublic } });
+        handlers.handleAction({ type: 'GUILD_UPDATE_PROFILE', payload: { guildId: guild.id, description, isPublic, joinType } });
         setIsEditingProfile(false);
     };
 
@@ -57,6 +61,36 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild }) =>
                             <div className="flex items-center justify-between p-3 bg-gradient-to-r from-stone-800/60 to-neutral-700/60 rounded-lg border border-stone-600/40">
                                 <label className="text-sm font-semibold text-highlight">공개 설정</label>
                                 <ToggleSwitch checked={!!isPublic} onChange={setIsPublic} />
+                            </div>
+                            <div className="p-3 bg-gradient-to-r from-stone-800/60 to-neutral-700/60 rounded-lg border border-stone-600/40">
+                                <label className="block mb-2 text-sm font-semibold text-highlight">가입 방식</label>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setJoinType('application')}
+                                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${
+                                            joinType === 'application'
+                                                ? 'bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white shadow-lg'
+                                                : 'bg-stone-700/50 text-tertiary hover:bg-stone-700/70'
+                                        }`}
+                                    >
+                                        신청가입
+                                    </button>
+                                    <button
+                                        onClick={() => setJoinType('free')}
+                                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${
+                                            joinType === 'free'
+                                                ? 'bg-gradient-to-r from-green-600/90 to-emerald-600/90 text-white shadow-lg'
+                                                : 'bg-stone-700/50 text-tertiary hover:bg-stone-700/70'
+                                        }`}
+                                    >
+                                        자유가입
+                                    </button>
+                                </div>
+                                <p className="text-xs text-tertiary mt-2">
+                                    {joinType === 'application' 
+                                        ? '길드장 또는 부길드장이 승인해야 가입됩니다.'
+                                        : '빈자리가 있으면 자동으로 가입됩니다.'}
+                                </p>
                             </div>
                             <div className="flex justify-end gap-3 pt-3 border-t border-stone-600/50">
                                 <Button onClick={() => setIsEditingProfile(false)} className="border-2 border-stone-500/50 bg-gradient-to-r from-stone-700/90 to-neutral-700/90 text-white shadow-lg hover:shadow-xl transition-all">취소</Button>

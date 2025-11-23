@@ -525,6 +525,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
     lastTowerClearTime: prismaUser.lastTowerClearTime != null 
       ? Number(prismaUser.lastTowerClearTime) 
       : safeNumber(legacy.lastTowerClearTime, undefined),
+    monthlyTowerFloor: safeNumber((prismaUser as any).monthlyTowerFloor, safeNumber((legacy as any)?.monthlyTowerFloor, 0)),
     guildId: user.guildId ?? (prismaUser.guildMember?.guildId ?? undefined)
   };
 

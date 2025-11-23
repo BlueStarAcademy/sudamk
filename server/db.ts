@@ -155,7 +155,7 @@ interface CachedUser {
 }
 
 const userCache = new Map<string, CachedUser>();
-const CACHE_TTL = 2000; // 2초 캐시 (데이터 일관성과 성능의 균형)
+const CACHE_TTL = 3000; // 3초 캐시 (데이터 일관성과 성능의 균형 - Railway 환경 최적화)
 
 export const getAllUsers = async (): Promise<User[]> => {
     return listUsers();
@@ -198,11 +198,18 @@ export const createUser = async (user: User): Promise<void> => {
     await prismaCreateUser(user);
 };
 export const updateUser = async (user: User): Promise<void> => {
+    // 캐시에서 기존 데이터 확인 (DB 조회 최소화)
     let existing: User | null = null;
-    try {
-        existing = user.id ? await prismaGetUserById(user.id) : null;
-    } catch (err) {
-        console.error(`[DB] Failed to load existing user ${user.id} before update:`, err);
+    const cached = userCache.get(user.id);
+    if (cached) {
+        existing = cached.user;
+    } else {
+        // 캐시에 없을 때만 DB 조회 (안전 검사용)
+        try {
+            existing = user.id ? await prismaGetUserById(user.id) : null;
+        } catch (err) {
+            console.error(`[DB] Failed to load existing user ${user.id} before update:`, err);
+        }
     }
 
     if (existing) {

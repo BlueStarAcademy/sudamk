@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { User } from '../types.js';
 import Avatar from './Avatar.js';
@@ -58,8 +58,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost }) => {
                     }
                 })
                 .filter(item => item.value >= 0) // 에러가 발생한 경우 제외
-                .sort((a, b) => b.value - a.value)
-                .slice(0, 50); // 상위 50위까지만 표시
+                .sort((a, b) => b.value - a.value);
             if (IS_DEV) {
                 console.debug('[GameRankingBoard] Combat rankings:', result.length, 'users');
             }
@@ -68,14 +67,49 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost }) => {
             const result = allUsers
                 .filter(user => user && user.id)
                 .map(user => ({ user, value: user.mannerScore || 0 }))
-                .sort((a, b) => b.value - a.value)
-                .slice(0, 50); // 상위 50위까지만 표시
+                .sort((a, b) => b.value - a.value);
             if (IS_DEV) {
                 console.debug('[GameRankingBoard] Manner rankings:', result.length, 'users');
             }
             return result;
         }
     }, [allUsers, activeTab]);
+
+    // 페이지네이션: 초기 10명, 스크롤 시 10명씩 추가
+    const [displayCount, setDisplayCount] = useState(10);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+    const observerRef = useRef<IntersectionObserver | null>(null);
+
+    useEffect(() => {
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+        }
+
+        if (loadMoreRef.current && displayCount < rankings.length) {
+            observerRef.current = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting) {
+                        setDisplayCount(prev => Math.min(prev + 10, rankings.length));
+                    }
+                },
+                { threshold: 0.1 }
+            );
+            observerRef.current.observe(loadMoreRef.current);
+        }
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+            }
+        };
+    }, [displayCount, rankings.length]);
+
+    // 탭 변경 시 displayCount 리셋
+    useEffect(() => {
+        setDisplayCount(10);
+    }, [activeTab]);
+
+    const displayedRankings = rankings.slice(0, displayCount);
 
     const currentUserRanking = useMemo(() => {
         if (!currentUserWithStatus) return null;
@@ -125,9 +159,14 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost }) => {
                             </div>
                         )}
                         <div className="flex flex-col gap-1">
-                            {rankings.filter(r => r && r.user && r.user.id).map((r, i) => (
+                            {displayedRankings.filter(r => r && r.user && r.user.id).map((r, i) => (
                                 <RankingRow key={r.user.id} user={r.user} rank={i + 1} value={r.value} isCurrentUser={false} onViewUser={handlers.openViewingUser} />
                             ))}
+                            {displayCount < rankings.length && (
+                                <div ref={loadMoreRef} className="text-center text-gray-400 py-2 text-xs">
+                                    로딩 중...
+                                </div>
+                            )}
                         </div>
                     </>
                 )}

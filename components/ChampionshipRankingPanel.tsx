@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { LeagueTier, User } from '../types.js';
 import { LEAGUE_DATA, RANKING_TIERS, AVATAR_POOL, BORDER_POOL } from '../constants';
@@ -94,7 +94,41 @@ const ChampionshipRankingPanel: React.FC = () => {
         );
     }
 
-    const topUsers = sortedUsers.slice(0, 100);
+    // 페이지네이션: 초기 10명, 스크롤 시 10명씩 추가
+    const [displayCount, setDisplayCount] = useState(10);
+    const loadMoreRef = useRef<HTMLLIElement>(null);
+    const observerRef = useRef<IntersectionObserver | null>(null);
+
+    useEffect(() => {
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+        }
+
+        if (loadMoreRef.current && displayCount < sortedUsers.length) {
+            observerRef.current = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting) {
+                        setDisplayCount(prev => Math.min(prev + 10, sortedUsers.length));
+                    }
+                },
+                { threshold: 0.1 }
+            );
+            observerRef.current.observe(loadMoreRef.current);
+        }
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+            }
+        };
+    }, [displayCount, sortedUsers.length]);
+
+    // 티어 변경 시 displayCount 리셋
+    useEffect(() => {
+        setDisplayCount(10);
+    }, [selectedTier]);
+
+    const topUsers = sortedUsers.slice(0, displayCount);
 
     return (
         <div className="bg-gray-800 rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0">
@@ -126,7 +160,16 @@ const ChampionshipRankingPanel: React.FC = () => {
               </div>
             )}
             <ul key={selectedTier} className="space-y-2 overflow-y-auto pr-2 flex-grow min-h-0">
-                 {topUsers.length > 0 ? topUsers.map((user, index) => <RankItem key={user.id} user={user} rank={index + 1} isMyRankDisplay={false} />) : (
+                 {topUsers.length > 0 ? (
+                     <>
+                         {topUsers.map((user, index) => <RankItem key={user.id} user={user} rank={index + 1} isMyRankDisplay={false} />)}
+                         {displayCount < sortedUsers.length && (
+                             <li ref={loadMoreRef} className="text-center text-gray-500 py-2 text-xs">
+                                 로딩 중...
+                             </li>
+                         )}
+                     </>
+                 ) : (
                     <p className="text-center text-gray-500 pt-8">{selectedTier} 리그에 랭크된 유저가 없습니다.</p>
                  )}
             </ul>

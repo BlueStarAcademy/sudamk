@@ -15,8 +15,6 @@ import GuildShopModal from './GuildShopModal.js';
 import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
 import HelpModal from '../HelpModal.js';
 import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST } from '../../utils/timeUtils.js';
-import GuildBoss from './GuildBoss.js';
-import GuildWar from './GuildWar.js';
 
 // 길드 아이콘 경로 수정 함수
 const getGuildIconPath = (icon: string | undefined): string => {
@@ -88,13 +86,43 @@ const GuildDonationPanel: React.FC<{ guildDonationAnimation: { coins: number; re
     };
 
     return (
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col relative overflow-visible border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-shrink-0" style={{ height: '180px', minHeight: '180px', maxHeight: '180px' }}>
+        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col relative overflow-visible border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-shrink-0" style={{ minHeight: '240px' }}>
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none rounded-xl"></div>
-            <h3 className="font-bold text-base text-highlight mb-2 text-center relative z-10 flex items-center justify-center gap-2 drop-shadow-lg flex-shrink-0">
+            <h3 className="font-bold text-base text-highlight mb-3 text-center relative z-10 flex items-center justify-center gap-2 drop-shadow-lg flex-shrink-0">
                 <span className="text-lg">💎</span>
                 <span>길드 기부</span>
             </h3>
-            <div className="grid grid-cols-2 gap-3 relative z-10 flex-1 min-h-0 overflow-visible" style={{ height: '100%' }}>
+            
+            {/* 획득 가능한 보상 정보 */}
+            <div className="grid grid-cols-2 gap-3 mb-3 relative z-10">
+                {/* 골드 기부 보상 */}
+                <div className="bg-gradient-to-br from-amber-900/40 to-amber-800/30 rounded-lg p-2 border border-amber-600/30">
+                    <div className="text-xs font-semibold text-amber-200 mb-1.5 text-center">골드 기부 보상</div>
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                        <img src="/images/guild/tokken.png" alt="길드코인" className="w-4 h-4" />
+                        <span className="text-xs text-amber-100 font-bold">{GUILD_DONATION_GOLD_REWARDS.guildCoins[0]}~{GUILD_DONATION_GOLD_REWARDS.guildCoins[1]}</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5">
+                        <img src="/images/guild/button/guildlab.png" alt="연구포인트" className="w-4 h-4" />
+                        <span className="text-xs text-amber-100 font-bold">{GUILD_DONATION_GOLD_REWARDS.researchPoints[0]}~{GUILD_DONATION_GOLD_REWARDS.researchPoints[1]} RP</span>
+                    </div>
+                </div>
+                
+                {/* 다이아 기부 보상 */}
+                <div className="bg-gradient-to-br from-blue-900/40 to-indigo-800/30 rounded-lg p-2 border border-blue-600/30">
+                    <div className="text-xs font-semibold text-blue-200 mb-1.5 text-center">다이아 기부 보상</div>
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                        <img src="/images/guild/tokken.png" alt="길드코인" className="w-4 h-4" />
+                        <span className="text-xs text-blue-100 font-bold">{GUILD_DONATION_DIAMOND_REWARDS.guildCoins[0]}~{GUILD_DONATION_DIAMOND_REWARDS.guildCoins[1]}</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5">
+                        <img src="/images/guild/button/guildlab.png" alt="연구포인트" className="w-4 h-4" />
+                        <span className="text-xs text-blue-100 font-bold">{GUILD_DONATION_DIAMOND_REWARDS.researchPoints[0]}~{GUILD_DONATION_DIAMOND_REWARDS.researchPoints[1]} RP</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3 relative z-10 flex-1 min-h-0 overflow-visible">
                 {/* 골드 기부 버튼 */}
                 <div ref={goldButtonRef} className="flex flex-col justify-center h-full relative overflow-visible">
                     <Button 
@@ -102,9 +130,9 @@ const GuildDonationPanel: React.FC<{ guildDonationAnimation: { coins: number; re
                         disabled={!canDonateGold || isDonating}
                         colorScheme="none"
                         className={`w-full h-full justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 font-semibold tracking-wide shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 ${!canDonateGold || isDonating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        style={{ minHeight: '80px', height: '80px' }}
+                        style={{ minHeight: '90px', height: '90px' }}
                     >
-                        <div className="flex flex-col items-center justify-center gap-0.5 h-full">
+                        <div className="flex flex-col items-center justify-center gap-1 h-full">
                             {isDonating ? (
                                 <div className="flex items-center justify-center gap-1 h-full">
                                     <span className="animate-spin text-sm">⏳</span>
@@ -112,21 +140,13 @@ const GuildDonationPanel: React.FC<{ guildDonationAnimation: { coins: number; re
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-center justify-center gap-2 text-sm sm:text-base">
-                                        <img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5 drop-shadow-md" />
+                                    <div className="flex items-center justify-center gap-2 text-base font-bold">
+                                        <img src="/images/icon/Gold.png" alt="골드" className="w-6 h-6 drop-shadow-md" />
                                         <span>{GUILD_DONATION_GOLD_COST.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex flex-col items-center gap-0.5">
-                                        <div className="flex items-center gap-1 text-[9px] text-slate-800/90">
-                                            <img src="/images/guild/tokken.png" alt="길드코인" className="w-3 h-3" />
-                                            <span className="font-semibold">{GUILD_DONATION_GOLD_REWARDS.guildCoins[0]}~{GUILD_DONATION_GOLD_REWARDS.guildCoins[1]}</span>
-                                            <img src="/images/guild/button/guildlab.png" alt="연구포인트" className="w-3 h-3 ml-1" />
-                                            <span className="font-semibold">{GUILD_DONATION_GOLD_REWARDS.researchPoints[0]}~{GUILD_DONATION_GOLD_REWARDS.researchPoints[1]}</span>
-                                        </div>
-                                        <span className="text-[10px] text-slate-700/90 tracking-wide">
-                                            일일 한도 {goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}
-                                        </span>
-                                    </div>
+                                    <span className="text-xs text-slate-700/90 tracking-wide font-semibold">
+                                        일일 한도 {goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}
+                                    </span>
                                 </>
                             )}
                         </div>
@@ -140,9 +160,9 @@ const GuildDonationPanel: React.FC<{ guildDonationAnimation: { coins: number; re
                         disabled={!canDonateDiamond || isDonating}
                         colorScheme="none"
                         className={`w-full h-full justify-center rounded-xl border border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white font-semibold tracking-wide shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-sky-300 hover:to-indigo-500 ${!canDonateDiamond || isDonating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        style={{ minHeight: '80px', height: '80px' }}
+                        style={{ minHeight: '90px', height: '90px' }}
                     >
-                        <div className="flex flex-col items-center justify-center gap-0.5 h-full">
+                        <div className="flex flex-col items-center justify-center gap-1 h-full">
                             {isDonating ? (
                                 <div className="flex items-center justify-center gap-1 h-full">
                                     <span className="animate-spin text-sm">⏳</span>
@@ -150,21 +170,13 @@ const GuildDonationPanel: React.FC<{ guildDonationAnimation: { coins: number; re
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-center justify-center gap-2 text-sm sm:text-base">
-                                        <img src="/images/icon/Zem.png" alt="다이아" className="w-5 h-5 drop-shadow-md" />
+                                    <div className="flex items-center justify-center gap-2 text-base font-bold">
+                                        <img src="/images/icon/Zem.png" alt="다이아" className="w-6 h-6 drop-shadow-md" />
                                         <span>{GUILD_DONATION_DIAMOND_COST.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex flex-col items-center gap-0.5">
-                                        <div className="flex items-center gap-1 text-[9px] text-white/90">
-                                            <img src="/images/guild/tokken.png" alt="길드코인" className="w-3 h-3" />
-                                            <span className="font-semibold">{GUILD_DONATION_DIAMOND_REWARDS.guildCoins[0]}~{GUILD_DONATION_DIAMOND_REWARDS.guildCoins[1]}</span>
-                                            <img src="/images/guild/button/guildlab.png" alt="연구포인트" className="w-3 h-3 ml-1" />
-                                            <span className="font-semibold">{GUILD_DONATION_DIAMOND_REWARDS.researchPoints[0]}~{GUILD_DONATION_DIAMOND_REWARDS.researchPoints[1]}</span>
-                                        </div>
-                                        <span className="text-[10px] text-white/70 tracking-wide">
-                                            일일 한도 {diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}
-                                        </span>
-                                    </div>
+                                    <span className="text-xs text-white/90 tracking-wide font-semibold">
+                                        일일 한도 {diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}
+                                    </span>
                                 </>
                             )}
                         </div>
@@ -193,15 +205,15 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
                     <button 
                         key={act.name} 
                         onClick={act.action}
-                        className={`flex flex-col items-center gap-1.5 p-2 rounded-xl bg-gradient-to-br from-stone-800/50 to-stone-700/30 border border-stone-600/40 transition-all hover:brightness-110 hover:shadow-lg relative group flex-1`}
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl bg-gradient-to-br from-stone-800/50 to-stone-700/30 border border-stone-600/40 transition-all hover:brightness-110 hover:shadow-lg relative group flex-1`}
                     >
-                        <div className="w-12 h-12 bg-gradient-to-br from-stone-700/60 to-stone-800/50 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-xl transition-shadow border border-stone-600/40">
-                            <img src={act.icon} alt={act.name} className="w-10 h-10 drop-shadow-lg" />
+                        <div className="w-16 h-16 bg-gradient-to-br from-stone-700/60 to-stone-800/50 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-xl transition-shadow border border-stone-600/40">
+                            <img src={act.icon} alt={act.name} className="w-14 h-14 drop-shadow-lg" />
                         </div>
-                        <span className="text-[10px] font-semibold text-highlight">{act.name}</span>
+                        <span className="text-xs font-semibold text-highlight">{act.name}</span>
                         {act.notification && (
-                            <div className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-secondary shadow-lg flex items-center justify-center">
-                                <span className="text-[7px] text-white">!</span>
+                            <div className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse border-2 border-secondary shadow-lg flex items-center justify-center">
+                                <span className="text-[8px] text-white font-bold">!</span>
                             </div>
                         )}
                     </button>
@@ -212,6 +224,32 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
 };
 
 const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, className }) => {
+    const { currentUserWithStatus } = useAppContext();
+    
+    // 나의 기록과 랭킹 계산
+    const { myDamage, myRank, top3Ranking } = useMemo(() => {
+        if (!guild.guildBossState?.totalDamageLog || !currentUserWithStatus) {
+            return { myDamage: 0, myRank: null, top3Ranking: [] };
+        }
+        
+        const damageLog = guild.guildBossState.totalDamageLog || {} as Record<string, number>;
+        const fullRanking = Object.entries(damageLog)
+            .map(([userId, damage]: [string, any]) => {
+                const member = guild.members?.find((m: GuildMember) => m.userId === userId);
+                return { userId, nickname: member?.nickname || '알 수 없음', damage: typeof damage === 'number' ? damage : 0 };
+            })
+            .sort((a, b) => b.damage - a.damage);
+        
+        const myRankIndex = fullRanking.findIndex(r => r.userId === currentUserWithStatus.id);
+        const myData = myRankIndex !== -1 ? { ...fullRanking[myRankIndex], rank: myRankIndex + 1 } : null;
+        const top3 = fullRanking.slice(0, 3);
+        
+        return {
+            myDamage: myData?.damage || 0,
+            myRank: myData?.rank || null,
+            top3Ranking: top3
+        };
+    }, [guild.guildBossState?.totalDamageLog, guild.members, currentUserWithStatus]);
     const currentBoss = useMemo(() => {
         if (!guild.guildBossState) return GUILD_BOSSES[0];
         return GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId) || GUILD_BOSSES[0];
@@ -328,42 +366,116 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                 <div className="w-28 h-28 bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center my-2 mx-auto border border-stone-600/50 shadow-lg flex-shrink-0">
                     <img src={currentBoss.image} alt={currentBoss.name} className="w-24 h-24 drop-shadow-lg" />
                 </div>
-                <div className="w-full flex-1 flex flex-col justify-end">
-                    <p className="text-sm font-bold text-highlight mb-1.5">{currentBoss.name}</p>
-                    <div className="w-full bg-gray-700/50 rounded-full h-2 border border-gray-600/50 overflow-hidden shadow-inner">
-                        <div 
-                            className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
-                            style={{ width: `${hpPercent}%` }}
-                        ></div>
+                <div className="w-full flex-1 flex flex-col justify-between min-h-0">
+                    <div className="flex-shrink-0">
+                        <p className="text-sm font-bold text-highlight mb-1.5">{currentBoss.name}</p>
+                        <div className="w-full bg-gray-700/50 rounded-full h-2 border border-gray-600/50 overflow-hidden shadow-inner mb-1">
+                            <div 
+                                className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
+                                style={{ width: `${hpPercent}%` }}
+                            ></div>
+                        </div>
+                        <p className="text-[10px] text-amber-300 font-semibold">{hpPercent.toFixed(1)}% 남음</p>
+                        <p className="text-[9px] text-tertiary mt-1 bg-gray-800/50 px-1.5 py-0.5 rounded-md inline-block">교체까지: {timeLeft}</p>
                     </div>
-                    <p className="text-[10px] text-amber-300 mt-1 font-semibold">{hpPercent.toFixed(1)}% 남음</p>
-                    <p className="text-[9px] text-tertiary mt-1.5 bg-gray-800/50 px-1.5 py-0.5 rounded-md inline-block">교체까지: {timeLeft}</p>
+                    
+                    {/* 나의 기록 및 랭킹 */}
+                    <div className="flex-shrink-0 mt-2 pt-2 border-t border-stone-600/40 space-y-1.5">
+                        {myRank !== null && (
+                            <div className="bg-stone-800/50 rounded-md px-2 py-1">
+                                <div className="text-[9px] text-stone-400 mb-0.5">나의 기록</div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-semibold text-highlight">랭킹 {myRank}위</span>
+                                    <span className="text-[10px] font-bold text-amber-300">{myDamage.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        )}
+                        {top3Ranking.length > 0 && (
+                            <div className="bg-stone-800/50 rounded-md px-2 py-1">
+                                <div className="text-[9px] text-stone-400 mb-0.5">길드 Top 3</div>
+                                <div className="space-y-0.5">
+                                    {top3Ranking.map((rank, idx) => (
+                                        <div key={rank.userId} className="flex items-center justify-between text-[9px]">
+                                            <span className="text-stone-300 truncate flex-1">{idx + 1}. {rank.nickname}</span>
+                                            <span className="text-amber-300 font-semibold ml-1">{rank.damage.toLocaleString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </button>
     );
 };
 
-const WarPanel: React.FC<{ className?: string }> = ({ className }) => (
-    <button 
-        onClick={() => window.location.hash = '#/guildwar'}
-        className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center transition-all hover:brightness-110 w-full relative overflow-hidden h-full ${className || ''}`}
-    >
-        <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-        <div className="relative z-10 w-full flex flex-col h-full">
-            <h3 className="font-bold text-base text-highlight mb-2 flex items-center justify-center gap-2 flex-shrink-0">
-                <span className="text-xl">🛡️</span>
-                <span>길드 전쟁</span>
-            </h3>
-            <div className="w-28 h-28 bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center my-2 mx-auto border border-stone-600/50 shadow-lg flex-shrink-0">
-                <img src="/images/guild/button/guildwar.png" alt="길드 전쟁" className="w-24 h-24 drop-shadow-lg" />
+const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, className }) => {
+    // 전쟁 데이터 (임시로 예시 데이터 사용, 실제로는 guild.guildWarState 등에서 가져와야 함)
+    const ourGuildOccupancy = 45; // 우리 길드 점령률 (%)
+    const enemyGuildOccupancy = 55; // 상대 길드 점령률 (%)
+    const enemyGuildName = "상대 길드"; // 실제로는 매칭된 길드 이름
+    
+    return (
+        <button 
+            onClick={() => window.location.hash = '#/guildwar'}
+            className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center transition-all hover:brightness-110 w-full relative overflow-hidden h-full ${className || ''}`}
+        >
+            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
+            <div className="relative z-10 w-full flex flex-col h-full">
+                <h3 className="font-bold text-base text-highlight mb-2 flex items-center justify-center gap-2 flex-shrink-0">
+                    <span className="text-xl">🛡️</span>
+                    <span>길드 전쟁</span>
+                </h3>
+                <div className="w-28 h-28 bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center my-2 mx-auto border border-stone-600/50 shadow-lg flex-shrink-0">
+                    <img src="/images/guild/button/guildwar.png" alt="길드 전쟁" className="w-24 h-24 drop-shadow-lg" />
+                </div>
+                
+                <div className="w-full flex-1 flex flex-col justify-between min-h-0">
+                    {/* 점령률 표시 */}
+                    <div className="flex-shrink-0 space-y-2">
+                        <div className="bg-stone-800/50 rounded-md px-2 py-1.5">
+                            <div className="text-[9px] text-stone-400 mb-1.5 text-center">현재 점령률</div>
+                            <div className="space-y-1.5">
+                                {/* 우리 길드 */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-0.5">
+                                        <span className="text-[9px] font-semibold text-blue-300 truncate">{guild.name}</span>
+                                        <span className="text-[9px] font-bold text-blue-300">{ourGuildOccupancy}%</span>
+                                    </div>
+                                    <div className="w-full bg-gray-700/50 rounded-full h-2 border border-gray-600/50 overflow-hidden">
+                                        <div 
+                                            className="bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 h-full rounded-full transition-all duration-500"
+                                            style={{ width: `${ourGuildOccupancy}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                                
+                                {/* 상대 길드 */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-0.5">
+                                        <span className="text-[9px] font-semibold text-red-300 truncate">{enemyGuildName}</span>
+                                        <span className="text-[9px] font-bold text-red-300">{enemyGuildOccupancy}%</span>
+                                    </div>
+                                    <div className="w-full bg-gray-700/50 rounded-full h-2 border border-gray-600/50 overflow-hidden">
+                                        <div 
+                                            className="bg-gradient-to-r from-red-500 via-orange-400 to-red-500 h-full rounded-full transition-all duration-500"
+                                            style={{ width: `${enemyGuildOccupancy}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-shrink-0 mt-2">
+                        <span className="text-xs font-semibold text-highlight">입장하기</span>
+                    </div>
+                </div>
             </div>
-            <div className="flex-1 flex items-end justify-center">
-                <span className="text-sm font-semibold text-highlight">입장하기</span>
-            </div>
-        </div>
-    </button>
-);
+        </button>
+    );
+};
 
 const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const [selectedBoss, setSelectedBoss] = useState<GuildBossInfo>(GUILD_BOSSES[0]);
@@ -538,7 +650,7 @@ interface GuildDashboardProps {
     onDonationComplete?: (coins: number, research: number) => void;
 }
 
-type GuildTab = 'home' | 'members' | 'management' | 'boss' | 'war';
+type GuildTab = 'home' | 'members' | 'management';
 
 export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDonationAnimation, onDonationComplete }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
@@ -662,15 +774,13 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const tabs = [
         { id: 'home' as GuildTab, label: '길드홈' },
         { id: 'members' as GuildTab, label: '길드원' },
-        { id: 'boss' as GuildTab, label: '보스전' },
-        { id: 'war' as GuildTab, label: '길드전쟁' },
     ];
     if (canManage) {
         tabs.push({ id: 'management' as GuildTab, label: '관리' });
     }
     
     const RightPanel: React.FC<{ guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null; onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void; goldButtonRef: React.RefObject<HTMLDivElement>; diamondButtonRef: React.RefObject<HTMLDivElement> }> = ({ guildDonationAnimation, onDonationComplete, goldButtonRef, diamondButtonRef }) => (
-        <div className="lg:col-span-2 flex flex-col gap-3 h-full min-h-0 overflow-visible">
+        <div className="lg:col-span-2 xl:col-span-2 flex flex-col gap-3 h-full min-h-0 overflow-visible">
             <GuildDonationPanel guildDonationAnimation={guildDonationAnimation} onDonationComplete={onDonationComplete} goldButtonRef={goldButtonRef} diamondButtonRef={diamondButtonRef} />
             <ActivityPanel 
                 onOpenMissions={() => setIsMissionsOpen(true)} 
@@ -681,18 +791,18 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
             />
             <div className="flex gap-3 flex-1 min-h-0 overflow-hidden">
                 <BossPanel guild={guild} className="flex-1" />
-                <WarPanel className="flex-1" />
+                <WarPanel guild={guild} className="flex-1" />
             </div>
         </div>
     );    return (
         <div 
-            className="p-4 max-w-7xl mx-auto h-full flex flex-col w-full relative"
+            className="p-4 w-full max-w-[95%] xl:max-w-[98%] mx-auto h-full flex flex-col relative"
         >
             <div className="relative z-10 h-full flex flex-col">
             {isMissionsOpen && <GuildMissionsPanel guild={guild} myMemberInfo={myMemberInfo} onClose={() => setIsMissionsOpen(false)} />}
             {isResearchOpen && <GuildResearchPanel guild={guild} myMemberInfo={myMemberInfo} onClose={() => setIsResearchOpen(false)} />}
             {isShopOpen && <GuildShopModal onClose={() => setIsShopOpen(false)} isTopmost={true} />}
-            {isHelpOpen && <HelpModal mode="strategic" onClose={() => setIsHelpOpen(false)} />}
+            {isHelpOpen && <HelpModal mode="guild" onClose={() => setIsHelpOpen(false)} />}
             {isBossGuideOpen && <GuildBossGuideModal onClose={() => setIsBossGuideOpen(false)} />}
             {isIconSelectOpen && <GuildIconSelectModal guild={guild} onClose={() => setIsIconSelectOpen(false)} onSelect={(icon) => {
                 handlers.handleAction({ type: 'GUILD_UPDATE_PROFILE', payload: { guildId: guild.id, icon } });
@@ -762,15 +872,13 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
             </header>
 
             <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-4">
-                <div className="lg:col-span-3 flex flex-col gap-4 min-h-0">
+                <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-4 min-h-0">
                     <div className="flex-shrink-0">
-                        <div className="flex bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 rounded-xl w-full max-w-sm border border-stone-600/40 shadow-md">
+                        <div className="flex bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 rounded-xl w-full max-w-md border border-stone-600/40 shadow-md">
                             {tabs.map(tab => {
                                 const tabColors = {
                                     home: { active: 'from-amber-600 to-amber-500', inactive: 'text-amber-300/70 hover:text-amber-300' },
                                     members: { active: 'from-blue-600 to-blue-500', inactive: 'text-blue-300/70 hover:text-blue-300' },
-                                    boss: { active: 'from-red-600 to-red-500', inactive: 'text-red-300/70 hover:text-red-300' },
-                                    war: { active: 'from-orange-600 to-orange-500', inactive: 'text-orange-300/70 hover:text-orange-300' },
                                     management: { active: 'from-purple-600 to-purple-500', inactive: 'text-purple-300/70 hover:text-purple-300' },
                                 };
                                 const colors = tabColors[tab.id] || { active: 'from-accent to-accent/80', inactive: 'text-tertiary hover:text-highlight' };
@@ -796,16 +904,6 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                         {activeTab === 'members' && (
                             <NineSlicePanel className="h-full">
                                 <GuildMembersPanel guild={guild} myMemberInfo={myMemberInfo} />
-                            </NineSlicePanel>
-                        )}
-                        {activeTab === 'boss' && (
-                            <NineSlicePanel className="h-full">
-                                <GuildBoss />
-                            </NineSlicePanel>
-                        )}
-                        {activeTab === 'war' && (
-                            <NineSlicePanel className="h-full">
-                                <GuildWar />
                             </NineSlicePanel>
                         )}
                         {activeTab === 'management' && canManage && (

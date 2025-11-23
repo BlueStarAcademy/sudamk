@@ -177,7 +177,14 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             if (guild.members.length >= (guild.memberLimit || 30)) return { error: '길드 인원이 가득 찼습니다.' };
 
-            if (guild.isPublic) {
+            // joinType에 따라 가입 방식 결정
+            const joinType = guild.joinType || 'application'; // 기본값은 신청가입
+            const isApplicationPending = guild.applicants?.some((app: any) => 
+                (typeof app === 'string' ? app : app.userId) === user.id
+            );
+
+            if (joinType === 'free') {
+                // 자유가입: 빈자리가 있으면 자동 가입
                 guild.members.push({
                     userId: user.id,
                     nickname: user.nickname,
@@ -187,11 +194,20 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     weeklyContribution: 0,
                 });
                 user.guildId = guild.id;
-                user.guildApplications = [];
+                // 기존 신청이 있으면 제거
+                if (guild.applicants) {
+                    guild.applicants = guild.applicants.filter((app: any) => 
+                        (typeof app === 'string' ? app : app.userId) !== user.id
+                    );
+                }
+                if (user.guildApplications) {
+                    user.guildApplications = user.guildApplications.filter(id => id !== guildId);
+                }
             } else {
+                // 신청가입: 길드장/부길드장 승인 필요
+                if (isApplicationPending) return { error: '이미 가입 신청을 했습니다.' };
                 if (!guild.applicants) guild.applicants = [];
-                if (guild.applicants.includes(user.id)) return { error: '이미 가입 신청을 했습니다.' };
-                guild.applicants.push(user.id);
+                guild.applicants.push({ userId: user.id, appliedAt: Date.now() });
                 if (!user.guildApplications) user.guildApplications = [];
                 user.guildApplications.push(guild.id);
             }
@@ -206,7 +222,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const { guildId } = payload;
             const guild = guilds[guildId];
             if (guild && guild.applicants) {
-                guild.applicants = guild.applicants.filter(id => id !== user.id);
+                guild.applicants = guild.applicants.filter((app: any) => 
+                    (typeof app === 'string' ? app : app.userId) !== user.id
+                );
                 await db.setKV('guilds', guilds);
                 await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
             }
@@ -228,13 +246,21 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             const applicant = await db.getUser(applicantId);
             if (!applicant || applicant.guildId) {
-                if (guild.applicants) guild.applicants = guild.applicants.filter(id => id !== applicantId);
+                if (guild.applicants) {
+                    guild.applicants = guild.applicants.filter((app: any) => 
+                        (typeof app === 'string' ? app : app.userId) !== applicantId
+                    );
+                }
                 await db.setKV('guilds', guilds);
                 return { error: '대상이 이미 다른 길드에 가입했습니다.' };
             }
 
             guild.members.push({ userId: applicant.id, nickname: applicant.nickname, role: GuildMemberRole.Member, joinedAt: Date.now(), contribution: 0, weeklyContribution: 0 });
-            if (guild.applicants) guild.applicants = guild.applicants.filter(id => id !== applicantId);
+            if (guild.applicants) {
+                guild.applicants = guild.applicants.filter((app: any) => 
+                    (typeof app === 'string' ? app : app.userId) !== applicantId
+                );
+            }
             applicant.guildId = guild.id;
             await db.setKV('guilds', guilds);
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
@@ -249,7 +275,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
              if (!guild || !myMemberInfo || (myMemberInfo.role !== GuildMemberRole.Master && myMemberInfo.role !== GuildMemberRole.Vice)) {
                 return { error: '권한이 없습니다.' };
             }
-            if (guild.applicants) guild.applicants = guild.applicants.filter(id => id !== applicantId);
+            if (guild.applicants) {
+                guild.applicants = guild.applicants.filter((app: any) => 
+                    (typeof app === 'string' ? app : app.userId) !== applicantId
+                );
+            }
             
             const applicant = await db.getUser(applicantId);
             if (applicant && applicant.guildApplications) {
@@ -349,7 +379,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         }
 
         case 'GUILD_UPDATE_PROFILE': {
-             const { guildId, description, isPublic, icon } = payload;
+             const { guildId, description, isPublic, icon, joinType } = payload;
             const guild = guilds[guildId];
             const myMemberInfo = guild?.members.find(m => m.userId === user.id);
             if (!guild || !myMemberInfo || (myMemberInfo.role !== GuildMemberRole.Master && myMemberInfo.role !== GuildMemberRole.Vice)) {
@@ -357,6 +387,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             if(description !== undefined) guild.description = description;
             if(isPublic !== undefined) guild.isPublic = isPublic;
+            if(joinType !== undefined) guild.joinType = joinType;
             if(icon !== undefined) {
                 guild.icon = icon;
                 // DB에도 업데이트 (emblem 필드)

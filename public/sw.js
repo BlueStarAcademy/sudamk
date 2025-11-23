@@ -1,6 +1,7 @@
 // Service Worker for PWA
 // 캐시 버전을 빌드 타임스탬프로 업데이트 (자동으로 변경됨)
 const CACHE_NAME = 'sudam-v' + new Date().getTime();
+const IMAGE_CACHE_NAME = 'sudam-images-v' + new Date().getTime();
 const urlsToCache = [
   '/',
   '/index.html',
@@ -9,17 +10,51 @@ const urlsToCache = [
   '/manifest.json'
 ];
 
+// 자주 사용되는 이미지 목록 (UI 아이콘, 등급 배경 등)
+const priorityImages = [
+  '/images/icon/Gold.png',
+  '/images/icon/Zem.png',
+  '/images/equipments/normalbgi.png',
+  '/images/equipments/uncommonbgi.png',
+  '/images/equipments/rarebgi.png',
+  '/images/equipments/epicbgi.png',
+  '/images/equipments/legendarybgi.png',
+  '/images/equipments/mythicbgi.png',
+  '/images/equipments/Star1.png',
+  '/images/equipments/Star2.png',
+  '/images/equipments/Star3.png',
+  '/images/equipments/Star4.png',
+];
+
 // Install event - cache resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[Service Worker] Caching files');
-        return cache.addAll(urlsToCache);
-      })
-      .catch((error) => {
-        console.error('[Service Worker] Cache failed:', error);
-      })
+    Promise.all([
+      // 기본 리소스 캐싱
+      caches.open(CACHE_NAME)
+        .then((cache) => {
+          console.log('[Service Worker] Caching files');
+          return cache.addAll(urlsToCache);
+        })
+        .catch((error) => {
+          console.error('[Service Worker] Cache failed:', error);
+        }),
+      // 우선순위 이미지 캐싱 (백그라운드에서)
+      caches.open(IMAGE_CACHE_NAME)
+        .then((cache) => {
+          console.log('[Service Worker] Caching priority images');
+          // 실패해도 계속 진행
+          return Promise.allSettled(
+            priorityImages.map(url => 
+              fetch(url).then(response => {
+                if (response.ok) {
+                  return cache.put(url, response);
+                }
+              }).catch(() => {})
+            )
+          );
+        })
+    ])
   );
   self.skipWaiting();
 });
@@ -38,7 +73,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           // 현재 캐시가 아니면 모두 삭제
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && cacheName !== IMAGE_CACHE_NAME) {
             console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -91,15 +126,24 @@ self.addEventListener('fetch', (event) => {
   } else {
     // 이미지 등 정적 리소스는 캐시 우선 전략 사용
     event.respondWith(
-      caches.match(request)
+      caches.match(request, { cacheName: IMAGE_CACHE_NAME })
         .then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
+          // IMAGE_CACHE에 없으면 CACHE_NAME에서도 확인
+          return caches.match(request, { cacheName: CACHE_NAME });
+        })
+        .then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          // 캐시에 없으면 네트워크에서 가져오고 캐시에 저장
           return fetch(request).then((response) => {
             if (response && response.status === 200) {
               const responseToCache = response.clone();
-              caches.open(CACHE_NAME).then((cache) => {
+              // 이미지는 IMAGE_CACHE에 저장
+              caches.open(IMAGE_CACHE_NAME).then((cache) => {
                 cache.put(request, responseToCache);
               });
             }

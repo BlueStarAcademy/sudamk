@@ -5,7 +5,7 @@ import { GAME_RULES } from '../gameRules.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 
 interface HelpModalProps {
-    mode: GameMode | 'strategic' | 'playful';
+    mode: GameMode | 'strategic' | 'playful' | 'guild';
     onClose: () => void;
 }
 
@@ -51,6 +51,60 @@ const STRATEGIC_LOBBY_HELP = {
     ],
 };
 
+const GUILD_HELP = {
+    title: '길드',
+    sections: [
+        {
+            subtitle: '길드 개요',
+            content: [
+                '길드는 플레이어들이 함께 모여 협력하는 커뮤니티입니다.',
+                '길드원들과 함께 보스전, 전쟁, 미션 등을 통해 길드를 성장시킬 수 있습니다.',
+                '길드 레벨이 올라갈수록 더 많은 혜택을 받을 수 있습니다.',
+            ],
+        },
+        {
+            subtitle: '길드 기부',
+            content: [
+                '골드 또는 다이아몬드를 기부하여 길드 코인과 연구 포인트를 획득할 수 있습니다.',
+                '기부를 통해 길드 경험치와 기여도를 올릴 수 있습니다.',
+                '일일 기부 한도가 있으며, 매일 초기화됩니다.',
+            ],
+        },
+        {
+            subtitle: '길드 보스전',
+            content: [
+                '주간 보스전에 참여하여 피해량을 기록하고 보상을 받을 수 있습니다.',
+                '보스는 매주 월요일 0시(한국시간)에 교체됩니다.',
+                '연구소 스킬을 통해 보스전에서 더 강력한 효과를 발휘할 수 있습니다.',
+            ],
+        },
+        {
+            subtitle: '길드 전쟁',
+            content: [
+                '다른 길드와 전쟁을 통해 영토를 점령하고 보상을 받을 수 있습니다.',
+                '점령률에 따라 승패가 결정됩니다.',
+                '전쟁 기간 동안 길드원들이 협력하여 최선의 결과를 만들어야 합니다.',
+            ],
+        },
+        {
+            subtitle: '길드 연구소',
+            content: [
+                '연구 포인트를 사용하여 다양한 연구를 진행할 수 있습니다.',
+                '연구를 통해 길드원들의 능력치를 향상시키거나 보스전에서 유리한 효과를 얻을 수 있습니다.',
+                '연구는 시간이 소요되며, 완료되면 즉시 적용됩니다.',
+            ],
+        },
+        {
+            subtitle: '길드 미션',
+            content: [
+                '길드 미션을 완료하여 개인 보상과 길드 보상을 받을 수 있습니다.',
+                '미션은 주기적으로 갱신되며, 다양한 목표를 달성해야 합니다.',
+                '길드원들이 함께 미션을 완료하면 더 큰 보상을 받을 수 있습니다.',
+            ],
+        },
+    ],
+};
+
 const PLAYFUL_LOBBY_HELP = {
     title: '놀이바둑',
     sections: [
@@ -91,6 +145,38 @@ const PLAYFUL_LOBBY_HELP = {
 };
 
 const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose }) => {
+    // 길드 도움말인 경우
+    if (mode === 'guild') {
+        return (
+            <DraggableWindow title={`${GUILD_HELP.title} 도움말`} onClose={onClose} windowId={`help-${mode}`} initialWidth={700}>
+                <div className="max-h-[70vh] overflow-y-auto pr-2 text-gray-300">
+                    <div className="space-y-4">
+                        {GUILD_HELP.sections.map((section, index) => (
+                            <div key={index} className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
+                                {index === 0 && <img src="/images/guild/profile/icon1.png" alt="길드" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 1 && <div className="w-32 h-32 bg-gradient-to-br from-amber-600 to-yellow-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <span className="text-4xl">💎</span>
+                                </div>}
+                                {index === 2 && <img src="/images/guild/button/bossraid1.png" alt="보스전" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 3 && <img src="/images/guild/button/guildwar.png" alt="전쟁" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 4 && <img src="/images/guild/button/guildlab.png" alt="연구소" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 5 && <img src="/images/guild/button/guildmission.png" alt="미션" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                <div className="flex-1">
+                                    <h3 className="font-bold text-lg text-yellow-300 mb-2">{section.subtitle}</h3>
+                                    <ul className="list-disc list-inside space-y-1 text-xs">
+                                        {section.content.map((point, i) => (
+                                            <li key={i}>{point}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </DraggableWindow>
+        );
+    }
+    
     // 전략바둑 또는 놀이바둑 대기실인 경우
     if (mode === 'strategic') {
         return (

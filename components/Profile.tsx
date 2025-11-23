@@ -122,7 +122,7 @@ const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem
                         ★{item.stars}
                     </div>
                 )}
-                {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain p-1.5"/>}
+                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1.5" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                 {isDivineMythic && (
                     <div 
                         className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 

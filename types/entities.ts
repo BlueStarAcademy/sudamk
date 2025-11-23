@@ -320,6 +320,7 @@ export type User = {
   inventorySlotsMigrated?: boolean;
   towerFloor?: number; // 도전의 탑 최고 층수
   lastTowerClearTime?: number; // 마지막 층 클리어 시간 (랭킹 정렬용)
+  monthlyTowerFloor?: number; // 한 달 동안 클리어한 최고 층수 (매월 1일 리셋)
   dailyRankings?: {
     strategic?: { rank: number; score: number; lastUpdated: number };
     playful?: { rank: number; score: number; lastUpdated: number };
@@ -865,6 +866,7 @@ export type Guild = {
   members?: GuildMember[];
   memberLimit?: number;
   isPublic?: boolean;
+  joinType?: 'application' | 'free'; // 'application': 신청가입 (승인 필요), 'free': 자유가입 (자동 가입)
   announcement?: string;
   chatHistory?: GuildMessage[];
   checkIns?: Record<string, number>;
@@ -1052,7 +1054,7 @@ export type GuildWarMatch = {
 
 export type BattleLogEntry = {
     turn: number;
-    icon: string;
+    icon?: string;
     message: string;
     isUserAction: boolean;
     bossHealingDone?: number;

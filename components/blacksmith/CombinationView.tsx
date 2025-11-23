@@ -52,7 +52,7 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; }> 
             </button>
             <div className="relative w-14 h-14 rounded-lg flex-shrink-0 overflow-hidden border border-slate-500/50">
                 <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain p-1"/>}
+                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
             </div>
             <p className={`text-xs font-bold ${styles.color} whitespace-nowrap overflow-hidden text-ellipsis w-full`} title={item.name}>{item.name}</p>
             <p className="text-[11px] text-slate-400">{SLOT_NAMES_KO[item.slot!] || '기타'}</p>

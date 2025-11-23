@@ -61,7 +61,7 @@ const ShopItemCard: React.FC<{ item: GuildShopItem }> = ({ item }) => {
             <div className="relative z-10 w-full flex flex-col h-full">
              <div className="relative w-20 h-20 bg-gradient-to-br from-stone-800/90 to-stone-900/90 rounded-lg mb-2 flex items-center justify-center border-2 border-stone-600/60 shadow-lg mx-auto flex-shrink-0">
                  <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg opacity-80" />
-                <img src={item.image} alt={item.name} className="w-full h-full object-contain p-2 relative z-10 drop-shadow-xl" />
+                <img src={item.image} alt={item.name} className="absolute object-contain p-2 z-10 drop-shadow-xl" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             </div>
             <h3 className="text-xs font-bold text-white mb-0.5 drop-shadow-lg line-clamp-1 flex-shrink-0">{item.name}</h3>
             <p className="text-[9px] text-stone-300/80 mb-2 h-8 leading-tight line-clamp-2 flex-shrink-0">{item.description}</p>

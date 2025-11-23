@@ -91,14 +91,15 @@ const EquipmentSlotDisplay: React.FC<{
         const fontSize = Math.max(8, Math.round(10 * scaleFactor));
         const gap = Math.max(2, Math.round(2 * scaleFactor));
         const padding = Math.max(2, Math.round(2 * scaleFactor));
+        const innerPadding = Math.max(4, Math.round(6 * scaleFactor));
 
         return (
             <div 
                 className="absolute flex items-center bg-black/40 rounded-bl-md z-10" 
                 style={{ 
                     textShadow: '1px 1px 2px black',
-                    top: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
-                    right: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
+                    top: `${innerPadding}px`,
+                    right: `${innerPadding}px`,
                     gap: `${gap}px`,
                     padding: `${padding}px`
                 }}
@@ -145,24 +146,29 @@ const EquipmentSlotDisplay: React.FC<{
                     <img 
                         src={item.image} 
                         alt={item.name} 
-                        className="relative object-contain" 
+                        className="absolute object-contain" 
                         style={{ 
-                            width: '100%', 
-                            height: '100%', 
+                            width: '80%', 
+                            height: '80%', 
                             padding: `${padding}px`, 
-                            maxWidth: '100%', 
-                            maxHeight: '100%',
+                            maxWidth: '80%', 
+                            maxHeight: '80%',
                             boxSizing: 'border-box',
-                            objectFit: 'contain'
+                            objectFit: 'contain',
+                            left: '50%',
+                            top: '50%',
+                            transform: 'translate(-50%, -50%)'
                         }}
                     />
                 )}
                 {renderStarDisplay(item.stars)}
                 {isDivineMythic && (
                     <div 
-                        className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
+                        className="absolute flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
                         style={{ 
                             textShadow: '1px 1px 2px black',
+                            bottom: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
+                            left: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
                             padding: `${Math.max(2, Math.round(3 * scaleFactor))}px ${Math.max(4, Math.round(5 * scaleFactor))}px`,
                             fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px`,
                             fontWeight: 'bold',
@@ -290,14 +296,15 @@ const LocalItemDetailDisplay: React.FC<{
         const fontSize = Math.max(8, Math.round(10 * scaleFactor));
         const gap = Math.max(2, Math.round(2 * scaleFactor));
         const padding = Math.max(2, Math.round(2 * scaleFactor));
+        const innerPadding = Math.max(4, Math.round(6 * scaleFactor));
 
         return (
             <div 
                 className="absolute flex items-center bg-black/40 rounded-bl-md z-10" 
                 style={{ 
                     textShadow: '1px 1px 2px black',
-                    top: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
-                    right: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
+                    top: `${innerPadding}px`,
+                    right: `${innerPadding}px`,
                     gap: `${gap}px`,
                     padding: `${padding}px`
                 }}
@@ -358,17 +365,20 @@ const LocalItemDetailDisplay: React.FC<{
                     className="relative rounded-lg flex-shrink-0"
                     style={{
                         width: `${Math.max(60, Math.round(80 * scaleFactor))}px`,
-                        height: `${Math.max(60, Math.round(80 * scaleFactor))}px`
+                        height: `${Math.max(60, Math.round(80 * scaleFactor))}px`,
+                        aspectRatio: '1 / 1'
                     }}
                 >
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                    {item.image && <img src={item.image} alt={item.name} className="relative w-full h-full object-contain" style={{ padding: `${Math.max(2, Math.round(4 * scaleFactor))}px` }} />}
+                    {item.image && <img src={item.image} alt={item.name} className="absolute object-contain" style={{ width: '80%', height: '80%', padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                     {renderStarDisplay(item.stars)}
                     {item.isDivineMythic && (
                         <div 
-                            className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
+                            className="absolute flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
                             style={{ 
                                 textShadow: '1px 1px 2px black',
+                                bottom: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
+                                left: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
                                 padding: `${Math.max(2, Math.round(3 * scaleFactor))}px ${Math.max(4, Math.round(5 * scaleFactor))}px`,
                                 fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px`,
                                 fontWeight: 'bold',
@@ -992,14 +1002,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         <div className="flex-1 min-h-0 overflow-y-auto" style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px`, WebkitOverflowScrolling: 'touch' }}>
                                             <div className="flex items-start justify-between mb-2">
                                                 <div 
-                                                    className="relative rounded-lg flex-shrink-0"
+                                                    className="relative rounded-lg flex-shrink-0 aspect-square"
                                                     style={{
                                                         width: `${isMobile ? Math.max(80, Math.round(100 * scaleFactor)) : Math.max(60, Math.round(80 * scaleFactor))}px`,
                                                         height: `${isMobile ? Math.max(80, Math.round(100 * scaleFactor)) : Math.max(60, Math.round(80 * scaleFactor))}px`
                                                     }}
                                                 >
                                                     <img src={gradeBackgrounds[selectedItem.grade]} alt={selectedItem.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                                                    {selectedItem.image && <img src={selectedItem.image} alt={selectedItem.name} className="relative w-full h-full object-contain" style={{ padding: `${Math.max(2, Math.round(4 * scaleFactor))}px` }} />}
+                                                    {selectedItem.image && <img src={selectedItem.image} alt={selectedItem.name} className="absolute object-contain" style={{ width: '80%', height: '80%', padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                                                 </div>
                                                 <div className="flex-grow text-right ml-2">
                                                     <h3 className={`font-bold ${gradeStyles[selectedItem.grade].color}`} style={{ fontSize: `${isMobile ? Math.max(16, Math.round(18 * scaleFactor * mobileTextScale)) : Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>{selectedItem.name}</h3>
@@ -1098,7 +1108,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         <div 
                             className="grid gap-2" 
                             style={{ 
-                                gridTemplateColumns: `repeat(${isMobile ? 4 : 10}, minmax(0, 1fr))`,
+                                gridTemplateColumns: `repeat(${isMobile ? 8 : 12}, minmax(0, 1fr))`,
                                 gap: `${isMobile ? Math.max(4, Math.round(8 * scaleFactor)) : Math.max(4, Math.round(8 * scaleFactor))}px`,
                                 width: '100%',
                                 minWidth: 0,
@@ -1293,7 +1303,49 @@ const InventoryItemCard: React.FC<{
     isPresetEquipped?: boolean;
     scaleFactor?: number;
 }> = ({ item, onClick, isSelected, isEquipped, enhancementStars, isPresetEquipped, scaleFactor = 1 }) => {
-    const starInfo = getStarDisplayInfo(enhancementStars || item.stars || 0);
+    const stars = enhancementStars || item.stars || 0;
+    
+    const renderStarDisplay = () => {
+        if (stars === 0) return null;
+
+        let starImage = '';
+        let numberColor = '';
+
+        if (stars >= 10) {
+            starImage = '/images/equipments/Star4.png';
+            numberColor = "prism-text-effect";
+        } else if (stars >= 7) {
+            starImage = '/images/equipments/Star3.png';
+            numberColor = "text-purple-400";
+        } else if (stars >= 4) {
+            starImage = '/images/equipments/Star2.png';
+            numberColor = "text-amber-400";
+        } else if (stars >= 1) {
+            starImage = '/images/equipments/Star1.png';
+            numberColor = "text-white";
+        }
+
+        const starSize = Math.max(8, Math.round(10 * scaleFactor));
+        const fontSize = Math.max(8, Math.round(10 * scaleFactor));
+        const gap = Math.max(2, Math.round(2 * scaleFactor));
+        const padding = Math.max(2, Math.round(2 * scaleFactor));
+
+        return (
+            <div 
+                className="absolute flex items-center bg-black/40 rounded-bl-md z-10" 
+                style={{ 
+                    textShadow: '1px 1px 2px black',
+                    top: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
+                    right: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
+                    gap: `${gap}px`,
+                    padding: `${padding}px`
+                }}
+            >
+                <img src={starImage} alt="star" style={{ width: `${starSize}px`, height: `${starSize}px` }} />
+                <span className={`font-bold leading-none ${numberColor}`} style={{ fontSize: `${fontSize}px` }}>{stars}</span>
+            </div>
+        );
+    };
 
     return (
         <div
@@ -1303,13 +1355,14 @@ const InventoryItemCard: React.FC<{
             style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%', maxHeight: '100%' }}
         >
             <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 object-cover rounded-md" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />
-            {item.image && <img src={item.image} alt={item.name} className="relative object-contain" style={{ width: '100%', height: '100%', padding: `${Math.max(4, Math.round(6 * scaleFactor))}px`, maxWidth: '100%', maxHeight: '100%' }} />}
+            {item.image && <img src={item.image} alt={item.name} className="absolute object-contain" style={{ width: '80%', height: '80%', padding: `${Math.max(4, Math.round(6 * scaleFactor))}px`, maxWidth: '80%', maxHeight: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+            {renderStarDisplay()}
             {isEquipped && (
                 <div 
                     className="absolute bg-green-500 text-white flex items-center justify-center rounded-full border-2 border-gray-800"
                     style={{
-                        top: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
-                        left: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
+                        top: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
+                        left: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
                         width: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         height: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px`
@@ -1322,8 +1375,8 @@ const InventoryItemCard: React.FC<{
                 <div 
                     className="absolute bg-blue-500 text-white flex items-center justify-center rounded-full border-2 border-gray-800"
                     style={{
-                        top: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
-                        left: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
+                        top: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
+                        left: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
                         width: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         height: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px`
@@ -1345,15 +1398,6 @@ const InventoryItemCard: React.FC<{
                     {item.quantity}
                 </div>
             )}
-            <div 
-                className="absolute bottom-0 left-0 right-0 text-center font-bold text-white bg-black/50"
-                style={{
-                    padding: `${Math.max(2, Math.round(2 * scaleFactor))}px 0`,
-                    fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px`
-                }}
-            >
-                <span className={starInfo.colorClass}>{starInfo.text}</span>
-            </div>
         </div>
     );
 };
