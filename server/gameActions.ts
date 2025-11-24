@@ -155,7 +155,7 @@ export const updateQuestProgress = (user: User, type: 'win' | 'participate' | 'a
     }
 };
 
-export const handleAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }): Promise<HandleActionResult> => {
+export const handleAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user?: User): Promise<HandleActionResult> => {
     const { type, payload } = action;
     const gameId = payload?.gameId;
     
@@ -164,20 +164,23 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         console.log(`[handleAction] Received action: ${type}, userId: ${action.userId}, gameId: ${gameId || 'none'}`);
     }
     
-    // 캐시된 사용자 정보 사용 (빠른 응답)
-    const user = await db.getUser(action.userId);
-    if (!user) {
-        return { error: 'User not found.' };
+    // user가 전달되지 않은 경우에만 DB에서 조회 (중복 쿼리 방지)
+    let userData = user;
+    if (!userData) {
+        userData = await db.getUser(action.userId);
+        if (!userData) {
+            return { error: 'User not found.' };
+        }
     }
     
 
     // 관리자 액션은 먼저 처리 (gameId가 있어도 관리자 액션은 여기서 처리)
-    if (type.startsWith('ADMIN_')) return handleAdminAction(volatileState, action, user);
+    if (type.startsWith('ADMIN_')) return handleAdminAction(volatileState, action, userData);
 
     // 타워 게임 관련 액션은 먼저 처리 (gameId가 있어도 타워 액션은 여기서 처리)
     if (type === 'START_TOWER_GAME' || type === 'CONFIRM_TOWER_GAME_START' || type === 'TOWER_REFRESH_PLACEMENT' || type === 'TOWER_ADD_TURNS' || type === 'END_TOWER_GAME') {
         const { handleTowerAction } = await import('./actions/towerActions.js');
-        return handleTowerAction(volatileState, action, user);
+        return handleTowerAction(volatileState, action, userData);
     }
 
     // Guild actions should be handled before game actions (they don't require gameId)
@@ -194,10 +197,14 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         type.startsWith('DONATE_TO_GUILD') || 
         type.startsWith('PURCHASE_GUILD') || 
         type.startsWith('END_GUILD')) {
-        console.log(`[handleAction] Routing GUILD action: ${type} to handleGuildAction`);
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[handleAction] Routing GUILD action: ${type} to handleGuildAction`);
+        }
         const { handleGuildAction } = await import('./actions/guildActions.js');
-        const result = await handleGuildAction(volatileState, action, user);
-        console.log(`[handleAction] GUILD action ${type} result:`, result?.error ? `ERROR: ${result.error}` : 'SUCCESS');
+        const result = await handleGuildAction(volatileState, action, userData);
+        if (process.env.NODE_ENV === 'development' && result?.error) {
+            console.log(`[handleAction] GUILD action ${type} result: ERROR: ${result.error}`);
+        }
         return result;
     }
 
@@ -233,13 +240,61 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             // CONFIRM_SINGLE_PLAYER_GAME_START는 서버에서 처리해야 함 (게임 시작 확인)
             if (type === 'CONFIRM_SINGLE_PLAYER_GAME_START') {
                 const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
-                return handleSinglePlayerAction(volatileState, action, user);
+                return handleSinglePlayerAction(volatileState, action, userData);
             }
             // 미사일 액션은 서버에서 처리해야 함 (게임 상태 변경)
-            if (type === 'START_MISSILE_SELECTION' || type === 'LAUNCH_MISSILE' || type === 'CANCEL_MISSILE_SELECTION' || type === 'MISSILE_INVALID_SELECTION') {
+            if (type === 'START_MISSILE_SELECTION' || type === 'LAUNCH_MISSILE' || type === 'CANCEL_MISSILE_SELECTION' || type === 'MISSILE_INVALID_SELECTION' || type === 'MISSILE_ANIMATION_COMPLETE') {
+                // 싱글플레이 게임의 경우 싱글플레이 핸들러로 라우팅
+                if (game.isSinglePlayer) {
+                    const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
+                    const result = await handleSinglePlayerAction(volatileState, action, userData);
+                    // singlePlayerActions에서 이미 저장 및 브로드캐스트를 처리하므로 여기서는 결과만 반환
+                    return result || {};
+                }
                 // 전략 게임 핸들러를 통해 미사일 액션 처리
                 if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                    const result = await handleStrategicGameAction(volatileState, game, action, user);
+                    // START_MISSILE_SELECTION 전 상태 저장 (변경 확인용)
+                    const statusBefore = game.gameStatus;
+                    const result = await handleStrategicGameAction(volatileState, game, action, userData);
+                    
+                    // MISSILE_ANIMATION_COMPLETE는 항상 게임 상태가 변경되므로 반드시 브로드캐스트
+                    if (type === 'MISSILE_ANIMATION_COMPLETE') {
+                        console.log(`[GameActions] MISSILE_ANIMATION_COMPLETE: gameStatus=${game.gameStatus}, always broadcasting update for game ${game.id}`);
+                        updateGameCache(game);
+                        // 싱글플레이어 게임의 경우 게임 저장을 기다려서 게임을 찾지 못하는 문제 방지
+                        if (game.isSinglePlayer) {
+                            try {
+                                await db.saveGame(game);
+                            } catch (err) {
+                                console.error(`[GameActions] Failed to save game ${game.id}:`, err);
+                            }
+                        } else {
+                            db.saveGame(game).catch(err => {
+                                console.error(`[GameActions] Failed to save game ${game.id}:`, err);
+                            });
+                        }
+                        const { broadcastToGameParticipants } = await import('./socket.js');
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                        return result || { clientResponse: { gameUpdated: true } };
+                    }
+                    
+                    // START_MISSILE_SELECTION의 경우 게임 상태가 변경되므로 반드시 브로드캐스트 필요
+                    if (type === 'START_MISSILE_SELECTION') {
+                        if (game.gameStatus === 'missile_selecting' && statusBefore !== 'missile_selecting') {
+                            console.log(`[GameActions] START_MISSILE_SELECTION: gameStatus changed from ${statusBefore} to missile_selecting, broadcasting update for game ${game.id}`);
+                            updateGameCache(game);
+                            db.saveGame(game).catch(err => {
+                                console.error(`[GameActions] Failed to save game ${game.id}:`, err);
+                            });
+                            const { broadcastToGameParticipants } = await import('./socket.js');
+                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                            return result || { clientResponse: { gameUpdated: true } };
+                        } else {
+                            console.warn(`[GameActions] START_MISSILE_SELECTION: gameStatus not changed (before=${statusBefore}, after=${game.gameStatus}), gameId=${game.id}`);
+                        }
+                    }
+                    
+                    // result가 null이나 undefined가 아니거나, 에러가 없는 경우 게임 상태가 변경되었을 수 있으므로 브로드캐스트
                     if (result !== null && result !== undefined) {
                         // 캐시 업데이트
                         updateGameCache(game);
@@ -275,10 +330,30 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
         
         let result: HandleActionResult | null | undefined = null;
+        
+        // 싱글플레이 게임의 히든바둑 액션 처리
+        if (game.isSinglePlayer && (type === 'START_HIDDEN_PLACEMENT' || type === 'START_SCANNING' || type === 'SCAN_BOARD')) {
+            const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
+            const singlePlayerResult = await handleSinglePlayerAction(volatileState, action, userData);
+            if (singlePlayerResult !== null && singlePlayerResult !== undefined) {
+                const { getCachedGame, updateGameCache } = await import('./gameCache.js');
+                const updatedGame = await getCachedGame(gameId);
+                if (updatedGame) {
+                    updateGameCache(updatedGame);
+                    db.saveGame(updatedGame).catch(err => {
+                        console.error(`[GameActions] Failed to save game ${updatedGame.id}:`, err);
+                    });
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    broadcastToGameParticipants(updatedGame.id, { type: 'GAME_UPDATE', payload: { [updatedGame.id]: updatedGame } }, updatedGame);
+                }
+            }
+            return singlePlayerResult || {};
+        }
+        
         if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-            result = await handleStrategicGameAction(volatileState, game, action, user);
+            result = await handleStrategicGameAction(volatileState, game, action, userData);
         } else if (PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
-            result = await handlePlayfulGameAction(volatileState, game, action, user);
+            result = await handlePlayfulGameAction(volatileState, game, action, userData);
         }
 
         if (result !== null && result !== undefined) {
@@ -297,13 +372,13 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
 
     // Non-Game actions
     // ADMIN_ 액션은 위에서 이미 처리됨
-    if (type.includes('NEGOTIATION') || type === 'START_AI_GAME' || type === 'REQUEST_REMATCH' || type === 'CHALLENGE_USER' || type === 'SEND_CHALLENGE') return handleNegotiationAction(volatileState, action, user);
+    if (type.includes('NEGOTIATION') || type === 'START_AI_GAME' || type === 'REQUEST_REMATCH' || type === 'CHALLENGE_USER' || type === 'SEND_CHALLENGE') return handleNegotiationAction(volatileState, action, userData);
     if (type === 'CLAIM_SINGLE_PLAYER_MISSION_REWARD' || type === 'CLAIM_ALL_TRAINING_QUEST_REWARDS' || type === 'START_SINGLE_PLAYER_MISSION' || type === 'LEVEL_UP_TRAINING_QUEST') {
-        return handleSinglePlayerAction(volatileState, action, user);
+        return handleSinglePlayerAction(volatileState, action, userData);
     }
     // 타워 액션은 위에서 이미 처리됨 (중복 제거)
-    if (type.startsWith('CLAIM_') || type.startsWith('DELETE_MAIL') || type === 'DELETE_ALL_CLAIMED_MAIL' || type === 'MARK_MAIL_AS_READ') return handleRewardAction(volatileState, action, user);
-    if (type.startsWith('BUY_') || type === 'PURCHASE_ACTION_POINTS' || type === 'EXPAND_INVENTORY' || type === 'BUY_TOWER_ITEM') return handleShopAction(volatileState, action, user);
+    if (type.startsWith('CLAIM_') || type.startsWith('DELETE_MAIL') || type === 'DELETE_ALL_CLAIMED_MAIL' || type === 'MARK_MAIL_AS_READ') return handleRewardAction(volatileState, action, userData);
+    if (type.startsWith('BUY_') || type === 'PURCHASE_ACTION_POINTS' || type === 'EXPAND_INVENTORY' || type === 'BUY_TOWER_ITEM') return handleShopAction(volatileState, action, userData);
     if (type.startsWith('TOURNAMENT') || 
         type.startsWith('START_TOURNAMENT') || 
         type.startsWith('SKIP_TOURNAMENT') || 
@@ -319,18 +394,18 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         type === 'LEAVE_TOURNAMENT_VIEW' ||
         type === 'CLAIM_TOURNAMENT_REWARD' ||
         type === 'COMPLETE_TOURNAMENT_SIMULATION') {
-        return handleTournamentAction(volatileState, action, user);
+        return handleTournamentAction(volatileState, action, userData);
     }
-    if (['TOGGLE_EQUIP_ITEM', 'SELL_ITEM', 'ENHANCE_ITEM', 'DISASSEMBLE_ITEM', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'CRAFT_MATERIAL', 'COMBINE_ITEMS'].includes(type)) return handleInventoryAction(volatileState, action, user);
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS'].includes(type)) return handleUserAction(volatileState, action, user);
-    if (type.includes('SINGLE_PLAYER')) return handleSinglePlayerAction(volatileState, action, user);
-    if (type === 'MANNER_ACTION') return mannerService.handleMannerAction(volatileState, action, user);
+    if (['TOGGLE_EQUIP_ITEM', 'SELL_ITEM', 'ENHANCE_ITEM', 'DISASSEMBLE_ITEM', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'CRAFT_MATERIAL', 'COMBINE_ITEMS'].includes(type)) return handleInventoryAction(volatileState, action, userData);
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS'].includes(type)) return handleUserAction(volatileState, action, userData);
+    if (type.includes('SINGLE_PLAYER')) return handleSinglePlayerAction(volatileState, action, userData);
+    if (type === 'MANNER_ACTION') return mannerService.handleMannerAction(volatileState, action, userData);
     // Guild actions are now handled above (before game actions)
     // LEAVE_AI_GAME은 gameId를 가지지만 소셜 액션으로 처리해야 함
-    if (type === 'LEAVE_AI_GAME') return handleSocialAction(volatileState, action, user);
+    if (type === 'LEAVE_AI_GAME') return handleSocialAction(volatileState, action, userData);
     
     // Social actions can be game-related (chat in game) or not (logout)
-    const socialResult = await handleSocialAction(volatileState, action, user);
+    const socialResult = await handleSocialAction(volatileState, action, userData);
     if (socialResult) return socialResult;
 
     return { error: `Unhandled action type: ${type}` };

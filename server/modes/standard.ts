@@ -86,12 +86,50 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
         summaryService.endGame(game, winner, 'timeout');
     }
 
+    // 전략바둑에서 1분 동안 상대방이 아무 행동이 없으면 무효처리 버튼 활성화
+    const { SPECIAL_GAME_MODES } = await import('../../constants/index.js');
+    const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
+    if (isStrategic && game.gameStatus === 'playing' && !game.isSinglePlayer && !game.isAiGame) {
+        const gameStartTime = game.gameStartTime || game.createdAt || now;
+        const gameDuration = now - gameStartTime;
+        const ONE_MINUTE_MS = 60 * 1000;
+        
+        // 게임 시작 후 1분 경과했고, 아무 행동이 없는 경우 (moveHistory가 비어있거나 매우 적은 경우)
+        if (gameDuration >= ONE_MINUTE_MS && game.moveHistory.length === 0) {
+            // 양쪽 모두 무효처리 요청 가능
+            if (!game.canRequestNoContest) game.canRequestNoContest = {};
+            game.canRequestNoContest[game.player1.id] = true;
+            game.canRequestNoContest[game.player2.id] = true;
+        }
+    }
+
     // Delegate to mode-specific update logic
     updateNigiriState(game, now);
     updateCaptureState(game, now);
     updateBaseState(game, now);
-    updateHiddenState(game, now);
-    updateMissileState(game, now);
+    
+    // 싱글플레이 게임인 경우 싱글플레이용 업데이트 함수 사용
+    if (game.isSinglePlayer) {
+        const { updateSinglePlayerHiddenState } = await import('./singlePlayerHidden.js');
+        const { updateSinglePlayerMissileState } = await import('./singlePlayerMissile.js');
+        updateSinglePlayerHiddenState(game, now);
+        const missileStateChanged = updateSinglePlayerMissileState(game, now);
+        if (missileStateChanged) {
+            (game as any)._missileStateChanged = true;
+            // 싱글플레이 게임의 경우 서버 루프에서 브로드캐스트하지 않으므로, 여기서 직접 브로드캐스트
+            const { broadcastToGameParticipants } = await import('../socket.js');
+            const db = await import('../db.js');
+            await db.saveGame(game);
+            console.log(`[updateStrategicGameState] SinglePlayer missile state changed, broadcasting GAME_UPDATE: gameId=${game.id}, gameStatus=${game.gameStatus}, animation=${game.animation ? 'exists' : 'null'}`);
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+        }
+    } else {
+        updateHiddenState(game, now);
+        const missileStateChanged = updateMissileState(game, now);
+        if (missileStateChanged) {
+            (game as any)._missileStateChanged = true;
+        }
+    }
 };
 
 export const handleStrategicGameAction = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): Promise<types.HandleActionResult | undefined> => {

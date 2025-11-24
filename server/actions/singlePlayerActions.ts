@@ -194,12 +194,15 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             user.lastActionPointUpdate = now;
             
             // 게임 모드 결정
+            // 우선순위: Hidden > Missile > Speed (autoScoringTurns) > Capture > Speed (fischer) > Standard
             let gameMode: GameMode;
             const isSpeedMode = stage.timeControl.type === 'fischer';
 
             if (stage.hiddenCount !== undefined) {
+                // 히든바둑 모드 (최우선)
                 gameMode = GameMode.Hidden;
             } else if (stage.missileCount !== undefined) {
+                // 미사일바둑 모드 (중급 1~20 스테이지)
                 gameMode = GameMode.Missile;
             } else if (stage.autoScoringTurns !== undefined) {
                 // 자동 계가 턴 수가 있으면 스피드 바둑 (초급반 등)
@@ -317,16 +320,16 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 totalTurns: 0, // 턴 카운팅 초기화
             } as LiveGameSession;
 
-            // 히든바둑 초기화
+            // 히든바둑 초기화 (싱글플레이용)
             if (gameMode === GameMode.Hidden) {
-                const { initializeHidden } = await import('../modes/hidden.js');
-                initializeHidden(game);
+                const { initializeSinglePlayerHidden } = await import('../modes/singlePlayerHidden.js');
+                initializeSinglePlayerHidden(game);
             }
             
-            // 미사일바둑 초기화
+            // 미사일바둑 초기화 (싱글플레이용)
             if (gameMode === GameMode.Missile) {
-                const { initializeMissile } = await import('../modes/missile.js');
-                initializeMissile(game);
+                const { initializeSinglePlayerMissile } = await import('../modes/singlePlayerMissile.js');
+                initializeSinglePlayerMissile(game);
             }
 
             await db.saveGame(game);
@@ -861,6 +864,56 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     }
                 } 
             };
+        }
+        // 싱글플레이 미사일 액션 처리
+        case 'START_MISSILE_SELECTION':
+        case 'LAUNCH_MISSILE':
+        case 'CANCEL_MISSILE_SELECTION':
+        case 'MISSILE_INVALID_SELECTION':
+        case 'MISSILE_ANIMATION_COMPLETE': {
+            const { gameId } = payload;
+            if (!gameId) {
+                return { error: 'Game ID is required.' };
+            }
+            const game = await db.getLiveGame(gameId);
+            if (!game || !game.isSinglePlayer) {
+                return { error: 'Invalid single player game.' };
+            }
+            const { handleSinglePlayerMissileAction } = await import('../modes/singlePlayerMissile.js');
+            const result = handleSinglePlayerMissileAction(game, action, user);
+            
+            // 게임 상태가 변경되었을 수 있으므로 저장 및 브로드캐스트
+            if (result !== null && result !== undefined && !result.error) {
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('../socket.js');
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            }
+            
+            return result;
+        }
+        // 싱글플레이 히든바둑 액션 처리
+        case 'START_HIDDEN_PLACEMENT':
+        case 'START_SCANNING':
+        case 'SCAN_BOARD': {
+            const { gameId } = payload;
+            if (!gameId) {
+                return { error: 'Game ID is required.' };
+            }
+            const game = await db.getLiveGame(gameId);
+            if (!game || !game.isSinglePlayer) {
+                return { error: 'Invalid single player game.' };
+            }
+            const { handleSinglePlayerHiddenAction } = await import('../modes/singlePlayerHidden.js');
+            const result = handleSinglePlayerHiddenAction(volatileState, game, action, user);
+            
+            // 게임 상태가 변경되었을 수 있으므로 저장 및 브로드캐스트
+            if (result !== null && result !== undefined && !result.error) {
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('../socket.js');
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            }
+            
+            return result;
         }
         default:
             return { error: 'Unknown single player action' };

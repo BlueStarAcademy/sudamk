@@ -66,16 +66,22 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                             // 일반 게임에서만 접속 끊김 카운트 및 패널티 적용
                             game.disconnectionCounts[user.id] = (game.disconnectionCounts[user.id] || 0) + 1;
                             if (game.disconnectionCounts[user.id] >= 3) {
+                                // 3번째 접속이 끊어지면 바로 "접속장애패" 처리
                                 const winner = game.blackPlayerId === user.id ? types.Player.White : types.Player.Black;
                                 await summaryService.endGame(game, winner, 'disconnect');
                             } else {
                                 game.disconnectionState = { disconnectedPlayerId: user.id, timerStartedAt: now };
-                                if (game.moveHistory.length < 10) {
+                                // 20수 이내 접속 끊김 시 무효처리 요청 가능
+                                if (game.moveHistory.length < 20) {
                                     const otherPlayerId = game.player1.id === user.id ? game.player2.id : game.player1.id;
                                     if (!game.canRequestNoContest) game.canRequestNoContest = {};
                                     game.canRequestNoContest[otherPlayerId] = true;
                                 }
                                 await db.saveGame(game);
+                                
+                                // 접속 끊김 상태 브로드캐스트
+                                const { broadcastToGameParticipants } = await import('../socket.js');
+                                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
                             }
                         } else {
                             // 도전의 탑, 싱글플레이, AI 게임에서는 즉시 게임 종료 (패널티 없음)
@@ -199,6 +205,23 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         }
         case 'ENTER_WAITING_ROOM': {
             const { mode } = payload;
+            const currentStatus = volatileState.userStatuses[user.id];
+            
+            // 이미 같은 상태로 대기실에 있으면 중복 요청 무시
+            if (currentStatus && 
+                (currentStatus.status === UserStatus.Waiting || currentStatus.status === UserStatus.Resting)) {
+                if (mode === 'strategic' || mode === 'playful') {
+                    // strategic/playful 모드는 mode가 없거나 해당 모드 그룹에 속하면 중복
+                    if (!currentStatus.mode || 
+                        (mode === 'strategic' && SPECIAL_GAME_MODES.some(m => m.mode === currentStatus.mode)) ||
+                        (mode === 'playful' && PLAYFUL_GAME_MODES.some(m => m.mode === currentStatus.mode))) {
+                        return {}; // 이미 올바른 대기실에 있음
+                    }
+                } else if (currentStatus.mode === mode) {
+                    return {}; // 이미 같은 모드 대기실에 있음
+                }
+            }
+            
             // strategic/playful은 GameMode가 아니므로 mode를 undefined로 설정
             if (mode === 'strategic' || mode === 'playful') {
                 volatileState.userStatuses[user.id] = { status: UserStatus.Waiting };

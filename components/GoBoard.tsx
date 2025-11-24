@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSession, User, AnimationData, GameMode, RecommendedMove, ServerAction } from '../types.js';
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
+import { audioService } from '../services/audioService.js';
 
 const AnimatedBonusText: React.FC<{
     animation: Extract<AnimationData, { type: 'bonus_text' }>;
@@ -110,24 +111,70 @@ const AnimatedMissileStone: React.FC<{
     return (
         <g style={style} className="missile-flight-group">
             <g transform={`translate(0, 0)`}>
-                {/* Fire Trail - 이동 방향의 반대 방향으로 */}
+                {/* Fire Trail - 이동 방향 반대에만 꼬리 불꽃 표시 */}
+                {/* 외부 불꽃 (가장 큰, 가장 흐릿한) - 돌 가장자리 밖으로 충분히 떨어진 위치 */}
+                <ellipse
+                    cx={0}
+                    cy={0}
+                    rx={stone_radius * 2.5}
+                    ry={stone_radius * 1.2}
+                    fill="url(#missile_fire_outer)"
+                    className="missile-fire-outer"
+                    transform={`translate(${-stone_radius * 3.0}, 0) rotate(${fireAngle})`}
+                    opacity={0.8}
+                />
+                {/* 중간 불꽃 - 돌 가장자리 밖으로 충분히 떨어진 위치 */}
+                <ellipse
+                    cx={0}
+                    cy={0}
+                    rx={stone_radius * 2.0}
+                    ry={stone_radius * 1.0}
+                    fill="url(#missile_fire)"
+                    className="missile-fire-trail"
+                    transform={`translate(${-stone_radius * 2.5}, 0) rotate(${fireAngle})`}
+                    opacity={1.0}
+                />
+                {/* 핵심 불꽃 (가장 밝고 작은) - 돌 가장자리 바로 뒤 */}
                 <ellipse
                     cx={0}
                     cy={0}
                     rx={stone_radius * 1.5}
-                    ry={stone_radius * 0.7}
-                    fill="url(#missile_fire)"
-                    className="missile-fire-trail"
-                    transform={`rotate(${fireAngle}) translate(${-stone_radius}, 0)`}
+                    ry={stone_radius * 0.8}
+                    fill="url(#missile_fire_core)"
+                    className="missile-fire-core"
+                    transform={`translate(${-stone_radius * 2.0}, 0) rotate(${fireAngle})`}
+                    opacity={1}
                 />
-                {/* Stone */}
-                <circle
-                    cx={0}
-                    cy={0}
-                    r={stone_radius}
-                    fill={player === Player.Black ? "#111827" : "#f5f2e8"}
-                />
-                <circle cx={0} cy={0} r={stone_radius} fill={player === Player.Black ? 'url(#slate_highlight)' : 'url(#clamshell_highlight)'} />
+                {/* 추가 파티클 효과 (작은 불꽃 조각들) - 돌 뒤쪽에만 배치 */}
+                {[0, 1, 2, 3].map((i) => (
+                    <ellipse
+                        key={i}
+                        cx={0}
+                        cy={0}
+                        rx={stone_radius * (0.5 + i * 0.25)}
+                        ry={stone_radius * (0.25 + i * 0.15)}
+                        fill="url(#missile_fire_particle)"
+                        className="missile-fire-trail"
+                        transform={`translate(${-stone_radius * (2.2 + i * 0.5)}, ${(i - 1.5) * stone_radius * 0.25}) rotate(${fireAngle + (i - 1.5) * 15})`}
+                        opacity={0.7 - i * 0.12}
+                        style={{ animationDelay: `${i * 0.03}s` }}
+                    />
+                ))}
+                {/* Stone with glow effect */}
+                <g className="missile-stone-glow">
+                    <circle
+                        cx={0}
+                        cy={0}
+                        r={stone_radius}
+                        fill={player === Player.Black ? "#111827" : "#f5f2e8"}
+                    />
+                    <circle 
+                        cx={0} 
+                        cy={0} 
+                        r={stone_radius} 
+                        fill={player === Player.Black ? 'url(#slate_highlight)' : 'url(#clamshell_highlight)'} 
+                    />
+                </g>
             </g>
         </g>
     );
@@ -167,18 +214,61 @@ const AnimatedHiddenMissile: React.FC<{
     const flightEffect = (
         <g style={flightStyle} className="hidden-missile-flight-group">
             <g transform={`translate(0, 0)`}>
+                {/* Fire Trail - 이동 방향 반대에만 꼬리 불꽃 표시 */}
+                {/* 외부 불꽃 (가장 큰, 가장 흐릿한) - 돌 가장자리 밖으로 충분히 떨어진 위치 */}
+                <ellipse
+                    cx={0}
+                    cy={0}
+                    rx={stone_radius * 2.5}
+                    ry={stone_radius * 1.2}
+                    fill="url(#missile_fire_outer)"
+                    className="missile-fire-outer"
+                    transform={`translate(${-stone_radius * 3.0}, 0) rotate(${fireAngle})`}
+                    opacity={0.8}
+                />
+                {/* 중간 불꽃 - 돌 가장자리 밖으로 충분히 떨어진 위치 */}
+                <ellipse
+                    cx={0}
+                    cy={0}
+                    rx={stone_radius * 2.0}
+                    ry={stone_radius * 1.0}
+                    fill="url(#missile_fire)"
+                    className="missile-fire-trail"
+                    transform={`translate(${-stone_radius * 2.5}, 0) rotate(${fireAngle})`}
+                    opacity={1.0}
+                />
+                {/* 핵심 불꽃 (가장 밝고 작은) - 돌 가장자리 바로 뒤 */}
                 <ellipse
                     cx={0}
                     cy={0}
                     rx={stone_radius * 1.5}
-                    ry={stone_radius * 0.7}
-                    fill="url(#missile_fire)"
-                    className="missile-fire-trail"
-                    transform={`rotate(${fireAngle}) translate(${-stone_radius}, 0)`}
+                    ry={stone_radius * 0.8}
+                    fill="url(#missile_fire_core)"
+                    className="missile-fire-core"
+                    transform={`translate(${-stone_radius * 2.0}, 0) rotate(${fireAngle})`}
+                    opacity={1}
                 />
-                <circle cx={0} cy={0} r={stone_radius} fill={player === Player.Black ? "#111827" : "#f5f2e8"} />
-                <circle cx={0} cy={0} r={stone_radius} fill={player === Player.Black ? 'url(#slate_highlight)' : 'url(#clamshell_highlight)'} />
-                <image href={player === Player.Black ? BLACK_HIDDEN_STONE_IMG : WHITE_HIDDEN_STONE_IMG} x={-specialImageOffset} y={-specialImageOffset} width={specialImageSize} height={specialImageSize} />
+                {/* 추가 파티클 효과 (작은 불꽃 조각들) - 돌 뒤쪽에만 배치 */}
+                {[0, 1, 2, 3].map((i) => (
+                    <ellipse
+                        key={i}
+                        cx={0}
+                        cy={0}
+                        rx={stone_radius * (0.5 + i * 0.25)}
+                        ry={stone_radius * (0.25 + i * 0.15)}
+                        fill="url(#missile_fire_particle)"
+                        className="missile-fire-trail"
+                        transform={`translate(${-stone_radius * (2.2 + i * 0.5)}, ${(i - 1.5) * stone_radius * 0.25}) rotate(${fireAngle + (i - 1.5) * 15})`}
+                        opacity={0.7 - i * 0.12}
+                        style={{ animationDelay: `${i * 0.03}s` }}
+                    />
+                ))}
+                {/* Stone with glow effect */}
+                <g className="missile-stone-glow">
+                    <circle cx={0} cy={0} r={stone_radius} fill={player === Player.Black ? "#111827" : "#f5f2e8"} />
+                    <circle cx={0} cy={0} r={stone_radius} fill={player === Player.Black ? 'url(#slate_highlight)' : 'url(#clamshell_highlight)'} />
+                    <image href={player === Player.Black ? BLACK_HIDDEN_STONE_IMG : WHITE_HIDDEN_STONE_IMG} x={-specialImageOffset} y={-specialImageOffset} width={specialImageSize} height={specialImageSize} />
+                </g>
             </g>
         </g>
     );
@@ -362,6 +452,7 @@ interface GoBoardProps {
   isItemModeActive: boolean;
   sgf?: string;
   isMobile?: boolean;
+  isSinglePlayer?: boolean;
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
@@ -371,7 +462,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         myPlayerEnum, gameStatus, highlightedPoints, highlightStyle = 'circle', myRevealedStones, allRevealedStones, newlyRevealed, isSpectator,
         analysisResult, showTerritoryOverlay = false, showHintOverlay = false, currentUser, blackPlayerNickname, whitePlayerNickname,
         currentPlayer, isItemModeActive, animation, mode, mixedModes, justCaptured, permanentlyRevealedStones, onAction, gameId,
-        showLastMoveMarker, blackPatternStones, whitePatternStones
+        showLastMoveMarker, blackPatternStones, whitePatternStones, isSinglePlayer = false
     } = props;
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const [selectedMissileStone, setSelectedMissileStone] = useState<Point | null>(null);
@@ -451,6 +542,22 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         return () => window.removeEventListener('resize', checkIsMobile);
     }, []);
 
+    // 히든 돌 미사일 애니메이션 소리 재생 (애니메이션은 보이지 않음)
+    useEffect(() => {
+        if (animation && (animation.type === 'missile' || animation.type === 'hidden_missile')) {
+            if (!moveHistory || !hiddenMoves) return;
+            const moveIndex = moveHistory.findIndex(m => m.x === animation.from.x && m.y === animation.from.y);
+            if (moveIndex === -1) return;
+            const isHidden = !!hiddenMoves[moveIndex];
+            const isRevealed = permanentlyRevealedStones?.some(p => p.x === animation.from.x && p.y === animation.from.y);
+            
+            // 공개되지 않은 히든 돌이면 소리만 재생
+            if (isHidden && !isRevealed) {
+                audioService.launchMissile();
+            }
+        }
+    }, [animation, moveHistory, hiddenMoves, permanentlyRevealedStones]);
+
     // 미사일 애니메이션 완료 감지 및 처리
     useEffect(() => {
         // 이전 타임아웃 정리
@@ -459,27 +566,92 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             missileAnimationTimeoutRef.current = null;
         }
 
+        // 게임 상태가 playing으로 변경되었고 애니메이션이 없으면 애니메이션 완료로 간주
+        // (서버에서 GAME_UPDATE를 받아 gameStatus가 playing으로 변경되고 animation이 null이 된 경우)
+        if (gameStatus === 'playing' && (!animation || (animation.type !== 'missile' && animation.type !== 'hidden_missile'))) {
+            console.log(`[GoBoard] Game status changed to playing, animation cleared. Animation:`, animation);
+            // 애니메이션 타임아웃이 남아있으면 정리
+            if (missileAnimationTimeoutRef.current) {
+                clearTimeout(missileAnimationTimeoutRef.current);
+                missileAnimationTimeoutRef.current = null;
+            }
+            return;
+        }
+
         // 미사일 애니메이션이 있고 게임 상태가 missile_animating이면 애니메이션 완료 감지
         if (animation && (animation.type === 'missile' || animation.type === 'hidden_missile') && gameStatus === 'missile_animating') {
             const now = Date.now();
             const elapsed = now - animation.startTime;
             const remaining = Math.max(0, animation.duration - elapsed);
-            const maxDuration = 5000; // 최대 5초
-            const timeout = Math.min(remaining + 200, maxDuration); // 약간의 여유 시간 추가 (200ms)
+            const animationEndTime = animation.startTime + animation.duration;
 
-            console.log(`[GoBoard] Missile animation detected: type=${animation.type}, startTime=${animation.startTime}, now=${now}, elapsed=${elapsed}ms, duration=${animation.duration}ms, remaining=${remaining}ms, timeout=${timeout}ms`);
+            console.log(`[GoBoard] Missile animation detected: type=${animation.type}, startTime=${animation.startTime}, now=${now}, elapsed=${elapsed}ms, duration=${animation.duration}ms, remaining=${remaining}ms, endTime=${animationEndTime}`);
 
-            // 이미 애니메이션이 완료되었으면 타임아웃을 설정하지 않음
-            if (remaining <= 0) {
-                console.log(`[GoBoard] Missile animation already completed (elapsed=${elapsed}ms >= duration=${animation.duration}ms)`);
-                return;
+            // 싱글플레이 게임은 클라이언트에서 직접 처리
+            if (isSinglePlayer) {
+                // 이미 애니메이션이 완료되었으면 즉시 처리
+                if (elapsed >= animation.duration) {
+                    console.log(`[GoBoard] SinglePlayer missile animation already completed (elapsed=${elapsed}ms >= duration=${animation.duration}ms), triggering completion immediately`);
+                    if (onAction && gameId) {
+                        console.log(`[GoBoard] Sending SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE action for game ${gameId}`);
+                        onAction({ 
+                            type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE', 
+                            payload: { gameId } 
+                        } as any);
+                    }
+                    return;
+                }
+
+                // 애니메이션 완료 시간에 맞춰 완료 신호 전송
+                const timeout = remaining + 100; // 약간의 여유 시간 추가 (100ms)
+                
+                missileAnimationTimeoutRef.current = setTimeout(() => {
+                    const currentTime = Date.now();
+                    const currentElapsed = currentTime - animation.startTime;
+                    console.log(`[GoBoard] SinglePlayer missile animation timeout triggered. Expected end time: ${animationEndTime}, current time: ${currentTime}, elapsed: ${currentElapsed}ms, duration: ${animation.duration}ms`);
+                    
+                    if (onAction && gameId) {
+                        console.log(`[GoBoard] Sending SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE action after timeout for game ${gameId}`);
+                        onAction({ 
+                            type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE', 
+                            payload: { gameId } 
+                        } as any);
+                    }
+                    missileAnimationTimeoutRef.current = null;
+                }, timeout);
+            } else {
+                // 멀티플레이어 게임은 서버에 완료 신호 전송
+                // 이미 애니메이션이 완료되었으면 즉시 처리
+                if (elapsed >= animation.duration) {
+                    console.log(`[GoBoard] Missile animation already completed (elapsed=${elapsed}ms >= duration=${animation.duration}ms), triggering completion immediately`);
+                    if (onAction && gameId) {
+                        console.log(`[GoBoard] Sending MISSILE_ANIMATION_COMPLETE action for game ${gameId}`);
+                        onAction({ 
+                            type: 'MISSILE_ANIMATION_COMPLETE', 
+                            payload: { gameId } 
+                        });
+                    }
+                    return;
+                }
+
+                // 애니메이션 완료 시간에 맞춰 완료 신호 전송
+                const timeout = remaining + 100; // 약간의 여유 시간 추가 (100ms)
+                
+                missileAnimationTimeoutRef.current = setTimeout(() => {
+                    const currentTime = Date.now();
+                    const currentElapsed = currentTime - animation.startTime;
+                    console.log(`[GoBoard] Missile animation timeout triggered. Expected end time: ${animationEndTime}, current time: ${currentTime}, elapsed: ${currentElapsed}ms, duration: ${animation.duration}ms`);
+                    
+                    if (onAction && gameId) {
+                        console.log(`[GoBoard] Sending MISSILE_ANIMATION_COMPLETE action after timeout for game ${gameId}`);
+                        onAction({ 
+                            type: 'MISSILE_ANIMATION_COMPLETE', 
+                            payload: { gameId } 
+                        });
+                    }
+                    missileAnimationTimeoutRef.current = null;
+                }, timeout);
             }
-
-            missileAnimationTimeoutRef.current = setTimeout(() => {
-                console.log(`[GoBoard] Missile animation timeout - animation should be complete. Expected end time: ${animation.startTime + animation.duration}, current time: ${Date.now()}`);
-                missileAnimationTimeoutRef.current = null;
-                // 서버에서 게임 루프를 통해 자동으로 처리될 것이지만, 추가 확인을 위해 로그를 남김
-            }, timeout);
         }
 
         return () => {
@@ -488,7 +660,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 missileAnimationTimeoutRef.current = null;
             }
         };
-    }, [animation, gameStatus, onAction]);
+    }, [animation, gameStatus, onAction, gameId, isSinglePlayer]);
 
     const isLastMoveMarkerEnabled = useMemo(() => {
         const strategicModes = SPECIAL_GAME_MODES.map(m => m.mode);
@@ -553,9 +725,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         setHoverPos(boardPos);
     
         if (gameStatus === 'missile_selecting' && !isBoardDisabled) {
-            if (displayBoardState[boardPos.y][boardPos.x] === myPlayerEnum) {
+            // 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
+            const actualPlayerAtPos = boardState?.[boardPos.y]?.[boardPos.x] ?? displayBoardState[boardPos.y]?.[boardPos.x];
+            if (actualPlayerAtPos === myPlayerEnum) {
                 const neighbors = getNeighbors(boardPos);
-                const hasLiberty = neighbors.some(n => displayBoardState[n.y][n.x] === Player.None);
+                const hasLiberty = neighbors.some(n => {
+                    const neighborPlayer = boardState?.[n.y]?.[n.x] ?? displayBoardState[n.y]?.[n.x];
+                    return neighborPlayer === Player.None;
+                });
                 if (hasLiberty) {
                     setSelectedMissileStone(boardPos);
                     setIsDraggingMissile(true);
@@ -807,9 +984,28 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         <rect width="100" height="100" fill="#f5f2e8"/>
                         <rect width="100" height="100" filter="url(#clam_grain_filter)"/>
                     </pattern>
+                    {/* 미사일 불꽃 그라디언트 - 여러 레이어 */}
+                    <radialGradient id="missile_fire_core" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+                        <stop offset="20%" stopColor="#fef08a" stopOpacity="1" />
+                        <stop offset="40%" stopColor="#fbbf24" stopOpacity="0.9" />
+                        <stop offset="70%" stopColor="#f87171" stopOpacity="0.7" />
+                        <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
+                    </radialGradient>
                     <radialGradient id="missile_fire" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="#fca5a5" />
-                        <stop offset="50%" stopColor="#f87171" />
+                        <stop offset="0%" stopColor="#fef08a" stopOpacity="0.9" />
+                        <stop offset="30%" stopColor="#fbbf24" stopOpacity="0.8" />
+                        <stop offset="60%" stopColor="#f87171" stopOpacity="0.6" />
+                        <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
+                    </radialGradient>
+                    <radialGradient id="missile_fire_outer" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.6" />
+                        <stop offset="50%" stopColor="#f87171" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="#dc2626" stopOpacity="0" />
+                    </radialGradient>
+                    <radialGradient id="missile_fire_particle" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="#fef08a" stopOpacity="0.8" />
+                        <stop offset="50%" stopColor="#f87171" stopOpacity="0.5" />
                         <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
                     </radialGradient>
                     <linearGradient id="bonus-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -842,6 +1038,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     if (player === Player.None) return null;
                     const { cx, cy } = toSvgCoords({ x, y });
                     
+                    // 미사일 선택 가능 여부는 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
+                    const actualPlayer = boardState?.[y]?.[x] ?? player;
+                    
                     const isSingleLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastMove && lastMove.x === x && lastMove.y === y;
                     const isMultiLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastTurnStones && lastTurnStones.some(p => p.x === x && p.y === y);
                     const isLast = !!(isSingleLastMove || isMultiLastMove);
@@ -857,39 +1056,47 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         } else {
                             const isMyScanned = !isSpectator && myRevealedStones?.some(p => p.x === x && p.y === y);
                             const isNewlyRevealed = newlyRevealed?.some(nr => nr.point.x === x && nr.point.y === y);
-                            isVisible = isGameFinished || !!isPermanentlyRevealed || player === myPlayerEnum || !!isMyScanned || !!isNewlyRevealed;
+                            isVisible = isGameFinished || !!isPermanentlyRevealed || actualPlayer === myPlayerEnum || !!isMyScanned || !!isNewlyRevealed;
                         }
                     }
 
                     if (!isVisible) return null;
-                    if (animation?.type === 'missile' && animation.from.x === x && animation.from.y === y) return null;
-                    if (animation?.type === 'hidden_missile' && animation.from.x === x && animation.from.y === y) return null;
+                    // 미사일 애니메이션 중에는 원래 자리와 목적지 자리의 돌을 숨김
+                    if (animation?.type === 'missile') {
+                        if (animation.from.x === x && animation.from.y === y) return null; // 원래 자리
+                        if (animation.to.x === x && animation.to.y === y) return null; // 목적지 자리
+                    }
+                    if (animation?.type === 'hidden_missile') {
+                        if (animation.from.x === x && animation.from.y === y) return null; // 원래 자리
+                        if (animation.to.x === x && animation.to.y === y) return null; // 목적지 자리
+                    }
                     
                     const isNewlyRevealedForAnim = newlyRevealed?.some(nr => nr.point.x === x && nr.point.y === y);
                     // 싱글플레이어에서 유저의 히든 돌은 반투명으로 표시 (비공개 상태)
                     // PVP에서는 스캔한 히든 돌만 반투명으로 표시
                     const isFaint = !isSpectator && (
                         (myRevealedStones?.some(p => p.x === x && p.y === y) && !isPermanentlyRevealed) ||
-                        (isHiddenMove && player === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
+                        (isHiddenMove && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
                     );
 
-                    const isBaseStone = baseStones?.some(stone => stone.x === x && stone.y === y && stone.player === player);
+                    const isBaseStone = baseStones?.some(stone => stone.x === x && stone.y === y && stone.player === actualPlayer);
                     // 히든 돌은 공개되어도 히든 문양을 유지해야 함
                     // isKnownHidden: 히든 돌인지 여부 (공개 여부와 관계없이)
                     const isKnownHidden = isHiddenMove; // 공개 여부와 관계없이 히든 돌이면 true
                     const isSelectedMissileForRender = selectedMissileStone?.x === x && selectedMissileStone?.y === y;
-                    const isHoverSelectableMissile = gameStatus === 'missile_selecting' && !selectedMissileStone && player === myPlayerEnum;
+                    // 미사일 선택 가능 여부: 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
+                    const isHoverSelectableMissile = gameStatus === 'missile_selecting' && !selectedMissileStone && actualPlayer === myPlayerEnum;
                     
                     // 문양 결정: 히든 돌이 아닌 경우에만 패턴 문양 표시
                     // 히든 돌(공개 여부와 관계없이)은 히든 문양을 우선 표시하므로 패턴 문양을 표시하지 않음
                     let isPatternStone = false;
                     if (!isHiddenMove) {
-                        // 히든 돌이 아닌 경우에만 패턴 문양 확인
-                        isPatternStone = ((player === Player.Black && blackPatternStones?.some(p => p.x === x && p.y === y)) || (player === Player.White && whitePatternStones?.some(p => p.x === x && p.y === y))) ?? false;
+                        // 히든 돌이 아닌 경우에만 패턴 문양 확인 (actualPlayer 사용)
+                        isPatternStone = ((actualPlayer === Player.Black && blackPatternStones?.some(p => p.x === x && p.y === y)) || (actualPlayer === Player.White && whitePatternStones?.some(p => p.x === x && p.y === y))) ?? false;
                     }
 
                     
-                    return <Stone key={`${x}-${y}`} player={player} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={isBaseStone} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} />;
+                    return <Stone key={`${x}-${y}`} player={actualPlayer} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={isBaseStone} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} />;
                 }))}
                 {myBaseStonesForPlacement?.map((stone, i) => {
                     const { cx, cy } = toSvgCoords(stone);
@@ -933,29 +1140,46 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                 {showHoverPreview && hoverPos && ( <g opacity="0.5"> <Stone player={stoneColor} cx={toSvgCoords(hoverPos).cx} cy={toSvgCoords(hoverPos).cy} radius={stone_radius} /> </g> )}
                 {renderMissileLaunchPreview()}
-                {animation && (
-                    <>
-                        {animation.type === 'missile' && (
-                            <AnimatedMissileStone 
-                                key={`missile-${animation.from.x}-${animation.from.y}-${animation.to.x}-${animation.to.y}-${animation.startTime}`}
-                                animation={animation} 
-                                stone_radius={stone_radius} 
-                                toSvgCoords={toSvgCoords} 
-                            />
-                        )}
-                        {animation.type === 'hidden_missile' && (
-                            <AnimatedHiddenMissile 
-                                key={`hidden-missile-${animation.from.x}-${animation.from.y}-${animation.to.x}-${animation.to.y}-${animation.startTime}`}
-                                animation={animation} 
-                                stone_radius={stone_radius} 
-                                toSvgCoords={toSvgCoords} 
-                            />
-                        )}
-                        {animation.type === 'scan' && !isSpectator && animation.playerId === currentUser.id && <AnimatedScanMarker animation={animation} toSvgCoords={toSvgCoords} stone_radius={stone_radius} />}
-                        {animation.type === 'hidden_reveal' && animation.stones.map((s, i) => ( <Stone key={`reveal-${i}`} player={s.player} cx={toSvgCoords(s.point).cx} cy={toSvgCoords(s.point).cy} isKnownHidden animationClass="sparkle-animation" radius={stone_radius} /> ))}
-                        {animation.type === 'bonus_text' && <AnimatedBonusText animation={animation} toSvgCoords={toSvgCoords} cellSize={cell_size} />}
-                    </>
-                )}
+                {animation && (() => {
+                    // 히든 돌인지 확인 (공개되지 않은 히든 돌)
+                    const isHiddenStone = (animation.type === 'missile' || animation.type === 'hidden_missile') && (() => {
+                        if (!moveHistory || !hiddenMoves) return false;
+                        const moveIndex = moveHistory.findIndex(m => m.x === animation.from.x && m.y === animation.from.y);
+                        if (moveIndex === -1) return false;
+                        const isHidden = !!hiddenMoves[moveIndex];
+                        const isRevealed = permanentlyRevealedStones?.some(p => p.x === animation.from.x && p.y === animation.from.y);
+                        return isHidden && !isRevealed;
+                    })();
+
+                    // 히든 돌이면 애니메이션을 숨기고 소리만 재생
+                    if (isHiddenStone) {
+                        return null; // 애니메이션 렌더링하지 않음
+                    }
+
+                    return (
+                        <>
+                            {animation.type === 'missile' && (
+                                <AnimatedMissileStone 
+                                    key={`missile-${animation.from.x}-${animation.from.y}-${animation.to.x}-${animation.to.y}-${animation.startTime}`}
+                                    animation={animation} 
+                                    stone_radius={stone_radius} 
+                                    toSvgCoords={toSvgCoords} 
+                                />
+                            )}
+                            {animation.type === 'hidden_missile' && (
+                                <AnimatedHiddenMissile 
+                                    key={`hidden-missile-${animation.from.x}-${animation.from.y}-${animation.to.x}-${animation.to.y}-${animation.startTime}`}
+                                    animation={animation} 
+                                    stone_radius={stone_radius} 
+                                    toSvgCoords={toSvgCoords} 
+                                />
+                            )}
+                            {animation.type === 'scan' && !isSpectator && animation.playerId === currentUser.id && <AnimatedScanMarker animation={animation} toSvgCoords={toSvgCoords} stone_radius={stone_radius} />}
+                            {animation.type === 'hidden_reveal' && animation.stones.map((s, i) => ( <Stone key={`reveal-${i}`} player={s.player} cx={toSvgCoords(s.point).cx} cy={toSvgCoords(s.point).cy} isKnownHidden animationClass="sparkle-animation" radius={stone_radius} /> ))}
+                            {animation.type === 'bonus_text' && <AnimatedBonusText animation={animation} toSvgCoords={toSvgCoords} cellSize={cell_size} />}
+                        </>
+                    );
+                })()}
                 {renderDeadStoneMarkers()}
                 {showHintOverlay && !isBoardDisabled && analysisResult?.recommendedMoves?.map(move => ( <RecommendedMoveMarker key={`rec-${move.order}`} move={move} toSvgCoords={toSvgCoords} cellSize={cell_size} onClick={onBoardClick} /> ))}
                 {gameStatus === 'scoring' && !analysisResult && (

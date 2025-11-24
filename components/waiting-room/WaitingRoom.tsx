@@ -146,8 +146,17 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   }, [mode]);
 
   // 대기실 입장 시 자동으로 ENTER_WAITING_ROOM 액션 전송
+  const hasEnteredWaitingRoom = useRef(false);
+  const lastModeRef = useRef<string | GameMode | undefined>(undefined);
+  
   useEffect(() => {
-    if (currentUserWithStatus && mode) {
+    // mode가 변경되면 플래그 리셋
+    if (lastModeRef.current !== mode) {
+      hasEnteredWaitingRoom.current = false;
+      lastModeRef.current = mode;
+    }
+    
+    if (currentUserWithStatus && mode && !hasEnteredWaitingRoom.current) {
       // 현재 유저가 이미 대기실에 있는지 확인
       const isAlreadyInWaitingRoom = currentUserWithStatus.status === UserStatus.Waiting || currentUserWithStatus.status === UserStatus.Resting;
       // 전략/놀이바둑 대기실의 경우 mode 매칭 체크를 다르게 처리
@@ -159,10 +168,14 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       
       // 대기 상태가 아니거나 모드가 일치하지 않으면 대기실 입장
       if (!isAlreadyInWaitingRoom || !modeMatches) {
+        hasEnteredWaitingRoom.current = true;
         handlers.handleAction({ type: 'ENTER_WAITING_ROOM', payload: { mode } });
+      } else {
+        hasEnteredWaitingRoom.current = true;
       }
     }
-  }, [mode, currentUserWithStatus?.id, currentUserWithStatus?.status, currentUserWithStatus?.mode, handlers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, currentUserWithStatus?.id]);
 
   // 랭킹전 매칭 상태 업데이트 (WebSocket 메시지 처리)
   useEffect(() => {
@@ -272,7 +285,16 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         return [me, ...all.filter(u => u.id !== currentUserWithStatus.id)];
   }, [onlineUsers, mode, currentUserWithStatus]);
 
-  const locationPrefix = mode === 'strategic' ? '[전략바둑]' : mode === 'playful' ? '[놀이바둑]' : `[${mode}]`;
+  // 허용된 위치만 설정
+  let locationPrefix: string;
+  if (mode === 'strategic') {
+    locationPrefix = '[전략바둑]';
+  } else if (mode === 'playful') {
+    locationPrefix = '[놀이바둑]';
+  } else {
+    // 알 수 없는 모드는 기본값으로 [홈] 반환
+    locationPrefix = '[홈]';
+  }
     
   return (
     <div className="bg-primary text-primary flex flex-col h-full max-w-full">

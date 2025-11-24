@@ -497,6 +497,181 @@ export const useApp = () => {
     const handleAction = useCallback(async (action: ServerAction): Promise<{ gameId?: string; claimAllTrainingQuestRewards?: any } | void> => {
         console.log(`[handleAction] Action received: ${action.type}`, action);
         
+        // 싱글플레이 미사일 애니메이션 완료 클라이언트 처리
+        if ((action as any).type === 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE') {
+            const payload = (action as any).payload;
+            const { gameId } = payload;
+            console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - processing client-side:`, { gameId });
+            
+            setSinglePlayerGames((currentGames) => {
+                const game = currentGames[gameId];
+                if (!game) {
+                    console.debug(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Game not found in state:`, gameId);
+                    return currentGames;
+                }
+                
+                // 게임이 이미 종료되었는지 확인
+                if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
+                    console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Game already ended, ignoring:`, {
+                        gameId,
+                        gameStatus: game.gameStatus
+                    });
+                    return currentGames;
+                }
+                
+                // 애니메이션이 없거나 이미 완료된 경우
+                if (!game.animation || (game.animation.type !== 'missile' && game.animation.type !== 'hidden_missile')) {
+                    // 게임 상태가 여전히 missile_animating이면 정리
+                    if (game.gameStatus === 'missile_animating') {
+                        console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Cleaning up stuck missile_animating state:`, gameId);
+                        return {
+                            ...currentGames,
+                            [gameId]: {
+                                ...game,
+                                gameStatus: 'playing',
+                                animation: null,
+                                pausedTurnTimeLeft: undefined,
+                                itemUseDeadline: undefined
+                            }
+                        };
+                    }
+                    return currentGames;
+                }
+                
+                // 애니메이션 정보 저장
+                const animationFrom = game.animation.from;
+                const animationTo = game.animation.to;
+                const playerWhoMoved = game.currentPlayer;
+                const revealedHiddenStone = (game.animation as any).revealedHiddenStone as Point | null | undefined;
+                
+                // 게임 상태 업데이트
+                // 타이머 복원: pausedTurnTimeLeft가 있으면 복원
+                let updatedBlackTime = game.blackTimeLeft;
+                let updatedWhiteTime = game.whiteTimeLeft;
+                
+                if (game.pausedTurnTimeLeft !== undefined) {
+                    if (playerWhoMoved === Player.Black) {
+                        updatedBlackTime = game.pausedTurnTimeLeft;
+                    } else {
+                        updatedWhiteTime = game.pausedTurnTimeLeft;
+                    }
+                }
+                
+                const updatedGame: LiveGameSession = {
+                    ...game,
+                    animation: null,
+                    gameStatus: 'playing',
+                    blackTimeLeft: updatedBlackTime,
+                    whiteTimeLeft: updatedWhiteTime,
+                    pausedTurnTimeLeft: undefined,
+                    itemUseDeadline: undefined,
+                    // 타이머 재개를 위해 turnDeadline과 turnStartTime도 설정
+                    turnDeadline: game.settings.timeLimit > 0 && (updatedBlackTime > 0 || updatedWhiteTime > 0) 
+                        ? Date.now() + (playerWhoMoved === Player.Black ? updatedBlackTime : updatedWhiteTime) * 1000
+                        : undefined,
+                    turnStartTime: game.settings.timeLimit > 0 ? Date.now() : undefined
+                };
+                
+                // 히든 돌 공개 처리
+                if (revealedHiddenStone) {
+                    const moveIndex = game.moveHistory.findIndex(m => m.x === revealedHiddenStone.x && m.y === revealedHiddenStone.y);
+                    if (moveIndex !== -1) {
+                        if (!updatedGame.permanentlyRevealedStones) updatedGame.permanentlyRevealedStones = [];
+                        if (!updatedGame.permanentlyRevealedStones.some(p => p.x === revealedHiddenStone.x && p.y === revealedHiddenStone.y)) {
+                            updatedGame.permanentlyRevealedStones.push({ x: revealedHiddenStone.x, y: revealedHiddenStone.y });
+                        }
+                    }
+                }
+                
+                // 싱글플레이에서는 LAUNCH_MISSILE에서 이미 보드 상태가 업데이트되었으므로
+                // 애니메이션 완료 시에는 보드 상태를 변경하지 않고 그대로 유지
+                // (서버에서 이미 원래 자리 제거, 목적지 배치가 완료됨)
+                // 단, 보드 상태가 제대로 동기화되지 않은 경우를 대비해 확인만 수행
+                if (animationFrom && animationTo) {
+                    const stoneAtTo = game.boardState[animationTo.y]?.[animationTo.x];
+                    const stoneAtFrom = game.boardState[animationFrom.y]?.[animationFrom.x];
+                    
+                    // 목적지에 돌이 없으면 배치 (서버 동기화 문제 대비)
+                    if (stoneAtTo !== playerWhoMoved) {
+                        console.warn(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Stone not at destination, fixing:`, {
+                            gameId,
+                            from: animationFrom,
+                            to: animationTo,
+                            stoneAtTo,
+                            playerWhoMoved
+                        });
+                        const newBoardState = game.boardState.map((row, y) => 
+                            row.map((cell, x) => {
+                                if (x === animationTo.x && y === animationTo.y) {
+                                    return playerWhoMoved;
+                                }
+                                if (x === animationFrom.x && y === animationFrom.y && cell === playerWhoMoved) {
+                                    return Player.None;
+                                }
+                                return cell;
+                            })
+                        );
+                        updatedGame.boardState = newBoardState;
+                    } else if (stoneAtFrom === playerWhoMoved) {
+                        // 원래 자리에 아직 돌이 있으면 제거 (서버 동기화 문제 대비)
+                        console.warn(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Stone still at origin, removing:`, {
+                            gameId,
+                            from: animationFrom,
+                            to: animationTo
+                        });
+                        const newBoardState = game.boardState.map((row, y) => 
+                            row.map((cell, x) => 
+                                (x === animationFrom.x && y === animationFrom.y && cell === playerWhoMoved) ? Player.None : cell
+                            )
+                        );
+                        updatedGame.boardState = newBoardState;
+                    }
+                    
+                    // 배치돌 업데이트: 원래 자리의 배치돌을 목적지로 이동 (이미 서버에서 처리되었을 수 있음)
+                    if (game.baseStones) {
+                        const baseStoneIndex = game.baseStones.findIndex(bs => bs.x === animationFrom.x && bs.y === animationFrom.y);
+                        if (baseStoneIndex !== -1) {
+                            updatedGame.baseStones = [...game.baseStones];
+                            updatedGame.baseStones[baseStoneIndex] = { x: animationTo.x, y: animationTo.y };
+                        }
+                    }
+                    
+                    // 싱글플레이에서 baseStones_p1, baseStones_p2도 확인
+                    const playerId = playerWhoMoved === Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
+                    const baseStonesKey = playerId === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+                    const baseStonesArray = (game as any)[baseStonesKey] as Point[] | undefined;
+                    if (baseStonesArray) {
+                        const baseStoneIndex = baseStonesArray.findIndex(bs => bs.x === animationFrom.x && bs.y === animationFrom.y);
+                        if (baseStoneIndex !== -1) {
+                            (updatedGame as any)[baseStonesKey] = [...baseStonesArray];
+                            (updatedGame as any)[baseStonesKey][baseStoneIndex] = { x: animationTo.x, y: animationTo.y };
+                        }
+                    }
+                    
+                    // moveHistory 업데이트: 원래 자리의 이동 기록을 목적지로 변경 (이미 서버에서 처리되었을 수 있음)
+                    const fromMoveIndex = game.moveHistory.findIndex(m => m.x === animationFrom.x && m.y === animationFrom.y && m.player === playerWhoMoved);
+                    if (fromMoveIndex !== -1) {
+                        updatedGame.moveHistory = [...game.moveHistory];
+                        updatedGame.moveHistory[fromMoveIndex] = { ...updatedGame.moveHistory[fromMoveIndex], x: animationTo.x, y: animationTo.y };
+                    }
+                }
+                
+                console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Updated game state:`, {
+                    gameId,
+                    gameStatus: updatedGame.gameStatus,
+                    animation: updatedGame.animation,
+                    moveHistoryLength: updatedGame.moveHistory.length
+                });
+                
+                return {
+                    ...currentGames,
+                    [gameId]: updatedGame
+                };
+            });
+            
+            return;
+        }
+        
         // 타워 게임과 싱글플레이 게임의 클라이언트 측 move 처리 (서버로 전송하지 않음)
         // 클라이언트 측 이동 처리 (도전의 탑, 싱글플레이 공통 로직)
         if ((action as any).type === 'TOWER_CLIENT_MOVE' || (action as any).type === 'SINGLE_PLAYER_CLIENT_MOVE') {

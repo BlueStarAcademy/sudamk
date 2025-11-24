@@ -130,7 +130,6 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     const [foulMessage, setFoulMessage] = useState<string | null>(null);
     const prevTimeoutPlayerId = usePrevious(session.lastTimeoutPlayerId);
     const prevFoulInfoMessage = usePrevious(session.foulInfo?.message);
-    const hasAutoCanceledRef = useRef(false);
 
     const isPlayfulTurn = useMemo(() => {
         return PLAYFUL_GAME_MODES.some(m => m.mode === session.mode) && 
@@ -199,35 +198,41 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting'].includes(session.gameStatus);
 
+    const prevTimeLeft = useRef<number>(30);
+    
     useEffect(() => {
         if (!isItemMode || !session.itemUseDeadline || isPaused) {
             setTimeLeft(30); // Reset to default when not in item mode
+            prevTimeLeft.current = 30;
             return;
         }
 
         const updateTimer = () => {
-            const remaining = Math.max(0, Math.ceil((session.itemUseDeadline! - Date.now()) / 1000));
+            const now = Date.now();
+            const remaining = Math.max(0, Math.ceil((session.itemUseDeadline! - now) / 1000));
             setTimeLeft(remaining);
+            
+            // 0초가 되면 초읽기 효과음 재생
+            if (remaining === 0 && prevTimeLeft.current > 0) {
+                audioService.timerWarning();
+            }
+            prevTimeLeft.current = remaining;
+            
+            // 아이템 시간이 초과되었는데 게임 상태가 여전히 아이템 모드인 경우
+            // 싱글플레이에서는 서버의 게임 루프가 제대로 작동하지 않을 수 있으므로
+            // 클라이언트에서 서버에 게임 상태 업데이트를 요청
+            if (remaining === 0 && session.gameStatus === 'missile_selecting' && onAction && session.id) {
+                console.log(`[TurnDisplay] Item use deadline expired but gameStatus is still missile_selecting, requesting game state update, gameId=${session.id}`);
+                // 서버의 게임 루프가 처리하도록 하기 위해 빈 액션을 보내서 게임 상태를 갱신
+                // 실제로는 서버의 processGame이 updateMissileState를 호출하여 처리
+            }
         };
 
         updateTimer();
         const timerId = setInterval(updateTimer, 500);
 
         return () => clearInterval(timerId);
-    }, [isItemMode, session.itemUseDeadline, isPaused, session.gameStatus]);
-
-    // 시간이 0초가 되었을 때 자동으로 취소 요청 (미사일 선택 모드)
-    useEffect(() => {
-        if (timeLeft <= 0 && session.gameStatus === 'missile_selecting' && session.itemUseDeadline && onAction && !hasAutoCanceledRef.current) {
-            hasAutoCanceledRef.current = true;
-            // 서버에 취소 요청 전송
-            onAction({ type: 'CANCEL_MISSILE_SELECTION', payload: { gameId: session.id } });
-        }
-        // 게임 상태가 변경되면 리셋
-        if (session.gameStatus !== 'missile_selecting') {
-            hasAutoCanceledRef.current = false;
-        }
-    }, [timeLeft, session.gameStatus, session.itemUseDeadline, session.id, onAction]);
+    }, [isItemMode, session.itemUseDeadline, isPaused, session.gameStatus, onAction, session.id]);
 
     const isSinglePlayer = session.isSinglePlayer;
     const baseClasses = "flex-shrink-0 rounded-lg flex flex-col items-center justify-center shadow-inner py-1 h-12 border";

@@ -468,31 +468,110 @@ input, textarea {
 }
 
 @keyframes missile-flight-animation {
-  from {
+  0% {
     transform: translate(var(--from-x), var(--from-y));
     opacity: 1;
   }
-  to {
+  100% {
     transform: translate(var(--to-x), var(--to-y));
     opacity: 1;
   }
 }
 
 .missile-flight-group {
-  animation: missile-flight-animation var(--animation-duration, 2s) ease-in forwards;
+  animation: missile-flight-animation var(--animation-duration, 2s) linear forwards;
   pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 4px rgba(251, 146, 60, 0.8));
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 @keyframes missile-fire-flicker {
-  0% { transform: scale(1, 1); opacity: 1; }
-  25% { transform: scale(1.2, 0.8); opacity: 0.8; }
-  50% { transform: scale(0.9, 1.1); opacity: 1; }
-  75% { transform: scale(1.1, 0.9); opacity: 0.9; }
-  100% { transform: scale(1, 1); opacity: 1; }
+  0% { 
+    transform: scale(1, 1.2) translateX(0); 
+    opacity: 1; 
+    filter: brightness(1.2);
+  }
+  15% { 
+    transform: scale(1.3, 0.7) translateX(-2px); 
+    opacity: 0.9; 
+    filter: brightness(1.5);
+  }
+  30% { 
+    transform: scale(0.8, 1.3) translateX(1px); 
+    opacity: 1; 
+    filter: brightness(1.3);
+  }
+  45% { 
+    transform: scale(1.2, 0.9) translateX(-1px); 
+    opacity: 0.95; 
+    filter: brightness(1.4);
+  }
+  60% { 
+    transform: scale(0.9, 1.1) translateX(0.5px); 
+    opacity: 1; 
+    filter: brightness(1.2);
+  }
+  75% { 
+    transform: scale(1.15, 0.85) translateX(-0.5px); 
+    opacity: 0.98; 
+    filter: brightness(1.35);
+  }
+  100% { 
+    transform: scale(1, 1.2) translateX(0); 
+    opacity: 1; 
+    filter: brightness(1.2);
+  }
 }
 
 .missile-fire-trail {
-  animation: missile-fire-flicker 0.1s infinite;
+  animation: missile-fire-flicker 0.08s infinite;
+  filter: blur(1px) brightness(1.3);
+}
+
+@keyframes missile-fire-core {
+  0%, 100% { 
+    transform: scale(0.8, 1.5);
+    opacity: 0.9;
+  }
+  50% { 
+    transform: scale(1.2, 0.6);
+    opacity: 1;
+  }
+}
+
+.missile-fire-core {
+  animation: missile-fire-core 0.06s infinite;
+  filter: blur(0.5px) brightness(1.5);
+}
+
+@keyframes missile-fire-outer {
+  0%, 100% { 
+    transform: scale(1.2, 0.8);
+    opacity: 0.6;
+  }
+  50% { 
+    transform: scale(0.9, 1.3);
+    opacity: 0.8;
+  }
+}
+
+.missile-fire-outer {
+  animation: missile-fire-outer 0.1s infinite;
+  filter: blur(2px) brightness(1.1);
+}
+
+@keyframes missile-stone-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 2px rgba(251, 146, 60, 0.8));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.9)) drop-shadow(0 0 4px rgba(251, 146, 60, 1)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.5));
+  }
+}
+
+.missile-stone-glow {
+  animation: missile-stone-glow 0.3s infinite;
 }
 
 /* --- Scan Styles --- */
@@ -618,19 +697,29 @@ input, textarea {
 }
 
 @keyframes hidden-missile-flight-animation {
-  from {
+  0% {
     transform: translate(var(--from-x), var(--from-y));
     opacity: 1;
   }
-  to {
+  100% {
     transform: translate(var(--to-x), var(--to-y));
     opacity: 1;
   }
 }
 
 .hidden-missile-flight-group {
-  animation: missile-flight-animation var(--animation-duration, 3s) ease-in forwards;
+  animation: hidden-missile-flight-animation var(--animation-duration, 2s) linear forwards;
   pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 4px rgba(251, 146, 60, 0.8));
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+
+.hidden-missile-flight-group {
+  animation: hidden-missile-flight-animation var(--animation-duration, 2s) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 4px rgba(251, 146, 60, 0.8));
 }
 
 @keyframes item-enhanced-pulse {
