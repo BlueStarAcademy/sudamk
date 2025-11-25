@@ -1361,24 +1361,32 @@ export const useApp = () => {
                  const scoreChange = result.clientResponse?.tournamentScoreChange;
                  if (scoreChange) setTournamentScoreChange(scoreChange);
                 
-                 // 보상 수령 모달 처리
+                 // 보상 수령 모달 처리 (즉시 표시를 위해 flushSync 사용)
                 if (result.rewardSummary) {
-                    setRewardSummary(result.rewardSummary);
+                    flushSync(() => {
+                        setRewardSummary(result.rewardSummary);
+                    });
                 } else if (result.clientResponse?.rewardSummary) {
-                    setRewardSummary(result.clientResponse.rewardSummary);
+                    flushSync(() => {
+                        setRewardSummary(result.clientResponse.rewardSummary);
+                    });
                 } else if (action.type === 'CLAIM_SINGLE_PLAYER_MISSION_REWARD' && result.clientResponse?.reward) {
                     // 서버에서 rewardSummary가 없을 경우 fallback
                     const reward = result.clientResponse.reward;
-                    setRewardSummary({
-                        reward: reward,
-                        items: [],
-                        title: '수련과제 보상 수령'
+                    flushSync(() => {
+                        setRewardSummary({
+                            reward: reward,
+                            items: [],
+                            title: '수련과제 보상 수령'
+                        });
                     });
                 }
                 
                 if (result.claimAllSummary) {
-                    setClaimAllSummary(result.claimAllSummary);
-                    setIsClaimAllSummaryOpen(true);
+                    flushSync(() => {
+                        setClaimAllSummary(result.claimAllSummary);
+                        setIsClaimAllSummaryOpen(true);
+                    });
                 }
                 
                 // 수련 과제 일괄 수령 응답 처리

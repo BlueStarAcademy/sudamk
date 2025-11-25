@@ -199,14 +199,19 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 user.quests[questType!]!.activityProgress += activityPoints;
             }
 
-            await db.updateUser(user);
-            
             // 깊은 복사로 updatedUser 생성하여 React가 변경을 확실히 감지하도록 함
             const updatedUser = JSON.parse(JSON.stringify(user));
             
-            // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화: 변경된 필드만 전송)
+            // DB 업데이트와 WebSocket 브로드캐스트를 병렬로 처리하여 응답 속도 개선
+            const updatePromise = db.updateUser(user);
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(updatedUser, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints']);
+            const broadcastPromise = broadcastUserUpdate(updatedUser, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints']);
+            
+            // rewardSummary를 즉시 반환하여 모달이 빠르게 표시되도록 함
+            // DB 업데이트는 백그라운드에서 완료되도록 함
+            Promise.all([updatePromise, broadcastPromise]).catch((error) => {
+                console.error(`[CLAIM_QUEST_REWARD] Error updating user or broadcasting:`, error);
+            });
             
             return { 
                 clientResponse: { 
