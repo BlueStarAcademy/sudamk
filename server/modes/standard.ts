@@ -53,6 +53,30 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
 
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
     // This is the core update logic for all Go-based games.
+    
+    // 플레이어가 차례를 시작할 때 초읽기 모드인지 확인하고, 초읽기 시간을 30초로 리셋
+    // (초읽기 모드에서 수를 두면 다음 턴에서 30초로 꽉 채워짐)
+    if (game.gameStatus === 'playing' && game.settings.timeLimit > 0 && game.turnStartTime) {
+        const timeSinceTurnStart = now - game.turnStartTime;
+        // 턴이 시작된 직후 (100ms 이내)에만 체크하여 중복 방지
+        if (timeSinceTurnStart >= 0 && timeSinceTurnStart < 100) {
+            const currentPlayer = game.currentPlayer;
+            const timeKey = currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            const byoyomiKey = currentPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+            const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+            
+            // 초읽기 모드인지 확인 (메인 시간이 0이고 초읽기 횟수가 남아있는 경우)
+            const isInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0 && !isFischer;
+            
+            if (isInByoyomi && game.turnDeadline) {
+                // 초읽기 모드에서 수를 두었던 플레이어가 다시 차례가 오면, 초읽기 시간을 30초로 리셋
+                // (초읽기 모드에서 수를 두면 다음 턴에서 30초로 꽉 채워짐)
+                game.turnDeadline = now + game.settings.byoyomiTime * 1000;
+                game.turnStartTime = now;
+            }
+        }
+    }
+    
     if (game.gameStatus === 'playing' && game.turnDeadline && now > game.turnDeadline) {
         const timedOutPlayer = game.currentPlayer;
         const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
@@ -61,16 +85,17 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
 
         if (isFischer) {
             // Fischer timeout is an immediate loss.
-        } else if (game[timeKey] > 0) { // Main time expired
+        } else if (game[timeKey] > 0) { // Main time expired -> enter byoyomi without consuming a period
             game[timeKey] = 0;
             if (game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0) {
-                game[byoyomiKey]--;
+                // 초읽기 모드로 진입하되 횟수를 차감하지 않음 (그래프가 다시 회복되면서 초읽기 모드 시작)
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 game.turnStartTime = now;
                 return;
             }
         } else { // Byoyomi expired
             if (game[byoyomiKey] > 0) {
+                // 초읽기 시간이 만료되면 횟수를 차감
                 game[byoyomiKey]--;
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 game.turnStartTime = now;
@@ -471,17 +496,33 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             const playerWhoMoved = myPlayerEnum;
+            // 수를 둔 플레이어가 초읽기 모드에서 수를 두었는지 기록 (다음 턴에서 30초로 리셋하기 위해)
+            let movedPlayerWasInByoyomi = false;
+            
             if (game.settings.timeLimit > 0) {
                 const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                 const fischerIncrement = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed)) ? (game.settings.timeIncrement || 0) : 0;
+                const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
                 
-                if (game.turnDeadline) {
-                    const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
-                    game[timeKey] = timeRemaining + fischerIncrement;
-                } else if(game.pausedTurnTimeLeft) {
-                    game[timeKey] = game.pausedTurnTimeLeft + fischerIncrement;
+                // 초읽기 모드인지 확인 (메인 시간이 0이고 초읽기 횟수가 남아있는 경우)
+                const isInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0 && !isFischer;
+                movedPlayerWasInByoyomi = isInByoyomi;
+                
+                if (isInByoyomi) {
+                    // 초읽기 모드에서 수를 두면 다음 턴에서 30초로 리셋됨
+                    // 현재는 시간을 0으로 유지 (다음 턴에서 30초로 설정됨)
+                    game[timeKey] = 0; // 초읽기 모드이므로 메인 시간은 0으로 유지
                 } else {
-                    game[timeKey] += fischerIncrement;
+                    // 일반 모드: 남은 시간 저장
+                    if (game.turnDeadline) {
+                        const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
+                        game[timeKey] = timeRemaining + fischerIncrement;
+                    } else if(game.pausedTurnTimeLeft) {
+                        game[timeKey] = game.pausedTurnTimeLeft + fischerIncrement;
+                    } else {
+                        game[timeKey] += fischerIncrement;
+                    }
                 }
             }
 
@@ -496,10 +537,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             if (game.settings.timeLimit > 0) {
                 const nextPlayer = game.currentPlayer;
                 const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                 const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
-                const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
+                const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
 
                 if (isNextInByoyomi) {
+                    // 다음 플레이어가 초읽기 모드인 경우 30초 설정
                     game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 } else {
                     game.turnDeadline = now + game[nextTimeKey] * 1000;

@@ -114,8 +114,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return session.boardState;
         }
         
-        // 싱글플레이어 게임의 경우 blackPatternStones와 whitePatternStones로부터 복원
-        if (isSinglePlayer && (session.blackPatternStones || session.whitePatternStones)) {
+        // 싱글플레이어 게임과 도전의 탑 게임의 경우 blackPatternStones와 whitePatternStones로부터 복원
+        if ((isSinglePlayer || isTower) && (session.blackPatternStones || session.whitePatternStones)) {
             const boardSize = session.settings.boardSize;
             const restored = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
             
@@ -150,7 +150,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         
         return session.boardState;
-    }, [isSinglePlayer, session.boardState, session.blackPatternStones, session.whitePatternStones, session.moveHistory, session.settings.boardSize, gameId, gameStatus]);
+    }, [isSinglePlayer, isTower, session.boardState, session.blackPatternStones, session.whitePatternStones, session.moveHistory?.length, session.settings.boardSize, gameId, gameStatus]);
     
     // 게임 상태를 sessionStorage에 저장 (매 수마다)
     useEffect(() => {
@@ -1054,15 +1054,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // 도전의 탑: 싱글플레이와 동일하게 시작 모달에서 시작 버튼을 눌러 확정
     
     // 싱글플레이어 게임의 경우 restoredBoardState를 포함한 session 객체 생성
+    // session 객체의 참조가 변경되지 않을 수 있으므로, moveHistory.length와 boardState를 의존성으로 사용
     const sessionWithRestoredBoard = useMemo(() => {
-        if (!isSinglePlayer || !restoredBoardState || restoredBoardState === session.boardState) {
+        if (!isSinglePlayer && !isTower) {
             return session;
         }
-        return {
-            ...session,
-            boardState: restoredBoardState
-        };
-    }, [isSinglePlayer, session, restoredBoardState]);
+        // restoredBoardState가 있고 session.boardState와 다르면 업데이트된 boardState 사용
+        if (restoredBoardState && restoredBoardState !== session.boardState) {
+            return {
+                ...session,
+                boardState: restoredBoardState
+            };
+        }
+        return session;
+    }, [isSinglePlayer, isTower, session, restoredBoardState, session.moveHistory?.length, session.boardState]);
     
     const gameProps: GameProps = {
         session: sessionWithRestoredBoard, onAction: handlers.handleAction, currentUser: currentUserWithStatus, waitingRoomChat: globalChat,

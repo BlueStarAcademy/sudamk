@@ -63,16 +63,17 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
 
         if (isFischer) {
             // Fischer timeout is an immediate loss.
-        } else if (game[timeKey] > 0) { // Main time expired
+        } else if (game[timeKey] > 0) { // Main time expired -> enter byoyomi without consuming a period
             game[timeKey] = 0;
             if (game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0) {
-                game[byoyomiKey]--;
+                // 초읽기 모드로 진입하되 횟수를 차감하지 않음 (그래프가 다시 회복되면서 초읽기 모드 시작)
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 game.turnStartTime = now;
                 return;
             }
         } else { // Byoyomi expired
             if (game[byoyomiKey] > 0) {
+                // 초읽기 시간이 만료되면 횟수를 차감
                 game[byoyomiKey]--;
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 game.turnStartTime = now;

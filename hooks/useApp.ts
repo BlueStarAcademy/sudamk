@@ -14,6 +14,8 @@ import {
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
+import { calculateUserEffects } from '../services/effectService.js';
+import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 
 export const useApp = () => {
     // --- State Management ---
@@ -360,8 +362,52 @@ export const useApp = () => {
         return Object.values(usersMap);
     }, [usersMap]);
 
+    // 행동력 실시간 업데이트를 위한 상태
+    const [actionPointUpdateTrigger, setActionPointUpdateTrigger] = useState(0);
+    
+    // 행동력을 실시간으로 계산하는 useEffect
+    useEffect(() => {
+        if (!currentUser || !currentUser.actionPoints) return;
+        
+        const intervalId = setInterval(() => {
+            if (!currentUser.actionPoints || currentUser.lastActionPointUpdate === undefined) return;
+            
+            const effects = calculateUserEffects(currentUser);
+            const now = Date.now();
+            const calculatedMaxAP = effects.maxActionPoints;
+            
+            // 행동력이 최대치가 아니고, lastActionPointUpdate가 유효한 경우에만 계산
+            if (currentUser.actionPoints.current < calculatedMaxAP && currentUser.lastActionPointUpdate !== 0) {
+                const lastUpdate = currentUser.lastActionPointUpdate;
+                if (typeof lastUpdate === 'number' && !isNaN(lastUpdate)) {
+                    const elapsedMs = now - lastUpdate;
+                    const regenInterval = effects.actionPointRegenInterval > 0 ? effects.actionPointRegenInterval : ACTION_POINT_REGEN_INTERVAL_MS;
+                    const pointsToAdd = Math.floor(elapsedMs / regenInterval);
+                    
+                    if (pointsToAdd > 0) {
+                        const newCurrent = Math.min(calculatedMaxAP, currentUser.actionPoints.current + pointsToAdd);
+                        setCurrentUser(prev => {
+                            if (!prev || !prev.actionPoints) return prev;
+                            return {
+                                ...prev,
+                                actionPoints: {
+                                    ...prev.actionPoints,
+                                    current: newCurrent,
+                                    max: calculatedMaxAP
+                                }
+                            };
+                        });
+                        setActionPointUpdateTrigger(prev => prev + 1);
+                    }
+                }
+            }
+        }, 1000); // 1초마다 체크
+        
+        return () => clearInterval(intervalId);
+    }, [currentUser?.actionPoints?.current, currentUser?.lastActionPointUpdate, currentUser?.id]);
+    
     const currentUserWithStatus: UserWithStatus | null = useMemo(() => {
-        // updateTrigger를 dependency에 포함시켜 강제 리렌더링 보장
+        // updateTrigger와 actionPointUpdateTrigger를 dependency에 포함시켜 강제 리렌더링 보장
         if (!currentUser) return null;
         const statusInfo = Array.isArray(onlineUsers)
             ? onlineUsers.find(u => u && u.id === currentUser.id)
@@ -372,8 +418,17 @@ export const useApp = () => {
             gameId: statusInfo?.gameId,
             spectatingGameId: statusInfo?.spectatingGameId,
         };
-        return { ...currentUser, ...statusData };
-    }, [currentUser, onlineUsers, updateTrigger]);
+        
+        // 행동력 최대치를 실시간으로 계산하여 반영
+        const effects = calculateUserEffects(currentUser);
+        const calculatedMaxAP = effects.maxActionPoints;
+        const updatedActionPoints = currentUser.actionPoints ? {
+            ...currentUser.actionPoints,
+            max: calculatedMaxAP
+        } : currentUser.actionPoints;
+        
+        return { ...currentUser, actionPoints: updatedActionPoints, ...statusData };
+    }, [currentUser, onlineUsers, updateTrigger, actionPointUpdateTrigger]);
 
     useEffect(() => {
         currentUserStatusRef.current = currentUserWithStatus;
@@ -546,6 +601,12 @@ export const useApp = () => {
                 const playerWhoMoved = game.currentPlayer;
                 const revealedHiddenStone = (game.animation as any).revealedHiddenStone as Point | null | undefined;
                 
+                // totalTurns와 captures 보존 (애니메이션 완료 시 초기화 방지)
+                const preservedTotalTurns = game.totalTurns;
+                const preservedCaptures = { ...game.captures };
+                const preservedBaseStoneCaptures = game.baseStoneCaptures ? { ...game.baseStoneCaptures } : undefined;
+                const preservedHiddenStoneCaptures = game.hiddenStoneCaptures ? { ...game.hiddenStoneCaptures } : undefined;
+                
                 // 게임 상태 업데이트
                 // 타이머 복원: pausedTurnTimeLeft가 있으면 복원
                 let updatedBlackTime = game.blackTimeLeft;
@@ -571,7 +632,12 @@ export const useApp = () => {
                     turnDeadline: game.settings.timeLimit > 0 && (updatedBlackTime > 0 || updatedWhiteTime > 0) 
                         ? Date.now() + (playerWhoMoved === Player.Black ? updatedBlackTime : updatedWhiteTime) * 1000
                         : undefined,
-                    turnStartTime: game.settings.timeLimit > 0 ? Date.now() : undefined
+                    turnStartTime: game.settings.timeLimit > 0 ? Date.now() : undefined,
+                    // totalTurns와 captures 보존
+                    totalTurns: preservedTotalTurns,
+                    captures: preservedCaptures,
+                    ...(preservedBaseStoneCaptures ? { baseStoneCaptures: preservedBaseStoneCaptures } : {}),
+                    ...(preservedHiddenStoneCaptures ? { hiddenStoneCaptures: preservedHiddenStoneCaptures } : {})
                 };
                 
                 // 히든 돌 공개 처리
@@ -659,11 +725,35 @@ export const useApp = () => {
                     }
                 }
                 
+                // sessionStorage에 저장 (restoredBoardState가 최신 상태를 읽을 수 있도록)
+                try {
+                    const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
+                    const gameStateToSave = {
+                        gameId,
+                        boardState: updatedGame.boardState,
+                        moveHistory: updatedGame.moveHistory || [],
+                        captures: updatedGame.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+                        baseStoneCaptures: updatedGame.baseStoneCaptures,
+                        hiddenStoneCaptures: updatedGame.hiddenStoneCaptures,
+                        permanentlyRevealedStones: updatedGame.permanentlyRevealedStones || [],
+                        blackPatternStones: updatedGame.blackPatternStones,
+                        whitePatternStones: updatedGame.whitePatternStones,
+                        totalTurns: updatedGame.totalTurns,
+                        timestamp: Date.now()
+                    };
+                    sessionStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(gameStateToSave));
+                    console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Saved game state to sessionStorage for game ${gameId}`);
+                } catch (e) {
+                    console.error(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Failed to save game state to sessionStorage:`, e);
+                }
+                
                 console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Updated game state:`, {
                     gameId,
                     gameStatus: updatedGame.gameStatus,
                     animation: updatedGame.animation,
-                    moveHistoryLength: updatedGame.moveHistory.length
+                    moveHistoryLength: updatedGame.moveHistory.length,
+                    totalTurns: updatedGame.totalTurns,
+                    captures: updatedGame.captures
                 });
                 
                 return {
@@ -899,6 +989,30 @@ export const useApp = () => {
                 
                 return { ...currentGames, [gameId]: updateResult.updatedGame };
             });
+            
+            // 싱글플레이 게임과 도전의 탑 게임의 경우 sessionStorage에 저장 (restoredBoardState가 최신 상태를 읽을 수 있도록)
+            if ((gameType === 'singleplayer' || gameType === 'tower') && finalUpdatedGame) {
+                try {
+                    const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
+                    const gameStateToSave = {
+                        gameId,
+                        boardState: finalUpdatedGame.boardState,
+                        moveHistory: finalUpdatedGame.moveHistory || [],
+                        captures: finalUpdatedGame.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+                        baseStoneCaptures: finalUpdatedGame.baseStoneCaptures,
+                        hiddenStoneCaptures: finalUpdatedGame.hiddenStoneCaptures,
+                        permanentlyRevealedStones: finalUpdatedGame.permanentlyRevealedStones || [],
+                        blackPatternStones: finalUpdatedGame.blackPatternStones,
+                        whitePatternStones: finalUpdatedGame.whitePatternStones,
+                        totalTurns: finalUpdatedGame.totalTurns,
+                        timestamp: Date.now()
+                    };
+                    sessionStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(gameStateToSave));
+                    console.log(`[handleAction] ${actionTypeName} - Saved game state to sessionStorage for game ${gameId}`);
+                } catch (e) {
+                    console.error(`[handleAction] ${actionTypeName} - Failed to save game state to sessionStorage:`, e);
+                }
+            }
             
             // 살리기 바둑에서 게임 종료가 필요한 경우
             if (shouldEndGameSurvival && endGameWinnerSurvival !== null && finalUpdatedGame) {
@@ -2328,6 +2442,22 @@ export const useApp = () => {
                                             // hidden_placing, scanning 등 아이템 모드에서는 boardState를 보존해야 함
                                             const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(game.gameStatus);
                                             
+                                            // 애니메이션 중에는 totalTurns와 captures를 보존해야 함
+                                            const isAnimating = game.animation !== null && game.animation !== undefined;
+                                            
+                                            // totalTurns와 captures 보존 (애니메이션 중 초기화 방지)
+                                            const preservedTotalTurns = existingGame?.totalTurns !== undefined && existingGame?.totalTurns !== null
+                                                ? existingGame.totalTurns
+                                                : (game.totalTurns !== undefined && game.totalTurns !== null ? game.totalTurns : undefined);
+                                            
+                                            const preservedCaptures = existingGame?.captures && 
+                                                typeof existingGame.captures === 'object' &&
+                                                Object.keys(existingGame.captures).length > 0
+                                                ? existingGame.captures
+                                                : (game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0
+                                                    ? game.captures
+                                                    : existingGame?.captures || game.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 });
+                                            
                                             if (isItemMode) {
                                                 // 아이템 모드에서는 기존 boardState를 보존
                                                 const existingBoardStateValid = existingGame?.boardState && 
@@ -2366,6 +2496,9 @@ export const useApp = () => {
                                                     ...game,
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
+                                                    // totalTurns와 captures 보존 (애니메이션 중 초기화 방지)
+                                                    totalTurns: preservedTotalTurns,
+                                                    captures: preservedCaptures,
                                                     // 시간 정보도 보존
                                                     blackTimeLeft: (game.blackTimeLeft !== undefined && game.blackTimeLeft !== null && game.blackTimeLeft > 0) 
                                                         ? game.blackTimeLeft 
@@ -2450,7 +2583,16 @@ export const useApp = () => {
                                                 }
                                             } else {
                                                 // 일반 상태에서는 서버에서 온 게임 상태 사용
-                                                updatedGames[gameId] = game;
+                                                // 애니메이션 중이거나 기존 게임이 있으면 totalTurns와 captures 보존
+                                                if (isAnimating || existingGame) {
+                                                    updatedGames[gameId] = {
+                                                        ...game,
+                                                        totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
+                                                        captures: preservedCaptures
+                                                    };
+                                                } else {
+                                                    updatedGames[gameId] = game;
+                                                }
                                             }
                                         }
                                 const lastMoves = Array.isArray(game.moveHistory)

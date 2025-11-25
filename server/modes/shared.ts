@@ -302,7 +302,20 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
             if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
                 return { error: 'Game has already ended.' };
             }
-            // In 2-player games, if one player resigns, the other wins.
+            
+            // 싱글플레이 게임 또는 도전의 탑 게임인 경우 특별 처리
+            if (game.isSinglePlayer || game.gameCategory === 'tower') {
+                // 싱글플레이/도전의 탑에서 기권하면 AI(White)가 승리, 유저(Black)가 패배
+                // 유저는 항상 Black이므로 White가 승리
+                await summaryService.endGame(game, types.Player.White, 'resign');
+                
+                if (volatileState.userStatuses[user.id]) {
+                    volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: game.mode };
+                }
+                return {};
+            }
+            
+            // 2-player games, if one player resigns, the other wins.
             const winner = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
             await summaryService.endGame(game, winner, 'resign');
 

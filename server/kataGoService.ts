@@ -27,7 +27,9 @@ const KATAGO_MAX_VISITS = parseInt(process.env.KATAGO_MAX_VISITS || '1000', 10);
 const KATAGO_NN_MAX_BATCH_SIZE = parseInt(process.env.KATAGO_NN_MAX_BATCH_SIZE || '16', 10);
 
 // 배포 환경에서 KataGo HTTP API URL (환경 변수로 설정 가능)
-const KATAGO_API_URL = process.env.KATAGO_API_URL;
+// 로컬 환경에서도 배포된 사이트의 KataGo를 사용할 수 있도록 DEPLOYED_SITE_URL 지원
+const DEPLOYED_SITE_URL = process.env.DEPLOYED_SITE_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
+const KATAGO_API_URL = process.env.KATAGO_API_URL || (DEPLOYED_SITE_URL ? `${DEPLOYED_SITE_URL}/api/katago/analyze` : undefined);
 const USE_HTTP_API = !!KATAGO_API_URL; // API URL이 설정되어 있으면 HTTP API 사용
 const IS_LOCAL = process.env.NODE_ENV !== 'production'; // 로컬 환경 확인
 
@@ -722,19 +724,24 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
     }
 
     // HTTP API를 사용하는 경우 queryKataGoViaHttp 함수 정의
-    const queryKataGoViaHttp = async (analysisQuery: any): Promise<any> => {
-        if (!KATAGO_API_URL) {
+    const queryKataGoViaHttp = async (analysisQuery: any, apiUrl?: string): Promise<any> => {
+        const urlToUse = apiUrl || KATAGO_API_URL || (analysisQuery.__fallbackUrl ? analysisQuery.__fallbackUrl : undefined);
+        if (!urlToUse) {
             throw new Error('KATAGO_API_URL is not set');
         }
         
-        console.log(`[KataGo HTTP] Sending analysis query to ${KATAGO_API_URL}, queryId=${analysisQuery.id}`);
+        // __fallbackUrl을 제거 (실제 쿼리에는 포함하지 않음)
+        const cleanQuery = { ...analysisQuery };
+        delete cleanQuery.__fallbackUrl;
+        
+        console.log(`[KataGo HTTP] Sending analysis query to ${urlToUse}, queryId=${cleanQuery.id}`);
         
         return new Promise((resolve, reject) => {
-            const url = new URL(KATAGO_API_URL);
+            const url = new URL(urlToUse);
             const isHttps = url.protocol === 'https:';
             const httpModule = isHttps ? https : http;
             
-            const postData = JSON.stringify(analysisQuery);
+            const postData = JSON.stringify(cleanQuery);
             
             const options = {
                 method: 'POST',
@@ -756,26 +763,26 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
                     if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
                         try {
                             const parsed = JSON.parse(responseData);
-                            console.log(`[KataGo HTTP] Received response for queryId=${analysisQuery.id}, statusCode=${res.statusCode}`);
+                            console.log(`[KataGo HTTP] Received response for queryId=${cleanQuery.id}, statusCode=${res.statusCode}`);
                             resolve(parsed);
                         } catch (parseError) {
-                            console.error(`[KataGo HTTP] Failed to parse response for queryId=${analysisQuery.id}:`, parseError);
+                            console.error(`[KataGo HTTP] Failed to parse response for queryId=${cleanQuery.id}:`, parseError);
                             reject(new Error(`Failed to parse KataGo API response: ${parseError instanceof Error ? parseError.message : String(parseError)}`));
                         }
                     } else {
-                        console.error(`[KataGo HTTP] API returned error status ${res.statusCode} for queryId=${analysisQuery.id}: ${responseData.substring(0, 200)}`);
+                        console.error(`[KataGo HTTP] API returned error status ${res.statusCode} for queryId=${cleanQuery.id}: ${responseData.substring(0, 200)}`);
                         reject(new Error(`KataGo API returned status ${res.statusCode}: ${responseData.substring(0, 200)}`));
                     }
                 });
             });
             
             req.on('error', (error) => {
-                console.error(`[KataGo HTTP] Request error for queryId=${analysisQuery.id}:`, error);
+                console.error(`[KataGo HTTP] Request error for queryId=${cleanQuery.id}:`, error);
                 reject(new Error(`KataGo API request failed: ${error.message}`));
             });
             
             req.on('timeout', () => {
-                console.error(`[KataGo HTTP] Request timeout for queryId=${analysisQuery.id}`);
+                console.error(`[KataGo HTTP] Request timeout for queryId=${cleanQuery.id}`);
                 req.destroy();
                 reject(new Error('KataGo API request timed out after 120 seconds'));
             });
@@ -799,10 +806,18 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
         } else {
             // 로컬 환경에서는 HTTP API를 사용하도록 강제 (프로세스 사용 안 함)
             if (IS_LOCAL) {
-                throw new Error('KataGo is disabled in local environment. Please set KATAGO_API_URL environment variable to use HTTP API.');
+                // 로컬 환경에서 KATAGO_API_URL이 없으면 배포된 사이트의 KataGo API를 사용 시도
+                if (DEPLOYED_SITE_URL) {
+                    const fallbackApiUrl = `${DEPLOYED_SITE_URL}/api/katago/analyze`;
+                    console.log(`[KataGo] Local environment detected. Using deployed site KataGo API: ${fallbackApiUrl}`);
+                    response = await queryKataGoViaHttp(query, fallbackApiUrl);
+                } else {
+                    throw new Error('KataGo is disabled in local environment. Please set KATAGO_API_URL or DEPLOYED_SITE_URL environment variable to use HTTP API.');
+                }
+            } else {
+                // 배포 환경에서 로컬 프로세스 사용
+                response = await getKataGoManager().query(query);
             }
-            // 배포 환경에서 로컬 프로세스 사용
-            response = await getKataGoManager().query(query);
         }
         
         console.log(`[KataGo] Analysis query completed for game ${session.id}`);

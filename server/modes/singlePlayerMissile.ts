@@ -382,6 +382,12 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                 // 처리된 애니메이션의 startTime을 먼저 기록 (중복 처리 방지)
                 (game as any).lastProcessedMissileAnimationTime = animationStartTime;
                 
+                // totalTurns와 captures 보존 (애니메이션 완료 시 초기화 방지)
+                const preservedTotalTurns = game.totalTurns;
+                const preservedCaptures = { ...game.captures };
+                const preservedBaseStoneCaptures = game.baseStoneCaptures ? { ...game.baseStoneCaptures } : undefined;
+                const preservedHiddenStoneCaptures = game.hiddenStoneCaptures ? { ...game.hiddenStoneCaptures } : undefined;
+                
                 // 애니메이션 정보를 먼저 저장 (null 설정 전에)
                 const playerWhoMoved = game.currentPlayer;
                 const animationFrom = (animNonNull as any).from as types.Point | undefined;
@@ -457,7 +463,25 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                 game.pausedTurnTimeLeft = undefined;
                 game.itemUseDeadline = undefined;
                 
-                console.log(`[SinglePlayer Missile] Animation completed, gameStatus changed to playing: gameId=${game.id}, playerWhoMoved=${playerWhoMoved === types.Player.Black ? 'Black' : 'White'}, from=(${animationFrom?.x},${animationFrom?.y}), to=(${animationTo?.x},${animationTo?.y})`);
+                // totalTurns와 captures 보존 확인 (애니메이션 완료 시 초기화 방지)
+                if (game.totalTurns !== preservedTotalTurns) {
+                    console.warn(`[SinglePlayer Missile] updateSinglePlayerMissileState: totalTurns changed from ${preservedTotalTurns} to ${game.totalTurns}, restoring...`);
+                    game.totalTurns = preservedTotalTurns;
+                }
+                if (JSON.stringify(game.captures) !== JSON.stringify(preservedCaptures)) {
+                    console.warn(`[SinglePlayer Missile] updateSinglePlayerMissileState: captures changed, restoring...`);
+                    game.captures = preservedCaptures;
+                }
+                if (preservedBaseStoneCaptures && JSON.stringify(game.baseStoneCaptures) !== JSON.stringify(preservedBaseStoneCaptures)) {
+                    console.warn(`[SinglePlayer Missile] updateSinglePlayerMissileState: baseStoneCaptures changed, restoring...`);
+                    game.baseStoneCaptures = preservedBaseStoneCaptures;
+                }
+                if (preservedHiddenStoneCaptures && JSON.stringify(game.hiddenStoneCaptures) !== JSON.stringify(preservedHiddenStoneCaptures)) {
+                    console.warn(`[SinglePlayer Missile] updateSinglePlayerMissileState: hiddenStoneCaptures changed, restoring...`);
+                    game.hiddenStoneCaptures = preservedHiddenStoneCaptures;
+                }
+                
+                console.log(`[SinglePlayer Missile] Animation completed, gameStatus changed to playing: gameId=${game.id}, playerWhoMoved=${playerWhoMoved === types.Player.Black ? 'Black' : 'White'}, from=(${animationFrom?.x},${animationFrom?.y}), to=(${animationTo?.x},${animationTo?.y}), totalTurns=${preservedTotalTurns}, captures=${JSON.stringify(preservedCaptures)}`);
                 
                 // 애니메이션 종료 후 즉시 브로드캐스트 (싱글플레이에서는 서버 루프에서 브로드캐스트하지 않으므로)
                 const db = await import('../db.js');
@@ -709,6 +733,12 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 return { error: "Animation already in progress." };
             }
             
+            // totalTurns와 captures 보존 (미사일 아이템 사용 시 초기화 방지)
+            const preservedTotalTurns = game.totalTurns;
+            const preservedCaptures = { ...game.captures };
+            const preservedBaseStoneCaptures = game.baseStoneCaptures ? { ...game.baseStoneCaptures } : undefined;
+            const preservedHiddenStoneCaptures = game.hiddenStoneCaptures ? { ...game.hiddenStoneCaptures } : undefined;
+            
             const { from, direction, boardState: clientBoardState, moveHistory: clientMoveHistory } = payload;
             if (!from || !direction) {
                 console.warn(`[SinglePlayer Missile] LAUNCH_MISSILE failed: missing from or direction, payload=${JSON.stringify(payload)}, gameId=${game.id}`);
@@ -902,6 +932,32 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             const missileKey = user.id === game.player1.id ? 'missiles_p1' : 'missiles_p2';
             game[missileKey] = (game[missileKey] ?? 0) - 1;
             
+            // totalTurns와 captures 보존 확인 (애니메이션 시작 시 초기화 방지)
+            if (game.totalTurns !== preservedTotalTurns) {
+                console.warn(`[SinglePlayer Missile] LAUNCH_MISSILE: totalTurns changed from ${preservedTotalTurns} to ${game.totalTurns}, restoring...`);
+                game.totalTurns = preservedTotalTurns;
+            }
+            if (JSON.stringify(game.captures) !== JSON.stringify(preservedCaptures)) {
+                console.warn(`[SinglePlayer Missile] LAUNCH_MISSILE: captures changed, restoring...`);
+                game.captures = preservedCaptures;
+            }
+            if (preservedBaseStoneCaptures && JSON.stringify(game.baseStoneCaptures) !== JSON.stringify(preservedBaseStoneCaptures)) {
+                console.warn(`[SinglePlayer Missile] LAUNCH_MISSILE: baseStoneCaptures changed, restoring...`);
+                game.baseStoneCaptures = preservedBaseStoneCaptures;
+            }
+            if (preservedHiddenStoneCaptures && JSON.stringify(game.hiddenStoneCaptures) !== JSON.stringify(preservedHiddenStoneCaptures)) {
+                console.warn(`[SinglePlayer Missile] LAUNCH_MISSILE: hiddenStoneCaptures changed, restoring...`);
+                game.hiddenStoneCaptures = preservedHiddenStoneCaptures;
+            }
+            
+            console.log(`[SinglePlayer Missile] LAUNCH_MISSILE: Animation started, preserved totalTurns=${preservedTotalTurns}, captures=${JSON.stringify(preservedCaptures)}, gameId=${game.id}`);
+            
+            // 게임 상태 저장 및 브로드캐스트 (클라이언트가 보드 상태 업데이트를 받을 수 있도록)
+            await db.saveGame(game);
+            const { broadcastToGameParticipants } = await import('../socket.js');
+            console.log(`[SinglePlayer Missile] LAUNCH_MISSILE: Broadcasting GAME_UPDATE after launch, gameId=${game.id}`);
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            
             return {};
         }
         
@@ -982,6 +1038,12 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             
             // 처리된 애니메이션의 startTime을 먼저 기록 (중복 처리 방지)
             (game as any).lastProcessedMissileAnimationTime = animationStartTime;
+            
+            // totalTurns와 captures 보존 (애니메이션 완료 시 초기화 방지)
+            const preservedTotalTurns = game.totalTurns;
+            const preservedCaptures = { ...game.captures };
+            const preservedBaseStoneCaptures = game.baseStoneCaptures ? { ...game.baseStoneCaptures } : undefined;
+            const preservedHiddenStoneCaptures = game.hiddenStoneCaptures ? { ...game.hiddenStoneCaptures } : undefined;
             
             // 애니메이션 정보를 먼저 저장 (null 설정 전에)
             const playerWhoMoved = game.currentPlayer;
@@ -1093,11 +1155,25 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             game.pausedTurnTimeLeft = undefined;
             game.itemUseDeadline = undefined;
             
-            // totalTurns 보존: 미사일 아이템은 턴을 사용하는 행동이 아니므로 totalTurns를 변경하지 않음
-            // totalTurns는 유지되어야 함 (자동계가까지 남은 턴이 초기화되지 않도록)
-            const preservedTotalTurns = game.totalTurns;
+            // totalTurns와 captures 보존 확인 (애니메이션 완료 시 초기화 방지)
+            if (game.totalTurns !== preservedTotalTurns) {
+                console.warn(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE: totalTurns changed from ${preservedTotalTurns} to ${game.totalTurns}, restoring...`);
+                game.totalTurns = preservedTotalTurns;
+            }
+            if (JSON.stringify(game.captures) !== JSON.stringify(preservedCaptures)) {
+                console.warn(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE: captures changed, restoring...`);
+                game.captures = preservedCaptures;
+            }
+            if (preservedBaseStoneCaptures && JSON.stringify(game.baseStoneCaptures) !== JSON.stringify(preservedBaseStoneCaptures)) {
+                console.warn(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE: baseStoneCaptures changed, restoring...`);
+                game.baseStoneCaptures = preservedBaseStoneCaptures;
+            }
+            if (preservedHiddenStoneCaptures && JSON.stringify(game.hiddenStoneCaptures) !== JSON.stringify(preservedHiddenStoneCaptures)) {
+                console.warn(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE: hiddenStoneCaptures changed, restoring...`);
+                game.hiddenStoneCaptures = preservedHiddenStoneCaptures;
+            }
             
-            console.log(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE: animation completed, gameId=${game.id}, gameStatus=${game.gameStatus}, totalTurns=${preservedTotalTurns}`);
+            console.log(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE: animation completed, gameId=${game.id}, gameStatus=${game.gameStatus}, totalTurns=${preservedTotalTurns}, captures=${JSON.stringify(preservedCaptures)}`);
             
             // 싱글플레이어 모드에서는 클라이언트에 게임 상태 업데이트를 알려야 함
             // 서버에서 게임 상태를 저장하고 브로드캐스트

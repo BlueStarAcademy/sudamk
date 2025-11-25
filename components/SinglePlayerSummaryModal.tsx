@@ -13,10 +13,7 @@ interface SinglePlayerSummaryModalProps {
 }
 
 const handleClose = (session: LiveGameSession, onClose: () => void) => {
-    // 게임이 종료된 상태이고, 싱글플레이 게임인 경우 싱글플레이 로비로 리다이렉트
-    if (session.gameStatus === 'ended' && session.isSinglePlayer) {
-        sessionStorage.setItem('postGameRedirect', '#/singleplayer');
-    }
+    // 확인 버튼: 모달만 닫기 (로비로 이동하지 않음)
     onClose();
 };
 
@@ -164,7 +161,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             case 'score':
                 return '계가 결과 상대가 더 많은 집을 차지했습니다.';
             case 'resign':
-                return '기권하여 미션이 종료되었습니다.';
+                return '기권하셨습니다.';
             case 'disconnect':
                 return '연결이 끊어져 미션이 실패 처리되었습니다.';
             case 'total_score':

@@ -16,10 +16,7 @@ interface TowerSummaryModalProps {
 }
 
 const handleClose = (session: LiveGameSession, onClose: () => void) => {
-    // 게임이 종료된 상태이고, 도전의 탑 게임인 경우 도전의 탑 로비로 리다이렉트
-    if (session.gameStatus === 'ended' && session.gameCategory === 'tower') {
-        sessionStorage.setItem('postGameRedirect', '#/tower');
-    }
+    // 확인 버튼: 모달만 닫기 (로비로 이동하지 않음)
     onClose();
 };
 

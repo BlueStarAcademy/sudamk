@@ -26,6 +26,31 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             return;
         }
 
+        // 애니메이션 중에는 시간이 멈춰있어야 함 (애니메이션 종료 후에 시간이 흘러가도록)
+        const isAnimating = session.animation !== null && session.animation !== undefined;
+        const isAnimationStatus = ['missile_animating', 'scanning_animating', 'hidden_reveal_animating'].includes(session.gameStatus);
+        
+        if (isAnimating || isAnimationStatus) {
+            // 애니메이션 중에는 pausedTurnTimeLeft를 사용하여 시간을 멈춤
+            // pausedTurnTimeLeft가 있으면 그 값을 사용, 없으면 현재 시간 유지
+            if (session.pausedTurnTimeLeft !== undefined) {
+                const currentPlayer = session.currentPlayer;
+                if (currentPlayer === Player.Black) {
+                    setClientTimes(prev => ({
+                        black: session.pausedTurnTimeLeft!,
+                        white: prev.white
+                    }));
+                } else if (currentPlayer === Player.White) {
+                    setClientTimes(prev => ({
+                        black: prev.black,
+                        white: session.pausedTurnTimeLeft!
+                    }));
+                }
+            }
+            // 애니메이션 중에는 시간 업데이트를 하지 않음 (현재 시간 유지)
+            return;
+        }
+
         // pending 상태의 게임은 시간이 흐르지 않도록 함
         if (session.gameStatus === 'pending') {
             // pending 상태에서는 설정에서 기본값 사용
@@ -36,6 +61,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             return;
         }
 
+        // 아이템 사용시간은 선수패널에 표시하지 않음 (헷갈리지 않도록)
         const baseDeadline = session.turnDeadline
             || session.alkkagiTurnDeadline
             || session.curlingTurnDeadline
@@ -43,8 +69,8 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             || session.turnChoiceDeadline
             || session.guessDeadline
             || session.basePlacementDeadline
-            || session.captureBidDeadline
-            || session.itemUseDeadline;
+            || session.captureBidDeadline;
+            // || session.itemUseDeadline; // 아이템 사용시간은 선수패널에 표시하지 않음
 
         if (!baseDeadline) {
             // deadline이 없으면 서버 시간 사용, 없으면 설정에서 기본값 사용
@@ -125,6 +151,8 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
         session.blackTimeLeft,
         session.whiteTimeLeft,
         session.gameStatus,
+        session.animation,
+        session.pausedTurnTimeLeft,
         session.id,
         session.settings?.timeLimit,
         session.mode,

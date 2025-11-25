@@ -351,12 +351,15 @@ export const runClientSimulation = (
     const player1 = JSON.parse(JSON.stringify(p1));
     const player2 = JSON.parse(JSON.stringify(p2));
     
-    // 컨디션 설정 (시드 기반)
-    if (player1.condition === undefined || player1.condition === null || player1.condition === 1000) {
-        player1.condition = rng.randomInt(40, 100);
+    // 컨디션은 처음 세팅된 값을 유지 (변경하지 않음)
+    // 유효하지 않은 컨디션인 경우에만 경고만 출력
+    if (player1.condition === undefined || player1.condition === null || player1.condition === 1000 || 
+        player1.condition < 40 || player1.condition > 100) {
+        console.warn(`[runClientSimulation] Invalid condition for player1: ${player1.condition}, keeping as is`);
     }
-    if (player2.condition === undefined || player2.condition === null || player2.condition === 1000) {
-        player2.condition = rng.randomInt(40, 100);
+    if (player2.condition === undefined || player2.condition === null || player2.condition === 1000 || 
+        player2.condition < 40 || player2.condition > 100) {
+        console.warn(`[runClientSimulation] Invalid condition for player2: ${player2.condition}, keeping as is`);
     }
     
     let player1Score = 0;

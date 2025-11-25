@@ -407,9 +407,36 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             if (failedGame && failedGame.gameStatus === 'scoring') {
                 console.log(`[getGameResult] Game ${failedGame.id} still in scoring state, setting isAnalyzing to false and ending game with fallback winner`);
                 failedGame.isAnalyzing = false;
+                
+                // 보존된 게임 상태 복원 (에러 발생 시에도 게임 상태 유지)
+                const preservedState = (failedGame as any).preservedGameState || (game as any).preservedGameState;
+                if (preservedState) {
+                    if (preservedState.moveHistory && preservedState.moveHistory.length > 0) {
+                        failedGame.moveHistory = preservedState.moveHistory;
+                    }
+                    if (preservedState.boardState && preservedState.boardState.length > 0) {
+                        failedGame.boardState = preservedState.boardState;
+                    }
+                    if (preservedState.captures) {
+                        failedGame.captures = preservedState.captures;
+                    }
+                    if (preservedState.totalTurns !== undefined) {
+                        failedGame.totalTurns = preservedState.totalTurns;
+                    }
+                }
+                
                 await db.saveGame(failedGame);
                 const { broadcastToGameParticipants } = await import('./socket.js');
-                broadcastToGameParticipants(failedGame.id, { type: 'GAME_UPDATE', payload: { [failedGame.id]: failedGame } }, failedGame);
+                
+                // 브로드캐스트 시 보존된 상태 포함
+                const gameToBroadcast = {
+                    ...failedGame,
+                    moveHistory: preservedState?.moveHistory || failedGame.moveHistory,
+                    totalTurns: preservedState?.totalTurns ?? failedGame.totalTurns,
+                    captures: preservedState?.captures || failedGame.captures,
+                };
+                broadcastToGameParticipants(failedGame.id, { type: 'GAME_UPDATE', payload: { [failedGame.id]: gameToBroadcast } }, failedGame);
+                
                 // Decide a winner randomly as a fallback
                 const winner = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
                 console.log(`[getGameResult] Ending game ${failedGame.id} with fallback winner: ${winner === types.Player.Black ? 'Black' : 'White'}`);
