@@ -1,6 +1,59 @@
-database_backup_*.sqlite
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.vite/
+.next/
+out/
+
+# Generated files
+generated/
+/generated/prisma
+
+# KataGo binaries (too large for Git)
 katago/
 gnugo/
 
-/generated/prisma
+# Logs and temporary files
+*.log
+*.tmp
+*.cache
+*.map
+.DS_Store
+Thumbs.db
+
+# Database backups and local databases
+database_backup_*.sqlite
+database_*.sqlite
+*.sqlite
+*.sqlite-journal
+*.sqlite.backup
+*.sqlite.broken
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Railway
+.railway/
