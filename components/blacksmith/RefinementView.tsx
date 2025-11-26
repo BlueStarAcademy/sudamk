@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { UserWithStatus, InventoryItem, ServerAction, ItemOption, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../../types.js';
 import Button from '../Button.js';
-import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, CONSUMABLE_ITEMS } from '../../constants';
+import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, CONSUMABLE_ITEMS, CORE_STATS_DATA } from '../../constants';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { calculateRefinementGoldCost } from '../../constants/rules.js';
 
@@ -235,28 +235,58 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
             if (selectedOption.type === 'main') {
                 const slotDef = MAIN_STAT_DEFINITIONS[slot];
                 const gradeDef = slotDef.options[grade];
-                return gradeDef.stats.filter(stat => stat !== selectedOptionData.type);
+                return gradeDef.stats.filter(stat => stat !== selectedOptionData.type).map(stat => ({
+                    type: stat,
+                    name: CORE_STATS_DATA[stat].name,
+                    range: null,
+                    isPercentage: slotDef.isPercentage
+                }));
             } else if (selectedOption.type === 'combatSub') {
                 const rules = GRADE_SUB_OPTION_RULES[grade];
                 const combatTier = rules.combatTier;
                 const pool = SUB_OPTION_POOLS[slot][combatTier];
                 const usedTypes = new Set(selectedItem.options!.combatSubs.map(s => s.type));
                 usedTypes.add(selectedItem.options!.main.type);
-                return pool.filter(opt => !usedTypes.has(opt.type)).map(opt => opt.type);
+                return pool.filter(opt => !usedTypes.has(opt.type)).map(opt => ({
+                    type: opt.type,
+                    name: CORE_STATS_DATA[opt.type].name,
+                    range: opt.range,
+                    isPercentage: opt.isPercentage
+                }));
             } else if (selectedOption.type === 'specialSub') {
                 const allSpecialStats = Object.values(SpecialStat);
                 const usedTypes = new Set(selectedItem.options!.specialSubs.map(s => s.type));
-                return allSpecialStats.filter(stat => !usedTypes.has(stat));
+                return allSpecialStats.filter(stat => !usedTypes.has(stat)).map(stat => ({
+                    type: stat,
+                    name: SPECIAL_STATS_DATA[stat].name,
+                    range: SPECIAL_STATS_DATA[stat].range,
+                    isPercentage: SPECIAL_STATS_DATA[stat].isPercentage
+                }));
             }
         } else if (refinementType === 'value') {
             if (selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') {
-                return ['랜덤 수치'];
+                // 수치 변경 시 현재 옵션의 range를 반환
+                if (selectedOptionData.range) {
+                    return [{
+                        type: selectedOptionData.type,
+                        name: selectedOption.type === 'combatSub' 
+                            ? CORE_STATS_DATA[selectedOptionData.type as CoreStat].name
+                            : SPECIAL_STATS_DATA[selectedOptionData.type as SpecialStat].name,
+                        range: selectedOptionData.range,
+                        isPercentage: selectedOptionData.isPercentage
+                    }];
+                }
             }
         } else if (refinementType === 'mythic') {
             if (selectedOption.type === 'mythicSub') {
                 const allMythicStats = Object.values(MythicStat);
                 const usedTypes = new Set(selectedItem.options!.mythicSubs.map(s => s.type));
-                return allMythicStats.filter(stat => stat !== selectedOptionData.type);
+                return allMythicStats.filter(stat => stat !== selectedOptionData.type).map(stat => ({
+                    type: stat,
+                    name: MYTHIC_STATS_DATA[stat].name,
+                    range: null,
+                    isPercentage: false
+                }));
             }
         }
         
@@ -471,12 +501,19 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                                 <>
                                     {/* 변경 가능한 옵션/수치 표시 */}
                                     <div className="bg-gray-900/50 p-1.5 rounded">
-                                        <div className="text-gray-400 text-xs mb-1">변경 가능한 옵션</div>
+                                        <div className="text-gray-400 text-xs mb-1">
+                                            {refinementType === 'value' ? '변경 가능한 수치 범위' : '변경 가능한 옵션'}
+                                        </div>
                                         <div className="text-xs space-y-0.5 max-h-24 overflow-y-auto">
                                             {availableOptions.length > 0 ? (
                                                 availableOptions.map((opt, idx) => (
                                                     <div key={idx} className="text-green-300">
-                                                        {typeof opt === 'string' ? opt : `옵션 ${idx + 1}`}
+                                                        {opt.name}
+                                                        {opt.range && (
+                                                            <span className="text-yellow-300">
+                                                                {' '}{opt.range[0]}~{opt.range[1]}{opt.isPercentage ? '%' : ''}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 ))
                                             ) : (
