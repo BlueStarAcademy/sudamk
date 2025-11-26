@@ -306,7 +306,10 @@ const applyDefaults = (
     cumulativeRankingScore: user.cumulativeRankingScore ?? {},
     cumulativeTournamentScore: (user.cumulativeTournamentScore != null ? user.cumulativeTournamentScore : 0),
     inventorySlotsMigrated: user.inventorySlotsMigrated ?? false,
-    dailyRankings: user.dailyRankings ?? {}
+    dailyRankings: user.dailyRankings ?? {},
+    towerFloor: user.towerFloor ?? prismaUser.towerFloor ?? 0,
+    lastTowerClearTime: user.lastTowerClearTime ?? (prismaUser.lastTowerClearTime != null ? Number(prismaUser.lastTowerClearTime) : undefined),
+    monthlyTowerFloor: user.monthlyTowerFloor ?? (prismaUser as any).monthlyTowerFloor ?? 0
   };
 };
 
@@ -432,6 +435,12 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
     // weeklyCompetitorsBotScores는 leagueMetadata에서 우선적으로 가져오되, 없으면 serializedUser에서 가져옴
     cloned.weeklyCompetitorsBotScores = 
       (status.leagueMetadata?.weeklyCompetitorsBotScores ?? cloned.weeklyCompetitorsBotScores ?? {}) as User["weeklyCompetitorsBotScores"];
+    // towerFloor와 monthlyTowerFloor는 Prisma에서 우선적으로 가져오되, 없으면 serializedUser에서 가져옴
+    cloned.towerFloor = safeNumber(prismaUser.towerFloor ?? cloned.towerFloor ?? 0);
+    cloned.lastTowerClearTime = prismaUser.lastTowerClearTime != null 
+      ? Number(prismaUser.lastTowerClearTime) 
+      : (cloned.lastTowerClearTime ?? undefined);
+    cloned.monthlyTowerFloor = safeNumber((prismaUser as any).monthlyTowerFloor ?? cloned.monthlyTowerFloor ?? 0);
     const applied = applyDefaults(cloned, prismaUser, status);
     return ensureAdminSinglePlayerAccess(applied);
   }
