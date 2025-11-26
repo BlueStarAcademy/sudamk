@@ -109,7 +109,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
         const regenLevel = researchLevels?.[GuildResearchId.boss_skill_regen]?.level || 0;
         if (regenLevel > 0) {
             const regenChances =    [0, 10, 25, 40, 55, 70, 85, 100];
-            const healIncreases =   [0, 10, 20, 40, 60, 80, 100, 150];
+            const healIncreases =   [0, 110, 120, 140, 160, 180, 200, 250]; // 100% 추가 증가 (원래 +10, +20... → +110, +120...)
             const chance = regenChances[regenLevel];
             if (Math.random() * 100 < chance) {
                 let healAmount = (totalStats[CoreStat.Stability] * 0.5);
@@ -117,7 +117,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 healAmount *= (1 + healAmountIncreasePercent / 100);
                 healAmount = Math.round(healAmount);
                 userHp = Math.min(maxUserHp, userHp + healAmount);
-                battleLog.push({ turn: turnsSurvived, icon: GUILD_RESEARCH_REGEN_IMG, message: `[연구-지속회복] 발동! HP +${healAmount.toLocaleString()}`, isUserAction: true, healingDone: healAmount });
+                battleLog.push({ turn: turnsSurvived, icon: GUILD_RESEARCH_REGEN_IMG, message: `[연구-회복] 발동! HP +${healAmount.toLocaleString()}`, isUserAction: true, healingDone: healAmount });
             }
         }
         
