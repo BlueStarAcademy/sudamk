@@ -31,9 +31,14 @@ const KATAGO_NN_MAX_BATCH_SIZE = parseInt(process.env.KATAGO_NN_MAX_BATCH_SIZE |
 // 배포 환경에서 KataGo HTTP API URL (환경 변수로 설정 가능)
 // 로컬 환경에서도 배포된 사이트의 KataGo를 사용할 수 있도록 DEPLOYED_SITE_URL 지원
 const DEPLOYED_SITE_URL = process.env.DEPLOYED_SITE_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
-const KATAGO_API_URL = process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '' 
-    ? process.env.KATAGO_API_URL 
+let KATAGO_API_URL = process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '' 
+    ? process.env.KATAGO_API_URL.trim()
     : (DEPLOYED_SITE_URL ? `${DEPLOYED_SITE_URL}/api/katago/analyze` : undefined);
+
+// 프로토콜이 없으면 자동으로 https:// 추가 (Railway는 HTTPS를 사용)
+if (KATAGO_API_URL && !KATAGO_API_URL.match(/^https?:\/\//)) {
+    KATAGO_API_URL = `https://${KATAGO_API_URL}`;
+}
 const USE_HTTP_API = !!KATAGO_API_URL && KATAGO_API_URL.trim() !== ''; // API URL이 설정되어 있으면 HTTP API 사용
 const IS_LOCAL = process.env.NODE_ENV !== 'production'; // 로컬 환경 확인
 
@@ -729,9 +734,15 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
 
     // HTTP API를 사용하는 경우 queryKataGoViaHttp 함수 정의
     const queryKataGoViaHttp = async (analysisQuery: any, apiUrl?: string): Promise<any> => {
-        const urlToUse = apiUrl || KATAGO_API_URL || (analysisQuery.__fallbackUrl ? analysisQuery.__fallbackUrl : undefined);
+        let urlToUse = apiUrl || KATAGO_API_URL || (analysisQuery.__fallbackUrl ? analysisQuery.__fallbackUrl : undefined);
         if (!urlToUse) {
             throw new Error('KATAGO_API_URL is not set');
+        }
+        
+        // 프로토콜이 없으면 자동으로 https:// 추가 (Railway는 HTTPS를 사용)
+        if (!urlToUse.match(/^https?:\/\//)) {
+            urlToUse = `https://${urlToUse}`;
+            console.log(`[KataGo HTTP] Added missing protocol to URL: ${urlToUse}`);
         }
         
         // __fallbackUrl을 제거 (실제 쿼리에는 포함하지 않음)
@@ -741,7 +752,12 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
         console.log(`[KataGo HTTP] Sending analysis query to ${urlToUse}, queryId=${cleanQuery.id}`);
         
         return new Promise((resolve, reject) => {
-            const url = new URL(urlToUse);
+            let url: URL;
+            try {
+                url = new URL(urlToUse);
+            } catch (error: any) {
+                return reject(new Error(`Invalid KATAGO_API_URL format: ${urlToUse}. Error: ${error.message}`));
+            }
             const isHttps = url.protocol === 'https:';
             const httpModule = isHttps ? https : http;
             
