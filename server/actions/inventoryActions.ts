@@ -1303,6 +1303,13 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             const itemBeforeRefinement = JSON.parse(JSON.stringify(originalItemState));
             
+            // 저장 후 업데이트된 아이템 찾기 (DB에서 다시 읽은 user의 inventory에서)
+            const updatedItem = user.inventory.find(i => i.id === itemId);
+            if (!updatedItem) {
+                console.error(`[REFINE_EQUIPMENT] Updated item not found in inventory after save: ${itemId}`);
+                return { error: '제련 후 아이템을 찾을 수 없습니다.' };
+            }
+            
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'REFINE_EQUIPMENT');
             
@@ -1316,7 +1323,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                         message: '제련이 완료되었습니다.',
                         success: true,
                         itemBefore: itemBeforeRefinement,
-                        itemAfter: JSON.parse(JSON.stringify(item))
+                        itemAfter: JSON.parse(JSON.stringify(updatedItem))
                     },
                     updatedUser
                 } 
