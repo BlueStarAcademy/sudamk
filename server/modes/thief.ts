@@ -282,6 +282,20 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
             const { x, y } = payload;
             const logic = getGoLogic(game);
             const myRole = user.id === game.thiefPlayerId ? 'thief' : 'police';
+            
+            // 치명적 버그 방지: 상대방 돌 위에 착점하는 것을 명시적으로 차단
+            const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+            const stoneAtTarget = game.boardState[y][x];
+            
+            if (stoneAtTarget === opponentPlayerEnum) {
+                console.error(`[handleThiefAction] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}`);
+                return { error: '상대방이 둔 자리에는 돌을 놓을 수 없습니다.' };
+            }
+            
+            if (stoneAtTarget === myPlayerEnum) {
+                console.error(`[handleThiefAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, myPlayerEnum=${myPlayerEnum}`);
+                return { error: '이미 돌이 놓인 자리입니다.' };
+            }
         
             if (myRole === 'thief') {
                 const noBlackStonesOnBoard = !game.boardState.flat().includes(types.Player.Black);
@@ -305,7 +319,10 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
         
             const move = { x, y, player: myPlayerEnum };
             const result = processMove(game.boardState, move, game.koInfo, game.moveHistory.length, { ignoreSuicide: true });
-            if (!result.isValid) return { error: `Invalid move: ${result.reason}` };
+            if (!result.isValid) {
+                console.error(`[handleThiefAction] CRITICAL BUG PREVENTION: processMove returned invalid at (${x}, ${y}), gameId=${game.id}, reason=${result.reason}`);
+                return { error: `Invalid move: ${result.reason}` };
+            }
             
             if (!game.stonesPlacedThisTurn) game.stonesPlacedThisTurn = [];
             game.stonesPlacedThisTurn.push({x, y});

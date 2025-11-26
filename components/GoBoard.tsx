@@ -753,6 +753,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     };
     
     const handleBoardPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+        // 우클릭 차단 (치명적 버그 방지)
+        if (e.button === 2 || e.buttons === 2) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        
         (e.target as SVGSVGElement).releasePointerCapture(e.pointerId);
         const boardPos = getBoardCoordinates(e);
 
@@ -783,8 +790,30 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 }
             }
         } else if (!isBoardDisabled && boardPos) {
+            // 클라이언트 측 착점 검증 강화 (치명적 버그 방지)
+            const stoneAtPos = displayBoardState[boardPos.y]?.[boardPos.x];
+            
+            // 자신의 돌 위에 착점 시도 차단
+            if (stoneAtPos === myPlayerEnum) {
+                console.error(`[GoBoard] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${boardPos.x}, ${boardPos.y}), myPlayerEnum=${myPlayerEnum}`);
+                return;
+            }
+            
+            // 상대방 돌 위에 착점 시도 차단 (히든 돌 제외)
+            if (stoneAtPos !== Player.None && !isOpponentHiddenStoneAtPos(boardPos)) {
+                console.error(`[GoBoard] CRITICAL BUG PREVENTION: Attempted to place stone on occupied position at (${boardPos.x}, ${boardPos.y}), stoneAtPos=${stoneAtPos}`);
+                return;
+            }
+            
             onBoardClick(boardPos.x, boardPos.y);
         }
+    };
+    
+    // 우클릭 차단 핸들러
+    const handleContextMenu = (e: React.MouseEvent<SVGSVGElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
     };
 
     const myBaseStonesForPlacement = useMemo(() => {
@@ -966,6 +995,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 onPointerMove={handleBoardPointerMove}
                 onPointerUp={handleBoardPointerUp}
                 onPointerLeave={() => { setHoverPos(null); }}
+                onContextMenu={handleContextMenu}
             >
                 <defs>
                     <radialGradient id="slate_highlight" cx="35%" cy="35%" r="60%" fx="30%" fy="30%">

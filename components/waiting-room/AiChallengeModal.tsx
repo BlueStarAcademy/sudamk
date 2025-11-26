@@ -591,7 +591,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                             <div>
                                 <h3 className="font-bold text-purple-300" style={{ fontSize: `${Math.max(12, Math.round(16 * mobileTextScale))}px` }}>AI</h3>
                                 <p className="text-gray-400" style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}>
-                                    {selectedGameDefinition ? `${selectedGameDefinition.name}봇${lobbyType === 'strategic' ? '(카타고)' : ''}` : 'AI 봇'}
+                                    {selectedGameDefinition ? `${selectedGameDefinition.name} 봇` : 'AI 봇'}
                                 </p>
                             </div>
                         </div>

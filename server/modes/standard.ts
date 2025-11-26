@@ -356,11 +356,17 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
             const move = { x, y, player: myPlayerEnum };
             
-            // 싱글플레이 모드에서 processMove 호출 전 최종 체크
+            // 치명적 버그 방지: 자신의 돌 위에 착점 시도 차단 (모든 게임 모드)
+            const finalStoneCheck = game.boardState[y][x];
+            if (finalStoneCheck === myPlayerEnum) {
+                console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, finalStoneCheck=${finalStoneCheck}, myPlayerEnum=${myPlayerEnum}`);
+                return { error: '이미 자신의 돌이 놓인 자리입니다.' };
+            }
+            
+            // 싱글플레이 모드에서 AI 돌 위에 착점 시도 차단
             if (game.isSinglePlayer) {
-                const finalStoneCheck = game.boardState[y][x];
                 if (finalStoneCheck === opponentPlayerEnum) {
-                    console.error(`[handleStandardAction] PLACE_STONE CRITICAL BLOCK: AI stone detected at (${x}, ${y}) before processMove, gameId=${game.id}`);
+                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI stone detected at (${x}, ${y}) before processMove, gameId=${game.id}, finalStoneCheck=${finalStoneCheck}, opponentPlayerEnum=${opponentPlayerEnum}`);
                     return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
                 }
             }

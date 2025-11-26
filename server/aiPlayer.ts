@@ -4,7 +4,7 @@ import { getOmokLogic } from './omokLogic.js';
 import { getGoLogic, processMove } from './goLogic.js';
 import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, SPECIAL_GAME_MODES, SINGLE_PLAYER_STAGES, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES } from '../constants';
 import * as types from '../types/index.js';
-import { analyzeGame } from './kataGoService.js';
+// 카타고 제거: 우리가 만든 AI봇을 사용
 import * as summaryService from './summaryService.js';
 import { makeGoAiBotMove } from './goAiBot.js';
 import * as db from './db.js';
@@ -61,19 +61,19 @@ const baseAiUser: Omit<User, 'nickname'> = {
 };
 
 const aiNicknames: Record<GameMode, string> = {
-    [GameMode.Standard]: '클래식바둑봇',
-    [GameMode.Capture]: '따내기바둑봇',
-    [GameMode.Speed]: '스피드바둑봇',
-    [GameMode.Base]: '베이스바둑봇',
-    [GameMode.Hidden]: '히든바둑봇',
-    [GameMode.Missile]: '미사일바둑봇',
-    [GameMode.Mix]: '믹스룰바둑봇',
-    [GameMode.Dice]: '주사위바둑봇',
-    [GameMode.Omok]: '오목봇',
-    [GameMode.Ttamok]: '따목봇',
-    [GameMode.Thief]: '도둑과 경찰봇',
-    [GameMode.Alkkagi]: '알까기봇',
-    [GameMode.Curling]: '바둑 컬링',
+    [GameMode.Standard]: '클래식 바둑봇',
+    [GameMode.Capture]: '따내기 바둑봇',
+    [GameMode.Speed]: '스피드 바둑봇',
+    [GameMode.Base]: '베이스 바둑봇',
+    [GameMode.Hidden]: '히든 바둑봇',
+    [GameMode.Missile]: '미사일 바둑봇',
+    [GameMode.Mix]: '믹스룰 바둑봇',
+    [GameMode.Dice]: '주사위 바둑봇',
+    [GameMode.Omok]: '오목 봇',
+    [GameMode.Ttamok]: '따목 봇',
+    [GameMode.Thief]: '도둑과 경찰 봇',
+    [GameMode.Alkkagi]: '알까기 봇',
+    [GameMode.Curling]: '바둑 컬링 봇',
 };
 
 export const getAiUser = (mode: GameMode): User => {
@@ -323,117 +323,16 @@ const makeStrategicAiMove = async (game: types.LiveGameSession) => {
         // 이제 실제 히든 수를 둡니다
     }
 
-    // 1. Get analysis from KataGo
-    // aiDifficulty를 기반으로 maxVisits 계산 (katagoLevel 제거됨)
-    // 기본값: aiDifficulty 1-2 -> 10, 3-4 -> 20, 5-6 -> 30, 7-8 -> 40, 9-10 -> 50
-    const aiDifficulty = game.settings.aiDifficulty || 2;
-    const maxVisits = Math.min(50, Math.max(10, Math.ceil(aiDifficulty / 2) * 10));
-    const analysis = await analyzeGame(game, { maxVisits });
-    const recommendedMoves = analysis.recommendedMoves || [];
+    // 카타고 제거: 우리가 만든 AI봇을 사용하도록 변경
+    // makeStrategicAiMove는 더 이상 사용되지 않으며, makeGoAiBotMove를 사용합니다.
+    // 이 함수는 하위 호환성을 위해 유지하되, 실제로는 호출되지 않아야 합니다.
+    console.warn('[AI] makeStrategicAiMove is deprecated. Use makeGoAiBotMove instead.');
     
-    let move: RecommendedMove | undefined;
-    let result: ReturnType<typeof processMove> | null = null;
-    
-    // 2. Iterate through recommended moves to find a valid one
-    for (const recommendedMove of recommendedMoves) {
-        // Handle pass move explicitly, as processMove will reject it.
-        if (recommendedMove.x === -1 && recommendedMove.y === -1) {
-            move = recommendedMove;
-            result = {
-                isValid: true,
-                newBoardState: JSON.parse(JSON.stringify(game.boardState)), // Pass doesn't change the board
-                capturedStones: [],
-                newKoInfo: null // Pass resolves ko
-            };
-            break;
-        }
-
-        const moveAttempt = { x: recommendedMove.x, y: recommendedMove.y, player: aiPlayerEnum };
-        
-        const validationResult = processMove(
-            game.boardState,
-            moveAttempt,
-            game.koInfo,
-            game.moveHistory.length
-        );
-
-        if (validationResult.isValid) {
-            move = recommendedMove;
-            result = validationResult;
-            break; // Found a valid move
-        } else {
-            console.warn(`[AI] KataGo recommended invalid move ${JSON.stringify(recommendedMove)} because: ${validationResult.reason}. Trying next best move.`);
-        }
-    }
-    
-    // 3. If the chosen valid move is a pass, double-check if we should really pass.
-    if (move && move.x === -1 && move.y === -1) {
-        console.log('[AI] KataGo suggested a pass. Checking for liberty-blocking moves instead.');
-        const logic = getGoLogic(game);
-        const opponentLiberties = logic.getAllLibertiesOfPlayer(opponentPlayerEnum, game.boardState);
-        let validBlockingMove: Point | null = null;
-
-        if (opponentLiberties.length > 0) {
-            for (const liberty of opponentLiberties.sort(() => 0.5 - Math.random())) {
-                const validationResult = processMove(game.boardState, { ...liberty, player: aiPlayerEnum }, game.koInfo, game.moveHistory.length, { ignoreSuicide: true });
-                if (validationResult.isValid) {
-                    validBlockingMove = liberty;
-                    result = validationResult;
-                    move = { ...validBlockingMove, winrate: 0, scoreLead: 0, order: 0 };
-                    break;
-                }
-            }
-        }
-        
-        if (validBlockingMove) {
-            console.log(`[AI] Found a liberty-blocking move at ${JSON.stringify(validBlockingMove)}. Playing there instead of passing.`);
-        } else {
-            console.log('[AI] No blocking moves found. Proceeding with pass.');
-        }
-    }
-
-
-    // 4. If no valid move was found from KataGo's suggestions, search for ANY valid move before resigning.
-    if (!result) {
-        console.warn(`[AI] KataGo's suggestions were all invalid. Searching for any valid move on the board.`);
-        const emptyPoints: Point[] = [];
-        for (let y = 0; y < game.settings.boardSize; y++) {
-            for (let x = 0; x < game.settings.boardSize; x++) {
-                if (game.boardState[y][x] === Player.None) {
-                    emptyPoints.push({ x, y });
-                }
-            }
-        }
-    
-        // Shuffle and try to find a valid move
-        emptyPoints.sort(() => 0.5 - Math.random()); 
-    
-        for (const point of emptyPoints) {
-            const moveAttempt = { ...point, player: aiPlayerEnum };
-            const validationResult = processMove(
-                game.boardState,
-                moveAttempt,
-                game.koInfo,
-                game.moveHistory.length
-            );
-    
-            if (validationResult.isValid) {
-                console.log(`[AI] Found a fallback valid move at ${JSON.stringify(point)}.`);
-                move = { ...point, winrate: 0, scoreLead: 0, order: 99 };
-                result = validationResult;
-                break;
-            }
-        }
-    
-        // If still no valid move after checking all empty spots, THEN resign.
-        if (!result) {
-            console.error(`[AI Error] AI could not find ANY valid move on the entire board. Resigning.`);
-            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-            return;
-        }
-    }
-    
-    // 5. Process the final valid move
+    // 최고단계(10단계) AI봇을 사용
+    const aiLevel = 10;
+    const { makeGoAiBotMove } = await import('./goAiBot.js');
+    await makeGoAiBotMove(game, aiLevel);
+    return;
     const isHiddenMove = isHiddenMode && game.aiHiddenItemUsed && game.aiHiddenItemAnimationEndTime === undefined;
     
     game.boardState = result.newBoardState;
@@ -709,46 +608,81 @@ const makeOmokAiMove = (game: types.LiveGameSession) => {
         return;
     }
     
-    // 임시 보드로 수를 시뮬레이션
+    // 임시 보드로 수를 시뮬레이션 (승리를 위한 최선의 방법)
     const evaluateMove = (x: number, y: number, player: types.Player): number => {
         const tempBoard = game.boardState.map(row => [...row]);
         tempBoard[y][x] = player;
         
-        // 승리 체크
+        // 1순위: 승리 체크 (최우선)
         const winCheck = logic.checkWin(x, y, tempBoard);
-        if (winCheck) return 10000;
+        if (winCheck) return 100000; // 승리 수는 최고 점수
         
-        // 상대방이 다음 수에 승리할 수 있는지 체크 (방어 우선)
+        // 2순위: 상대방이 다음 수에 승리할 수 있는지 체크 (방어 우선)
         const opponent = player === types.Player.Black ? types.Player.White : types.Player.Black;
+        let mustBlock = false;
         for (let oy = 0; oy < boardSize; oy++) {
             for (let ox = 0; ox < boardSize; ox++) {
                 if (tempBoard[oy][ox] === types.Player.None) {
                     const opponentTempBoard = tempBoard.map(row => [...row]);
                     opponentTempBoard[oy][ox] = opponent;
                     const opponentWin = logic.checkWin(ox, oy, opponentTempBoard);
-                    if (opponentWin) return -5000; // 상대방 승리 수를 막아야 함
+                    if (opponentWin) {
+                        mustBlock = true;
+                        // 상대방 승리 수를 막는 것은 매우 높은 우선순위
+                        return 50000;
+                    }
                 }
             }
         }
         
-        // 라인 통계로 점수 계산
+        // 3순위: 자신이 다음 수에 승리할 수 있는 수 찾기 (공격 우선)
+        let canWinNext = false;
+        for (let oy = 0; oy < boardSize; oy++) {
+            for (let ox = 0; ox < boardSize; ox++) {
+                if (tempBoard[oy][ox] === types.Player.None) {
+                    const myNextTempBoard = tempBoard.map(row => [...row]);
+                    myNextTempBoard[oy][ox] = player;
+                    const myNextWin = logic.checkWin(ox, oy, myNextTempBoard);
+                    if (myNextWin) {
+                        canWinNext = true;
+                        // 다음 수에 승리할 수 있는 수는 높은 점수
+                        return 30000;
+                    }
+                }
+            }
+        }
+        
+        // 4순위: 라인 통계로 점수 계산 (공격적 수 만들기)
         let score = 0;
         const directions = [{ dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 1, dy: 1 }, { dx: 1, dy: -1 }];
         
         for (const { dx, dy } of directions) {
             const stats = logic.getLineStats(x, y, player, tempBoard, dx, dy);
-            // 4개 연속 (열린 4) = 높은 점수
-            if (stats.length === 4 && stats.openEnds >= 1) score += 1000;
+            // 4개 연속 (열린 4) = 매우 높은 점수 (다음 수에 승리 가능)
+            if (stats.length === 4 && stats.openEnds >= 1) score += 5000;
+            // 4개 연속 (막힌 4) = 높은 점수
+            if (stats.length === 4 && stats.openEnds === 0) score += 2000;
             // 3개 연속 (열린 3) = 중간 점수
-            if (stats.length === 3 && stats.openEnds >= 1) score += 100;
+            if (stats.length === 3 && stats.openEnds >= 1) score += 500;
+            // 3개 연속 (막힌 3) = 낮은 점수
+            if (stats.length === 3 && stats.openEnds === 0) score += 100;
             // 2개 연속 = 낮은 점수
             if (stats.length === 2 && stats.openEnds >= 1) score += 10;
+        }
+        
+        // 상대방의 공격도 차단하는 점수 추가
+        for (const { dx, dy } of directions) {
+            const opponentStats = logic.getLineStats(x, y, opponent, tempBoard, dx, dy);
+            // 상대방의 4개 연속 차단 = 높은 점수
+            if (opponentStats.length === 4) score += 3000;
+            // 상대방의 3개 연속 차단 = 중간 점수
+            if (opponentStats.length === 3 && opponentStats.openEnds >= 1) score += 300;
         }
         
         // 따목 모드인 경우 따내기 점수 추가
         if (game.mode === types.GameMode.Ttamok) {
             const capturedCount = logic.checkPotentialCaptures(x, y, player, tempBoard);
-            score += capturedCount * 50;
+            score += capturedCount * 100; // 따내기 점수 증가
         }
         
         return score;
@@ -1209,10 +1143,11 @@ export const makeAiMove = async (game: LiveGameSession) => {
         let moveExecuted = false;
 
         // 새로운 바둑 AI 봇 시스템 사용 여부 확인
-        // 싱글플레이, 도전의탑, 전략바둑에서 사용
+        // 싱글플레이, 도전의탑, 전략바둑 AI 게임에서 사용
         const isTower = game.gameCategory === 'tower';
         const useGoAiBot = game.isSinglePlayer ||
                            isTower ||
+                           game.isAiGame ||
                            (game.settings as any)?.useGoAiBot === true ||
                            (game.settings as any)?.goAiBotLevel !== undefined;
         

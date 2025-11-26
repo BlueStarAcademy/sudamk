@@ -60,7 +60,24 @@ export const handleOmokAction = async (volatileState: types.VolatileState, game:
             const { x, y } = payload;
             const logic = getOmokLogic(game);
             
-            if (game.boardState[y][x] !== types.Player.None) return { error: "Position occupied." };
+            // 치명적 버그 방지: 상대방 돌 위에 착점하는 것을 명시적으로 차단
+            const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+            const stoneAtTarget = game.boardState[y][x];
+            
+            if (stoneAtTarget === opponentPlayerEnum) {
+                console.error(`[handleOmokAction] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}`);
+                return { error: "상대방이 둔 자리에는 돌을 놓을 수 없습니다." };
+            }
+            
+            if (stoneAtTarget === myPlayerEnum) {
+                console.error(`[handleOmokAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, myPlayerEnum=${myPlayerEnum}`);
+                return { error: "이미 돌이 놓인 자리입니다." };
+            }
+            
+            if (stoneAtTarget !== types.Player.None) {
+                return { error: "Position occupied." };
+            }
+            
             if (game.settings.has33Forbidden && myPlayerEnum === types.Player.Black && logic.is33(x, y, game.boardState)) {
                 return { error: "3-3 is forbidden for Black." };
             }

@@ -676,8 +676,9 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 return game;
             }
 
-            // PVE 게임 (싱글플레이어, 도전의 탑, AI 게임)은 클라이언트에서 실행되므로 서버 루프에서 제외
-            const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.isAiGame;
+            // PVE 게임 (싱글플레이어, 도전의 탑)은 클라이언트에서 실행되므로 서버 루프에서 제외
+            // AI 게임은 서버에서 처리해야 하므로 PVE 게임에서 제외
+            const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
             const isTower = game.gameCategory === 'tower';
             if (isPVEGame) {
                 // PVE 게임은 클라이언트에서 실행되므로 서버에서는 최소한의 처리만 수행

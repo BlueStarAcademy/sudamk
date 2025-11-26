@@ -37,7 +37,7 @@ const AiChallengePanel: React.FC<{ mode: GameMode | 'strategic' | 'playful'; onO
 
     if (!isStrategic && !isPlayful) return null;
     
-    const botName = isStrategic ? `${mode}봇(카타고)` : `${mode}봇`;
+    const botName = `${mode} 봇`;
 
     return (
         <div className="bg-panel rounded-lg shadow-lg p-4 flex items-center justify-between flex-shrink-0 text-on-panel">

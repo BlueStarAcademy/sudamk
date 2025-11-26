@@ -199,11 +199,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             
             const stoneAtTarget = serverBoardState[y][x];
 
-            // 싱글플레이 모드에서 AI가 둔 자리 체크 (서버 boardState 기준) - 반드시 먼저 체크
-            if (game.isSinglePlayer) {
+            // 싱글플레이 모드에서 AI가 둔 자리 체크 (서버 boardState 기준) - 최우선 체크 (치명적 버그 방지)
+            if (game.isSinglePlayer || game.gameCategory === 'tower') {
                 // boardState에 상대방(AI) 돌이 있으면 무조건 차단
                 if (stoneAtTarget === opponentPlayerEnum) {
-                    console.error(`[handleStandardAction] PLACE_STONE BLOCKED: AI stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}`);
+                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
                     return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
                 }
                 
@@ -212,7 +212,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (moveIndexAtTarget !== -1) {
                     const moveAtTarget = serverMoveHistory[moveIndexAtTarget];
                     if (moveAtTarget && moveAtTarget.player === opponentPlayerEnum) {
-                        console.error(`[handleStandardAction] PLACE_STONE BLOCKED: AI move in history at (${x}, ${y}), gameId=${game.id}`);
+                        console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI move in history at (${x}, ${y}), gameId=${game.id}, movePlayer=${moveAtTarget.player}`);
                         return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
                     }
                 }
@@ -229,8 +229,21 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.hiddenMoves?.[moveIndexAtTarget] &&
                 !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
 
+            // 치명적 버그 방지: 상대방 돌 위에 착점하는 것을 명시적으로 차단 (PVP 포함)
             if (stoneAtTarget !== types.Player.None && !isTargetHiddenOpponentStone) {
-                return {}; // Silently fail if placing on a visible stone
+                // PVP에서도 상대방 돌 위에 착점 시도 시 명시적 에러 반환
+                if (stoneAtTarget === opponentPlayerEnum) {
+                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone in PVP at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
+                    return { error: '상대방이 둔 자리에는 돌을 놓을 수 없습니다.' };
+                }
+                // 자신의 돌 위에 착점 시도 시에도 명시적 에러 반환
+                if (stoneAtTarget === myPlayerEnum) {
+                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, myPlayerEnum=${myPlayerEnum}`);
+                    return { error: '이미 돌이 놓인 자리입니다.' };
+                }
+                // 기타 경우 (예: 잘못된 상태)
+                console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on occupied position at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}`);
+                return { error: '이미 돌이 놓인 자리입니다.' };
             }
 
             if (isTargetHiddenOpponentStone) {
@@ -256,11 +269,17 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
             const move = { x, y, player: myPlayerEnum };
             
-            // 싱글플레이 모드에서 processMove 호출 전 최종 체크
-            if (game.isSinglePlayer) {
-                const finalStoneCheck = game.boardState[y][x];
+            // 치명적 버그 방지: 자신의 돌 위에 착점 시도 차단 (모든 게임 모드)
+            const finalStoneCheck = game.boardState[y][x];
+            if (finalStoneCheck === myPlayerEnum) {
+                console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, finalStoneCheck=${finalStoneCheck}, myPlayerEnum=${myPlayerEnum}`);
+                return { error: '이미 자신의 돌이 놓인 자리입니다.' };
+            }
+            
+            // 싱글플레이/도전의 탑 모드에서 AI 돌 위에 착점 시도 차단
+            if (game.isSinglePlayer || game.gameCategory === 'tower') {
                 if (finalStoneCheck === opponentPlayerEnum) {
-                    console.error(`[handleStandardAction] PLACE_STONE CRITICAL BLOCK: AI stone detected at (${x}, ${y}) before processMove, gameId=${game.id}`);
+                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI stone detected at (${x}, ${y}) before processMove, gameId=${game.id}, finalStoneCheck=${finalStoneCheck}, opponentPlayerEnum=${opponentPlayerEnum}`);
                     return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
                 }
             }
@@ -281,17 +300,23 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.moveHistory.length,
                 { 
                     ignoreSuicide: false,
-                    isSinglePlayer: game.isSinglePlayer,
-                    opponentPlayer: game.isSinglePlayer ? opponentPlayerEnum : undefined
+                    isSinglePlayer: game.isSinglePlayer || game.gameCategory === 'tower',
+                    opponentPlayer: (game.isSinglePlayer || game.gameCategory === 'tower') ? opponentPlayerEnum : undefined
                 }
             );
             
-            // processMove 결과 검증 (싱글플레이)
-            if (game.isSinglePlayer && result.isValid) {
+            // processMove 결과 검증 (싱글플레이/도전의 탑) - 치명적 버그 방지
+            if ((game.isSinglePlayer || game.gameCategory === 'tower') && result.isValid) {
                 // processMove 후에도 해당 위치에 플레이어 돌이 있는지 확인
                 const afterMoveCheck = result.newBoardState[y][x];
                 if (afterMoveCheck !== myPlayerEnum) {
-                    console.error(`[handleStandardAction] PLACE_STONE CRITICAL: After processMove, stone at (${x}, ${y}) is not player's stone (${afterMoveCheck}), gameId=${game.id}`);
+                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: After processMove, stone at (${x}, ${y}) is not player's stone (${afterMoveCheck}), expected=${myPlayerEnum}, gameId=${game.id}`);
+                    return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
+                }
+                
+                // 추가 안전 체크: processMove 후에도 AI 돌이 있는지 확인
+                if (afterMoveCheck === opponentPlayerEnum) {
+                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: After processMove, AI stone still exists at (${x}, ${y}), gameId=${game.id}`);
                     return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
                 }
             }

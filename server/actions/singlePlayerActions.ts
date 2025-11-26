@@ -737,7 +737,10 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
             
             await db.updateUser(user);
-            broadcast({ type: 'USER_UPDATE', payload: { [user.id]: user } });
+            
+            // 최적화: 변경된 필드만 브로드캐스트
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['gold', 'diamonds', 'singlePlayerMissions']);
             
             const updatedUser = JSON.parse(JSON.stringify(user));
             

@@ -20,15 +20,34 @@ export const processMove = (
     const boardSize = boardState.length;
     const opponent = player === types.Player.Black ? types.Player.White : types.Player.Black;
 
+    // 범위 체크
+    if (y < 0 || y >= boardSize || x < 0 || x >= boardSize) {
+        return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
+    }
+
+    // 치명적 버그 방지: 자신의 돌 위에 착점하는 것을 최우선으로 차단
+    const stoneAtPosition = boardState[y][x];
+    if (stoneAtPosition === player) {
+        console.error(`[processMove] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), player=${player}, boardState[${y}][${x}]=${stoneAtPosition}`);
+        return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
+    }
+    
     // 싱글플레이 모드에서 상대방(AI) 돌 위에 놓는 것을 차단
     if (options?.isSinglePlayer && options?.opponentPlayer) {
-        if (boardState[y][x] === options.opponentPlayer) {
-            console.error(`[processMove] CRITICAL: Attempted to place stone on opponent (AI) stone in single player mode at (${x}, ${y}), player=${player}, opponent=${options.opponentPlayer}`);
+        if (stoneAtPosition === options.opponentPlayer) {
+            console.error(`[processMove] CRITICAL BUG PREVENTION: Attempted to place stone on opponent (AI) stone in single player mode at (${x}, ${y}), player=${player}, opponent=${options.opponentPlayer}, boardState[${y}][${x}]=${stoneAtPosition}`);
             return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
         }
     }
+    
+    // PVP 모드에서도 상대방 돌 위에 착점하는 것을 명시적으로 차단
+    if (!options?.isSinglePlayer && stoneAtPosition === opponent) {
+        console.error(`[processMove] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone in PVP mode at (${x}, ${y}), player=${player}, opponent=${opponent}, boardState[${y}][${x}]=${stoneAtPosition}`);
+        return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
+    }
 
-    if (y < 0 || y >= boardSize || x < 0 || x >= boardSize || boardState[y][x] !== types.Player.None) {
+    // 일반적인 빈 칸 체크 (모든 경우에 적용)
+    if (stoneAtPosition !== types.Player.None) {
         return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
     }
     

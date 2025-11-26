@@ -316,7 +316,10 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id, gameCategory: 'tower' as GameCategory };
             // AI 플레이어는 userStatuses에 포함하지 않음 (실제 유저가 아니므로)
             
-            await db.updateUser(user);
+            // DB 저장은 비동기로 처리하여 응답 지연 최소화
+            db.updateUser(user).catch(err => {
+                console.error(`[START_TOWER_GAME] Failed to save user ${user.id}:`, err);
+            });
             
             // 게임 생성 후 게임 정보를 먼저 브로드캐스트 (게임 참가자에게만 전송)
             const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
@@ -387,6 +390,14 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             // 그 다음 사용자 상태 브로드캐스트
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+            
+            // 게임 객체를 응답에 포함하여 클라이언트가 즉시 업데이트할 수 있도록 함
+            return {
+                clientResponse: {
+                    gameId: game.id,
+                    game: game
+                }
+            };
             
             // 클라이언트가 즉시 게임 상태를 업데이트할 수 있도록 게임 데이터를 응답에 포함
             const gameCopy = JSON.parse(JSON.stringify(game));

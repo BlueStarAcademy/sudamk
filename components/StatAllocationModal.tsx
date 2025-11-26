@@ -86,8 +86,15 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                 .filter(([key]) => key !== stat)
                 .reduce((sum, [, val]) => sum + val, 0);
 
-            const maxForThisStat = totalBonusPoints - currentSpentOnOthers;
-            const finalValue = Math.max(0, Math.min(newValue, maxForThisStat));
+            // 기존에 사용한 포인트는 유지하고, 현재 사용 가능한 보너스 포인트만 분배 가능
+            const existingSpentPoints = currentUser.spentStatPoints || {};
+            const existingTotalSpent = Object.values(existingSpentPoints).reduce((sum, points) => sum + points, 0);
+            const existingSpentOnThisStat = existingSpentPoints[stat] || 0;
+            const existingSpentOnOthers = existingTotalSpent - existingSpentOnThisStat;
+            
+            // 기존 분배를 제외한 나머지 포인트 + 보너스 포인트만 사용 가능
+            const maxForThisStat = existingSpentOnThisStat + bonusPoints - (currentSpentOnOthers - existingSpentOnOthers);
+            const finalValue = Math.max(existingSpentOnThisStat, Math.min(newValue, maxForThisStat));
             
             return { ...prev, [stat]: finalValue };
         });

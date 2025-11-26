@@ -158,6 +158,18 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 return { error: '사용 가능한 포인트를 초과했습니다.' };
             }
 
+            // 기존에 사용한 포인트는 유지하고, 현재 사용 가능한 보너스 포인트만 분배 가능하도록 검증
+            const existingSpentPoints = user.spentStatPoints || {};
+            const existingTotalSpent = Object.values(existingSpentPoints).reduce((sum, points) => sum + points, 0);
+            
+            // 새로운 분배에서 기존 분배를 뺀 값이 사용 가능한 포인트를 초과하지 않는지 확인
+            const newSpent = totalSpent;
+            const additionalSpent = newSpent - existingTotalSpent;
+            
+            if (additionalSpent > bonusPoints) {
+                return { error: `현재 사용 가능한 보너스 포인트(${bonusPoints})를 초과하여 분배할 수 없습니다.` };
+            }
+
             user.spentStatPoints = newStatPoints;
             await db.updateUser(user);
             // 선택적 필드만 반환 (메시지 크기 최적화)
