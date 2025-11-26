@@ -4,6 +4,7 @@ import { Guild } from '../../types/entities.js';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { resourceIcons } from '../resourceIcons.js';
+import { GUILD_CREATION_COST } from '../../constants/index.js';
 
 interface GuildCreateModalProps {
     onClose: () => void;
@@ -36,6 +37,21 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
         if (name.length < 2 || name.length > 6) {
             setError('길드 이름은 2자 이상 6자 이하여야 합니다.');
             return;
+        }
+
+        // 다이아몬드 체크 (클라이언트에서 먼저 체크)
+        const diamonds = currentUserWithStatus?.diamonds;
+        if (diamonds !== undefined && diamonds !== null) {
+            const numDiamonds = typeof diamonds === 'bigint' 
+                ? Number(diamonds) 
+                : (typeof diamonds === 'number' 
+                    ? diamonds 
+                    : (parseInt(String(diamonds || 0), 10) || 0));
+            
+            if (numDiamonds < GUILD_CREATION_COST && !currentUserWithStatus?.isAdmin) {
+                setError(`다이아가 부족합니다. (필요: ${GUILD_CREATION_COST.toLocaleString()}개, 보유: ${numDiamonds.toLocaleString()}개)`);
+                return;
+            }
         }
 
         // Check if user already has a guild
@@ -150,7 +166,7 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                         </p>
                         <div className="flex items-center gap-1">
                             <img src={resourceIcons.diamonds} alt="다이아" className="w-5 h-5 object-contain" />
-                            <span className="font-bold text-yellow-200">100</span>
+                            <span className="font-bold text-yellow-200">{GUILD_CREATION_COST.toLocaleString()}</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -160,10 +176,41 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                         <div className="flex items-center gap-1">
                             <img src={resourceIcons.diamonds} alt="다이아" className="w-4 h-4 object-contain" />
                             <span className="text-xs text-yellow-300 font-semibold">
-                                {currentUserWithStatus?.diamonds?.toLocaleString() || 0}
+                                {/* 다이아몬드 타입 변환 (BigInt일 수 있음) */}
+                                {(() => {
+                                    const diamonds = currentUserWithStatus?.diamonds;
+                                    if (!diamonds) return 0;
+                                    const numDiamonds = typeof diamonds === 'bigint' 
+                                        ? Number(diamonds) 
+                                        : (typeof diamonds === 'number' 
+                                            ? diamonds 
+                                            : (parseInt(String(diamonds || 0), 10) || 0));
+                                    return numDiamonds.toLocaleString();
+                                })()}
                             </span>
                         </div>
                     </div>
+                    {/* 다이아몬드 부족 경고 */}
+                    {(() => {
+                        const diamonds = currentUserWithStatus?.diamonds;
+                        if (!diamonds) return null;
+                        const numDiamonds = typeof diamonds === 'bigint' 
+                            ? Number(diamonds) 
+                            : (typeof diamonds === 'number' 
+                                ? diamonds 
+                                : (parseInt(String(diamonds || 0), 10) || 0));
+                        const canAfford = numDiamonds >= GUILD_CREATION_COST;
+                        if (!canAfford) {
+                            return (
+                                <div className="mt-2 pt-2 border-t border-yellow-700/30">
+                                    <p className="text-xs text-red-400">
+                                        다이아가 부족합니다. (필요: {GUILD_CREATION_COST.toLocaleString()}개, 보유: {numDiamonds.toLocaleString()}개)
+                                    </p>
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
                 </div>
 
                 {error && (
@@ -185,7 +232,20 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                         onClick={handleCreate}
                         colorScheme="green"
                         className="flex-1"
-                        disabled={loading || !name.trim()}
+                        disabled={(() => {
+                            if (loading || !name.trim()) return true;
+                            // 다이아몬드 체크
+                            const diamonds = currentUserWithStatus?.diamonds;
+                            if (diamonds !== undefined && diamonds !== null && !currentUserWithStatus?.isAdmin) {
+                                const numDiamonds = typeof diamonds === 'bigint' 
+                                    ? Number(diamonds) 
+                                    : (typeof diamonds === 'number' 
+                                        ? diamonds 
+                                        : (parseInt(String(diamonds || 0), 10) || 0));
+                                return numDiamonds < GUILD_CREATION_COST;
+                            }
+                            return false;
+                        })()}
                     >
                         {loading ? '생성 중...' : '길드 생성'}
                     </Button>
