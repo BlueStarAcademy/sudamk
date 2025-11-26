@@ -552,8 +552,27 @@ export const useApp = () => {
     }, [currentUser]);
 
     // --- Action Handler ---
+    // 액션 디바운싱을 위한 ref
+    const actionDebounceRef = useRef<Map<string, number>>(new Map());
+    const ACTION_DEBOUNCE_MS = 300; // 300ms 디바운스
+    
     const handleAction = useCallback(async (action: ServerAction): Promise<{ gameId?: string; claimAllTrainingQuestRewards?: any } | void> => {
-        console.log(`[handleAction] Action received: ${action.type}`, action);
+        // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[handleAction] Action received: ${action.type}`, action);
+        }
+        
+        // 디바운싱: 같은 액션이 짧은 시간 내에 여러 번 호출되면 무시
+        const actionKey = `${action.type}_${JSON.stringify(action.payload || {})}`;
+        const now = Date.now();
+        const lastCallTime = actionDebounceRef.current.get(actionKey);
+        if (lastCallTime && (now - lastCallTime) < ACTION_DEBOUNCE_MS) {
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`[handleAction] Action debounced: ${action.type} (${now - lastCallTime}ms since last call)`);
+            }
+            return;
+        }
+        actionDebounceRef.current.set(actionKey, now);
         
         // 싱글플레이 미사일 애니메이션 완료 클라이언트 처리
         if ((action as any).type === 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE') {
@@ -2371,16 +2390,42 @@ export const useApp = () => {
                         case 'GAME_UPDATE': {
                             Object.entries(message.payload || {}).forEach(([gameId, game]: [string, any]) => {
                                 const gameCategory = game.gameCategory || (game.isSinglePlayer ? 'singleplayer' : 'normal');
-                                console.log('[WebSocket] GAME_UPDATE received:', { gameId, gameCategory, gameStatus: game.gameStatus, isSinglePlayer: game.isSinglePlayer });
+                                
+                                // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
+                                if (process.env.NODE_ENV === 'development') {
+                                    console.log('[WebSocket] GAME_UPDATE received:', { gameId, gameCategory, gameStatus: game.gameStatus, isSinglePlayer: game.isSinglePlayer });
+                                }
 
                                 if (gameCategory === 'singleplayer') {
                                     setSinglePlayerGames(currentGames => {
-                                        const signature = stableStringify(game);
-                                        const previousSignature = singlePlayerGameSignaturesRef.current[gameId];
-                                        if (previousSignature === signature) {
-                                            return currentGames;
+                                        // 성능 최적화: 게임 상태가 변경되지 않았으면 early return
+                                        const existingGame = currentGames[gameId];
+                                        if (existingGame) {
+                                            // 중요한 필드만 비교하여 빠른 early return
+                                            const keyFieldsChanged = 
+                                                existingGame.gameStatus !== game.gameStatus ||
+                                                existingGame.currentPlayer !== game.currentPlayer ||
+                                                existingGame.serverRevision !== game.serverRevision ||
+                                                (game.animation && existingGame.animation?.type !== game.animation?.type);
+                                            
+                                            if (!keyFieldsChanged) {
+                                                // 서명 비교는 마지막에 (비용이 큰 작업)
+                                                const signature = stableStringify(game);
+                                                const previousSignature = singlePlayerGameSignaturesRef.current[gameId];
+                                                if (previousSignature === signature) {
+                                                    return currentGames;
+                                                }
+                                                singlePlayerGameSignaturesRef.current[gameId] = signature;
+                                            } else {
+                                                // 중요한 필드가 변경되었으므로 서명 업데이트
+                                                const signature = stableStringify(game);
+                                                singlePlayerGameSignaturesRef.current[gameId] = signature;
+                                            }
+                                        } else {
+                                            // 새 게임이므로 서명 저장
+                                            const signature = stableStringify(game);
+                                            singlePlayerGameSignaturesRef.current[gameId] = signature;
                                         }
-                                        singlePlayerGameSignaturesRef.current[gameId] = signature;
                                         const updatedGames = { ...currentGames };
                                         
                                         // scoring 상태인 경우 기존 게임의 boardState와 moveHistory 무조건 보존

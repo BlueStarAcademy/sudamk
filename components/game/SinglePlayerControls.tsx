@@ -202,10 +202,10 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     const hiddenLeft = Math.max(0, hiddenCountSetting - myHiddenUsed);
     const hiddenDisabled = !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
     
-    const handleUseHidden = () => {
+    const handleUseHidden = React.useCallback(() => {
         if (gameStatus !== 'playing') return;
         onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
-    };
+    }, [gameStatus, session.id, onAction]);
     
     // 스캔 아이템
     const myScansLeft = session.scans_p1 ?? scanCountSetting;
@@ -229,19 +229,19 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     
     const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan;
     
-    const handleUseScan = () => {
+    const handleUseScan = React.useCallback(() => {
         if (gameStatus !== 'playing') return;
         onAction({ type: 'START_SCANNING', payload: { gameId: session.id } });
-    };
+    }, [gameStatus, session.id, onAction]);
     
     // 미사일 아이템
     const myMissilesLeft = session.missiles_p1 ?? missileCountSetting;
     const missileDisabled = !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
     
-    const handleUseMissile = () => {
+    const handleUseMissile = React.useCallback(() => {
         if (gameStatus !== 'playing') return;
         onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
-    };
+    }, [gameStatus, session.id, onAction]);
 
     return (
         <div className="bg-stone-800/70 backdrop-blur-sm rounded-xl p-3 flex items-stretch justify-between gap-4 w-full h-full border border-stone-700/50">
