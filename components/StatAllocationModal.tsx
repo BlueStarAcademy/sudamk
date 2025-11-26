@@ -52,17 +52,18 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
         }
     });
 
-    const resetCost = 1000;
+    const resetCost = 500; // 다이아로 변경 (서버와 일치)
     const maxDailyResets = 2;
     const currentDay = new Date().toDateString();
     const lastResetDate = currentUser.lastStatResetDate;
     const statResetCountToday = currentUser.statResetCountToday || 0;
 
     const canReset = useMemo(() => {
-        if (currentUser.gold < resetCost) return false;
+        // 서버에서는 다이아를 사용하므로 다이아 확인
+        if ((currentUser.diamonds || 0) < resetCost) return false;
         if (lastResetDate === currentDay && statResetCountToday >= maxDailyResets) return false;
         return true;
-    }, [currentUser.gold, lastResetDate, statResetCountToday, currentDay, resetCost]);
+    }, [currentUser.diamonds, lastResetDate, statResetCountToday, currentDay, resetCost]);
 
     const levelPoints = useMemo(() => {
         return (currentUser.strategyLevel - 1) * 2 + (currentUser.playfulLevel - 1) * 2;
@@ -147,8 +148,10 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
             alert("능력치 초기화 조건을 충족하지 못했습니다. 골드가 부족하거나 일일 초기화 횟수를 초과했습니다.");
             return;
         }
-        if (window.confirm(`골드 ${resetCost}개를 사용하여 모든 보너스 포인트를 초기화하시겠습니까? (오늘 ${maxDailyResets - statResetCountToday}회 남음)`)) {
+        if (window.confirm(`다이아 ${resetCost}개를 사용하여 모든 보너스 포인트를 초기화하시겠습니까? (오늘 ${maxDailyResets - statResetCountToday}회 남음)`)) {
+            // 서버 액션 실행 (비동기로 처리하되 모달은 유지)
             onAction({ type: 'RESET_STAT_POINTS' });
+            // 초기화 후 즉시 편집 모드 활성화 및 tempPoints 초기화
             setTempPoints({
                 [CoreStat.Concentration]: 0,
                 [CoreStat.ThinkingSpeed]: 0,
@@ -157,6 +160,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                 [CoreStat.CombatPower]: 0,
                 [CoreStat.Stability]: 0,
             });
+            // 초기화 후 바로 분배 가능하도록 편집 모드 활성화
             setIsEditing(true);
         }
     };
@@ -167,9 +171,11 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
     }, [tempPoints, currentUser.spentStatPoints, spentPoints]);
 
     const handleConfirm = () => {
+        // 서버 액션 실행 (모달은 유지)
         onAction({ type: 'CONFIRM_STAT_ALLOCATION', payload: { newStatPoints: tempPoints } });
-        setIsEditing(false); // 저장 후 편집 모드 비활성화
-        onClose();
+        // 모달은 닫지 않고 유지
+        // 서버 응답 후 currentUser가 업데이트되면 useEffect에서 자동으로 상태 업데이트
+        // isEditing은 남은 포인트가 있으면 자동으로 true로 유지됨
     };
 
     const chartStats = useMemo(() => {
@@ -357,7 +363,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                             disabled={!canReset}
                             className={`${isMobile ? '!text-xs !py-2 !px-3 w-full min-h-[40px]' : '!text-xs !py-1 !px-2'} bg-gradient-to-r from-red-600/90 to-orange-600/90 hover:from-red-500 hover:to-orange-500 border border-red-400/50 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
-                            초기화 (<img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-3 h-3' : 'w-3 h-3'} inline-block`} />{resetCost})
+                            초기화 (<img src="/images/icon/Diamond.png" alt="다이아" className={`${isMobile ? 'w-3 h-3' : 'w-3 h-3'} inline-block`} />{resetCost})
                         </Button>
                         <p className={`${isMobile ? 'text-[10px]' : 'text-[10px]'} text-gray-400 ${isMobile ? 'mt-0 text-center' : 'mt-0.5'}`}>일일 변경제한: {maxDailyResets - statResetCountToday}/{maxDailyResets}</p>
                     </div>
