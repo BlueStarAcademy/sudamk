@@ -79,10 +79,23 @@ RUN mkdir -p ./node_modules/.bin
 COPY --from=build /app/node_modules/tsx ./node_modules/tsx
 # Copy esbuild (required by tsx)
 COPY --from=build /app/node_modules/esbuild ./node_modules/esbuild
-# Copy .bin directory for tsx executable (symlink)
-COPY --from=build /app/node_modules/.bin/tsx ./node_modules/.bin/tsx
-# Ensure tsx executable has proper permissions
-RUN chmod +x ./node_modules/.bin/tsx || true
+# Copy all @* scoped packages that tsx might depend on
+RUN if [ -d /app/node_modules/@esbuild-kit ]; then \
+      mkdir -p ./node_modules/@esbuild-kit && \
+      cp -r /app/node_modules/@esbuild-kit ./node_modules/; \
+    fi
+# Copy package directory if it exists (tsx uses it for ESM module resolution)
+RUN if [ -d /app/node_modules/package ]; then \
+      cp -r /app/node_modules/package ./node_modules/; \
+    fi
+# Copy any other potential tsx dependencies (check tsx's package.json for full list)
+# Common dependencies: @swc/core, @swc/helpers, etc.
+RUN for pkg in @swc/core @swc/helpers; do \
+      if [ -d "/app/node_modules/$pkg" ]; then \
+        mkdir -p "./node_modules/$(dirname $pkg)" && \
+        cp -r "/app/node_modules/$pkg" "./node_modules/$(dirname $pkg)/"; \
+      fi; \
+    done
 
 # Copy Prisma client and schema
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
