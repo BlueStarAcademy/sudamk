@@ -2429,7 +2429,6 @@ export const useApp = () => {
                                         const updatedGames = { ...currentGames };
                                         
                                         // scoring 상태인 경우 기존 게임의 boardState와 moveHistory 무조건 보존
-                                        const existingGame = currentGames[gameId];
                                         if (game.gameStatus === 'scoring') {
                                             if (existingGame) {
                                                 // scoring 상태에서는 기존 게임의 boardState와 moveHistory를 절대 덮어쓰지 않음
