@@ -81,6 +81,8 @@ COPY --from=build /app/node_modules/tsx ./node_modules/tsx
 COPY --from=build /app/node_modules/esbuild ./node_modules/esbuild
 # Copy get-tsconfig (required by tsx)
 COPY --from=build /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
+# Copy resolve-pkg-maps (required by get-tsconfig)
+COPY --from=build /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
 # Copy all @* scoped packages that tsx might depend on
 RUN if [ -d /app/node_modules/@esbuild-kit ]; then \
       mkdir -p ./node_modules/@esbuild-kit && \

@@ -25,6 +25,7 @@
     "migrate:to-railway": "npx tsx --tsconfig server/tsconfig.json scripts/migrate-to-railway.ts",
     "optimize-db": "npx tsx --tsconfig server/tsconfig.json server/scripts/optimizeDatabase.ts",
     "reset-all-guilds": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllGuilds.ts",
+    "clean-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanAdminGuild.ts",
     "optimize-images": "node scripts/optimizeImages.js",
     "compress-images": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts",
     "compress-images:dry": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts --dry-run",
