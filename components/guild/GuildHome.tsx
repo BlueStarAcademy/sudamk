@@ -26,7 +26,7 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     useEffect(() => {
         const guildId = currentUserWithStatus?.guildId;
         if (!guildId) {
-            hasLoadedRef.current = false;
+            hasLoadedRef.current = true; // 길드 ID가 없으면 더 이상 시도하지 않음
             return;
         }
         
@@ -35,19 +35,25 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
             const loadGuildInfo = async () => {
                 if (isLoading) return;
                 setIsLoading(true);
-                hasLoadedRef.current = true;
+                hasLoadedRef.current = true; // 시도 시작 시 true로 설정하여 중복 호출 방지
                 try {
                     const result: any = await handlers.handleAction({ type: 'GET_GUILD_INFO' });
                     if (result?.error) {
                         console.warn('[GuildHome] Failed to load guild info:', result.error);
-                        hasLoadedRef.current = false; // Retry on next render
+                        // "길드를 찾을 수 없습니다" 오류는 더 이상 재시도하지 않음
+                        if (result.error.includes('길드를 찾을 수 없습니다')) {
+                            hasLoadedRef.current = true; // 재시도 방지
+                        } else {
+                            // 다른 오류는 재시도 가능하도록 false로 설정 (하지만 실제로는 true로 유지하여 무한 루프 방지)
+                            hasLoadedRef.current = true;
+                        }
                     } else if (result?.clientResponse?.guild) {
                         // 길드 정보가 로드되었으면 hasLoadedRef를 true로 유지
                         hasLoadedRef.current = true;
                     }
                 } catch (error) {
                     console.error('[GuildHome] Error loading guild info:', error);
-                    hasLoadedRef.current = false; // Retry on next render
+                    hasLoadedRef.current = true; // 에러 발생 시에도 재시도 방지
                 } finally {
                     setIsLoading(false);
                 }

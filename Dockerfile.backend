@@ -77,6 +77,8 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy from build stage where all dependencies are installed
 COPY --from=build /app/node_modules/tsx ./node_modules/tsx
 COPY --from=build /app/node_modules/esbuild ./node_modules/esbuild
+# Copy .bin directory for tsx executable symlink
+COPY --from=build /app/node_modules/.bin/tsx ./node_modules/.bin/tsx
 
 # Copy Prisma client and schema
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
