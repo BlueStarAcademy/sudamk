@@ -23,13 +23,19 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
     
-    // 모달이 열릴 때: spentStatPoints가 있고 분배된 포인트가 있으면 편집 모드 비활성화
+    // 모달이 열릴 때: 남은 보너스 포인트가 있으면 항상 편집 모드 활성화
+    // 기존에 분배한 포인트는 초기화를 해야만 조절 가능하고, 현재 남아있는 보너스 포인트는 바로 조절 가능
     const [isEditing, setIsEditing] = useState(() => {
-        if (!currentUser.spentStatPoints || Object.keys(currentUser.spentStatPoints).length === 0) {
-            return true; // 분배된 포인트가 없으면 편집 모드
-        }
-        const totalSpent = Object.values(currentUser.spentStatPoints).reduce((sum, points) => sum + points, 0);
-        return totalSpent === 0; // 분배된 포인트가 없으면 편집 모드, 있으면 읽기 전용
+        // 남은 보너스 포인트가 있으면 항상 편집 모드
+        const levelPoints = (currentUser.strategyLevel - 1) * 2 + (currentUser.playfulLevel - 1) * 2;
+        const bonusPoints = currentUser.bonusStatPoints || 0;
+        const totalBonusPoints = levelPoints + bonusPoints;
+        const existingSpentPoints = currentUser.spentStatPoints || {};
+        const existingTotalSpent = Object.values(existingSpentPoints).reduce((sum, points) => sum + points, 0);
+        const availablePoints = totalBonusPoints - existingTotalSpent;
+        
+        // 남은 보너스 포인트가 있으면 편집 모드 활성화
+        return availablePoints > 0;
     });
     const [tempPoints, setTempPoints] = useState<Record<CoreStat, number>>(() => {
         if (currentUser.spentStatPoints && Object.keys(currentUser.spentStatPoints).length > 0) {
@@ -82,19 +88,21 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
     const handlePointChange = (stat: CoreStat, value: string) => {
         const newValue = Number(value) || 0;
         setTempPoints(prev => {
-            const currentSpentOnOthers = Object.entries(prev)
-                .filter(([key]) => key !== stat)
-                .reduce((sum, [, val]) => sum + val, 0);
-
-            // 기존에 사용한 포인트는 유지하고, 현재 사용 가능한 보너스 포인트만 분배 가능
+            // 기존에 분배한 포인트는 고정 (초기화 전까지 변경 불가)
             const existingSpentPoints = currentUser.spentStatPoints || {};
-            const existingTotalSpent = Object.values(existingSpentPoints).reduce((sum, points) => sum + points, 0);
             const existingSpentOnThisStat = existingSpentPoints[stat] || 0;
-            const existingSpentOnOthers = existingTotalSpent - existingSpentOnThisStat;
+            const existingTotalSpent = Object.values(existingSpentPoints).reduce((sum, points) => sum + points, 0);
             
-            // 기존 분배를 제외한 나머지 포인트 + 보너스 포인트만 사용 가능
-            const maxForThisStat = existingSpentOnThisStat + bonusPoints - (currentSpentOnOthers - existingSpentOnOthers);
-            const finalValue = Math.max(existingSpentOnThisStat, Math.min(newValue, maxForThisStat));
+            // 현재 사용 가능한 보너스 포인트 계산
+            const availablePoints = totalBonusPoints - existingTotalSpent;
+            
+            // 기존 분배 포인트는 최소값으로 유지하고, 남은 보너스 포인트만 추가 분배 가능
+            // newValue는 전체 분배 값이므로, 기존 분배를 뺀 나머지가 보너스 포인트를 초과하지 않아야 함
+            const additionalPoints = newValue - existingSpentOnThisStat;
+            
+            // 추가 분배할 수 있는 최대값은 남은 보너스 포인트
+            const maxAdditional = Math.max(0, Math.min(additionalPoints, availablePoints));
+            const finalValue = existingSpentOnThisStat + maxAdditional;
             
             return { ...prev, [stat]: finalValue };
         });
@@ -102,7 +110,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
 
     // currentUser가 업데이트되면 tempPoints와 isEditing 업데이트
     useEffect(() => {
-        // tempPoints 업데이트
+        // tempPoints 업데이트: 기존 분배 포인트를 유지
         if (currentUser.spentStatPoints && Object.keys(currentUser.spentStatPoints).length > 0) {
             setTempPoints(currentUser.spentStatPoints);
         } else {
@@ -117,13 +125,16 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
             });
         }
         
-        // isEditing 업데이트: 분배된 포인트가 있으면 편집 모드 비활성화
-        if (!currentUser.spentStatPoints || Object.keys(currentUser.spentStatPoints).length === 0) {
-            setIsEditing(true);
-        } else {
-            const totalSpent = Object.values(currentUser.spentStatPoints).reduce((sum, points) => sum + points, 0);
-            setIsEditing(totalSpent === 0); // 분배된 포인트가 없으면 편집 모드, 있으면 읽기 전용
-        }
+        // isEditing 업데이트: 남은 보너스 포인트가 있으면 편집 모드 활성화
+        const levelPoints = (currentUser.strategyLevel - 1) * 2 + (currentUser.playfulLevel - 1) * 2;
+        const bonusPoints = currentUser.bonusStatPoints || 0;
+        const totalBonusPoints = levelPoints + bonusPoints;
+        const existingSpentPoints = currentUser.spentStatPoints || {};
+        const existingTotalSpent = Object.values(existingSpentPoints).reduce((sum, points) => sum + points, 0);
+        const availablePoints = totalBonusPoints - existingTotalSpent;
+        
+        // 남은 보너스 포인트가 있으면 편집 모드 활성화
+        setIsEditing(availablePoints > 0);
     }, [currentUser.spentStatPoints, currentUser.bonusStatPoints, currentUser.strategyLevel, currentUser.playfulLevel]);
 
     const handleReset = () => {
@@ -196,7 +207,11 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                     <div className={`${isMobile ? 'w-full' : 'w-1/3'} flex flex-col ${isMobile ? 'gap-1.5' : 'gap-2'}`}>
                         {leftStats.map(stat => {
                             const currentSpent = tempPoints[stat] || 0;
-                            const maxForThisSlider = currentSpent + availablePoints;
+                            const existingSpentPoints = currentUser.spentStatPoints || {};
+                            const existingSpentOnThisStat = existingSpentPoints[stat] || 0;
+                            // 기존 분배 포인트는 최소값, 최대값은 기존 분배 + 남은 보너스 포인트
+                            const minForThisSlider = existingSpentOnThisStat;
+                            const maxForThisSlider = existingSpentOnThisStat + availablePoints;
                             const statName = CORE_STATS_DATA[stat].name;
                             const colorClass = statColors[stat];
                             
@@ -217,20 +232,22 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                                     <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
                                         <input
                                             type="range"
-                                            min="0"
+                                            min={minForThisSlider}
                                             max={maxForThisSlider}
                                             value={currentSpent}
                                             onChange={(e) => handlePointChange(stat, e.target.value)}
                                             className={`flex-1 ${isMobile ? 'h-1' : 'h-1.5'} rounded-full appearance-none cursor-pointer`}
                                             style={{
-                                                background: maxForThisSlider > 0 
-                                                    ? `linear-gradient(to right, rgb(34, 211, 238) 0%, rgb(34, 211, 238) ${(currentSpent / maxForThisSlider) * 100}%, rgba(75, 85, 99, 0.5) ${(currentSpent / maxForThisSlider) * 100}%, rgba(75, 85, 99, 0.5) 100%)`
+                                                background: maxForThisSlider > minForThisSlider 
+                                                    ? `linear-gradient(to right, rgb(34, 211, 238) 0%, rgb(34, 211, 238) ${((currentSpent - minForThisSlider) / (maxForThisSlider - minForThisSlider)) * 100}%, rgba(75, 85, 99, 0.5) ${((currentSpent - minForThisSlider) / (maxForThisSlider - minForThisSlider)) * 100}%, rgba(75, 85, 99, 0.5) 100%)`
                                                     : 'rgba(75, 85, 99, 0.5)'
                                             }}
                                             disabled={!isEditing}
                                         />
                                         <input
                                             type="number"
+                                            min={minForThisSlider}
+                                            max={maxForThisSlider}
                                             value={currentSpent}
                                             onChange={(e) => handlePointChange(stat, e.target.value)}
                                             className={`${isMobile ? 'w-12 text-[10px] p-0.5' : 'w-16 text-xs p-1'} bg-gray-800/80 border border-cyan-500/30 rounded-md text-center text-cyan-200 font-bold focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all`}
@@ -253,7 +270,11 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                     <div className={`${isMobile ? 'w-full' : 'w-1/3'} flex flex-col ${isMobile ? 'gap-1.5' : 'gap-2'}`}>
                         {rightStats.map(stat => {
                             const currentSpent = tempPoints[stat] || 0;
-                            const maxForThisSlider = currentSpent + availablePoints;
+                            const existingSpentPoints = currentUser.spentStatPoints || {};
+                            const existingSpentOnThisStat = existingSpentPoints[stat] || 0;
+                            // 기존 분배 포인트는 최소값, 최대값은 기존 분배 + 남은 보너스 포인트
+                            const minForThisSlider = existingSpentOnThisStat;
+                            const maxForThisSlider = existingSpentOnThisStat + availablePoints;
                             const statName = CORE_STATS_DATA[stat].name;
                             const colorClass = statColors[stat];
                             
@@ -274,20 +295,22 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                                     <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
                                         <input
                                             type="range"
-                                            min="0"
+                                            min={minForThisSlider}
                                             max={maxForThisSlider}
                                             value={currentSpent}
                                             onChange={(e) => handlePointChange(stat, e.target.value)}
                                             className={`flex-1 ${isMobile ? 'h-1' : 'h-1.5'} rounded-full appearance-none cursor-pointer`}
                                             style={{
-                                                background: maxForThisSlider > 0 
-                                                    ? `linear-gradient(to right, rgb(34, 211, 238) 0%, rgb(34, 211, 238) ${(currentSpent / maxForThisSlider) * 100}%, rgba(75, 85, 99, 0.5) ${(currentSpent / maxForThisSlider) * 100}%, rgba(75, 85, 99, 0.5) 100%)`
+                                                background: maxForThisSlider > minForThisSlider 
+                                                    ? `linear-gradient(to right, rgb(34, 211, 238) 0%, rgb(34, 211, 238) ${((currentSpent - minForThisSlider) / (maxForThisSlider - minForThisSlider)) * 100}%, rgba(75, 85, 99, 0.5) ${((currentSpent - minForThisSlider) / (maxForThisSlider - minForThisSlider)) * 100}%, rgba(75, 85, 99, 0.5) 100%)`
                                                     : 'rgba(75, 85, 99, 0.5)'
                                             }}
                                             disabled={!isEditing}
                                         />
                                         <input
                                             type="number"
+                                            min={minForThisSlider}
+                                            max={maxForThisSlider}
                                             value={currentSpent}
                                             onChange={(e) => handlePointChange(stat, e.target.value)}
                                             className={`${isMobile ? 'w-12 text-[10px] p-0.5' : 'w-16 text-xs p-1'} bg-gray-800/80 border border-cyan-500/30 rounded-md text-center text-cyan-200 font-bold focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all`}

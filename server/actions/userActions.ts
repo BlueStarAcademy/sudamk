@@ -162,12 +162,21 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const existingSpentPoints = user.spentStatPoints || {};
             const existingTotalSpent = Object.values(existingSpentPoints).reduce((sum, points) => sum + points, 0);
             
+            // 현재 사용 가능한 포인트 계산 (전체 사용 가능 포인트 - 기존 분배 포인트)
+            const availablePoints = totalAvailablePoints - existingTotalSpent;
+            
             // 새로운 분배에서 기존 분배를 뺀 값이 사용 가능한 포인트를 초과하지 않는지 확인
             const newSpent = totalSpent;
             const additionalSpent = newSpent - existingTotalSpent;
             
-            if (additionalSpent > bonusPoints) {
-                return { error: `현재 사용 가능한 보너스 포인트(${bonusPoints})를 초과하여 분배할 수 없습니다.` };
+            // 기존 분배 포인트는 고정이므로, 새로운 분배가 기존 분배보다 작을 수 없음
+            if (additionalSpent < 0) {
+                return { error: '기존에 분배한 포인트는 초기화를 해야만 조절할 수 있습니다.' };
+            }
+            
+            // 추가 분배가 남은 보너스 포인트를 초과하지 않는지 확인
+            if (additionalSpent > availablePoints) {
+                return { error: `현재 사용 가능한 보너스 포인트(${availablePoints})를 초과하여 분배할 수 없습니다.` };
             }
 
             user.spentStatPoints = newStatPoints;

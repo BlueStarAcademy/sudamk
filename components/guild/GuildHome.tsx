@@ -23,6 +23,7 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     }, [guilds, currentUserWithStatus?.guildId, initialGuild]);
 
     // 새로고침 시 길드 정보 로드 (guilds 상태가 비어있을 때만)
+    // guildId가 변경될 때만 실행되도록 하고, guilds 객체는 의존성에서 제거
     useEffect(() => {
         const guildId = currentUserWithStatus?.guildId;
         if (!guildId) {
@@ -30,10 +31,15 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
             return;
         }
         
-        // guilds 상태에 길드가 없으면 로드
-        if (!guilds[guildId] && !initialGuild && !hasLoadedRef.current) {
+        // 이미 로드 시도했거나 로딩 중이면 스킵
+        if (hasLoadedRef.current || isLoading) {
+            return;
+        }
+        
+        // guilds 상태에 길드가 없으면 로드 (guilds 객체는 의존성에서 제거하여 무한 루프 방지)
+        const hasGuild = guilds[guildId] !== undefined;
+        if (!hasGuild && !initialGuild) {
             const loadGuildInfo = async () => {
-                if (isLoading) return;
                 setIsLoading(true);
                 hasLoadedRef.current = true; // 시도 시작 시 true로 설정하여 중복 호출 방지
                 try {
@@ -59,10 +65,11 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
                 }
             };
             loadGuildInfo();
-        } else if (guilds[guildId] || initialGuild) {
+        } else if (hasGuild || initialGuild) {
             hasLoadedRef.current = true;
         }
-    }, [currentUserWithStatus?.guildId, guilds, initialGuild, handlers, isLoading]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUserWithStatus?.guildId, initialGuild]);
 
     // 길드 기부 애니메이션 처리 (WebSocket 이벤트 또는 액션 결과에서 받을 수 있음)
     useEffect(() => {

@@ -296,12 +296,26 @@ const Profile: React.FC<ProfileProps> = () => {
         return guilds[currentUserWithStatus.guildId] || null;
     }, [currentUserWithStatus?.guildId, guilds]);
     
-    // 길드에 소속되어 있는데 길드 정보가 없으면 즉시 가져오기
+    // 길드에 소속되어 있는데 길드 정보가 없으면 즉시 가져오기 (한 번만 실행)
+    const hasLoadedGuildRef = useRef<Set<string>>(new Set());
     useEffect(() => {
-        if (currentUserWithStatus?.guildId && !guildInfo) {
+        const guildId = currentUserWithStatus?.guildId;
+        if (!guildId) {
+            return;
+        }
+        
+        // 이미 로드 시도한 길드 ID는 다시 시도하지 않음
+        if (hasLoadedGuildRef.current.has(guildId)) {
+            return;
+        }
+        
+        // 길드 정보가 없으면 로드 시도 (guilds 객체는 의존성에서 제거하여 무한 루프 방지)
+        if (!guilds[guildId]) {
+            hasLoadedGuildRef.current.add(guildId);
             handlers.handleAction({ type: 'GET_GUILD_INFO' });
         }
-    }, [currentUserWithStatus?.guildId, guildInfo, handlers]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUserWithStatus?.guildId]);
     
     if (!currentUserWithStatus) return null;
 

@@ -7,7 +7,7 @@
   "scripts": {
     "start": "concurrently \"npm:start-client\" \"npm:start-server\"",
     "start-client": "vite --host",
-    "start-server": "cross-env PORT=4000 npx tsx --tsconfig server/tsconfig.json server/server.ts",
+    "start-server": "cross-env PORT=4000 node_modules/.bin/tsx --tsconfig server/tsconfig.json server/server.ts",
     "build": "vite build",
     "prisma:generate": "npx prisma generate --schema prisma/schema.prisma",
     "prisma:migrate:deploy": "npx prisma migrate deploy --schema prisma/schema.prisma",
@@ -24,6 +24,7 @@
     "emergency-restore-all": "npx tsx --tsconfig server/tsconfig.json server/emergencyRestoreAll.ts",
     "migrate:to-railway": "npx tsx --tsconfig server/tsconfig.json scripts/migrate-to-railway.ts",
     "optimize-db": "npx tsx --tsconfig server/tsconfig.json server/scripts/optimizeDatabase.ts",
+    "reset-all-guilds": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllGuilds.ts",
     "optimize-images": "node scripts/optimizeImages.js",
     "compress-images": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts",
     "compress-images:dry": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts --dry-run",
