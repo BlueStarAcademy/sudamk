@@ -3285,12 +3285,35 @@ export const useApp = () => {
         window.location.hash = `#/waiting/${encodeURIComponent(mode)}`;
     };
     
-    const handleViewUser = useCallback((userId: string) => {
-        if (!Array.isArray(onlineUsers) || !Array.isArray(allUsers)) return;
-        const userToView = onlineUsers.find(u => u && u.id === userId) || allUsers.find(u => u && u.id === userId);
-        if (userToView) {
-            const statusInfo = onlineUsers.find(u => u && u.id === userId);
-            setViewingUser({ ...userToView, ...(statusInfo || { status: UserStatus.Online }) });
+    const handleViewUser = useCallback(async (userId: string) => {
+        // 먼저 onlineUsers와 allUsers에서 찾기
+        if (Array.isArray(onlineUsers) && Array.isArray(allUsers)) {
+            const userToView = onlineUsers.find(u => u && u.id === userId) || allUsers.find(u => u && u.id === userId);
+            if (userToView) {
+                const statusInfo = onlineUsers.find(u => u && u.id === userId);
+                setViewingUser({ ...userToView, ...(statusInfo || { status: UserStatus.Online }) });
+                return;
+            }
+        }
+        
+        // 로컬에 없으면 서버에서 가져오기
+        try {
+            const response = await fetch(`/api/user/${userId}`);
+            if (!response.ok) {
+                console.error(`[handleViewUser] Failed to fetch user ${userId}: ${response.statusText}`);
+                return;
+            }
+            const userData = await response.json();
+            // 온라인 상태 확인
+            const statusInfo = Array.isArray(onlineUsers) ? onlineUsers.find(u => u && u.id === userId) : null;
+            setViewingUser({ 
+                ...userData, 
+                status: statusInfo?.status || UserStatus.Offline,
+                equipment: {},
+                inventory: []
+            } as UserWithStatus);
+        } catch (error) {
+            console.error(`[handleViewUser] Error fetching user ${userId}:`, error);
         }
     }, [onlineUsers, allUsers]);
 

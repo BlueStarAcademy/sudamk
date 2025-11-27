@@ -1627,6 +1627,54 @@ const startServer = async () => {
         }
     });
 
+    // 유저 프로필 정보 가져오기 (공개 정보만)
+    app.get('/api/user/:userId', async (req, res) => {
+        try {
+            const { userId } = req.params;
+            if (!userId) {
+                return res.status(400).json({ error: 'User ID is required' });
+            }
+            
+            // 공개 정보만 반환 (equipment/inventory 제외하여 빠르게)
+            const user = await db.getUser(userId, { includeEquipment: false, includeInventory: false });
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            
+            // 공개 정보만 반환
+            const publicUser = {
+                id: user.id,
+                username: user.username,
+                nickname: user.nickname,
+                avatarId: user.avatarId,
+                borderId: user.borderId,
+                strategyLevel: user.strategyLevel,
+                strategyXp: user.strategyXp,
+                playfulLevel: user.playfulLevel,
+                playfulXp: user.playfulXp,
+                gold: user.gold,
+                diamonds: user.diamonds,
+                stats: user.stats,
+                mannerScore: user.mannerScore,
+                tournamentScore: user.tournamentScore,
+                cumulativeTournamentScore: user.cumulativeTournamentScore,
+                league: user.league,
+                mbti: user.mbti,
+                isMbtiPublic: user.isMbtiPublic,
+                cumulativeRankingScore: user.cumulativeRankingScore,
+                dailyRankings: user.dailyRankings,
+                towerFloor: (user as any).towerFloor,
+                monthlyTowerFloor: (user as any).monthlyTowerFloor,
+                isAdmin: user.isAdmin,
+            };
+            
+            res.json(publicUser);
+        } catch (error: any) {
+            console.error('[/api/user/:userId] Error:', error);
+            res.status(500).json({ error: 'Failed to fetch user data' });
+        }
+    });
+
     app.post('/api/state', async (req, res) => {
         // 프로덕션에서 성능 향상을 위해 로깅 최소화
         const isDev = process.env.NODE_ENV === 'development';
