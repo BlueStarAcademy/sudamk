@@ -63,10 +63,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 const game = await db.getLiveGame(activeGameId);
                 // scoring 상태의 게임은 연결 끊김으로 처리하지 않음 (자동계가 진행 중)
                 if (game && game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest' && game.gameStatus !== 'scoring') {
-                    // 도전의 탑, 싱글플레이, AI 게임에서는 접속 끊김 패널티 없음
-                    const isNoPenaltyGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame;
+                    // 도전의 탑, 싱글플레이, AI 게임에서는 로그아웃 시 게임 삭제
+                    const isAiGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame;
                     if (!game.disconnectionState) {
-                        if (!isNoPenaltyGame) {
+                        if (!isAiGame) {
                             // 일반 게임에서만 접속 끊김 카운트 및 패널티 적용
                             game.disconnectionCounts[user.id] = (game.disconnectionCounts[user.id] || 0) + 1;
                             if (game.disconnectionCounts[user.id] >= 3) {
@@ -88,9 +88,23 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                                 broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
                             }
                         } else {
-                            // 도전의 탑, 싱글플레이, AI 게임에서는 즉시 게임 종료 (패널티 없음)
-                            const winner = game.blackPlayerId === user.id ? types.Player.White : types.Player.Black;
-                            await summaryService.endGame(game, winner, 'disconnect');
+                            // 도전의 탑, 싱글플레이, AI 게임에서는 로그아웃 시 게임 삭제
+                            console.log(`[Logout] Deleting AI game ${activeGameId} for user ${user.nickname}`);
+                            
+                            // 사용자 상태에서 gameId 제거
+                            if (volatileState.userStatuses[user.id]) {
+                                delete volatileState.userStatuses[user.id].gameId;
+                                volatileState.userStatuses[user.id].status = UserStatus.Waiting;
+                            }
+                            
+                            // AI 세션 정리
+                            clearAiSession(activeGameId);
+                            
+                            // 게임 삭제
+                            await db.deleteGame(activeGameId);
+                            
+                            // 게임 삭제 브로드캐스트
+                            broadcast({ type: 'GAME_DELETED', payload: { gameId: activeGameId } });
                         }
                     }
                 } else if (game && game.gameStatus === 'scoring') {
@@ -383,6 +397,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     volatileState.userStatuses[user.id] = { status: UserStatus.Online };
                 }
                 broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                
+                // 싱글플레이 게임인 경우 사용자 데이터를 다시 가져와서 브로드캐스트 (클리어 상태 반영)
+                if (gameId?.startsWith('sp-game-')) {
+                    const freshUser = await db.getUser(user.id);
+                    if (freshUser) {
+                        broadcast({ type: 'USER_UPDATE', payload: { [user.id]: freshUser } });
+                    }
+                }
+                
                 return {}; // 에러를 반환하지 않고 성공 처리
             }
 
@@ -416,6 +439,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             // If the user leaves before the game is officially over (e.g. resigns), end the game.
             if (!['ended', 'no_contest'].includes(game.gameStatus)) {
                  await summaryService.endGame(game, types.Player.White, 'disconnect'); // AI is always P2/White and wins on disconnect
+            } else {
+                // 게임이 이미 종료된 경우, 싱글플레이 게임이면 사용자 데이터를 다시 가져와서 브로드캐스트 (클리어 상태 반영)
+                if (game.isSinglePlayer) {
+                    const freshUser = await db.getUser(user.id);
+                    if (freshUser) {
+                        console.log(`[LEAVE_AI_GAME] Broadcasting updated user data for single player game ${gameId}, clearedStages: ${JSON.stringify(freshUser.clearedSinglePlayerStages)}`);
+                        broadcast({ type: 'USER_UPDATE', payload: { [user.id]: freshUser } });
+                    }
+                }
             }
             
             return {};

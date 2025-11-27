@@ -536,6 +536,10 @@ const startServer = async () => {
                 
                 // Handle daily quest reset (매일 0시 KST)
                 await processDailyQuestReset();
+                
+                // Handle guild war matching (월요일 또는 금요일 0시 KST)
+                const { processGuildWarMatching } = await import('./scheduledTasks.js');
+                await processGuildWarMatching();
 
                 lastDailyTaskCheckAt = now;
             }

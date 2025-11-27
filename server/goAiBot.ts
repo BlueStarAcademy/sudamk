@@ -37,7 +37,7 @@ export interface GoAiBotProfile {
     mistakeRate: number;
     /** 승리 목적 달성도 (0.0 ~ 1.0, 높을수록 승리에 집중) */
     winFocus: number;
-    /** 계산 깊이 (1~5, 높을수록 깊이 계산) */
+    /** 계산 깊이 (1~10, 높을수록 깊이 계산, 단계별로 미래를 내다보는 수) */
     calculationDepth: number;
     
     // 10단계별 바둑 기술 지식
@@ -79,7 +79,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.2, // 행마 능력 약함
         mistakeRate: 0.4, // 실수 많음
         winFocus: 0.95, // 승리에 집중
-        calculationDepth: 1, // 계산 깊이 매우 낮음
+        calculationDepth: 1, // 1수 앞만 내다봄
         knowsBasicRules: true, // 1단계: 기본 규칙
         avoidsSelfAtari: false,
         knowsSacrificeAndCounter: false,
@@ -103,7 +103,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.3,
         mistakeRate: 0.35,
         winFocus: 0.9,
-        calculationDepth: 1,
+        calculationDepth: 2, // 2수 앞까지 내다봄
         knowsBasicRules: true,
         avoidsSelfAtari: true, // 2단계: 자충수 방지
         knowsSacrificeAndCounter: false,
@@ -127,7 +127,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.4,
         mistakeRate: 0.3,
         winFocus: 0.85,
-        calculationDepth: 2,
+        calculationDepth: 3, // 3수 앞까지 내다봄
         knowsBasicRules: true,
         avoidsSelfAtari: true,
         knowsSacrificeAndCounter: true, // 3단계: 먹여치기 및 환격
@@ -151,7 +151,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.5,
         mistakeRate: 0.25,
         winFocus: 0.8,
-        calculationDepth: 2,
+        calculationDepth: 4, // 4수 앞까지 내다봄
         knowsBasicRules: true,
         avoidsSelfAtari: true,
         knowsSacrificeAndCounter: true,
@@ -175,7 +175,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.6,
         mistakeRate: 0.18,
         winFocus: 0.78,
-        calculationDepth: 3,
+        calculationDepth: 5, // 5수 앞까지 내다봄
         knowsBasicRules: true,
         avoidsSelfAtari: true,
         knowsSacrificeAndCounter: true,
@@ -199,7 +199,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.7,
         mistakeRate: 0.12,
         winFocus: 0.75,
-        calculationDepth: 3,
+        calculationDepth: 6, // 6수 앞까지 내다봄
         knowsBasicRules: true,
         avoidsSelfAtari: true,
         knowsSacrificeAndCounter: true,
@@ -223,7 +223,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.75, // 행마 능력 우수
         mistakeRate: 0.04, // 실수 적음
         winFocus: 0.7, // 승리에 집중
-        calculationDepth: 4,
+        calculationDepth: 7, // 7수 앞까지 내다봄
         knowsBasicRules: true,
         avoidsSelfAtari: true,
         knowsSacrificeAndCounter: true,
@@ -247,7 +247,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.8, // 행마 능력 우수
         mistakeRate: 0.03, // 실수 적음
         winFocus: 0.75, // 승리에 집중
-        calculationDepth: 5,
+        calculationDepth: 8, // 8수 앞까지 내다봄
         knowsBasicRules: true,
         avoidsSelfAtari: true,
         knowsSacrificeAndCounter: true,
@@ -271,7 +271,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.85, // 행마 능력 우수
         mistakeRate: 0.015, // 실수 적음
         winFocus: 0.8, // 승리에 집중 (공격적)
-        calculationDepth: 6,
+        calculationDepth: 9, // 9수 앞까지 내다봄
         knowsBasicRules: true,
         avoidsSelfAtari: true,
         knowsSacrificeAndCounter: true,
@@ -295,7 +295,7 @@ export const GO_AI_BOT_PROFILES: Record<number, GoAiBotProfile> = {
         movementSkill: 0.9, // 행마 능력 우수
         mistakeRate: 0.01, // 실수 거의 없음
         winFocus: 0.85, // 승리에 집중 (공격적)
-        calculationDepth: 6, // 계산 깊이 최대
+        calculationDepth: 10, // 10수 앞까지 내다봄
         knowsBasicRules: true,
         avoidsSelfAtari: true,
         knowsSacrificeAndCounter: true,
@@ -1086,12 +1086,89 @@ function scoreMovesByProfile(
         let score = 0;
         const point: Point = { x: move.x, y: move.y };
 
-        // 1. 따내기 성향 반영 (가치 판단 후 적용)
-        const captureScore = evaluateCaptureOpportunity(game, logic, point, aiPlayer, opponentPlayer);
-        if (captureScore > 0) {
-            score += 2000 + captureScore * 500; // 매우 강력한 가중치
+        // 0. 자신의 단수 그룹을 살리기 vs 따내기 판단 (미래를 내다보며 살릴 수 있는지 확인)
+        const testResultForSave = processMove(
+            game.boardState,
+            { ...point, player: aiPlayer },
+            game.koInfo,
+            game.moveHistory.length,
+            { ignoreSuicide: true }
+        );
+        
+        let saveScore = 0;
+        let captureScore = 0;
+        
+        if (testResultForSave.isValid) {
+            const myGroupsBefore = logic.getAllGroups(aiPlayer, game.boardState);
+            const myGroupsAfter = logic.getAllGroups(aiPlayer, testResultForSave.newBoardState);
+            
+            for (const groupBefore of myGroupsBefore) {
+                if (groupBefore.libertyPoints.size === 1) {
+                    const matchingAfter = myGroupsAfter.find(ga =>
+                        ga.stones.some(ast => groupBefore.stones.some(bst => ast.x === bst.x && ast.y === bst.y))
+                    );
+                    if (matchingAfter && matchingAfter.libertyPoints.size > 1) {
+                        // 자신의 단수 그룹을 살린 경우
+                        const groupSize = groupBefore.stones.length;
+                        const saveOwnGroupValue = evaluateGroupValue(
+                            groupBefore,
+                            game,
+                            logic,
+                            aiPlayer,
+                            profile
+                        );
+                        
+                        // 미래를 내다보며 살릴 수 있는지 판단
+                        const canBeSaved = canGroupBeSaved(
+                            game,
+                            testResultForSave.newBoardState,
+                            testResultForSave.newKoInfo,
+                            matchingAfter,
+                            aiPlayer,
+                            opponentPlayer,
+                            profile,
+                            logic
+                        );
+                        
+                        if (canBeSaved) {
+                            // 살릴 수 있는 그룹 - 살리기와 따내기를 같은 등급의 점수로
+                            saveScore += 5000 + saveOwnGroupValue * 500 + groupSize * 200;
+                        } else {
+                            // 살릴 수 없는 그룹 - 살리기 점수를 낮추고 따내기 우선
+                            saveScore += 2000 + saveOwnGroupValue * 200 + groupSize * 100;
+                        }
+                    }
+                }
+            }
         }
-        score += captureScore * profile.captureTendency * 300;
+
+        // 1. 따내기 성향 반영 (살리기와 같은 등급의 점수)
+        const captureOpportunityScore = evaluateCaptureOpportunity(game, logic, point, aiPlayer, opponentPlayer);
+        if (captureOpportunityScore > 0) {
+            // 따내기 점수도 살리기와 비슷한 수준으로 설정 (같은 등급)
+            captureScore += 5000 + captureOpportunityScore * 500;
+        }
+        captureScore += captureOpportunityScore * profile.captureTendency * 300;
+        
+        // 살리기와 따내기 중 선택 (미래를 내다본 판단에 따라)
+        if (saveScore > 0 && captureScore > 0) {
+            // 둘 다 가능한 경우
+            if (saveScore >= 5000) {
+                // 살릴 수 있는 그룹 - 살리기와 따내기를 같은 등급으로 처리하되, 살리기 우선
+                score += saveScore;
+                // 따내기도 추가 점수로 반영 (하지만 살리기보다는 낮게)
+                score += captureScore * 0.3;
+            } else {
+                // 살릴 수 없는 그룹 - 따내기 우선
+                score += captureScore;
+                // 살리기도 약간 반영 (하지만 따내기보다는 낮게)
+                score += saveScore * 0.3;
+            }
+        } else if (saveScore > 0) {
+            score += saveScore;
+        } else if (captureScore > 0) {
+            score += captureScore;
+        }
 
         // 2. 영토 확보 성향 반영 (방어 우선)
         const territoryScore = evaluateTerritory(game, logic, point, aiPlayer, profile);
@@ -1209,41 +1286,28 @@ function scoreMovesByProfile(
 
         // 11. 4단계: 단수 상황 판단 (따내기 vs 살리기) - 가치 판단
         const atariJudgmentScore = evaluateAtariJudgment(game, logic, point, aiPlayer, opponentPlayer);
-        const myGroupsBefore = logic.getAllGroups(aiPlayer, game.boardState);
-        const testResult = processMove(
-            game.boardState,
-            { ...point, player: aiPlayer },
-            game.koInfo,
-            game.moveHistory.length,
-            { ignoreSuicide: true }
-        );
+        const testResult = testResultForSave; // 위에서 이미 계산한 결과 재사용
         
-        // 살리기 vs 따내기 가치 비교
-        if (testResult.isValid && profile.knowsAtariJudgment) {
-            let saveOwnGroupValue = 0;
-            let captureOpponentValue = 0;
-            
-            // 자신의 단수 그룹을 살리는 경우의 가치 평가
+        // 살리기 vs 따내기 가치 비교 (살리기가 이미 처리되지 않은 경우에만)
+        let alreadySaved = false;
+        if (testResult.isValid) {
             const myGroupsAfter = logic.getAllGroups(aiPlayer, testResult.newBoardState);
+            const myGroupsBefore = logic.getAllGroups(aiPlayer, game.boardState);
             for (const groupBefore of myGroupsBefore) {
                 if (groupBefore.libertyPoints.size === 1) {
                     const matchingAfter = myGroupsAfter.find(ga =>
                         ga.stones.some(ast => groupBefore.stones.some(bst => ast.x === bst.x && ast.y === bst.y))
                     );
                     if (matchingAfter && matchingAfter.libertyPoints.size > 1) {
-                        // 자신의 단수 그룹을 살린 경우
-                        const groupSize = groupBefore.stones.length;
-                        // 그룹 크기, 위치, 중요도 등을 고려한 가치 평가
-                        saveOwnGroupValue = evaluateGroupValue(
-                            groupBefore,
-                            game,
-                            logic,
-                            aiPlayer,
-                            profile
-                        );
+                        alreadySaved = true; // 이미 살리기로 처리됨
+                        break;
                     }
                 }
             }
+        }
+        
+        if (testResult.isValid && profile.knowsAtariJudgment && !alreadySaved) {
+            let captureOpponentValue = 0;
             
             // 상대방 돌을 따내는 경우의 가치 평가
             if (testResult.capturedStones.length > 0) {
@@ -1270,26 +1334,15 @@ function scoreMovesByProfile(
                 captureOpponentValue = captureValue;
             }
             
-            // 가치 비교 후 점수 부여
-            if (saveOwnGroupValue > 0 || captureOpponentValue > 0) {
-                // AI 난이도에 따라 가치 판단 능력 차등 적용
-                const judgmentSkill = profile.lifeDeathSkill; // 사활 판단 능력 사용
-                
-                if (saveOwnGroupValue > captureOpponentValue * (1.0 + (1.0 - judgmentSkill) * 0.5)) {
-                    // 자신의 그룹을 살리는 것이 더 가치 있음
-                    score += 5000 + saveOwnGroupValue * 500;
-                } else if (captureOpponentValue > saveOwnGroupValue * (1.0 + (1.0 - judgmentSkill) * 0.5)) {
-                    // 상대방 돌을 따내는 것이 더 가치 있음
-                    score += 3000 + captureOpponentValue * 400;
-                } else {
-                    // 가치가 비슷한 경우 둘 다 고려
-                    score += 4000 + (saveOwnGroupValue + captureOpponentValue) * 300;
-                }
+            // 가치 비교 후 점수 부여 (살리기가 이미 처리되지 않은 경우에만)
+            if (captureOpponentValue > 0) {
+                // 상대방 돌을 따내는 경우
+                score += 3000 + captureOpponentValue * 400;
             } else {
                 // 일반적인 단수 상황 판단
                 score += atariJudgmentScore * 400;
             }
-        } else if (profile.knowsAtariJudgment) {
+        } else if (profile.knowsAtariJudgment && !alreadySaved) {
             score += atariJudgmentScore * 400;
         }
 
@@ -1349,6 +1402,22 @@ function scoreMovesByProfile(
                 const endgameScore = evaluateEndgame(game, logic, point, aiPlayer, opponentPlayer);
                 score += endgameScore * 400;
             }
+        }
+
+        // 18. 미래를 내다보는 평가 (calculationDepth에 따라)
+        if (profile.calculationDepth > 1 && testResultForSave.isValid) {
+            const lookAheadScore = evaluateLookAhead(
+                game,
+                testResultForSave.newBoardState,
+                testResultForSave.newKoInfo,
+                point,
+                aiPlayer,
+                opponentPlayer,
+                profile,
+                logic,
+                profile.calculationDepth - 1 // 이미 1수는 둔 상태이므로 -1
+            );
+            score += lookAheadScore * (profile.calculationDepth * 50); // 깊이에 따라 가중치 증가
         }
 
         scoredMoves.push({ move, score });
@@ -3368,5 +3437,211 @@ function evaluateEndgame(
     }
 
     return score;
+}
+
+/**
+ * 미래를 내다보는 평가 (look-ahead search)
+ * 지정된 깊이만큼 미래의 수를 시뮬레이션하여 수의 가치를 평가
+ */
+function evaluateLookAhead(
+    game: types.LiveGameSession,
+    boardState: types.BoardState,
+    koInfo: { point: Point; turn: number } | null,
+    lastMove: Point,
+    aiPlayer: Player,
+    opponentPlayer: Player,
+    profile: GoAiBotProfile,
+    logic: ReturnType<typeof getGoLogic>,
+    depth: number
+): number {
+    if (depth <= 0) {
+        return 0; // 더 이상 내다볼 수 없음
+    }
+
+    // 현재 플레이어는 상대방 (AI가 수를 둔 후 상대방 차례)
+    const currentPlayer = opponentPlayer;
+    const nextPlayer = aiPlayer;
+
+    // 현재 보드 상태로 게임 객체 생성
+    const simulatedGame: types.LiveGameSession = {
+        ...game,
+        boardState,
+        koInfo,
+        currentPlayer
+    };
+
+    // 상대방의 가능한 수 찾기 (최대 5개만 고려하여 성능 최적화)
+    const opponentMoves = findAllValidMovesFast(simulatedGame, logic, currentPlayer);
+    if (opponentMoves.length === 0) {
+        // 상대방이 둘 수 없으면 좋은 상황
+        return 100;
+    }
+
+    // 상위 5개 수만 고려 (성능 최적화)
+    const topMoves = opponentMoves.slice(0, Math.min(5, opponentMoves.length));
+    let totalScore = 0;
+    let validSimulations = 0;
+
+    for (const move of topMoves) {
+        const moveResult = processMove(
+            boardState,
+            { ...move, player: currentPlayer },
+            koInfo,
+            game.moveHistory.length + 1,
+            { ignoreSuicide: true }
+        );
+
+        if (!moveResult.isValid) continue;
+
+        // 상대방이 수를 둔 후의 상황 평가
+        let moveScore = 0;
+
+        // 1. 상대방이 우리 돌을 따냈는지 확인 (나쁜 상황)
+        const myGroupsAfterOpponent = logic.getAllGroups(aiPlayer, moveResult.newBoardState);
+        const myGroupsBeforeOpponent = logic.getAllGroups(aiPlayer, boardState);
+        for (const groupBefore of myGroupsBeforeOpponent) {
+            const matchingAfter = myGroupsAfterOpponent.find(ga =>
+                ga.stones.some(ast => groupBefore.stones.some(bst => ast.x === bst.x && ast.y === bst.y))
+            );
+            if (!matchingAfter) {
+                // 우리 그룹이 사라졌음 = 상대방이 따냄
+                moveScore -= groupBefore.stones.length * 100;
+            } else if (groupBefore.libertyPoints.size > 1 && matchingAfter.libertyPoints.size === 1) {
+                // 우리 그룹이 단수로 위협받게 됨
+                moveScore -= 50;
+            }
+        }
+
+        // 2. 우리가 상대방 돌을 따낼 수 있는 기회가 생겼는지 확인 (좋은 상황)
+        const opponentGroupsAfter = logic.getAllGroups(opponentPlayer, moveResult.newBoardState);
+        for (const group of opponentGroupsAfter) {
+            if (group.libertyPoints.size === 1) {
+                // 상대방 그룹이 단수가 됨
+                moveScore += group.stones.length * 50;
+            }
+        }
+
+        // 3. 재귀적으로 다음 수 평가 (깊이 감소)
+        if (depth > 1) {
+            const nextLookAheadScore = evaluateLookAhead(
+                game,
+                moveResult.newBoardState,
+                moveResult.newKoInfo,
+                move,
+                aiPlayer,
+                opponentPlayer,
+                profile,
+                logic,
+                depth - 1
+            );
+            moveScore += nextLookAheadScore * 0.5; // 재귀 점수는 가중치 감소
+        }
+
+        totalScore += moveScore;
+        validSimulations++;
+    }
+
+    // 평균 점수 반환 (시뮬레이션이 없으면 0)
+    return validSimulations > 0 ? totalScore / validSimulations : 0;
+}
+
+/**
+ * 그룹을 살릴 수 있는지 미래를 내다보며 판단
+ * calculationDepth에 따라 미래의 수를 시뮬레이션하여 그룹이 살릴 수 있는지 확인
+ */
+function canGroupBeSaved(
+    game: types.LiveGameSession,
+    boardState: types.BoardState,
+    koInfo: { point: Point; turn: number } | null,
+    group: { stones: Point[]; liberties: number; libertyPoints: Set<string>; player: Player },
+    aiPlayer: Player,
+    opponentPlayer: Player,
+    profile: GoAiBotProfile,
+    logic: ReturnType<typeof getGoLogic>
+): boolean {
+    // calculationDepth가 1이면 미래를 내다볼 수 없으므로 기본적으로 살릴 수 있다고 가정
+    if (profile.calculationDepth <= 1) {
+        return true; // 낮은 난이도는 살릴 수 있다고 가정
+    }
+
+    // 그룹의 활로가 2개 이상이면 살릴 수 있다고 판단
+    if (group.libertyPoints.size >= 2) {
+        return true;
+    }
+
+    // 활로가 1개인 경우, 미래를 내다보며 살릴 수 있는지 확인
+    if (group.libertyPoints.size === 1) {
+        // 상대방이 다음 수에 그룹을 잡을 수 있는지 확인
+        const libertyPoint = Array.from(group.libertyPoints)[0];
+        const [x, y] = libertyPoint.split(',').map(Number);
+        
+        // 상대방이 그 활로에 두면 그룹이 잡힘
+        const opponentMoveResult = processMove(
+            boardState,
+            { x, y, player: opponentPlayer },
+            koInfo,
+            game.moveHistory.length + 1,
+            { ignoreSuicide: true }
+        );
+        
+        if (opponentMoveResult.isValid) {
+            // 상대방이 그 활로에 두면 그룹이 잡히는지 확인
+            const groupsAfterOpponent = logic.getAllGroups(aiPlayer, opponentMoveResult.newBoardState);
+            const groupStillExists = groupsAfterOpponent.some(ga =>
+                ga.stones.some(ast => group.stones.some(bst => ast.x === bst.x && ast.y === bst.y))
+            );
+            
+            if (!groupStillExists) {
+                // 상대방이 다음 수에 잡을 수 있음 - 살릴 수 없음
+                return false;
+            }
+        }
+        
+        // 더 깊이 내다보기 (calculationDepth에 따라)
+        if (profile.calculationDepth > 2) {
+            // AI가 다음 수에 그룹을 더 안전하게 만들 수 있는지 확인
+            const simulatedGame: types.LiveGameSession = {
+                ...game,
+                boardState,
+                koInfo,
+                currentPlayer: aiPlayer
+            };
+            
+            const aiMoves = findAllValidMovesFast(simulatedGame, logic, aiPlayer);
+            let canSaveInFuture = false;
+            
+            // AI의 가능한 수 중에서 그룹을 살릴 수 있는 수가 있는지 확인
+            for (const move of aiMoves.slice(0, Math.min(5, aiMoves.length))) {
+                const aiMoveResult = processMove(
+                    boardState,
+                    { ...move, player: aiPlayer },
+                    koInfo,
+                    game.moveHistory.length + 1,
+                    { ignoreSuicide: true }
+                );
+                
+                if (!aiMoveResult.isValid) continue;
+                
+                const groupsAfterAi = logic.getAllGroups(aiPlayer, aiMoveResult.newBoardState);
+                const groupAfterAi = groupsAfterAi.find(ga =>
+                    ga.stones.some(ast => group.stones.some(bst => ast.x === bst.x && ast.y === bst.y))
+                );
+                
+                if (groupAfterAi && groupAfterAi.libertyPoints.size >= 2) {
+                    // AI가 수를 두면 그룹이 더 안전해짐
+                    canSaveInFuture = true;
+                    break;
+                }
+            }
+            
+            if (!canSaveInFuture) {
+                // AI가 다음 수에 그룹을 살릴 수 없음 - 살릴 수 없음
+                return false;
+            }
+        }
+    }
+
+    // 기본적으로 살릴 수 있다고 판단
+    return true;
 }
 

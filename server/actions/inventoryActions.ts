@@ -502,11 +502,23 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     }
                 }
 
-                // 골드/다이아 추가
+                // 골드/다이아 추가 (초기화 확인)
                 if (bundleInfo.type === 'gold') {
+                    if (typeof user.gold !== 'number') {
+                        console.warn(`[USE_ITEM] user.gold is not a number for user ${user.id}, initializing to 0`);
+                        user.gold = 0;
+                    }
+                    const goldBefore = user.gold;
                     user.gold += totalGoldGained;
+                    console.log(`[USE_ITEM] Gold bundle: userId=${user.id}, gained=${totalGoldGained}, before=${goldBefore}, after=${user.gold}`);
                 } else { // diamonds
+                    if (typeof user.diamonds !== 'number') {
+                        console.warn(`[USE_ITEM] user.diamonds is not a number for user ${user.id}, initializing to 0`);
+                        user.diamonds = 0;
+                    }
+                    const diamondsBefore = user.diamonds;
                     user.diamonds += totalDiamondsGained;
+                    console.log(`[USE_ITEM] Diamonds bundle: userId=${user.id}, gained=${totalDiamondsGained}, before=${diamondsBefore}, after=${user.diamonds}`);
                 }
 
                 // 여러 슬롯에 걸쳐 있을 경우 모든 슬롯에서 정확히 수량만큼 소모
@@ -549,6 +561,15 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 // 선택적 필드만 반환 (메시지 크기 최적화)
                 // 하지만 bundle 처리의 경우에도 getSelectiveUserUpdate를 사용하여 일관성 유지
                 const updatedUser = getSelectiveUserUpdate(user, 'USE_ITEM');
+                
+                // 골드/다이아가 제대로 포함되었는지 확인 및 강제 포함
+                if (bundleInfo.type === 'gold' && totalGoldGained > 0) {
+                    updatedUser.gold = user.gold;
+                    console.log(`[USE_ITEM] Updated user gold in response: ${updatedUser.gold}`);
+                } else if (bundleInfo.type === 'diamonds' && totalDiamondsGained > 0) {
+                    updatedUser.diamonds = user.diamonds;
+                    console.log(`[USE_ITEM] Updated user diamonds in response: ${updatedUser.diamonds}`);
+                }
                 
                 // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
                 db.updateUser(user).catch(err => {

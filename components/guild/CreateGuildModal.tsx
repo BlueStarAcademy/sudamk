@@ -15,7 +15,8 @@ const CreateGuildModal: React.FC<CreateGuildModalProps> = ({ onClose }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [isPublic, setIsPublic] = useState(true);
+    const [isPublic, setIsPublic] = useState(true); // 기본값: 공개
+    const [joinType, setJoinType] = useState<'application' | 'free'>('free'); // 기본값: 자유가입
     const [errors, setErrors] = useState<{ name?: string; description?: string }>({});
 
     // 다이아몬드 타입 변환 (BigInt일 수 있음)
@@ -84,7 +85,7 @@ const CreateGuildModal: React.FC<CreateGuildModalProps> = ({ onClose }) => {
         }
 
         if (window.confirm(`다이아 ${GUILD_CREATION_COST}개를 사용하여 길드를 창설하시겠습니까?`)) {
-            handlers.handleAction({ type: 'CREATE_GUILD', payload: { name: trimmedName, description: trimmedDescription, isPublic } });
+            handlers.handleAction({ type: 'CREATE_GUILD', payload: { name: trimmedName, description: trimmedDescription, isPublic, joinType } });
             onClose();
         }
     };
@@ -185,6 +186,52 @@ const CreateGuildModal: React.FC<CreateGuildModalProps> = ({ onClose }) => {
                     </div>
                 </div>
 
+                {/* 가입방식 설정 (먼저 표시) */}
+                <div className="bg-gradient-to-r from-[#1a2342]/60 to-[#0f1529]/60 rounded-lg p-4 border border-cyan-300/20">
+                    <label className="block text-sm font-semibold text-cyan-200 mb-3 flex items-center gap-2">
+                        <span className="text-cyan-400">👥</span>
+                        가입 방식
+                    </label>
+                    <div className="space-y-2">
+                        <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            joinType === 'free' 
+                                ? 'border-green-400/60 bg-green-500/10' 
+                                : 'border-cyan-300/30 bg-transparent hover:border-cyan-300/50'
+                        }`}>
+                            <input
+                                type="radio"
+                                name="joinType"
+                                value="free"
+                                checked={joinType === 'free'}
+                                onChange={(e) => setJoinType(e.target.value as 'free')}
+                                className="w-4 h-4 text-green-400 focus:ring-green-400"
+                            />
+                            <div className="flex-1">
+                                <div className="font-semibold text-cyan-100">자유가입</div>
+                                <div className="text-xs text-cyan-300/70">누구나 자동으로 가입할 수 있습니다</div>
+                            </div>
+                        </label>
+                        <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            joinType === 'application' 
+                                ? 'border-yellow-400/60 bg-yellow-500/10' 
+                                : 'border-cyan-300/30 bg-transparent hover:border-cyan-300/50'
+                        }`}>
+                            <input
+                                type="radio"
+                                name="joinType"
+                                value="application"
+                                checked={joinType === 'application'}
+                                onChange={(e) => setJoinType(e.target.value as 'application')}
+                                className="w-4 h-4 text-yellow-400 focus:ring-yellow-400"
+                            />
+                            <div className="flex-1">
+                                <div className="font-semibold text-cyan-100">신청가입</div>
+                                <div className="text-xs text-cyan-300/70">길드장의 승인이 필요합니다</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 {/* 공개 설정 */}
                 <div className="bg-gradient-to-r from-[#1a2342]/60 to-[#0f1529]/60 rounded-lg p-4 border border-cyan-300/20">
                     <div className="flex items-center justify-between mb-2">
@@ -198,12 +245,12 @@ const CreateGuildModal: React.FC<CreateGuildModalProps> = ({ onClose }) => {
                         {isPublic ? (
                             <span className="flex items-center gap-1">
                                 <span className="text-green-400">●</span>
-                                <span>누구나 자유롭게 가입할 수 있는 공개 길드입니다.</span>
+                                <span>길드 목록에 표시되어 누구나 찾을 수 있습니다.</span>
                             </span>
                         ) : (
                             <span className="flex items-center gap-1">
                                 <span className="text-yellow-400">●</span>
-                                <span>길드장의 승인 후 가입할 수 있는 비공개 길드입니다.</span>
+                                <span>길드 목록에 표시되지 않으며, 초대를 통해서만 가입할 수 있습니다.</span>
                             </span>
                         )}
                     </p>

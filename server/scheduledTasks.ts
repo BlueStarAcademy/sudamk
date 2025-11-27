@@ -20,6 +20,7 @@ let lastWeeklyLeagueUpdateTimestamp: number | null = null;
 let lastDailyRankingUpdateTimestamp: number | null = null;
 let lastDailyQuestResetTimestamp: number | null = null;
 let lastTowerRankingRewardTimestamp: number | null = null;
+let lastGuildWarMatchTimestamp: number | null = null;
 
 export function setLastWeeklyLeagueUpdateTimestamp(timestamp: number): void {
     lastWeeklyLeagueUpdateTimestamp = timestamp;
@@ -1529,4 +1530,149 @@ export async function processTowerRankingRewards(): Promise<void> {
     
     lastTowerRankingRewardTimestamp = now;
     console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
+}
+
+// 다음 길드전 매칭 날짜 계산 (월요일 또는 금요일 0시)
+function getNextGuildWarMatchDate(now: number): number {
+    const kstDay = getKSTDay(now);
+    const kstHours = getKSTHours(now);
+    const kstMinutes = getKSTMinutes(now);
+    const todayStart = getStartOfDayKST(now);
+    
+    // 오늘이 월요일(1) 또는 금요일(5)이고 0시 이전이면 오늘, 아니면 다음 매칭일
+    let daysUntilNext = 0;
+    
+    if (kstDay === 1 && kstHours === 0 && kstMinutes < 5) {
+        // 월요일 0시 - 금요일까지 기다림 (4일 후)
+        daysUntilNext = 4;
+    } else if (kstDay === 5 && kstHours === 0 && kstMinutes < 5) {
+        // 금요일 0시 - 다음 월요일까지 기다림 (3일 후)
+        daysUntilNext = 3;
+    } else {
+        // 다른 날짜 - 다음 매칭일까지 계산
+        if (kstDay === 1) {
+            // 월요일 (0시 이후) - 금요일까지 (4일 후)
+            daysUntilNext = 4;
+        } else if (kstDay === 2 || kstDay === 3) {
+            // 화요일, 수요일 - 금요일까지
+            daysUntilNext = 5 - kstDay;
+        } else if (kstDay === 4) {
+            // 목요일 - 다음 월요일까지 (3일 후)
+            daysUntilNext = 3;
+        } else if (kstDay === 5) {
+            // 금요일 (0시 이후) - 다음 월요일까지 (3일 후)
+            daysUntilNext = 3;
+        } else {
+            // 토요일, 일요일 - 다음 월요일까지
+            daysUntilNext = (8 - kstDay) % 7;
+        }
+    }
+    
+    return todayStart + (daysUntilNext * 24 * 60 * 60 * 1000);
+}
+
+// 월요일 또는 금요일 0시에 길드전 매칭 처리
+export async function processGuildWarMatching(force: boolean = false): Promise<void> {
+    const now = Date.now();
+    const kstDay = getKSTDay(now);
+    const kstHours = getKSTHours(now);
+    const kstMinutes = getKSTMinutes(now);
+    const isMondayMidnight = kstDay === 1 && kstHours === 0 && kstMinutes < 5;
+    const isFridayMidnight = kstDay === 5 && kstHours === 0 && kstMinutes < 5;
+    
+    // force가 false이고 월요일 또는 금요일 0시가 아니면 실행하지 않음
+    if (!force && !isMondayMidnight && !isFridayMidnight) {
+        return;
+    }
+    
+    // 이미 처리했는지 확인
+    if (!force && lastGuildWarMatchTimestamp !== null) {
+        const lastMatchDayStart = getStartOfDayKST(lastGuildWarMatchTimestamp);
+        const currentDayStart = getStartOfDayKST(now);
+        
+        // 같은 날이면 이미 처리한 것으로 간주
+        if (lastMatchDayStart === currentDayStart) {
+            console.log(`[GuildWarMatch] Already processed today (${new Date(lastGuildWarMatchTimestamp).toISOString()})`);
+            return;
+        }
+    }
+    
+    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : isMondayMidnight ? ' at Monday 0:00 KST' : ' at Friday 0:00 KST'}`);
+    
+    const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
+    const guildList = Object.values(guilds);
+    
+    // 매칭 가능한 길드 필터링 (멤버가 2명 이상인 길드만, 그리고 nextWarMatchDate가 없거나 오늘 이전인 길드)
+    const eligibleGuilds = guildList.filter(guild => {
+        const memberCount = guild.members?.length || 0;
+        const nextMatchDate = (guild as any).nextWarMatchDate;
+        return memberCount >= 2 && (!nextMatchDate || nextMatchDate <= now);
+    });
+    
+    if (eligibleGuilds.length < 2) {
+        console.log(`[GuildWarMatch] Not enough eligible guilds (${eligibleGuilds.length} guilds, need at least 2)`);
+        lastGuildWarMatchTimestamp = now;
+        return;
+    }
+    
+    // 길드를 랜덤하게 섞어서 매칭
+    const shuffledGuilds = [...eligibleGuilds].sort(() => Math.random() - 0.5);
+    const activeWars: types.GuildWar[] = [];
+    
+    // 짝수 개의 길드만 매칭 (홀수면 마지막 길드는 다음 매칭까지 대기)
+    const matchedGuilds = shuffledGuilds.slice(0, Math.floor(shuffledGuilds.length / 2) * 2);
+    
+    for (let i = 0; i < matchedGuilds.length; i += 2) {
+        const guild1 = matchedGuilds[i];
+        const guild2 = matchedGuilds[i + 1];
+        
+        // DB에 GuildWar 생성
+        const { createGuildWar } = await import('./prisma/guildRepository.js');
+        const dbWar = await createGuildWar(guild1.id, guild2.id);
+        
+        // activeWars에 추가
+        const war: types.GuildWar = {
+            id: dbWar.id,
+            guild1Id: guild1.id,
+            guild2Id: guild2.id,
+            status: 'active',
+            startTime: now,
+            endTime: null,
+            result: null,
+            createdAt: now,
+            updatedAt: now,
+        };
+        
+        activeWars.push(war);
+        
+        // 길드의 nextWarMatchDate 제거 (이미 매칭되었으므로)
+        delete (guild1 as any).nextWarMatchDate;
+        delete (guild2 as any).nextWarMatchDate;
+        
+        console.log(`[GuildWarMatch] Matched guild ${guild1.name} (${guild1.id}) vs ${guild2.name} (${guild2.id})`);
+    }
+    
+    // 매칭되지 않은 길드들은 다음 매칭 날짜 설정
+    const unmatchedGuilds = shuffledGuilds.slice(matchedGuilds.length);
+    const nextMatchDate = getNextGuildWarMatchDate(now);
+    for (const guild of unmatchedGuilds) {
+        (guild as any).nextWarMatchDate = nextMatchDate;
+        console.log(`[GuildWarMatch] Guild ${guild.name} (${guild.id}) will be matched on ${new Date(nextMatchDate).toISOString()}`);
+    }
+    
+    // 기존 activeWars 가져오기 (이전 매칭이 있으면 유지)
+    const existingActiveWars = await db.getKV<types.GuildWar[]>('activeGuildWars') || [];
+    const allActiveWars = [...existingActiveWars.filter(w => w.status === 'active'), ...activeWars];
+    
+    // KV store 업데이트
+    await db.setKV('activeGuildWars', allActiveWars);
+    await db.setKV('guilds', guilds);
+    
+    // 브로드캐스트
+    const { broadcast } = await import('./socket.js');
+    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+    await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
+    
+    lastGuildWarMatchTimestamp = now;
+    console.log(`[GuildWarMatch] Matched ${activeWars.length} guild wars, ${unmatchedGuilds.length} guilds waiting for next match`);
 }

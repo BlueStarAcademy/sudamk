@@ -137,6 +137,65 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         : (analysisResult 
             ? (analysisResult.scoreDetails?.black?.total ?? 0) > (analysisResult.scoreDetails?.white?.total ?? 0)
             : (session.winner === Player.Black)); // Human is always Black
+    
+    // summary가 없을 때도 보상을 계산해서 표시 (summary가 아직 생성되지 않았을 수 있음)
+    const calculatedSummary = useMemo(() => {
+        if (summary) return summary; // summary가 있으면 그대로 사용
+        
+        // summary가 없고 게임이 종료되었을 때만 보상 계산
+        if (!isEnded || !currentStage) return null;
+        
+        // 최초 클리어 여부 확인
+        const clearedStages = currentUser.clearedSinglePlayerStages || [];
+        const isFirstClear = !clearedStages.includes(currentStage.id);
+        
+        if (isWinner) {
+            const rewards = isFirstClear 
+                ? currentStage.rewards.firstClear 
+                : currentStage.rewards.repeatClear;
+            
+            return {
+                gold: rewards.gold || 0,
+                xp: {
+                    initial: currentUser.strategyXp,
+                    change: rewards.exp || 0,
+                    final: currentUser.strategyXp + (rewards.exp || 0)
+                },
+                items: rewards.items ? rewards.items.map((item: any) => ({
+                    id: `temp-${item.itemId}-${Date.now()}`,
+                    name: item.itemId,
+                    image: '/images/icon/item.png', // 기본 이미지
+                    type: 'consumable',
+                    grade: 'common',
+                    quantity: item.quantity || 1
+                })) : []
+            };
+        } else {
+            // 실패시 보상: 재도전이고 기권이 아닌 경우에만 성공 보상의 10% 지급
+            const isResign = session.winReason === 'resign';
+            const isRepeatAttempt = clearedStages.includes(currentStage.id);
+            
+            if (isRepeatAttempt && !isResign) {
+                const successRewards = currentStage.rewards.repeatClear;
+                const failureRewards = {
+                    gold: Math.round(successRewards.gold * 0.1),
+                    exp: Math.round(successRewards.exp * 0.1)
+                };
+                
+                return {
+                    gold: failureRewards.gold,
+                    xp: {
+                        initial: currentUser.strategyXp,
+                        change: failureRewards.exp,
+                        final: currentUser.strategyXp + failureRewards.exp
+                    },
+                    items: []
+                };
+            }
+        }
+        
+        return null;
+    }, [summary, isEnded, currentStage, isWinner, currentUser, session.winReason]);
     const nextStage = SINGLE_PLAYER_STAGES[currentStageIndex + 1];
     // 클리어했을 때는 계가 결과가 없어도 다음 단계 가능 (클리어 시 다음 단계 버튼 활성화)
     // 클리어 직후에는 singlePlayerProgress가 아직 업데이트되지 않았을 수 있으므로, 
@@ -308,9 +367,12 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
 
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === currentUser.avatarId)?.url, [currentUser.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
+    // calculatedSummary를 사용하여 보상 표시 (summary가 없을 때도 계산된 보상 사용)
+    const displaySummary = calculatedSummary || summary;
+    
     const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.strategyLevel));
     const clampedXp = Math.min(currentUser.strategyXp, xpRequirement);
-    const xpChange = summary?.xp?.change ?? 0;
+    const xpChange = displaySummary?.xp?.change ?? 0;
     const previousXp = Math.max(0, clampedXp - xpChange);
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
     const xpChangePercent = Math.min(100 - previousXpPercent, (xpChange / (xpRequirement || 1)) * 100);
@@ -338,7 +400,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
                     <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
-                        {isWinner ? 'MISSION CLEAR' : 'MISSION FAILED'}
+                        {isWinner ? '미션 성공' : '미션 실패'}
                     </h1>
                 )}
                 {isScoring && !analysisResult && (
@@ -424,7 +486,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             </div>
                             
                             {/* 경험치 표시 */}
-                            {summary?.xp && (
+                            {displaySummary?.xp && (
                                 <div className={`${isMobile ? 'p-1' : 'p-1.5'} bg-gray-800/50 rounded-lg space-y-0.5 flex-shrink-0`}>
                                     <div className="w-full bg-gray-800/70 border border-gray-700/70 rounded-full h-2.5 overflow-hidden relative">
                                         {/* 이전 경험치 */}
@@ -457,30 +519,30 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             )}
                             
                             {/* 보상 박스들 */}
-                            {summary ? (
+                            {displaySummary ? (
                                 <>
-                                    {((summary.gold ?? 0) > 0 || (summary.xp?.change ?? 0) > 0 || (summary.items && summary.items.length > 0)) ? (
+                                    {((displaySummary.gold ?? 0) > 0 || (displaySummary.xp?.change ?? 0) > 0 || (displaySummary.items && displaySummary.items.length > 0)) ? (
                                         <div className="flex gap-1.5 justify-center items-stretch flex-wrap">
                                             {/* Gold Reward */}
-                                            {(summary.gold ?? 0) > 0 && (
+                                            {(displaySummary.gold ?? 0) > 0 && (
                                                 <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
                                                     <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-6 h-6' : 'w-10 h-10'} mb-0.5`} />
                                                     <p className="font-bold text-yellow-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
-                                                        {(summary.gold ?? 0).toLocaleString()}
+                                                        {(displaySummary.gold ?? 0).toLocaleString()}
                                                     </p>
                                                 </div>
                                             )}
                                             {/* XP Reward (박스 형태) */}
-                                            {summary.xp && summary.xp.change > 0 && (
+                                            {displaySummary.xp && displaySummary.xp.change > 0 && (
                                                 <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-green-600/30 to-green-800/30 border-2 border-green-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
                                                     <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold text-green-300 mb-0.5`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>전략</p>
                                                     <p className="font-bold text-green-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
-                                                        +{summary.xp.change} XP
+                                                        +{displaySummary.xp.change} XP
                                                     </p>
                                                 </div>
                                             )}
                                             {/* Item Rewards */}
-                                            {summary.items && summary.items.length > 0 && summary.items.slice(0, 2).map((item, idx) => (
+                                            {displaySummary.items && displaySummary.items.length > 0 && displaySummary.items.slice(0, 2).map((item, idx) => (
                                                 <div key={item.id || idx} className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
                                                     {item.image && (
                                                         <img 
@@ -502,9 +564,9 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                             </p>
                                         </div>
                                     )}
-                                    {summary.items && summary.items.length > 2 && (
+                                    {displaySummary.items && displaySummary.items.length > 2 && (
                                         <p className="text-center text-gray-400" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
-                                            외 {summary.items.length - 2}개 아이템
+                                            외 {displaySummary.items.length - 2}개 아이템
                                         </p>
                                     )}
                                 </>

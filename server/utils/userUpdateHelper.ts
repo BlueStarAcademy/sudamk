@@ -66,6 +66,10 @@ export function getSelectiveUserUpdate(
         // 싱글플레이어 관련
         'START_SINGLE_PLAYER_GAME': ['actionPoints', 'singlePlayerProgress'],
         
+        // 길드 관련
+        'GUILD_DONATE_GOLD': ['gold', 'guildCoins', 'dailyDonations'],
+        'GUILD_DONATE_DIAMOND': ['diamonds', 'guildCoins', 'dailyDonations'],
+        
         // 소셜 관련
         'LOGOUT': [], // 로그아웃은 사용자 데이터 반환 불필요
     };

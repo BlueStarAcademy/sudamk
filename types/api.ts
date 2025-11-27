@@ -301,6 +301,9 @@ export type ServerAction =
     | { type: 'START_GUILD_MISSION', payload: { missionType: string; target: any } }
     | { type: 'UPDATE_GUILD_MISSION_PROGRESS', payload: { missionId: string; progress: any } }
     | { type: 'GUILD_CLAIM_MISSION_REWARD', payload: { missionId: string } }
+    | { type: 'CLAIM_GUILD_WAR_REWARD', payload?: never }
+    | { type: 'GET_GUILD_WAR_DATA', payload?: never }
+    | { type: 'START_GUILD_WAR_GAME', payload: { boardId: string } }
     | { type: 'DONATE_TO_GUILD', payload: { amount?: number; itemId?: string } }
     | { type: 'GUILD_DONATE_GOLD', payload?: never }
     | { type: 'GUILD_DONATE_DIAMOND', payload?: never }

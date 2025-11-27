@@ -634,20 +634,25 @@ export const listGuilds = async (searchQuery?: string, limit: number = 50): Prom
         
         console.log(`[listGuilds] Found ${guilds.length} guild(s)`);
         
-        return guilds.map(guild => ({
-            id: guild.id,
-            name: guild.name,
-            leaderId: guild.leaderId,
-            description: guild.description || undefined,
-            emblem: guild.emblem || undefined,
-            settings: guild.settings as any,
-            gold: Number(guild.gold),
-            level: guild.level,
-            experience: Number(guild.experience),
-            createdAt: guild.createdAt.getTime(),
-            updatedAt: guild.updatedAt.getTime(),
-            memberCount: guild.members.length,
-        }));
+        return guilds.map(guild => {
+            const settings = (guild.settings as any) || {};
+            const isPublic = settings.isPublic !== undefined ? settings.isPublic : true; // 기본값: 공개
+            return {
+                id: guild.id,
+                name: guild.name,
+                leaderId: guild.leaderId,
+                description: guild.description || undefined,
+                emblem: guild.emblem || undefined,
+                settings: settings,
+                isPublic: isPublic,
+                gold: Number(guild.gold),
+                level: guild.level,
+                experience: Number(guild.experience),
+                createdAt: guild.createdAt.getTime(),
+                updatedAt: guild.updatedAt.getTime(),
+                memberCount: guild.members.length,
+            };
+        });
     } catch (error) {
         console.error('[listGuilds] Error:', error);
         throw error;

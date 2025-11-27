@@ -14,6 +14,7 @@ import NineSlicePanel from '../ui/NineSlicePanel.js';
 import GuildShopModal from './GuildShopModal.js';
 import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
 import HelpModal from '../HelpModal.js';
+import GuildWarRewardModal from './GuildWarRewardModal.js';
 import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST } from '../../utils/timeUtils.js';
 
 // 길드 아이콘 경로 수정 함수
@@ -411,16 +412,73 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
 };
 
 const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, className }) => {
+    const { currentUserWithStatus, handlers } = useAppContext();
+    const [showRewardModal, setShowRewardModal] = React.useState(false);
+    const [warData, setWarData] = React.useState<any>(null);
+    const [canClaimReward, setCanClaimReward] = React.useState(false);
+    const [isClaimed, setIsClaimed] = React.useState(false);
+
+    React.useEffect(() => {
+        // 길드전 데이터 가져오기
+        const fetchWarData = async () => {
+            try {
+                const result = await handlers.handleAction({ type: 'GET_GUILD_INFO' }) as any;
+                // 실제로는 서버에서 길드전 데이터를 가져와야 함
+                // 임시로 mock 데이터 사용
+                const activeWars = result?.guildWarData?.activeWars || [];
+                const completedWars = activeWars.filter((w: any) => w.status === 'completed');
+                
+                const wonWar = completedWars.find((w: any) => {
+                    if (w.guild1Id === guild.id) {
+                        return w.result?.winnerId === w.guild1Id;
+                    } else if (w.guild2Id === guild.id) {
+                        return w.result?.winnerId === w.guild2Id;
+                    }
+                    return false;
+                });
+                
+                if (wonWar) {
+                    setWarData(wonWar);
+                    setCanClaimReward(true);
+                    // 이미 수령했는지 확인 (실제로는 서버에서 확인)
+                    setIsClaimed(false);
+                }
+            } catch (error) {
+                console.error('[WarPanel] Failed to fetch war data:', error);
+            }
+        };
+        
+        fetchWarData();
+    }, [guild.id, handlers]);
+
+    const handleClaimReward = async () => {
+        try {
+            const result = await handlers.handleAction({ type: 'CLAIM_GUILD_WAR_REWARD' }) as any;
+            if (result?.error) {
+                alert(result.error);
+            } else {
+                setIsClaimed(true);
+                setShowRewardModal(false);
+                // 사용자 정보 갱신
+                await handlers.handleAction({ type: 'GET_GUILD_INFO' });
+            }
+        } catch (error) {
+            console.error('[WarPanel] Claim reward failed:', error);
+            alert('보상 수령에 실패했습니다.');
+        }
+    };
+
     // 전쟁 데이터 (임시로 예시 데이터 사용, 실제로는 guild.guildWarState 등에서 가져와야 함)
     const ourGuildOccupancy = 45; // 우리 길드 점령률 (%)
     const enemyGuildOccupancy = 55; // 상대 길드 점령률 (%)
     const enemyGuildName = "상대 길드"; // 실제로는 매칭된 길드 이름
     
     return (
-        <button 
-            onClick={() => window.location.hash = '#/guildwar'}
-            className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center transition-all hover:brightness-110 w-full relative overflow-hidden h-full ${className || ''}`}
-        >
+        <>
+            <button 
+                onClick={() => window.location.hash = '#/guildwar'}
+                className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center transition-all hover:brightness-110 w-full relative overflow-hidden h-full ${className || ''}`}
+            >
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
             <div className="relative z-10 w-full flex flex-col h-full">
                 <h3 className="font-bold text-base text-highlight mb-2 flex items-center justify-center gap-2 flex-shrink-0">
@@ -468,12 +526,37 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                         </div>
                     </div>
                     
-                    <div className="flex-shrink-0 mt-2">
+                    <div className="flex-shrink-0 mt-2 space-y-1">
                         <span className="text-xs font-semibold text-highlight">입장하기</span>
+                        {canClaimReward && !isClaimed && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowRewardModal(true);
+                                }}
+                                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold py-1.5 px-2 rounded-lg mt-1 transition-all hover:scale-105"
+                            >
+                                보상 받기
+                            </button>
+                        )}
+                        {isClaimed && (
+                            <div className="w-full bg-green-600/50 text-green-300 text-xs font-semibold py-1.5 px-2 rounded-lg mt-1">
+                                보상 수령 완료
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
         </button>
+        {showRewardModal && (
+            <GuildWarRewardModal
+                onClose={() => setShowRewardModal(false)}
+                onClaim={handleClaimReward}
+                isClaimed={isClaimed}
+                canClaim={canClaimReward}
+            />
+        )}
+        </>
     );
 };
 

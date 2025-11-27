@@ -5,6 +5,7 @@ import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { resourceIcons } from '../resourceIcons.js';
 import { GUILD_CREATION_COST } from '../../constants/index.js';
+import ToggleSwitch from '../ui/ToggleSwitch.js';
 
 interface GuildCreateModalProps {
     onClose: () => void;
@@ -15,6 +16,8 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
     const { handlers, currentUserWithStatus } = useAppContext();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [isPublic, setIsPublic] = useState(true); // 기본값: 공개
+    const [joinType, setJoinType] = useState<'application' | 'free'>('free'); // 기본값: 자유가입
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -66,10 +69,10 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
         setError(null);
 
         try {
-            console.log('[GuildCreateModal] Attempting to create guild:', { name: name.trim(), description: description.trim() || undefined });
+            console.log('[GuildCreateModal] Attempting to create guild:', { name: name.trim(), description: description.trim() || undefined, isPublic, joinType });
             const result: any = await handlers.handleAction({
                 type: 'CREATE_GUILD',
-                payload: { name: name.trim(), description: description.trim() || undefined },
+                payload: { name: name.trim(), description: description.trim() || undefined, isPublic, joinType },
             });
 
             console.log('[GuildCreateModal] Received response:', {
@@ -157,6 +160,68 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                         className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-blue-500 focus:outline-none resize-none"
                     />
                     <p className="text-xs text-gray-500 mt-1">{description.length}/200자</p>
+                </div>
+
+                {/* 가입방식 설정 */}
+                <div className="mb-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <label className="block text-sm font-semibold text-gray-300 mb-3">
+                        가입 방식
+                    </label>
+                    <div className="space-y-2">
+                        <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            joinType === 'free' 
+                                ? 'border-green-500/60 bg-green-500/10' 
+                                : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                        }`}>
+                            <input
+                                type="radio"
+                                name="joinType"
+                                value="free"
+                                checked={joinType === 'free'}
+                                onChange={(e) => setJoinType(e.target.value as 'free')}
+                                className="w-4 h-4 text-green-500 focus:ring-green-500"
+                            />
+                            <div className="flex-1">
+                                <div className="font-semibold text-white">자유가입</div>
+                                <div className="text-xs text-gray-400">누구나 자동으로 가입할 수 있습니다</div>
+                            </div>
+                        </label>
+                        <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            joinType === 'application' 
+                                ? 'border-yellow-500/60 bg-yellow-500/10' 
+                                : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                        }`}>
+                            <input
+                                type="radio"
+                                name="joinType"
+                                value="application"
+                                checked={joinType === 'application'}
+                                onChange={(e) => setJoinType(e.target.value as 'application')}
+                                className="w-4 h-4 text-yellow-500 focus:ring-yellow-500"
+                            />
+                            <div className="flex-1">
+                                <div className="font-semibold text-white">신청가입</div>
+                                <div className="text-xs text-gray-400">길드장의 승인이 필요합니다</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                {/* 공개 설정 */}
+                <div className="mb-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-semibold text-gray-300">
+                            공개 설정
+                        </label>
+                        <ToggleSwitch checked={isPublic} onChange={setIsPublic} />
+                    </div>
+                    <p className="text-xs text-gray-400">
+                        {isPublic ? (
+                            <span className="text-green-400">● 길드 목록에 표시되어 누구나 찾을 수 있습니다.</span>
+                        ) : (
+                            <span className="text-yellow-400">● 길드 목록에 표시되지 않으며, 초대를 통해서만 가입할 수 있습니다.</span>
+                        )}
+                    </p>
                 </div>
 
                 <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-700/50 rounded-lg">

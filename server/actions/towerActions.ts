@@ -311,7 +311,15 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 // 실제 시작은 CONFIRM_TOWER_GAME_START에서 처리
             }
 
-            await db.saveGame(game);
+            // 타워 게임은 PVE 게임이므로 pending 상태에서는 일반적으로 DB에 저장하지 않지만,
+            // CONFIRM_TOWER_GAME_START에서 찾을 수 있도록 forceSave로 DB에도 저장
+            // 게임 캐시에 먼저 저장 (CONFIRM_TOWER_GAME_START에서 빠르게 찾을 수 있도록)
+            const { updateGameCache } = await import('../gameCache.js');
+            updateGameCache(game);
+            
+            // forceSave=true로 설정하여 pending 상태의 타워 게임도 DB에 저장
+            // 이렇게 하면 CONFIRM_TOWER_GAME_START에서 캐시를 찾지 못해도 DB에서 찾을 수 있음
+            await db.saveGame(game, true);
             
             volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id, gameCategory: 'tower' as GameCategory };
             // AI 플레이어는 userStatuses에 포함하지 않음 (실제 유저가 아니므로)
@@ -342,7 +350,20 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: 'Invalid gameId in payload.' };
             }
             
-            const game = await db.getLiveGame(gameId);
+            // 타워 게임은 메모리 캐시에서 먼저 찾기 (DB 조회 최소화로 속도 개선)
+            // 타워 게임 pending 상태는 DB에 저장되지 않으므로 캐시에서만 찾을 수 있음
+            const { getCachedGame, updateGameCache } = await import('../gameCache.js');
+            let game = await getCachedGame(gameId);
+            
+            // 캐시에서 못 찾으면 DB에서 찾기 (게임이 종료되어 저장된 경우)
+            if (!game) {
+                game = await db.getLiveGame(gameId);
+                // DB에서 찾았으면 캐시에도 저장
+                if (game) {
+                    updateGameCache(game);
+                }
+            }
+            
             if (!game) {
                 console.error('[CONFIRM_TOWER_GAME_START] Game not found:', { gameId, userId: user.id });
                 return { error: 'Game not found.' };
@@ -380,7 +401,13 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 game.turnStartTime = now;
             }
             
-            await db.saveGame(game);
+            // 게임 캐시 업데이트 (다음 요청에서 빠른 응답)
+            updateGameCache(game);
+            
+            // DB 저장은 비동기로 처리 (응답 속도 개선)
+            db.saveGame(game).catch(err => {
+                console.error(`[CONFIRM_TOWER_GAME_START] Failed to save game ${gameId}:`, err);
+            });
             
             // 사용자 상태 업데이트
             volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id, gameCategory: 'tower' as GameCategory };
@@ -398,10 +425,6 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                     game: game
                 }
             };
-            
-            // 클라이언트가 즉시 게임 상태를 업데이트할 수 있도록 게임 데이터를 응답에 포함
-            const gameCopy = JSON.parse(JSON.stringify(game));
-            return { clientResponse: { gameId: game.id, game: gameCopy } };
         }
         case 'TOWER_REFRESH_PLACEMENT': {
             const { gameId } = payload;

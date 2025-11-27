@@ -19,27 +19,43 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
     const [error, setError] = useState<string | null>(null);
     const [joiningGuildId, setJoiningGuildId] = useState<string | null>(null);
 
-    // Load guilds on mount and when search query changes
+    // Load guilds on mount
     useEffect(() => {
-        loadGuilds();
+        loadGuilds('');
     }, []);
+
+    // Debounced search: 검색어가 변경되면 자동으로 검색 (500ms 지연)
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            loadGuilds(searchQuery);
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
 
     const loadGuilds = async (query?: string) => {
         setLoading(true);
         setError(null);
         try {
+            const trimmedQuery = query?.trim() || '';
             const result: any = await handlers.handleAction({
                 type: 'LIST_GUILDS',
-                payload: { searchQuery: query || '', limit: 100 },
+                payload: { searchQuery: trimmedQuery, limit: 100 },
             });
 
             if (result?.error) {
                 setError(result.error);
             } else if (result?.clientResponse?.guilds) {
                 setGuilds(result.clientResponse.guilds);
+            } else {
+                // 응답이 없거나 예상과 다른 경우 빈 배열로 설정
+                setGuilds([]);
             }
         } catch (err: any) {
+            console.error('[GuildJoinModal] Error loading guilds:', err);
             setError(err.message || '길드 목록을 불러오는데 실패했습니다.');
+            setGuilds([]);
         } finally {
             setLoading(false);
         }

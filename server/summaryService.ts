@@ -612,7 +612,7 @@ const sendBadMannerPenaltyMail = async (
     broadcast({ type: 'USER_UPDATE', payload: { [badMannerPlayer.id]: badMannerPlayer } });
 };
 
-const createConsumableItemInstance = (name: string): InventoryItem | null => {
+export const createConsumableItemInstance = (name: string): InventoryItem | null => {
     const template = CONSUMABLE_ITEMS.find(item => item.name === name);
     if (!template) {
         console.error(`[Reward] Consumable item template not found for: ${name}`);
