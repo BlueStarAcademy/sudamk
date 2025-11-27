@@ -147,6 +147,27 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         return stageFloor === nextFloor;
     }) : null;
     
+    // summary가 없을 때 예상 보상 계산 (즉시 표시를 위해)
+    const userTowerFloor = currentUser.towerFloor ?? 0;
+    const isCleared = currentFloor <= userTowerFloor;
+    const expectedRewards = useMemo(() => {
+        if (!summary && isWinner && !isCleared && currentStage) {
+            // 승리했고 최초 클리어인 경우 예상 보상 표시
+            const rewards = currentStage.rewards?.firstClear;
+            if (rewards) {
+                return {
+                    gold: rewards.gold ?? 0,
+                    xp: { change: rewards.exp ?? 0 },
+                    items: rewards.items ? rewards.items.map((item: any) => ({ name: item.name, quantity: item.quantity || 1 })) : []
+                };
+            }
+        }
+        return null;
+    }, [summary, isWinner, isCleared, currentStage]);
+    
+    // summary가 있으면 summary 사용, 없으면 expectedRewards 사용
+    const displaySummary = summary || expectedRewards;
+    
     // 다음 층으로 갈 수 있는지 확인: 승리했고 다음 층이 있으면 다음 층으로 갈 수 있음
     // 현재 층을 방금 클리어했다면 userTowerFloor가 아직 업데이트되지 않았을 수 있으므로
     // isWinner만 확인하면 됨
@@ -288,7 +309,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const borderUrl = useMemo(() => BORDER_POOL.find((b: BorderInfo) => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.strategyLevel));
     const clampedXp = Math.min(currentUser.strategyXp, xpRequirement);
-    const xpChange = summary?.xp?.change ?? 0;
+    const xpChange = displaySummary?.xp?.change ?? summary?.xp?.change ?? 0;
     const previousXp = Math.max(0, clampedXp - xpChange);
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
     const xpChangePercent = Math.min(100 - previousXpPercent, (xpChange / (xpRequirement || 1)) * 100);
@@ -393,7 +414,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             </div>
                             
                             {/* 경험치 표시 */}
-                            {summary?.xp && (
+                            {(displaySummary?.xp || summary?.xp) && (
                                 <div className={`${isMobile ? 'p-1' : 'p-1.5'} bg-gray-800/50 rounded-lg space-y-0.5 flex-shrink-0`}>
                                     <div className="w-full bg-gray-800/70 border border-gray-700/70 rounded-full h-2.5 overflow-hidden relative">
                                         {/* 이전 경험치 */}
@@ -426,30 +447,30 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             )}
                             
                             {/* 보상 박스들 */}
-                            {summary ? (
+                            {displaySummary ? (
                                 <>
-                                    {((summary.gold ?? 0) > 0 || (summary.xp?.change ?? 0) > 0 || (summary.items && summary.items.length > 0)) ? (
+                                    {((displaySummary.gold ?? 0) > 0 || (displaySummary.xp?.change ?? 0) > 0 || (displaySummary.items && displaySummary.items.length > 0)) ? (
                                         <div className="flex gap-1.5 justify-center items-stretch flex-wrap">
                                             {/* Gold Reward */}
-                                            {(summary.gold ?? 0) > 0 && (
-                                                <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
+                                            {(displaySummary.gold ?? 0) > 0 && (
+                                                <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
                                                     <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-6 h-6' : 'w-10 h-10'} mb-0.5`} />
                                                     <p className="font-bold text-yellow-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
-                                                        {(summary.gold ?? 0).toLocaleString()}
+                                                        {(displaySummary.gold ?? 0).toLocaleString()}
                                                     </p>
                                                 </div>
                                             )}
                                             {/* XP Reward (박스 형태) */}
-                                            {summary.xp && summary.xp.change > 0 && (
-                                                <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-green-600/30 to-green-800/30 border-2 border-green-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
+                                            {displaySummary.xp && displaySummary.xp.change > 0 && (
+                                                <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-green-600/30 to-green-800/30 border-2 border-green-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
                                                     <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold text-green-300 mb-0.5`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>전략</p>
                                                     <p className="font-bold text-green-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
-                                                        +{summary.xp.change} XP
+                                                        +{displaySummary.xp.change} XP
                                                     </p>
                                                 </div>
                                             )}
                                             {/* Item Rewards */}
-                                            {summary.items && summary.items.length > 0 && summary.items.map((item, idx) => {
+                                            {displaySummary.items && displaySummary.items.length > 0 && displaySummary.items.map((item, idx) => {
                                                 // 이미지 경로 찾기: item.image가 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
                                                 // 이름 불일치 처리: '골드꾸러미1' <-> '골드 꾸러미1'
                                                 const nameWithSpace = item.name?.includes('골드꾸러미') 
@@ -470,7 +491,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                     MATERIAL_ITEMS[nameWithoutSpace]?.image;
                                                 
                                                 return (
-                                                    <div key={item.id || idx} className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
+                                                    <div key={item.id || idx} className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
                                                         {imagePath ? (
                                                             <img 
                                                                 src={imagePath} 
