@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { InventoryItem } from '../../types.js';
@@ -11,6 +11,7 @@ interface EnhancementResultModalProps {
         itemBefore: InventoryItem;
         itemAfter: InventoryItem;
         xpGained?: number;
+        isRolling?: boolean; // 롤링 애니메이션 상태 (제련 진행 중)
     };
     onClose: () => void;
     isTopmost?: boolean;
@@ -59,8 +60,50 @@ const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
     );
 };
 
+// 롤링 애니메이션을 위한 랜덤 수치 생성 함수
+const generateRollingValue = (min: number, max: number, isPercentage: boolean): number => {
+    const range = max - min;
+    const random = Math.random() * range + min;
+    return isPercentage ? Math.round(random * 10) / 10 : Math.round(random);
+};
+
 const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result, onClose, isTopmost }) => {
-    const { success, message, itemBefore, itemAfter, xpGained } = result;
+    const { success, message, itemBefore, itemAfter, xpGained, isRolling } = result;
+    const [rollingValues, setRollingValues] = useState<Record<string, number>>({});
+    
+    // 롤링 애니메이션: 옵션 수치가 빠르게 변하는 애니메이션
+    useEffect(() => {
+        if (!isRolling) {
+            setRollingValues({});
+            return;
+        }
+        
+        const interval = setInterval(() => {
+            const newValues: Record<string, number> = {};
+            
+            // 주옵션 롤링
+            if (itemAfter.options?.main) {
+                const main = itemAfter.options.main;
+                // 실제 값의 범위를 추정 (일반적으로 0~100 또는 0~50)
+                // range가 있으면 사용, 없으면 기본값 사용
+                const range = main.range || (main.isPercentage ? [0, 50] : [0, 100]);
+                newValues['main'] = generateRollingValue(range[0], range[1], main.isPercentage);
+            }
+            
+            // 부옵션 롤링
+            if (itemAfter.options?.combatSubs) {
+                itemAfter.options.combatSubs.forEach((sub, index) => {
+                    // range가 있으면 사용, 없으면 기본값 사용
+                    const range = sub.range || (sub.isPercentage ? [0, 50] : [0, 100]);
+                    newValues[`sub_${index}`] = generateRollingValue(range[0], range[1], sub.isPercentage);
+                });
+            }
+            
+            setRollingValues(newValues);
+        }, 50); // 50ms마다 업데이트
+        
+        return () => clearInterval(interval);
+    }, [isRolling, itemAfter]);
     
     const changedSubOption = useMemo(() => {
         if (!success || !itemBefore.options || !itemAfter.options) return null;
@@ -84,15 +127,17 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
     const starInfoBefore = getStarDisplayInfo(itemBefore.stars);
     const starInfoAfter = getStarDisplayInfo(itemAfter.stars);
 
-    const title = success ? '강화 성공!' : '강화 실패!';
-    const titleColor = success ? 'text-green-400' : 'text-red-400';
+    const title = isRolling ? '제련 진행 중...' : (success ? '강화 성공!' : '강화 실패!');
+    const titleColor = isRolling ? 'text-yellow-400' : (success ? 'text-green-400' : 'text-red-400');
 
     return (
         <DraggableWindow title={title} onClose={onClose} windowId="enhancementResult" initialWidth={500} isTopmost={isTopmost}>
             <div className="p-4 text-center">
-                <div className={`text-6xl mb-4 ${success ? 'animate-bounce' : ''}`}>{success ? '🎉' : '💥'}</div>
+                <div className={`text-6xl mb-4 ${isRolling ? 'animate-spin' : (success ? 'animate-bounce' : '')}`}>
+                    {isRolling ? '⚙️' : (success ? '🎉' : '💥')}
+                </div>
                 <h3 className={`text-2xl font-bold mb-2 ${titleColor}`}>
-                    {success ? '강화 성공!' : '강화 실패...'}
+                    {isRolling ? '제련 진행 중...' : (success ? '강화 성공!' : '강화 실패...')}
                 </h3>
                 <p className="text-gray-300 mb-4">{message}</p>
                 <div className="flex justify-around items-center mb-4">
@@ -100,9 +145,11 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                     <span className="text-2xl font-bold mx-4">{success ? '→' : 'X'}</span>
                     <ItemDisplay item={itemAfter} />
                 </div>
-                {success && (
+                {(success || isRolling) && (
                     <div className="bg-gray-800/50 p-3 rounded-lg mb-4 text-xs space-y-1 text-left">
-                        <h4 className="font-bold text-center text-yellow-300 mb-2">변경 사항</h4>
+                        <h4 className="font-bold text-center text-yellow-300 mb-2">
+                            {isRolling ? '제련 진행 중...' : '변경 사항'}
+                        </h4>
                         <div className="flex justify-between">
                             <span>등급:</span> 
                             <span className="flex items-center gap-2">
@@ -114,19 +161,70 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                         {itemBefore.options && itemAfter.options && (
                             <div className="flex justify-between">
                                 <span>주옵션:</span> 
-                                <span className="truncate ml-2">{itemBefore.options.main.display} → {itemAfter.options.main.display}</span>
+                                <span className="truncate ml-2">
+                                    {itemBefore.options.main.display} → {
+                                        isRolling && rollingValues['main'] !== undefined ? (
+                                            <span className="animate-pulse text-yellow-400">
+                                                {itemAfter.options.main.isPercentage 
+                                                    ? `${rollingValues['main'].toFixed(1)}%` 
+                                                    : rollingValues['main']}
+                                            </span>
+                                        ) : (
+                                            itemAfter.options.main.display
+                                        )
+                                    }
+                                </span>
                             </div>
                         )}
                         {changedSubOption?.type === 'new' && changedSubOption.option && (
                             <div className="flex justify-between text-green-300">
                                 <span>부옵션 추가:</span> 
-                                <span className="truncate ml-2">{changedSubOption.option.display}</span>
+                                <span className="truncate ml-2">
+                                    {isRolling && changedSubOption.option && (() => {
+                                        const subIndex = itemAfter.options?.combatSubs.findIndex(s => 
+                                            s.type === changedSubOption.option?.type && 
+                                            s.isPercentage === changedSubOption.option?.isPercentage
+                                        ) ?? -1;
+                                        const rollingValue = subIndex >= 0 ? rollingValues[`sub_${subIndex}`] : undefined;
+                                        return rollingValue !== undefined ? (
+                                            <span className="animate-pulse text-yellow-400">
+                                                {changedSubOption.option.isPercentage 
+                                                    ? `${rollingValue.toFixed(1)}%` 
+                                                    : rollingValue}
+                                            </span>
+                                        ) : (
+                                            changedSubOption.option.display
+                                        );
+                                    })()}
+                                    {!isRolling && changedSubOption.option.display}
+                                </span>
                             </div>
                         )}
                         {changedSubOption?.type === 'upgraded' && changedSubOption.before && (
                             <div className="flex justify-between text-green-300">
                                 <span>부옵션 강화:</span> 
-                                <span className="truncate ml-2">{changedSubOption.before.display} → {changedSubOption.after.display}</span>
+                                <span className="truncate ml-2">
+                                    {changedSubOption.before.display} → {
+                                        isRolling && changedSubOption.after ? (() => {
+                                            const subIndex = itemAfter.options?.combatSubs.findIndex(s => 
+                                                s.type === changedSubOption.after?.type && 
+                                                s.isPercentage === changedSubOption.after?.isPercentage
+                                            ) ?? -1;
+                                            const rollingValue = subIndex >= 0 ? rollingValues[`sub_${subIndex}`] : undefined;
+                                            return rollingValue !== undefined ? (
+                                                <span className="animate-pulse text-yellow-400">
+                                                    {changedSubOption.after.isPercentage 
+                                                        ? `${rollingValue.toFixed(1)}%` 
+                                                        : rollingValue}
+                                                </span>
+                                            ) : (
+                                                changedSubOption.after.display
+                                            );
+                                        })() : (
+                                            changedSubOption.after?.display || ''
+                                        )
+                                    }
+                                </span>
                             </div>
                         )}
                     </div>
@@ -142,16 +240,18 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                         </div>
                     </div>
                 )}
-                <Button
-                    onClick={(e) => {
-                        e?.stopPropagation();
-                        onClose();
-                    }}
-                    colorScheme="blue"
-                    className="mt-4 w-full"
-                >
-                    확인
-                </Button>
+                {!isRolling && (
+                    <Button
+                        onClick={(e) => {
+                            e?.stopPropagation();
+                            onClose();
+                        }}
+                        colorScheme="blue"
+                        className="mt-4 w-full"
+                    >
+                        확인
+                    </Button>
+                )}
             </div>
         </DraggableWindow>
     );

@@ -162,6 +162,7 @@ export const initializeDatabase = async () => {
     while (retries > 0) {
         try {
             // 먼저 간단한 연결 테스트
+            const prisma = (await import('./prismaClient.js')).default;
             await prisma.$queryRaw`SELECT 1`;
             
             const existingUsers = await listUsers();
