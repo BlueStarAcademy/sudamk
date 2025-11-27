@@ -209,6 +209,14 @@ class KataGoManager {
 
     // 서버 시작 시 미리 초기화할 수 있도록 public 메서드로 변경
     public async ensureStarted(): Promise<void> {
+        // HTTP API 모드를 사용하는 경우, /api/katago/analyze 엔드포인트에서만 로컬 프로세스가 필요하므로
+        // 서버 시작 시에는 초기화하지 않음 (lazy initialization)
+        // 하지만 엔드포인트가 호출되면 query() 메서드에서 자동으로 초기화됨
+        if (USE_HTTP_API) {
+            console.log('[KataGo] HTTP API mode detected, skipping eager initialization. Local process will be initialized on-demand if /api/katago/analyze is called.');
+            return;
+        }
+        
         if (!this.process && !this.isStarting && !this.readyPromise) {
             try {
                 await this.start();
@@ -492,6 +500,11 @@ maxVisits = ${KATAGO_MAX_VISITS}
     }
 
     public async query(analysisQuery: any): Promise<any> {
+        // HTTP API 모드에서도 /api/katago/analyze 엔드포인트는 로컬 프로세스를 사용할 수 있음
+        // 따라서 이 메서드는 HTTP API 모드에서도 호출될 수 있음
+        // 다만, 일반적인 analyzeGame()에서는 HTTP API를 사용하고, 
+        // /api/katago/analyze 엔드포인트에서만 이 메서드를 사용함
+        
         if (!this.process) {
             try {
                 await this.start();

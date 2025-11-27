@@ -1892,8 +1892,10 @@ const startServer = async () => {
             }
 
             // 로컬 KataGo 프로세스를 사용하여 분석 수행
+            // 이 엔드포인트는 로컬 프로세스를 사용하므로 HTTP API 모드 체크 불필요
             const { getKataGoManager } = await import('./kataGoService.js');
             const manager = getKataGoManager();
+            // HTTP API 모드가 아닐 때만 query 메서드 사용 (HTTP API 모드면 에러 반환)
             const response = await manager.query(query);
             
             res.json(response);
