@@ -19,6 +19,7 @@ const TowerLobby: React.FC = () => {
     const [isItemShopOpen, setIsItemShopOpen] = useState(false);
     const [timeUntilReset, setTimeUntilReset] = useState<string>('');
     const stageScrollRef = useRef<HTMLDivElement>(null);
+    const isChallengingRef = useRef(false); // 중복 클릭 방지용 ref
 
     useEffect(() => {
         const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -984,22 +985,31 @@ const TowerLobby: React.FC = () => {
                                     
                                     {/* 오른쪽: 도전 버튼 */}
 									<button
-										onClick={async () => {
-                                            if (canChallenge && !isLocked) {
-												try {
-													const res = await handlers.handleAction({
-                                                        type: 'START_TOWER_GAME',
-                                                        payload: { floor }
-                                                    });
-													const gameId = (res as any)?.gameId || (res as any)?.clientResponse?.gameId;
-													console.log('[TowerLobby] START_TOWER_GAME response:', { res, gameId });
-													// useApp.ts에서 라우팅을 처리하므로 여기서는 액션만 호출
-												} catch (error) {
-													console.error('[TowerLobby] Failed to start tower game:', error);
-												}
+										onClick={async (e) => {
+                                            // 중복 클릭 방지
+                                            if (isChallengingRef.current || !canChallenge || isLocked) {
+                                                e.preventDefault();
+                                                return;
                                             }
+                                            
+                                            // 클릭 처리 시작
+                                            isChallengingRef.current = true;
+                                            
+											try {
+												const res = await handlers.handleAction({
+                                                    type: 'START_TOWER_GAME',
+                                                    payload: { floor }
+                                                });
+												const gameId = (res as any)?.gameId || (res as any)?.clientResponse?.gameId;
+												console.log('[TowerLobby] START_TOWER_GAME response:', { res, gameId });
+												// useApp.ts에서 라우팅을 처리하므로 여기서는 액션만 호출
+											} catch (error) {
+												console.error('[TowerLobby] Failed to start tower game:', error);
+												// 에러 발생 시에만 플래그 해제 (성공 시 라우팅되므로 해제 불필요)
+												isChallengingRef.current = false;
+											}
                                         }}
-                                        disabled={!canChallenge || isLocked}
+                                        disabled={!canChallenge || isLocked || isChallengingRef.current}
                                         className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 ${
                                             canChallenge && !isLocked
                                                 ? 'bg-gradient-to-br from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-lg shadow-amber-600/50'
