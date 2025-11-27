@@ -219,9 +219,18 @@ const startServer = async () => {
     // await resetAllChampionshipScoresToZero();
     
     // --- 1회성: 어제 점수가 0으로 되어있는 봇 점수 수정 (즉시 실행) ---
-    console.log(`[Server Startup] Fixing bot yesterday scores...`);
-    const { fixBotYesterdayScores } = await import('./scheduledTasks.js');
-    await fixBotYesterdayScores();
+    try {
+        console.log(`[Server Startup] Fixing bot yesterday scores...`);
+        const scheduledTasks = await import('./scheduledTasks.js');
+        if (scheduledTasks.fixBotYesterdayScores && typeof scheduledTasks.fixBotYesterdayScores === 'function') {
+            await scheduledTasks.fixBotYesterdayScores();
+        } else {
+            console.warn('[Server Startup] fixBotYesterdayScores function not found, skipping...');
+        }
+    } catch (error: any) {
+        console.error('[Server Startup] Failed to fix bot yesterday scores:', error.message);
+        // 서버 시작을 계속 진행 (치명적 오류가 아님)
+    }
     
     // --- 봇 점수 관련 로직은 이미 개선되어 서버 시작 시 실행 불필요 ---
     // const { grantThreeDaysBotScores } = await import('./scheduledTasks.js');
