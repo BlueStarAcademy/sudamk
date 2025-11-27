@@ -94,6 +94,58 @@ const seedInitialData = async () => {
     console.log('[DB] Initial data seeding complete.');
 };
 
+// 관리자 계정이 항상 존재하도록 보장하는 함수
+const ensureAdminAccount = async () => {
+    const ADMIN_USERNAME = '푸른별바둑학원';
+    const ADMIN_ID = 'user-admin-static-id';
+    
+    // 관리자 계정이 존재하는지 확인 (username으로)
+    const adminCreds = await getUserCredentialByUsername(ADMIN_USERNAME);
+    if (adminCreds) {
+        // credentials가 있으면 사용자도 존재하는지 확인
+        const adminUser = await prismaGetUserById(adminCreds.userId);
+        if (adminUser && adminUser.isAdmin) {
+            console.log(`[DB] Admin account already exists: ${ADMIN_USERNAME}`);
+            return;
+        }
+    }
+    
+    // 관리자 계정이 없으면 생성
+    console.log(`[DB] Admin account not found. Creating admin account: ${ADMIN_USERNAME}`);
+    const initialState = getInitialState();
+    const adminUser = initialState.users[ADMIN_ID];
+    const adminCredentials = initialState.userCredentials[ADMIN_USERNAME];
+    
+    if (!adminUser || !adminCredentials) {
+        console.error('[DB] Failed to get admin user/credentials from initial state');
+        return;
+    }
+    
+    try {
+        // 사용자 생성
+        const existingUser = await prismaGetUserById(adminUser.id);
+        if (!existingUser) {
+            await prismaCreateUser(adminUser);
+            console.log(`[DB] Created admin user: ${ADMIN_USERNAME}`);
+        }
+        
+        // credentials 생성
+        const existingCreds = await getUserCredentialByUsername(ADMIN_USERNAME);
+        if (!existingCreds) {
+            const passwordHash = (adminCredentials as any).hash || (adminCredentials as any).passwordHash;
+            await createUserCredential(adminUser.username, passwordHash, adminUser.id);
+            console.log(`[DB] Created admin credentials: ${ADMIN_USERNAME}`);
+        }
+    } catch (error: any) {
+        if (error.message && error.message.includes('UNIQUE constraint')) {
+            console.log(`[DB] Admin account already exists (detected by constraint)`);
+        } else {
+            console.error(`[DB] Error creating admin account:`, error);
+            throw error;
+        }
+    }
+};
+
 export const initializeDatabase = async () => {
     if (isInitialized) return;
     
@@ -106,6 +158,9 @@ export const initializeDatabase = async () => {
             const existingUsers = await listUsers();
             if (existingUsers.length === 0) {
                 await seedInitialData();
+            } else {
+                // 사용자가 있더라도 관리자 계정이 항상 존재하도록 보장
+                await ensureAdminAccount();
             }
             isInitialized = true;
             console.log('[DB] Database initialized successfully');
