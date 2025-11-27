@@ -217,10 +217,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             if (!guild) return { error: '길드를 찾을 수 없습니다.' };
             if (user.guildId) return { error: '이미 길드에 가입되어 있습니다.' };
-            if (user.guildLeaveCooldownUntil && user.guildLeaveCooldownUntil > Date.now()) {
-                const timeLeft = Math.ceil((user.guildLeaveCooldownUntil - Date.now()) / 1000 / 60);
-                return { error: `길드 탈퇴 후 ${timeLeft}분 동안 가입할 수 없습니다.` };
-            }
+            if (!guild.members) guild.members = [];
             if (guild.members.length >= (guild.memberLimit || 30)) return { error: '길드 인원이 가득 찼습니다.' };
 
             // joinType에 따라 가입 방식 결정
@@ -231,13 +228,18 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             if (joinType === 'free') {
                 // 자유가입: 빈자리가 있으면 자동 가입
+                if (!guild.members) guild.members = [];
                 guild.members.push({
+                    id: `member-${user.id}-${guild.id}`,
+                    guildId: guild.id,
                     userId: user.id,
                     nickname: user.nickname,
                     role: GuildMemberRole.Member,
-                    joinedAt: Date.now(),
-                    contribution: 0,
+                    joinDate: Date.now(),
+                    contributionTotal: 0,
                     weeklyContribution: 0,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
                 });
                 user.guildId = guild.id;
                 // 기존 신청이 있으면 제거
@@ -247,7 +249,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     );
                 }
                 if (user.guildApplications) {
-                    user.guildApplications = user.guildApplications.filter(id => id !== guildId);
+                    user.guildApplications = user.guildApplications.filter(app => app.guildId !== guildId);
                 }
             } else {
                 // 신청가입: 길드장/부길드장 승인 필요
@@ -255,7 +257,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 if (!guild.applicants) guild.applicants = [];
                 guild.applicants.push({ userId: user.id, appliedAt: Date.now() });
                 if (!user.guildApplications) user.guildApplications = [];
-                user.guildApplications.push(guild.id);
+                user.guildApplications.push({ guildId: guild.id, appliedAt: Date.now() });
             }
 
             await db.setKV('guilds', guilds);
@@ -284,7 +286,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
             }
                 if (user.guildApplications) {
-                    user.guildApplications = user.guildApplications.filter(id => id !== guildId);
+                    user.guildApplications = user.guildApplications.filter(app => app.guildId !== guildId);
                     // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
                     db.updateUser(user).catch(err => {
                         console.error(`[GUILD_CANCEL_APPLICATION] Failed to save user ${user.id}:`, err);
@@ -300,8 +302,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         case 'GUILD_ACCEPT_APPLICANT': {
             const { guildId, applicantId } = payload;
             const guild = guilds[guildId];
-            const myMemberInfo = guild?.members.find(m => m.userId === user.id);
-            if (!guild || !myMemberInfo || (myMemberInfo.role !== GuildMemberRole.Master && myMemberInfo.role !== GuildMemberRole.Vice)) {
+            if (!guild || !guild.members) return { error: '길드를 찾을 수 없습니다.' };
+            const myMemberInfo = guild.members.find(m => m.userId === user.id);
+            if (!myMemberInfo || (myMemberInfo.role !== GuildMemberRole.Master && myMemberInfo.role !== GuildMemberRole.Vice)) {
                 return { error: '권한이 없습니다.' };
             }
             if (guild.members.length >= (guild.memberLimit || 30)) return { error: '길드 인원이 가득 찼습니다.' };
@@ -317,13 +320,28 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 return { error: '대상이 이미 다른 길드에 가입했습니다.' };
             }
 
-            guild.members.push({ userId: applicant.id, nickname: applicant.nickname, role: GuildMemberRole.Member, joinedAt: Date.now(), contribution: 0, weeklyContribution: 0 });
+            if (!guild.members) guild.members = [];
+            guild.members.push({ 
+                id: `member-${applicant.id}-${guild.id}`,
+                guildId: guild.id,
+                userId: applicant.id, 
+                nickname: applicant.nickname, 
+                role: GuildMemberRole.Member, 
+                joinDate: Date.now(), 
+                contributionTotal: 0, 
+                weeklyContribution: 0,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+            });
             if (guild.applicants) {
                 guild.applicants = guild.applicants.filter((app: any) => 
                     (typeof app === 'string' ? app : app.userId) !== applicantId
                 );
             }
             applicant.guildId = guild.id;
+            if (applicant.guildApplications) {
+                applicant.guildApplications = applicant.guildApplications.filter(app => app.guildId !== guildId);
+            }
             await db.setKV('guilds', guilds);
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
             
@@ -354,7 +372,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             const applicant = await db.getUser(applicantId);
             if (applicant && applicant.guildApplications) {
-                applicant.guildApplications = applicant.guildApplications.filter(id => id !== guildId);
+                applicant.guildApplications = applicant.guildApplications.filter(app => app.guildId !== guildId);
                 
                 // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
                 db.updateUser(applicant).catch(err => {
@@ -407,17 +425,18 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         case 'GUILD_KICK_MEMBER': {
             const { guildId, targetMemberId } = payload;
             const guild = guilds[guildId];
-            const myMemberInfo = guild?.members.find(m => m.userId === user.id);
-            const targetMemberInfo = guild?.members.find(m => m.userId === targetMemberId);
+            if (!guild || !guild.members) return { error: '길드를 찾을 수 없습니다.' };
+            const myMemberInfo = guild.members.find(m => m.userId === user.id);
+            const targetMemberInfo = guild.members.find(m => m.userId === targetMemberId);
 
-            if (!guild || !myMemberInfo || !targetMemberInfo) return { error: '정보를 찾을 수 없습니다.' };
+            if (!myMemberInfo || !targetMemberInfo) return { error: '정보를 찾을 수 없습니다.' };
             if ((myMemberInfo.role === GuildMemberRole.Master && targetMemberInfo.role !== GuildMemberRole.Master) || 
                 (myMemberInfo.role === GuildMemberRole.Vice && targetMemberInfo.role === GuildMemberRole.Member)) {
                 
                 guild.members = guild.members.filter(m => m.userId !== targetMemberId);
                 const targetUser = await db.getUser(targetMemberId);
                 if (targetUser) {
-                    targetUser.guildId = null;
+                    targetUser.guildId = undefined;
                     
                     // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
                     db.updateUser(targetUser).catch(err => {
@@ -440,9 +459,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         case 'GUILD_DEMOTE_MEMBER': {
              const { guildId, targetMemberId } = payload;
             const guild = guilds[guildId];
-            const myMemberInfo = guild?.members.find(m => m.userId === user.id);
-            const targetMemberInfo = guild?.members.find(m => m.userId === targetMemberId);
-            if (!guild || !myMemberInfo || !targetMemberInfo || myMemberInfo.role !== GuildMemberRole.Master) {
+            if (!guild || !guild.members) return { error: '길드를 찾을 수 없습니다.' };
+            const myMemberInfo = guild.members.find(m => m.userId === user.id);
+            const targetMemberInfo = guild.members.find(m => m.userId === targetMemberId);
+            if (!myMemberInfo || !targetMemberInfo || myMemberInfo.role !== GuildMemberRole.Master) {
                 return { error: '권한이 없습니다.' };
             }
             if (type === 'GUILD_PROMOTE_MEMBER' && targetMemberInfo.role === GuildMemberRole.Member) {
@@ -458,10 +478,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         case 'GUILD_TRANSFER_MASTERSHIP': {
             const { guildId, targetMemberId } = payload;
             const guild = guilds[guildId];
-            const myMemberInfo = guild?.members.find(m => m.userId === user.id);
-            const targetMemberInfo = guild?.members.find(m => m.userId === targetMemberId);
+            if (!guild || !guild.members) return { error: '길드를 찾을 수 없습니다.' };
+            const myMemberInfo = guild.members.find(m => m.userId === user.id);
+            const targetMemberInfo = guild.members.find(m => m.userId === targetMemberId);
 
-            if (!guild || !myMemberInfo || !targetMemberInfo || myMemberInfo.role !== GuildMemberRole.Master) {
+            if (!myMemberInfo || !targetMemberInfo || myMemberInfo.role !== GuildMemberRole.Master) {
                 return { error: '권한이 없습니다.' };
             }
             if (myMemberInfo.userId === targetMemberId) {
@@ -735,8 +756,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
                 // Check limits
                 const now = Date.now();
-                if (!user.guildShopPurchases) user.guildShopPurchases = {};
-                const purchaseRecord = user.guildShopPurchases[itemId];
+                if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
+                const purchaseRecord = user.dailyShopPurchases[itemId];
                 let purchasesThisPeriod = 0;
                 
                 if (purchaseRecord) {
@@ -757,8 +778,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 user.guildCoins = (user.guildCoins || 0) - itemToBuy.cost;
                 
                 const now = Date.now();
-                if (!user.guildShopPurchases) user.guildShopPurchases = {};
-                const record = user.guildShopPurchases[itemId];
+                if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
+                const record = user.dailyShopPurchases[itemId];
                 if (record) {
                     const isNewPeriod = (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(record.lastPurchaseTimestamp, now)) ||
                                         (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(record.lastPurchaseTimestamp, now));
@@ -770,7 +791,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         record.quantity++;
                     }
                 } else {
-                    user.guildShopPurchases[itemId] = {
+                    user.dailyShopPurchases[itemId] = {
                         quantity: 1,
                         lastPurchaseTimestamp: now,
                     };
@@ -853,8 +874,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
 
             const now = Date.now();
-            if (!user.guildShopPurchases) user.guildShopPurchases = {};
-            const purchaseRecord = user.guildShopPurchases[itemId];
+            if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
+            const purchaseRecord = user.dailyShopPurchases[itemId];
             let purchasesThisPeriod = 0;
 
             if (purchaseRecord) {
@@ -871,8 +892,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             user.guildCoins = (user.guildCoins || 0) - totalCost;
 
-            if (!user.guildShopPurchases) user.guildShopPurchases = {};
-            const record = user.guildShopPurchases[itemId];
+            if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
+            const record = user.dailyShopPurchases[itemId];
             if (record) {
                 const isNewPeriod = (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(record.lastPurchaseTimestamp, now)) ||
                                     (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(record.lastPurchaseTimestamp, now));
@@ -884,7 +905,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     record.quantity += quantity;
                 }
             } else {
-                user.guildShopPurchases[itemId] = {
+                user.dailyShopPurchases[itemId] = {
                     quantity: quantity,
                     lastPurchaseTimestamp: now,
                 };
@@ -1036,20 +1057,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         settings: dbSettings,
                         applicants: [],
                         weeklyMissions: [],
-                        missionProgress: {
-                            checkIns: 0,
-                            strategicWins: 0,
-                            playfulWins: 0,
-                            diamondsSpent: 0,
-                            equipmentEnhancements: 0,
-                            materialCrafts: 0,
-                            equipmentSyntheses: 0,
-                            championshipClaims: 0,
-                            towerFloor50Conquerors: [],
-                            towerFloor100Conquerors: [],
-                            bossAttempts: 0,
-                            epicGearAcquisitions: 0,
-                        },
                         lastMissionReset: now,
                         lastWeeklyContributionReset: now,
                         chatHistory: [],
@@ -1101,9 +1108,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         
         case 'LIST_GUILDS': {
             // 클라이언트에서 searchQuery와 limit을 보낼 수 있으므로 둘 다 지원
-            const { searchTerm, searchQuery, page = 1, pageSize = 20, limit } = payload || {};
-            const search = (searchQuery || searchTerm || '').trim();
-            const actualLimit = limit || (pageSize * page);
+            const { searchQuery, limit } = (payload as any) || {};
+            const search = (searchQuery || '').trim();
+            const actualLimit = limit || 20;
             
             console.log(`[LIST_GUILDS] Search query: "${search}", limit: ${actualLimit}, page: ${page}, pageSize: ${pageSize}`);
             
@@ -1170,6 +1177,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 return a.name.localeCompare(b.name);
             });
             
+            const page = 1;
+            const pageSize = 20;
             const startIndex = (page - 1) * pageSize;
             const endIndex = startIndex + pageSize;
             const paginatedGuilds = filteredGuilds.slice(startIndex, endIndex);
@@ -1186,26 +1195,25 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         memberLimit: g.memberLimit || 30,
                         isPublic: g.isPublic !== false,
                     })),
-                    total: filteredGuilds.length,
-                    page,
-                    pageSize
+                    total: filteredGuilds.length
                 } 
             };
         }
         
         case 'SEND_GUILD_CHAT_MESSAGE': {
-            const { text } = payload;
+            const { content } = payload as { content: string };
             if (!user.guildId) return { error: "길드에 가입되어 있지 않습니다." };
             const guild = guilds[user.guildId];
             if (!guild) return { error: "길드를 찾을 수 없습니다." };
 
             if (!guild.chatHistory) guild.chatHistory = [];
 
-            const message = {
-                id: `msg-guild-${globalThis.crypto.randomUUID()}` ,
-                user: { id: user.id, nickname: user.nickname },
-                text,
-                timestamp: Date.now(),
+            const message: GuildMessage = {
+                id: `msg-guild-${globalThis.crypto.randomUUID()}`,
+                guildId: guild.id,
+                authorId: user.id,
+                content,
+                createdAt: Date.now(),
             };
             guild.chatHistory.push(message);
             if (guild.chatHistory.length > 100) {
@@ -1234,7 +1242,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             // Fallback method for older messages without an ID on the client
             if (messageIndex === -1 && timestamp) {
-                messageIndex = guild.chatHistory.findIndex(m => m.timestamp === timestamp && m.user.id === user.id && !m.system);
+                messageIndex = guild.chatHistory.findIndex(m => m.createdAt === timestamp && m.authorId === user.id);
             }
             
             if (messageIndex === -1) {
@@ -1242,11 +1250,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
         
             const messageToDelete = guild.chatHistory[messageIndex];
+            if (!guild.members) return { error: "길드 정보를 찾을 수 없습니다." };
             
             const myMemberInfo = guild.members.find(m => m.userId === user.id);
             const canManage = myMemberInfo?.role === GuildMemberRole.Master || myMemberInfo?.role === GuildMemberRole.Vice;
         
-            if (messageToDelete.user.id !== user.id && !canManage) {
+            if (messageToDelete.authorId !== user.id && !canManage) {
                 return { error: "메시지를 삭제할 권한이 없습니다." };
             }
         
@@ -1269,10 +1278,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             if (!guild.guildBossState) {
                 guild.guildBossState = {
+                    bossId: 'boss_1',
+                    hp: GUILD_BOSSES[0].maxHp,
+                    maxHp: GUILD_BOSSES[0].maxHp,
                     currentBossId: 'boss_1',
                     currentBossHp: GUILD_BOSSES[0].maxHp,
                     totalDamageLog: {},
-                    lastReset: Date.now(),
+                    lastResetAt: Date.now(),
                 };
             }
             
@@ -1281,7 +1293,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             if (!user.isAdmin) {
                 user.guildBossAttempts = (user.guildBossAttempts || 0) + 1;
-                user.lastGuildBossAttemptDate = Date.now();
             }
 
             user.guildCoins = (user.guildCoins || 0) + result.rewards.guildCoins;
@@ -1289,12 +1300,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             const currentBoss = GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId);
             if (currentBoss) {
-                const chatMessage: ChatMessage = {
-                    id: `msg-guild-${randomUUID()}` ,
-                    user: { id: 'system', nickname: '시스템' },
-                    system: true,
-                    text: `[${user.nickname}] 길드 보스전에서 [${currentBoss.name}] 보스에게 ${result.damageDealt.toLocaleString()}의 피해를 입혔습니다.`,
-                    timestamp: Date.now(),
+                const chatMessage: GuildMessage = {
+                    id: `msg-guild-${randomUUID()}`,
+                    guildId: guild.id,
+                    authorId: 'system',
+                    content: `${user.nickname}님이 ${currentBoss.name}에게 ${result.damageDealt}의 피해를 입혔습니다!`,
+                    createdAt: Date.now(),
                 };
                 if (!guild.chatHistory) guild.chatHistory = [];
                 guild.chatHistory.push(chatMessage);

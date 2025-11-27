@@ -1,4 +1,12 @@
-import { User, CurrencyLog } from '.././types/index.js';
+import { User } from '.././types/index.js';
+
+type CurrencyLog = {
+    timestamp: number;
+    type: 'gold_gain' | 'gold_spend' | 'diamond_gain' | 'diamond_spend';
+    amount: number;
+    reason: string;
+    balanceAfter: { gold: number; diamonds: number };
+};
 
 export function addCurrencyLog(
     user: User,
@@ -8,8 +16,8 @@ export function addCurrencyLog(
 ) {
     if (amount === 0) return;
 
-    if (!user.currencyLogs) {
-        user.currencyLogs = [];
+    if (!(user as any).currencyLogs) {
+        (user as any).currencyLogs = [];
     }
     const log: CurrencyLog = {
         timestamp: Date.now(),
@@ -21,11 +29,11 @@ export function addCurrencyLog(
             diamonds: user.diamonds
         }
     };
-    user.currencyLogs.unshift(log);
+    (user as any).currencyLogs.unshift(log);
     
     // Keep a reasonable number of logs to prevent user object bloat, e.g., 200.
-    if (user.currencyLogs.length > 200) {
-        user.currencyLogs.length = 200;
+    if ((user as any).currencyLogs.length > 200) {
+        (user as any).currencyLogs.length = 200;
     }
 }
 
@@ -56,13 +64,13 @@ export function spendDiamonds(user: User, amount: number, reason: string) {
 }
 
 export function pruneCurrencyLogs(user: User): boolean {
-    if (!user.currencyLogs || user.currencyLogs.length === 0) {
+    if (!(user as any).currencyLogs || (user as any).currencyLogs.length === 0) {
         return false;
     }
     
-    const originalLength = user.currencyLogs.length;
+    const originalLength = (user as any).currencyLogs.length;
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    user.currencyLogs = user.currencyLogs.filter(log => log.timestamp >= weekAgo);
+    (user as any).currencyLogs = (user as any).currencyLogs.filter(log => log.timestamp >= weekAgo);
     
-    return user.currencyLogs.length !== originalLength;
+    return (user as any).currencyLogs.length !== originalLength;
 }

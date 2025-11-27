@@ -333,6 +333,8 @@ const makeStrategicAiMove = async (game: types.LiveGameSession) => {
     const { makeGoAiBotMove } = await import('./goAiBot.js');
     await makeGoAiBotMove(game, aiLevel);
     return;
+    // 아래 코드는 도달 불가능 (deprecated 함수)
+    /* 
     const isHiddenMove = isHiddenMode && game.aiHiddenItemUsed && game.aiHiddenItemAnimationEndTime === undefined;
     
     game.boardState = result.newBoardState;
@@ -384,7 +386,7 @@ const makeStrategicAiMove = async (game: types.LiveGameSession) => {
     const fischerIncrement = isFischer ? (game.settings.timeIncrement || 0) : 0;
     
     if (game.turnDeadline) {
-        const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
+        const timeRemaining = Math.max(0, ((game.turnDeadline as number) - now) / 1000);
         game[aiPlayerTimeKey] = timeRemaining + fischerIncrement;
     } else {
         // turnDeadline이 없으면 현재 시간에 increment 추가

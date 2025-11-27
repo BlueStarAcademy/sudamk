@@ -156,7 +156,7 @@ export const generateNewItem = (grade: ItemGrade, slot: EquipmentSlot, isDivineM
         stars: 0,
         enhancementFails: 0,
         isDivineMythic: isDivineMythic,
-        refinementCount: getRandomInt(3, 10), // 제련 가능 횟수 3~10회 랜덤 부여
+        // refinementCount: getRandomInt(3, 10), // 제련 가능 횟수 3~10회 랜덤 부여 (타입에 없음)
     };
 
     return newItem;
@@ -395,7 +395,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
         }
 
         case 'USE_ITEM': {
-            const { itemId, quantity = 1, itemName } = payload;
+            const { itemId, quantity = 1, itemName } = payload as { itemId?: string; quantity?: number; itemName?: string };
             if (!itemId && !itemName) {
                 console.error(`[USE_ITEM] Missing itemId and itemName for user ${user.id}`);
                 return { error: '아이템 ID 또는 이름이 제공되지 않았습니다.' };
@@ -1221,7 +1221,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     }
                     const newValue = getRandomInt(subOption.range[0], subOption.range[1]);
                     subOption.value = newValue;
-                    const statName = CORE_STATS_DATA[subOption.type]?.name || subOption.type;
+                    const statName = (CORE_STATS_DATA as any)[subOption.type]?.name || subOption.type;
                     subOption.display = `${statName} +${newValue}${subOption.isPercentage ? '%' : ''} [${subOption.range[0]}~${subOption.range[1]}]`;
                 } else if (optionType === 'specialSub') {
                     const subOption = item.options.specialSubs[optionIndex];

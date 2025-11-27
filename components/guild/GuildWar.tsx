@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
-import { GuildWar, GuildWarBoard, User } from '../../types/index.js';
+import { GuildWar as GuildWarType, GuildWarBoard, User } from '../../types/index.js';
 
 interface Board {
     id: string;
@@ -20,7 +20,7 @@ interface Board {
 const GuildWar = () => {
     const { currentUserWithStatus, guilds, handlers, allUsers } = useAppContext();
     const [selectedBoard, setSelectedBoard] = useState<Board | null>(null);
-    const [activeWar, setActiveWar] = useState<GuildWar | null>(null);
+    const [activeWar, setActiveWar] = useState<GuildWarType | null>(null);
     const [myGuild, setMyGuild] = useState<any>(null);
     const [opponentGuild, setOpponentGuild] = useState<any>(null);
     const [boards, setBoards] = useState<Board[]>([]);
