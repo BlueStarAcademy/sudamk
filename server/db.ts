@@ -150,11 +150,20 @@ export const initializeDatabase = async () => {
     if (isInitialized) return;
     
     // 데이터베이스 연결 확인 및 재시도
-    let retries = 3;
+    // Railway 환경에서는 데이터베이스가 시작되는 데 시간이 걸릴 수 있으므로 재시도 횟수와 간격 증가
+    const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway');
+    const maxRetries = isRailway ? 10 : 3; // Railway: 10회, 로컬: 3회
+    const retryDelay = isRailway ? 5000 : 2000; // Railway: 5초, 로컬: 2초
+    let retries = maxRetries;
     let lastError: any = null;
+    
+    console.log(`[DB] Initializing database connection (max retries: ${maxRetries}, delay: ${retryDelay}ms)...`);
     
     while (retries > 0) {
         try {
+            // 먼저 간단한 연결 테스트
+            await prisma.$queryRaw`SELECT 1`;
+            
             const existingUsers = await listUsers();
             if (existingUsers.length === 0) {
                 await seedInitialData();
@@ -170,10 +179,12 @@ export const initializeDatabase = async () => {
             retries--;
             
             // Prisma 연결 오류인 경우
-            if (error.code === 'P1001' || error.message?.includes("Can't reach database server")) {
-                console.warn(`[DB] Database connection failed. Retries left: ${retries}`);
+            if (error.code === 'P1001' || error.message?.includes("Can't reach database server") || 
+                error.message?.includes('connection') || error.code?.startsWith('P')) {
+                console.warn(`[DB] Database connection failed (attempt ${maxRetries - retries}/${maxRetries}). Retries left: ${retries}`);
                 if (retries > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // 2초 대기 후 재시도
+                    console.log(`[DB] Waiting ${retryDelay}ms before retry...`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
                     continue;
                 }
             }
@@ -184,11 +195,15 @@ export const initializeDatabase = async () => {
     }
     
     // 모든 재시도 실패
-    console.error('[DB] Failed to connect to database after 3 attempts.');
+    console.error(`[DB] Failed to connect to database after ${maxRetries} attempts.`);
     console.error('[DB] Please check:');
     console.error('[DB] 1. DATABASE_URL environment variable is set correctly');
     console.error('[DB] 2. Database server is running and accessible');
     console.error('[DB] 3. Network connection is stable');
+    if (isRailway) {
+        console.error('[DB] 4. Railway Postgres service is running and connected to your service');
+        console.error('[DB] 5. Check Railway Dashboard → Your Service → Variables → DATABASE_URL');
+    }
     throw lastError;
 };
 

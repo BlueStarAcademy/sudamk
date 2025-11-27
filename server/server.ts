@@ -18,7 +18,7 @@ import { Player } from '../types/index.js';
 import { processGameSummary, endGame } from './summaryService.js';
 // FIX: Correctly import from the placeholder module.
 import * as aiPlayer from './aiPlayer.js';
-import { processRankingRewards, processWeeklyLeagueUpdates, updateWeeklyCompetitorsIfNeeded, processWeeklyTournamentReset, resetAllTournamentScores, resetAllUsersLeagueScoresForNewWeek, processDailyRankings, processDailyQuestReset, resetAllChampionshipScoresToZero, processTowerRankingRewards } from './scheduledTasks.js';
+import { processRankingRewards, processWeeklyLeagueUpdates, updateWeeklyCompetitorsIfNeeded, processWeeklyTournamentReset, resetAllTournamentScores, resetAllUsersLeagueScoresForNewWeek, processDailyRankings, processDailyQuestReset, resetAllChampionshipScoresToZero, processTowerRankingRewards, fixBotYesterdayScores } from './scheduledTasks.js';
 import * as tournamentService from './tournamentService.js';
 import { AVATAR_POOL, BOT_NAMES, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, SINGLE_PLAYER_MISSIONS, GRADE_LEVEL_REQUIREMENTS, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH } from '../constants';
 import { calculateTotalStats } from './statService.js';
@@ -154,16 +154,30 @@ const startServer = async () => {
         console.error("Error during server startup:", err);
         
         // 데이터베이스 연결 오류인 경우 더 자세한 안내
-        if (err.code === 'P1001' || err.message?.includes("Can't reach database server")) {
+        if (err.code === 'P1001' || err.message?.includes("Can't reach database server") || 
+            err.message?.includes('connection') || err.code?.startsWith('P')) {
             console.error("\n[Server] Database connection failed!");
             console.error("[Server] Please ensure:");
-            console.error("[Server] 1. DATABASE_URL environment variable is set in .env file");
+            console.error("[Server] 1. DATABASE_URL environment variable is set correctly");
             console.error("[Server] 2. Database server is running and accessible");
             console.error("[Server] 3. Network connection allows access to the database");
+            
+            const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway');
+            if (isRailway) {
+                console.error("\n[Server] Railway-specific checks:");
+                console.error("[Server] 1. Railway Postgres service is running");
+                console.error("[Server] 2. Postgres service is connected to your backend service");
+                console.error("[Server] 3. Check Railway Dashboard → Your Service → Variables → DATABASE_URL");
+                console.error("[Server] 4. DATABASE_URL should use internal network: postgres.railway.internal:5432");
+                console.error("[Server] 5. If using public URL, ensure it's correct and accessible");
+            }
+            
             console.error("\n[Server] Example DATABASE_URL format:");
             console.error("[Server] postgresql://user:password@host:port/database");
         }
         
+        // Railway 환경에서는 프로세스를 종료하지 않고 계속 재시도하도록 할 수도 있지만,
+        // 현재는 명시적으로 종료하여 Railway가 재시작하도록 함
         (process as any).exit(1);
     }
 
@@ -203,6 +217,10 @@ const startServer = async () => {
     
     // --- 1회성: 모든 유저의 챔피언십 점수를 0으로 초기화 ---
     // await resetAllChampionshipScoresToZero();
+    
+    // --- 1회성: 어제 점수가 0으로 되어있는 봇 점수 수정 (즉시 실행) ---
+    console.log(`[Server Startup] Fixing bot yesterday scores...`);
+    await fixBotYesterdayScores();
     
     // --- 봇 점수 관련 로직은 이미 개선되어 서버 시작 시 실행 불필요 ---
     // const { grantThreeDaysBotScores } = await import('./scheduledTasks.js');
@@ -2105,6 +2123,22 @@ const startServer = async () => {
             res.status(200).json({ success: true, message: '봇 점수 복구 완료. 점수가 0이었던 모든 봇의 점수가 복구되었습니다.' });
         } catch (error: any) {
             console.error('[Admin] 봇 점수 복구 오류:', error);
+            console.error('[Admin] 오류 스택:', error.stack);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    
+    app.post('/api/admin/fix-bot-yesterday-scores', async (req, res) => {
+        try {
+            console.log('[Admin] ========== 어제 점수 수정 시작 ==========');
+            
+            const { fixBotYesterdayScores } = await import('./scheduledTasks.js');
+            await fixBotYesterdayScores();
+            
+            console.log(`[Admin] ========== 어제 점수 수정 완료 ==========`);
+            res.status(200).json({ success: true, message: '어제 점수 수정 완료. 어제 점수가 0이었던 모든 봇의 어제 점수가 수정되었습니다.' });
+        } catch (error: any) {
+            console.error('[Admin] 어제 점수 수정 오류:', error);
             console.error('[Admin] 오류 스택:', error.stack);
             res.status(500).json({ error: error.message });
         }
