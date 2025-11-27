@@ -38,7 +38,7 @@ const SinglePlayerLobby: React.FC = () => {
     }
 
     return (
-        <div className="bg-gray-900 text-gray-100 p-2 sm:p-4 lg:p-8 w-full mx-auto flex flex-col h-[calc(100vh-5rem)] lg:h-[calc(100vh-5rem)] relative">
+        <div className="bg-gray-900 text-gray-100 p-2 sm:p-4 lg:p-8 w-full mx-auto flex flex-col h-full relative min-h-0">
             {/* Header */}
             <header className="flex justify-between items-center mb-3 sm:mb-4 lg:mb-6 flex-shrink-0 px-2 sm:px-0">
                 <button 

@@ -450,67 +450,164 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             // 승자 판정: 흑의 점수가 백의 점수보다 크면 흑 승리, 같거나 작으면 백 승리 (덤 때문에)
             const blackTotal = finalAnalysis.scoreDetails.black.total;
             const whiteTotal = finalAnalysis.scoreDetails.white.total;
-            const winner = blackTotal > whiteTotal
-                ? types.Player.Black
-                : types.Player.White;
             
-            console.log(`[getGameResult] Winner determination: Black=${blackTotal}, White=${whiteTotal}, Winner=${winner === types.Player.Black ? 'Black' : 'White'}, ScoreDiff=${Math.abs(blackTotal - whiteTotal).toFixed(1)}`);
+            // Fallback 결과인지 확인 (모든 점수가 0이고 deadStones가 비어있으면 fallback 결과)
+            const isFallbackResult = blackTotal === 0 && whiteTotal === 0 && 
+                                   (!baseAnalysis.deadStones || baseAnalysis.deadStones.length === 0);
+            
+            let winner: types.Player;
+            if (isFallbackResult) {
+                // Fallback 결과인 경우: 캡처 수를 기반으로 승자 판정
+                const preservedState = (freshGame as any).preservedGameState || savedPreservedGameState;
+                const blackCaptures = preservedState?.captures?.[types.Player.Black] || freshGame.captures?.[types.Player.Black] || 0;
+                const whiteCaptures = preservedState?.captures?.[types.Player.White] || freshGame.captures?.[types.Player.White] || 0;
+                
+                console.warn(`[getGameResult] Fallback result detected for game ${freshGame.id}, using captures for winner determination: Black=${blackCaptures}, White=${whiteCaptures}`);
+                
+                // 캡처 수가 같으면 백 승리 (덤 때문에), 다르면 캡처 수가 많은 쪽 승리
+                winner = blackCaptures > whiteCaptures ? types.Player.Black : types.Player.White;
+            } else {
+                winner = blackTotal > whiteTotal ? types.Player.Black : types.Player.White;
+            }
+            
+            console.log(`[getGameResult] Winner determination: Black=${blackTotal}, White=${whiteTotal}, Winner=${winner === types.Player.Black ? 'Black' : 'White'}, ScoreDiff=${Math.abs(blackTotal - whiteTotal).toFixed(1)}, isFallback=${isFallbackResult}`);
             
             await endGame(freshGame, winner, 'score');
         })
         .catch(async (error) => {
             console.error(`[getGameResult] KataGo analysis failed for game ${game.id}:`, error);
             console.error(`[getGameResult] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
-            // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기
-            let failedGame = null;
-            if (game.isSinglePlayer) {
-                const { getCachedGame } = await import('./gameCache.js');
-                failedGame = await getCachedGame(game.id);
-            }
-            // 캐시에서 못 찾으면 DB에서 찾기
-            if (!failedGame) {
-                failedGame = await db.getLiveGame(game.id);
-            }
-            if (failedGame && failedGame.gameStatus === 'scoring') {
-                console.log(`[getGameResult] Game ${failedGame.id} still in scoring state, setting isAnalyzing to false and ending game with fallback winner`);
-                failedGame.isAnalyzing = false;
+            
+            // KataGo 실패 시 자체 계가 프로그램 사용
+            console.log(`[getGameResult] KataGo failed, attempting manual scoring for game ${game.id}`);
+            try {
+                const { calculateScoreManually } = await import('./scoringService.js');
+                const manualAnalysis = calculateScoreManually(game);
                 
-                // 보존된 게임 상태 복원 (에러 발생 시에도 게임 상태 유지)
-                const preservedState = (failedGame as any).preservedGameState || (game as any).preservedGameState;
-                if (preservedState) {
-                    if (preservedState.moveHistory && preservedState.moveHistory.length > 0) {
-                        failedGame.moveHistory = preservedState.moveHistory;
-                    }
-                    if (preservedState.boardState && preservedState.boardState.length > 0) {
-                        failedGame.boardState = preservedState.boardState;
-                    }
-                    if (preservedState.captures) {
-                        failedGame.captures = preservedState.captures;
-                    }
-                    if (preservedState.totalTurns !== undefined) {
-                        failedGame.totalTurns = preservedState.totalTurns;
-                    }
+                // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기
+                let freshGame = null;
+                if (game.isSinglePlayer) {
+                    const { getCachedGame } = await import('./gameCache.js');
+                    freshGame = await getCachedGame(game.id);
+                }
+                // 캐시에서 못 찾으면 DB에서 찾기
+                if (!freshGame) {
+                    freshGame = await db.getLiveGame(game.id);
+                }
+                if (!freshGame) {
+                    console.error(`[getGameResult] Game ${game.id} not found in cache or database after manual scoring`);
+                    return;
                 }
                 
-                await db.saveGame(failedGame);
-                const { broadcastToGameParticipants } = await import('./socket.js');
+                // 게임 상태 확인 및 복원
+                if (freshGame.gameStatus === 'playing' && freshGame.isSinglePlayer && freshGame.stageId) {
+                    const preservedState = (freshGame as any).preservedGameState || (game as any).preservedGameState || savedPreservedGameState;
+                    if (preservedState) {
+                        if (preservedState.moveHistory && preservedState.moveHistory.length > 0) {
+                            freshGame.moveHistory = preservedState.moveHistory;
+                        }
+                        if (preservedState.boardState && preservedState.boardState.length > 0) {
+                            freshGame.boardState = preservedState.boardState;
+                        }
+                    }
+                    freshGame.gameStatus = 'scoring';
+                    freshGame.isAnalyzing = true;
+                    (freshGame as any).isScoringProtected = true;
+                    await db.saveGame(freshGame);
+                }
                 
-                // 브로드캐스트 시 보존된 상태 포함
-                const gameToBroadcast = {
-                    ...failedGame,
-                    moveHistory: preservedState?.moveHistory || failedGame.moveHistory,
-                    totalTurns: preservedState?.totalTurns ?? failedGame.totalTurns,
-                    captures: preservedState?.captures || failedGame.captures,
+                if (freshGame.gameStatus !== 'scoring') {
+                    console.log(`[getGameResult] Game ${freshGame.id} no longer in scoring state (status: ${freshGame.gameStatus}), skipping manual scoring result`);
+                    return;
+                }
+                
+                // 수동 계가 결과 적용
+                const timeInfoToUse = (freshGame as any).preservedTimeInfo || savedPreservedTimeInfo || preservedTimeInfo;
+                const finalAnalysis = finalizeAnalysisResult(manualAnalysis, freshGame, timeInfoToUse);
+                
+                if (!freshGame.analysisResult) freshGame.analysisResult = {};
+                freshGame.analysisResult['system'] = finalAnalysis;
+                freshGame.finalScores = {
+                    black: finalAnalysis.scoreDetails.black.total,
+                    white: finalAnalysis.scoreDetails.white.total
                 };
-                broadcastToGameParticipants(failedGame.id, { type: 'GAME_UPDATE', payload: { [failedGame.id]: gameToBroadcast } }, failedGame);
+                freshGame.isAnalyzing = false;
                 
-                // Decide a winner randomly as a fallback
-                const winner = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
-                console.log(`[getGameResult] Ending game ${failedGame.id} with fallback winner: ${winner === types.Player.Black ? 'Black' : 'White'}`);
-                // End the game properly to process summaries and rewards
-                await endGame(failedGame, winner, 'score'); // Re-use 'score' reason, as it's a scoring failure
-            } else {
-                console.error(`[getGameResult] Game ${game.id} not found or not in scoring state after analysis failure`);
+                // 분석 결과 저장 및 브로드캐스트
+                const preservedStateForBroadcast = (freshGame as any).preservedGameState || savedPreservedGameState;
+                const timeInfoForBroadcast = (freshGame as any).preservedTimeInfo || savedPreservedTimeInfo || preservedTimeInfo;
+                const gameToBroadcast = {
+                    ...freshGame,
+                    moveHistory: preservedStateForBroadcast?.moveHistory || freshGame.moveHistory,
+                    totalTurns: preservedStateForBroadcast?.totalTurns ?? freshGame.totalTurns,
+                    blackTimeLeft: timeInfoForBroadcast?.blackTimeLeft ?? freshGame.blackTimeLeft,
+                    whiteTimeLeft: timeInfoForBroadcast?.whiteTimeLeft ?? freshGame.whiteTimeLeft,
+                    blackPatternStones: preservedStateForBroadcast?.blackPatternStones || freshGame.blackPatternStones,
+                    whitePatternStones: preservedStateForBroadcast?.whitePatternStones || freshGame.whitePatternStones,
+                    captures: preservedStateForBroadcast?.captures || freshGame.captures,
+                    baseStoneCaptures: preservedStateForBroadcast?.baseStoneCaptures || freshGame.baseStoneCaptures,
+                    hiddenStoneCaptures: preservedStateForBroadcast?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
+                };
+                delete (gameToBroadcast as any).boardState;
+                await db.saveGame(freshGame);
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                broadcastToGameParticipants(freshGame.id, { type: 'GAME_UPDATE', payload: { [freshGame.id]: gameToBroadcast } }, freshGame);
+                console.log(`[getGameResult] Manual scoring completed for game ${freshGame.id}, scores: Black ${finalAnalysis.scoreDetails.black.total}, White ${finalAnalysis.scoreDetails.white.total}`);
+                
+                // 승자 판정
+                const blackTotal = finalAnalysis.scoreDetails.black.total;
+                const whiteTotal = finalAnalysis.scoreDetails.white.total;
+                const winner = blackTotal > whiteTotal ? types.Player.Black : types.Player.White;
+                console.log(`[getGameResult] Winner determination (manual): Black=${blackTotal}, White=${whiteTotal}, Winner=${winner === types.Player.Black ? 'Black' : 'White'}`);
+                
+                await endGame(freshGame, winner, 'score');
+            } catch (manualError) {
+                console.error(`[getGameResult] Manual scoring also failed for game ${game.id}:`, manualError);
+                // 최종 fallback: 랜덤 승자
+                let failedGame = null;
+                if (game.isSinglePlayer) {
+                    const { getCachedGame } = await import('./gameCache.js');
+                    failedGame = await getCachedGame(game.id);
+                }
+                if (!failedGame) {
+                    failedGame = await db.getLiveGame(game.id);
+                }
+                if (failedGame && failedGame.gameStatus === 'scoring') {
+                    console.log(`[getGameResult] Game ${failedGame.id} still in scoring state, setting isAnalyzing to false and ending game with fallback winner`);
+                    failedGame.isAnalyzing = false;
+                    
+                    const preservedState = (failedGame as any).preservedGameState || (game as any).preservedGameState;
+                    if (preservedState) {
+                        if (preservedState.moveHistory && preservedState.moveHistory.length > 0) {
+                            failedGame.moveHistory = preservedState.moveHistory;
+                        }
+                        if (preservedState.boardState && preservedState.boardState.length > 0) {
+                            failedGame.boardState = preservedState.boardState;
+                        }
+                        if (preservedState.captures) {
+                            failedGame.captures = preservedState.captures;
+                        }
+                        if (preservedState.totalTurns !== undefined) {
+                            failedGame.totalTurns = preservedState.totalTurns;
+                        }
+                    }
+                    
+                    await db.saveGame(failedGame);
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    const gameToBroadcast = {
+                        ...failedGame,
+                        moveHistory: preservedState?.moveHistory || failedGame.moveHistory,
+                        totalTurns: preservedState?.totalTurns ?? failedGame.totalTurns,
+                        captures: preservedState?.captures || failedGame.captures,
+                    };
+                    broadcastToGameParticipants(failedGame.id, { type: 'GAME_UPDATE', payload: { [failedGame.id]: gameToBroadcast } }, failedGame);
+                    
+                    const winner = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
+                    console.log(`[getGameResult] Ending game ${failedGame.id} with fallback winner: ${winner === types.Player.Black ? 'Black' : 'White'}`);
+                    await endGame(failedGame, winner, 'score');
+                } else {
+                    console.error(`[getGameResult] Game ${game.id} not found or not in scoring state after all scoring attempts failed`);
+                }
             }
         });
     return game;

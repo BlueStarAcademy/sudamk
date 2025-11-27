@@ -128,7 +128,7 @@ const TowerLobby: React.FC = () => {
     }, []);
 
     return (
-        <div className="w-full h-[calc(100vh-5rem)] flex flex-col relative text-white overflow-hidden" style={isMobile ? {
+        <div className="w-full h-full flex flex-col relative text-white overflow-hidden min-h-0" style={isMobile ? {
             backgroundImage: `url(${TOWER_CHALLENGE_LOBBY_IMG})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',

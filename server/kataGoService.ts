@@ -571,11 +571,93 @@ export const initializeKataGo = async (): Promise<void> => {
         return;
     }
 
-    // HTTP API를 사용하는 경우 프로세스 초기화 불필요
+    // HTTP API를 사용하는 경우 프로세스 초기화 불필요하지만, 연결 테스트를 미리 수행
     if (USE_HTTP_API) {
         console.log(`[KataGo] Using HTTP API: ${KATAGO_API_URL}`);
         console.log(`[KataGo] HTTP API mode: KataGo analysis will be performed via HTTP requests to ${KATAGO_API_URL}`);
-        // HTTP API 연결 테스트는 analyzeGame 호출 시 자동으로 수행됨
+        
+        // HTTP API 연결 테스트를 미리 수행하여 준비 상태 확인
+        try {
+            console.log(`[KataGo] Testing HTTP API connection to ${KATAGO_API_URL}...`);
+            const testQuery = {
+                id: `test-${randomUUID()}`,
+                moves: [['B', 'Q16'], ['W', 'D16']], // 간단한 테스트 수순
+                rules: "korean",
+                komi: 6.5,
+                boardXSize: 19,
+                boardYSize: 19,
+                maxVisits: 10, // 테스트이므로 최소 visits
+                includePolicy: false,
+                includeOwnership: false,
+            };
+            
+            const testUrl = KATAGO_API_URL!;
+            const url = new URL(testUrl);
+            const isHttps = url.protocol === 'https:';
+            const httpModule = isHttps ? https : http;
+            
+            const postData = JSON.stringify(testQuery);
+            const timeoutMs = 10000; // 테스트는 10초 타임아웃
+            
+            await new Promise<void>((resolve, reject) => {
+                const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(postData)
+                    },
+                    timeout: timeoutMs
+                };
+                
+                const req = httpModule.request(url, options, (res) => {
+                    let responseData = '';
+                    
+                    res.on('data', (chunk) => {
+                        responseData += chunk;
+                    });
+                    
+                    res.on('end', () => {
+                        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+                            try {
+                                const parsed = JSON.parse(responseData);
+                                console.log(`[KataGo] HTTP API connection test successful! Response received for test query.`);
+                                resolve();
+                            } catch (parseError) {
+                                console.warn(`[KataGo] HTTP API connection test: Received response but failed to parse (this is OK for initialization):`, parseError);
+                                // 파싱 실패해도 연결은 성공한 것으로 간주
+                                resolve();
+                            }
+                        } else {
+                            console.warn(`[KataGo] HTTP API connection test: Received status ${res.statusCode} (this may be OK if API is still initializing)`);
+                            // 에러 상태여도 연결은 성공한 것으로 간주 (API가 아직 초기화 중일 수 있음)
+                            resolve();
+                        }
+                    });
+                });
+                
+                req.on('error', (error) => {
+                    console.warn(`[KataGo] HTTP API connection test failed (will retry on first analysis):`, error.message);
+                    // 연결 실패해도 서버는 계속 실행 (첫 분석 시 재시도)
+                    resolve();
+                });
+                
+                req.on('timeout', () => {
+                    console.warn(`[KataGo] HTTP API connection test timed out (will retry on first analysis)`);
+                    req.destroy();
+                    // 타임아웃해도 서버는 계속 실행 (첫 분석 시 재시도)
+                    resolve();
+                });
+                
+                req.write(postData);
+                req.end();
+            });
+            
+            console.log(`[KataGo] HTTP API is ready for analysis requests.`);
+        } catch (error: any) {
+            console.warn(`[KataGo] HTTP API connection test encountered an error (will retry on first analysis):`, error.message);
+            // 에러가 발생해도 서버는 계속 실행 (첫 분석 시 재시도)
+        }
+        
         return;
     }
 
@@ -763,13 +845,17 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
             
             const postData = JSON.stringify(cleanQuery);
             
+            // 60초 타임아웃 후 자체 계가 프로그램 사용
+            const timeoutMs = 60000; // 60초
+            const timeoutSeconds = timeoutMs / 1000;
+            
             const options = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Content-Length': Buffer.byteLength(postData)
                 },
-                timeout: isRailway ? 60000 : 300000 // Railway: 60초, 로컬: 300초(5분) 타임아웃
+                timeout: timeoutMs
             };
             
             const req = httpModule.request(url, options, (res) => {
@@ -783,28 +869,30 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
                     if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
                         try {
                             const parsed = JSON.parse(responseData);
-                            console.log(`[KataGo HTTP] Received response for queryId=${cleanQuery.id}, statusCode=${res.statusCode}`);
+                            console.log(`[KataGo HTTP] Received response for queryId=${cleanQuery.id}, statusCode=${res.statusCode}, responseSize=${responseData.length} bytes`);
                             resolve(parsed);
                         } catch (parseError) {
                             console.error(`[KataGo HTTP] Failed to parse response for queryId=${cleanQuery.id}:`, parseError);
+                            console.error(`[KataGo HTTP] Response data (first 500 chars): ${responseData.substring(0, 500)}`);
                             reject(new Error(`Failed to parse KataGo API response: ${parseError instanceof Error ? parseError.message : String(parseError)}`));
                         }
                     } else {
-                        console.error(`[KataGo HTTP] API returned error status ${res.statusCode} for queryId=${cleanQuery.id}: ${responseData.substring(0, 200)}`);
-                        reject(new Error(`KataGo API returned status ${res.statusCode}: ${responseData.substring(0, 200)}`));
+                        console.error(`[KataGo HTTP] API returned error status ${res.statusCode} for queryId=${cleanQuery.id}: ${responseData.substring(0, 500)}`);
+                        reject(new Error(`KataGo API returned status ${res.statusCode}: ${responseData.substring(0, 500)}`));
                     }
                 });
             });
             
             req.on('error', (error) => {
                 console.error(`[KataGo HTTP] Request error for queryId=${cleanQuery.id}:`, error);
+                console.error(`[KataGo HTTP] Error details: message=${error.message}, code=${(error as any).code}, stack=${error instanceof Error ? error.stack : 'N/A'}`);
                 reject(new Error(`KataGo API request failed: ${error.message}`));
             });
             
             req.on('timeout', () => {
-                console.error(`[KataGo HTTP] Request timeout for queryId=${cleanQuery.id}`);
+                console.error(`[KataGo HTTP] Request timeout for queryId=${cleanQuery.id} after ${timeoutSeconds} seconds`);
                 req.destroy();
-                reject(new Error('KataGo API request timed out after 300 seconds'));
+                reject(new Error(`KataGo API request timed out after ${timeoutSeconds} seconds`));
             });
             
             req.write(postData);
@@ -855,19 +943,30 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
         console.error('[KataGo] Analysis query failed:', error);
         console.error('[KataGo] Error details:', error instanceof Error ? error.message : String(error));
         console.error('[KataGo] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-        // Fallback to a default "error" state analysis result
-        console.log(`[KataGo] Returning fallback analysis result for game ${session.id}`);
-        return {
-            winRateBlack: 50,
-            winRateChange: 0,
-            scoreLead: 0,
-            deadStones: [], ownershipMap: null, recommendedMoves: [],
-            areaScore: { black: 0, white: 0 },
-            scoreDetails: {
-                black: { territory: 0, captures: 0, liveCaptures: 0, deadStones: 0, baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, total: 0 },
-                white: { territory: 0, captures: 0, liveCaptures: 0, deadStones: 0, komi: 0, baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, total: 0 },
-            },
-            blackConfirmed: [], whiteConfirmed: [], blackRight: [], whiteRight: [], blackLikely: [], whiteLikely: [],
-        };
+        
+        // KataGo 실패 시 자체 계가 프로그램 사용
+        console.log(`[KataGo] KataGo failed, falling back to manual scoring for game ${session.id}`);
+        try {
+            const { calculateScoreManually } = await import('./scoringService.js');
+            const manualResult = calculateScoreManually(session);
+            console.log(`[KataGo] Manual scoring completed for game ${session.id}`);
+            return manualResult;
+        } catch (manualError) {
+            console.error('[KataGo] Manual scoring also failed:', manualError);
+            // 최종 fallback: 기본 에러 상태
+            console.log(`[KataGo] Returning fallback analysis result for game ${session.id}`);
+            return {
+                winRateBlack: 50,
+                winRateChange: 0,
+                scoreLead: 0,
+                deadStones: [], ownershipMap: null, recommendedMoves: [],
+                areaScore: { black: 0, white: 0 },
+                scoreDetails: {
+                    black: { territory: 0, captures: 0, liveCaptures: 0, deadStones: 0, baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, total: 0 },
+                    white: { territory: 0, captures: 0, liveCaptures: 0, deadStones: 0, komi: 0, baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, total: 0 },
+                },
+                blackConfirmed: [], whiteConfirmed: [], blackRight: [], whiteRight: [], blackLikely: [], whiteLikely: [],
+            };
+        }
     }
 };

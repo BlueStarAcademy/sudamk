@@ -194,7 +194,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     }, [type, tournamentState, currentUserWithStatus?.id, currentUserWithStatus, stateKey]);
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 w-full flex flex-col h-[calc(100vh-5rem)] relative overflow-hidden">
+        <div className="p-4 sm:p-6 lg:p-8 w-full flex flex-col h-full relative overflow-hidden min-h-0">
             {tournamentState && (
                 <TournamentBracketErrorBoundary>
                     <TournamentBracket 

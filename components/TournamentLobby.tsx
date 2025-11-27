@@ -589,7 +589,7 @@ const TournamentLobby: React.FC = () => {
 
     if (!currentUserWithStatus) {
         return (
-            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-2xl mx-auto flex flex-col h-[calc(100vh-5rem)] relative text-gray-500 items-center justify-center">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-2xl mx-auto flex flex-col h-full relative text-gray-500 items-center justify-center min-h-0">
                 로비 정보를 불러오는 중...
             </div>
         );
@@ -631,8 +631,8 @@ const TournamentLobby: React.FC = () => {
     };
 
     const containerClass = isMobile
-        ? 'min-h-screen overflow-y-auto'
-        : 'h-[calc(100vh-5rem)] overflow-hidden';
+        ? 'h-full overflow-y-auto'
+        : 'h-full overflow-hidden min-h-0';
 
     return (
         <div className={`p-4 sm:p-6 lg:p-8 w-full flex flex-col relative ${containerClass}`}>

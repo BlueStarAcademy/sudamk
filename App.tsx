@@ -179,9 +179,11 @@ const AppContent: React.FC = () => {
     }, []);
     
     return (
-        <div className={`font-sans ${backgroundClass} text-primary h-full flex flex-col`} style={{ 
+        <div className={`font-sans ${backgroundClass} text-primary flex flex-col`} style={{ 
             height: isMobile ? '100dvh' : '100vh',
-            maxHeight: isMobile ? '100dvh' : '100vh'
+            maxHeight: isMobile ? '100dvh' : '100vh',
+            minHeight: 0,
+            overflow: 'hidden'
         }}>
             {isPreloading && (
                 <div className="fixed inset-0 bg-tertiary z-[100] flex flex-col items-center justify-center">
@@ -198,7 +200,7 @@ const AppContent: React.FC = () => {
             {currentUser && !isGameView && <Header />}
             
             {currentUser ? (
-                <main className="flex-1 flex flex-col min-h-0 overflow-y-auto" style={{ 
+                <main className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden" style={{ 
                     paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
                     WebkitOverflowScrolling: 'touch'
                 }}>
