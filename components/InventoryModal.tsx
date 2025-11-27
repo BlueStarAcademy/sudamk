@@ -1092,7 +1092,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     <>
                                                         {isUsable && (
                                                             <>
-                                                                <Button onClick={() => onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id } })} colorScheme="blue" className={`w-full ${isMobile ? '!py-2' : '!py-1'}`} style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                <Button onClick={() => onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } })} colorScheme="blue" className={`w-full ${isMobile ? '!py-2' : '!py-1'}`} style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                     사용
                                                                 </Button>
                                                                 {selectedItem.quantity && selectedItem.quantity > 1 && (
@@ -1236,8 +1236,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         setShowUseQuantityModal(false);
                         setItemToUseBulk(null);
                     }}
-                    onConfirm={(itemId, quantity) => {
-                        onAction({ type: 'USE_ITEM', payload: { itemId, quantity } });
+                    onConfirm={(itemId, quantity, itemName) => {
+                        onAction({ type: 'USE_ITEM', payload: { itemId, quantity, itemName } });
                     }}
                     isTopmost={isTopmost && !isRenameModalOpen && !itemToSell && !itemToSellBulk && !isExpandModalOpen}
                 />

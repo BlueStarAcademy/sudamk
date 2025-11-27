@@ -7,7 +7,7 @@ interface UseQuantityModalProps {
     item: InventoryItem;
     currentUser: UserWithStatus;
     onClose: () => void;
-    onConfirm: (itemId: string, quantity: number) => void;
+    onConfirm: (itemId: string, quantity: number, itemName?: string) => void;
     isTopmost?: boolean;
 }
 
@@ -100,7 +100,7 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                     </Button>
                     <Button 
                         onClick={() => {
-                            onConfirm(item.id, quantity);
+                            onConfirm(item.id, quantity, item.name);
                             onClose();
                         }} 
                         colorScheme="purple" 

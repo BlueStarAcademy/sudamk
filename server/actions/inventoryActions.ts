@@ -395,11 +395,55 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
         }
 
         case 'USE_ITEM': {
-            const { itemId, quantity = 1 } = payload;
-            const itemIndex = user.inventory.findIndex(i => i.id === itemId);
-            if (itemIndex === -1) return { error: '아이템을 찾을 수 없습니다.' };
+            const { itemId, quantity = 1, itemName } = payload;
+            if (!itemId && !itemName) {
+                console.error(`[USE_ITEM] Missing itemId and itemName for user ${user.id}`);
+                return { error: '아이템 ID 또는 이름이 제공되지 않았습니다.' };
+            }
+            
+            // itemId로 먼저 찾기
+            let itemIndex = itemId ? user.inventory.findIndex(i => i && i.id === itemId) : -1;
+            let item: InventoryItem | undefined;
+            
+            // itemId로 찾지 못한 경우, itemName으로 찾기 (골드 꾸러미 등 이름 변형 대응)
+            if (itemIndex === -1 && itemName) {
+                const normalizedName = itemName.startsWith('골드꾸러미') 
+                    ? itemName.replace('골드꾸러미', '골드 꾸러미')
+                    : itemName.startsWith('다이아꾸러미')
+                    ? itemName.replace('다이아꾸러미', '다이아 꾸러미')
+                    : itemName;
+                
+                // 정확한 이름으로 찾기
+                itemIndex = user.inventory.findIndex(i => 
+                    i && i.type === 'consumable' && (
+                        i.name === itemName || 
+                        i.name === normalizedName ||
+                        (i.name.startsWith('골드꾸러미') && normalizedName.startsWith('골드 꾸러미') && i.name.replace('골드꾸러미', '골드 꾸러미') === normalizedName) ||
+                        (i.name.startsWith('골드 꾸러미') && itemName.startsWith('골드꾸러미') && i.name === normalizedName)
+                    )
+                );
+                
+                if (itemIndex !== -1) {
+                    console.log(`[USE_ITEM] Found item by name fallback: itemId=${itemId}, itemName=${itemName}, foundName=${user.inventory[itemIndex]?.name}`);
+                }
+            }
+            
+            if (itemIndex === -1) {
+                // 디버깅: 인벤토리 상태 확인
+                console.error(`[USE_ITEM] Item not found: itemId=${itemId}, itemName=${itemName}, userId=${user.id}, inventoryLength=${user.inventory?.length || 0}`);
+                if (user.inventory && user.inventory.length > 0) {
+                    const consumables = user.inventory.filter(i => i && i.type === 'consumable');
+                    const itemNames = consumables.map(i => i?.name).filter(Boolean);
+                    console.error(`[USE_ITEM] Available consumable items: ${itemNames.slice(0, 10).join(', ')}${itemNames.length > 10 ? '...' : ''}`);
+                }
+                return { error: '아이템을 찾을 수 없습니다.' };
+            }
 
-            const item = user.inventory[itemIndex];
+            item = user.inventory[itemIndex];
+            if (!item) {
+                console.error(`[USE_ITEM] Item at index ${itemIndex} is null/undefined for user ${user.id}`);
+                return { error: '아이템 데이터가 손상되었습니다.' };
+            }
             if (item.type !== 'consumable') return { error: '사용할 수 없는 아이템입니다.' };
 
             // 변경권 사용 시 대장간 제련 탭으로 이동하도록 플래그 설정
