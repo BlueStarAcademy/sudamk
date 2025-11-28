@@ -313,6 +313,9 @@ const startServer = async () => {
     // Health check endpoint (server 생성 직후 정의하여 클로저로 접근 가능)
     // Railway 크래시 루프 방지를 위해 항상 200 반환
     app.get('/api/health', (req, res) => {
+        // Health Check 로그 (간소화하여 성능 영향 최소화)
+        const startTime = Date.now();
+        
         try {
             // 서버가 완전히 준비되지 않았어도 헬스체크는 성공으로 반환
             // Railway가 헬스체크 실패로 인해 무한 재시작하는 것을 방지
@@ -321,12 +324,19 @@ const startServer = async () => {
                 timestamp: new Date().toISOString(),
                 uptime: process.uptime(),
                 listening: server?.listening || false,
-                ready: isServerReady
+                ready: isServerReady,
+                pid: process.pid
             };
             
             // 항상 200 반환하여 Railway 재시작 방지
             // 서버가 시작 중이어도 재시작하지 않도록 함
             res.status(200).json(serverStatus);
+            
+            // Health Check 성공 로그 (5초마다 한 번만 출력하여 로그 스팸 방지)
+            const elapsed = Date.now() - startTime;
+            if (elapsed > 100 || !serverStatus.listening) {
+                console.log(`[Health Check] ${serverStatus.status} (${elapsed}ms, listening: ${serverStatus.listening}, ready: ${serverStatus.ready})`);
+            }
         } catch (error) {
             console.error('[Health Check] Error:', error);
             // 에러가 발생해도 200 반환하여 재시작 방지
@@ -334,7 +344,8 @@ const startServer = async () => {
                 res.status(200).json({ 
                     status: 'error', 
                     message: 'Health check error but server is running',
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    pid: process.pid
                 });
             }
         }
