@@ -1911,7 +1911,7 @@ const startServer = async () => {
         }
     });
 
-    // KataGo 분석 API 엔드포인트 (배포 환경에서 HTTP API로 사용)
+    // KataGo 분석 API 엔드포인트 (로컬 프로세스를 사용)
     app.post('/api/katago/analyze', async (req, res) => {
         try {
             const query = req.body;
@@ -1919,11 +1919,17 @@ const startServer = async () => {
                 return res.status(400).json({ error: 'Invalid query: missing id' });
             }
 
+            // HTTP API 모드일 때는 이 엔드포인트를 사용하지 않음 (순환 참조 방지)
+            const useHttpApi = !!(process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '');
+            if (useHttpApi) {
+                const errorMsg = 'This server is configured to use HTTP API mode. Please use the external KataGo API instead of the local process endpoint.';
+                console.error(`[KataGo API] ${errorMsg}`);
+                return res.status(503).json({ error: errorMsg });
+            }
+
             // 로컬 KataGo 프로세스를 사용하여 분석 수행
-            // 이 엔드포인트는 로컬 프로세스를 사용하므로 HTTP API 모드 체크 불필요
             const { getKataGoManager } = await import('./kataGoService.js');
             const manager = getKataGoManager();
-            // HTTP API 모드가 아닐 때만 query 메서드 사용 (HTTP API 모드면 에러 반환)
             const response = await manager.query(query);
             
             res.json(response);

@@ -500,10 +500,12 @@ maxVisits = ${KATAGO_MAX_VISITS}
     }
 
     public async query(analysisQuery: any): Promise<any> {
-        // HTTP API 모드에서도 /api/katago/analyze 엔드포인트는 로컬 프로세스를 사용할 수 있음
-        // 따라서 이 메서드는 HTTP API 모드에서도 호출될 수 있음
-        // 다만, 일반적인 analyzeGame()에서는 HTTP API를 사용하고, 
-        // /api/katago/analyze 엔드포인트에서만 이 메서드를 사용함
+        // HTTP API 모드일 때는 로컬 프로세스를 사용하지 않음
+        if (USE_HTTP_API) {
+            const errorMsg = 'KataGo is configured to use HTTP API mode. Local process queries are not allowed.';
+            console.error(`[KataGo] ${errorMsg}`);
+            return Promise.reject(new Error(errorMsg));
+        }
         
         if (!this.process) {
             try {
@@ -584,93 +586,13 @@ export const initializeKataGo = async (): Promise<void> => {
         return;
     }
 
-    // HTTP API를 사용하는 경우 프로세스 초기화 불필요하지만, 연결 테스트를 미리 수행
+    // HTTP API를 사용하는 경우 프로세스 초기화 불필요
+    // 자기 자신의 /api/katago/analyze 엔드포인트로 연결 테스트하는 것은 순환 참조를 일으킬 수 있으므로 제거
     if (USE_HTTP_API) {
         console.log(`[KataGo] Using HTTP API: ${KATAGO_API_URL}`);
         console.log(`[KataGo] HTTP API mode: KataGo analysis will be performed via HTTP requests to ${KATAGO_API_URL}`);
-        
-        // HTTP API 연결 테스트를 미리 수행하여 준비 상태 확인
-        try {
-            console.log(`[KataGo] Testing HTTP API connection to ${KATAGO_API_URL}...`);
-            const testQuery = {
-                id: `test-${randomUUID()}`,
-                moves: [['B', 'Q16'], ['W', 'D16']], // 간단한 테스트 수순
-                rules: "korean",
-                komi: 6.5,
-                boardXSize: 19,
-                boardYSize: 19,
-                maxVisits: 10, // 테스트이므로 최소 visits
-                includePolicy: false,
-                includeOwnership: false,
-            };
-            
-            const testUrl = KATAGO_API_URL!;
-            const url = new URL(testUrl);
-            const isHttps = url.protocol === 'https:';
-            const httpModule = isHttps ? https : http;
-            
-            const postData = JSON.stringify(testQuery);
-            const timeoutMs = 10000; // 테스트는 10초 타임아웃
-            
-            await new Promise<void>((resolve, reject) => {
-                const options = {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Content-Length': Buffer.byteLength(postData)
-                    },
-                    timeout: timeoutMs
-                };
-                
-                const req = httpModule.request(url, options, (res) => {
-                    let responseData = '';
-                    
-                    res.on('data', (chunk) => {
-                        responseData += chunk;
-                    });
-                    
-                    res.on('end', () => {
-                        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-                            try {
-                                const parsed = JSON.parse(responseData);
-                                console.log(`[KataGo] HTTP API connection test successful! Response received for test query.`);
-                                resolve();
-                            } catch (parseError) {
-                                console.warn(`[KataGo] HTTP API connection test: Received response but failed to parse (this is OK for initialization):`, parseError);
-                                // 파싱 실패해도 연결은 성공한 것으로 간주
-                                resolve();
-                            }
-                        } else {
-                            console.warn(`[KataGo] HTTP API connection test: Received status ${res.statusCode} (this may be OK if API is still initializing)`);
-                            // 에러 상태여도 연결은 성공한 것으로 간주 (API가 아직 초기화 중일 수 있음)
-                            resolve();
-                        }
-                    });
-                });
-                
-                req.on('error', (error) => {
-                    console.warn(`[KataGo] HTTP API connection test failed (will retry on first analysis):`, error.message);
-                    // 연결 실패해도 서버는 계속 실행 (첫 분석 시 재시도)
-                    resolve();
-                });
-                
-                req.on('timeout', () => {
-                    console.warn(`[KataGo] HTTP API connection test timed out (will retry on first analysis)`);
-                    req.destroy();
-                    // 타임아웃해도 서버는 계속 실행 (첫 분석 시 재시도)
-                    resolve();
-                });
-                
-                req.write(postData);
-                req.end();
-            });
-            
-            console.log(`[KataGo] HTTP API is ready for analysis requests.`);
-        } catch (error: any) {
-            console.warn(`[KataGo] HTTP API connection test encountered an error (will retry on first analysis):`, error.message);
-            // 에러가 발생해도 서버는 계속 실행 (첫 분석 시 재시도)
-        }
-        
+        console.log(`[KataGo] HTTP API is ready for analysis requests.`);
+        // 연결 테스트는 제거 (첫 실제 분석 요청 시 자동으로 테스트됨)
         return;
     }
 

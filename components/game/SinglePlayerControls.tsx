@@ -210,7 +210,22 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     // 스캔 아이템
     const myScansLeft = session.scans_p1 ?? scanCountSetting;
     // 스캔 가능 여부 확인: 상대방(백)의 히든 스톤이 있고 아직 영구적으로 공개되지 않은 것이 있는지
+    // AI 초기 히든 돌도 확인 (미리 배치된 히든 돌)
     const canScan = React.useMemo(() => {
+        // AI 초기 히든 돌이 있고 아직 공개되지 않았는지 확인
+        const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
+        if (aiInitialHiddenStone) {
+            const { x, y } = aiInitialHiddenStone;
+            // 돌이 여전히 보드에 있고 영구적으로 공개되지 않았는지 확인
+            if (session.boardState[y]?.[x] === Player.White) {
+                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
+                if (!isPermanentlyRevealed) {
+                    return true; // AI 초기 히든 돌이 있으면 스캔 가능
+                }
+            }
+        }
+        
+        // 기존 로직: moveHistory의 히든 스톤 확인
         if (!session.hiddenMoves || !session.moveHistory) {
             return false;
         }
