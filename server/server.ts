@@ -307,6 +307,36 @@ const startServer = async () => {
     const server = http.createServer(app);
     createWebSocketServer(server);
 
+    // 서버 리스닝 상태를 전역으로 저장 (헬스체크용)
+    let isServerReady = false;
+    
+    // Health check endpoint (server 생성 직후 정의하여 클로저로 접근 가능)
+    app.get('/api/health', (req, res) => {
+        try {
+            // 서버가 리스닝 상태인지 확인
+            if (!server || !server.listening || !isServerReady) {
+                return res.status(503).json({ 
+                    status: 'starting',
+                    message: 'Server is still starting',
+                    listening: server?.listening || false,
+                    ready: isServerReady
+                });
+            }
+            
+            res.status(200).json({ 
+                status: 'ok', 
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                listening: server.listening
+            });
+        } catch (error) {
+            console.error('[Health Check] Error:', error);
+            if (!res.headersSent) {
+                res.status(500).json({ status: 'error' });
+            }
+        }
+    });
+
     server.on('error', (error: NodeJS.ErrnoException) => {
         if (error.code === 'EADDRINUSE') {
             console.error(`[Server] Port ${port} is already in use. Please stop the process using this port or use a different port.`);
@@ -314,12 +344,71 @@ const startServer = async () => {
             process.exit(1);
         } else {
             console.error('[Server] Server error:', error);
-            process.exit(1);
+            // Railway 환경에서는 즉시 종료하지 않고 graceful shutdown 시도
+            if (process.env.RAILWAY_ENVIRONMENT) {
+                console.error('[Server] Railway environment detected. Attempting graceful shutdown...');
+                gracefulShutdown(server).catch(err => {
+                    console.error('[Server] Error during graceful shutdown:', err);
+                    process.exit(1);
+                });
+            } else {
+                process.exit(1);
+            }
         }
+    });
+
+    // Graceful shutdown 함수
+    const gracefulShutdown = async (server: http.Server) => {
+        console.log('[Server] Initiating graceful shutdown...');
+        isServerReady = false;
+        
+        // 30초 내에 종료되지 않으면 강제 종료
+        const shutdownTimeout = setTimeout(() => {
+            console.error('[Server] Graceful shutdown timeout. Forcing exit...');
+            process.exit(1);
+        }, 30000);
+        
+        server.close(() => {
+            clearTimeout(shutdownTimeout);
+            console.log('[Server] HTTP server closed.');
+            process.exit(0);
+        });
+        
+        // WebSocket 서버 종료
+        try {
+            const { getWebSocketServer } = await import('./socket.js');
+            const wss = getWebSocketServer();
+            if (wss) {
+                wss.close(() => {
+                    console.log('[Server] WebSocket server closed.');
+                });
+            }
+        } catch (error) {
+            console.error('[Server] Error closing WebSocket server:', error);
+        }
+    };
+
+    // SIGTERM, SIGINT 시그널 처리 (Railway에서 컨테이너 종료 시)
+    process.on('SIGTERM', () => {
+        console.log('[Server] SIGTERM received. Initiating graceful shutdown...');
+        gracefulShutdown(server).catch(err => {
+            console.error('[Server] Error during graceful shutdown:', err);
+            process.exit(1);
+        });
+    });
+
+    process.on('SIGINT', () => {
+        console.log('[Server] SIGINT received. Initiating graceful shutdown...');
+        gracefulShutdown(server).catch(err => {
+            console.error('[Server] Error during graceful shutdown:', err);
+            process.exit(1);
+        });
     });
 
     server.listen(port, '0.0.0.0', async () => {
         console.log(`[Server] Server listening on port ${port}`);
+        isServerReady = true;
+        console.log('[Server] Server is ready and accepting connections');
         
         // Health check를 즉시 응답할 수 있도록 서버 리스닝 상태 확인
         // Railway는 서버가 리스닝을 시작하면 health check를 수행하므로,
@@ -998,15 +1087,7 @@ const startServer = async () => {
     scheduleMainLoop(1000);
     
     // --- API Endpoints ---
-    // Health check endpoint for deployment platforms (must be fast and lightweight)
-    app.get('/api/health', (req, res) => {
-        // Railway health check는 빠르게 응답해야 하므로 최소한의 작업만 수행
-        res.status(200).json({ 
-            status: 'ok', 
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime()
-        });
-    });
+    // Health check endpoint는 server 생성 직후에 정의됨 (위 참조)
 
     // 랭킹 API 엔드포인트
     app.get('/api/ranking/:type', async (req, res) => {

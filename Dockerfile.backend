@@ -140,9 +140,9 @@ USER nodejs
 
 EXPOSE 4000 4001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:4000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+# Health check - 더 긴 시작 시간과 타임아웃으로 서버 초기화 시간 확보
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
+  CMD node -e "require('http').get('http://localhost:4000/api/health', {timeout: 5000}, (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"
 
 CMD ["npm", "run", "start-server"]
 
