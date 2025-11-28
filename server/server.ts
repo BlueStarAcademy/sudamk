@@ -410,8 +410,17 @@ const startServer = async () => {
 
     server.listen(port, '0.0.0.0', async () => {
         console.log(`[Server] Server listening on port ${port}`);
+        console.log(`[Server] Process PID: ${process.pid}`);
+        console.log(`[Server] Node version: ${process.version}`);
         isServerReady = true;
         console.log('[Server] Server is ready and accepting connections');
+        console.log(`[Server] Railway environment: ${process.env.RAILWAY_ENVIRONMENT || 'not set'}`);
+        
+        // Keep-alive: 주기적으로 로그를 출력하여 프로세스가 살아있음을 확인
+        // Railway가 프로세스를 종료하지 않도록 하기 위함
+        setInterval(() => {
+            console.log(`[Server] Keep-alive: Server is running (uptime: ${Math.round(process.uptime())}s, PID: ${process.pid})`);
+        }, 300000); // 5분마다
         
         // Health check를 즉시 응답할 수 있도록 서버 리스닝 상태 확인
         // Railway는 서버가 리스닝을 시작하면 health check를 수행하므로,
@@ -2480,12 +2489,49 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 process.on('uncaughtException', (error: Error) => {
     console.error('[Server] Uncaught Exception:', error);
     console.error('[Server] Stack trace:', error.stack);
-    // Railway 환경에서는 자동 재시작되므로 종료
-    // 하지만 치명적인 에러가 아닌 경우에는 종료하지 않을 수도 있음
-    console.error('[Server] Railway environment detected. Process will be restarted by Railway.');
-    // Railway는 health check 실패 시 자동 재시작하므로, 여기서는 종료하지 않음
-    // 대신 에러를 로깅하고 계속 실행
+    console.error('[Server] Railway environment detected. Attempting to continue despite error...');
+    // Railway 환경에서는 치명적이지 않은 에러는 로깅만 하고 계속 실행
+    // 프로세스를 종료하지 않음 (Railway가 재시작하는 것을 방지)
 });
+
+// 프로세스 종료 감지 및 로깅
+process.on('exit', (code) => {
+    console.error(`[Server] Process exiting with code: ${code}`);
+    console.error(`[Server] Exit time: ${new Date().toISOString()}`);
+});
+
+process.on('SIGTERM', () => {
+    console.log('[Server] SIGTERM received. This is normal for Railway deployments.');
+});
+
+process.on('SIGINT', () => {
+    console.log('[Server] SIGINT received. This is normal for Railway deployments.');
+});
+
+// 프로세스가 종료되려고 할 때 감지
+process.on('beforeExit', (code) => {
+    console.error(`[Server] Process about to exit with code: ${code}`);
+    console.error(`[Server] BeforeExit time: ${new Date().toISOString()}`);
+});
+
+// 메모리 사용량 모니터링 (주기적으로 로그)
+if (process.env.RAILWAY_ENVIRONMENT) {
+    setInterval(() => {
+        const memUsage = process.memoryUsage();
+        const memUsageMB = {
+            rss: Math.round(memUsage.rss / 1024 / 1024),
+            heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+            heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+            external: Math.round(memUsage.external / 1024 / 1024)
+        };
+        console.log(`[Server] Memory usage: RSS=${memUsageMB.rss}MB, Heap=${memUsageMB.heapUsed}/${memUsageMB.heapTotal}MB`);
+        
+        // 메모리 사용량이 너무 높으면 경고
+        if (memUsageMB.rss > 500) {
+            console.warn(`[Server] WARNING: High memory usage detected: ${memUsageMB.rss}MB`);
+        }
+    }, 60000); // 1분마다
+}
 
 // Start server with error handling
 startServer().catch((error) => {
