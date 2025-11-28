@@ -40,16 +40,29 @@ const KATAGO_NN_MAX_BATCH_SIZE = parseInt(process.env.KATAGO_NN_MAX_BATCH_SIZE |
 // 배포 환경에서 KataGo HTTP API URL (환경 변수로 설정 가능)
 // 로컬 환경에서도 배포된 사이트의 KataGo를 사용할 수 있도록 DEPLOYED_SITE_URL 지원
 const DEPLOYED_SITE_URL = process.env.DEPLOYED_SITE_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
-let KATAGO_API_URL = process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '' 
-    ? process.env.KATAGO_API_URL.trim()
-    : (DEPLOYED_SITE_URL ? `${DEPLOYED_SITE_URL}/api/katago/analyze` : undefined);
+const IS_LOCAL = process.env.NODE_ENV !== 'production'; // 로컬 환경 확인
+
+// 로컬 환경에서는 항상 배포된 사이트의 KataGo를 사용하도록 설정
+let KATAGO_API_URL: string | undefined;
+if (IS_LOCAL) {
+    // 로컬 환경: 배포된 사이트의 KataGo 사용 (우선순위: KATAGO_API_URL > DEPLOYED_SITE_URL)
+    if (process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '') {
+        KATAGO_API_URL = process.env.KATAGO_API_URL.trim();
+    } else if (DEPLOYED_SITE_URL) {
+        KATAGO_API_URL = `${DEPLOYED_SITE_URL}/api/katago/analyze`;
+    }
+} else {
+    // 배포 환경: 환경 변수로 설정된 경우에만 HTTP API 사용
+    KATAGO_API_URL = process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '' 
+        ? process.env.KATAGO_API_URL.trim()
+        : (DEPLOYED_SITE_URL ? `${DEPLOYED_SITE_URL}/api/katago/analyze` : undefined);
+}
 
 // 프로토콜이 없으면 자동으로 https:// 추가 (Railway는 HTTPS를 사용)
 if (KATAGO_API_URL && !KATAGO_API_URL.match(/^https?:\/\//)) {
     KATAGO_API_URL = `https://${KATAGO_API_URL}`;
 }
 const USE_HTTP_API = !!KATAGO_API_URL && KATAGO_API_URL.trim() !== ''; // API URL이 설정되어 있으면 HTTP API 사용
-const IS_LOCAL = process.env.NODE_ENV !== 'production'; // 로컬 환경 확인
 
 const LETTERS = "ABCDEFGHJKLMNOPQRST";
 
@@ -607,12 +620,6 @@ export const getKataGoManager = (): KataGoManager => {
 export const initializeKataGo = async (): Promise<void> => {
     console.log(`[KataGo] Initialization check: IS_LOCAL=${IS_LOCAL}, USE_HTTP_API=${USE_HTTP_API}, KATAGO_API_URL=${KATAGO_API_URL || 'not set'}, NODE_ENV=${process.env.NODE_ENV}`);
     
-    // 로컬 환경에서는 KataGo 프로세스를 시작하지 않음
-    if (IS_LOCAL && !USE_HTTP_API) {
-        console.log('[KataGo] Local environment detected. Skipping KataGo initialization (will use HTTP API if KATAGO_API_URL is set).');
-        return;
-    }
-
     // HTTP API를 사용하는 경우 프로세스 초기화 불필요
     // 자기 자신의 /api/katago/analyze 엔드포인트로 연결 테스트하는 것은 순환 참조를 일으킬 수 있으므로 제거
     if (USE_HTTP_API) {
@@ -621,6 +628,12 @@ export const initializeKataGo = async (): Promise<void> => {
         console.log(`[KataGo] HTTP API is ready for analysis requests.`);
         // 연결 테스트는 제거 (첫 실제 분석 요청 시 자동으로 테스트됨)
         return;
+    }
+
+    // 로컬 환경에서도 로컬 프로세스를 사용할 수 있도록 허용
+    // (로컬에 KataGo binary와 모델 파일이 있는 경우)
+    if (IS_LOCAL) {
+        console.log('[KataGo] Local environment detected. Will attempt to use local KataGo process if available.');
     }
 
     // 배포 환경에서 로컬 프로세스 사용하는 경우에만 초기화
@@ -883,13 +896,11 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
             console.log(`[KataGo] Using HTTP API: ${KATAGO_API_URL}`);
             response = await queryKataGoViaHttp(query);
         } else {
-            // 로컬 환경에서는 HTTP API를 사용하도록 강제 (프로세스 사용 안 함)
+            // 로컬 환경에서는 항상 배포된 사이트의 KataGo API를 사용
             if (IS_LOCAL) {
-                // 로컬 환경에서 KATAGO_API_URL이 없으면 배포된 사이트의 KataGo API를 사용 시도
-                if (DEPLOYED_SITE_URL) {
-                    const fallbackApiUrl = `${DEPLOYED_SITE_URL}/api/katago/analyze`;
-                    console.log(`[KataGo] Local environment detected. Using deployed site KataGo API: ${fallbackApiUrl}`);
-                    response = await queryKataGoViaHttp(query, fallbackApiUrl);
+                if (KATAGO_API_URL) {
+                    console.log(`[KataGo] Local environment detected. Using deployed site KataGo API: ${KATAGO_API_URL}`);
+                    response = await queryKataGoViaHttp(query, KATAGO_API_URL);
                 } else {
                     throw new Error('KataGo is disabled in local environment. Please set KATAGO_API_URL or DEPLOYED_SITE_URL environment variable to use HTTP API.');
                 }
