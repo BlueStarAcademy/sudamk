@@ -166,6 +166,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     }, [summary, isWinner, isCleared, currentStage]);
     
     // summary가 있으면 summary 사용, 없으면 expectedRewards 사용
+    // summary가 나중에 도착하더라도 expectedRewards를 먼저 표시하여 0.5초 안에 보상 정보가 나타나도록 함
     const displaySummary = summary || expectedRewards;
     
     // 다음 층으로 갈 수 있는지 확인: 승리했고 다음 층이 있으면 다음 층으로 갈 수 있음

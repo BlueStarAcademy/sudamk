@@ -483,6 +483,19 @@ const startServer = async () => {
             
             // 만료된 negotiation 정리
             cleanupExpiredNegotiations(volatileState, now);
+            
+            // 만료된 메일 정리 (5일 지난 메일 자동 삭제)
+            if (now - (lastDailyTaskCheckAt || 0) >= DAILY_TASK_CHECK_INTERVAL_MS) {
+                const { deleteExpiredMails } = await import('./prisma/mailRepository.js');
+                try {
+                    const deletedCount = await deleteExpiredMails();
+                    if (deletedCount > 0) {
+                        console.log(`[MainLoop] Deleted ${deletedCount} expired mails`);
+                    }
+                } catch (error) {
+                    console.error('[MainLoop] Error deleting expired mails:', error);
+                }
+            }
 
             const activeGames = await db.getAllActiveGames();
             const originalGamesJson = activeGames.map(g => JSON.stringify(g));
@@ -928,10 +941,19 @@ const startServer = async () => {
                 }
             }
 
-            } catch (e) {
+            } catch (e: any) {
                 console.error('[FATAL] Unhandled error in main loop:', e);
+                console.error('[FATAL] Error stack:', e?.stack);
+                console.error('[FATAL] Error details:', {
+                    message: e?.message,
+                    name: e?.name,
+                    code: e?.code
+                });
+                // 에러가 발생해도 서버는 계속 실행되도록 함
+                // Railway의 health check가 실패하면 자동 재시작됨
             } finally {
                 isProcessingMainLoop = false;
+                // 에러 발생 시에도 다음 루프를 스케줄링 (서버가 계속 실행되도록)
                 scheduleMainLoop(1000);
             }
         }, delay);
@@ -943,11 +965,26 @@ const startServer = async () => {
     // --- API Endpoints ---
     // Health check endpoint for deployment platforms
     app.get('/api/health', (req, res) => {
-        res.status(200).json({ 
-            status: 'ok', 
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime()
-        });
+        try {
+            const memUsage = process.memoryUsage();
+            res.status(200).json({ 
+                status: 'ok', 
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                memory: {
+                    rss: Math.round(memUsage.rss / 1024 / 1024), // MB
+                    heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
+                    heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
+                    external: Math.round(memUsage.external / 1024 / 1024) // MB
+                }
+            });
+        } catch (error: any) {
+            console.error('[Health] Error in health check:', error);
+            res.status(500).json({ 
+                status: 'error', 
+                error: error.message 
+            });
+        }
     });
 
     // 랭킹 API 엔드포인트
@@ -1042,6 +1079,59 @@ const startServer = async () => {
                 total: 0,
                 cached: false,
                 error: 'Failed to fetch rankings'
+            });
+        }
+    });
+
+    // 도전의 탑 랭킹 API
+    app.get('/api/ranking/tower', async (req, res) => {
+        try {
+            const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false });
+            
+            // 1층 이상 클리어한 사람만 필터링
+            const eligibleUsers = allUsers
+                .filter(user => {
+                    const towerFloor = (user as any).towerFloor ?? 0;
+                    return towerFloor > 0;
+                })
+                .map(user => ({
+                    id: user.id,
+                    nickname: user.nickname,
+                    avatarId: user.avatarId,
+                    borderId: user.borderId,
+                    towerFloor: (user as any).towerFloor ?? 0,
+                    lastTowerClearTime: (user as any).lastTowerClearTime ?? Infinity
+                }));
+            
+            // 정렬: 층수 높은 순, 같은 층이면 먼저 클리어한 순 (lastTowerClearTime이 작을수록 먼저)
+            const sortedUsers = eligibleUsers.sort((a, b) => {
+                if (a.towerFloor !== b.towerFloor) {
+                    return b.towerFloor - a.towerFloor; // 층수 높은 순
+                }
+                // 같은 층이면 먼저 클리어한 순
+                return a.lastTowerClearTime - b.lastTowerClearTime;
+            });
+            
+            // 랭킹 추가
+            const rankings = sortedUsers.map((user, index) => ({
+                ...user,
+                rank: index + 1
+            }));
+            
+            res.json({
+                type: 'tower',
+                rankings,
+                total: rankings.length,
+                cached: false
+            });
+        } catch (error: any) {
+            console.error('[API/Ranking/Tower] Error:', error);
+            res.status(200).json({
+                type: 'tower',
+                rankings: [],
+                total: 0,
+                cached: false,
+                error: 'Failed to fetch tower rankings'
             });
         }
     });
@@ -2241,19 +2331,28 @@ const startServer = async () => {
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
     console.error('[Server] Unhandled Rejection at:', promise);
     console.error('[Server] Reason:', reason);
-    // 프로세스를 종료하지 않고 로그만 남김 (Railway에서 자동 재시작 방지)
+    if (reason instanceof Error) {
+        console.error('[Server] Error stack:', reason.stack);
+    }
+    // Railway 환경에서는 프로세스를 종료하지 않고 로그만 남김
+    // 하지만 심각한 에러인 경우 재시작을 위해 종료할 수도 있음
+    if (process.env.RAILWAY_ENVIRONMENT) {
+        // Railway에서는 자동 재시작되므로, 심각한 에러인 경우에만 종료
+        if (reason && typeof reason === 'object' && 'code' in reason && reason.code === 'ENOMEM') {
+            console.error('[Server] Out of memory error detected. Exiting for Railway restart.');
+            process.exit(1);
+        }
+    }
 });
 
 process.on('uncaughtException', (error: Error) => {
     console.error('[Server] Uncaught Exception:', error);
     console.error('[Server] Stack trace:', error.stack);
-    // 치명적인 에러인 경우에만 프로세스 종료
-    // Railway 환경에서는 자동 재시작되므로 종료하지 않음
-    if (process.env.RAILWAY_ENVIRONMENT) {
-        console.error('[Server] Railway environment detected. Process will be restarted by Railway.');
-    } else {
-        process.exit(1);
-    }
+    // Railway 환경에서는 자동 재시작되므로 종료
+    // 하지만 치명적인 에러가 아닌 경우에는 종료하지 않을 수도 있음
+    console.error('[Server] Railway environment detected. Process will be restarted by Railway.');
+    // Railway는 health check 실패 시 자동 재시작하므로, 여기서는 종료하지 않음
+    // 대신 에러를 로깅하고 계속 실행
 });
 
 // Start server with error handling

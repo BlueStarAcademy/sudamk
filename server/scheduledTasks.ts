@@ -1508,6 +1508,18 @@ export async function processTowerRankingRewards(): Promise<void> {
     
     const allUsers = await db.getAllUsers();
     
+    // 모든 유저를 1층으로 초기화
+    let resetCount = 0;
+    for (const user of allUsers) {
+        const previousTowerFloor = user.towerFloor ?? 0;
+        if (previousTowerFloor > 0) {
+            user.towerFloor = 1; // 모든 유저를 1층으로 초기화
+            user.lastTowerClearTime = undefined; // 클리어 시간 초기화
+            resetCount++;
+        }
+    }
+    console.log(`[TowerRankingReward] Reset ${resetCount} users' towerFloor to 1`);
+    
     // 최고 층수 기반 보상 정의
     const getRewardForFloor = (floor: number): { gold: number; diamonds: number; items: { itemId: string; quantity: number }[] } | null => {
         if (floor >= 100) {
@@ -1567,6 +1579,10 @@ export async function processTowerRankingRewards(): Promise<void> {
     for (const user of allUsers) {
         const monthlyTowerFloor = (user as any).monthlyTowerFloor ?? 0;
         
+        // towerFloor를 1층으로 초기화 (보상 지급 여부와 관계없이)
+        user.towerFloor = 1;
+        user.lastTowerClearTime = undefined;
+        
         if (monthlyTowerFloor < 10) {
             // 10층 미만은 보상 없음, monthlyTowerFloor 리셋만 수행
             (user as any).monthlyTowerFloor = 0;
@@ -1582,9 +1598,9 @@ export async function processTowerRankingRewards(): Promise<void> {
             continue;
         }
         
-        // 메일 생성
+        // 메일 생성 (5일 수령기간)
         const mailTitle = `도전의 탑 월간 보상 (${monthlyTowerFloor}층 클리어)`;
-        const mailMessage = `한 달 동안 ${monthlyTowerFloor}층을 클리어하셨습니다.\n\n보상이 지급되었습니다. 30일 이내에 수령해주세요.`;
+        const mailMessage = `한 달 동안 ${monthlyTowerFloor}층을 클리어하셨습니다.\n\n보상이 지급되었습니다. 5일 이내에 수령해주세요.`;
         
         const mail: types.Mail = {
             id: `mail-tower-monthly-${randomUUID()}`,
@@ -1597,7 +1613,7 @@ export async function processTowerRankingRewards(): Promise<void> {
                 items: reward.items
             },
             receivedAt: now,
-            expiresAt: now + 30 * 24 * 60 * 60 * 1000, // 30 days
+            expiresAt: now + 5 * 24 * 60 * 60 * 1000, // 5 days
             isRead: false,
             attachmentsClaimed: false,
         };
@@ -1605,8 +1621,10 @@ export async function processTowerRankingRewards(): Promise<void> {
         if (!user.mail) user.mail = [];
         user.mail.unshift(mail);
         
-        // monthlyTowerFloor 리셋
+        // monthlyTowerFloor 리셋 및 towerFloor를 1층으로 초기화
         (user as any).monthlyTowerFloor = 0;
+        user.towerFloor = 1; // 모든 유저를 1층으로 초기화
+        user.lastTowerClearTime = undefined; // 클리어 시간 초기화
         
         await db.updateUser(user);
         rewardCount++;

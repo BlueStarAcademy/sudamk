@@ -156,8 +156,10 @@ export const generateNewItem = (grade: ItemGrade, slot: EquipmentSlot, isDivineM
         stars: 0,
         enhancementFails: 0,
         isDivineMythic: isDivineMythic,
-        // refinementCount: getRandomInt(3, 10), // 제련 가능 횟수 3~10회 랜덤 부여 (타입에 없음)
-    };
+    } as any;
+    
+    // 제련 가능 횟수 3~10회 랜덤 부여
+    (newItem as any).refinementCount = getRandomInt(3, 10);
 
     return newItem;
 };

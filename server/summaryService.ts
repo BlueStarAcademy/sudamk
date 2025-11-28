@@ -346,8 +346,12 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     }
 
     // Always create a summary object, even on loss (with no rewards)
+    // 보상 지급 후 즉시 summary를 게임에 저장하여 클라이언트가 즉시 표시할 수 있도록 함
     if (!game.summary) game.summary = {};
     game.summary[user.id] = summary;
+    
+    // summary를 즉시 DB에 저장하여 클라이언트가 0.5초 안에 보상을 확인할 수 있도록 함
+    await db.saveGame(game);
     
     // Handle level up logic after potentially adding XP (승리 시에만)
     if (isWinner) {

@@ -76,45 +76,68 @@ const TowerLobby: React.FC = () => {
         return null;
     }
 
-    // 랭킹 계산: 1층 이상 클리어한 사람만, 층수 높은 순, 같은 층이면 먼저 클리어한 순
-    const { myRankingEntry, top100Users } = useMemo(() => {
-        const allUsersList = Object.values(allUsers || {})
-            .filter((user): user is UserWithStatus => {
-                if (!user || user === null || user === undefined) return false;
-                // 1층 이상 클리어한 사람만
-                const towerFloor = (user as any).towerFloor ?? 0;
-                return towerFloor > 0;
-            });
-        
-        // 정렬: 층수 높은 순, 같은 층이면 먼저 클리어한 순 (lastTowerClearTime이 작을수록 먼저)
-        const sortedUsers = allUsersList.sort((a, b) => {
-            const floorA = (a as any).towerFloor ?? 0;
-            const floorB = (b as any).towerFloor ?? 0;
-            
-            if (floorA !== floorB) {
-                return floorB - floorA; // 층수 높은 순
+    // 랭킹: 서버 API에서 가져오기
+    const [towerRankings, setTowerRankings] = useState<any[]>([]);
+    const [towerRankingsLoading, setTowerRankingsLoading] = useState(true);
+    
+    useEffect(() => {
+        const fetchTowerRankings = async () => {
+            try {
+                setTowerRankingsLoading(true);
+                const response = await fetch('/api/ranking/tower');
+                if (response.ok) {
+                    const data = await response.json();
+                    setTowerRankings(data.rankings || []);
+                } else {
+                    console.error('[TowerLobby] Failed to fetch tower rankings:', response.statusText);
+                    setTowerRankings([]);
+                }
+            } catch (error) {
+                console.error('[TowerLobby] Error fetching tower rankings:', error);
+                setTowerRankings([]);
+            } finally {
+                setTowerRankingsLoading(false);
             }
-            
-            // 같은 층이면 먼저 클리어한 순
-            const timeA = (a as any).lastTowerClearTime ?? Infinity;
-            const timeB = (b as any).lastTowerClearTime ?? Infinity;
-            return timeA - timeB;
-        });
+        };
+        
+        fetchTowerRankings();
+        // 10초마다 랭킹 갱신
+        const interval = setInterval(fetchTowerRankings, 10000);
+        return () => clearInterval(interval);
+    }, []);
+    
+    // 랭킹 계산: 서버에서 받은 랭킹 데이터 사용
+    const { myRankingEntry, top100Users } = useMemo(() => {
+        if (towerRankingsLoading || towerRankings.length === 0) {
+            return { myRankingEntry: null, top100Users: [] };
+        }
         
         // 내 아이디 찾기
-        const myEntry = sortedUsers.find(u => u.id === currentUser.id);
-        const myRank = myEntry ? sortedUsers.findIndex(u => u.id === currentUser.id) + 1 : null;
+        const myEntry = towerRankings.find((entry: any) => entry.id === currentUser.id);
         
         // Top 100 (내 아이디 제외)
-        const top100 = sortedUsers
-            .filter(u => u.id !== currentUser.id)
+        const top100 = towerRankings
+            .filter((entry: any) => entry.id !== currentUser.id)
             .slice(0, 100);
         
         return {
-            myRankingEntry: myEntry ? { ...myEntry, rank: myRank } : null,
-            top100Users: top100
+            myRankingEntry: myEntry ? { 
+                id: myEntry.id,
+                nickname: myEntry.nickname,
+                avatarId: myEntry.avatarId,
+                borderId: myEntry.borderId,
+                rank: myEntry.rank,
+                towerFloor: myEntry.towerFloor
+            } : null,
+            top100Users: top100.map((entry: any) => ({
+                id: entry.id,
+                nickname: entry.nickname,
+                avatarId: entry.avatarId,
+                borderId: entry.borderId,
+                towerFloor: entry.towerFloor
+            }))
         };
-    }, [allUsers, currentUser.id]);
+    }, [towerRankings, towerRankingsLoading, currentUser.id]);
 
     // 스테이지(층) 데이터 (1층부터 100층까지, 역순으로 표시하여 아래에서 위로 스크롤)
     const stages = Array.from({ length: 100 }, (_, i) => i + 1).reverse();
