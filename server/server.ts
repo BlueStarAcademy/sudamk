@@ -251,8 +251,10 @@ const startServer = async () => {
     // console.log(`[Server Startup] Bot scores update complete. ${botScoreUpdateCount} user(s) had their bot scores updated.`);
 
     const app = express();
-    console.log(`[Server] process.env.PORT: ${process.env.PORT}`);
+    // Railway는 PORT 환경 변수를 자동으로 설정함
+    // Railway의 경우 process.env.PORT를 사용해야 함
     const port = parseInt(process.env.PORT || '4000', 10);
+    console.log(`[Server] process.env.PORT: ${process.env.PORT || 'not set (using default 4000)'}`);
     console.log(`[Server] Using port: ${port}`);
 
     app.use(cors());
@@ -423,9 +425,11 @@ const startServer = async () => {
     });
 
     server.listen(port, '0.0.0.0', async () => {
+        console.log(`[Server] ========================================`);
         console.log(`[Server] Server listening on port ${port}`);
         console.log(`[Server] Process PID: ${process.pid}`);
         console.log(`[Server] Node version: ${process.version}`);
+        console.log(`[Server] Railway environment: ${process.env.RAILWAY_ENVIRONMENT || 'not set'}`);
         
         // 즉시 메모리 사용량 로그 출력 (크래시 진단용)
         const initialMemUsage = process.memoryUsage();
@@ -439,10 +443,8 @@ const startServer = async () => {
         
         isServerReady = true;
         console.log('[Server] Server is ready and accepting connections');
-        console.log(`[Server] Railway environment: ${process.env.RAILWAY_ENVIRONMENT || 'not set'}`);
-        
-        // 서버 시작 후 즉시 health check 로그 출력 (Railway health check 확인용)
         console.log('[Server] Health check endpoint is available at /api/health');
+        console.log(`[Server] ========================================`);
         
         // Keep-alive: 주기적으로 로그를 출력하여 프로세스가 살아있음을 확인
         // Railway가 프로세스를 종료하지 않도록 하기 위함
