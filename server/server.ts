@@ -189,9 +189,13 @@ const startServer = async () => {
         
         // --- Initialize Database on Start ---
         try {
+            // Railway 환경에서는 데이터베이스 연결이 더 오래 걸릴 수 있으므로 타임아웃 증가
+            const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway');
+            const timeoutDuration = isRailway ? 30000 : 10000; // Railway: 30초, 로컬: 10초
             const dbTimeout = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Database initialization timeout')), 5000);
+                setTimeout(() => reject(new Error(`Database initialization timeout after ${timeoutDuration}ms`)), timeoutDuration);
             });
+            console.log(`[Server Startup] Attempting database initialization (timeout: ${timeoutDuration}ms)...`);
             await Promise.race([db.initializeDatabase(), dbTimeout]);
             dbInitialized = true;
             console.log('[Server Startup] Database initialized successfully');

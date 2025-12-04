@@ -174,9 +174,9 @@ export const initializeDatabase = async () => {
     // 데이터베이스 연결 확인 및 재시도
     // Railway 환경에서는 데이터베이스가 시작되는 데 시간이 걸릴 수 있으므로 재시도 횟수와 간격 증가
     const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway');
-    const maxRetries = isRailway ? 5 : 3; // Railway: 5회로 감소 (빠른 실패)
-    const retryDelay = isRailway ? 3000 : 2000; // Railway: 3초, 로컬: 2초
-    const connectionTimeout = 5000; // 연결 타임아웃 5초
+    const maxRetries = isRailway ? 10 : 3; // Railway: 10회로 증가 (더 많은 재시도)
+    const retryDelay = isRailway ? 5000 : 2000; // Railway: 5초, 로컬: 2초
+    const connectionTimeout = isRailway ? 15000 : 5000; // Railway: 15초, 로컬: 5초
     let retries = maxRetries;
     let lastError: any = null;
     
