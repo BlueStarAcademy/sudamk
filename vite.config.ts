@@ -63,6 +63,27 @@ export default defineConfig({
     react(),
     filterProxyErrorsPlugin(),
   ],
+  resolve: {
+    // Node.js 모듈들을 브라우저 번들에서 제외
+    alias: {
+      'fs': false,
+      'path': false,
+      'child_process': false,
+      'express': false,
+      'cors': false,
+      'sqlite3': false,
+      'sqlite': false,
+    },
+  },
+  define: {
+    // require를 정의하지 않음 (브라우저 환경)
+    'require': undefined,
+    'global': 'globalThis',
+  },
+  optimizeDeps: {
+    // Node.js 전용 모듈들을 최적화에서 제외
+    exclude: ['fs', 'path', 'child_process', 'express', 'cors', 'sqlite3', 'sqlite'],
+  },
   server: {
     host: true, // This ensures Vite listens on all network interfaces
     hmr: {
