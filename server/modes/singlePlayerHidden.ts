@@ -55,8 +55,24 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
         }
         
         // 원래 경기 시간 복원 (턴 유지)
+<<<<<<< Updated upstream
         resumeGameTimer(game, now, timedOutPlayerEnum);
         console.log(`[updateSinglePlayerHiddenState] Turn maintained: player=${timedOutPlayerEnum}, gameId=${game.id}`);
+=======
+        if (game.settings.timeLimit > 0 && game.pausedTurnTimeLeft !== undefined) {
+            const currentPlayerTimeKey = timedOutPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            game[currentPlayerTimeKey] = game.pausedTurnTimeLeft;
+            game.turnDeadline = now + game[currentPlayerTimeKey] * 1000;
+            game.turnStartTime = now;
+            console.log(`[updateSinglePlayerHiddenState] Turn maintained: ${currentPlayerTimeKey}=${game[currentPlayerTimeKey]}, turnDeadline=${game.turnDeadline}, gameId=${game.id}`);
+        } else {
+            game.turnDeadline = undefined;
+            game.turnStartTime = undefined;
+        }
+>>>>>>> Stashed changes
+        
+        // 상태 변경을 표시하여 상위 함수에서 브로드캐스트하도록 함
+        (game as any)._itemTimeoutStateChanged = true;
         
         // 상태 변경을 표시하여 상위 함수에서 브로드캐스트하도록 함
         (game as any)._itemTimeoutStateChanged = true;
@@ -80,8 +96,20 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 
                 // 히든 아이템 사용 후 게임 상태 복원
                 game.gameStatus = 'playing';
+<<<<<<< Updated upstream
                 const myPlayerEnum = pendingCapture?.move.player || game.currentPlayer;
                 resumeGameTimer(game, now, myPlayerEnum);
+=======
+                game.itemUseDeadline = undefined;
+                if (game.pausedTurnTimeLeft) {
+                    const myPlayerEnum = pendingCapture?.move.player || game.currentPlayer;
+                    const currentPlayerTimeKey = myPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                    game[currentPlayerTimeKey] = game.pausedTurnTimeLeft;
+                    game.turnDeadline = now + game[currentPlayerTimeKey] * 1000;
+                    game.turnStartTime = now;
+                    game.pausedTurnTimeLeft = undefined;
+                }
+>>>>>>> Stashed changes
                 
                 if (pendingCapture) {
                     const myPlayerEnum = pendingCapture.move.player;
@@ -240,6 +268,7 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             if (!isMyTurn) {
                 console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT rejected: Not my turn - isMyTurn=${isMyTurn}, myPlayerEnum=${myPlayerEnum}, currentPlayer=${game.currentPlayer}`);
                 return { error: "Not your turn to use an item." };
+<<<<<<< Updated upstream
             }
             if (game.gameStatus !== 'playing') {
                 console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT rejected: Wrong game status - gameStatus=${game.gameStatus}`);
@@ -257,6 +286,30 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT: Changing gameStatus from ${game.gameStatus} to hidden_placing`);
             game.gameStatus = 'hidden_placing';
             pauseGameTimer(game, now, 30000);
+=======
+            }
+            if (game.gameStatus !== 'playing') {
+                console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT rejected: Wrong game status - gameStatus=${game.gameStatus}`);
+                return { error: "Not your turn to use an item." };
+            }
+            
+            // 히든 아이템 개수 확인
+            const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+            const currentHidden = game[hiddenKey] ?? 0;
+            if (currentHidden <= 0) {
+                console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT rejected: No hidden stones left - ${hiddenKey}=${currentHidden}`);
+                return { error: "No hidden stones left." };
+            }
+            
+            console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT: Changing gameStatus from ${game.gameStatus} to hidden_placing`);
+            game.gameStatus = 'hidden_placing';
+            if(game.turnDeadline) {
+                game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+            }
+            game.turnDeadline = undefined;
+            game.turnStartTime = undefined;
+            game.itemUseDeadline = now + 30000;
+>>>>>>> Stashed changes
             console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT: SUCCESS - gameStatus=${game.gameStatus}, itemUseDeadline=${game.itemUseDeadline}, ${hiddenKey}=${currentHidden}`);
             return {};
         case 'START_SCANNING':
@@ -264,6 +317,7 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             if (!isMyTurn) {
                 console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: Not my turn - isMyTurn=${isMyTurn}, myPlayerEnum=${myPlayerEnum}, currentPlayer=${game.currentPlayer}`);
                 return { error: "Not your turn to use an item." };
+<<<<<<< Updated upstream
             }
             if (game.gameStatus !== 'playing') {
                 console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: Wrong game status - gameStatus=${game.gameStatus}`);
@@ -272,6 +326,21 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             console.log(`[handleSinglePlayerHiddenAction] START_SCANNING: Changing gameStatus from ${game.gameStatus} to scanning`);
             game.gameStatus = 'scanning';
             pauseGameTimer(game, now, 30000);
+=======
+            }
+            if (game.gameStatus !== 'playing') {
+                console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: Wrong game status - gameStatus=${game.gameStatus}`);
+                return { error: "Not your turn to use an item." };
+            }
+            console.log(`[handleSinglePlayerHiddenAction] START_SCANNING: Changing gameStatus from ${game.gameStatus} to scanning`);
+            game.gameStatus = 'scanning';
+             if(game.turnDeadline) {
+                game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+            }
+            game.turnDeadline = undefined;
+            game.turnStartTime = undefined;
+            game.itemUseDeadline = now + 30000;
+>>>>>>> Stashed changes
             console.log(`[handleSinglePlayerHiddenAction] START_SCANNING: SUCCESS - gameStatus=${game.gameStatus}, itemUseDeadline=${game.itemUseDeadline}`);
             return {};
         case 'SCAN_BOARD':

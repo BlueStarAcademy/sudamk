@@ -432,11 +432,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     return;
                 }
                 
+<<<<<<< Updated upstream
                 // 검증 실패 시 돌을 놓지 않음 (바둑 규칙 준수)
                 if (!moveResult.isValid) {
                     console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - Invalid move blocked:`, moveResult.reason);
                     // TODO: 에러 메시지를 사용자에게 표시 (코 금지, 자충수, 이미 돌이 놓인 자리 등)
                     return;
+=======
+                // 패 위반은 허용하지 않음 (바둑 규칙)
+                if (!moveResult.isValid) {
+                    if (moveResult.reason === 'ko') {
+                        console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} game - Ko violation, move rejected:`, { x, y, koInfo: session.koInfo });
+                        return; // 패 위반 시 수를 두지 않음
+                    }
+                    // 패가 아닌 다른 위반은 조작 허용 (디버깅/테스트용)
+                    console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} game - Invalid move but forcing (cheating allowed):`, moveResult.reason);
+                    // 강제로 돌을 놓음
+                    const forcedBoardState = JSON.parse(JSON.stringify(boardStateToUse));
+                    forcedBoardState[y][x] = myPlayerEnum;
+                    moveResult = {
+                        isValid: true,
+                        newBoardState: forcedBoardState,
+                        capturedStones: [],
+                        newKoInfo: session.koInfo
+                    };
+>>>>>>> Stashed changes
                 }
                 
                 // 게임 상태 업데이트 (handlers를 통해, 서버로 전송하지 않음)

@@ -147,9 +147,83 @@ export async function buildRankingCache(): Promise<RankingCache> {
             // 빌드 완료 후 Promise를 null로 리셋하여 다음 빌드 허용
             buildingPromise = null;
         }
+<<<<<<< Updated upstream
     })();
     
     return buildingPromise;
+=======
+        
+        // 병렬로 여러 랭킹 계산 (combat은 별도 처리)
+        // 각 계산에 개별 에러 핸들링 추가 (하나 실패해도 다른 것들은 성공)
+        const [strategicRankings, playfulRankings, championshipRankings, mannerRankings, combatRankings, strategicSeasonRankings, playfulSeasonRankings] = await Promise.all([
+            Promise.resolve(calculateRanking(allUsers, SPECIAL_GAME_MODES, 'strategic', 'standard')).catch((err) => {
+                console.error('[RankingCache] Error calculating strategic rankings:', err);
+                return [];
+            }),
+            Promise.resolve(calculateRanking(allUsers, PLAYFUL_GAME_MODES, 'playful', 'playful')).catch((err) => {
+                console.error('[RankingCache] Error calculating playful rankings:', err);
+                return [];
+            }),
+            Promise.resolve(calculateChampionshipRankings(allUsers)).catch((err) => {
+                console.error('[RankingCache] Error calculating championship rankings:', err);
+                return [];
+            }),
+            Promise.resolve(calculateMannerRankings(allUsers)).catch((err) => {
+                console.error('[RankingCache] Error calculating manner rankings:', err);
+                return [];
+            }),
+            calculateCombatRankings(allUsers).catch((error) => {
+                // combat ranking 실패 시 빈 배열 반환 (서버 크래시 방지)
+                console.error('[RankingCache] Error calculating combat rankings:', error);
+                return [];
+            }),
+            Promise.resolve(calculateSeasonRanking(allUsers, SPECIAL_GAME_MODES, 'strategic')).catch((err) => {
+                console.error('[RankingCache] Error calculating strategic season rankings:', err);
+                return [];
+            }),
+            Promise.resolve(calculateSeasonRanking(allUsers, PLAYFUL_GAME_MODES, 'playful')).catch((err) => {
+                console.error('[RankingCache] Error calculating playful season rankings:', err);
+                return [];
+            })
+        ]);
+        
+        rankingCache = {
+            strategic: strategicRankings || [],
+            playful: playfulRankings || [],
+            championship: championshipRankings || [],
+            combat: combatRankings || [],
+            manner: mannerRankings || [],
+            strategicSeason: strategicSeasonRankings || [],
+            playfulSeason: playfulSeasonRankings || [],
+            timestamp: now
+        };
+        
+        const elapsed = Date.now() - startTime;
+        console.log(`[RankingCache] Ranking cache built in ${elapsed}ms (${allUsers.length} users)`);
+        
+        return rankingCache;
+    } catch (error) {
+        console.error('[RankingCache] Error building ranking cache:', error);
+        console.error('[RankingCache] Error stack:', (error as Error)?.stack);
+        // 에러 발생 시 기존 캐시 반환 또는 빈 캐시 반환
+        if (rankingCache) {
+            console.warn('[RankingCache] Returning stale cache due to error');
+            return rankingCache;
+        }
+        // 캐시가 없으면 빈 캐시 반환
+        const errorNow = Date.now();
+        return {
+            strategic: [],
+            playful: [],
+            championship: [],
+            combat: [],
+            manner: [],
+            strategicSeason: [],
+            playfulSeason: [],
+            timestamp: errorNow
+        };
+    }
+>>>>>>> Stashed changes
 }
 
 // 챔피언십 랭킹 계산 (던전 시스템: 최고 클리어 단계 기준)

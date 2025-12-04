@@ -181,6 +181,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             const { x, y, isHidden } = payload;
+<<<<<<< Updated upstream
             
             // 치명적 버그 방지: 패 위치(-1, -1)에 돌을 놓으려는 시도 차단
             if (x === -1 || y === -1) {
@@ -195,6 +196,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 return { error: `보드 범위를 벗어난 위치입니다. (${x}, ${y})는 유효하지 않습니다.` };
             }
             
+=======
+            console.log(`[handleStandardAction] PLACE_STONE: x=${x}, y=${y}, isHidden=${isHidden}, gameStatus=${game.gameStatus}, gameId=${game.id}`);
+>>>>>>> Stashed changes
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : (myPlayerEnum === types.Player.White ? types.Player.Black : types.Player.None);
             
             // 싱글플레이 모드에서는 서버의 실제 boardState를 기준으로 체크 (클라이언트 boardState를 신뢰하지 않음)
