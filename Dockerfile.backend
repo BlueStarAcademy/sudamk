@@ -38,8 +38,32 @@ ENV NODE_ENV=development
 # Suppress npm update notices
 RUN npm config set update-notifier false
 
-# Copy all source code (dependencies already installed in build-deps stage)
-COPY . .
+# Verify node_modules exists before copying source code
+RUN echo "=== Verifying node_modules before COPY ===" && \
+    (test -d node_modules && echo "=== node_modules exists ===" || (echo "ERROR: node_modules not found in build-deps stage" && exit 1)) && \
+    (test -d node_modules/vite && echo "=== vite package exists before COPY ===" || (echo "ERROR: vite not found before COPY" && ls -la node_modules/ | head -20 && exit 1))
+
+# Copy source code selectively (excluding node_modules via .dockerignore)
+# Copy essential files for Vite build
+COPY package.json package-lock.json ./
+COPY vite.config.ts tsconfig.json tsconfig.base.json ./
+COPY index.html ./
+COPY public ./public
+COPY components ./components
+COPY hooks ./hooks
+COPY utils ./utils
+COPY constants ./constants
+COPY types ./types
+COPY assets.ts ./
+COPY profanity.ts ./
+COPY server ./server
+COPY prisma ./prisma
+
+# Verify node_modules still exists after COPY
+RUN echo "=== Verifying node_modules after COPY ===" && \
+    (test -d node_modules && echo "=== node_modules still exists ===" || (echo "ERROR: node_modules lost after COPY" && exit 1)) && \
+    (test -d node_modules/vite && echo "=== vite package exists after COPY ===" || (echo "ERROR: vite not found after COPY" && ls -la node_modules/ | grep -i vite && exit 1)) && \
+    (test -f node_modules/.bin/vite && echo "=== vite binary exists after COPY ===" || (echo "ERROR: vite binary not found after COPY" && exit 1))
 
 # Generate Prisma client (DATABASE_URL not needed for generation, but prisma.config.ts requires it)
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
