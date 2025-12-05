@@ -68,6 +68,6 @@ export const BOSS_SKILL_ICON_MAP: Record<string, string> = {
 
 // Guild Research Images
 export const GUILD_ATTACK_ICON = "/images/guild/skill/attack.png";
-export const GUILD_RESEARCH_HEAL_BLOCK_IMG = "/images/guild/research/heal_block.png";
-export const GUILD_RESEARCH_IGNITE_IMG = "/images/guild/research/ignite.png";
-export const GUILD_RESEARCH_REGEN_IMG = "/images/guild/research/regen.png";
+export const GUILD_RESEARCH_HEAL_BLOCK_IMG = "/images/guild/lab/bosslab2.png";
+export const GUILD_RESEARCH_IGNITE_IMG = "/images/guild/lab/bosslab4.png";
+export const GUILD_RESEARCH_REGEN_IMG = "/images/guild/skill/userskill3.png";

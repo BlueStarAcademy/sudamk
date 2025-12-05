@@ -1951,13 +1951,6 @@ const startServer = async () => {
                 cached: false,
                 error: error?.message || 'Unknown error'
             });
-            res.status(200).json({
-                type: req.params.type,
-                rankings: [],
-                total: 0,
-                cached: false,
-                error: 'Failed to fetch rankings'
-            });
         }
     });
 

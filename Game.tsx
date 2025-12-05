@@ -432,31 +432,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     return;
                 }
                 
-<<<<<<< Updated upstream
                 // 검증 실패 시 돌을 놓지 않음 (바둑 규칙 준수)
                 if (!moveResult.isValid) {
                     console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - Invalid move blocked:`, moveResult.reason);
                     // TODO: 에러 메시지를 사용자에게 표시 (코 금지, 자충수, 이미 돌이 놓인 자리 등)
                     return;
-=======
-                // 패 위반은 허용하지 않음 (바둑 규칙)
-                if (!moveResult.isValid) {
-                    if (moveResult.reason === 'ko') {
-                        console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} game - Ko violation, move rejected:`, { x, y, koInfo: session.koInfo });
-                        return; // 패 위반 시 수를 두지 않음
-                    }
-                    // 패가 아닌 다른 위반은 조작 허용 (디버깅/테스트용)
-                    console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} game - Invalid move but forcing (cheating allowed):`, moveResult.reason);
-                    // 강제로 돌을 놓음
-                    const forcedBoardState = JSON.parse(JSON.stringify(boardStateToUse));
-                    forcedBoardState[y][x] = myPlayerEnum;
-                    moveResult = {
-                        isValid: true,
-                        newBoardState: forcedBoardState,
-                        capturedStones: [],
-                        newKoInfo: session.koInfo
-                    };
->>>>>>> Stashed changes
                 }
                 
                 // 게임 상태 업데이트 (handlers를 통해, 서버로 전송하지 않음)
@@ -1119,7 +1099,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     if (isSinglePlayer) {
         return (
-            <div className={`w-full h-dvh flex flex-col p-1 lg:p-2 relative max-w-full bg-single-player-background text-stone-200`}>
+            <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full bg-single-player-background text-stone-200`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
                 {showGameDescription && (
                     <SinglePlayerGameDescriptionModal 
                         session={session}
@@ -1216,13 +1196,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     if (isTower) {
         return (
             <div 
-                className={`w-full h-dvh flex flex-col p-1 lg:p-2 relative max-w-full text-stone-200`}
-                style={towerBackgroundImage ? {
-                    backgroundImage: `url(${towerBackgroundImage})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
-                } : {}}
+                className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full text-stone-200`}
+                style={{
+                    height: '100dvh',
+                    maxHeight: '100dvh',
+                    paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'env(safe-area-inset-bottom, 0px)' : '0px',
+                    ...(towerBackgroundImage ? {
+                        backgroundImage: `url(${towerBackgroundImage})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
+                    } : {})
+                }}
             >
                 {showTowerGameDescription && (
                     <SinglePlayerGameDescriptionModal 
@@ -1329,7 +1314,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [mode]);
 
     return (
-        <div className={`w-full h-dvh flex flex-col p-1 lg:p-2 relative max-w-full ${pvpBackgroundClass}`}>
+        <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full ${pvpBackgroundClass}`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
             {session.disconnectionState && <DisconnectionModal session={session} currentUser={currentUser} />}
             {session.gameStatus === 'scoring' && !session.analysisResult?.['system'] && (
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-30 pointer-events-none">

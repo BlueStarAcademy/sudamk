@@ -74,6 +74,109 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     const [alertModal, setAlertModal] = useState<{ title?: string; message: string } | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ title?: string; message: string; onConfirm: () => void } | null>(null);
     
+    // 게임 모드별 아이템 로직 (hooks 규칙 준수를 위해 early return 전에 선언)
+    const refreshesUsed = session.singlePlayerPlacementRefreshesUsed || 0;
+    const remainingRefreshes = Math.max(0, 5 - refreshesUsed);
+    const canRefresh = session.moveHistory.length === 0 && refreshesUsed < 5;
+    const costs = [0, 50, 75, 100, 200]; // 서버와 일치
+    const nextCost = costs[refreshesUsed] || 0;
+    const canAfford = currentUser.gold >= nextCost;
+    const refreshDisabled = !canRefresh || !canAfford;
+    
+    const hiddenCountSetting = session.settings.hiddenStoneCount ?? 0;
+    const scanCountSetting = session.settings.scanCount ?? 0;
+    const missileCountSetting = session.settings.missileCount ?? 0;
+    
+    const isHiddenMode = session.isSinglePlayer && hiddenCountSetting > 0;
+    const isMissileMode = session.isSinglePlayer && missileCountSetting > 0;
+    
+    const isMyTurn = session.currentPlayer === Player.Black; // 싱글플레이어에서는 유저가 항상 흑
+    const gameStatus = session.gameStatus;
+    
+    // 히든 아이템 (스캔 아이템처럼 개수 기반)
+    const hiddenLeft = session.hidden_stones_p1 ?? hiddenCountSetting;
+    const hiddenDisabled = !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
+    
+    const handleUseHidden = React.useCallback(() => {
+        if (gameStatus !== 'playing') return;
+        onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
+    }, [gameStatus, session.id, onAction]);
+    
+    // 스캔 아이템
+    const myScansLeft = session.scans_p1 ?? scanCountSetting;
+    // 스캔 가능 여부 확인: 상대방(백)의 히든 스톤이 있고 아직 영구적으로 공개되지 않은 것이 있는지
+    // AI 초기 히든 돌도 확인 (미리 배치된 히든 돌)
+    const canScan = React.useMemo(() => {
+        // AI 초기 히든 돌이 있고 아직 공개되지 않았는지 확인
+        const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
+        if (aiInitialHiddenStone) {
+            const { x, y } = aiInitialHiddenStone;
+            // 돌이 여전히 보드에 있고 영구적으로 공개되지 않았는지 확인
+            if (session.boardState[y]?.[x] === Player.White) {
+                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
+                if (!isPermanentlyRevealed) {
+                    return true; // AI 초기 히든 돌이 있으면 스캔 가능
+                }
+            }
+        }
+        
+        // 기존 로직: moveHistory의 히든 스톤 확인
+        if (!session.hiddenMoves || !session.moveHistory) {
+            return false;
+        }
+        // 상대방(백)의 히든 스톤 중 아직 영구적으로 공개되지 않은 것이 있는지 확인
+        return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
+            if (!isHidden) return false;
+            const move = session.moveHistory[parseInt(moveIndexStr)];
+            if (!move || move.player !== Player.White) return false;
+            const { x, y } = move;
+            // 돌이 여전히 보드에 있고 영구적으로 공개되지 않았는지 확인
+            if (session.boardState[y]?.[x] !== Player.White) return false;
+            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
+            return !isPermanentlyRevealed;
+        });
+    }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones]);
+    
+    const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan;
+    
+    const handleUseScan = React.useCallback(() => {
+        if (gameStatus !== 'playing') return;
+        onAction({ type: 'START_SCANNING', payload: { gameId: session.id } });
+    }, [gameStatus, session.id, onAction]);
+    
+    // 미사일 아이템
+    const myMissilesLeft = session.missiles_p1 ?? missileCountSetting;
+    const missileDisabled = !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
+    
+    const handleUseMissile = React.useCallback(() => {
+        if (gameStatus !== 'playing') return;
+        onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
+    }, [gameStatus, session.id, onAction]);
+    
+    const handleRefresh = React.useCallback(() => {
+        if (canRefresh && canAfford) {
+            const confirmationMessage = nextCost > 0
+                ? `${nextCost.toLocaleString()} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
+                : '첫 재배치는 무료입니다. 배치를 다시 섞으시겠습니까?';
+            setConfirmModal({
+                message: confirmationMessage,
+                onConfirm: () => {
+                    onAction({ type: 'SINGLE_PLAYER_REFRESH_PLACEMENT', payload: { gameId: session.id } });
+                }
+            });
+        }
+    }, [canRefresh, canAfford, nextCost, remainingRefreshes, session.id, onAction]);
+
+    const handleForfeit = React.useCallback(() => {
+        setConfirmModal({
+            title: '기권 확인',
+            message: '경기를 포기하시겠습니까?',
+            onConfirm: () => {
+                onAction({ type: 'RESIGN_GAME', payload: { gameId: session.id } });
+            }
+        });
+    }, [session.id, onAction]);
+    
     if (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') {
         const isWinner = session.winner === Player.Black;
         const currentStageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === session.stageId);
@@ -164,109 +267,6 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             </footer>
         );
     }
-    
-    const refreshesUsed = session.singlePlayerPlacementRefreshesUsed || 0;
-    const remainingRefreshes = Math.max(0, 5 - refreshesUsed);
-    const canRefresh = session.moveHistory.length === 0 && refreshesUsed < 5;
-    const costs = [0, 50, 75, 100, 200]; // 서버와 일치
-    const nextCost = costs[refreshesUsed] || 0;
-    const canAfford = currentUser.gold >= nextCost;
-    const refreshDisabled = !canRefresh || !canAfford;
-    
-    const handleRefresh = () => {
-        if (canRefresh && canAfford) {
-            const confirmationMessage = nextCost > 0
-                ? `${nextCost.toLocaleString()} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
-                : '첫 재배치는 무료입니다. 배치를 다시 섞으시겠습니까?';
-            setConfirmModal({
-                message: confirmationMessage,
-                onConfirm: () => {
-                    onAction({ type: 'SINGLE_PLAYER_REFRESH_PLACEMENT', payload: { gameId: session.id } });
-                }
-            });
-        }
-    };
-
-    const handleForfeit = () => {
-        setConfirmModal({
-            title: '기권 확인',
-            message: '경기를 포기하시겠습니까?',
-            onConfirm: () => {
-                onAction({ type: 'RESIGN_GAME', payload: { gameId: session.id } });
-            }
-        });
-    };
-
-    // 게임 모드별 아이템 로직
-    const hiddenCountSetting = session.settings.hiddenStoneCount ?? 0;
-    const scanCountSetting = session.settings.scanCount ?? 0;
-    const missileCountSetting = session.settings.missileCount ?? 0;
-    
-    const isHiddenMode = session.isSinglePlayer && hiddenCountSetting > 0;
-    const isMissileMode = session.isSinglePlayer && missileCountSetting > 0;
-    
-    const isMyTurn = session.currentPlayer === Player.Black; // 싱글플레이어에서는 유저가 항상 흑
-    const gameStatus = session.gameStatus;
-    
-    // 히든 아이템 (스캔 아이템처럼 개수 기반)
-    const hiddenLeft = session.hidden_stones_p1 ?? hiddenCountSetting;
-    const hiddenDisabled = !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
-    
-    const handleUseHidden = React.useCallback(() => {
-        if (gameStatus !== 'playing') return;
-        onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
-    }, [gameStatus, session.id, onAction]);
-    
-    // 스캔 아이템
-    const myScansLeft = session.scans_p1 ?? scanCountSetting;
-    // 스캔 가능 여부 확인: 상대방(백)의 히든 스톤이 있고 아직 영구적으로 공개되지 않은 것이 있는지
-    // AI 초기 히든 돌도 확인 (미리 배치된 히든 돌)
-    const canScan = React.useMemo(() => {
-        // AI 초기 히든 돌이 있고 아직 공개되지 않았는지 확인
-        const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
-        if (aiInitialHiddenStone) {
-            const { x, y } = aiInitialHiddenStone;
-            // 돌이 여전히 보드에 있고 영구적으로 공개되지 않았는지 확인
-            if (session.boardState[y]?.[x] === Player.White) {
-                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
-                if (!isPermanentlyRevealed) {
-                    return true; // AI 초기 히든 돌이 있으면 스캔 가능
-                }
-            }
-        }
-        
-        // 기존 로직: moveHistory의 히든 스톤 확인
-        if (!session.hiddenMoves || !session.moveHistory) {
-            return false;
-        }
-        // 상대방(백)의 히든 스톤 중 아직 영구적으로 공개되지 않은 것이 있는지 확인
-        return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
-            if (!isHidden) return false;
-            const move = session.moveHistory[parseInt(moveIndexStr)];
-            if (!move || move.player !== Player.White) return false;
-            const { x, y } = move;
-            // 돌이 여전히 보드에 있고 영구적으로 공개되지 않았는지 확인
-            if (session.boardState[y]?.[x] !== Player.White) return false;
-            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
-            return !isPermanentlyRevealed;
-        });
-    }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones]);
-    
-    const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan;
-    
-    const handleUseScan = React.useCallback(() => {
-        if (gameStatus !== 'playing') return;
-        onAction({ type: 'START_SCANNING', payload: { gameId: session.id } });
-    }, [gameStatus, session.id, onAction]);
-    
-    // 미사일 아이템
-    const myMissilesLeft = session.missiles_p1 ?? missileCountSetting;
-    const missileDisabled = !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
-    
-    const handleUseMissile = React.useCallback(() => {
-        if (gameStatus !== 'playing') return;
-        onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
-    }, [gameStatus, session.id, onAction]);
 
     return (
         <div className="bg-stone-800/70 backdrop-blur-sm rounded-xl p-3 flex items-stretch justify-between gap-4 w-full h-full border border-stone-700/50">

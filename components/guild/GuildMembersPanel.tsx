@@ -115,7 +115,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
         }
     };
     
-    const handleLeaveGuild = () => {
+    const handleLeaveGuild = async () => {
         if (myMemberInfo?.role === 'leader' && (guild.members?.length || 0) > 1) {
             alert('길드장이 길드를 떠나려면 먼저 다른 길드원에게 길드장을 위임해야 합니다.');
             return;
@@ -125,7 +125,23 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
             : '정말로 길드를 떠나시겠습니까?';
 
         if (window.confirm(confirmMessage)) {
-            handlers.handleAction({ type: 'GUILD_LEAVE' });
+            try {
+                // LEAVE_GUILD 또는 GUILD_LEAVE 둘 다 지원
+                const result: any = await handlers.handleAction({ 
+                    type: 'LEAVE_GUILD',
+                    payload: { guildId: guild.id }
+                });
+                
+                if (result?.error) {
+                    alert(result.error);
+                } else {
+                    // 성공 시 프로필로 리다이렉트 (useApp에서 길드 정보가 자동으로 제거됨)
+                    window.location.hash = '#/profile';
+                }
+            } catch (error: any) {
+                console.error('[GuildMembersPanel] Leave guild error:', error);
+                alert('길드 탈퇴 중 오류가 발생했습니다.');
+            }
         }
     };
 

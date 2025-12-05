@@ -613,12 +613,23 @@ export const listGuilds = async (searchQuery?: string, limit: number = 50): Prom
     try {
         let where: any = {};
         
-        // 검색 쿼리가 있으면 이름으로 검색 (대소문자 구분 없음)
+        // 검색 쿼리가 있으면 이름 또는 설명으로 검색 (대소문자 구분 없음)
         if (searchQuery && searchQuery.trim()) {
-            where.name = {
-                contains: searchQuery.trim(),
-                mode: 'insensitive' as const,
-            };
+            const trimmedQuery = searchQuery.trim();
+            where.OR = [
+                {
+                    name: {
+                        contains: trimmedQuery,
+                        mode: 'insensitive' as const,
+                    },
+                },
+                {
+                    description: {
+                        contains: trimmedQuery,
+                        mode: 'insensitive' as const,
+                    },
+                },
+            ];
         }
         
         console.log(`[listGuilds] Query: "${searchQuery}", limit: ${limit}, where:`, JSON.stringify(where));
@@ -632,27 +643,41 @@ export const listGuilds = async (searchQuery?: string, limit: number = 50): Prom
             orderBy: { createdAt: 'desc' },
         });
         
-        console.log(`[listGuilds] Found ${guilds.length} guild(s)`);
+        console.log(`[listGuilds] Found ${guilds.length} guild(s) from Prisma`);
         
-        return guilds.map(guild => {
-            const settings = (guild.settings as any) || {};
-            const isPublic = settings.isPublic !== undefined ? settings.isPublic : true; // 기본값: 공개
-            return {
-                id: guild.id,
-                name: guild.name,
-                leaderId: guild.leaderId,
-                description: guild.description || undefined,
-                emblem: guild.emblem || undefined,
-                settings: settings,
-                isPublic: isPublic,
-                gold: Number(guild.gold),
-                level: guild.level,
-                experience: Number(guild.experience),
-                createdAt: guild.createdAt.getTime(),
-                updatedAt: guild.updatedAt.getTime(),
-                memberCount: guild.members.length,
-            };
-        });
+        // 공개 길드만 필터링하여 반환
+        const publicGuilds = guilds
+            .map(guild => {
+                const settings = (guild.settings as any) || {};
+                const isPublic = settings.isPublic !== undefined ? settings.isPublic : true; // 기본값: 공개
+                return {
+                    guild,
+                    isPublic,
+                };
+            })
+            .filter(({ isPublic }) => isPublic !== false) // 공개 길드만
+            .map(({ guild }) => {
+                const settings = (guild.settings as any) || {};
+                return {
+                    id: guild.id,
+                    name: guild.name,
+                    leaderId: guild.leaderId,
+                    description: guild.description || undefined,
+                    emblem: guild.emblem || undefined,
+                    settings: settings,
+                    isPublic: settings.isPublic !== undefined ? settings.isPublic : true,
+                    gold: Number(guild.gold),
+                    level: guild.level,
+                    experience: Number(guild.experience),
+                    createdAt: guild.createdAt.getTime(),
+                    updatedAt: guild.updatedAt.getTime(),
+                    memberCount: guild.members.length,
+                };
+            });
+        
+        console.log(`[listGuilds] Returning ${publicGuilds.length} public guild(s) after filtering`);
+        
+        return publicGuilds;
     } catch (error) {
         console.error('[listGuilds] Error:', error);
         throw error;

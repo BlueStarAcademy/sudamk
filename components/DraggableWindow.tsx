@@ -164,23 +164,28 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         return adjustedHeight;
     }, [initialHeight, windowHeight, isMobile]);
 
-    useEffect(() => {
-        const handleResize = () => {
-            if (isMobile) {
-                setScale(1);
-                return;
-            }
-
-            // 뷰포트 기반 크기를 사용할 때는 스케일링 비활성화 (직접 크기 조정)
-            setScale(1);
-        };
-
-        window.addEventListener('resize', handleResize);
-        handleResize(); // Initial calculation
-
-        return () => window.removeEventListener('resize', handleResize);
-    }, [isMobile]);
-
+    // 모바일에서 PC 모달 구조를 그대로 사용하고 전체적으로 축소하는 스케일 팩터 계산
+    const mobileScaleFactor = useMemo(() => {
+        if (!isMobile) return 1.0;
+        
+        // PC 모달 크기를 그대로 사용
+        const baseWidth = initialWidth || 800;
+        const baseHeight = initialHeight || 600;
+        
+        // 화면 크기에서 여유 공간 제외 (좌우 10px씩, 상하 20px씩)
+        const availableWidth = windowWidth - 20;
+        const availableHeight = windowHeight - 40;
+        
+        // 가로/세로 비율에 맞춰서 스케일 계산
+        const scaleX = availableWidth / baseWidth;
+        const scaleY = availableHeight / baseHeight;
+        
+        // 더 작은 스케일을 사용하여 화면 안에 완전히 들어오도록 보장
+        const scale = Math.min(scaleX, scaleY);
+        
+        // 최소/최대 스케일 제한 (너무 작거나 크지 않도록)
+        return Math.max(0.25, Math.min(0.95, scale));
+    }, [isMobile, windowWidth, windowHeight, initialWidth, initialHeight]);
 
 
 
@@ -512,7 +517,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
             {modal && (
 
-                 <div className={`fixed inset-0 z-40 bg-black/50 ${!isTopmost ? 'backdrop-blur-sm' : ''}`} />
+                 <div className={`fixed inset-0 bg-black/50 ${!isTopmost ? 'backdrop-blur-sm' : ''}`} style={{ zIndex: zIndex - 1 }} />
 
             )}
 
@@ -524,17 +529,25 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
                 style={{
 
-                    width: isMobile ? '95vw' : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
+                    width: isMobile 
+                        ? (initialWidth ? `${initialWidth}px` : '800px')
+                        : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
 
-                    minWidth: isMobile ? '95vw' : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
+                    minWidth: isMobile 
+                        ? (initialWidth ? `${initialWidth}px` : '800px')
+                        : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
 
-                    maxWidth: isMobile ? '95vw' : 'calc(100vw - 40px)', // Re-enable maxWidth
+                    maxWidth: isMobile ? undefined : 'calc(100vw - 40px)',
 
-                    height: isMobile ? undefined : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)), // Use calculatedHeight or initialHeight
+                    height: isMobile 
+                        ? (initialHeight ? `${initialHeight}px` : '600px')
+                        : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
 
-                    maxHeight: isMobile ? '85vh' : '90vh',
+                    maxHeight: isMobile ? undefined : '90vh',
 
-                    transform: transformStyle,
+                    transform: isMobile 
+                        ? `translate(-50%, -50%) scale(${mobileScaleFactor})`
+                        : transformStyle,
 
                     transformOrigin: 'center',
 
@@ -589,7 +602,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
                 </div>
 
-                <div className={`flex-grow h-full overflow-hidden flex flex-col ${bodyPaddingClass}`}>
+                <div 
+                    className={`flex-grow h-full overflow-hidden flex flex-col ${bodyPaddingClass}`}
+                >
 
                     {children}
 

@@ -204,8 +204,8 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
     const rightStats = [CoreStat.Calculation, CoreStat.CombatPower, CoreStat.Stability];
 
     return (
-        <DraggableWindow title="능력치 포인트 분배" onClose={onClose} windowId="stat-allocation" initialWidth={isMobile ? 400 : 1000} isTopmost={isTopmost}>
-            <div className={`flex flex-col ${isMobile ? 'gap-2' : 'gap-4'} ${isMobile ? 'h-auto' : 'h-auto'} min-h-0 ${isMobile ? 'overflow-y-auto max-h-[calc(100vh-120px)]' : ''}`}>
+        <DraggableWindow title="능력치 포인트 분배" onClose={onClose} windowId="stat-allocation" initialWidth={1000} isTopmost={isTopmost}>
+            <div className={`flex flex-col gap-4 h-auto min-h-0`}>
                 {/* 상단: 보너스 포인트 표시 */}
                 <div className={`bg-gradient-to-r from-purple-900/60 via-indigo-900/60 to-blue-900/60 ${isMobile ? 'p-1.5' : 'p-3'} rounded-xl border border-purple-500/30 shadow-lg backdrop-blur-sm text-center flex-shrink-0`}>
                     <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-purple-200 mb-0.5`}>사용 가능한 보너스 포인트</p>

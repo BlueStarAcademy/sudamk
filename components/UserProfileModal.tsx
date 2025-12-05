@@ -142,7 +142,7 @@ interface UserProfileModalProps {
   isTopmost?: boolean;
 }
 
-const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful', isMobile?: boolean }> = ({ user, type, isMobile = false }) => {
+const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful' }> = ({ user, type }) => {
     const modes = type === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const stats = user.stats || {};
     
@@ -161,20 +161,18 @@ const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful', 
     
     const totalGames = totalWins + totalLosses;
     const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
-    const textSizeClass = isMobile ? 'text-sm' : 'text-xs';
-    const spacingClass = isMobile ? 'space-y-2' : 'space-y-1';
 
     return (
-        <div className={`${spacingClass} ${textSizeClass}`}>
-            <div className={`bg-gray-700/50 ${isMobile ? 'px-2 py-1.5' : 'px-1.5 py-1'} rounded-md text-center`}>
+        <div className="space-y-1 text-xs">
+            <div className="bg-gray-700/50 px-1.5 py-1 rounded-md text-center">
                 <span className="font-bold text-gray-100">총 전적: {totalWins}승 {totalLosses}패 ({winRate}%)</span>
             </div>
-            <div className={isMobile ? 'space-y-1.5' : 'space-y-1'}>
+            <div className="space-y-1">
                 {gameStats.map(stat => {
                     const gameTotal = stat.wins + stat.losses;
                     const gameWinRate = gameTotal > 0 ? Math.round((stat.wins / gameTotal) * 100) : 0;
                     return (
-                        <div key={stat.mode} className={`bg-gray-900/40 rounded ${isMobile ? 'px-2 py-1' : 'px-1.5 py-0.5'} flex items-center justify-between ${isMobile ? 'gap-2' : 'gap-1.5'}`}>
+                        <div key={stat.mode} className="bg-gray-900/40 rounded px-1.5 py-0.5 flex items-center justify-between gap-1.5">
                             <span className="font-semibold text-gray-200 truncate">{stat.mode}</span>
                             <span className="text-right text-gray-300 whitespace-nowrap">{stat.wins}승 {stat.losses}패 ({gameWinRate}%)</span>
                         </div>
@@ -266,130 +264,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const isMobile = windowWidth < MOBILE_BREAKPOINT;
-    const scale = isMobile ? Math.max(0.4, Math.min(1, (windowWidth - 24) / DESKTOP_WIDTH)) : 1;
     const containerWidth = DESKTOP_WIDTH;
-    const scaledWidth = containerWidth * scale;
-    const scaledHeight = 800 * scale; // 모바일 창 높이 증가 (640 -> 800)
-    // 모바일에서는 창 너비를 화면에 맞추되, 스케일된 컨텐츠가 모두 보이도록 여유 공간 확보
-    const windowWidthForMobile = isMobile ? windowWidth - 8 : containerWidth;
 
     return (
-        <DraggableWindow title={`${user.nickname}님의 프로필`} onClose={onClose} windowId={`view-user-${user.id}`} initialWidth={isMobile ? windowWidthForMobile : containerWidth} initialHeight={isMobile ? scaledHeight : 800} isTopmost={isTopmost}>
+        <DraggableWindow title={`${user.nickname}님의 프로필`} onClose={onClose} windowId={`view-user-${user.id}`} initialWidth={containerWidth} initialHeight={800} isTopmost={isTopmost}>
             {showMbtiHelp && <MbtiInfoModal onClose={() => setShowMbtiHelp(false)} isTopmost={true} />}
             {showMbtiComparison && <MbtiComparisonModal opponentUser={user} onClose={() => setShowMbtiComparison(false)} isTopmost={true} />}
-            {isMobile ? (
-                <div 
-                    className="flex justify-center items-start"
-                    style={{ 
-                        width: '100%',
-                        height: `${scaledHeight}px`,
-                        overflow: 'visible',
-                        padding: '0 10px'
-                    }}
-                >
-                    <div
-                        className="flex flex-row gap-4 flex-nowrap"
-                        style={{ 
-                            width: `${containerWidth}px`,
-                            height: '800px',
-                            transform: `scale(${scale})`,
-                            transformOrigin: 'top center',
-                            flexShrink: 0
-                        }}
-                    >
-                        {/* Left Column */}
-                        <div
-                            className="flex flex-col gap-3"
-                            style={{ width: '300px', flexShrink: 0, height: '100%' }}
-                        >
-                    <div className="bg-gray-800/50 rounded-lg p-4 flex flex-col items-center text-center flex-shrink-0">
-                        <Avatar userId={user.id} userName={nickname} size={80} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                        <h2 className="text-2xl font-bold mt-2">{nickname}</h2>
-                        <div className="flex items-center gap-2 text-base text-gray-400 mt-1">
-                            <span>매너: </span>
-                            <span className={`font-semibold ${mannerRank.color}`}>{totalMannerScore}점 ({mannerRank.rank})</span>
-                        </div>
-                         <div className="flex items-center gap-2 text-base text-gray-400 mt-1">
-                            <span>MBTI:</span>
-                            {user.mbti ? (
-                                <button
-                                    onClick={() => {
-                                        if (currentUserWithStatus?.mbti) {
-                                            setShowMbtiComparison(true);
-                                        } else {
-                                            setShowMbtiHelp(true);
-                                        }
-                                    }}
-                                    className="font-semibold text-gray-200 hover:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
-                                >
-                                    {user.mbti}
-                                    <span className="w-5 h-5 text-sm bg-gray-600 rounded-full text-white flex items-center justify-center hover:bg-gray-500">?</span>
-                                </button>
-                            ) : (
-                                <span className="font-semibold text-gray-200 flex items-center gap-1">
-                                    미설정
-                                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                                </span>
-                            )}
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2.5 mt-2 border border-gray-900">
-                            <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }}></div>
-                        </div>
-                    </div>
-
-                    {leagueData && (
-                        <div className="bg-gray-800/50 rounded-lg p-4 flex flex-col items-center text-center flex-shrink-0">
-                             <img src={leagueData.icon} alt={leagueData.name} className="w-16 h-16" />
-                             <h3 className="text-xl font-bold text-purple-300 mt-1">{leagueData.name}</h3>
-                             <p className="text-base text-gray-300 mt-1">누적 점수: {(user.cumulativeTournamentScore || 0).toLocaleString()} 점</p>
-                             {championshipRank !== null && (
-                                 <p className="text-base text-yellow-300 mt-1">전체 순위: {championshipRank}위</p>
-                             )}
-                        </div>
-                    )}
-
-                    <div className="bg-gray-800/50 rounded-lg p-3 flex-1 flex flex-col min-h-0">
-                        <div className="grid grid-cols-3 gap-2 w-full max-w-[240px] mx-auto mb-3 flex-shrink-0">
-                            <EquipmentSlotDisplay slot="fan" item={getItemForSlot('fan')} onClick={() => getItemForSlot('fan') && onViewItem(getItemForSlot('fan')!, false)} />
-                            <EquipmentSlotDisplay slot="board" item={getItemForSlot('board')} onClick={() => getItemForSlot('board') && onViewItem(getItemForSlot('board')!, false)} />
-                            <EquipmentSlotDisplay slot="top" item={getItemForSlot('top')} onClick={() => getItemForSlot('top') && onViewItem(getItemForSlot('top')!, false)} />
-                            <EquipmentSlotDisplay slot="bottom" item={getItemForSlot('bottom')} onClick={() => getItemForSlot('bottom') && onViewItem(getItemForSlot('bottom')!, false)} />
-                            <EquipmentSlotDisplay slot="bowl" item={getItemForSlot('bowl')} onClick={() => getItemForSlot('bowl') && onViewItem(getItemForSlot('bowl')!, false)} />
-                            <EquipmentSlotDisplay slot="stones" item={getItemForSlot('stones')} onClick={() => getItemForSlot('stones') && onViewItem(getItemForSlot('stones')!, false)} />
-                        </div>
-                        <div className="border-t border-gray-700 pt-3 flex-1 flex flex-col min-h-0">
-                            <div className="space-y-1 bg-gray-900/50 p-2 rounded-lg text-base flex-1 overflow-y-auto">
-                                {Object.entries(totalStats).map(([stat, value]) => (
-                                    <div key={stat} className="flex items-center justify-between text-gray-200">
-                                        <span>{CORE_STATS_DATA[stat as CoreStat]?.name || stat}</span>
-                                        <span className="font-mono text-right text-gray-100">{value}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right Column */}
-                <div className="flex flex-col gap-3" style={{ width: '560px', flexShrink: 0, height: '100%' }}>
-                     <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col" style={{ flex: '1 1 0', minHeight: 0 }}>
-                        <h4 className="font-semibold mb-2 text-blue-400 text-base flex-shrink-0">전략 전적</h4>
-                        <div className="flex-1 pr-1 overflow-y-auto min-h-0">
-                           <StatsTab user={user} type="strategic" isMobile={true} />
-                        </div>
-                     </div>
-                     <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col" style={{ flex: '1 1 0', minHeight: 0 }}>
-                        <h4 className="font-semibold mb-2 text-yellow-400 text-base flex-shrink-0">놀이 전적</h4>
-                        <div className="flex-1 pr-1 overflow-y-auto min-h-0">
-                           <StatsTab user={user} type="playful" isMobile={true} />
-                        </div>
-                     </div>
-                </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="flex flex-col md:flex-row gap-3 h-full">
+            <div className="flex flex-col md:flex-row gap-3 h-full">
                     {/* Left Column */}
                     <div className="w-full md:w-1/3 flex-shrink-0 flex flex-col gap-3">
                         <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col items-center text-center">
@@ -476,7 +357,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                         </div>
                     </div>
                 </div>
-            )}
         </DraggableWindow>
     );
 };

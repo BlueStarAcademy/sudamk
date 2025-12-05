@@ -636,21 +636,10 @@ export const initializeKataGo = async (): Promise<void> => {
         return;
     }
 
-<<<<<<< Updated upstream
     // 로컬 환경에서도 로컬 프로세스를 사용할 수 있도록 허용
     // (로컬에 KataGo binary와 모델 파일이 있는 경우)
     if (IS_LOCAL) {
         console.log('[KataGo] Local environment detected. Will attempt to use local KataGo process if available.');
-=======
-    // HTTP API를 사용하는 경우 프로세스 초기화 불필요
-    // 자기 자신의 /api/katago/analyze 엔드포인트로 연결 테스트하는 것은 순환 참조를 일으킬 수 있으므로 제거
-    if (USE_HTTP_API) {
-        console.log(`[KataGo] Using HTTP API: ${KATAGO_API_URL}`);
-        console.log(`[KataGo] HTTP API mode: KataGo analysis will be performed via HTTP requests to ${KATAGO_API_URL}`);
-        console.log(`[KataGo] HTTP API is ready for analysis requests.`);
-        // 연결 테스트는 제거 (첫 실제 분석 요청 시 자동으로 테스트됨)
-        return;
->>>>>>> Stashed changes
     }
 
     // 배포 환경에서 로컬 프로세스 사용하는 경우에만 초기화

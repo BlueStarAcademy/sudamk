@@ -87,15 +87,17 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
                     const author = allUsers?.find(u => u.id === message.authorId);
                     return (
                         <div key={message.id} className="flex gap-3 p-2 hover:bg-gray-800/50 rounded">
-                            <Avatar userId={message.authorId} userName={author?.nickname || 'Unknown'} size={32} />
+                            <Avatar userId={message.authorId} userName={message.authorId === 'system' ? '시스템' : (author?.nickname || 'Unknown')} size={32} />
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold text-white">{author?.nickname || 'Unknown'}</span>
+                                    <span className={`text-sm font-semibold ${message.authorId === 'system' ? 'text-blue-400' : 'text-white'}`}>
+                                        {message.authorId === 'system' ? '시스템' : (author?.nickname || 'Unknown')}
+                                    </span>
                                     <span className="text-xs text-gray-500">
                                         {new Date(message.createdAt).toLocaleTimeString()}
                                     </span>
                                 </div>
-                                <p className="text-white text-sm mt-1">{message.content}</p>
+                                <p className={`text-sm mt-1 ${message.authorId === 'system' ? 'text-blue-300' : 'text-white'}`}>{message.content}</p>
                             </div>
                         </div>
                     );

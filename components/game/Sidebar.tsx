@@ -276,17 +276,30 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
 export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoContestLeaveAvailable'>> = (props) => {
     const { session, isSpectator, onAction, waitingRoomChat, gameChat, onClose, onViewUser } = props;
     const { mode } = session;
-    const { currentUserWithStatus, handlers, allUsers } = useAppContext();
+    const { currentUserWithStatus, handlers, allUsers, guilds } = useAppContext();
     const isAiGame = session.isAiGame;
 
-    const [activeTab, setActiveTab] = useState<'game' | 'global'>(isAiGame ? 'global' : 'game');
+    const [activeTab, setActiveTab] = useState<'game' | 'global' | 'guild'>(isAiGame ? 'global' : 'game');
+    const [guildMessages, setGuildMessages] = useState<any[]>([]);
     const [chatInput, setChatInput] = useState('');
     const [showQuickChat, setShowQuickChat] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const quickChatRef = useRef<HTMLDivElement>(null);
     const chatBodyRef = useRef<HTMLDivElement>(null);
 
-    const activeChatMessages = activeTab === 'game' ? gameChat : waitingRoomChat;
+    // 길드 채팅 메시지 로드
+    useEffect(() => {
+        if (currentUserWithStatus?.guildId && guilds[currentUserWithStatus.guildId]) {
+            const guild = guilds[currentUserWithStatus.guildId];
+            if (guild.chatHistory) {
+                setGuildMessages(guild.chatHistory);
+            }
+        } else {
+            setGuildMessages([]);
+        }
+    }, [currentUserWithStatus?.guildId, guilds]);
+
+    const activeChatMessages = activeTab === 'game' ? gameChat : (activeTab === 'guild' ? guildMessages : waitingRoomChat);
     
     useEffect(() => { if (chatBodyRef.current) chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight; }, [activeChatMessages]);
 
@@ -325,14 +338,19 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     const handleSend = (message: { text?: string, emoji?: string }) => {
         if(isSpectator || cooldown > 0) return;
         
-        const channel = activeTab === 'game' ? session.id : 'global';
-        const payload: any = { channel, ...message };
+        if (activeTab === 'guild') {
+            // 길드 채팅 전송
+            handlers.handleAction({ type: 'SEND_GUILD_CHAT_MESSAGE', payload: { content: message.text || '' } });
+        } else {
+            const channel = activeTab === 'game' ? session.id : 'global';
+            const payload: any = { channel, ...message };
 
-        if (channel === 'global') {
-            payload.location = locationPrefix;
+            if (channel === 'global') {
+                payload.location = locationPrefix;
+            }
+
+            onAction({ type: 'SEND_CHAT_MESSAGE', payload });
         }
-
-        onAction({ type: 'SEND_CHAT_MESSAGE', payload });
         setShowQuickChat(false); setChatInput('');
         setCooldown(5);
     };
@@ -371,18 +389,51 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     return (
         <div className="flex flex-col h-full bg-gray-800 p-2 rounded-md border border-color">
             {isAiGame ? (
-                <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300 flex-shrink-0">전체채팅</h3>
+                currentUserWithStatus?.guildId ? (
+                    <div className="flex bg-gray-900/70 p-1 rounded-lg mb-2 flex-shrink-0">
+                        <button onClick={() => setActiveTab('global')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>전체채팅</button>
+                        <button onClick={() => setActiveTab('guild')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>길드채팅</button>
+                    </div>
+                ) : (
+                    <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300 flex-shrink-0">전체채팅</h3>
+                )
             ) : (
                 <div className="flex bg-gray-900/70 p-1 rounded-lg mb-2 flex-shrink-0">
-                    <button onClick={() => setActiveTab('game')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'game' ? 'bg-blue-600' : 'text-gray-400'}`}>대국실</button>
-                    <button onClick={() => setActiveTab('global')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'global' ? 'bg-blue-600' : 'text-gray-400'}`}>전체채팅</button>
+                    <button onClick={() => setActiveTab('game')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'game' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>대국실</button>
+                    <button onClick={() => setActiveTab('global')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>전체채팅</button>
+                    {currentUserWithStatus?.guildId && (
+                        <button onClick={() => setActiveTab('guild')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>길드채팅</button>
+                    )}
                 </div>
             )}
             <div ref={chatBodyRef} className="flex-grow space-y-1 overflow-y-auto pr-2 mb-2 bg-gray-900/40 p-1.5 rounded-md min-h-0">
-                {activeChatMessages.map(msg => {
-                    const isBotMessage = msg.system && !msg.actionInfo && msg.user.nickname === 'AI 보안관봇';
-                    return (
-                        <div key={msg.id} className="text-sm">
+                {activeTab === 'guild' ? (
+                    // 길드 채팅 메시지 표시 (파란색)
+                    activeChatMessages.length > 0 ? (
+                        activeChatMessages.map((msg: any) => {
+                            const senderId = msg.user?.id || msg.authorId;
+                            const sender = senderId && senderId !== 'system' ? allUsers.find(u => u.id === senderId) : undefined;
+                            const isSystem = senderId === 'system';
+                            
+                            return (
+                                <div key={msg.id || msg.timestamp || msg.createdAt} className="text-sm">
+                                    <span className={`font-semibold pr-2 ${isSystem ? 'text-blue-400' : 'text-blue-300 cursor-pointer hover:underline'}`}>
+                                        {isSystem ? '시스템' : (sender?.nickname || 'Unknown')}:
+                                    </span>
+                                    <span className="text-blue-300">{msg.text || msg.content || ''}</span>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-tertiary text-sm">길드 채팅 메시지가 없습니다.</div>
+                    )
+                ) : (
+                    // 전체 채팅 메시지 표시
+                    <>
+                        {activeChatMessages.map(msg => {
+                            const isBotMessage = msg.system && !msg.actionInfo && msg.user.nickname === 'AI 보안관봇';
+                            return (
+                                <div key={msg.id} className="text-sm">
                             {msg.actionInfo ? (
                                 <>
                                     <span className="font-semibold text-gray-400 pr-2">{msg.user.nickname}:</span>
@@ -490,13 +541,15 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                                         
                                         return <span className={isBotMessage ? 'text-yellow-400' : ''}>{parts}{isBotMessage && ' 🚓'}</span>;
                                     })()}
-                                    {msg.emoji && <span className="text-xl">{msg.emoji}</span>}
-                                </>
-                            )}
-                        </div>
-                    );
-                })}
-                {activeChatMessages.length === 0 && <div className="h-full flex items-center justify-center text-gray-500 text-sm">채팅 메시지가 없습니다.</div>}
+                                        {msg.emoji && <span className="text-xl">{msg.emoji}</span>}
+                                    </>
+                                )}
+                            </div>
+                        );
+                        })}
+                        {activeChatMessages.length === 0 && <div className="h-full flex items-center justify-center text-gray-500 text-sm">채팅 메시지가 없습니다.</div>}
+                    </>
+                )}
             </div>
             {!isSpectator && (
                 <div className="relative flex-shrink-0">

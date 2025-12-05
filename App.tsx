@@ -180,10 +180,11 @@ const AppContent: React.FC = () => {
     
     return (
         <div className={`font-sans ${backgroundClass} text-primary flex flex-col`} style={{ 
+            minHeight: isMobile ? '100dvh' : '100vh',
             height: isMobile ? '100dvh' : '100vh',
-            maxHeight: isMobile ? '100dvh' : '100vh',
-            minHeight: 0,
-            overflow: 'hidden'
+            width: '100%',
+            overflow: 'hidden',
+            paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : '0px'
         }}>
             {isPreloading && (
                 <div className="fixed inset-0 bg-tertiary z-[100] flex flex-col items-center justify-center">
@@ -201,8 +202,11 @@ const AppContent: React.FC = () => {
             
             {currentUser ? (
                 <main className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden" style={{ 
-                    paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
-                    WebkitOverflowScrolling: 'touch'
+                    flex: '1 1 0',
+                    minHeight: 0,
+                    paddingBottom: isMobile ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
+                    WebkitOverflowScrolling: 'touch',
+                    marginBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : '0px'
                 }}>
                     <Router />
                 </main>

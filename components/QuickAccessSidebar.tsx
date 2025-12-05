@@ -16,12 +16,11 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({ mobile = false,
     }
 
     const hasUnreadMail = unreadMailCount > 0;
-    const blacksmithLevel = currentUserWithStatus?.blacksmithLevel ?? 1;
 
     const allButtons = [
         { label: '퀘스트', iconUrl: '/images/quickmenu/quest.png', handler: handlers.openQuests, disabled: false, notification: hasClaimableQuest },
         { label: '기보', iconUrl: '/images/quickmenu/gibo.png', handler: handlers.openGameRecordList, disabled: false, notification: false },
-        { label: `대장간 Lv.${blacksmithLevel}`, iconUrl: '/images/quickmenu/enhance.png', handler: handlers.openBlacksmithModal, disabled: false, notification: false },
+        { label: '대장간', iconUrl: '/images/quickmenu/enhance.png', handler: handlers.openBlacksmithModal, disabled: false, notification: false },
         { label: '상점', iconUrl: '/images/quickmenu/store.png', handler: handlers.openShop, disabled: false, notification: false },
         { label: '가방', iconUrl: '/images/quickmenu/bag.png', handler: handlers.openInventory, disabled: false, notification: false },
     ];
@@ -33,11 +32,13 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({ mobile = false,
         : `bg-panel rounded-lg p-2 flex flex-col justify-around gap-2 ${fillHeight ? 'h-full' : ''}`;
     
     const buttonClass = mobile
-        ? "flex flex-col items-center justify-center p-1 rounded-md w-14 h-14 bg-gray-700/50 hover:bg-gray-600/50"
-        : `flex flex-col items-center justify-center p-1 rounded-lg w-full bg-gray-700/50 hover:bg-gray-600/50`;
+        ? "flex flex-col items-center justify-center p-2 rounded-lg w-16 h-16 bg-gradient-to-br from-gray-700/80 via-gray-600/70 to-gray-700/80 hover:from-gray-600/90 hover:via-gray-500/80 hover:to-gray-600/90 border-2 border-gray-500/50 hover:border-gray-400/70 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95"
+        : compact
+        ? `flex flex-col items-center justify-center p-2 rounded-lg w-full bg-gradient-to-br from-gray-700/80 via-gray-600/70 to-gray-700/80 hover:from-gray-600/90 hover:via-gray-500/80 hover:to-gray-600/90 border-2 border-gray-500/50 hover:border-gray-400/70 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`
+        : `flex flex-col items-center justify-center p-3 rounded-xl w-full bg-gradient-to-br from-gray-700/90 via-gray-600/80 to-gray-700/90 hover:from-gray-600/95 hover:via-gray-500/85 hover:to-gray-600/95 border-2 border-gray-500/60 hover:border-gray-400/80 shadow-lg hover:shadow-2xl transition-all duration-200 transform hover:scale-105 active:scale-95`;
     
-    const iconSize = mobile ? "w-6 h-6 object-contain" : compact ? "w-8 h-8 object-contain" : "w-8 h-8 object-contain";
-    const labelSize = mobile ? "text-[10px] mt-1" : compact ? "text-[10px] mt-1" : "text-xs mt-1";
+    const iconSize = mobile ? "w-7 h-7 object-contain drop-shadow-md" : compact ? "w-9 h-9 object-contain drop-shadow-md" : "w-10 h-10 object-contain drop-shadow-lg";
+    const labelSize = mobile ? "text-[11px] mt-1.5 font-semibold text-gray-200" : compact ? "text-[11px] mt-1.5 font-semibold text-gray-200" : "text-sm mt-2 font-bold text-gray-100";
     
     const notificationDotClass = mobile
         ? "absolute top-1 right-1 bg-red-500 rounded-full w-2.5 h-2.5 border-2 border-gray-800"

@@ -76,15 +76,23 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             if (!user.isAdmin) {
                 user.diamonds -= cost;
             }
-            user.nickname = newNickname;
+            user.nickname = newNickname.trim();
             
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'CHANGE_NICKNAME');
             
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-            db.updateUser(user).catch(err => {
+            // DB 업데이트 시 unique 제약 조건 위반 에러 처리
+            try {
+                await db.updateUser(user);
+            } catch (err: any) {
+                // Prisma unique 제약 조건 위반 시 에러 처리
+                if (err.code === 'P2002' || err.message?.includes('Unique constraint') || err.message?.includes('UNIQUE constraint')) {
+                    console.error(`[UserAction] Nickname conflict detected for ${user.id}:`, err);
+                    return { error: '이미 사용 중인 닉네임입니다.' };
+                }
                 console.error(`[UserAction] Failed to save user ${user.id} after CHANGE_NICKNAME:`, err);
-            });
+                throw err;
+            }
             
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');

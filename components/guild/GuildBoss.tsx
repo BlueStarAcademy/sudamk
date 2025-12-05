@@ -19,6 +19,7 @@ import { calculateTotalStats, calculateUserEffects } from '../../utils/statUtils
 import Avatar from '../Avatar.js';
 import { GUILD_ATTACK_ICON, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_REGEN_IMG } from '../../assets.js';
 import RadarChart from '../RadarChart.js';
+import GuildBossBattleResultModal from './GuildBossBattleResultModal.js';
 
 const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { chance?: number; description: string; } | null => {
     if (level === 0) return null;
@@ -451,6 +452,9 @@ const GuildBoss: React.FC = () => {
     const [bossDamageNumbers, setBossDamageNumbers] = useState<{ id: number; text: string; color: string; isHeal: boolean; isCrit?: boolean }[]>([]);
     const [currentBattleDamage, setCurrentBattleDamage] = useState(0);
     const [activeDebuffs, setActiveDebuffs] = useState<Record<string, { value: number; turns: number }>>({});
+    const [showResultModal, setShowResultModal] = useState(false);
+    const [battleResult, setBattleResult] = useState<GuildBossBattleResult & { bossName: string; previousRank?: number; currentRank?: number } | null>(null);
+    const [previousRank, setPreviousRank] = useState<number | null>(null);
 
     
     const userLogContainerRef = useRef<HTMLDivElement>(null);
@@ -528,8 +532,30 @@ const GuildBoss: React.FC = () => {
         if (!isSimulating || !simulationResult) return;
 
         if (logIndex >= simulationResult.battleLog.length) {
-            const timer = setTimeout(() => {
-                handlers.handleAction({ type: 'START_GUILD_BOSS_BATTLE', payload: { bossId: currentBoss.id, result: { ...simulationResult, damageDealt: currentBattleDamage }, bossName: currentBoss.name } });
+            const timer = setTimeout(async () => {
+                // 현재 순위 계산 (보스전 전)
+                const currentRanking = Object.entries(myGuild?.guildBossState?.totalDamageLog || {})
+                    .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
+                    .sort((a, b) => b.damage - a.damage);
+                const prevRank = currentRanking.findIndex(r => r.userId === currentUserWithStatus?.id) + 1;
+                setPreviousRank(prevRank > 0 ? prevRank : null);
+
+                const finalResult = { ...simulationResult, damageDealt: currentBattleDamage, bossName: currentBoss.name };
+                const actionResult = await handlers.handleAction({ type: 'START_GUILD_BOSS_BATTLE', payload: { bossId: currentBoss.id, result: finalResult, bossName: currentBoss.name } });
+                
+                // 보스전 후 순위 계산
+                const updatedGuild = (actionResult as any)?.clientResponse?.guilds?.[myGuild.id] || myGuild;
+                const updatedRanking = Object.entries(updatedGuild?.guildBossState?.totalDamageLog || {})
+                    .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
+                    .sort((a, b) => b.damage - a.damage);
+                const newRank = updatedRanking.findIndex(r => r.userId === currentUserWithStatus?.id) + 1;
+                
+                setBattleResult({ 
+                    ...finalResult, 
+                    previousRank: prevRank > 0 ? prevRank : null, 
+                    currentRank: newRank > 0 ? newRank : null 
+                });
+                setShowResultModal(true);
                 setIsSimulating(false);
                 setSimulationResult(null);
                 setActiveDebuffs({});
@@ -746,6 +772,16 @@ const GuildBoss: React.FC = () => {
                      </div>
                 </div>
             </main>
+            {showResultModal && battleResult && (
+                <GuildBossBattleResultModal 
+                    result={battleResult} 
+                    onClose={() => {
+                        setShowResultModal(false);
+                        setBattleResult(null);
+                    }} 
+                    isTopmost={true}
+                />
+            )}
         </div>
     );
 };

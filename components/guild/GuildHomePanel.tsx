@@ -6,6 +6,7 @@ import { GUILD_CHECK_IN_MILESTONE_REWARDS } from '../../constants/index.js';
 import { isSameDayKST, formatDateTimeKST } from '../../utils/timeUtils.js';
 import Avatar from '../Avatar.js';
 import { AVATAR_POOL, BORDER_POOL } from '../../constants/index.js';
+import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS } from '../../constants/index.js';
 
 // 고급 버튼 스타일 함수
 const luxuryButtonBase = "relative overflow-hidden whitespace-normal break-keep text-sm px-4 py-2 rounded-xl backdrop-blur-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-1";
@@ -23,7 +24,7 @@ const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral' | 'acc
     return variants[variant] || variants.primary;
 };
 
-const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => {
+export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
 
     const now = Date.now();
@@ -128,7 +129,7 @@ const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => {
     );
 };
 
-const GuildAnnouncementPanel: React.FC<{ guild: GuildType }> = ({ guild }) => (
+export const GuildAnnouncementPanel: React.FC<{ guild: GuildType }> = ({ guild }) => (
     <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-4 rounded-xl flex flex-col h-full border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
         <h3 className="font-bold text-lg text-highlight mb-3 flex-shrink-0 relative z-10 drop-shadow-lg flex items-center gap-2">
@@ -143,23 +144,54 @@ const GuildAnnouncementPanel: React.FC<{ guild: GuildType }> = ({ guild }) => (
     </div>
 );
 
-const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember | undefined }> = ({ guild, myMemberInfo }) => {
-    const { handlers, allUsers, currentUserWithStatus } = useAppContext();
+export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember | undefined }> = ({ guild, myMemberInfo }) => {
+    const { handlers, allUsers, currentUserWithStatus, waitingRoomChats } = useAppContext();
     const [message, setMessage] = useState('');
+    const [activeTab, setActiveTab] = useState<'guild' | 'global'>('global');
+    const [showQuickChat, setShowQuickChat] = useState(false);
     const chatBodyRef = useRef<HTMLDivElement>(null);
+    const quickChatRef = useRef<HTMLDivElement>(null);
     const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
+    
+    // 전체 채팅 메시지 가져오기
+    const globalChatMessages = waitingRoomChats['global'] || [];
 
     useEffect(() => {
         if (chatBodyRef.current) {
             chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
         }
-    }, [guild.chatHistory]);
+    }, [guild.chatHistory, globalChatMessages, activeTab]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (quickChatRef.current && !quickChatRef.current.contains(event.target as Node)) {
+                setShowQuickChat(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const handleSend = (message: { text?: string, emoji?: string }) => {
+        if (activeTab === 'guild') {
+            if (message.text) {
+                handlers.handleAction({ type: 'SEND_GUILD_CHAT_MESSAGE', payload: { content: message.text } });
+            }
+        } else {
+            if (message.text) {
+                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', text: message.text, location: '[홈]' } });
+            } else if (message.emoji) {
+                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', emoji: message.emoji, location: '[홈]' } });
+            }
+        }
+        setShowQuickChat(false);
+        setMessage('');
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (message.trim()) {
-            handlers.handleAction({ type: 'SEND_GUILD_CHAT_MESSAGE', payload: { content: message } });
-            setMessage('');
+            handleSend({ text: message });
         }
     };
 
@@ -178,12 +210,49 @@ const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember | undefi
     return (
         <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-4 rounded-xl h-full flex flex-col border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-            <h3 className="font-bold text-lg text-highlight mb-3 flex-shrink-0 relative z-10 drop-shadow-lg flex items-center gap-2">
-                <span className="text-xl">💬</span>
-                <span>길드 채팅</span>
-            </h3>
+            <div className="flex bg-gray-900/70 p-1 rounded-lg mb-3 flex-shrink-0 relative z-10">
+                <button 
+                    onClick={() => setActiveTab('global')} 
+                    className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
+                >
+                    전체채팅
+                </button>
+                <button 
+                    onClick={() => setActiveTab('guild')} 
+                    className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
+                >
+                    길드채팅
+                </button>
+            </div>
             <div ref={chatBodyRef} className="flex-grow space-y-3 overflow-y-auto pr-2 mb-3 bg-tertiary/50 p-4 rounded-lg min-h-0 border-2 border-black/20 shadow-inner backdrop-blur-sm relative z-10">
-                {guild.chatHistory && guild.chatHistory.length > 0 ? (
+                {activeTab === 'global' ? (
+                    // 전체 채팅 메시지 표시
+                    globalChatMessages.length > 0 ? (
+                        globalChatMessages.map((msg: any) => {
+                            const sender = allUsers.find(u => u.id === msg.user?.id);
+                            return (
+                                <div key={msg.id} className="flex items-start gap-3 group p-2 rounded-lg hover:bg-black/10 transition-colors">
+                                    <div className="flex-shrink-0 mt-1">
+                                        {sender && <Avatar userId={sender.id} userName={sender.nickname} size={36} />}
+                                    </div>
+                                    <div className="flex-grow">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="font-semibold text-primary text-sm">{sender?.nickname || 'Unknown'}</span>
+                                                <span className="text-xs text-tertiary">{formatDateTimeKST(msg.timestamp || msg.createdAt)}</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-secondary break-words whitespace-pre-wrap leading-relaxed">{msg.text || msg.content || ''}</p>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-tertiary"><p className="italic">전체 채팅 메시지가 없습니다.</p></div>
+                    )
+                ) : activeTab === 'guild' ? (
+                    // 길드 채팅 메시지 표시 (파란색)
+                    guild.chatHistory && guild.chatHistory.length > 0 ? (
                     guild.chatHistory.map(msg => {
                         const senderId = msg.user?.id || msg.authorId;
                         const sender = senderId ? userMap.get(senderId) : undefined;
@@ -200,40 +269,88 @@ const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember | undefi
                                 <div className="flex-grow">
                                     <div className="flex items-center justify-between mb-1">
                                         <div className="flex items-baseline gap-2">
-                                            <span className="font-semibold text-primary text-sm">{msg.user?.nickname || sender?.nickname || 'Unknown'}</span>
+                                            <span className={`font-semibold text-sm ${
+                                                senderId === 'system' 
+                                                    ? 'text-blue-400' 
+                                                    : 'text-blue-300'
+                                            }`}>
+                                                {senderId === 'system' ? '시스템' : (msg.user?.nickname || sender?.nickname || 'Unknown')}
+                                            </span>
                                             <span className="text-xs text-tertiary">{formatDateTimeKST(msg.timestamp || msg.createdAt)}</span>
                                         </div>
                                         {(isMyMessage || canManage) && !msg.system && msg.id && (
                                             <button onClick={() => handleDelete(msg as ChatMessage)} className="text-xs text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity font-semibold px-2 py-1 rounded hover:bg-red-500/20" aria-label="Delete message" title="메시지 삭제">삭제</button>
                                         )}
                                     </div>
-                                    <p className="text-sm text-secondary break-words whitespace-pre-wrap leading-relaxed">{msg.text || msg.content || ''}</p>
+                                    <p className={`text-sm break-words whitespace-pre-wrap leading-relaxed ${
+                                        msg.authorId === 'system' || senderId === 'system' 
+                                            ? 'text-blue-300' 
+                                            : 'text-blue-300'
+                                    }`}>{msg.text || msg.content || ''}</p>
                                 </div>
                             </div>
                         );
                     })
-                ) : (
-                    <div className="h-full flex items-center justify-center text-tertiary"><p className="italic">길드 채팅 메시지가 없습니다.</p></div>
-                )}
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-tertiary"><p className="italic">길드 채팅 메시지가 없습니다.</p></div>
+                    )
+                ) : null}
             </div>
-            <form onSubmit={handleSubmit} className="flex gap-3 flex-shrink-0 relative z-10">
-                <textarea 
-                    value={message} 
-                    onChange={e => setMessage(e.target.value)} 
-                    placeholder="메시지를 입력하세요..." 
-                    className="flex-grow bg-tertiary/80 border-2 border-black/30 rounded-lg p-3 text-sm resize-none shadow-inner backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all" 
-                    rows={1} 
-                    maxLength={200} 
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} 
-                />
-                <Button 
-                    type="submit" 
-                    colorScheme="none"
-                    className={getLuxuryButtonClasses('primary')}
-                >
-                    전송
-                </Button>
-            </form>
+            <div className="relative flex-shrink-0">
+                {showQuickChat && (
+                    <div ref={quickChatRef} className="absolute bottom-full mb-2 w-full bg-secondary rounded-lg shadow-xl p-1 z-10 max-h-64 overflow-y-auto">
+                        <div className="grid grid-cols-5 gap-1 text-xl mb-1 border-b border-color pb-1">
+                            {GAME_CHAT_EMOJIS.map(emoji => (
+                                <button 
+                                    key={emoji} 
+                                    onClick={() => handleSend({ emoji })} 
+                                    className="w-full p-1 rounded-md hover:bg-accent transition-colors text-center"
+                                >
+                                    {emoji}
+                                </button>
+                            ))}
+                        </div>
+                        <ul className="space-y-0.5">
+                            {GAME_CHAT_MESSAGES.map(msg => (
+                                <li key={msg}>
+                                    <button 
+                                        onClick={() => handleSend({ text: msg })} 
+                                        className="w-full text-left text-xs p-1 rounded-md hover:bg-accent transition-colors"
+                                    >
+                                        {msg}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                <form onSubmit={handleSubmit} className="flex gap-3 flex-shrink-0 relative z-10">
+                    <button
+                        type="button"
+                        onClick={() => setShowQuickChat(!showQuickChat)}
+                        className="px-3 py-2 bg-tertiary/80 border-2 border-black/30 rounded-lg hover:bg-tertiary transition-colors flex items-center justify-center"
+                        title="빠른 채팅"
+                    >
+                        <span className="text-xl">😊</span>
+                    </button>
+                    <textarea 
+                        value={message} 
+                        onChange={e => setMessage(e.target.value)} 
+                        placeholder="메시지를 입력하세요..." 
+                        className="flex-grow bg-tertiary/80 border-2 border-black/30 rounded-lg p-3 text-sm resize-none shadow-inner backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all" 
+                        rows={1} 
+                        maxLength={200} 
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} 
+                    />
+                    <Button 
+                        type="submit" 
+                        colorScheme="none"
+                        className={getLuxuryButtonClasses('primary')}
+                    >
+                        전송
+                    </Button>
+                </form>
+            </div>
         </div>
     );
 };
@@ -244,15 +361,38 @@ interface GuildHomePanelProps {
 }
 
 const GuildHomePanel: React.FC<GuildHomePanelProps> = ({ guild, myMemberInfo }) => {
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     return (
         <div className="flex flex-col gap-4 h-full">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
-                <GuildCheckInPanel guild={guild} />
-                <GuildAnnouncementPanel guild={guild} />
-            </div>
-            <div className="flex-grow min-h-0">
-                <GuildChat guild={guild} myMemberInfo={myMemberInfo} />
-            </div>
+            {isMobile ? (
+                <>
+                    {/* 모바일: 출석부와 공지를 같은 줄에 */}
+                    <div className="grid grid-cols-2 gap-4 flex-shrink-0">
+                        <GuildCheckInPanel guild={guild} />
+                        <GuildAnnouncementPanel guild={guild} />
+                    </div>
+                    {/* 모바일: 채팅창은 사이드 메뉴에서 접근 */}
+                </>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
+                        <GuildCheckInPanel guild={guild} />
+                        <GuildAnnouncementPanel guild={guild} />
+                    </div>
+                    <div className="flex-grow min-h-0" data-guild-chat>
+                        <GuildChat guild={guild} myMemberInfo={myMemberInfo} />
+                    </div>
+                </>
+            )}
         </div>
     );
 };

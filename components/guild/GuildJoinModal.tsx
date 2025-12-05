@@ -39,18 +39,43 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
         setError(null);
         try {
             const trimmedQuery = query?.trim() || '';
+            console.log(`[GuildJoinModal] Loading guilds with query: "${trimmedQuery}"`);
             const result: any = await handlers.handleAction({
                 type: 'LIST_GUILDS',
                 payload: { searchQuery: trimmedQuery, limit: 100 },
             });
 
+            console.log(`[GuildJoinModal] Received result:`, {
+                hasResult: !!result,
+                hasError: !!result?.error,
+                hasClientResponse: !!result?.clientResponse,
+                hasGuilds: !!result?.clientResponse?.guilds,
+                hasGuildsDirect: !!result?.guilds,
+                guildsLength: result?.clientResponse?.guilds?.length || result?.guilds?.length,
+                resultKeys: result ? Object.keys(result) : [],
+                clientResponseKeys: result?.clientResponse ? Object.keys(result.clientResponse) : [],
+                fullResult: result
+            });
+
             if (result?.error) {
+                console.error(`[GuildJoinModal] Error from server:`, result.error);
                 setError(result.error);
-            } else if (result?.clientResponse?.guilds) {
-                setGuilds(result.clientResponse.guilds);
-            } else {
-                // 응답이 없거나 예상과 다른 경우 빈 배열로 설정
                 setGuilds([]);
+            } else {
+                // 서버 응답 구조: { success: true, guilds: [...], total: ... } 또는 { clientResponse: { guilds: [...] } }
+                const guildsList = result?.guilds || result?.clientResponse?.guilds;
+                if (Array.isArray(guildsList) && guildsList.length > 0) {
+                    console.log(`[GuildJoinModal] Setting ${guildsList.length} guild(s)`);
+                    setGuilds(guildsList);
+                } else {
+                    console.warn(`[GuildJoinModal] No guilds in response, setting empty array`, {
+                        hasGuilds: !!result?.guilds,
+                        hasClientResponseGuilds: !!result?.clientResponse?.guilds,
+                        resultKeys: result ? Object.keys(result) : []
+                    });
+                    // 응답이 없거나 예상과 다른 경우 빈 배열로 설정
+                    setGuilds([]);
+                }
             }
         } catch (err: any) {
             console.error('[GuildJoinModal] Error loading guilds:', err);
@@ -80,6 +105,9 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
             if (result?.error) {
                 setError(result.error);
             } else if (result?.clientResponse?.guild) {
+                // 모달 닫기
+                onClose();
+                // 길드 홈으로 이동
                 onSuccess(result.clientResponse.guild);
             }
         } catch (err: any) {
@@ -89,15 +117,9 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
         }
     };
 
-    // Filter guilds based on search query (client-side filtering for instant feedback)
-    const filteredGuilds = useMemo(() => {
-        if (!searchQuery.trim()) return guilds;
-        const lowerQuery = searchQuery.toLowerCase();
-        return guilds.filter(guild => 
-            guild.name.toLowerCase().includes(lowerQuery) ||
-            (guild.description?.toLowerCase().includes(lowerQuery))
-        );
-    }, [guilds, searchQuery]);
+    // 서버에서 이미 필터링된 결과를 받으므로 클라이언트 사이드 필터링 제거
+    // 서버가 검색 쿼리에 맞는 결과만 반환하므로 그대로 사용
+    const filteredGuilds = guilds;
 
     // Get join type from guild settings (default: 'auto' for immediate join)
     const getJoinType = (guild: Guild): 'auto' | 'request' => {

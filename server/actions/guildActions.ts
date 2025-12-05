@@ -82,22 +82,22 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             // Validate name
             if (!name || typeof name !== 'string') {
-                return { error: '길드 ?�름???�력?�주?�요.' };
+                return { error: '길드 이름을 입력해주세요.' };
             }
             const trimmedName = name.trim();
             if (trimmedName.length < 2 || trimmedName.length > 6) {
-                return { error: '길드 ?�름?� 2???�상 6???�하?�야 ?�니??' };
+                return { error: '길드 이름은 2자 이상 6자 이하여야 합니다.' };
             }
             
             // Validate description if provided
             const trimmedDescription = description ? String(description).trim() : '';
             if (trimmedDescription && trimmedDescription.length > 200) {
-                return { error: '길드 ?�명?� 200???�하?�야 ?�니??' };
+                return { error: '길드 설명은 200자 이하여야 합니다.' };
             }
             
             // Check for profanity
             if (containsProfanity(trimmedName) || (trimmedDescription && containsProfanity(trimmedDescription))) {
-                return { error: '부?�절???�어가 ?�함?�어 ?�습?�다.' };
+                return { error: '부적절한 단어가 포함되어 있습니다.' };
             }
             
             // For admin users, check and remove any existing guild leadership or membership
@@ -187,10 +187,18 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     leaderId: user.id,
                     description: trimmedDescription || undefined,
                     emblem: newGuild.icon,
-                    settings: { isPublic },
+                    settings: { isPublic, joinType: joinType || 'free' },
                 });
                 // Creator is automatically added as leader by createGuild
-            } catch (error) {
+            } catch (error: any) {
+                // Prisma unique 제약 조건 위반 시 에러 처리
+                if (error.code === 'P2002' || error.message?.includes('Unique constraint') || error.message?.includes('UNIQUE constraint')) {
+                    console.error('[CREATE_GUILD] Guild name conflict detected:', error);
+                    // KV store에서도 롤백
+                    delete guilds[guildId];
+                    await db.setKV('guilds', guilds);
+                    return { error: '이미 사용 중인 길드 이름입니다.' };
+                }
                 console.error('[CREATE_GUILD] Failed to create guild in Prisma:', error);
                 // Continue even if Prisma creation fails - KV store is primary
             }
@@ -219,67 +227,191 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         
         case 'JOIN_GUILD': {
             try {
-            const { guildId } = payload;
-            const guild = guilds[guildId];
-
-            if (!guild) return { error: '길드�?찾을 ???�습?�다.' };
-            if (user.guildId) return { error: '?��? 길드??가?�되???�습?�다.' };
-            if (!guild.members) guild.members = [];
-            if (guild.members.length >= (guild.memberLimit || 30)) return { error: '길드 ?�원??가??찼습?�다.' };
-
-            // joinType???�라 가??방식 결정
-            const joinType = guild.joinType || 'application'; // 기본값�? ?�청가??
-            const isApplicationPending = guild.applicants?.some((app: any) => 
-                (typeof app === 'string' ? app : app.userId) === user.id
-            );
-
-            if (joinType === 'free') {
-                // ?�유가?? 빈자리�? ?�으�??�동 가??
+                const { guildId } = payload;
+                if (!guildId) {
+                    return { error: '길드 ID가 필요합니다.' };
+                }
+                
+                // Check if guild exists in KV store or Prisma
+                let guild = guilds[guildId];
+                let dbGuild = await guildRepo.getGuildById(guildId);
+                
+                if (!guild && !dbGuild) {
+                    return { error: '길드를 찾을 수 없습니다.' };
+                }
+                
+                // KV store에만 있는 경우 Prisma에 동기화
+                if (guild && !dbGuild) {
+                    console.log(`[JOIN_GUILD] KV store에만 있는 길드를 Prisma에 동기화: ${guildId}`);
+                    try {
+                        // Prisma에 길드 생성
+                        await guildRepo.createGuild({
+                            name: guild.name,
+                            leaderId: guild.leaderId,
+                            description: guild.description,
+                            emblem: guild.icon,
+                            settings: guild.settings || { isPublic: guild.isPublic !== false, joinType: guild.joinType || 'free' },
+                        });
+                        // 기존 멤버들도 Prisma에 추가
+                        if (guild.members && guild.members.length > 0) {
+                            for (const member of guild.members) {
+                                try {
+                                    await guildRepo.addGuildMember(guildId, member.userId, member.role || 'member');
+                                } catch (err: any) {
+                                    // 이미 존재하는 경우 무시
+                                    if (err.code !== 'P2002') {
+                                        console.error(`[JOIN_GUILD] Failed to sync member ${member.userId}:`, err);
+                                    }
+                                }
+                            }
+                        }
+                        dbGuild = await guildRepo.getGuildById(guildId);
+                    } catch (error: any) {
+                        console.error('[JOIN_GUILD] Failed to sync guild to Prisma:', error);
+                        // Prisma 동기화 실패해도 계속 진행 (KV store가 primary)
+                    }
+                }
+                
+                // Prisma에만 있는 경우 KV store에 동기화
+                if (!guild && dbGuild) {
+                    const dbMembers = await guildRepo.getGuildMembers(guildId);
+                    const dbSettings = (dbGuild.settings as any) || {};
+                    guild = {
+                        id: dbGuild.id,
+                        name: dbGuild.name,
+                        leaderId: dbGuild.leaderId,
+                        description: dbGuild.description || undefined,
+                        icon: dbGuild.emblem || '/images/guild/profile/icon1.png',
+                        level: dbGuild.level,
+                        gold: Number(dbGuild.gold),
+                        experience: Number(dbGuild.experience),
+                        xp: Number(dbGuild.experience),
+                        researchPoints: 0,
+                        members: dbMembers.map(m => ({
+                            id: m.id,
+                            guildId: m.guildId,
+                            userId: m.userId,
+                            nickname: '',
+                            role: m.role as 'leader' | 'officer' | 'member',
+                            joinDate: m.joinDate,
+                            contributionTotal: m.contributionTotal,
+                            weeklyContribution: 0,
+                            createdAt: m.createdAt,
+                            updatedAt: m.updatedAt,
+                        })),
+                        memberLimit: 30,
+                        isPublic: dbSettings.isPublic !== undefined ? dbSettings.isPublic : true,
+                        joinType: dbSettings.joinType || 'free',
+                        settings: dbSettings,
+                        applicants: [],
+                        weeklyMissions: [],
+                        lastMissionReset: Date.now(),
+                        lastWeeklyContributionReset: Date.now(),
+                        chatHistory: [],
+                        checkIns: {},
+                        dailyCheckInRewardsClaimed: [],
+                        research: {},
+                        researchTask: null,
+                        createdAt: dbGuild.createdAt,
+                        updatedAt: dbGuild.updatedAt,
+                    };
+                    guilds[guildId] = guild;
+                }
+                
+                if (user.guildId) {
+                    return { error: '이미 길드에 가입되어 있습니다.' };
+                }
+                
                 if (!guild.members) guild.members = [];
-                guild.members.push({
-                    id: `member-${user.id}-${guild.id}`,
-                    guildId: guild.id,
-                    userId: user.id,
-                    nickname: user.nickname,
-                    role: GuildMemberRole.Member,
-                    joinDate: Date.now(),
-                    contributionTotal: 0,
-                    weeklyContribution: 0,
-                    createdAt: Date.now(),
-                    updatedAt: Date.now(),
+                if (guild.members.length >= (guild.memberLimit || 30)) {
+                    return { error: '길드 인원이 가득 찼습니다.' };
+                }
+
+                // joinType에 따라 가입 방식 결정
+                const joinType = guild.joinType || (guild.settings as any)?.joinType || 'free';
+                const isApplicationPending = guild.applicants?.some((app: any) => 
+                    (typeof app === 'string' ? app : app.userId) === user.id
+                );
+
+                if (joinType === 'free') {
+                    // 자유가입: 빈자리가 있으면 자동 가입
+                    if (!guild.members) guild.members = [];
+                    const memberId = `member-${user.id}-${guild.id}`;
+                    guild.members.push({
+                        id: memberId,
+                        guildId: guild.id,
+                        userId: user.id,
+                        nickname: user.nickname || '',
+                        role: GuildMemberRole.Member,
+                        joinDate: Date.now(),
+                        contributionTotal: 0,
+                        weeklyContribution: 0,
+                        createdAt: Date.now(),
+                        updatedAt: Date.now(),
+                    });
+                    user.guildId = guild.id;
+                    
+                    // Prisma에 GuildMember 추가 (Prisma에 길드가 있는지 먼저 확인)
+                    try {
+                        const dbGuildCheck = await guildRepo.getGuildById(guild.id);
+                        if (!dbGuildCheck) {
+                            // Prisma에 길드가 없으면 먼저 생성
+                            console.log(`[JOIN_GUILD] Prisma에 길드가 없어서 생성: ${guild.id}`);
+                            await guildRepo.createGuild({
+                                name: guild.name,
+                                leaderId: guild.leaderId,
+                                description: guild.description,
+                                emblem: guild.icon,
+                                settings: guild.settings || { isPublic: guild.isPublic !== false, joinType: guild.joinType || 'free' },
+                            });
+                        }
+                        await guildRepo.addGuildMember(guild.id, user.id, 'member');
+                    } catch (error: any) {
+                        // 이미 멤버인 경우 무시
+                        if (error.code === 'P2002') {
+                            console.log(`[JOIN_GUILD] User ${user.id} is already a member of guild ${guild.id}`);
+                        } else {
+                            console.error('[JOIN_GUILD] Failed to add GuildMember in Prisma:', error);
+                        }
+                    }
+                    
+                    // 기존 신청서 제거
+                    if (guild.applicants) {
+                        guild.applicants = guild.applicants.filter((app: any) => 
+                            (typeof app === 'string' ? app : app.userId) !== user.id
+                        );
+                    }
+                    if (user.guildApplications) {
+                        user.guildApplications = user.guildApplications.filter(app => app.guildId !== guildId);
+                    }
+                } else {
+                    // 신청가입: 길드장의 승인이 필요
+                    if (isApplicationPending) {
+                        return { error: '이미 가입 신청중입니다.' };
+                    }
+                    if (!guild.applicants) guild.applicants = [];
+                    guild.applicants.push({ userId: user.id, appliedAt: Date.now() });
+                    if (!user.guildApplications) user.guildApplications = [];
+                    user.guildApplications.push({ guildId: guild.id, appliedAt: Date.now() });
+                }
+
+                await db.setKV('guilds', guilds);
+                await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+                
+                // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
+                db.updateUser(user).catch(err => {
+                    console.error(`[JOIN_GUILD] Failed to save user ${user.id}:`, err);
                 });
-                user.guildId = guild.id;
-                // 기존 ?�청???�으�??�거
-                if (guild.applicants) {
-                    guild.applicants = guild.applicants.filter((app: any) => 
-                        (typeof app === 'string' ? app : app.userId) !== user.id
-                    );
-                }
-                if (user.guildApplications) {
-                    user.guildApplications = user.guildApplications.filter(app => app.guildId !== guildId);
-                }
-            } else {
-                // ?�청가?? 길드??부길드???�인 ?�요
-                if (isApplicationPending) return { error: '?��? 가???�청???�습?�다.' };
-                if (!guild.applicants) guild.applicants = [];
-                guild.applicants.push({ userId: user.id, appliedAt: Date.now() });
-                if (!user.guildApplications) user.guildApplications = [];
-                user.guildApplications.push({ guildId: guild.id, appliedAt: Date.now() });
-            }
 
-            await db.setKV('guilds', guilds);
-            await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
-            
-            // DB ?�데?�트�?비동기로 처리 (?�답 지??최소??
-            db.updateUser(user).catch(err => {
-                console.error(`[JOIN_GUILD] Failed to save user ${user.id}:`, err);
-            });
-
-            // WebSocket?�로 ?�용???�데?�트 브로?�캐?�트 (최적?�된 ?�수 ?�용)
-            const { broadcastUserUpdate } = await import('../socket.js');
+                // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 필수 필드만 사용)
+                const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(user, ['guildId', 'guildApplications']);
                 
-                return { clientResponse: { updatedUser: user } };
+                if (joinType === 'free') {
+                    return { clientResponse: { guild, updatedUser: user } };
+                } else {
+                    return { clientResponse: { updatedUser: user } };
+                }
             } catch (error: any) {
                 console.error('[JOIN_GUILD] 오류:', error);
                 return { error: error.message || '길드 가입에 실패했습니다.' };
@@ -292,8 +424,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const query = searchQuery?.trim() || '';
                 const limitNum = limit || 100;
                 
+                console.log(`[LIST_GUILDS] Search query: "${query}", limit: ${limitNum}`);
+                
                 // Prisma를 통해 길드 목록 조회
                 const dbGuilds = await guildRepo.listGuilds(query, limitNum);
+                
+                console.log(`[LIST_GUILDS] Found ${dbGuilds.length} guild(s) from Prisma`);
                 
                 // KV store의 길드 데이터와 병합
                 const resultGuilds = await Promise.all(
@@ -335,19 +471,96 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     })
                 );
                 
-                // 공개 길드만 필터링
+                // 이미 추가된 길드 ID 추적 (중복 방지)
+                const addedGuildIds = new Set(resultGuilds.map(g => g.id));
+                
+                // KV store에만 있고 Prisma에 없는 길드도 추가 (검색 쿼리가 비어있거나 매칭되는 경우)
+                if (!query || query.length === 0) {
+                    // 검색 쿼리가 없으면 KV store의 모든 공개 길드 추가
+                    for (const [guildId, kvGuild] of Object.entries(guilds)) {
+                        // 중복 체크: 이미 추가된 길드는 건너뛰기
+                        if (!addedGuildIds.has(guildId)) {
+                            const isPublic = kvGuild.isPublic !== false;
+                            if (isPublic) {
+                                resultGuilds.push({
+                                    id: kvGuild.id,
+                                    name: kvGuild.name,
+                                    description: kvGuild.description || undefined,
+                                    icon: kvGuild.icon?.startsWith('/images/guild/icon') 
+                                        ? kvGuild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
+                                        : (kvGuild.icon || '/images/guild/profile/icon1.png'),
+                                    level: kvGuild.level,
+                                    memberCount: kvGuild.members?.length || 0,
+                                    memberLimit: kvGuild.memberLimit || 30,
+                                    isPublic: isPublic,
+                                });
+                                addedGuildIds.add(guildId); // 추가된 길드 ID 기록
+                            }
+                        }
+                    }
+                } else {
+                    // 검색 쿼리가 있으면 KV store에서도 검색
+                    const lowerQuery = query.toLowerCase();
+                    for (const [guildId, kvGuild] of Object.entries(guilds)) {
+                        // 중복 체크: 이미 추가된 길드는 건너뛰기
+                        if (!addedGuildIds.has(guildId)) {
+                            const isPublic = kvGuild.isPublic !== false;
+                            const nameMatch = kvGuild.name?.toLowerCase().includes(lowerQuery);
+                            const descMatch = kvGuild.description?.toLowerCase().includes(lowerQuery);
+                            
+                            if (isPublic && (nameMatch || descMatch)) {
+                                resultGuilds.push({
+                                    id: kvGuild.id,
+                                    name: kvGuild.name,
+                                    description: kvGuild.description || undefined,
+                                    icon: kvGuild.icon?.startsWith('/images/guild/icon') 
+                                        ? kvGuild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
+                                        : (kvGuild.icon || '/images/guild/profile/icon1.png'),
+                                    level: kvGuild.level,
+                                    memberCount: kvGuild.members?.length || 0,
+                                    memberLimit: kvGuild.memberLimit || 30,
+                                    isPublic: isPublic,
+                                });
+                                addedGuildIds.add(guildId); // 추가된 길드 ID 기록
+                            }
+                        }
+                    }
+                }
+                
+                // 공개 길드만 필터링 (이미 isPublic 체크를 했지만 안전을 위해 한 번 더)
                 const filteredGuilds = resultGuilds.filter(g => g.isPublic !== false);
                 
+                // 최종 중복 제거 (ID와 이름 모두 체크)
+                const uniqueGuildsById = Array.from(
+                    new Map(filteredGuilds.map(g => [g.id, g])).values()
+                );
+                
+                // 이름으로도 중복 제거 (같은 이름의 길드는 하나만 유지 - 가장 오래된 것)
+                const uniqueGuildsByName = new Map<string, typeof filteredGuilds[0]>();
+                for (const guild of uniqueGuildsById) {
+                    const existing = uniqueGuildsByName.get(guild.name);
+                    if (!existing || guild.id < existing.id) {
+                        // 같은 이름이 없거나, 더 작은 ID(오래된 것)를 유지
+                        uniqueGuildsByName.set(guild.name, guild);
+                    }
+                }
+                
+                const uniqueGuilds = Array.from(uniqueGuildsByName.values());
+                
+                console.log(`[LIST_GUILDS] Total guilds after filtering: ${filteredGuilds.length}, unique: ${uniqueGuilds.length}`);
+                
                 // 정렬: 레벨 내림차순, 이름 오름차순
-                filteredGuilds.sort((a, b) => {
+                uniqueGuilds.sort((a, b) => {
                     if (b.level !== a.level) return b.level - a.level;
                     return a.name.localeCompare(b.name);
                 });
                 
+                console.log(`[LIST_GUILDS] Returning ${uniqueGuilds.length} unique guild(s) to client`);
+                
                 return { 
                     clientResponse: { 
-                        guilds: filteredGuilds,
-                        total: filteredGuilds.length
+                        guilds: uniqueGuilds,
+                        total: uniqueGuilds.length
                     } 
                 };
             } catch (error: any) {
@@ -472,33 +685,97 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             return { clientResponse: { guilds } };
         }
 
-        case 'GUILD_LEAVE': {
-            const { guildId } = payload;
+        case 'GUILD_LEAVE':
+        case 'LEAVE_GUILD': {
+            // guildId가 payload에 없으면 user.guildId 사용
+            const guildId = (payload as any)?.guildId || user.guildId;
+            if (!guildId) {
+                return { error: '가입한 길드가 없습니다.' };
+            }
+            
             const guild = guilds[guildId];
-            if (!guild || user.guildId !== guildId) return { error: '길드 ?�보�?찾을 ???�습?�다.' };
-            
-            const memberInfo = guild.members.find(m => m.userId === user.id);
-            if (!memberInfo) return { error: '길드?�이 ?�닙?�다.' };
-            if (memberInfo.role === GuildMemberRole.Master && guild.members.length > 1) {
-                return { error: '길드?�이 길드�??�나?�면 먼�? ?�른 길드?�에�?길드?�을 ?�임?�야 ?�니??' };
+            if (!guild) {
+                // KV store에 없으면 Prisma에서 확인
+                const dbGuild = await guildRepo.getGuildById(guildId);
+                if (!dbGuild) {
+                    return { error: '길드 정보를 찾을 수 없습니다.' };
+                }
+                // Prisma에만 있는 경우, 사용자의 GuildMember 관계만 삭제
+                const guildMember = await guildRepo.getGuildMemberByUserId(user.id);
+                if (guildMember && guildMember.guildId === guildId) {
+                    await guildRepo.removeGuildMember(guildId, user.id);
+                }
+                
+                // 사용자 정보 업데이트
+                user.guildId = undefined;
+                if (user.status && typeof user.status === 'object') {
+                    const status = { ...(user.status as any) };
+                    delete status.guildId;
+                    user.status = status;
+                }
+                
+                await db.updateUser(user);
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['guildId']);
+                
+                return { clientResponse: { updatedUser: user } };
             }
             
-            if (memberInfo.role === GuildMemberRole.Master && guild.members.length === 1) {
-                delete guilds[guildId]; // Last member, dissolve guild
+            if (user.guildId !== guildId) {
+                return { error: '가입한 길드가 아닙니다.' };
+            }
+            
+            const memberInfo = guild.members?.find((m: any) => m.userId === user.id);
+            if (!memberInfo) {
+                return { error: '길드원이 아닙니다.' };
+            }
+            
+            // 길드장이 다른 멤버가 있을 때 탈퇴하려면 위임 필요
+            if (memberInfo.role === GuildMemberRole.Master && (guild.members?.length || 0) > 1) {
+                return { error: '길드장이 길드를 떠나려면 먼저 다른 길드원에게 길드장을 위임해야 합니다.' };
+            }
+            
+            // 마지막 멤버인 경우 길드 해체
+            if (memberInfo.role === GuildMemberRole.Master && (guild.members?.length || 0) === 1) {
+                // Prisma에서도 길드 삭제
+                try {
+                    await guildRepo.deleteGuild(guildId);
+                } catch (error: any) {
+                    console.error(`[GUILD_LEAVE] Failed to delete guild from Prisma: ${error.message}`);
+                }
+                delete guilds[guildId]; // KV store에서도 삭제
             } else {
-                guild.members = guild.members.filter(m => m.userId !== user.id);
+                // 일반 멤버 탈퇴
+                guild.members = guild.members?.filter((m: any) => m.userId !== user.id) || [];
+                
+                // Prisma에서도 GuildMember 관계 삭제
+                try {
+                    await guildRepo.removeGuildMember(guildId, user.id);
+                } catch (error: any) {
+                    console.error(`[GUILD_LEAVE] Failed to remove guild member from Prisma: ${error.message}`);
+                }
             }
             
-            user.guildId = null;
+            // 사용자 정보 업데이트
+            user.guildId = undefined;
+            if (user.status && typeof user.status === 'object') {
+                const status = { ...(user.status as any) };
+                delete status.guildId;
+                if (status.guildApplications) {
+                    status.guildApplications = Array.isArray(status.guildApplications)
+                        ? status.guildApplications.filter((app: any) => app.guildId !== guildId)
+                        : undefined;
+                }
+                user.status = status;
+            }
+            
             await db.setKV('guilds', guilds);
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
             
-            // DB ?�데?�트�?비동기로 처리 (?�답 지??최소??
-            db.updateUser(user).catch(err => {
-                console.error(`[GUILD_LEAVE] Failed to save user ${user.id}:`, err);
-            });
-
-            // WebSocket?�로 ?�용???�데?�트 브로?�캐?�트 (최적?�된 ?�수 ?�용)
+            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
+            await db.updateUser(user);
+            
+            // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['guildId']);
             
@@ -652,22 +929,27 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             if (!guild.dailyCheckInRewardsClaimed) guild.dailyCheckInRewardsClaimed = [];
             if (guild.dailyCheckInRewardsClaimed.some(c => c.userId === user.id && c.milestoneIndex === milestoneIndex)) return { error: '?��? ?�령??보상?�니??' };
             
-            user.guildCoins = (user.guildCoins || 0) + milestone.reward.guildCoins;
+            // 최신 사용자 데이터를 다시 로드하여 보스전 등에서 받은 길드코인을 반영
+            const freshUser = await db.getUser(user.id);
+            if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
+            
+            freshUser.guildCoins = (freshUser.guildCoins || 0) + milestone.reward.guildCoins;
+            user.guildCoins = freshUser.guildCoins; // user 객체도 동기화
             guild.dailyCheckInRewardsClaimed.push({ userId: user.id, milestoneIndex });
 
             await db.setKV('guilds', guilds);
             
             // DB ?�데?�트�?비동기로 처리 (?�답 지??최소??
-            db.updateUser(user).catch(err => {
-                console.error(`[GUILD_CLAIM_CHECK_IN_REWARD] Failed to save user ${user.id}:`, err);
+            db.updateUser(freshUser).catch(err => {
+                console.error(`[GUILD_CLAIM_CHECK_IN_REWARD] Failed to save user ${freshUser.id}:`, err);
             });
 
             // WebSocket?�로 ?�용???�데?�트 브로?�캐?�트 (최적?�된 ?�수 ?�용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['guildCoins']);
+            broadcastUserUpdate(freshUser, ['guildCoins']);
             
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
-            return { clientResponse: { updatedUser: user, guilds } };
+            return { clientResponse: { updatedUser: freshUser, guilds } };
         }
         case 'GUILD_CLAIM_MISSION_REWARD': {
             const { missionId } = payload;
@@ -689,7 +971,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             // XP??미션 ?�료 ???��? 추�??�었?��?�??�기?�는 개인 보상�?지�?
             // Grant personal reward (Guild Coins)
-            user.guildCoins = (user.guildCoins || 0) + mission.personalReward.guildCoins;
+            // 최신 사용자 데이터를 다시 로드하여 보스전 등에서 받은 길드코인을 반영
+            const freshUser = await db.getUser(user.id);
+            if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
+            
+            freshUser.guildCoins = (freshUser.guildCoins || 0) + mission.personalReward.guildCoins;
+            user.guildCoins = freshUser.guildCoins; // user 객체도 동기화
         
             // Mark as claimed by the current user
             mission.claimedBy.push(user.id);
@@ -697,16 +984,16 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             await db.setKV('guilds', guilds);
             
             // DB ?�데?�트�?비동기로 처리 (?�답 지??최소??
-            db.updateUser(user).catch(err => {
-                console.error(`[GUILD_CLAIM_MISSION_REWARD] Failed to save user ${user.id}:`, err);
+            db.updateUser(freshUser).catch(err => {
+                console.error(`[GUILD_CLAIM_MISSION_REWARD] Failed to save user ${freshUser.id}:`, err);
             });
 
             // WebSocket?�로 ?�용???�데?�트 브로?�캐?�트 (최적?�된 ?�수 ?�용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['guildCoins']);
+            broadcastUserUpdate(freshUser, ['guildCoins']);
             
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
-            return { clientResponse: { updatedUser: user, guilds } };
+            return { clientResponse: { updatedUser: freshUser, guilds } };
         }
         case 'GUILD_DONATE_GOLD':
         case 'GUILD_DONATE_DIAMOND': {
@@ -1079,41 +1366,43 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         
         case 'GET_GUILD_INFO': {
             try {
-                if (!user.guildId) return { error: "가?�한 길드가 ?�습?�다." };
+                if (!user.guildId) {
+                    return { error: "가입한 길드가 없습니다." };
+                }
                 
-                // Prisma?�서??길드 존재 ?��? ?�인
+                // Prisma에서 길드 존재 여부 확인
                 const dbGuild = await guildRepo.getGuildById(user.guildId);
                 const guild = guilds[user.guildId];
                 
-                // KV store?� Prisma 모두?�서 길드�?찾을 ???�으�??�용?�의 guildId ?�거
+                // KV store와 Prisma 모두에서 길드를 찾을 수 없으면 사용자의 guildId 제거
                 if (!guild && !dbGuild) {
                     console.log(`[GET_GUILD_INFO] Guild ${user.guildId} not found, removing guildId from user ${user.id}`);
                     user.guildId = undefined;
                     await db.updateUser(user);
                     
-                    // Prisma?�서??GuildMember ?�거 (?�시 ?�아?�을 ???�음)
+                    // Prisma에서 GuildMember 제거 (필요시 정리)
                     const existingGuildMember = await guildRepo.getGuildMemberByUserId(user.id);
                     if (existingGuildMember) {
                         console.log(`[GET_GUILD_INFO] Removing GuildMember for user ${user.id}`);
                         await guildRepo.removeGuildMember(existingGuildMember.guildId, user.id);
                     }
                     
-                    return { error: "가?�한 길드가 ?�습?�다." };
+                    return { error: "가입한 길드가 없습니다." };
                 }
                 
-                // KV store??길드가 ?��?�?Prisma?�는 ?�으�?기본 길드 객체 ?�성
+                // KV store에 길드가 없지만 Prisma에는 있으면 기본 길드 객체 생성
                 if (!guild && dbGuild) {
                     console.log(`[GET_GUILD_INFO] Guild ${user.guildId} exists in DB but not in KV store, creating basic guild object`);
                     
-                    // DB?�서 길드 멤버 ?�보 가?�오�?
+                    // DB에서 길드 멤버 정보 가져오기
                     const dbMembers = await guildRepo.getGuildMembers(user.guildId);
                     const dbSettings = (dbGuild.settings as any) || {};
                     
-                    // 기본 길드 객체 ?�성 (createDefaultGuild?� ?�사??구조)
+                    // 기본 길드 객체 생성 (createDefaultGuild를 참고한 구조)
                     const now = Date.now();
                     const basicGuild: Guild = {
                         id: dbGuild.id,
-                        name: dbGuild.name, // ?�름 ?�수!
+                        name: dbGuild.name,
                         leaderId: dbGuild.leaderId,
                         description: dbGuild.description || undefined,
                         icon: dbGuild.emblem || '/images/guild/profile/icon1.png',
@@ -1126,7 +1415,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                             id: m.id,
                             guildId: m.guildId,
                             userId: m.userId,
-                            nickname: '', // ?�중??채워�????�음
+                            nickname: '',
                             role: m.role as 'leader' | 'officer' | 'member',
                             joinDate: m.joinDate,
                             contributionTotal: m.contributionTotal,
@@ -1147,11 +1436,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         dailyCheckInRewardsClaimed: [],
                         research: {},
                         researchTask: null,
-                        createdAt: dbGuild.createdAt.getTime(),
-                        updatedAt: dbGuild.updatedAt.getTime(),
+                        createdAt: dbGuild.createdAt,
+                        updatedAt: dbGuild.updatedAt,
                     };
                     
-                    // KV store???�??
+                    // KV store에 저장
                     guilds[user.guildId] = basicGuild;
                     await db.setKV('guilds', guilds);
                     
@@ -1165,13 +1454,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     return { clientResponse: { guild: guildWithFixedIcon } };
                 }
                 
-                // members 배열???�으�?�?배열�?초기??
+                // members 배열이 없으면 배열로 초기화
                 if (!guild.members) {
                     guild.members = [];
                     await db.setKV('guilds', guilds);
                 }
                 
-                // ?�이�?경로 ?�정
+                // 아이콘 경로 수정
                 const guildWithFixedIcon = {
                     ...guild,
                     members: guild.members || [],
@@ -1185,7 +1474,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 console.error('[handleGuildAction] Error stack:', error.stack);
                 console.error('[handleGuildAction] User:', { id: user.id, guildId: user.guildId });
                 console.error('[handleGuildAction] Guilds keys:', Object.keys(guilds));
-                return { error: `길드 ?�보�?가?�오??�??�류가 발생?�습?�다: ${error.message || '?????�는 ?�류'}` };
+                return { error: `길드 정보를 가져오는 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}` };
             }
         }
         
@@ -1239,6 +1528,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const guild = guilds[user.guildId];
             if (!guild) return { error: '길드를 찾을 수 없습니다.' };
             
+            // 최신 사용자 데이터를 다시 로드하여 기부 등에서 받은 길드코인을 반영
+            const freshUser = await db.getUser(user.id);
+            if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
+            
             if (!guild.guildBossState) {
                 guild.guildBossState = {
                     currentBossId: bossId,
@@ -1248,22 +1541,28 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             
             guild.guildBossState.currentBossHp = result.bossHpAfter;
-            guild.guildBossState.totalDamageLog[user.id] = (guild.guildBossState.totalDamageLog[user.id] || 0) + result.damageDealt;
+            guild.guildBossState.totalDamageLog[freshUser.id] = (guild.guildBossState.totalDamageLog[freshUser.id] || 0) + result.damageDealt;
 
-            if (!user.isAdmin) {
-                user.guildBossAttempts = (user.guildBossAttempts || 0) + 1;
+            if (!freshUser.isAdmin) {
+                freshUser.guildBossAttempts = (freshUser.guildBossAttempts || 0) + 1;
             }
 
-            user.guildCoins = (user.guildCoins || 0) + result.rewards.guildCoins;
-            updateQuestProgress(user, 'guild_boss_participate');
+            freshUser.guildCoins = (freshUser.guildCoins || 0) + result.rewards.guildCoins;
+            user.guildCoins = freshUser.guildCoins; // user 객체도 동기화
+            updateQuestProgress(freshUser, 'guild_boss_participate');
             
             const currentBoss = GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId);
             if (currentBoss) {
+                // 닉네임에 따라 "이/가" 결정
+                const nicknameEnding = freshUser.nickname && /[가-힣]$/.test(freshUser.nickname) 
+                    ? (freshUser.nickname.charCodeAt(freshUser.nickname.length - 1 - 0xAC00) % 28 === 0 ? '가' : '이')
+                    : '이';
+                
                 const chatMessage: GuildMessage = {
                     id: `msg-guild-${randomUUID()}`,
                     guildId: guild.id,
                     authorId: 'system',
-                    content: `${user.nickname}이 ${currentBoss.name}에게 ${result.damageDealt}의 해를 가했습니다.`,
+                    content: `[${freshUser.nickname}]${nicknameEnding} ${currentBoss.name}에게 ${result.damageDealt}의 피해를 입혔습니다.`,
                     createdAt: Date.now(),
                 };
                 if (!guild.chatHistory) guild.chatHistory = [];
@@ -1274,9 +1573,18 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
 
             await db.setKV('guilds', guilds);
-            await db.updateUser(user);
+            
+            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
+            db.updateUser(freshUser).catch(err => {
+                console.error(`[START_GUILD_BOSS_BATTLE] Failed to save user ${freshUser.id}:`, err);
+            });
+
+            // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 필수 사용)
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(freshUser, ['guildCoins', 'guildBossAttempts']);
+            
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
-            return { clientResponse: { updatedUser: user, guildBossBattleResult: result, guilds } };
+            return { clientResponse: { updatedUser: freshUser, guildBossBattleResult: result, guilds } };
         }
 
         
@@ -1364,154 +1672,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             };
         }
 
-        
-        default:
-            console.log(`[handleGuildAction] Unknown guild action type: ${type}`);
-            return { error: 'Unknown guild action type.' };
-    }
-};
-                        }
-                    })
-                    .filter(g => g.isPublic !== false);
-                
-                filteredGuilds.sort((a, b) => {
-                    if (b.level !== a.level) return b.level - a.level;
-                    return a.name.localeCompare(b.name);
-                });
-                
-                return { 
-                    clientResponse: { 
-                        guilds: filteredGuilds,
-                        total: filteredGuilds.length
-                    } 
-                };
-            } catch (error: any) {
-                console.error('[LIST_GUILDS] Error:', error);
-                return { 
-                    error: error.message || '길드 목록??불러?�는???�패?�습?�다.' 
-                };
-            }
-        }
-        
-                };
-            }
-            
-            guild.guildBossState.currentBossHp = result.bossHpAfter;
-            guild.guildBossState.totalDamageLog[user.id] = (guild.guildBossState.totalDamageLog[user.id] || 0) + result.damageDealt;
-
-            if (!user.isAdmin) {
-                user.guildBossAttempts = (user.guildBossAttempts || 0) + 1;
-            }
-
-            user.guildCoins = (user.guildCoins || 0) + result.rewards.guildCoins;
-            updateQuestProgress(user, 'guild_boss_participate');
-            
-            const currentBoss = GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId);
-            if (currentBoss) {
-                const chatMessage: GuildMessage = {
-                    id: `msg-guild-${randomUUID()}`,
-                    guildId: guild.id,
-                    authorId: 'system',
-                    content: `${user.nickname}?�이 ${currentBoss.name}?�게 ${result.damageDealt}???�해�??�혔?�니??`,
-                    createdAt: Date.now(),
-                };
-                if (!guild.chatHistory) guild.chatHistory = [];
-                guild.chatHistory.push(chatMessage);
-                if (guild.chatHistory.length > 100) {
-                    guild.chatHistory.shift();
-                }
-            }
-
-            await db.setKV('guilds', guilds);
-            await db.updateUser(user);
-            await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
-            return { clientResponse: { updatedUser: user, guildBossBattleResult: result, guilds } };
-        }
-
-        
-        case 'CLAIM_GUILD_WAR_REWARD': {
-            if (!user.guildId) return { error: '길드??가?�되???��? ?�습?�다.' };
-            
-            const guilds = await db.getKV<Record<string, Guild>>('guilds') || {};
-            const guild = guilds[user.guildId];
-            if (!guild) return { error: '길드�?찾을 ???�습?�다.' };
-            
-            // 길드???�이??가?�오�?
-            const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
-            const completedWars = activeWars.filter(w => w.status === 'completed');
-            
-            // ?�용?�의 길드가 ?�리??길드??찾기
-            const wonWar = completedWars.find(w => {
-                if (w.guild1Id === user.guildId) {
-                    return w.result?.winnerId === w.guild1Id;
-                } else if (w.guild2Id === user.guildId) {
-                    return w.result?.winnerId === w.guild2Id;
-                }
-                return false;
-            });
-            
-            if (!wonWar) return { error: '?�령?????�는 보상???�습?�다.' };
-            
-            // ?��? ?�령?�는지 ?�인
-            const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
-            if (claimedRewards[wonWar.id]?.includes(user.id)) {
-                return { error: '?��? 보상???�령?�습?�다.' };
-            }
-            
-            // 보상 지�?
-            user.gold = (user.gold || 0) + 2000;
-            user.guildCoins = (user.guildCoins || 0) + 300;
-            
-            // ?�덤 변경권 10???�성
-            const { createConsumableItemInstance } = await import('../summaryService.js');
-            const ticketItems: InventoryItem[] = [];
-            
-            for (let i = 0; i < 10; i++) {
-                const ticketRandom = Math.random();
-                let ticketName: string;
-                if (ticketRandom < 0.1) {
-                    ticketName = '?�션 종류 변경권'; // 10%
-                } else if (ticketRandom < 0.9) {
-                    ticketName = '?�션 ?�치 변경권'; // 80%
-                } else {
-                    ticketName = '?�화 ?�션 변경권'; // 10%
-                }
-                
-                const ticketItem = createConsumableItemInstance(ticketName);
-                if (ticketItem) {
-                    ticketItems.push(ticketItem);
-                }
-            }
-            
-            // ?�벤?�리??추�?
-            const { success, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, ticketItems);
-            if (!success) {
-                return { error: '보상??받기???�벤?�리 공간??부족합?�다.' };
-            }
-            
-            user.inventory = updatedInventory;
-            
-            // ?�령 기록 ?�??
-            if (!claimedRewards[wonWar.id]) {
-                claimedRewards[wonWar.id] = [];
-            }
-            claimedRewards[wonWar.id].push(user.id);
-            await db.setKV('guildWarClaimedRewards', claimedRewards);
-            
-            await db.updateUser(user);
-            
-            const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['gold', 'guildCoins', 'inventory']);
-            
-            return { 
-                clientResponse: { 
-                    updatedUser: user,
-                    rewardItems: ticketItems,
-                    rewardGold: 2000,
-                    rewardGuildCoins: 300
-                } 
-            };
-        }
         
         default:
             console.log(`[handleGuildAction] Unknown guild action type: ${type}`);

@@ -1791,14 +1791,88 @@ export const useApp = () => {
                 }
                 
                 // Handle guild list response
-                if (action.type === 'LIST_GUILDS' && result?.clientResponse?.guilds) {
-                    const guildsList = result.clientResponse.guilds;
+                if (action.type === 'LIST_GUILDS') {
+                    console.log(`[handleAction] LIST_GUILDS - Processing response:`, {
+                        hasResult: !!result,
+                        hasClientResponse: !!result?.clientResponse,
+                        hasGuilds: !!result?.clientResponse?.guilds,
+                        hasGuildsDirect: !!result?.guilds,
+                        guildsLength: result?.clientResponse?.guilds?.length || result?.guilds?.length,
+                        resultKeys: result ? Object.keys(result) : [],
+                        clientResponseKeys: result?.clientResponse ? Object.keys(result.clientResponse) : [],
+                        fullResult: result
+                    });
+                    
+                    // 서버 응답 구조: { success: true, guilds: [...], total: ... } 또는 { clientResponse: { guilds: [...] } }
+                    const guildsList = result?.guilds || result?.clientResponse?.guilds;
                     if (Array.isArray(guildsList)) {
+                        console.log(`[handleAction] LIST_GUILDS - Found ${guildsList.length} guild(s) in response`);
                         const guildsMap: Record<string, Guild> = {};
                         guildsList.forEach((g: any) => {
                             if (g && g.id) guildsMap[g.id] = g;
                         });
                         setGuilds(prev => ({ ...prev, ...guildsMap }));
+                    }
+                    
+                    // LIST_GUILDS의 경우 항상 result를 반환 (guilds가 없어도 빈 배열로 반환)
+                    // 서버 응답 구조에 맞춰 clientResponse로 래핑하여 반환
+                    const responseToReturn = result || { guilds: [] };
+                    // clientResponse 구조로 정규화
+                    if (!responseToReturn.clientResponse && responseToReturn.guilds) {
+                        responseToReturn.clientResponse = { guilds: responseToReturn.guilds };
+                    }
+                    console.log(`[handleAction] LIST_GUILDS - Returning result to component:`, {
+                        hasResult: !!responseToReturn,
+                        hasGuilds: !!responseToReturn.clientResponse?.guilds,
+                        guildsLength: responseToReturn.clientResponse?.guilds?.length
+                    });
+                    return responseToReturn;
+                }
+                
+                // Handle JOIN_GUILD response
+                if (action.type === 'JOIN_GUILD' && result?.clientResponse?.guild) {
+                    const guild = result.clientResponse.guild;
+                    if (guild && guild.id) {
+                        setGuilds(prev => ({ ...prev, [guild.id]: guild }));
+                    }
+                    if (result.clientResponse.updatedUser) {
+                        applyUserUpdate(result.clientResponse.updatedUser, 'JOIN_GUILD');
+                    }
+                }
+                
+                // Handle LEAVE_GUILD / GUILD_LEAVE response
+                if ((action.type === 'LEAVE_GUILD' || action.type === 'GUILD_LEAVE') && !result?.error) {
+                    // 탈퇴 성공 시 길드 정보 제거
+                    const guildId = (action.payload as any)?.guildId || currentUser?.guildId;
+                    if (guildId) {
+                        setGuilds(prev => {
+                            const updated = { ...prev };
+                            delete updated[guildId];
+                            return updated;
+                        });
+                    }
+                    // updatedUser가 있으면 사용자 상태 업데이트 (guildId 제거됨)
+                    // flushSync를 사용하여 즉시 상태 업데이트
+                    const updatedUser = result?.clientResponse?.updatedUser || result?.updatedUser;
+                    if (updatedUser) {
+                        flushSync(() => {
+                            applyUserUpdate(updatedUser, 'LEAVE_GUILD');
+                        });
+                    } else {
+                        // updatedUser가 없으면 현재 사용자의 guildId를 제거
+                        if (currentUser) {
+                            flushSync(() => {
+                                applyUserUpdate({ ...currentUser, guildId: undefined }, 'LEAVE_GUILD');
+                            });
+                        }
+                    }
+                }
+                
+                // Handle GET_GUILD_INFO response
+                if (action.type === 'GET_GUILD_INFO' && result?.clientResponse?.guild) {
+                    const guild = result.clientResponse.guild;
+                    if (guild && guild.id) {
+                        setGuilds(prev => ({ ...prev, [guild.id]: guild }));
                     }
                 }
                 
@@ -1813,7 +1887,8 @@ export const useApp = () => {
                 
                 // Return result for actions that need it (preserve original structure)
                 // Include donationResult and other specific response fields
-                if (result && (
+                // LIST_GUILDS는 이미 위에서 반환되므로 여기서는 제외
+                if (action.type !== 'LIST_GUILDS' && result && (
                     result.clientResponse || 
                     result.guild || 
                     result.gameId ||
@@ -1821,6 +1896,12 @@ export const useApp = () => {
                     result.clientResponse?.donationResult
                 )) {
                     return result;
+                }
+                
+                // LIST_GUILDS가 위에서 반환되지 않은 경우 (예: result가 undefined인 경우)
+                if (action.type === 'LIST_GUILDS') {
+                    console.warn(`[handleAction] LIST_GUILDS - result was not returned earlier, returning empty array`);
+                    return { clientResponse: { guilds: [] } };
                 }
             }
         } catch (err: any) {

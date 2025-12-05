@@ -17,7 +17,7 @@ interface QuestsModalProps {
 type QuestTab = 'daily' | 'weekly' | 'monthly';
 type QuestData = NonNullable<QuestLog[QuestTab]>;
 
-const QuestItem: React.FC<{ quest: Quest, onClaim: (id: string) => void, isMobile?: boolean }> = ({ quest, onClaim, isMobile = false }) => {
+const QuestItem: React.FC<{ quest: Quest, onClaim: (id: string) => void }> = ({ quest, onClaim }) => {
     const isComplete = quest.progress >= quest.target;
     const percentage = Math.min((quest.progress / quest.target) * 100, 100);
 
@@ -27,42 +27,6 @@ const QuestItem: React.FC<{ quest: Quest, onClaim: (id: string) => void, isMobil
             onClaim(quest.id);
         }
     };
-
-    if (isMobile) {
-        return (
-            <div className="bg-gray-900/50 p-3 rounded-lg flex flex-col gap-3">
-                <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-gray-800 rounded-md flex items-center justify-center text-gray-500 text-2xl flex-shrink-0">📜</div>
-                    <div className="flex-grow min-w-0">
-                        <h4 className="font-bold text-sm break-words">{quest.title}</h4>
-                        <p className="text-xs text-gray-400 mt-1 break-words">{quest.description}</p>
-                    </div>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2.5">
-                    <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${percentage}%` }}></div>
-                </div>
-                <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-300">{quest.progress} / {quest.target}</p>
-                    <div className="flex items-center gap-2 text-xs">
-                        <span className="text-yellow-300 font-semibold flex items-center gap-1">📜 +{quest.activityPoints}</span>
-                        {quest.reward.gold && (
-                            <span className="text-yellow-300 font-semibold flex items-center gap-1">
-                                <img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3" /> +{quest.reward.gold}
-                            </span>
-                        )}
-                    </div>
-                </div>
-                <ResourceActionButton 
-                    onClick={handleClaimClick} 
-                    disabled={!isComplete || quest.isClaimed} 
-                    variant={quest.isClaimed ? 'neutral' : (isComplete ? 'materials' : 'gold')}
-                    className="w-full !text-sm !py-2"
-                >
-                    {quest.isClaimed ? '완료' : (isComplete ? '보상 받기' : '진행 중')}
-                </ResourceActionButton>
-            </div>
-        );
-    }
 
     return (
         <div className="bg-gray-900/50 p-3 rounded-lg flex items-center gap-4">
@@ -230,8 +194,8 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
     };
 
     return (
-        <DraggableWindow title="퀘스트" onClose={onClose} windowId="quests" initialWidth={isMobile ? window.innerWidth - 20 : 750} initialHeight={isMobile ? window.innerHeight - 40 : undefined} isTopmost={isTopmost} variant="store">
-            <div className={`${isMobile ? 'h-[calc(100vh-80px)]' : 'h-[calc(var(--vh,1vh)*70)]'} flex flex-col`}>
+        <DraggableWindow title="퀘스트" onClose={onClose} windowId="quests" initialWidth={750} initialHeight={900} isTopmost={isTopmost} variant="store">
+            <div className={`h-full flex flex-col`}>
                 <div className="flex bg-gray-900/70 p-1 rounded-lg mb-4 flex-shrink-0">
                     <button onClick={() => setActiveTab('daily')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'daily' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>일일</button>
                     <button onClick={() => setActiveTab('weekly')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'weekly' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>주간</button>
@@ -250,7 +214,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                         <ul className="space-y-3">
                             {questList.map(quest => (
                                 <li key={quest.id}>
-                                    <QuestItem quest={quest} onClaim={handleClaim} isMobile={isMobile} />
+                                    <QuestItem quest={quest} onClaim={handleClaim} />
                                 </li>
                             ))}
                         </ul>

@@ -20,13 +20,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onAction, mode, onVie
     const [chatInput, setChatInput] = useState('');
     const [showQuickChat, setShowQuickChat] = useState(false);
     const [cooldown, setCooldown] = useState(0);
-    const { currentUserWithStatus, handlers, allUsers } = useAppContext();
+    const [activeTab, setActiveTab] = useState<'global' | 'guild'>('global');
+    const [guildMessages, setGuildMessages] = useState<any[]>([]);
+    const { currentUserWithStatus, handlers, allUsers, guilds } = useAppContext();
+
+    // 길드 채팅 메시지 로드
+    useEffect(() => {
+        if (currentUserWithStatus?.guildId && guilds[currentUserWithStatus.guildId]) {
+            const guild = guilds[currentUserWithStatus.guildId];
+            if (guild.chatHistory) {
+                setGuildMessages(guild.chatHistory);
+            }
+        } else {
+            setGuildMessages([]);
+        }
+    }, [currentUserWithStatus?.guildId, guilds]);
 
     useEffect(() => {
         if (chatBodyRef.current) {
             chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
         }
-    }, [messages]);
+    }, [messages, guildMessages, activeTab]);
 
     useEffect(() => {
         if (cooldown > 0) {
@@ -70,10 +84,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onAction, mode, onVie
 
     const handleSend = (message: { text?: string, emoji?: string }) => {
         if (cooldown > 0) return;
-        // mode가 'strategic' 또는 'playful'이면 해당 채널 사용, 그 외에는 'global'
-        const channel = (mode === 'strategic' || mode === 'playful') ? mode : 'global';
-        const payload = { channel, ...message, location: getLocationPrefix() };
-        onAction({ type: 'SEND_CHAT_MESSAGE', payload });
+        
+        if (activeTab === 'guild') {
+            // 길드 채팅 전송
+            handlers.handleAction({ type: 'SEND_GUILD_CHAT_MESSAGE', payload: { content: message.text || '' } });
+        } else {
+            // 전체 채팅 전송
+            const channel = (mode === 'strategic' || mode === 'playful') ? mode : 'global';
+            const payload = { channel, ...message, location: getLocationPrefix() };
+            onAction({ type: 'SEND_CHAT_MESSAGE', payload });
+        }
         setShowQuickChat(false);
         setChatInput('');
         setCooldown(5);
@@ -112,15 +132,60 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onAction, mode, onVie
             ? `(${cooldown}초)`
             : "[메시지 입력]";
 
+    const hasGuild = !!currentUserWithStatus?.guildId;
+    const activeMessages = activeTab === 'guild' ? guildMessages : messages;
+
     return (
         <div className="p-4 flex flex-col h-full min-h-[220px] sm:min-h-0 text-on-panel">
-            <h2 className="text-lg font-semibold border-b border-color pb-1 flex-shrink-0">전체채팅</h2>
-            <p className="text-[10px] text-center text-yellow-400 bg-tertiary/50 rounded-sm p-0.5">AI 보안관봇이 부적절한 언어 사용을 감지하고 있습니다. 🚓</p>
+            {hasGuild ? (
+                <div className="flex bg-gray-900/70 p-1 rounded-lg mb-2 flex-shrink-0">
+                    <button 
+                        onClick={() => setActiveTab('global')} 
+                        className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
+                    >
+                        전체채팅
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('guild')} 
+                        className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
+                    >
+                        길드채팅
+                    </button>
+                </div>
+            ) : (
+                <h2 className="text-lg font-semibold border-b border-color pb-1 flex-shrink-0">전체채팅</h2>
+            )}
+            {activeTab === 'global' && (
+                <p className="text-[10px] text-center text-yellow-400 bg-tertiary/50 rounded-sm p-0.5">AI 보안관봇이 부적절한 언어 사용을 감지하고 있습니다. 🚓</p>
+            )}
             <div ref={chatBodyRef} className="flex-grow space-y-0.5 overflow-y-auto pr-1 bg-tertiary/40 p-1 rounded-md min-h-[160px] sm:min-h-0">
-                {messages.map(msg => {
-                    const isBotMessage = msg.system && !msg.actionInfo && msg.user.nickname === 'AI 보안관봇';
-                    return (
-                        <div key={msg.id} className="text-xs">
+                {activeTab === 'guild' ? (
+                    // 길드 채팅 메시지 표시
+                    activeMessages.length > 0 ? (
+                        activeMessages.map((msg: any) => {
+                            const senderId = msg.user?.id || msg.authorId;
+                            const sender = senderId && senderId !== 'system' ? allUsers.find(u => u.id === senderId) : undefined;
+                            const isSystem = senderId === 'system';
+                            
+                            return (
+                                <div key={msg.id || msg.timestamp || msg.createdAt} className="text-xs">
+                                    <span className={`font-semibold pr-2 ${isSystem ? 'text-blue-400' : 'text-blue-300 cursor-pointer hover:underline'}`}>
+                                        {isSystem ? '시스템' : (sender?.nickname || 'Unknown')}:
+                                    </span>
+                                    <span className="text-blue-300">{msg.text || msg.content || ''}</span>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-tertiary text-sm">길드 채팅 메시지가 없습니다.</div>
+                    )
+                ) : (
+                    // 전체 채팅 메시지 표시
+                    <>
+                        {messages.map(msg => {
+                            const isBotMessage = msg.system && !msg.actionInfo && msg.user.nickname === 'AI 보안관봇';
+                            return (
+                                <div key={msg.id} className="text-xs">
                             {msg.location && <span className="font-semibold text-tertiary pr-1">{msg.location}</span>}
                             <span 
                                 className={`font-semibold pr-2 ${msg.system ? 'text-highlight' : 'text-tertiary cursor-pointer hover:underline'}`}
@@ -222,11 +287,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onAction, mode, onVie
                                 
                                 return <span className={isBotMessage ? 'text-highlight' : ''}>{parts}{isBotMessage && ' 🚓'}</span>;
                             })()}
-                            {msg.emoji && <span className="text-xl">{msg.emoji}</span>}
-                        </div>
-                    );
-                })}
-                {messages.length === 0 && <div className="h-full flex items-center justify-center text-tertiary text-sm">채팅 메시지가 없습니다.</div>}
+                                    {msg.emoji && <span className="text-xl">{msg.emoji}</span>}
+                                </div>
+                            );
+                        })}
+                        {messages.length === 0 && <div className="h-full flex items-center justify-center text-tertiary text-sm">채팅 메시지가 없습니다.</div>}
+                    </>
+                )}
             </div>
             <div className="relative flex-shrink-0">
                {showQuickChat && (

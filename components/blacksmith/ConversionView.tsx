@@ -6,17 +6,6 @@ import DraggableWindow from '../DraggableWindow.js';
 import { MATERIAL_ITEMS } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 
-// 모바일 감지 훅
-const useIsMobile = () => {
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-    return isMobile;
-};
-
 const CraftingDetailModal: React.FC<{
     details: { materialName: string, craftType: 'upgrade' | 'downgrade' };
     inventory: InventoryItem[];
@@ -184,7 +173,6 @@ interface ConversionViewProps {
 }
 
 const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
-    const isMobile = useIsMobile();
     const { currentUserWithStatus } = useAppContext();
     const [craftingDetails, setCraftingDetails] = useState<{ materialName: string, craftType: 'upgrade' | 'downgrade' } | null>(null);
 
@@ -208,7 +196,7 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
     const materialTiers = ['하급 강화석', '중급 강화석', '상급 강화석', '최상급 강화석', '신비의 강화석'];
 
     return (
-        <div className={`${isMobile ? 'h-auto' : 'h-full'} flex flex-col ${isMobile ? '' : 'min-h-0'}`}>
+        <div className="h-full flex flex-col min-h-0">
             {craftingDetails && (
                 <CraftingDetailModal 
                     details={craftingDetails} 
@@ -219,9 +207,9 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                 />
             )}
 
-            <div className={`${isMobile ? 'h-auto p-1 overflow-y-auto' : 'flex-1 min-h-0 p-3 overflow-hidden'} flex flex-col items-center ${isMobile ? 'justify-start gap-2' : 'justify-center gap-4'}`}>
+            <div className="flex-1 min-h-0 p-3 overflow-hidden flex flex-col items-center justify-center gap-4">
                 {/* 첫 번째 행: 하급 강화석 <> 중급 강화석 <> 상급 강화석 */}
-                <div className={`flex ${isMobile ? 'flex-col' : 'items-center justify-center'} gap-2.5 w-full`}>
+                <div className="flex items-center justify-center gap-2.5 w-full">
                     {['하급 강화석', '중급 강화석', '상급 강화석'].map((materialName, index, row) => {
                         const materialExists = materialCategories[materialName] && materialCategories[materialName].length > 0;
                         const quantity = materialCategories[materialName]
@@ -235,20 +223,20 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                         return (
                             <React.Fragment key={materialName}>
                                 {/* 강화석 카드 */}
-                                <div className={`bg-panel-secondary rounded-lg ${isMobile ? 'p-1.5' : 'p-2.5'} flex flex-col items-center justify-center ${isMobile ? 'w-full' : 'min-w-[120px]'}`}>
-                                    <img src={materialData.image as string | undefined} alt={materialName} className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} mb-1.5`} />
-                                    <h4 className={`font-bold text-secondary ${isMobile ? 'text-[9px]' : 'text-[11px]'} text-center whitespace-nowrap mb-1`}>{materialName}</h4>
-                                    <p className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-tertiary text-center mb-1.5`}>보유: {quantity.toLocaleString()}개</p>
+                                <div className="bg-panel-secondary rounded-lg p-2.5 flex flex-col items-center justify-center min-w-[120px]">
+                                    <img src={materialData.image as string | undefined} alt={materialName} className="w-12 h-12 mb-1.5" />
+                                    <h4 className="font-bold text-secondary text-[11px] text-center whitespace-nowrap mb-1">{materialName}</h4>
+                                    <p className="text-[10px] text-tertiary text-center mb-1.5">보유: {quantity.toLocaleString()}개</p>
                                 </div>
                                 
                                 {/* 오른쪽 화살표 (합성) - 마지막 강화석이 아닐 때만 표시 */}
                                 {index < row.length - 1 && (
-                                    <div className={`flex ${isMobile ? 'flex-row items-center justify-center' : 'flex-col gap-1 items-center'}`}>
-                                        <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-secondary font-medium`}>합성</span>
+                                    <div className="flex flex-col gap-1 items-center">
+                                        <span className="text-[10px] text-secondary font-medium">합성</span>
                                         <ResourceActionButton
                                             onClick={() => setCraftingDetails({ materialName, craftType: 'upgrade' })}
                                             variant="accent"
-                                            className={`${isMobile ? '!w-auto !px-2 !py-1 text-[9px]' : '!w-auto text-xs !px-3 !py-1.5'} whitespace-nowrap`}
+                                            className="!w-auto text-xs !px-3 !py-1.5 whitespace-nowrap"
                                             disabled={!materialExists || quantity < 10}
                                             title={`${materialName} 10개 → ${materialTiers[tierIndex + 1]} 합성`}
                                         >
@@ -257,14 +245,14 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                                         <ResourceActionButton
                                             onClick={() => setCraftingDetails({ materialName: materialTiers[tierIndex + 1], craftType: 'downgrade' })}
                                             variant="neutral"
-                                            className={`${isMobile ? '!w-auto !px-2 !py-1 text-[9px]' : '!w-auto text-xs !px-3 !py-1.5'} whitespace-nowrap`}
+                                            className="!w-auto text-xs !px-3 !py-1.5 whitespace-nowrap"
                                             disabled={!materialCategories[materialTiers[tierIndex + 1]] || 
                                                 (materialCategories[materialTiers[tierIndex + 1]]?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0) < 1}
                                             title={`${materialTiers[tierIndex + 1]} → ${materialName} 분해`}
                                         >
                                             ←
                                         </ResourceActionButton>
-                                        <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-secondary font-medium`}>분해</span>
+                                        <span className="text-[10px] text-secondary font-medium">분해</span>
                                     </div>
                                 )}
                             </React.Fragment>
@@ -273,7 +261,7 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                 </div>
 
                 {/* 두 번째 행: 상급 강화석 <> 최상급 강화석 <> 신비의 강화석 */}
-                <div className={`flex ${isMobile ? 'flex-col' : 'items-center justify-center'} gap-2.5 w-full`}>
+                <div className="flex items-center justify-center gap-2.5 w-full">
                     {['상급 강화석', '최상급 강화석', '신비의 강화석'].map((materialName, index, row) => {
                         const materialExists = materialCategories[materialName] && materialCategories[materialName].length > 0;
                         const quantity = materialCategories[materialName]
@@ -287,20 +275,20 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                         return (
                             <React.Fragment key={materialName}>
                                 {/* 강화석 카드 */}
-                                <div className={`bg-panel-secondary rounded-lg ${isMobile ? 'p-1.5' : 'p-2.5'} flex flex-col items-center justify-center ${isMobile ? 'w-full' : 'min-w-[120px]'}`}>
-                                    <img src={materialData.image as string | undefined} alt={materialName} className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} mb-1.5`} />
-                                    <h4 className={`font-bold text-secondary ${isMobile ? 'text-[9px]' : 'text-[11px]'} text-center whitespace-nowrap mb-1`}>{materialName}</h4>
-                                    <p className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-tertiary text-center mb-1.5`}>보유: {quantity.toLocaleString()}개</p>
+                                <div className="bg-panel-secondary rounded-lg p-2.5 flex flex-col items-center justify-center min-w-[120px]">
+                                    <img src={materialData.image as string | undefined} alt={materialName} className="w-12 h-12 mb-1.5" />
+                                    <h4 className="font-bold text-secondary text-[11px] text-center whitespace-nowrap mb-1">{materialName}</h4>
+                                    <p className="text-[10px] text-tertiary text-center mb-1.5">보유: {quantity.toLocaleString()}개</p>
                                 </div>
                                 
                                 {/* 오른쪽 화살표 (합성) - 마지막 강화석이 아닐 때만 표시 */}
                                 {index < row.length - 1 && (
-                                    <div className={`flex ${isMobile ? 'flex-row items-center justify-center' : 'flex-col gap-1.5 items-center'}`}>
-                                        <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-secondary font-medium`}>합성</span>
+                                    <div className="flex flex-col gap-1.5 items-center">
+                                        <span className="text-[10px] text-secondary font-medium">합성</span>
                                         <ResourceActionButton
                                             onClick={() => setCraftingDetails({ materialName, craftType: 'upgrade' })}
                                             variant="accent"
-                                            className={`${isMobile ? '!w-auto !px-2 !py-1 text-[9px]' : '!w-auto text-xs !px-3 !py-1.5'} whitespace-nowrap`}
+                                            className="!w-auto text-xs !px-3 !py-1.5 whitespace-nowrap"
                                             disabled={!materialExists || quantity < 10}
                                             title={`${materialName} 10개 → ${materialTiers[tierIndex + 1]} 합성`}
                                         >
@@ -309,14 +297,14 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                                         <ResourceActionButton
                                             onClick={() => setCraftingDetails({ materialName: materialTiers[tierIndex + 1], craftType: 'downgrade' })}
                                             variant="neutral"
-                                            className={`${isMobile ? '!w-auto !px-2 !py-1 text-[9px]' : '!w-auto text-xs !px-3 !py-1.5'} whitespace-nowrap`}
+                                            className="!w-auto text-xs !px-3 !py-1.5 whitespace-nowrap"
                                             disabled={!materialCategories[materialTiers[tierIndex + 1]] || 
                                                 (materialCategories[materialTiers[tierIndex + 1]]?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0) < 1}
                                             title={`${materialTiers[tierIndex + 1]} → ${materialName} 분해`}
                                         >
                                             ←
                                         </ResourceActionButton>
-                                        <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-secondary font-medium`}>분해</span>
+                                        <span className="text-[10px] text-secondary font-medium">분해</span>
                                     </div>
                                 )}
                             </React.Fragment>

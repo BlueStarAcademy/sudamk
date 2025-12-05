@@ -567,26 +567,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return () => window.removeEventListener('resize', handleResize);
     }, []);
     
-    // 뷰포트 크기에 비례한 창 크기 계산 (85% 너비, 최소 400px, 최대 950px)
-    // 브라우저가 작아질수록 창도 함께 작아지도록 비율 기반 계산
+    // PC와 동일한 가로/세로 비율 유지 (1100x800 = 1.375:1)
+    // 모바일에서도 PC와 동일한 크기를 사용하고 DraggableWindow의 scale로 축소
     const calculatedWidth = useMemo(() => {
-        // 데스크톱에서는 고정 크기 사용 (최소 1100px), 모바일에서만 화면 비율 사용
-        if (windowWidth >= 768) {
-            return Math.max(1100, Math.min(1200, windowWidth * 0.9)); // 데스크톱: 1100-1200px
-        }
-        const baseWidth = windowWidth * 0.85;
-        return Math.max(400, Math.min(950, baseWidth));
-    }, [windowWidth]);
+        // PC와 동일한 고정 크기 사용
+        return 1100;
+    }, []);
     
-    // 뷰포트 크기에 비례한 창 높이 계산 (90% 높이, 최소 520px, 최대 1000px) - 인벤토리 슬롯 2줄 이상 보이도록
+    // PC와 동일한 가로/세로 비율 유지
     const calculatedHeight = useMemo(() => {
-        // 데스크톱에서는 고정 크기 사용 (최소 800px), 모바일에서만 화면 비율 사용
-        if (windowWidth >= 768) {
-            return Math.max(800, Math.min(900, windowHeight * 0.85)); // 데스크톱: 800-900px
-        }
-        const baseHeight = windowHeight * 0.90;
-        return Math.max(520, Math.min(1000, baseHeight));
-    }, [windowHeight, windowWidth]);
+        // PC와 동일한 고정 크기 사용 (1100:800 비율 유지)
+        return 800;
+    }, []);
     
     // 모바일 감지 (768px 이하를 모바일로 간주)
     const isMobile = useMemo(() => windowWidth < 768, [windowWidth]);
@@ -859,128 +851,84 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 style={{ margin: 0, padding: 0 }}
             >
                 {/* Top section: Equipped items (left) and Selected item details (right) */}
-                <div className={`bg-gray-800 mb-2 rounded-md shadow-inner flex ${isMobile ? 'flex-col' : 'flex-row'} flex-shrink-0 overflow-auto`} style={{ maxHeight: `${isMobile ? Math.min(600 * scaleFactor, windowHeight * 0.65) : Math.min(600 * scaleFactor, windowHeight * 0.7)}px`, padding: `${isMobile ? Math.max(4, Math.round(6 * scaleFactor)) : Math.max(12, Math.round(16 * scaleFactor))}px` }}>
+                <div className={`bg-gray-800 mb-2 rounded-md shadow-inner flex flex-row ${isMobile ? 'flex-shrink' : 'flex-shrink-0'} ${isMobile ? '' : 'overflow-auto'}`} style={{ maxHeight: isMobile ? 'none' : `${Math.min(600 * scaleFactor, windowHeight * 0.7)}px`, padding: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}>
                     {/* Left panel: Equipped items */}
-                    <div className={`${isMobile ? 'w-full mb-2 flex-shrink-0' : 'w-1/3 flex-shrink-0'} ${isMobile ? '' : 'border-r border-gray-700'}`} style={{ paddingRight: `${isMobile ? 0 : Math.max(12, Math.round(16 * scaleFactor))}px`, maxHeight: isMobile ? '120px' : 'none' }}>
-                        {isMobile ? (
-                            <div className="space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px`, marginBottom: 0 }}>장착 장비</h3>
-                                    <div className="flex items-center gap-1">
-                                        <select
-                                            value={selectedPreset}
-                                            onChange={e => handlePresetChange(Number(e.target.value))}
-                                            className="bg-secondary border border-color rounded-md p-0.5 focus:ring-accent focus:border-accent"
-                                            style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px`, width: '80px' }}
-                                        >
-                                            {presets.map((preset, index) => (
-                                                <option key={index} value={index}>{preset.name}</option>
-                                            ))}
-                                        </select>
-                                        <Button onClick={handleOpenRenameModal} colorScheme="blue" className="!py-0.5 !px-1.5" style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
-                                            저장
-                                        </Button>
+                    <div className={`w-1/3 flex-shrink-0 border-r border-gray-700`} style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}>
+                        <>
+                            <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>장착 장비</h3>
+                            <div 
+                                className="grid" 
+                                style={{ 
+                                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                                    gap: `${Math.max(6, Math.round(8 * scaleFactor))}px`
+                                }}
+                            >
+                                {EQUIPMENT_SLOTS.map(slot => {
+                                    const equippedItem = getItemForSlot(slot);
+                                    return (
+                                    <div key={slot} style={{ width: '100%', minWidth: 0 }}>
+                                        <EquipmentSlotDisplay 
+                                            slot={slot} 
+                                            item={equippedItem} 
+                                            scaleFactor={scaleFactor} 
+                                            onClick={equippedItem ? () => setSelectedItemId(equippedItem.id) : undefined}
+                                            isSelected={equippedItem ? selectedItemId === equippedItem.id : false}
+                                        />
                                     </div>
-                                </div>
-                                <div 
-                                    className="grid" 
-                                    style={{ 
-                                        gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
-                                        gap: `${Math.max(2, Math.round(3 * scaleFactor))}px`
-                                    }}
-                                >
-                                    {EQUIPMENT_SLOTS.map(slot => {
-                                        const equippedItem = getItemForSlot(slot);
+                                )})}
+                            </div>
+                            <div className="mt-4">
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-2">
+                                    {Object.values(CoreStat).map(stat => {
+                                        const baseStats = currentUser.baseStats || {};
+                                        const spentStatPoints = currentUser.spentStatPoints || {};
+                                        const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
+                                        const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
+                                        const bonus = Math.floor(baseValue * (bonusInfo.percent / 100)) + bonusInfo.flat;
+                                        const finalValue = baseValue + bonus;
                                         return (
-                                        <div key={slot} style={{ width: '100%', minWidth: 0 }}>
-                                            <EquipmentSlotDisplay 
-                                                slot={slot} 
-                                                item={equippedItem} 
-                                                scaleFactor={scaleFactor * 0.5} 
-                                                onClick={equippedItem ? () => setSelectedItemId(equippedItem.id) : undefined}
-                                                isSelected={equippedItem ? selectedItemId === equippedItem.id : false}
-                                            />
-                                        </div>
-                                    )})}
+                                            <div key={stat} className="bg-tertiary/40 p-1 rounded-md flex items-center justify-between" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                <span className="font-semibold text-secondary whitespace-nowrap">{stat}</span>
+                                                <span className="font-mono font-bold whitespace-nowrap" title={`기본: ${baseValue}, 장비: ${bonus}`}>
+                                                    {isNaN(finalValue) ? 0 : finalValue}
+                                                    {bonus > 0 && <span className="text-green-400 ml-0.5" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>(+{bonus})</span>}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <select
+                                        value={selectedPreset}
+                                        onChange={e => handlePresetChange(Number(e.target.value))}
+                                        className="bg-secondary border border-color rounded-md p-1 focus:ring-accent focus:border-accent flex-grow"
+                                        style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                    >
+                                        {presets.map((preset, index) => (
+                                            <option key={index} value={index}>{preset.name}</option>
+                                        ))}
+                                    </select>
+                                    <Button onClick={handleOpenRenameModal} colorScheme="blue" className="!py-1" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                        저장
+                                    </Button>
                                 </div>
                             </div>
-                        ) : (
-                            <>
-                                <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>장착 장비</h3>
-                                <div 
-                                    className="grid" 
-                                    style={{ 
-                                        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                                        gap: `${Math.max(6, Math.round(8 * scaleFactor))}px`
-                                    }}
-                                >
-                                    {EQUIPMENT_SLOTS.map(slot => {
-                                        const equippedItem = getItemForSlot(slot);
-                                        return (
-                                        <div key={slot} style={{ width: '100%', minWidth: 0 }}>
-                                            <EquipmentSlotDisplay 
-                                                slot={slot} 
-                                                item={equippedItem} 
-                                                scaleFactor={scaleFactor} 
-                                                onClick={equippedItem ? () => setSelectedItemId(equippedItem.id) : undefined}
-                                                isSelected={equippedItem ? selectedItemId === equippedItem.id : false}
-                                            />
-                                        </div>
-                                    )})}
-                                </div>
-                                <div className="mt-4">
-                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-2">
-                                        {Object.values(CoreStat).map(stat => {
-                                            const baseStats = currentUser.baseStats || {};
-                                            const spentStatPoints = currentUser.spentStatPoints || {};
-                                            const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
-                                            const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
-                                            const bonus = Math.floor(baseValue * (bonusInfo.percent / 100)) + bonusInfo.flat;
-                                            const finalValue = baseValue + bonus;
-                                            return (
-                                                <div key={stat} className="bg-tertiary/40 p-1 rounded-md flex items-center justify-between" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
-                                                    <span className="font-semibold text-secondary whitespace-nowrap">{stat}</span>
-                                                    <span className="font-mono font-bold whitespace-nowrap" title={`기본: ${baseValue}, 장비: ${bonus}`}>
-                                                        {isNaN(finalValue) ? 0 : finalValue}
-                                                        {bonus > 0 && <span className="text-green-400 ml-0.5" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>(+{bonus})</span>}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <select
-                                            value={selectedPreset}
-                                            onChange={e => handlePresetChange(Number(e.target.value))}
-                                            className="bg-secondary border border-color rounded-md p-1 focus:ring-accent focus:border-accent flex-grow"
-                                            style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
-                                        >
-                                            {presets.map((preset, index) => (
-                                                <option key={index} value={index}>{preset.name}</option>
-                                            ))}
-                                        </select>
-                                        <Button onClick={handleOpenRenameModal} colorScheme="blue" className="!py-1" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
-                                            저장
-                                        </Button>
-                                    </div>
-                                </div>
-                            </>
-                        )}
+                        </>
                     </div>
 
                     {/* Conditional middle and right panels */}
                     {selectedItem && selectedItem.type === 'equipment' ? (
-                        <div className={`flex ${isMobile ? 'flex-row gap-2' : 'flex-row gap-0'} flex-1`} style={{ minHeight: isMobile ? '300px' : undefined }}>
-                            {/* Middle panel: Currently equipped item for comparison - 모바일에서도 표시하되 나란히 배치 */}
-                            <div className={`flex flex-col ${isMobile ? 'w-1/2' : 'flex-1'} h-full bg-panel-secondary rounded-lg p-2 relative overflow-hidden ${isMobile ? '' : 'border-r border-gray-700'}`} style={{ minHeight: isMobile ? '300px' : undefined }}>
-                                <h3 className="font-bold text-on-panel mb-1 flex-shrink-0" style={{ fontSize: `${isMobile ? Math.max(10, Math.round(12 * scaleFactor * mobileTextScale)) : Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>현재 장착</h3>
-                                <div className="flex-1 min-h-0 overflow-y-auto pb-16" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        <div className={`flex flex-row gap-0 flex-1`}>
+                            {/* Middle panel: Currently equipped item for comparison */}
+                            <div className={`flex flex-col flex-1 h-full bg-panel-secondary rounded-lg p-2 relative overflow-hidden border-r border-gray-700`}>
+                                <h3 className="font-bold text-on-panel mb-1 flex-shrink-0" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>현재 장착</h3>
+                                <div className={`flex-1 min-h-0 ${isMobile ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
                                     <LocalItemDetailDisplay 
                                         item={correspondingEquippedItem} 
                                         title="장착된 장비 없음" 
                                         comparisonItem={selectedItem} 
-                                        scaleFactor={isMobile ? scaleFactor * 0.7 : scaleFactor} 
-                                        mobileTextScale={isMobile ? mobileTextScale * 0.8 : mobileTextScale} 
+                                        scaleFactor={scaleFactor} 
+                                        mobileTextScale={mobileTextScale} 
                                         userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
                                         emptySlot={selectedItem?.slot}
                                     />
@@ -988,25 +936,25 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                             </div>
 
                             {/* Right panel: Selected equipment item */}
-                            <div className={`flex flex-col ${isMobile ? 'w-1/2' : 'flex-1'} h-full bg-panel-secondary rounded-lg ${isMobile ? 'p-2' : 'p-3'} relative overflow-hidden`} style={{ minHeight: isMobile ? '300px' : undefined }}>
+                            <div className={`flex flex-col flex-1 h-full bg-panel-secondary rounded-lg p-3 relative overflow-hidden`}>
                                 <div className="flex items-center gap-2 mb-1 flex-shrink-0">
-                                    <h3 className="font-bold text-on-panel" style={{ fontSize: `${isMobile ? Math.max(10, Math.round(12 * scaleFactor * mobileTextScale)) : Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>선택 장비</h3>
+                                    <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>선택 장비</h3>
                                     {combatPowerChange !== null && combatPowerChange !== 0 && (
-                                        <span className={`font-bold ${combatPowerChange > 0 ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: `${isMobile ? Math.max(9, Math.round(10 * scaleFactor * mobileTextScale)) : Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
+                                        <span className={`font-bold ${combatPowerChange > 0 ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
                                             {combatPowerChange > 0 ? '+' : ''}{combatPowerChange}
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex-1 min-h-0 overflow-y-auto pb-16" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                    <LocalItemDetailDisplay item={selectedItem} title="선택된 아이템 없음" comparisonItem={correspondingEquippedItem} scaleFactor={isMobile ? scaleFactor * 0.7 : scaleFactor} mobileTextScale={isMobile ? mobileTextScale * 0.8 : mobileTextScale} userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel} />
+                                <div className={`flex-1 min-h-0 ${isMobile ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
+                                    <LocalItemDetailDisplay item={selectedItem} title="선택된 아이템 없음" comparisonItem={correspondingEquippedItem} scaleFactor={scaleFactor} mobileTextScale={mobileTextScale} userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel} />
                                 </div>
-                                <div className={`absolute bottom-2 left-0 right-0 flex ${isMobile ? 'flex-row gap-1' : 'justify-center gap-2'} px-2 flex-shrink-0 bg-panel-secondary/95 backdrop-blur-sm`}>
+                                <div className={`absolute bottom-2 left-0 right-0 flex justify-center gap-2 px-2 flex-shrink-0 bg-panel-secondary/95 backdrop-blur-sm`}>
                                     {selectedItem.id === correspondingEquippedItem?.id ? (
                                         <Button
                                             onClick={() => handleEquipToggle(selectedItem.id)}
                                             colorScheme="red"
-                                            className={`flex-1 ${isMobile ? '!py-1 !px-2' : '!py-1'}`}
-                                            style={{ fontSize: `${isMobile ? Math.max(9, Math.round(10 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                            className={`flex-1 !py-1`}
+                                            style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                         >
                                             해제
                                         </Button>
@@ -1014,9 +962,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         <Button
                                             onClick={() => handleEquipToggle(selectedItem.id)}
                                             colorScheme="green"
-                                            className={`flex-1 ${isMobile ? '!py-1 !px-2' : '!py-1'}`}
+                                            className={`flex-1 !py-1`}
                                             disabled={!canEquip}
-                                            style={{ fontSize: `${isMobile ? Math.max(9, Math.round(10 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                            style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                         >
                                             장착
                                         </Button>
@@ -1025,12 +973,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         onClick={() => onStartEnhance(selectedItem)}
                                         disabled={selectedItem.stars >= 10}
                                         colorScheme="yellow"
-                                        className={`flex-1 ${isMobile ? '!py-1 !px-2' : '!py-1'}`}
-                                        style={{ fontSize: `${isMobile ? Math.max(9, Math.round(10 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                        className={`flex-1 !py-1`}
+                                        style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                     >
                                         {selectedItem.stars >= 10 ? '최대' : '강화'}
                                     </Button>
-                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`flex-1 ${isMobile ? '!py-1 !px-2' : '!py-1'}`} style={{ fontSize: `${isMobile ? Math.max(9, Math.round(10 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`flex-1 !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                         판매
                                     </Button>
                                 </div>
@@ -1038,51 +986,51 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         </div>
                     ) : (
                         /* Single right panel for non-equipment items or no selection */
-                        <div className={`flex flex-col ${isMobile ? 'w-full flex-1 min-h-0' : 'w-2/3'} h-full bg-panel-secondary rounded-lg ${isMobile ? 'p-3' : 'p-3'} relative overflow-hidden ${isMobile ? '' : 'ml-4'}`} style={{ minHeight: isMobile ? '300px' : undefined }}>
+                        <div className={`flex flex-col w-2/3 h-full bg-panel-secondary rounded-lg p-3 relative overflow-hidden ml-4`}>
                             {selectedItem ? (
                                 (selectedItem.type === 'consumable' || selectedItem.type === 'material') ? (
                                     <>
-                                        <h3 className="font-bold text-on-panel mb-2 flex-shrink-0" style={{ fontSize: `${isMobile ? Math.max(16, Math.round(18 * scaleFactor * mobileTextScale)) : Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>
+                                        <h3 className="font-bold text-on-panel mb-2 flex-shrink-0" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>
                                             선택 {selectedItem.type === 'consumable' ? '소모품' : '재료'}
                                         </h3>
-                                        <div className="flex-1 min-h-0 overflow-y-auto" style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px`, WebkitOverflowScrolling: 'touch' }}>
+                                        <div className={`flex-1 min-h-0 ${isMobile ? 'overflow-visible' : 'overflow-y-auto'}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px`, WebkitOverflowScrolling: 'touch' }}>
                                             <div className="flex items-start justify-between mb-2">
                                                 <div 
                                                     className="relative rounded-lg flex-shrink-0 aspect-square"
                                                     style={{
-                                                        width: `${isMobile ? Math.max(80, Math.round(100 * scaleFactor)) : Math.max(60, Math.round(80 * scaleFactor))}px`,
-                                                        height: `${isMobile ? Math.max(80, Math.round(100 * scaleFactor)) : Math.max(60, Math.round(80 * scaleFactor))}px`
+                                                        width: `${Math.max(60, Math.round(80 * scaleFactor))}px`,
+                                                        height: `${Math.max(60, Math.round(80 * scaleFactor))}px`
                                                     }}
                                                 >
                                                     <img src={gradeBackgrounds[selectedItem.grade]} alt={selectedItem.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                                                     {selectedItem.image && <img src={selectedItem.image} alt={selectedItem.name} className="absolute object-contain" style={{ width: '80%', height: '80%', padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                                                 </div>
                                                 <div className="flex-grow text-right ml-2">
-                                                    <h3 className={`font-bold ${gradeStyles[selectedItem.grade].color}`} style={{ fontSize: `${isMobile ? Math.max(16, Math.round(18 * scaleFactor * mobileTextScale)) : Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>{selectedItem.name}</h3>
-                                                    <p className={gradeStyles[selectedItem.grade].color} style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>[{gradeStyles[selectedItem.grade].name}]</p>
-                                                    <p className="text-gray-300 mt-1" style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>{selectedItem.description}</p>
-                                                    <p className="text-gray-300 mt-1" style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>보유 수량: {selectedItem.quantity}</p>
+                                                    <h3 className={`font-bold ${gradeStyles[selectedItem.grade].color}`} style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>{selectedItem.name}</h3>
+                                                    <p className={gradeStyles[selectedItem.grade].color} style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>[{gradeStyles[selectedItem.grade].name}]</p>
+                                                    <p className="text-gray-300 mt-1" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>{selectedItem.description}</p>
+                                                    <p className="text-gray-300 mt-1" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>보유 수량: {selectedItem.quantity}</p>
                                                 </div>
                                             </div>
                                             {selectedItem.type === 'material' && (
                                                 <div className="mt-2 p-2 bg-gray-800/50 rounded-lg">
-                                                    <p className="font-semibold text-secondary mb-1" style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>강화 필요 정보:</p>
+                                                    <p className="font-semibold text-secondary mb-1" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>강화 필요 정보:</p>
                                                     {enhancementMaterialDetails.length > 0 ? (
                                                         enhancementMaterialDetails.slice(0, 2).map((detail, index) => (
-                                                            <p key={index} className="text-gray-300" style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+                                                            <p key={index} className="text-gray-300" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
                                                                 {detail}
                                                             </p>
                                                         ))
                                                     ) : (
-                                                        <p className="text-gray-300" style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.</p>
+                                                        <p className="text-gray-300" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.</p>
                                                     )}
                                                     {enhancementMaterialDetails.length > 2 && (
-                                                        <p className="text-gray-400 mt-1" style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>...</p>
+                                                        <p className="text-gray-400 mt-1" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>...</p>
                                                     )}
                                                 </div>
                                             )}
                                         </div>
-                                        <div className={`absolute bottom-2 left-0 right-0 flex ${isMobile ? 'flex-col gap-1.5' : 'justify-center gap-2'} px-4 flex-shrink-0`}>
+                                        <div className={`absolute bottom-2 left-0 right-0 flex justify-center gap-2 px-4 flex-shrink-0`}>
                                             {selectedItem.type === 'consumable' && (() => {
                                                 const consumableItem = CONSUMABLE_ITEMS.find(ci => ci.name === selectedItem.name || ci.name === selectedItem.name.replace('꾸러미', ' 꾸러미') || ci.name === selectedItem.name.replace(' 꾸러미', '꾸러미'));
                                                 const isUsable = consumableItem?.usable !== false; // 기본값은 true
@@ -1092,15 +1040,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     <>
                                                         {isUsable && (
                                                             <>
-                                                                <Button onClick={() => onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } })} colorScheme="blue" className={`w-full ${isMobile ? '!py-2' : '!py-1'}`} style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                <Button onClick={() => onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } })} colorScheme="blue" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                     사용
                                                                 </Button>
                                                                 {selectedItem.quantity && selectedItem.quantity > 1 && (
                                                                     <Button
                                                                         onClick={() => { setItemToUseBulk(selectedItem); setShowUseQuantityModal(true); }}
                                                                         colorScheme="purple"
-                                                                        className={`w-full ${isMobile ? '!py-2' : '!py-1'}`}
-                                                                        style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                                                        className={`w-full !py-1`}
+                                                                        style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                                                     >
                                                                         일괄 사용
                                                                     </Button>
@@ -1109,11 +1057,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         )}
                                                         {isSellable && (
                                                             <>
-                                                                <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full ${isMobile ? '!py-2' : '!py-1'}`} style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                     판매
                                                                 </Button>
                                                                 {selectedItem.quantity && selectedItem.quantity > 1 && (
-                                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full ${isMobile ? '!py-2' : '!py-1'}`} style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                         일괄 판매
                                                                     </Button>
                                                                 )}
@@ -1124,10 +1072,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             })()}
                                             {selectedItem.type === 'material' && (
                                                 <>
-                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full ${isMobile ? '!py-2' : '!py-1'}`} style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                         판매
                                                     </Button>
-                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full ${isMobile ? '!py-2' : '!py-1'}`} style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                         일괄 판매
                                                     </Button>
                                                 </>
@@ -1137,7 +1085,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 const isSellable = consumableItem?.sellable !== false; // 기본값은 true
                                                 
                                                 return isSellable ? (
-                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full ${isMobile ? '!py-2' : '!py-1'}`} style={{ fontSize: `${isMobile ? Math.max(13, Math.round(14 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                         판매
                                                     </Button>
                                                 ) : null;
@@ -1155,37 +1103,37 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 </div>
 
                 {/* Bottom section: Inventory grid */}
-                <div className="bg-gray-900 overflow-hidden flex flex-col" style={{ flex: '1 1 0', minHeight: `${isMobile ? Math.max(250 * scaleFactor, windowHeight * 0.4) : Math.max(320 * scaleFactor, windowHeight * 0.45)}px`, padding: `${isMobile ? Math.max(6, Math.round(8 * scaleFactor)) : Math.max(12, Math.round(16 * scaleFactor))}px`, paddingTop: `${isMobile ? Math.max(6, Math.round(8 * scaleFactor)) : Math.max(12, Math.round(16 * scaleFactor))}px`, paddingBottom: `${isMobile ? Math.max(6, Math.round(8 * scaleFactor)) : Math.max(12, Math.round(16 * scaleFactor))}px`, marginBottom: 0 }}>
-                    <div className={`flex-shrink-0 bg-gray-900/50 rounded-md mb-2 ${isMobile ? 'flex flex-col gap-2' : ''}`} style={{ padding: `${isMobile ? Math.max(4, Math.round(6 * scaleFactor)) : Math.max(6, Math.round(8 * scaleFactor))}px`, marginBottom: `${isMobile ? Math.max(4, Math.round(6 * scaleFactor)) : Math.max(6, Math.round(8 * scaleFactor))}px` }}>
-                        <div className={`flex items-center ${isMobile ? 'flex-wrap gap-2' : 'justify-between'}`}>
-                            <div className={`flex items-center ${isMobile ? 'gap-1 flex-wrap' : 'space-x-2'}`}>
-                                <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`${isMobile ? '!py-1.5 !px-3' : '!py-1 !px-2'}`} style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>전체</Button>
-                                <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`${isMobile ? '!py-1.5 !px-3' : '!py-1 !px-2'}`} style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>장비</Button>
-                                <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`${isMobile ? '!py-1.5 !px-3' : '!py-1 !px-2'}`} style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>소모품</Button>
-                                <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`${isMobile ? '!py-1.5 !px-3' : '!py-1 !px-2'}`} style={{ fontSize: `${isMobile ? Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)) : Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
+                <div className="bg-gray-900 overflow-hidden flex flex-col" style={{ flex: isMobile ? '0 0 auto' : '1 1 0', minHeight: `${isMobile ? Math.max(150 * scaleFactor, windowHeight * 0.2) : Math.max(320 * scaleFactor, windowHeight * 0.45)}px`, padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`, paddingTop: `${Math.max(12, Math.round(16 * scaleFactor))}px`, paddingBottom: `${Math.max(12, Math.round(16 * scaleFactor))}px`, marginBottom: 0 }}>
+                    <div className={`flex-shrink-0 bg-gray-900/50 rounded-md mb-2`} style={{ padding: `${Math.max(6, Math.round(8 * scaleFactor))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>
+                        <div className={`flex items-center justify-between`}>
+                            <div className={`flex items-center space-x-2`}>
+                                <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>전체</Button>
+                                <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>장비</Button>
+                                <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>소모품</Button>
+                                <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
                             </div>
-                            <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'space-x-2'}`}>
-                                <span style={{ fontSize: `${isMobile ? Math.max(11, Math.round(12 * scaleFactor * mobileTextScale)) : Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
-                                <select onChange={(e) => setSortKey(e.target.value as SortKey)} value={sortKey} className={`bg-gray-700 text-white rounded-md ${isMobile ? 'p-1.5' : 'p-1'}`} style={{ fontSize: `${isMobile ? Math.max(11, Math.round(12 * scaleFactor * mobileTextScale)) : Math.max(9, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+                            <div className={`flex items-center space-x-2`}>
+                                <span style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
+                                <select onChange={(e) => setSortKey(e.target.value as SortKey)} value={sortKey} className={`bg-gray-700 text-white rounded-md p-1`} style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
                                     <option value="createdAt">최신순</option>
                                     <option value="grade">등급순</option>
                                     <option value="type">종류순</option>
                                 </select>
-                                <div className="text-gray-400" style={{ fontSize: `${isMobile ? Math.max(11, Math.round(12 * scaleFactor * mobileTextScale)) : Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                <div className="text-gray-400" style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                     {`${filteredAndSortedInventory.length} / ${currentSlots}`}
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div className="overflow-y-auto flex-1 min-h-0" style={{ width: '100%', minWidth: 0, paddingRight: `${isMobile ? Math.max(4, Math.round(6 * scaleFactor)) : Math.max(6, Math.round(8 * scaleFactor))}px`, WebkitOverflowScrolling: 'touch' }}>
+                    <div className="overflow-y-auto flex-1 min-h-0" style={{ width: '100%', minWidth: 0, paddingRight: `${Math.max(6, Math.round(8 * scaleFactor))}px`, WebkitOverflowScrolling: 'touch' }}>
                         <div 
                             className="grid gap-2" 
                             style={{ 
-                                gridTemplateColumns: `repeat(${isMobile ? 8 : 12}, minmax(0, 1fr))`,
-                                gap: `${isMobile ? Math.max(4, Math.round(8 * scaleFactor)) : Math.max(4, Math.round(8 * scaleFactor))}px`,
+                                gridTemplateColumns: `repeat(12, minmax(0, 1fr))`,
+                                gap: `${Math.max(4, Math.round(8 * scaleFactor))}px`,
                                 width: '100%',
                                 minWidth: 0,
-                                paddingBottom: `${isMobile ? Math.max(150, Math.round(200 * scaleFactor)) : Math.max(200, Math.round(250 * scaleFactor))}px`
+                                paddingBottom: `${Math.max(200, Math.round(250 * scaleFactor))}px`
                             }}
                         >
                         {Array.from({ length: currentSlots }).map((_, index) => {

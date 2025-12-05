@@ -119,7 +119,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
 
     const effectiveViewportWidth = viewportWidth ?? 1024;
     const isMobileView = effectiveViewportWidth <= 768;
-    const initialWidth = isMobileView ? Math.max(Math.min(effectiveViewportWidth - 32, 420), 320) : 500;
+    const initialWidth = 500;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];

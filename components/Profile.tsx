@@ -742,14 +742,14 @@ const Profile: React.FC<ProfileProps> = () => {
                     </button>
                 </div>
             </header>
-            <main className="flex-1 flex flex-col min-h-0">
+            <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 {/* --- DESKTOP LAYOUT --- */}
-                <div className="hidden lg:flex flex-col h-full gap-2">
-                    <div className="flex flex-row gap-2">
-                        <div className="w-[25%] bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col gap-1">{ProfilePanelContent}</div>
+                <div className="hidden lg:flex flex-col h-full gap-2 min-w-0 overflow-hidden">
+                    <div className="flex flex-row gap-2 min-w-0 flex-shrink-0">
+                        <div className="w-[25%] min-w-[200px] max-w-[300px] bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col gap-1 overflow-hidden">{ProfilePanelContent}</div>
                         {/* New structure for equipped items, ranking boards, and quick access */}
-                        <div className="flex-1 flex flex-row gap-2 min-w-0">
-                            <div className="w-[280px] bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col">
+                        <div className="flex-1 flex flex-row gap-2 min-w-0 overflow-hidden">
+                            <div className="w-[280px] min-w-[200px] max-w-[280px] flex-shrink-0 bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col overflow-hidden">
                                 <h3 className="text-center font-semibold text-secondary text-sm flex-shrink-0 mb-2">장착 장비</h3>
                                 <div className="grid grid-cols-3 gap-2">
                                     {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
@@ -784,27 +784,27 @@ const Profile: React.FC<ProfileProps> = () => {
                                     </select>
                                 </div>
                             </div>
-                            <div className="flex-1 flex flex-row gap-2">
-                                <div className="flex-1">
+                            <div className="flex-1 flex flex-row gap-2 min-w-0 overflow-hidden">
+                                <div className="flex-1 min-w-0 overflow-hidden">
                                     <GameRankingBoard />
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0 overflow-hidden">
                                     <BadukRankingBoard />
                                 </div>
                             </div>
-                            <div className="w-24 flex-shrink-0">
+                            <div className="w-24 min-w-[96px] flex-shrink-0 overflow-hidden">
                                 <QuickAccessSidebar />
                             </div>
                         </div>
                     </div>
-                    <div className="flex-1 grid grid-cols-12 gap-2 min-h-0">
-                        <div className="col-span-3 bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col">
+                    <div className="flex-1 grid grid-cols-12 gap-2 min-h-0 overflow-hidden">
+                        <div className="col-span-3 min-w-0 bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col overflow-hidden">
                             <ChatWindow messages={globalChat} mode="global" onAction={handlers.handleAction} onViewUser={handlers.openViewingUser} locationPrefix="[홈]" />
                         </div>
-                        <div className="col-span-3 bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col">
+                        <div className="col-span-3 min-w-0 bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col overflow-hidden">
                             <HomeBoardPanel posts={homeBoardPosts || []} isAdmin={currentUserWithStatus.isAdmin} onAction={handlers.handleAction} />
                         </div>
-                        <div className="col-span-6 min-h-0 flex flex-col justify-end">
+                        <div className="col-span-6 min-w-0 min-h-0 flex flex-col justify-end overflow-hidden">
                             {LobbyCards}
                         </div>
                     </div>
@@ -1065,8 +1065,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 <GuildJoinModal
                     onClose={() => setIsGuildJoinModalOpen(false)}
                     onSuccess={async (guild: Guild) => {
-                        setIsGuildJoinModalOpen(false);
-                        // 길드 가입 성공 시 길드 홈 페이지로 이동
+                        // 길드 가입 성공 시 길드 홈 페이지로 이동 (모달은 GuildJoinModal에서 닫음)
                         window.location.hash = '#/guild';
                     }}
                 />

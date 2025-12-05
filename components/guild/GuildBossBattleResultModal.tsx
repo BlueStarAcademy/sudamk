@@ -5,7 +5,7 @@ import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 
 interface GuildBossBattleResultModalProps {
-    result: GuildBossBattleResultType & { bossName: string };
+    result: GuildBossBattleResultType & { bossName: string; previousRank?: number; currentRank?: number };
     onClose: () => void;
     isTopmost?: boolean;
 }
@@ -42,6 +42,26 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                             {result.rewards.guildCoins?.toLocaleString() || 0}
                         </span>
                     </div>
+                    {result.previousRank !== undefined && result.currentRank !== undefined && (
+                        <div className="pt-3 border-t border-gray-700">
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-300">순위:</span>
+                                <div className="flex items-center gap-2">
+                                    {result.previousRank && (
+                                        <span className="text-gray-400 text-sm">이전: {result.previousRank}위</span>
+                                    )}
+                                    <span className="font-bold text-yellow-300">
+                                        {result.currentRank ? `${result.currentRank}위` : '-'}
+                                    </span>
+                                    {result.previousRank && result.currentRank && result.previousRank !== result.currentRank && (
+                                        <span className={`text-sm font-semibold ${result.currentRank < result.previousRank ? 'text-green-400' : 'text-red-400'}`}>
+                                            ({result.currentRank < result.previousRank ? '↑' : '↓'} {Math.abs(result.currentRank - result.previousRank)})
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <Button onClick={onClose} className="w-full mt-6 py-2.5">확인</Button>
             </div>
