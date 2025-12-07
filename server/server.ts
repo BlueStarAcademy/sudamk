@@ -703,9 +703,9 @@ const startServer = async () => {
 
     // 서버 리스닝 시작 (에러가 발생해도 반드시 리스닝을 시작하도록 보장)
     // 헬스체크가 즉시 통과할 수 있도록 리스닝을 최우선으로 시작
-    try {
-        // 리스닝을 즉시 시작 (콜백 내부의 무거운 작업은 비동기로 처리)
-        server.listen(port, '0.0.0.0', () => {
+    // server.listen은 비동기이므로 try-catch로 감쌀 수 없음 (에러는 server.on('error')로 처리)
+    // 리스닝을 즉시 시작 (콜백 내부의 무거운 작업은 비동기로 처리)
+    server.listen(port, '0.0.0.0', () => {
             // 리스닝 시작 즉시 로그 출력 (헬스체크가 통과할 수 있도록)
             console.log(`[Server] ========================================`);
             console.log(`[Server] Server listening on port ${port}`);
@@ -760,14 +760,6 @@ const startServer = async () => {
                 });
             });
         });
-    } catch (listenError: any) {
-        console.error('[Server] Failed to start listening:', listenError);
-        console.error('[Server] Listen error code:', listenError?.code);
-        console.error('[Server] Listen error message:', listenError?.message);
-        // 리스닝 실패 시에도 프로세스를 종료하지 않음
-        // Railway가 자동으로 재시작하는 것을 방지
-        console.error('[Server] Server will continue running despite listen error');
-    }
 
     const processActiveTournamentSimulations = async () => {
         if (isProcessingTournamentTick) return;
