@@ -569,7 +569,7 @@ const startServer = async () => {
         const startTime = Date.now();
         
         try {
-            // 데이터베이스 연결 상태 확인 (비동기, 타임아웃 2초)
+            // 데이터베이스 연결 상태 확인 (비동기, 타임아웃 1초로 단축)
             let dbStatus = 'unknown';
             try {
                 const dbCheckPromise = (async () => {
@@ -578,7 +578,7 @@ const startServer = async () => {
                     return 'connected';
                 })();
                 const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('timeout')), 2000)
+                    setTimeout(() => reject(new Error('timeout')), 1000)
                 );
                 await Promise.race([dbCheckPromise, timeoutPromise]);
                 dbStatus = 'connected';
@@ -603,14 +603,9 @@ const startServer = async () => {
                 } : undefined
             };
             
-            // 서버가 리스닝 중이면 항상 200 반환 (Railway 재시작 방지)
-            // 서버가 시작 중이어도 재시작하지 않도록 함
-            if (server && server.listening) {
-                res.status(200).json(serverStatus);
-            } else {
-                // 서버가 아직 리스닝하지 않았어도 200 반환 (시작 중)
-                res.status(200).json(serverStatus);
-            }
+            // 항상 200 반환 (서버가 시작 중이어도 재시작하지 않도록 함)
+            // Railway 헬스체크는 서버가 응답할 수 있으면 성공으로 간주
+            res.status(200).json(serverStatus);
             
             // Health Check 로그 (첫 번째 요청과 느린 요청만 출력)
             const elapsed = Date.now() - startTime;
@@ -706,13 +701,17 @@ const startServer = async () => {
     });
 
     // 서버 리스닝 시작 (에러가 발생해도 반드시 리스닝을 시작하도록 보장)
+    // 헬스체크가 즉시 통과할 수 있도록 리스닝을 최우선으로 시작
     try {
-        server.listen(port, '0.0.0.0', async () => {
+        // 리스닝을 즉시 시작 (콜백 내부의 무거운 작업은 비동기로 처리)
+        server.listen(port, '0.0.0.0', () => {
+            // 리스닝 시작 즉시 로그 출력 (헬스체크가 통과할 수 있도록)
             console.log(`[Server] ========================================`);
             console.log(`[Server] Server listening on port ${port}`);
             console.log(`[Server] Process PID: ${process.pid}`);
             console.log(`[Server] Node version: ${process.version}`);
             console.log(`[Server] Railway environment: ${process.env.RAILWAY_ENVIRONMENT || 'not set'}`);
+            console.log(`[Server] Health check endpoint is available at /api/health`);
             
             // 즉시 메모리 사용량 로그 출력 (크래시 진단용)
             const initialMemUsage = process.memoryUsage();
@@ -724,10 +723,13 @@ const startServer = async () => {
             };
             console.log(`[Server] Initial memory usage: RSS=${initialMemMB.rss}MB, Heap=${initialMemMB.heapUsed}/${initialMemMB.heapTotal}MB, External=${initialMemMB.external}MB`);
             
+            // 서버 준비 상태 설정 (헬스체크가 통과할 수 있도록)
             isServerReady = true;
             console.log('[Server] Server is ready and accepting connections');
-            console.log('[Server] Health check endpoint is available at /api/health');
             console.log(`[Server] ========================================`);
+            
+            // 무거운 초기화 작업은 비동기로 처리 (서버 리스닝 후)
+            setImmediate(async () => {
             
             // Keep-alive: 주기적으로 로그를 출력하여 프로세스가 살아있음을 확인
             // Railway가 프로세스를 종료하지 않도록 하기 위함
