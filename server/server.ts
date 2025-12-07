@@ -481,6 +481,7 @@ const startServer = async () => {
     // Serve frontend build files only if ENABLE_FRONTEND_SERVING is true
     // In separated deployment, frontend is served by a separate service
     const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING === 'true';
+    if (enableFrontendServing) {
         const distPath = path.join(__dirname, '..', 'dist');
         
         // dist 디렉토리 존재 여부 확인 및 로깅
