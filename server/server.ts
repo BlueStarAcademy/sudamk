@@ -3666,7 +3666,7 @@ const startServer = async () => {
     });
 
     // SPA fallback: serve index.html for all non-API routes (only if frontend serving is enabled)
-    const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING === 'true';
+    // enableFrontendServing 변수는 위에서 이미 선언되었으므로 재사용
     if (enableFrontendServing) {
         app.get('*', (req, res, next) => {
             // Skip API and WebSocket routes
