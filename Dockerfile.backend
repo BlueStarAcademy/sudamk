@@ -62,6 +62,7 @@ COPY types ./types
 COPY contexts ./contexts
 COPY client ./client
 COPY services ./services
+COPY shared ./shared
 COPY server ./server
 COPY prisma ./prisma
 
