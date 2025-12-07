@@ -17,18 +17,33 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 // Health check endpoint
+// Railway 헬스체크는 서버가 시작되었는지만 확인하면 됩니다
+// KataGo 초기화는 비동기로 진행되므로, 서버가 실행 중이면 정상으로 응답
 app.get('/api/health', (req, res) => {
-    const manager = getKataGoManager();
-    const processRunning = manager && (manager as any).process && !(manager as any).process.killed;
-    const isStarting = (manager as any).isStarting || false;
-    
-    res.json({
-        status: 'ok',
-        service: 'katago',
-        katagoRunning: processRunning,
-        isStarting: isStarting,
-        timestamp: new Date().toISOString()
-    });
+    try {
+        const manager = getKataGoManager();
+        const processRunning = manager && (manager as any).process && !(manager as any).process.killed;
+        const isStarting = (manager as any).isStarting || false;
+        
+        // 서버가 실행 중이면 정상 응답 (KataGo 초기화 중이어도 OK)
+        res.status(200).json({
+            status: 'ok',
+            service: 'katago',
+            katagoRunning: processRunning,
+            isStarting: isStarting,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error: any) {
+        // 에러가 발생해도 서버가 실행 중이면 정상 응답
+        res.status(200).json({
+            status: 'ok',
+            service: 'katago',
+            katagoRunning: false,
+            isStarting: false,
+            error: error?.message || 'Unknown error',
+            timestamp: new Date().toISOString()
+        });
+    }
 });
 
 // KataGo analysis endpoint

@@ -481,7 +481,6 @@ const startServer = async () => {
     // Serve frontend build files only if ENABLE_FRONTEND_SERVING is true
     // In separated deployment, frontend is served by a separate service
     const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING === 'true';
-    if (enableFrontendServing) {
         const distPath = path.join(__dirname, '..', 'dist');
         
         // dist 디렉토리 존재 여부 확인 및 로깅
@@ -3680,7 +3679,7 @@ const startServer = async () => {
     });
 
     // SPA fallback: serve index.html for all non-API routes (only if frontend serving is enabled)
-    const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING === 'true';
+    // Note: enableFrontendServing is already declared above (line 483)
     if (enableFrontendServing) {
         app.get('*', (req, res, next) => {
             // Skip API and WebSocket routes
