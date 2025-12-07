@@ -103,21 +103,26 @@ app.get('/api/katago/status', async (req, res) => {
 // Start server
 const startServer = async () => {
     try {
-        // Initialize KataGo (non-blocking)
-        console.log('[KataGo Server] Starting KataGo initialization...');
-        setImmediate(() => {
-            initializeKataGo().then(() => {
-                console.log('[KataGo Server] KataGo initialization complete');
-            }).catch((error: any) => {
-                console.error('[KataGo Server] KataGo initialization failed:', error?.message || error);
-                console.error('[KataGo Server] Server will continue, but KataGo may not be available');
-            });
-        });
-
-        app.listen(PORT, () => {
+        // 서버를 먼저 리스닝 시작 (헬스체크가 즉시 통과할 수 있도록)
+        // KataGo 초기화는 비동기로 처리하여 서버 시작을 블로킹하지 않음
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`[KataGo Server] ========================================`);
             console.log(`[KataGo Server] Server running on port ${PORT}`);
             console.log(`[KataGo Server] Health check: http://localhost:${PORT}/api/health`);
             console.log(`[KataGo Server] Analysis endpoint: http://localhost:${PORT}/api/katago/analyze`);
+            console.log(`[KataGo Server] ========================================`);
+            
+            // KataGo 초기화는 서버 리스닝 후 비동기로 처리
+            setImmediate(() => {
+                console.log('[KataGo Server] Starting KataGo initialization (non-blocking)...');
+                initializeKataGo().then(() => {
+                    console.log('[KataGo Server] KataGo initialization complete');
+                }).catch((error: any) => {
+                    console.error('[KataGo Server] KataGo initialization failed:', error?.message || error);
+                    console.error('[KataGo Server] Server will continue, but KataGo may not be available');
+                    // 초기화 실패해도 서버는 계속 실행
+                });
+            });
         });
     } catch (error: any) {
         console.error('[KataGo Server] Failed to start server:', error);
