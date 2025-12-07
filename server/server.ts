@@ -729,19 +729,13 @@ const startServer = async () => {
             console.log('[Server] Server is ready and accepting connections');
             console.log(`[Server] ========================================`);
             
-            // 무거운 초기화 작업은 비동기로 처리 (서버 리스닝 후)
-            setImmediate(async () => {
-            
             // Keep-alive: 주기적으로 로그를 출력하여 프로세스가 살아있음을 확인
             // Railway가 프로세스를 종료하지 않도록 하기 위함
             setInterval(() => {
                 console.log(`[Server] Keep-alive: Server is running (uptime: ${Math.round(process.uptime())}s, PID: ${process.pid})`);
             }, 300000); // 5분마다
             
-            // Health check를 즉시 응답할 수 있도록 서버 리스닝 상태 확인
-            // Railway는 서버가 리스닝을 시작하면 health check를 수행하므로,
-            // 무거운 초기화 작업은 비동기로 지연 처리
-            
+            // 무거운 초기화 작업은 비동기로 처리 (서버 리스닝 후)
             // KataGo 엔진 초기화 (서버 시작 후 비동기로 처리, 블로킹 방지)
             setImmediate(() => {
                 (async () => {
