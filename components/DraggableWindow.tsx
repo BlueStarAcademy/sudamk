@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface DraggableWindowProps {
 
@@ -35,7 +36,7 @@ const SETTINGS_KEY = 'draggableWindowSettings';
 
 
 
-const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onClose, children, initialWidth = 800, initialHeight, modal = true, closeOnOutsideClick = true, isTopmost = true, headerContent, zIndex = 50, variant = 'default' }) => {
+const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onClose, children, initialWidth = 800, initialHeight, modal = true, closeOnOutsideClick = true, isTopmost = true, headerContent, zIndex = 9999, variant = 'default' }) => {
 
     const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -511,78 +512,47 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         ? 'w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-rose-500/85 via-rose-500/75 to-rose-600/85 hover:from-rose-400 hover:via-rose-500 hover:to-rose-600 transition-colors shadow-[0_18px_38px_-24px_rgba(244,63,94,0.75)]'
         : 'w-10 h-10 flex items-center justify-center rounded-full bg-tertiary hover:bg-danger transition-colors';
 
-    return (
-
+    const modalContent = (
         <>
-
             {modal && (
-
                  <div className={`fixed inset-0 bg-black/50 ${!isTopmost ? 'backdrop-blur-sm' : ''}`} style={{ zIndex: zIndex - 1 }} />
-
             )}
-
             <div
-
                 ref={windowRef}
-
                 className={`${containerBaseClass} ${containerVariantClass}`}
-
                 style={{
-
                     width: isMobile 
                         ? (initialWidth ? `${initialWidth}px` : '800px')
                         : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
-
                     minWidth: isMobile 
                         ? (initialWidth ? `${initialWidth}px` : '800px')
                         : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
-
                     maxWidth: isMobile ? undefined : 'calc(100vw - 40px)',
-
                     height: isMobile 
                         ? (initialHeight ? `${initialHeight}px` : '600px')
                         : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
-
                     maxHeight: isMobile ? undefined : '90vh',
-
                     transform: isMobile 
                         ? `translate(-50%, -50%) scale(${mobileScaleFactor})`
                         : transformStyle,
-
                     transformOrigin: 'center',
-
                     boxShadow: !isStoreVariant && isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : undefined,
-
                     zIndex: zIndex,
-
                 }}
-
             >
                 {!isTopmost && (
-
                     <div className="absolute inset-0 bg-black/30 z-20 rounded-xl cursor-not-allowed" />
-
                 )}
-
                 <div
-
                     className={`${headerVariantClass} p-3 rounded-t-xl flex justify-between items-center ${headerCursor}`}
                     style={{ touchAction: 'none' }}
-
                     onMouseDown={handleMouseDown}
-
                     onTouchStart={handleTouchStart}
-
                 >
-
                     <h2 className="text-lg font-bold select-none">{title}</h2>
-
                     <div className="flex items-center gap-2">
-
                         {headerContent}
-
                         {onClose && (
-
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -591,52 +561,33 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                                 className={`${closeButtonClass} z-30`}
                                 style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                             >
-
                                 <span className="text-white font-bold text-lg">✕</span>
-
                             </button>
-
                         )}
-
                     </div>
-
                 </div>
-
                 <div 
                     className={`flex-grow h-full overflow-hidden flex flex-col ${bodyPaddingClass}`}
                 >
-
                     {children}
-
                 </div>
-
                 <div className={`flex-shrink-0 p-2 flex justify-end items-center rounded-b-xl ${footerVariantClass}`}>
-
                     <label className="flex items-center text-xs gap-2 cursor-pointer select-none">
-
                         <input
-
                             type="checkbox"
-
                             checked={rememberPosition}
-
                             onChange={handleRememberChange}
-
                             className="w-4 h-4 bg-tertiary border-color rounded focus:ring-accent"
-
                         />
-
                         창 위치 기억하기
-
                     </label>
-
                 </div>
-
             </div>
-
         </>
-
     );
+
+    // Portal을 사용하여 body에 직접 렌더링 (z-index 문제 해결)
+    return createPortal(modalContent, document.body);
 
 };
 

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { GameProps, Player, GameStatus, User, AnimationData, GameMode, Point } from '../../types.js';
 import GoBoard from '../GoBoard.js';
-import { getGoLogic } from '../../server/goLogic.js';
+import { getGoLogic } from '../../client/logic/goLogic.js';
 import { audioService } from '../../services/audioService.js';
 import { PLAYFUL_GAME_MODES } from '../../constants/gameModes';
 

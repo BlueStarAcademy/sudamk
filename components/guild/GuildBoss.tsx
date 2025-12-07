@@ -363,10 +363,10 @@ const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers })
                 
                 <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-4 p-2">
                     <div className="flex items-center gap-1">
-                        {boss.skills.map(skill => (
+                        {boss.skills.map((skill, index) => (
                             <div key={skill.id} className="relative group/skill">
                                 <img src={skill.image || ''} alt={skill.name} className="w-10 h-10" />
-                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-black/80 text-white text-xs rounded-lg p-2 opacity-0 group-hover/skill:opacity-100 transition-opacity pointer-events-none z-50">
+                                <div className="absolute bottom-full mb-2 left-0 w-48 bg-black/80 text-white text-xs rounded-lg p-2 opacity-0 group-hover/skill:opacity-100 transition-opacity pointer-events-none z-50">
                                     <p className="font-bold text-yellow-300">{skill.name}</p>
                                     <p>{skill.description}</p>
                                 </div>
@@ -459,6 +459,8 @@ const GuildBoss: React.FC = () => {
     
     const userLogContainerRef = useRef<HTMLDivElement>(null);
     const bossLogContainerRef = useRef<HTMLDivElement>(null);
+    const mobileUserLogContainerRef = useRef<HTMLDivElement>(null);
+    const mobileBossLogContainerRef = useRef<HTMLDivElement>(null);
 
     const myGuild = useMemo(() => {
         if (!currentUserWithStatus?.guildId || !guilds) return null;
@@ -485,8 +487,29 @@ const GuildBoss: React.FC = () => {
     const userLogs = useMemo(() => battleLog.filter(e => e.isUserAction), [battleLog]);
     const bossLogs = useMemo(() => battleLog.filter(e => !e.isUserAction), [battleLog]);
 
-    useEffect(() => { if (userLogContainerRef.current) userLogContainerRef.current.scrollTop = userLogContainerRef.current.scrollHeight; }, [userLogs]);
-    useEffect(() => { if (bossLogContainerRef.current) bossLogContainerRef.current.scrollTop = bossLogContainerRef.current.scrollHeight; }, [bossLogs]);
+    // 데스크톱 스크롤 자동 이동
+    useEffect(() => { 
+        if (userLogContainerRef.current) {
+            userLogContainerRef.current.scrollTop = userLogContainerRef.current.scrollHeight;
+        }
+    }, [userLogs]);
+    useEffect(() => { 
+        if (bossLogContainerRef.current) {
+            bossLogContainerRef.current.scrollTop = bossLogContainerRef.current.scrollHeight;
+        }
+    }, [bossLogs]);
+    
+    // 모바일 스크롤 자동 이동
+    useEffect(() => { 
+        if (mobileUserLogContainerRef.current) {
+            mobileUserLogContainerRef.current.scrollTop = mobileUserLogContainerRef.current.scrollHeight;
+        }
+    }, [userLogs]);
+    useEffect(() => { 
+        if (mobileBossLogContainerRef.current) {
+            mobileBossLogContainerRef.current.scrollTop = mobileBossLogContainerRef.current.scrollHeight;
+        }
+    }, [bossLogs]);
     useEffect(() => { if (!isSimulating) setSimulatedBossHp(currentHp); }, [currentHp, isSimulating]);
 
     // 보스 데미지 숫자가 1초 후 자동으로 제거되도록
@@ -543,6 +566,10 @@ const GuildBoss: React.FC = () => {
                 const finalResult = { ...simulationResult, damageDealt: currentBattleDamage, bossName: currentBoss.name };
                 const actionResult = await handlers.handleAction({ type: 'START_GUILD_BOSS_BATTLE', payload: { bossId: currentBoss.id, result: finalResult, bossName: currentBoss.name } });
                 
+                // 서버에서 반환된 업데이트된 결과 사용 (장비 정보 포함)
+                const serverResult = (actionResult as any)?.clientResponse?.guildBossBattleResult;
+                const resultToUse = serverResult || finalResult;
+                
                 // 보스전 후 순위 계산
                 const updatedGuild = (actionResult as any)?.clientResponse?.guilds?.[myGuild.id] || myGuild;
                 const updatedRanking = Object.entries(updatedGuild?.guildBossState?.totalDamageLog || {})
@@ -551,7 +578,8 @@ const GuildBoss: React.FC = () => {
                 const newRank = updatedRanking.findIndex(r => r.userId === currentUserWithStatus?.id) + 1;
                 
                 setBattleResult({ 
-                    ...finalResult, 
+                    ...resultToUse, 
+                    bossName: currentBoss.name,
                     previousRank: prevRank > 0 ? prevRank : null, 
                     currentRank: newRank > 0 ? newRank : null 
                 });
@@ -694,34 +722,76 @@ const GuildBoss: React.FC = () => {
                 </div>
                 <h1 className="text-3xl font-bold text-white" style={{ textShadow: '2px 2px 5px black' }}>길드 보스전</h1>
             </header>
-             <div className="absolute top-4 right-4 z-10">
-                <div className="flex items-center gap-2 bg-tertiary/70 p-2 rounded-lg text-primary">
-                    <div className="flex items-center gap-1 pr-2 border-r border-color" title={`골드: ${gold.toLocaleString()}`}>
-                        <img src="/images/Gold.png" alt="골드" className="w-5 h-5" />
-                        <span className="font-bold text-sm">{gold.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1 pr-2 border-r border-color" title={`다이아: ${diamonds.toLocaleString()}`}>
-                        <img src="/images/Zem.png" alt="다이아" className="w-5 h-5" />
-                        <span className="font-bold text-sm">{diamonds.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1 pr-2 border-r border-color" title={`길드 코인: ${guildCoins.toLocaleString()}`}>
-                        <img src="/images/guild/tokken.png" alt="Guild Coin" className="w-5 h-5" />
-                        <span className="font-bold text-sm">{guildCoins.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1" title={`보스전 티켓: ${attemptsLeft}`}>
-                        <img src="/images/guild/ticket.png" alt="Boss Ticket" className="w-5 h-5" />
-                        <span className="font-bold text-sm">{attemptsLeft}</span>
-                    </div>
-                </div>
-            </div>
 
             <main className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
-                <div className="w-full lg:w-[22%] xl:w-[20%] flex flex-col gap-4">
+                {/* 모바일: 상단 - 보스 패널과 유저 패널 가로 배치 */}
+                <div className="lg:hidden flex flex-row gap-4 flex-shrink-0">
+                    <div className="w-1/2 flex flex-col gap-4">
+                        <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={currentBoss.maxHp} damageNumbers={bossDamageNumbers} />
+                        <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
+                    </div>
+                    <div className="w-1/2 flex flex-col gap-4">
+                        <UserStatsPanel 
+                            user={currentUserWithStatus} 
+                            guild={myGuild} 
+                            hp={userHp} 
+                            maxHp={maxUserHp} 
+                            damageNumbers={damageNumbers}
+                            onOpenEffects={handlers.openEquipmentEffectsModal}
+                            onOpenPresets={handlers.openPresetModal}
+                            isSimulating={isSimulating}
+                            activeDebuffs={activeDebuffs}
+                        />
+                        <div className="flex-shrink-0 bg-panel border border-color rounded-lg p-3 space-y-2 text-center">
+                            <Button
+                                onClick={handleBattleStart}
+                                disabled={attemptsLeft <= 0 || isSimulating}
+                                className="w-full mt-3 flex items-center justify-center gap-2"
+                            >
+                                {!isSimulating && (
+                                    <img src="/images/guild/ticket.png" alt="도전권" className="w-5 h-5" />
+                                )}
+                                <span>{isSimulating ? '전투 중...' : `도전하기 (${attemptsLeft}/${GUILD_BOSS_MAX_ATTEMPTS})`}</span>
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 모바일: 하단 - 보스 중계와 유저 중계 가로 배치 */}
+                <div className="lg:hidden flex flex-row gap-4 flex-1 min-h-0">
+                    <div className="w-1/2 bg-panel border border-color rounded-lg p-4 flex flex-col min-h-0">
+                        <h3 className="text-lg font-bold mb-2 flex-shrink-0 text-center text-red-300">보스의 공격</h3>
+                        <div ref={mobileBossLogContainerRef} className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-2 rounded-md space-y-2 text-sm">
+                            {bossLogs.map((entry, index) => (
+                                <div key={index} className="flex items-center gap-2 animate-fade-in">
+                                    <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
+                                    {entry.icon && <img src={entry.icon} alt="action" className="w-6 h-6 flex-shrink-0" />}
+                                    <span>{entry.message}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="w-1/2 bg-panel border border-color rounded-lg p-4 flex flex-col min-h-0">
+                        <h3 className="text-lg font-bold mb-2 flex-shrink-0 text-center text-blue-300">나의 공격</h3>
+                        <div ref={mobileUserLogContainerRef} className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-2 rounded-md space-y-2 text-sm">
+                            {userLogs.map((entry, index) => (
+                                <div key={index} className="flex items-center gap-2 animate-fade-in justify-start">
+                                    <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
+                                    {entry.icon && <img src={entry.icon} alt="action" className="w-6 h-6 flex-shrink-0" />}
+                                    <span>{entry.message}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* 데스크톱: 기존 레이아웃 */}
+                <div className="hidden lg:flex w-full lg:w-[22%] xl:w-[20%] flex flex-col gap-4">
                     <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={currentBoss.maxHp} damageNumbers={bossDamageNumbers} />
                     <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
                 </div>
                 
-                <div className="flex-1 flex flex-col gap-4 min-h-0">
+                <div className="hidden lg:flex flex-1 flex flex-col gap-4 min-h-0">
                     <div className="bg-panel border border-color rounded-lg p-4 flex flex-col h-1/2 min-h-[200px] lg:min-h-0">
                         <h3 className="text-lg font-bold mb-2 flex-shrink-0 text-center text-red-300">보스의 공격</h3>
                         <div ref={bossLogContainerRef} className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-2 rounded-md space-y-2 text-sm">
@@ -748,14 +818,13 @@ const GuildBoss: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="w-full lg:w-[28%] xl:w-[26%] flex-shrink-0 flex flex-col gap-4">
+                <div className="hidden lg:flex w-full lg:w-[28%] xl:w-[26%] flex-shrink-0 flex flex-col gap-4">
                     <UserStatsPanel 
                         user={currentUserWithStatus} 
                         guild={myGuild} 
                         hp={userHp} 
                         maxHp={maxUserHp} 
                         damageNumbers={damageNumbers}
-                        // FIX: Corrected typo from openEquipmentEffectsModal to openGuildEffectsModal
                         onOpenEffects={handlers.openEquipmentEffectsModal}
                         onOpenPresets={handlers.openPresetModal}
                         isSimulating={isSimulating}
@@ -765,9 +834,12 @@ const GuildBoss: React.FC = () => {
                          <Button
                             onClick={handleBattleStart}
                             disabled={attemptsLeft <= 0 || isSimulating}
-                            className="w-full mt-3"
+                            className="w-full mt-3 flex items-center justify-center gap-2"
                          >
-                             {isSimulating ? '전투 중...' : '도전하기'}
+                             {!isSimulating && (
+                                 <img src="/images/guild/ticket.png" alt="도전권" className="w-5 h-5" />
+                             )}
+                             <span>{isSimulating ? '전투 중...' : `도전하기 (${attemptsLeft}/${GUILD_BOSS_MAX_ATTEMPTS})`}</span>
                          </Button>
                      </div>
                 </div>

@@ -1,11 +1,11 @@
 
 
 import * as db from './db.js';
-import * as types from '../types/index.js';
-import type { WeeklyCompetitor, InventoryItem } from '../types/index.js';
-import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, SEASONAL_TIER_BORDERS, DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL } from '../constants';
+import * as types from '../shared/types/index.js';
+import type { WeeklyCompetitor, InventoryItem } from '../shared/types/index.js';
+import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, SEASONAL_TIER_BORDERS, DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL } from '../shared/constants';
 import { randomUUID } from 'crypto';
-import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC } from '../utils/timeUtils.js';
+import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC } from '../shared/utils/timeUtils.js';
 import { resetAndGenerateQuests } from './gameActions.js';
 import * as tournamentService from './tournamentService.js';
 import { calculateTotalStats } from './statService.js';
@@ -1846,6 +1846,21 @@ export async function processDailyQuestReset(): Promise<void> {
         broadcast({ type: 'USER_UPDATE', payload: usersToBroadcast });
     }
 
+    // 길드 출석부 보상 초기화
+    const guilds = await db.getKV<Record<string, any>>('guilds') || {};
+    let guildResetCount = 0;
+    for (const guildId in guilds) {
+        const guild = guilds[guildId];
+        if (guild && guild.dailyCheckInRewardsClaimed && guild.dailyCheckInRewardsClaimed.length > 0) {
+            guild.dailyCheckInRewardsClaimed = [];
+            guildResetCount++;
+        }
+    }
+    if (guildResetCount > 0) {
+        await db.setKV('guilds', guilds);
+        console.log(`[DailyQuestReset] Reset daily check-in rewards for ${guildResetCount} guilds`);
+    }
+
     lastDailyQuestResetTimestamp = now;
     console.log(`[DailyQuestReset] Reset daily quests for ${resetCount} users, tournament states for ${tournamentResetCount} users, started tournament sessions for ${tournamentSessionStartedCount} user-tournament combinations`);
 }
@@ -2065,14 +2080,12 @@ function getNextGuildWarMatchDate(now: number): number {
 // 월요일 또는 금요일 0시에 길드전 매칭 처리
 export async function processGuildWarMatching(force: boolean = false): Promise<void> {
     const now = Date.now();
-    const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
-    const isMondayMidnight = kstDay === 1 && kstHours === 0 && kstMinutes < 5;
-    const isFridayMidnight = kstDay === 5 && kstHours === 0 && kstMinutes < 5;
+    const isMidnight = kstHours === 0 && kstMinutes < 5;
     
-    // force가 false이고 월요일 또는 금요일 0시가 아니면 실행하지 않음
-    if (!force && !isMondayMidnight && !isFridayMidnight) {
+    // force가 false이고 0시가 아니면 실행하지 않음
+    if (!force && !isMidnight) {
         return;
     }
     
@@ -2088,75 +2101,155 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         }
     }
     
-    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : isMondayMidnight ? ' at Monday 0:00 KST' : ' at Friday 0:00 KST'}`);
+    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ' at 0:00 KST'}`);
     
     const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
-    const guildList = Object.values(guilds);
+    const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
     
-    // 매칭 가능한 길드 필터링 (멤버가 2명 이상인 길드만, 그리고 nextWarMatchDate가 없거나 오늘 이전인 길드)
-    const eligibleGuilds = guildList.filter(guild => {
-        const memberCount = guild.members?.length || 0;
-        const nextMatchDate = (guild as any).nextWarMatchDate;
-        return memberCount >= 2 && (!nextMatchDate || nextMatchDate <= now);
-    });
-    
-    if (eligibleGuilds.length < 2) {
-        console.log(`[GuildWarMatch] Not enough eligible guilds (${eligibleGuilds.length} guilds, need at least 2)`);
+    if (matchingQueue.length === 0) {
+        console.log(`[GuildWarMatch] No guilds in matching queue`);
         lastGuildWarMatchTimestamp = now;
         return;
     }
     
-    // 길드를 랜덤하게 섞어서 매칭
-    const shuffledGuilds = [...eligibleGuilds].sort(() => Math.random() - 0.5);
-    const activeWars: types.GuildWar[] = [];
+    const activeWars: any[] = [];
+    const matchedGuildIds: string[] = [];
     
-    // 짝수 개의 길드만 매칭 (홀수면 마지막 길드는 다음 매칭까지 대기)
-    const matchedGuilds = shuffledGuilds.slice(0, Math.floor(shuffledGuilds.length / 2) * 2);
-    
-    for (let i = 0; i < matchedGuilds.length; i += 2) {
-        const guild1 = matchedGuilds[i];
-        const guild2 = matchedGuilds[i + 1];
+    // 짝수 개의 길드 매칭
+    const matchedPairs = Math.floor(matchingQueue.length / 2);
+    for (let i = 0; i < matchedPairs; i++) {
+        const guild1Id = matchingQueue[i * 2];
+        const guild2Id = matchingQueue[i * 2 + 1];
+        
+        const guild1 = guilds[guild1Id];
+        const guild2 = guilds[guild2Id];
+        
+        if (!guild1 || !guild2) {
+            console.warn(`[GuildWarMatch] One of the guilds not found: ${guild1Id} or ${guild2Id}`);
+            continue;
+        }
         
         // DB에 GuildWar 생성
         const { createGuildWar } = await import('./prisma/guildRepository.js');
-        const dbWar = await createGuildWar(guild1.id, guild2.id);
+        const dbWar = await createGuildWar(guild1Id, guild2Id);
+        
+        // 9개 바둑판 초기화
+        const boards: Record<string, any> = {};
+        const boardIds = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'];
+        const gameModes: ('capture' | 'hidden' | 'missile')[] = ['capture', 'hidden', 'missile'];
+        
+        for (const boardId of boardIds) {
+            const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
+            boards[boardId] = {
+                boardSize: 13,
+                gameMode: gameMode,
+                guild1Stars: 0,
+                guild2Stars: 0,
+                guild1BestResult: null,
+                guild2BestResult: null,
+                guild1Attempts: 0,
+                guild2Attempts: 0,
+            };
+        }
         
         // activeWars에 추가
-        const war: types.GuildWar = {
+        const war: any = {
             id: dbWar.id,
-            guild1Id: guild1.id,
-            guild2Id: guild2.id,
+            guild1Id: guild1Id,
+            guild2Id: guild2Id,
             status: 'active',
             startTime: now,
-            endTime: undefined,
+            endTime: now + (48 * 60 * 60 * 1000), // 48시간 후 종료
             result: undefined,
+            boards: boards,
             createdAt: now,
             updatedAt: now,
         };
         
         activeWars.push(war);
+        matchedGuildIds.push(guild1Id, guild2Id);
         
-        // 길드의 nextWarMatchDate 제거 (이미 매칭되었으므로)
-        delete (guild1 as any).nextWarMatchDate;
-        delete (guild2 as any).nextWarMatchDate;
+        // 길드의 매칭 상태 제거
+        delete (guild1 as any).guildWarMatching;
+        delete (guild2 as any).guildWarMatching;
         
-        console.log(`[GuildWarMatch] Matched guild ${guild1.name} (${guild1.id}) vs ${guild2.name} (${guild2.id})`);
+        console.log(`[GuildWarMatch] Matched guild ${guild1.name} (${guild1Id}) vs ${guild2.name} (${guild2Id})`);
     }
     
-    // 매칭되지 않은 길드들은 다음 매칭 날짜 설정
-    const unmatchedGuilds = shuffledGuilds.slice(matchedGuilds.length);
-    const nextMatchDate = getNextGuildWarMatchDate(now);
-    for (const guild of unmatchedGuilds) {
-        (guild as any).nextWarMatchDate = nextMatchDate;
-        console.log(`[GuildWarMatch] Guild ${guild.name} (${guild.id}) will be matched on ${new Date(nextMatchDate).toISOString()}`);
+    // 홀수 길드가 남으면 봇 길드와 매칭
+    if (matchingQueue.length % 2 === 1) {
+        const remainingGuildId = matchingQueue[matchingQueue.length - 1];
+        const remainingGuild = guilds[remainingGuildId];
+        
+        if (remainingGuild) {
+            const botGuildId = 'bot-guild-' + randomUUID();
+            
+            // DB에 GuildWar 생성
+            const { createGuildWar } = await import('./prisma/guildRepository.js');
+            const dbWar = await createGuildWar(remainingGuildId, botGuildId);
+            
+            // 9개 바둑판 초기화 및 봇 길드 초기 상태 설정
+            const boards: Record<string, any> = {};
+            const boardIds = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'];
+            const gameModes: ('capture' | 'hidden' | 'missile')[] = ['capture', 'hidden', 'missile'];
+            
+            for (const boardId of boardIds) {
+                const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
+                const botStars = Math.floor(Math.random() * 2) + 2; // 2-3개
+                const botScoreDiff = Math.floor(Math.random() * 11) + 5; // 5-15집
+                
+                boards[boardId] = {
+                    boardSize: 13,
+                    gameMode: gameMode,
+                    guild1Stars: 0,
+                    guild2Stars: botStars,
+                    guild1BestResult: null,
+                    guild2BestResult: {
+                        userId: botGuildId,
+                        stars: botStars,
+                        captures: Math.floor(Math.random() * 10) + 5,
+                        score: 100 + Math.floor(Math.random() * 50),
+                        scoreDiff: botScoreDiff,
+                    },
+                    guild1Attempts: 0,
+                    guild2Attempts: 3, // 각 바둑판당 3번 공격
+                };
+            }
+            
+            const war: any = {
+                id: dbWar.id,
+                guild1Id: remainingGuildId,
+                guild2Id: botGuildId,
+                status: 'active',
+                startTime: now,
+                endTime: now + (48 * 60 * 60 * 1000), // 48시간 후 종료
+                result: undefined,
+                boards: boards,
+                isBotGuild: true, // 봇 길드 플래그
+                createdAt: now,
+                updatedAt: now,
+            };
+            
+            activeWars.push(war);
+            matchedGuildIds.push(remainingGuildId);
+            
+            // 길드의 매칭 상태 제거
+            delete (remainingGuild as any).guildWarMatching;
+            
+            console.log(`[GuildWarMatch] Matched guild ${remainingGuild.name} (${remainingGuildId}) vs bot guild`);
+        }
     }
+    
+    // 매칭 큐에서 매칭된 길드 제거
+    const newQueue = matchingQueue.filter(id => !matchedGuildIds.includes(id));
     
     // 기존 activeWars 가져오기 (이전 매칭이 있으면 유지)
-    const existingActiveWars = await db.getKV<types.GuildWar[]>('activeGuildWars') || [];
+    const existingActiveWars = await db.getKV<any[]>('activeGuildWars') || [];
     const allActiveWars = [...existingActiveWars.filter(w => w.status === 'active'), ...activeWars];
     
     // KV store 업데이트
     await db.setKV('activeGuildWars', allActiveWars);
+    await db.setKV('guildWarMatchingQueue', newQueue);
     await db.setKV('guilds', guilds);
     
     // 브로드캐스트
@@ -2165,5 +2258,82 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
     
     lastGuildWarMatchTimestamp = now;
-    console.log(`[GuildWarMatch] Matched ${activeWars.length} guild wars, ${unmatchedGuilds.length} guilds waiting for next match`);
+    console.log(`[GuildWarMatch] Matched ${activeWars.length} guild wars, ${newQueue.length} guilds remaining in queue`);
+}
+
+// 전쟁 종료 체크 및 결과 계산
+export async function processGuildWarEnd(): Promise<void> {
+    const now = Date.now();
+    const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
+    const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
+    
+    let updated = false;
+    
+    for (const war of activeWars) {
+        if (war.status !== 'active') continue;
+        
+        // 48시간이 지났는지 확인
+        const warEndTime = war.endTime || (war.startTime + (48 * 60 * 60 * 1000));
+        if (now < warEndTime) continue;
+        
+        // 결과 계산
+        let guild1Stars = 0;
+        let guild2Stars = 0;
+        let guild1Score = 0;
+        let guild2Score = 0;
+        
+        const boards = war.boards || {};
+        for (const boardId in boards) {
+            const board = boards[boardId];
+            const boardGuild1Stars = board.guild1Stars || 0;
+            const boardGuild2Stars = board.guild2Stars || 0;
+            guild1Stars += boardGuild1Stars;
+            guild2Stars += boardGuild2Stars;
+            
+            if (board.guild1BestResult) {
+                guild1Score += board.guild1BestResult.captures || 0;
+            }
+            if (board.guild2BestResult) {
+                guild2Score += board.guild2BestResult.captures || 0;
+            }
+        }
+        
+        // 승패 결정: 별 개수 우선, 같으면 점수
+        let winnerId: string;
+        if (guild1Stars > guild2Stars) {
+            winnerId = war.guild1Id;
+        } else if (guild2Stars > guild1Stars) {
+            winnerId = war.guild2Id;
+        } else {
+            // 별 개수가 같으면 점수로 결정
+            if (guild1Score > guild2Score) {
+                winnerId = war.guild1Id;
+            } else if (guild2Score > guild1Score) {
+                winnerId = war.guild2Id;
+            } else {
+                // 점수도 같으면 무승부 (guild1 승리로 처리)
+                winnerId = war.guild1Id;
+            }
+        }
+        
+        war.status = 'completed';
+        war.endTime = now;
+        war.result = {
+            winnerId: winnerId,
+            guild1Score: guild1Score,
+            guild2Score: guild2Score,
+            guild1Stars: guild1Stars,
+            guild2Stars: guild2Stars,
+        };
+        
+        updated = true;
+        console.log(`[GuildWarEnd] War ${war.id} ended. Winner: ${winnerId} (Stars: ${guild1Stars} vs ${guild2Stars}, Score: ${guild1Score} vs ${guild2Score})`);
+    }
+    
+    if (updated) {
+        await db.setKV('activeGuildWars', activeWars);
+        
+        const { broadcast } = await import('./socket.js');
+        await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });
+    }
 }

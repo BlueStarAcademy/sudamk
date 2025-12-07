@@ -40,7 +40,8 @@ export function useRanking(type: 'strategic' | 'playful' | 'championship' | 'com
                 if (offset !== undefined) params.append('offset', offset.toString());
                 if (season === true) params.append('season', 'true');
 
-                const response = await fetch(`/api/ranking/${type}?${params.toString()}`);
+                const { getApiUrl } = await import('../utils/apiConfig.js');
+                const response = await fetch(getApiUrl(`/api/ranking/${type}?${params.toString()}`));
                 if (!response.ok) {
                     throw new Error(`Failed to fetch rankings: ${response.statusText}`);
                 }

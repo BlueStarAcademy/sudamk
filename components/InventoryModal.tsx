@@ -598,7 +598,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     
     // 모바일 텍스트 크기 조정 팩터 (모바일에서는 텍스트를 약간 더 크게)
     const mobileTextScale = useMemo(() => {
-        return isMobile ? 1.1 : 1.0;
+        return isMobile ? 1.25 : 1.0;
     }, [isMobile]);
 
     const handlePresetChange = (presetIndex: number) => {

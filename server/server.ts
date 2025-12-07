@@ -25,16 +25,16 @@ import { updateGameStates } from './gameModes.js';
 import * as db from './db.js';
 import { analyzeGame, initializeKataGo } from './kataGoService.js';
 // FIX: Import missing types from the centralized types file.
-import * as types from '../types/index.js';
-import { Player } from '../types/index.js';
+import * as types from '../shared/types/index.js';
+import { Player } from '../shared/types/index.js';
 import { processGameSummary, endGame } from './summaryService.js';
 // FIX: Correctly import from the placeholder module.
 import * as aiPlayer from './aiPlayer.js';
 import { processRankingRewards, processWeeklyLeagueUpdates, updateWeeklyCompetitorsIfNeeded, processWeeklyTournamentReset, resetAllTournamentScores, resetAllUsersLeagueScoresForNewWeek, processDailyRankings, processDailyQuestReset, resetAllChampionshipScoresToZero, processTowerRankingRewards } from './scheduledTasks.js';
 import * as tournamentService from './tournamentService.js';
-import { AVATAR_POOL, BOT_NAMES, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, SINGLE_PLAYER_MISSIONS, GRADE_LEVEL_REQUIREMENTS, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH } from '../constants';
+import { AVATAR_POOL, BOT_NAMES, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, SINGLE_PLAYER_MISSIONS, GRADE_LEVEL_REQUIREMENTS, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH } from '../shared/constants';
 import { calculateTotalStats } from './statService.js';
-import { isSameDayKST, getKSTDate } from '../utils/timeUtils.js';
+import { isSameDayKST, getKSTDate } from '../shared/utils/timeUtils.js';
 import { createDefaultBaseStats, createDefaultUser } from './initialData.ts';
 import { containsProfanity } from '../profanity.js';
 import { volatileState } from './state.js';
@@ -464,33 +464,39 @@ const startServer = async () => {
         }
     }));
     
-    // Serve frontend build files (CSS, JS, assets)
-    const distPath = path.join(__dirname, '..', 'dist');
-    
-    // dist 디렉토리 존재 여부 확인 및 로깅
-    const fs = await import('fs');
-    const distExists = fs.existsSync(distPath);
-    if (!distExists) {
-        console.warn(`[Server] WARNING: dist directory not found at ${distPath}. Frontend files may not be available.`);
+    // Serve frontend build files only if ENABLE_FRONTEND_SERVING is true
+    // In separated deployment, frontend is served by a separate service
+    const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING === 'true';
+    if (enableFrontendServing) {
+        const distPath = path.join(__dirname, '..', 'dist');
+        
+        // dist 디렉토리 존재 여부 확인 및 로깅
+        const fs = await import('fs');
+        const distExists = fs.existsSync(distPath);
+        if (!distExists) {
+            console.warn(`[Server] WARNING: dist directory not found at ${distPath}. Frontend files may not be available.`);
+        } else {
+            const distFiles = fs.readdirSync(distPath);
+            console.log(`[Server] dist directory found with ${distFiles.length} files/directories`);
+        }
+        
+        app.use(express.static(distPath, {
+            maxAge: '1h', // Cache HTML for 1 hour (shorter for SPA updates)
+            etag: true,
+            lastModified: true,
+            index: false, // Don't serve index.html for directory requests
+            setHeaders: (res, filePath) => {
+                // Set proper MIME types for JS modules
+                if (filePath.endsWith('.js')) {
+                    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+                }
+            },
+            // 404 에러를 조용히 처리 (SPA fallback으로 넘어가도록)
+            fallthrough: true
+        }));
     } else {
-        const distFiles = fs.readdirSync(distPath);
-        console.log(`[Server] dist directory found with ${distFiles.length} files/directories`);
+        console.log('[Server] Frontend serving is disabled. Frontend should be served by a separate service.');
     }
-    
-    app.use(express.static(distPath, {
-        maxAge: '1h', // Cache HTML for 1 hour (shorter for SPA updates)
-        etag: true,
-        lastModified: true,
-        index: false, // Don't serve index.html for directory requests
-        setHeaders: (res, filePath) => {
-            // Set proper MIME types for JS modules
-            if (filePath.endsWith('.js')) {
-                res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-            }
-        },
-        // 404 에러를 조용히 처리 (SPA fallback으로 넘어가도록)
-        fallthrough: true
-    }));
     
     // 응답 압축 미들웨어 (네트워크 전송량 감소)
     const compression = (await import('compression')).default;
@@ -1138,12 +1144,20 @@ const startServer = async () => {
                         console.error('[MainLoop] Error in processDailyQuestReset:', error?.message);
                     }
                     
-                    // Handle guild war matching (월요일 또는 금요일 0시 KST)
+                    // Handle guild war matching (매일 0시 KST)
                     try {
                         const { processGuildWarMatching } = await import('./scheduledTasks.js');
                         await processGuildWarMatching();
                     } catch (error: any) {
                         console.error('[MainLoop] Error in processGuildWarMatching:', error?.message);
+                    }
+                    
+                    // Handle guild war end check
+                    try {
+                        const { processGuildWarEnd } = await import('./scheduledTasks.js');
+                        await processGuildWarEnd();
+                    } catch (error: any) {
+                        console.error('[MainLoop] Error in processGuildWarEnd:', error?.message);
                     }
 
                     lastDailyTaskCheckAt = now;
@@ -3651,46 +3665,58 @@ const startServer = async () => {
         }
     });
 
-    // SPA fallback: serve index.html for all non-API routes (must be after all API routes)
-    app.get('*', (req, res, next) => {
-        // Skip API and WebSocket routes
-        if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
-            return res.status(404).json({ message: 'Not found' });
-        }
-        
-        // 정적 파일 요청인 경우 404를 조용히 처리 (로깅 최소화)
-        if (req.path.startsWith('/assets/') || 
-            req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map)$/i)) {
-            // express.static이 이미 처리했지만 파일이 없는 경우
-            // 개발 환경에서만 로깅 (프로덕션에서는 로그 스팸 방지)
-            if (process.env.NODE_ENV === 'development') {
-                console.warn(`[Static] File not found: ${req.path}`);
+    // SPA fallback: serve index.html for all non-API routes (only if frontend serving is enabled)
+    const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING === 'true';
+    if (enableFrontendServing) {
+        app.get('*', (req, res, next) => {
+            // Skip API and WebSocket routes
+            if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+                return res.status(404).json({ message: 'Not found' });
             }
-            return res.status(404).json({ message: 'Static file not found' });
-        }
-        
-        // Serve index.html for SPA routing
-        const __filename = fileURLToPath(import.meta.url);
-        const __dirname = path.dirname(__filename);
-        const distPath = path.join(__dirname, '..', 'dist');
-        const indexPath = path.join(distPath, 'index.html');
-        
-        // index.html 존재 여부 확인
-        const fs = require('fs');
-        if (!fs.existsSync(indexPath)) {
-            console.error(`[SPA] index.html not found at ${indexPath}`);
-            return res.status(500).json({ message: 'Frontend not found. Please rebuild the application.' });
-        }
-        
-        res.sendFile(indexPath, (err) => {
-            if (err) {
-                console.error('[SPA] Error serving index.html:', err);
-                if (!res.headersSent) {
-                    res.status(500).json({ message: 'Frontend not found' });
+            
+            // 정적 파일 요청인 경우 404를 조용히 처리 (로깅 최소화)
+            if (req.path.startsWith('/assets/') || 
+                req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map)$/i)) {
+                // express.static이 이미 처리했지만 파일이 없는 경우
+                // 개발 환경에서만 로깅 (프로덕션에서는 로그 스팸 방지)
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn(`[Static] File not found: ${req.path}`);
                 }
+                return res.status(404).json({ message: 'Static file not found' });
+            }
+            
+            // Serve index.html for SPA routing
+            const __filename = fileURLToPath(import.meta.url);
+            const __dirname = path.dirname(__filename);
+            const distPath = path.join(__dirname, '..', 'dist');
+            const indexPath = path.join(distPath, 'index.html');
+            
+            // index.html 존재 여부 확인
+            const fs = require('fs');
+            if (!fs.existsSync(indexPath)) {
+                console.error(`[SPA] index.html not found at ${indexPath}`);
+                return res.status(500).json({ message: 'Frontend not found. Please rebuild the application.' });
+            }
+            
+            res.sendFile(indexPath, (err) => {
+                if (err) {
+                    console.error('[SPA] Error serving index.html:', err);
+                    if (!res.headersSent) {
+                        res.status(500).json({ message: 'Frontend not found' });
+                    }
+                }
+            });
+        });
+    } else {
+        // If frontend serving is disabled, return 404 for all non-API routes
+        app.get('*', (req, res) => {
+            if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+                return res.status(404).json({ message: 'API endpoint not found' });
+            } else {
+                res.status(404).json({ message: 'Not found. Frontend is served by a separate service.' });
             }
         });
-    });
+    }
 
     // Express 전역 에러 핸들러 (모든 라우트 정의 후에 추가)
     // 처리되지 않은 에러를 잡아서 500 응답 반환

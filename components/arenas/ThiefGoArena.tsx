@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { GameProps, Player, Point, GameMode } from '../../types.js';
 import GoBoard from '../GoBoard.js';
-import { getGoLogic } from '../../server/goLogic.js';
+import { getGoLogic } from '../../client/logic/goLogic.js';
 import { PLAYFUL_GAME_MODES } from '../../constants/gameModes';
 
 interface ThiefGoArenaProps extends GameProps {

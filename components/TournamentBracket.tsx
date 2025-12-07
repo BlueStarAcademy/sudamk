@@ -1324,7 +1324,7 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
     
     return (
         <div className="h-full flex flex-col min-h-0" style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-            <h4 className="text-center font-bold text-sm mb-1 text-gray-400 py-0.5 flex-shrink-0">획득 보상</h4>
+            <h4 className="text-center font-bold text-sm mb-1 text-gray-400 py-0.5 flex-shrink-0 whitespace-nowrap">획득 보상</h4>
             <div className="flex-1 min-h-0 overflow-y-auto space-y-1 p-1.5 bg-gray-900/40 rounded-md" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: '1 1 0', minHeight: 0, maxHeight: '100%' }}>
             {/* 수령 완료 메시지 - 경기 종료 후에만 표시 */}
             {(isTournamentFullyComplete || isUserEliminated) && isClaimed && (
@@ -1340,20 +1340,6 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                 </div>
             )}
             
-            {/* 랭킹 점수 (경기 진행 중에도 표시) */}
-            {scoreReward > 0 && (
-                <div className={`mb-1 bg-green-900/30 px-1.5 py-1 rounded-lg border border-green-700/50 ${isClaimed ? 'opacity-75' : ''}`}>
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-base">🏆</span>
-                        <div className="flex-1 min-w-0">
-                            <div className="text-xs font-semibold text-green-300">랭킹 점수: +{scoreReward}점</div>
-                            {userRank > 0 && (
-                                <div className="text-[10px] text-gray-400">(현재 순위: {userRank}위)</div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
             
             {/* 누적 골드 (동네바둑리그, 경기 진행 중에도 표시) */}
             {accumulatedGold > 0 && (
@@ -1381,7 +1367,7 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                                 <div key={materialName} className="flex items-center gap-1.5 bg-blue-900/30 px-1.5 py-1 rounded-lg border border-blue-700/50">
                                     <img src={imageUrl} alt={materialName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-semibold text-blue-300 truncate">{materialName} x{quantity}</div>
+                                        <div className="text-xs font-semibold text-blue-300 break-words whitespace-normal">{materialName} x{quantity}</div>
                                     </div>
                                 </div>
                             );
@@ -1404,7 +1390,7 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                                 <div key={boxName} className="flex items-center gap-1.5 bg-purple-900/30 px-1.5 py-1 rounded-lg border border-purple-700/50">
                                     <img src={imageUrl} alt={boxName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-semibold text-purple-300 truncate">{boxName} x{quantity}</div>
+                                        <div className="text-xs font-semibold text-purple-300 break-words whitespace-normal">{boxName} x{quantity}</div>
                                     </div>
                                 </div>
                             );
@@ -1463,22 +1449,6 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                 return (
                     <>
                         {/* 단계별 기본 점수 보상 */}
-                        {totalScore > 0 && (
-                            <div className={`mb-1 bg-green-900/30 px-1.5 py-1 rounded-lg border border-green-700/50 ${isClaimed ? 'opacity-75' : ''}`}>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-base">🏆</span>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-semibold text-green-300">랭킹 점수: +{totalScore}점</div>
-                                        <div className="text-[10px] text-gray-400">
-                                            ({stage}단계 기본 {baseScore}점 {rankBonus > 0 ? `+ 순위 보너스 ${Math.round(rankBonus * 100)}%` : ''})
-                                        </div>
-                                        {userRank > 0 && (
-                                            <div className="text-[10px] text-gray-400">(현재 순위: {userRank}위)</div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                         
                         {/* 단계별 기본 보상 (골드/재료/장비상자) */}
                         {type === 'neighborhood' && DUNGEON_STAGE_BASE_REWARDS_GOLD[stage] && (
@@ -1501,7 +1471,7 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                                     <div className="flex items-center gap-1.5 bg-blue-900/30 px-1.5 py-1 rounded-lg border border-blue-700/50">
                                         <img src={MATERIAL_ITEMS[DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].materialName]?.image || ''} alt={DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].materialName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-semibold text-blue-300 truncate">
+                                            <div className="text-xs font-semibold text-blue-300 break-words whitespace-normal">
                                                 {DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].materialName} x{DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].quantity}
                                             </div>
                                         </div>
@@ -1523,7 +1493,7 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                                             <div key={index} className="flex items-center gap-1.5 bg-purple-900/30 px-1.5 py-1 rounded-lg border border-purple-700/50">
                                                 <img src={imageUrl} alt={box.boxName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="text-xs font-semibold text-purple-300 truncate">{box.boxName} x{box.quantity}</div>
+                                                    <div className="text-xs font-semibold text-purple-300 break-words whitespace-normal">{box.boxName} x{box.quantity}</div>
                                                 </div>
                                             </div>
                                         );
@@ -1563,7 +1533,7 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                                                     <div key={index} className={`flex items-center gap-1.5 ${bgColor} px-1.5 py-1 rounded-lg border ${borderColor} ${isClaimed ? 'opacity-75' : ''}`}>
                                                         <img src={imageUrl} alt={itemName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
                                                         <div className="flex-1 min-w-0">
-                                                            <div className={`text-xs font-semibold ${textColor} truncate`}>{itemName} x{item.quantity}</div>
+                                                            <div className={`text-xs font-semibold ${textColor} break-words whitespace-normal`}>{itemName} x{item.quantity}</div>
                                                         </div>
                                                     </div>
                                                 );
@@ -1598,7 +1568,7 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                                 <div key={index} className={`flex items-center gap-1.5 ${bgColor} px-1.5 py-1 rounded-lg border ${borderColor} ${isClaimed ? 'opacity-75' : ''}`}>
                                     <img src={imageUrl} alt={itemName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
                                     <div className="flex-1 min-w-0">
-                                        <div className={`text-xs font-semibold ${textColor} truncate`}>{itemName} x{item.quantity}</div>
+                                        <div className={`text-xs font-semibold ${textColor} break-words whitespace-normal`}>{itemName} x{item.quantity}</div>
                                     </div>
                                 </div>
                             );
@@ -2556,6 +2526,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const nextRoundStartTimeCheckRef = useRef<NodeJS.Timeout | null>(null);
     const countdownRef = useRef<number>(0); // 카운트다운 값을 저장하는 ref
     const hasAutoStartedRef = useRef(false); // 오늘 처음 입장했는지 확인
+    const tournamentRef = useRef<TournamentState | undefined>(tournament); // 최신 tournament 상태를 ref로 저장
     
     // 안전성 검사: tournament가 없으면 로딩 메시지 표시
     if (!tournament) {
@@ -2643,157 +2614,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             console.log('[TournamentBracket] 현재 상태:', status, '이전 상태:', prevStatus);
         }
         
-        // bracket_ready 상태에서 자동으로 경기 시작
-        // 첫 경기는 수동 시작 (유저가 경기 시작 버튼을 눌러야 함)
-        // 두 번째 경기부터는 자동 시작
-        if (status === 'bracket_ready' && prevStatus !== 'bracket_ready') {
-            // 다음 경기가 있는지 확인
-            const hasUnfinishedUserMatch = safeRounds.some(r =>
-                Array.isArray(r?.matches) && r.matches.some(m => m.isUserMatch && !m.isFinished)
-            );
-            
-            if (hasUnfinishedUserMatch && currentUser?.id && Array.isArray(tournament.players)) {
-                // 완료된 유저 경기 수 확인 (첫 경기인지 판단)
-                const finishedUserMatches = safeRounds.reduce((count, r) => {
-                    if (!Array.isArray(r?.matches)) return count;
-                    return count + r.matches.filter(m => m.isUserMatch && m.isFinished).length;
-                }, 0);
-                
-                const isFirstMatch = finishedUserMatches === 0;
-                
-                // 첫 경기는 자동 시작하지 않음 (유저가 수동으로 시작 버튼을 눌러야 함)
-                if (isFirstMatch) {
-                    console.log('[TournamentBracket] 첫 경기 - 수동 시작 대기 중');
-                    return;
-                }
-                
-                // 두 번째 경기부터는 자동 시작
-                // 오늘 처음 입장했는지 확인 (컨디션이 유효한지 확인)
-                const userPlayer = tournament.players.find(p => p.id === currentUser.id);
-                const hasValidCondition = userPlayer && 
-                    userPlayer.condition !== undefined && 
-                    userPlayer.condition !== null && 
-                    userPlayer.condition !== 1000 && 
-                    userPlayer.condition >= 40 && 
-                    userPlayer.condition <= 100;
-                
-                // 컨디션이 유효하면 자동으로 경기 시작
-                // round_complete에서 bracket_ready로 변경된 경우 (카운트다운 후) 바로 시작
-                // 오늘 처음 입장한 경우 컨디션 조절 시간을 확보하기 위해 2초 후 시작
-                if (hasValidCondition && tournament.type) {
-                    const delay = prevStatus === 'round_complete' ? 500 : 2000; // round_complete에서 온 경우 0.5초, 처음 입장한 경우 2초
-                    console.log('[TournamentBracket] bracket_ready 상태, 자동 경기 시작 예약:', delay, 'ms 후');
-                    const autoStartTimer = setTimeout(() => {
-                        try {
-                            console.log('[TournamentBracket] 자동 경기 시작 실행');
-                            onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type: tournament.type } });
-                        } catch (error) {
-                            console.error('[TournamentBracket] 자동 경기 시작 오류:', error);
-                        }
-                    }, delay);
-                    
-                    return () => {
-                        clearTimeout(autoStartTimer);
-                    };
-                }
-            }
-        }
+        // 서버에서 자동으로 다음 경기를 시작하므로 클라이언트는 단순히 상태 변경을 감지
+        // bracket_ready 상태는 첫 경기 시작 전에만 사용됨
+        // 두 번째 경기부터는 서버에서 바로 round_in_progress로 변경됨
         
-        // round_complete 또는 bracket_ready 상태로 변경되었을 때 자동으로 다음 경기 시작
-        // 시뮬레이션 경기 완료 후 bracket_ready로 변경되면 자동 시작
-        const shouldAutoStart = (status === 'round_complete' && prevStatus !== 'round_complete') ||
-                                (status === 'bracket_ready' && prevStatus === 'round_complete');
-        
-        if (shouldAutoStart) {
-            console.log('[TournamentBracket] 자동 시작 조건 감지, 다음 경기 확인 중...', { status, prevStatus });
-            
-            // 기존 타이머가 있으면 정리
-            if (autoNextTimerRef.current) {
-                clearInterval(autoNextTimerRef.current);
-                autoNextTimerRef.current = null;
-            }
-            
-            // 다음 경기가 있는지 확인
-            let hasNextMatch = false;
-            const tournamentType = tournament?.type;
-            
-            if (tournamentType === 'neighborhood') {
-                // 동네바둑리그: 5경기 연속 진행
-                const currentRound = tournament.currentRoundRobinRound || 1;
-                hasNextMatch = currentRound < 5;
-                console.log('[TournamentBracket] 동네바둑리그 - 현재 회차:', currentRound, '다음 경기 있음:', hasNextMatch);
-            } else if (tournamentType === 'national') {
-                // 전국바둑대회: 8강, 4강, 결승 또는 3/4위전이 유저가 질 때까지 진행
-                const hasNextUserMatch = safeRounds.some(r => 
-                    Array.isArray(r?.matches) && r.matches.some(m => !m.isFinished && m.isUserMatch)
-                );
-                hasNextMatch = hasNextUserMatch;
-                console.log('[TournamentBracket] 전국바둑대회 - 다음 경기 있음:', hasNextMatch);
-            } else if (tournamentType === 'world') {
-                // 월드챔피언십: 16강부터 유저가 질 때까지 진행
-                const hasNextUserMatch = safeRounds.some(r => 
-                    Array.isArray(r?.matches) && r.matches.some(m => !m.isFinished && m.isUserMatch)
-                );
-                hasNextMatch = hasNextUserMatch;
-                console.log('[TournamentBracket] 월드챔피언십 - 다음 경기 있음:', hasNextMatch);
-            }
-            
-            console.log('[TournamentBracket] hasNextMatch:', hasNextMatch, 'tournamentType:', tournamentType);
-            
-            if (hasNextMatch && tournamentType) {
-                // 기존 타이머가 있으면 정리
-                if (autoNextTimerRef.current) {
-                    clearInterval(autoNextTimerRef.current);
-                    autoNextTimerRef.current = null;
-                }
-                
-                // 5초 카운트다운 시작
-                countdownRef.current = 5;
-                setAutoNextCountdown(5);
-                const tournamentTypeRef = tournamentType; // 클로저를 위한 로컬 변수
-                
-                console.log('[TournamentBracket] 카운트다운 시작:', countdownRef.current);
-                
-                autoNextTimerRef.current = setInterval(() => {
-                    countdownRef.current--;
-                    setAutoNextCountdown(countdownRef.current);
-                    console.log('[TournamentBracket] 카운트다운:', countdownRef.current);
-                    
-                    if (countdownRef.current <= 0) {
-                        console.log('[TournamentBracket] 카운트다운 완료, 다음 경기 시작');
-                        if (autoNextTimerRef.current) {
-                            clearInterval(autoNextTimerRef.current);
-                            autoNextTimerRef.current = null;
-                        }
-                        setAutoNextCountdown(null);
-                        
-                        // 상태 초기화: SGF 뷰어, 실시간 중계, 스코어 보드만 클리어
-                        // 선수 정보는 START_TOURNAMENT_MATCH 후 round_in_progress 상태가 되었을 때 업데이트됨
-                        setLastUserMatchSgfIndex(null);
-                        // initialMatchPlayers는 리셋하지 않음 - round_in_progress 상태가 되었을 때 자동으로 업데이트됨
-                        
-                        // 다음 경기 시작: 바로 START_TOURNAMENT_MATCH 액션 호출 (더 빠른 반응)
-                        try {
-                            console.log('[TournamentBracket] START_TOURNAMENT_MATCH 직접 호출');
-                            onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type: tournamentTypeRef } });
-                            // 전국바둑대회/월드챔피언십의 경우 다음 라운드 트리거 업데이트
-                            if (tournamentTypeRef === 'national' || tournamentTypeRef === 'world') {
-                                setNextRoundTrigger(prev => prev + 1);
-                            }
-                        } catch (error) {
-                            console.error('[TournamentBracket] 자동 다음경기 오류:', error);
-                        }
-                    }
-                }, 1000);
-            } else {
-                // 다음 경기가 없으면 카운트다운 초기화
-                setAutoNextCountdown(null);
-            }
-        }
-        
-        // 상태가 변경되면 카운트다운 취소 (round_complete나 bracket_ready가 아닌 경우)
-        if (status !== 'round_complete' && status !== 'bracket_ready' && autoNextTimerRef.current) {
-            clearInterval(autoNextTimerRef.current);
+        // 상태가 변경되면 타이머 정리
+        if (status !== 'bracket_ready' && autoNextTimerRef.current) {
+            clearTimeout(autoNextTimerRef.current);
             autoNextTimerRef.current = null;
             setAutoNextCountdown(null);
         }
@@ -2809,68 +2636,143 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         };
     }, [tournament?.status, tournament?.type, tournament?.currentRoundRobinRound, safeRounds, onStartNextRound, onAction, currentUser?.id]);
     
-    // nextRoundStartTime 체크하여 자동으로 다음 경기 시작 (시뮬레이션 경기 완료 후)
-    // 이 로직은 서버에서 nextRoundStartTime을 설정한 경우에만 사용 (카운트다운과 중복 방지)
+    // tournament ref 업데이트
     useEffect(() => {
-        if (!tournament || !tournament.nextRoundStartTime) {
-            if (nextRoundStartTimeCheckRef.current) {
-                clearInterval(nextRoundStartTimeCheckRef.current);
-                nextRoundStartTimeCheckRef.current = null;
+        tournamentRef.current = tournament;
+        // nextRoundStartTime이 변경되었을 때 로그 출력
+        if (tournament?.nextRoundStartTime) {
+            console.log(`[TournamentBracket] Tournament ref updated, nextRoundStartTime: ${tournament.nextRoundStartTime}, status: ${tournament.status}`);
+        }
+    }, [tournament]);
+
+    // onAction ref로 저장 (클로저 문제 방지)
+    const onActionRef = useRef(onAction);
+    useEffect(() => {
+        onActionRef.current = onAction;
+    }, [onAction]);
+
+    // nextRoundStartTime 체크: 5초 카운트다운 후 자동으로 경기 시작
+    useEffect(() => {
+        const nextRoundStartTime = tournament?.nextRoundStartTime;
+        const status = tournament?.status;
+        
+        // nextRoundStartTime이 없거나 bracket_ready 상태가 아니면 타이머 정리하고 종료
+        if (!nextRoundStartTime || status !== 'bracket_ready') {
+            setAutoNextCountdown(null);
+            if (autoNextTimerRef.current) {
+                clearInterval(autoNextTimerRef.current);
+                autoNextTimerRef.current = null;
             }
+            countdownRef.current = 0;
             return;
         }
-        
-        // 카운트다운이 이미 진행 중이면 이 로직은 스킵 (중복 방지)
+
+        // 기존 타이머가 있으면 정리
         if (autoNextTimerRef.current) {
-            return;
+            clearInterval(autoNextTimerRef.current);
+            autoNextTimerRef.current = null;
         }
-        
-        // bracket_ready 상태에서만 nextRoundStartTime 체크 (서버에서 설정한 경우)
-        const shouldCheckNextRound = tournament.nextRoundStartTime && 
-            tournament.status === 'bracket_ready';
-        
-        if (shouldCheckNextRound) {
-            const checkNextRound = () => {
-                const now = Date.now();
-                const timeUntilStart = tournament.nextRoundStartTime! - now;
-                
-                if (timeUntilStart <= 0) {
-                    // 시간이 지났으면 다음 경기 시작
-                    console.log('[TournamentBracket] nextRoundStartTime 도달, 자동 경기 시작', { status: tournament.status });
-                    if (nextRoundStartTimeCheckRef.current) {
-                        clearInterval(nextRoundStartTimeCheckRef.current);
-                        nextRoundStartTimeCheckRef.current = null;
-                    }
-                    // 자동 경기 시작
-                    onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type: tournament.type } });
-                } else {
-                    // 남은 시간 표시 (최대 5초)
-                    const remainingSeconds = Math.ceil(timeUntilStart / 1000);
-                    if (remainingSeconds <= 5) {
-                        setAutoNextCountdown(remainingSeconds);
-                    }
+
+        const updateCountdown = () => {
+            const currentTournament = tournamentRef.current;
+            if (!currentTournament || !currentTournament.nextRoundStartTime || currentTournament.status !== 'bracket_ready') {
+                setAutoNextCountdown(null);
+                countdownRef.current = 0;
+                if (autoNextTimerRef.current) {
+                    clearInterval(autoNextTimerRef.current);
+                    autoNextTimerRef.current = null;
                 }
-            };
-            
-            // 즉시 한 번 체크
-            checkNextRound();
-            
-            // 50ms마다 체크 (더 빠른 반응)
-            nextRoundStartTimeCheckRef.current = setInterval(checkNextRound, 50);
-        } else {
-            if (nextRoundStartTimeCheckRef.current) {
-                clearInterval(nextRoundStartTimeCheckRef.current);
-                nextRoundStartTimeCheckRef.current = null;
+                return;
             }
-        }
-        
-        return () => {
-            if (nextRoundStartTimeCheckRef.current) {
-                clearInterval(nextRoundStartTimeCheckRef.current);
-                nextRoundStartTimeCheckRef.current = null;
+
+            const startTime = currentTournament.nextRoundStartTime;
+            const now = Date.now();
+            const timeUntilStart = startTime - now;
+            const secondsLeft = Math.max(0, Math.ceil(timeUntilStart / 1000));
+
+            // 항상 카운트다운 업데이트
+            setAutoNextCountdown(secondsLeft);
+
+            // 디버깅: 매 초마다 로그 출력 (초가 변경될 때만)
+            if (countdownRef.current !== secondsLeft) {
+                countdownRef.current = secondsLeft;
+                if (secondsLeft > 0) {
+                    console.log(`[TournamentBracket] Countdown: ${secondsLeft}초 남음 (startTime: ${startTime}, now: ${now}, diff: ${timeUntilStart}ms)`);
+                } else {
+                    console.log(`[TournamentBracket] Countdown reached 0, starting match...`);
+                }
+            }
+
+            if (timeUntilStart <= 0) {
+                // 카운트다운이 끝났으면 바로 경기 시작
+                setAutoNextCountdown(null);
+                countdownRef.current = 0;
+                if (autoNextTimerRef.current) {
+                    clearInterval(autoNextTimerRef.current);
+                    autoNextTimerRef.current = null;
+                }
+                
+                // 다음 경기 찾기
+                const rounds = currentTournament.rounds || [];
+                let nextMatch: Match | undefined = undefined;
+                if (currentTournament.type === 'neighborhood') {
+                    const currentRound = currentTournament.currentRoundRobinRound || 1;
+                    const currentRoundObj = rounds.find(r => r.name === `${currentRound}회차`);
+                    if (currentRoundObj) {
+                        nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
+                    }
+                } else {
+                    // 전국/월드챔피언십: 다음 경기 찾기
+                    nextMatch = rounds
+                        .flatMap(r => r.matches)
+                        .find(m => m.isUserMatch && !m.isFinished);
+                }
+
+                if (nextMatch && currentTournament.status === 'bracket_ready') {
+                    console.log('[TournamentBracket] Auto-starting match after countdown', {
+                        nextMatch: nextMatch.id,
+                        status: currentTournament.status,
+                        type: currentTournament.type,
+                        currentRound: currentTournament.currentRoundRobinRound
+                    });
+                    // START_TOURNAMENT_MATCH 액션 호출 (ref 사용)
+                    onActionRef.current({
+                        type: 'START_TOURNAMENT_MATCH',
+                        payload: { type: currentTournament.type }
+                    });
+                } else {
+                    console.warn('[TournamentBracket] Cannot auto-start match:', {
+                        hasNextMatch: !!nextMatch,
+                        status: currentTournament.status,
+                        type: currentTournament.type,
+                        currentRound: currentTournament.currentRoundRobinRound,
+                        roundsCount: rounds.length
+                    });
+                }
             }
         };
-    }, [tournament?.status, tournament?.nextRoundStartTime, tournament?.type, onAction]);
+
+        // 즉시 한 번 실행하고 타이머 시작
+        const timeUntilStart = nextRoundStartTime - Date.now();
+        console.log(`[TournamentBracket] nextRoundStartTime detected: ${nextRoundStartTime}, current time: ${Date.now()}, time until start: ${timeUntilStart}ms, status: ${status}`);
+        
+        // 이미 시간이 지나간 경우 즉시 시작
+        if (timeUntilStart <= 0) {
+            console.log(`[TournamentBracket] nextRoundStartTime already passed, starting match immediately`);
+            updateCountdown(); // 이 함수 내에서 자동 시작 처리
+        } else {
+            updateCountdown();
+            // 100ms마다 업데이트
+            autoNextTimerRef.current = setInterval(updateCountdown, 100);
+        }
+
+        return () => {
+            if (autoNextTimerRef.current) {
+                clearInterval(autoNextTimerRef.current);
+                autoNextTimerRef.current = null;
+            }
+        };
+    }, [tournament?.nextRoundStartTime, tournament?.status]); // nextRoundStartTime과 status를 의존성으로 사용
     
     useEffect(() => {
         // 안전성 검사
@@ -3775,20 +3677,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         </section>
                         {/* 실시간 중계 + 획득 보상 (가로 분할) */}
                         <div 
-                            className={`${isMobile ? 'flex-col' : 'flex-row'} ${isMobile ? 'w-full' : 'flex-1 min-h-0'} gap-2 ${isMobile ? '' : 'overflow-hidden'}`}
-                            style={isMobile ? {} : { display: 'flex' }}
+                            className={`${isMobile ? 'flex-row' : 'flex-row'} ${isMobile ? 'w-full' : 'flex-1 min-h-0'} gap-2 ${isMobile ? '' : 'overflow-hidden'}`}
+                            style={isMobile ? { display: 'flex', height: '400px', minHeight: '400px', maxHeight: '500px' } : { display: 'flex' }}
                         >
-                            {/* 왼쪽: 실시간 중계 (넓은 패널) */}
+                            {/* 왼쪽: 실시간 중계 (넓은 패널, 4:1 비율) */}
                             <div 
-                                className={`${isMobile ? 'w-full' : 'flex-[2] min-w-0'} bg-gray-800/50 rounded-lg p-1 md:p-2 flex flex-col ${isMobile ? '' : 'overflow-hidden'}`}
-                                style={isMobile ? { height: '400px', minHeight: '400px', maxHeight: '500px', display: 'flex', flexDirection: 'column' } : { display: 'flex', flexDirection: 'column' }}
+                                className={`${isMobile ? 'w-3/5' : 'flex-[4] min-w-0'} bg-gray-800/50 rounded-lg p-1 md:p-2 flex flex-col overflow-hidden`}
+                                style={{ display: 'flex', flexDirection: 'column' }}
                             >
                                 <CommentaryPanel commentary={displayTournament.currentMatchCommentary} isSimulating={displayTournament.status === 'round_in_progress'} />
                             </div>
-                            {/* 오른쪽: 획득 보상 (좁은 패널) */}
+                            {/* 오른쪽: 획득 보상 (좁은 패널, 4:1 비율) */}
                             <div 
-                                className={`${isMobile ? 'w-full' : 'flex-[1] min-w-0'} bg-gray-800/50 rounded-lg p-1 md:p-2 flex flex-col ${isMobile ? '' : 'overflow-hidden'}`}
-                                style={isMobile ? { height: '400px', minHeight: '400px', maxHeight: '500px', display: 'flex', flexDirection: 'column' } : { display: 'flex', flexDirection: 'column' }}
+                                className={`${isMobile ? 'w-2/5 min-w-[120px]' : 'flex-[1] min-w-0'} bg-gray-800/50 rounded-lg p-1 md:p-2 flex flex-col overflow-hidden`}
+                                style={{ display: 'flex', flexDirection: 'column' }}
                             >
                                 <FinalRewardPanel tournamentState={tournament} currentUser={currentUser} onAction={onAction} />
                             </div>
@@ -3836,10 +3738,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         <div className="absolute top-1/2 -translate-y-1/2 right-2 z-20">
                             <button 
                                 onClick={() => setIsMobileSidebarOpen(true)} 
-                                className="w-8 h-12 bg-gray-800/80 backdrop-blur-sm rounded-l-lg flex items-center justify-center text-white shadow-lg hover:bg-gray-700/80"
+                                className="w-11 h-12 sm:w-12 sm:h-14 bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
                                 aria-label="메뉴 열기"
                             >
-                                <span className="relative font-bold text-lg">{'<<'}</span>
+                                <span className="relative font-bold text-2xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{'<<'}</span>
                             </button>
                         </div>
                         <div className="w-full pb-2" style={{ minHeight: 'min-content' }}>

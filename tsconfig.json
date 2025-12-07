@@ -11,9 +11,12 @@
   },
   "include": [
     "./**/*.ts",
-    "./**/*.tsx"
+    "./**/*.tsx",
+    "./shared/**/*.ts"
   ],
   "exclude": [
-    "server"
+    "server",
+    "node_modules",
+    "dist"
   ]
 }

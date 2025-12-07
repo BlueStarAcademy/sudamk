@@ -3,7 +3,7 @@ import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, TournamentType, PlayerForTournament, InventoryItem, InventoryItemType, TournamentState, LeagueTier, CoreStat, EquipmentSlot } from '../../types/index.js';
 import { ItemGrade } from '../../types/enums.js';
 import * as types from '../../types/index.js';
-import { TOURNAMENT_DEFINITIONS, BASE_TOURNAMENT_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, TOURNAMENT_SCORE_REWARDS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, DUNGEON_STAGE_BOT_STATS, DUNGEON_TYPE_MULTIPLIER, DUNGEON_RANK_REWARD_MULTIPLIER, DUNGEON_DEFAULT_REWARD_MULTIPLIER, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_STAGE_BASE_SCORE, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS } from '../../constants';
+import { TOURNAMENT_DEFINITIONS, BASE_TOURNAMENT_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, TOURNAMENT_SCORE_REWARDS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, DUNGEON_STAGE_BOT_STATS, DUNGEON_TYPE_MULTIPLIER, DUNGEON_RANK_REWARD_MULTIPLIER, DUNGEON_DEFAULT_REWARD_MULTIPLIER, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_STAGE_BASE_SCORE, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS } from '../../shared/constants';
 import { updateQuestProgress } from '../questService.js';
 import { createItemFromTemplate, SHOP_ITEMS } from '../shop.js';
 import { isSameDayKST, getStartOfDayKST } from '../../utils/timeUtils.js';
@@ -96,6 +96,8 @@ const LEAGUE_BOT_CONFIG: Record<LeagueTier, {
 };
 
 // 봇 생성 함수: 리그별 설정에 따라 랜덤 레벨, 장비, 능력치로 봇 User 객체 생성
+// prepareNextMatchAutoStart 함수는 더 이상 사용하지 않음 (서버에서 직접 경기 시작)
+
 export const createBotUser = (league: LeagueTier, tournamentType: TournamentType, botId: string, botName: string, botAvatar: { id: string }, botBorder: { id: string }): User => {
     const config = LEAGUE_BOT_CONFIG[league] || LEAGUE_BOT_CONFIG[LeagueTier.Sprout];
     
@@ -1074,6 +1076,14 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
         }
 
         case 'COMPLETE_TOURNAMENT_SIMULATION': {
+            console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Starting for user ${user.id}, payload:`, JSON.stringify(payload));
+            
+            // Payload 검증
+            if (!payload || typeof payload !== 'object') {
+                console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Invalid payload format`);
+                return { error: 'Invalid payload format.' };
+            }
+            
             const { type, result } = payload as { 
                 type: TournamentType; 
                 result: { 
@@ -1084,6 +1094,19 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     winnerId: string;
                 };
             };
+            
+            if (!type || !result) {
+                console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Missing required fields: type=${type}, result=${!!result}`);
+                return { error: 'Missing required fields: type and result are required.' };
+            }
+            
+            if (!result.winnerId || typeof result.winnerId !== 'string') {
+                console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Invalid winnerId: ${result.winnerId}`);
+                return { error: 'Invalid result: winnerId is required and must be a string.' };
+            }
+            
+            console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Payload validated: type=${type}, winnerId=${result.winnerId}`);
+            
             let stateKey: keyof User;
             switch (type) {
                 case 'neighborhood': stateKey = 'lastNeighborhoodTournament'; break;
@@ -1140,32 +1163,32 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
             
             // 인덱스 유효성 검사
+            console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Found indices: roundIndex=${roundIndex}, matchIndex=${matchIndex}, rounds.length=${tournamentState.rounds.length}`);
+            
             if (roundIndex < 0 || roundIndex >= tournamentState.rounds.length) {
-                if (process.env.NODE_ENV === 'development') {
-                    console.warn(`[COMPLETE_TOURNAMENT_SIMULATION] Invalid roundIndex ${roundIndex} for user ${user.id}. Tournament: ${JSON.stringify({
-                        status: tournamentState.status,
-                        currentSimulatingMatch: tournamentState.currentSimulatingMatch,
-                        roundsCount: tournamentState.rounds.length
-                    })}`);
-                }
+                console.warn(`[COMPLETE_TOURNAMENT_SIMULATION] Invalid roundIndex ${roundIndex} for user ${user.id}. Tournament: ${JSON.stringify({
+                    status: tournamentState.status,
+                    currentSimulatingMatch: tournamentState.currentSimulatingMatch,
+                    roundsCount: tournamentState.rounds.length
+                })}`);
                 // 이미 완료된 경기라면 성공 반환 (중복 요청 처리)
                 return { clientResponse: { updatedUser: freshUser } };
             }
             
             const round = tournamentState.rounds[roundIndex];
             if (matchIndex < 0 || matchIndex >= round.matches.length) {
-                if (process.env.NODE_ENV === 'development') {
-                    console.warn(`[COMPLETE_TOURNAMENT_SIMULATION] Invalid matchIndex ${matchIndex} for user ${user.id}. Round has ${round.matches.length} matches.`);
-                }
+                console.warn(`[COMPLETE_TOURNAMENT_SIMULATION] Invalid matchIndex ${matchIndex} for user ${user.id}. Round has ${round.matches.length} matches.`);
                 // 이미 완료된 경기라면 성공 반환 (중복 요청 처리)
                 return { clientResponse: { updatedUser: freshUser } };
             }
 
             const match = round.matches[matchIndex];
+            console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Found match: id=${match.id}, isFinished=${match.isFinished}, isUserMatch=${match.isUserMatch}`);
             
             // 이미 완료된 경기인 경우에도 결과를 업데이트할 수 있도록 허용
             // (클라이언트와 서버 간 동기화 문제로 인해 중복 요청이 올 수 있음)
             if (match.isFinished && match.winner && match.score) {
+                console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Match already finished, returning early`);
                 // 이미 완료된 경기이고 결과도 있으면 성공 반환 (중복 요청 처리)
                 return { clientResponse: { updatedUser: freshUser } };
             }
@@ -1274,7 +1297,36 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 매치 완료 처리
             const { processMatchCompletion } = await import('../tournamentService.js');
             const prevStatus = tournamentState.status;
-            await processMatchCompletion(tournamentState, freshUser, match, roundIndex);
+            const prevNextRoundStartTime = tournamentState.nextRoundStartTime;
+            console.log(`[COMPLETE_TOURNAMENT_SIMULATION] About to call processMatchCompletion: type=${type}, roundIndex=${roundIndex}, matchIndex=${matchIndex}, status=${prevStatus}`);
+            try {
+                await processMatchCompletion(tournamentState, freshUser, match, roundIndex);
+                console.log(`[COMPLETE_TOURNAMENT_SIMULATION] processMatchCompletion completed: status changed from ${prevStatus} to ${tournamentState.status}, nextRoundStartTime: ${prevNextRoundStartTime} -> ${tournamentState.nextRoundStartTime}`);
+                
+                // nextRoundStartTime이 설정되었으면 즉시 브로드캐스트하여 클라이언트가 카운트다운을 시작할 수 있도록 함
+                if (tournamentState.nextRoundStartTime && tournamentState.nextRoundStartTime !== prevNextRoundStartTime) {
+                    console.log(`[COMPLETE_TOURNAMENT_SIMULATION] nextRoundStartTime changed, broadcasting update immediately`);
+                    // Keep volatile state reference updated
+                    if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+                    volatileState.activeTournaments[freshUser.id] = tournamentState;
+                    
+                    // 사용자 캐시 업데이트
+                    updateUserCache(freshUser);
+                    // DB 저장
+                    await db.updateUser(freshUser);
+                    
+                    // WebSocket으로 사용자 업데이트 브로드캐스트
+                    const { broadcastUserUpdate } = await import('../socket.js');
+                    broadcastUserUpdate(freshUser, ['lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament']);
+                }
+            } catch (error: any) {
+                console.error(`[COMPLETE_TOURNAMENT_SIMULATION] Error in processMatchCompletion for user ${user.id}:`, error);
+                console.error(`[COMPLETE_TOURNAMENT_SIMULATION] Error stack:`, error?.stack);
+                // processMatchCompletion 실패해도 경기 결과는 저장하고 계속 진행
+                // 에러 메시지를 명확하게 전달
+                const errorMessage = error?.message || error?.toString() || '경기 완료 처리 중 오류가 발생했습니다.';
+                return { error: errorMessage };
+            }
 
             // 모든 경기가 완료되었는지 확인
             const allMatchesFinished = tournamentState.rounds.every(r => r.matches.every(m => m.isFinished));
@@ -1348,25 +1400,15 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     }
                 }
             } else {
-                // 다음 라운드 진행 여부 확인
-                const allMatchesInRoundFinished = tournamentState.rounds[roundIndex].matches.every(m => m.isFinished);
-                if (allMatchesInRoundFinished) {
-                    // processMatchCompletion에서 이미 상태를 변경했을 수 있으므로 확인
-                    if (tournamentState.status !== 'complete' && tournamentState.status !== 'eliminated') {
-                        tournamentState.status = 'round_complete';
-                        // round_complete 상태에서는 다음 라운드 대진표만 준비하고,
-                        // startNextRound는 사용자가 "다음경기" 버튼을 눌렀을 때만 호출됨 (START_TOURNAMENT_ROUND 액션)
-                        // 다음 라운드 대진표 준비 (prepareNextRound는 전국/월드챔피언십에서만 필요)
-                        if (tournamentState.type === 'national' || tournamentState.type === 'world') {
-                            const { prepareNextRound } = await import('../tournamentService.js');
-                            prepareNextRound(tournamentState, freshUser);
-                        }
-                        // 동네바둑리그는 이미 모든 회차의 대진표가 생성되어 있으므로 prepareNextRound 불필요
-                    }
-                } else {
-                    // 아직 라운드 내 다른 경기가 남아있으면 bracket_ready 상태 유지
-                    if (tournamentState.status !== 'complete' && tournamentState.status !== 'eliminated') {
-                        tournamentState.status = 'bracket_ready';
+                // processMatchCompletion에서 다음 경기 자동 시작을 처리
+                // 여기서는 상태만 확인하고 필요시 complete로 설정
+                if (tournamentState.status !== 'eliminated' && tournamentState.status !== 'round_in_progress') {
+                    // 다음 경기가 없으면 complete 상태로 설정
+                    const hasNextUserMatch = tournamentState.rounds.some(r => 
+                        r.matches.some(m => m.isUserMatch && !m.isFinished)
+                    );
+                    if (!hasNextUserMatch) {
+                        tournamentState.status = 'complete';
                     }
                 }
             }

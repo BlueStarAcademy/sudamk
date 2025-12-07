@@ -9,7 +9,9 @@
     "start-client": "vite --host",
     "start-server": "cross-env PORT=4000 node node_modules/tsx/dist/cli.mjs --tsconfig server/tsconfig.json server/server.ts",
     "railway:start": "npm run start-server",
-    "build": "vite build",
+    "build": "npm run build:client",
+    "build:client": "vite build",
+    "build:server": "echo 'Server build not needed - using tsx for runtime'",
     "prisma:generate": "npx prisma generate --schema prisma/schema.prisma",
     "prisma:migrate:deploy": "npx prisma migrate deploy --schema prisma/schema.prisma",
     "prisma:db:push": "npx prisma db push --schema prisma/schema.prisma --accept-data-loss",
@@ -34,7 +36,9 @@
     "optimize-images": "node scripts/optimizeImages.js",
     "compress-images": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts",
     "compress-images:dry": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts --dry-run",
-    "build:optimized": "npm run optimize-images && vite build"
+    "build:optimized": "npm run optimize-images && vite build",
+    "start-frontend": "serve -s dist -l 3000",
+    "start-katago": "cross-env PORT=4001 node node_modules/tsx/dist/cli.mjs --tsconfig server/tsconfig.json server/katagoServer.ts"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.936.0",

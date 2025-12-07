@@ -90,33 +90,8 @@ RUN echo "=== Checking vite availability ===" && \
     (echo "=== Vite build failed ===" && exit 1) && \
     echo "=== Frontend build complete ==="
 
-# Download KataGo Linux binary and model (optional - can use HTTP API mode instead)
-# Use eigenavx2 build for CPU-only Railway deployment (faster than eigen)
-# Model download failure is non-fatal - server can use HTTP API mode
-RUN echo "=== Starting KataGo download ===" && \
-    mkdir -p /app/katago /tmp/katago_extract && \
-    cd /tmp && \
-    echo "[1/4] Downloading KataGo binary v1.16.4..." && \
-    (wget --progress=dot:giga --no-check-certificate --timeout=120 --tries=2 --read-timeout=120 --dns-timeout=20 --connect-timeout=60 \
-        https://github.com/lightvector/KataGo/releases/download/v1.16.4/katago-v1.16.4-eigenavx2-linux-x64.zip -O katago.zip && \
-    echo "[2/4] Verifying download..." && \
-    test -f katago.zip && test -s katago.zip && \
-    echo "[3/4] Extracting KataGo binary..." && \
-    unzip -q katago.zip -d katago_extract && \
-    KATAGO_BIN=$(find katago_extract -name "katago" -type f | head -1) && \
-    test -n "$KATAGO_BIN" && \
-    cp "$KATAGO_BIN" /app/katago/katago && \
-    chmod +x /app/katago/katago && \
-    echo "[4/4] Downloading KataGo model (optional)..." && \
-    cd /app/katago && \
-    (wget --progress=dot:giga --no-check-certificate --timeout=300 --tries=2 --read-timeout=300 --dns-timeout=20 --connect-timeout=120 \
-        https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
-    test -f kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
-    echo "=== KataGo binary and model installation complete ===" || \
-    echo "WARNING: KataGo model download failed (403 Forbidden). Server will use HTTP API mode if configured.") && \
-    rm -rf /tmp/katago.zip /tmp/katago_extract) || \
-    (echo "WARNING: KataGo binary download failed. Server can still run with HTTP API mode if KATAGO_API_URL is configured." && \
-    echo "=== Continuing build without KataGo binary ===")
+# KataGo is now deployed as a separate service
+# Backend will use HTTP API mode via KATAGO_API_URL environment variable
 
 FROM base AS runner
 WORKDIR /app
@@ -177,15 +152,8 @@ COPY --from=build /app/profanity.ts ./profanity.ts
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/tsconfig.base.json ./tsconfig.base.json
 
-# Copy frontend build
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/public ./public
-
-# Copy KataGo binary and model (downloaded in build stage)
-RUN mkdir -p ./katago
-COPY --from=build /app/katago/katago ./katago/katago
-COPY --from=build /app/katago/*.bin.gz ./katago/
-RUN chmod +x ./katago/katago || true
+# Frontend is now deployed as a separate service
+# Backend only serves API endpoints
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

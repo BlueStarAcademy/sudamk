@@ -4,7 +4,18 @@
     "lib": ["ESNext"],
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true
+
   },
-  "include": ["**/*.ts"]
+  "include": [
+    "**/*.ts",
+    "../shared/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "../node_modules",
+    "../components",
+    "../hooks",
+    "../client"
+  ]
 }

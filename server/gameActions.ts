@@ -1,14 +1,14 @@
 import { randomUUID } from 'crypto';
 import * as db from './db.js';
 // FIX: Import GameMode to resolve TS2304 error.
-import { type ServerAction, type User, type VolatileState, InventoryItem, Quest, QuestLog, Negotiation, Player, LeagueTier, TournamentType, GameMode } from '../types/index.js';
-import * as types from '../types/index.js';
+import { type ServerAction, type User, type VolatileState, InventoryItem, Quest, QuestLog, Negotiation, Player, LeagueTier, TournamentType, GameMode } from '../shared/types/index.js';
+import * as types from '../shared/types/index.js';
 import { volatileState } from './state.js';
-import { isDifferentDayKST, isDifferentWeekKST, isDifferentMonthKST } from '../utils/timeUtils.js';
+import { isDifferentDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST } from '../shared/utils/timeUtils.js';
 import * as effectService from './effectService.js';
 import { regenerateActionPoints } from './effectService.js';
 import { updateGameStates } from './gameModes.js';
-import { DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ACTION_POINT_REGEN_INTERVAL_MS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES } from '../constants';
+import { DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ACTION_POINT_REGEN_INTERVAL_MS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES } from '../shared/constants';
 import { initializeGame } from './gameModes.js';
 import { handleStrategicGameAction } from './modes/standard.js';
 import { handlePlayfulGameAction } from './modes/playful.js';
@@ -68,6 +68,37 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
         updatedUser.quests.daily.quests = newQuests;
         // Daily login quest progress
         updateQuestProgress(updatedUser, 'login', undefined, 1);
+        
+        // Check if user has already completed conditions for other quests
+        // 채팅창에 인사하기: volatileState에서 최근 채팅 메시지 확인
+        const { volatileState } = await import('./state.js');
+        const GREETINGS = ['안녕', '하이', '헬로', 'hi', 'hello', '반가', '잘 부탁', '잘부탁'];
+        const todayStartKST = getStartOfDayKST(now);
+        
+        // 채팅 인사 퀘스트 체크: 오늘 날짜에 인사 메시지가 있는지 확인
+        const userLastChatTime = volatileState.userLastChatMessage[user.id] || 0;
+        if (userLastChatTime >= todayStartKST) {
+            // 오늘 채팅을 보냈으므로, 채팅 내용 확인
+            const allChannels = ['global', 'strategic', 'playful'] as const;
+            let hasGreetingToday = false;
+            for (const channel of allChannels) {
+                const chats = volatileState.waitingRoomChats[channel] || [];
+                const todayChats = chats.filter((chat: any) => 
+                    chat.user?.id === user.id && 
+                    chat.timestamp >= todayStartKST &&
+                    chat.text &&
+                    GREETINGS.some(g => chat.text.toLowerCase().includes(g))
+                );
+                if (todayChats.length > 0) {
+                    hasGreetingToday = true;
+                    break;
+                }
+            }
+            if (hasGreetingToday) {
+                updateQuestProgress(updatedUser, 'chat_greeting', undefined, 1);
+            }
+        }
+        
         modified = true;
     }
 

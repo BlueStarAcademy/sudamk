@@ -6,7 +6,6 @@ import Button from '../Button.js';
 import { GUILD_SHOP_ITEMS, GuildShopItem } from '../../constants/guildConstants.js';
 import { isDifferentWeekKST, isDifferentMonthKST } from '../../utils/timeUtils.js';
 import { addItemsToInventory } from '../../utils/inventoryUtils.js';
-import { openGuildGradeBox } from '../../server/shop.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../../constants/index.js';
 
 interface GuildShopModalProps {
@@ -35,10 +34,10 @@ const ShopItemCard: React.FC<{ item: GuildShopItem }> = ({ item }) => {
     let purchasesThisPeriod = 0;
 
     if (purchaseRecord) {
-        if (item.limitType === 'weekly' && !isDifferentWeekKST(purchaseRecord.date, now)) {
+        if (item.limitType === 'weekly' && !isDifferentWeekKST(purchaseRecord.lastPurchaseTimestamp, now)) {
             purchasesThisPeriod = purchaseRecord.quantity;
         }
-        if (item.limitType === 'monthly' && !isDifferentMonthKST(purchaseRecord.date, now)) {
+        if (item.limitType === 'monthly' && !isDifferentMonthKST(purchaseRecord.lastPurchaseTimestamp, now)) {
             purchasesThisPeriod = purchaseRecord.quantity;
         }
     }
@@ -57,51 +56,44 @@ const ShopItemCard: React.FC<{ item: GuildShopItem }> = ({ item }) => {
     };
 
     return (
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl p-3 flex flex-col items-center text-center border-2 border-stone-600/60 shadow-xl hover:shadow-2xl transition-all hover:border-stone-500/80 relative overflow-visible h-full">
-            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-            <div className="relative z-10 w-full flex flex-col h-full">
-             <div 
-                className="relative w-20 h-20 bg-gradient-to-br from-stone-800/90 to-stone-900/90 rounded-lg mb-2 flex items-center justify-center border-2 border-stone-600/60 shadow-lg mx-auto flex-shrink-0 cursor-pointer hover:scale-105 transition-transform"
+        <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 p-2.5 border border-indigo-400/35 shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] flex flex-col items-center text-center transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)]">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)] pointer-events-none" />
+            <div 
+                className="w-14 h-14 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg mb-1.5 flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer hover:scale-105 transition-transform"
                 onClick={() => setShowDescription(!showDescription)}
                 onMouseEnter={() => setShowDescription(true)}
                 onMouseLeave={() => setShowDescription(false)}
             >
-                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg opacity-80" />
-                <img src={item.image} alt={item.name} className="absolute object-contain p-2 z-10 drop-shadow-xl" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                <img src={item.image} alt={item.name} className="w-full h-full object-contain p-1.5 drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" />
             </div>
-            <h3 className="text-xs font-bold text-white mb-0.5 drop-shadow-lg line-clamp-1 flex-shrink-0">{item.name}</h3>
+            <h3 className="text-xs font-semibold tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] line-clamp-1 mb-1.5">
+                {item.name}
+            </h3>
             {showDescription && (
-                <div className="absolute z-50 top-24 left-1/2 -translate-x-1/2 w-48 bg-gray-900/95 border border-stone-600/50 rounded-lg p-2 shadow-xl">
-                    <p className="text-[9px] text-stone-300/90 leading-tight">
+                <div className="absolute z-50 top-20 left-1/2 -translate-x-1/2 w-48 bg-gray-900/95 border border-indigo-400/50 rounded-lg p-2 shadow-xl">
+                    <p className="text-[10px] text-slate-200/90 leading-relaxed">
                         {item.description}
                     </p>
                 </div>
             )}
-            <div className="flex flex-col items-stretch justify-center gap-1.5 mt-auto w-full flex-shrink-0">
-                <button
+            <div className="flex flex-col items-stretch justify-center gap-1 w-full mt-auto">
+                <Button
                     onClick={handleBuy}
                     disabled={!canPurchase}
-                    className={`w-full py-2 rounded-lg font-bold text-xs transition-all relative overflow-hidden group ${
-                        canPurchase 
-                            ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 hover:scale-[1.02] active:scale-[0.98]' 
-                            : 'bg-stone-700/50 text-stone-400 cursor-not-allowed'
-                    }`}
+                    colorScheme="none"
+                    className={`w-full justify-center rounded-lg border py-1 border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 ${!canPurchase ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                    {canPurchase && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                    )}
-                    <div className="relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap">
-                        <span>구매</span>
-                        <div className="flex items-center gap-1">
-                            <img src="/images/guild/tokken.png" alt="길드 코인" className="w-4 h-4 drop-shadow-md" /> 
-                            <span className="font-bold text-[10px]">{item.cost.toLocaleString()}</span>
+                    <div className="flex flex-col items-center justify-center gap-0.5">
+                        <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold tracking-wide">
+                            <img src="/images/guild/tokken.png" alt="길드 코인" className="w-4 h-4 drop-shadow-md" />
+                            <span>{item.cost.toLocaleString()}</span>
                         </div>
+                        <span className="text-[8px] text-slate-700/90 tracking-wide">
+                            {item.limitType === 'weekly' ? '주간' : '월간'} 한도 {remaining}/{item.limit}
+                        </span>
                     </div>
-                </button>
-            </div>
-            <p className="text-[9px] text-stone-400 bg-stone-800/50 px-1.5 py-0.5 rounded-md border border-stone-700/50 mt-1 flex-shrink-0">
-                {item.limitType === 'weekly' ? '주간' : '월간'} <span className={`font-bold ${remaining > 0 ? 'text-amber-300' : 'text-red-400'}`}>{remaining}/{item.limit}</span>
-            </p>
+                </Button>
             </div>
         </div>
     );
@@ -168,7 +160,7 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
                         );
                     })}
                 </div>
-                 <div className="grid grid-cols-3 gap-2.5 overflow-y-auto pr-2 flex-1 min-h-0">
+                 <div className="grid grid-cols-4 gap-2.5 overflow-y-auto pr-2 flex-1 min-h-0">
                     {shopItemsForTab.map(item => (
                         <ShopItemCard key={item.itemId} item={item} />
                     ))}

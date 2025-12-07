@@ -91,7 +91,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
     const calculatedHeight = Math.max(500, Math.min(800, windowHeight * 0.75));
     
     // 모바일 텍스트 크기 조정 팩터
-    const mobileTextScale = isMobile ? 0.85 : 1.0;
+    const mobileTextScale = isMobile ? 1.15 : 1.0;
 
     const selectedGameDefinition = useMemo(() => {
         return availableGameModes.find(mode => mode.mode === selectedGameMode);

@@ -28,17 +28,17 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({ mobile = false,
     const containerClass = mobile 
         ? "flex justify-around items-center gap-2"
         : compact
-        ? `bg-panel rounded-lg p-1 flex flex-col justify-around gap-1 ${fillHeight ? 'h-full' : ''}`
-        : `bg-panel rounded-lg p-2 flex flex-col justify-around gap-2 ${fillHeight ? 'h-full' : ''}`;
+        ? `bg-panel rounded-lg p-1 flex flex-col justify-around gap-0.5 ${fillHeight ? 'h-full' : ''}`
+        : `bg-panel rounded-lg p-1 flex flex-col justify-around gap-0.5 ${fillHeight ? 'h-full' : ''}`;
     
     const buttonClass = mobile
         ? "flex flex-col items-center justify-center p-2 rounded-lg w-16 h-16 bg-gradient-to-br from-gray-700/80 via-gray-600/70 to-gray-700/80 hover:from-gray-600/90 hover:via-gray-500/80 hover:to-gray-600/90 border-2 border-gray-500/50 hover:border-gray-400/70 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95"
         : compact
-        ? `flex flex-col items-center justify-center p-2 rounded-lg w-full bg-gradient-to-br from-gray-700/80 via-gray-600/70 to-gray-700/80 hover:from-gray-600/90 hover:via-gray-500/80 hover:to-gray-600/90 border-2 border-gray-500/50 hover:border-gray-400/70 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`
-        : `flex flex-col items-center justify-center p-3 rounded-xl w-full bg-gradient-to-br from-gray-700/90 via-gray-600/80 to-gray-700/90 hover:from-gray-600/95 hover:via-gray-500/85 hover:to-gray-600/95 border-2 border-gray-500/60 hover:border-gray-400/80 shadow-lg hover:shadow-2xl transition-all duration-200 transform hover:scale-105 active:scale-95`;
+        ? `flex flex-col items-center justify-center p-1 rounded-lg w-full bg-gradient-to-br from-gray-700/80 via-gray-600/70 to-gray-700/80 hover:from-gray-600/90 hover:via-gray-500/80 hover:to-gray-600/90 border-2 border-gray-500/50 hover:border-gray-400/70 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`
+        : `flex flex-col items-center justify-center p-1 rounded-lg w-full bg-gradient-to-br from-gray-700/90 via-gray-600/80 to-gray-700/90 hover:from-gray-600/95 hover:via-gray-500/85 hover:to-gray-600/95 border-2 border-gray-500/60 hover:border-gray-400/80 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`;
     
-    const iconSize = mobile ? "w-7 h-7 object-contain drop-shadow-md" : compact ? "w-9 h-9 object-contain drop-shadow-md" : "w-10 h-10 object-contain drop-shadow-lg";
-    const labelSize = mobile ? "text-[11px] mt-1.5 font-semibold text-gray-200" : compact ? "text-[11px] mt-1.5 font-semibold text-gray-200" : "text-sm mt-2 font-bold text-gray-100";
+    const iconSize = mobile ? "w-7 h-7 object-contain drop-shadow-md" : compact ? "w-12 h-12 object-contain drop-shadow-md" : "w-10 h-10 object-contain drop-shadow-md";
+    const labelSize = mobile ? "text-[11px] mt-1.5 font-semibold text-gray-200" : compact ? "text-[10px] mt-0.5 font-semibold text-gray-200" : "text-[10px] mt-0.5 font-semibold text-gray-200";
     
     const notificationDotClass = mobile
         ? "absolute top-1 right-1 bg-red-500 rounded-full w-2.5 h-2.5 border-2 border-gray-800"

@@ -127,7 +127,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({
     const isMobile = windowWidth < 768;
     const calculatedWidth = Math.max(800, Math.min(1200, windowWidth * 0.85));
     const calculatedHeight = Math.max(600, Math.min(900, windowHeight * 0.8));
-    const mobileTextScale = isMobile ? 0.85 : 1.0;
+    const mobileTextScale = isMobile ? 1.15 : 1.0;
 
     const selectedGameDefinition = useMemo(() => {
         return availableGameDefinitions.find(mode => mode.mode === selectedMode);

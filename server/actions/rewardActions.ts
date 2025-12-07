@@ -13,7 +13,8 @@ import {
     MONTHLY_MILESTONE_REWARDS,
     MONTHLY_MILESTONE_THRESHOLDS,
     BASE_TOURNAMENT_REWARDS,
-    TOURNAMENT_SCORE_REWARDS
+    TOURNAMENT_SCORE_REWARDS,
+    TOURNAMENT_DEFINITIONS
 } from '../../constants/index.js';
 import { calculateRanks } from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
@@ -588,7 +589,26 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 
                 // oldCumulativeScore를 먼저 정의 (나중에 사용하기 위해)
                 const oldCumulativeScore = freshUser.cumulativeTournamentScore || 0;
-                return { clientResponse: { obtainedItemsBulk: allObtainedItems, updatedUser, tournamentScoreChange: { oldScore: oldCumulativeScore, newScore: freshUser.cumulativeTournamentScore, scoreReward: scoreReward } }};
+                
+                // rewardSummary 형식으로 변환하여 모달 표시
+                const reward: QuestReward = {
+                    gold: accumulatedGold,
+                    diamonds: 0,
+                    actionPoints: 0,
+                };
+                
+                return { 
+                    clientResponse: { 
+                        obtainedItemsBulk: allObtainedItems, 
+                        updatedUser, 
+                        tournamentScoreChange: { oldScore: oldCumulativeScore, newScore: freshUser.cumulativeTournamentScore, scoreReward: scoreReward },
+                        rewardSummary: {
+                            reward,
+                            items: allObtainedItems,
+                            title: `${TOURNAMENT_DEFINITIONS[tournamentType].name} 보상`
+                        }
+                    }
+                };
             }
 
             // 골드 꾸러미와 다이아 꾸러미는 모두 아이템으로 지급 (사용자가 직접 사용하여 랜덤 골드/다이아 획득)
@@ -755,7 +775,25 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 allObtainedItems.push(...fallbackDisplayItems);
             }
 
-            return { clientResponse: { obtainedItemsBulk: allObtainedItems, updatedUser, tournamentScoreChange: { oldScore: oldCumulativeScore, newScore: freshUser.cumulativeTournamentScore, scoreReward: scoreReward } }};
+            // rewardSummary 형식으로 변환하여 모달 표시
+            const reward: QuestReward = {
+                gold: (itemReward.gold || 0) + accumulatedGold,
+                diamonds: itemReward.diamonds || 0,
+                actionPoints: 0,
+            };
+
+            return { 
+                clientResponse: { 
+                    obtainedItemsBulk: allObtainedItems, 
+                    updatedUser, 
+                    tournamentScoreChange: { oldScore: oldCumulativeScore, newScore: freshUser.cumulativeTournamentScore, scoreReward: scoreReward },
+                    rewardSummary: {
+                        reward,
+                        items: allObtainedItems,
+                        title: `${TOURNAMENT_DEFINITIONS[tournamentType].name} 보상`
+                    }
+                }
+            };
         }
         default:
             return { error: 'Unknown reward action.' };

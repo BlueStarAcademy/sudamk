@@ -86,6 +86,9 @@ export default defineConfig({
   },
   server: {
     host: true, // This ensures Vite listens on all network interfaces
+    fs: {
+      deny: ['**/server/**'],
+    },
     hmr: {
       // HMR은 자동으로 올바른 주소를 감지하도록 설정
       // host를 명시하지 않으면 브라우저가 접속한 주소를 자동으로 사용

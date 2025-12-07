@@ -1,16 +1,20 @@
 
-import React, { memo, useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState, useRef } from 'react';
 import { UserWithStatus } from '../types.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { getMannerEffects } from '../services/effectService.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { resourceIcons, ResourceIconKey } from './resourceIcons.js';
+import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIconKey } from './resourceIcons.js';
 
 const RESOURCE_LABEL: Record<ResourceIconKey, string> = {
     gold: '골드',
     diamonds: '다이아',
+};
+
+const SPECIAL_RESOURCE_LABEL: Record<SpecialResourceIconKey, string> = {
+    guildCoins: '길드 코인',
 };
 
 const ResourceDisplay = memo<{ icon: ResourceIconKey; value: number; className?: string }>(({ icon, value, className }) => {
@@ -65,6 +69,8 @@ const Header: React.FC = () => {
     const { currentUserWithStatus, handlers, unreadMailCount } = useAppContext();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [isSpecialResourcesOpen, setIsSpecialResourcesOpen] = useState(false);
+    const specialResourcesRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const checkIsMobile = () => {
@@ -82,17 +88,20 @@ const Header: React.FC = () => {
             if (isMobileMenuOpen && !target.closest('.mobile-menu-container')) {
                 setIsMobileMenuOpen(false);
             }
+            if (isSpecialResourcesOpen && specialResourcesRef.current && !specialResourcesRef.current.contains(target)) {
+                setIsSpecialResourcesOpen(false);
+            }
         };
-        if (isMobileMenuOpen) {
+        if (isMobileMenuOpen || isSpecialResourcesOpen) {
             document.addEventListener('mousedown', handleClickOutside);
             return () => document.removeEventListener('mousedown', handleClickOutside);
         }
-    }, [isMobileMenuOpen]);
+    }, [isMobileMenuOpen, isSpecialResourcesOpen]);
 
     if (!currentUserWithStatus) return null;
 
     const { handleLogout, openShop, openSettingsModal, openProfileEditModal, openMailbox } = handlers;
-    const { actionPoints, gold, diamonds, isAdmin, avatarId, borderId, mbti } = currentUserWithStatus;
+    const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti } = currentUserWithStatus;
     
     // actionPoints가 없으면 기본값 사용
     const safeActionPoints = actionPoints || { current: 0, max: 30 };
@@ -133,7 +142,32 @@ const Header: React.FC = () => {
                         </button>
                     </div>
                     <ResourceDisplay icon="gold" value={safeGold} className="flex-shrink-0" />
-                    <ResourceDisplay icon="diamonds" value={safeDiamonds} className="flex-shrink-0" />
+                    <div className="relative flex-shrink-0" ref={specialResourcesRef}>
+                        <div className="flex items-center gap-1">
+                            <ResourceDisplay icon="diamonds" value={safeDiamonds} className="flex-shrink-0" />
+                            <button
+                                onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
+                                className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-tertiary/60 hover:bg-tertiary/80 transition-all flex items-center justify-center border border-tertiary/40 ${
+                                    isSpecialResourcesOpen ? 'bg-tertiary/80' : ''
+                                }`}
+                                title="특수 재화"
+                            >
+                                <span className={`text-[10px] sm:text-xs text-primary transition-transform ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}>
+                                    ▼
+                                </span>
+                            </button>
+                        </div>
+                        {isSpecialResourcesOpen && (
+                            <div className="absolute top-full right-0 mt-1 bg-primary border border-color rounded-lg shadow-2xl z-[9999999] min-w-[100px] py-2">
+                                <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-secondary transition-colors">
+                                    <img src={specialResourceIcons.guildCoins} alt={SPECIAL_RESOURCE_LABEL.guildCoins} className="w-5 h-5 object-contain" />
+                                    <span className="font-bold text-sm text-primary whitespace-nowrap">
+                                        {(guildCoins ?? 0).toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     
                     <div className="h-9 w-px bg-border-color mx-1 sm:mx-2 flex-shrink-0"></div>
                     

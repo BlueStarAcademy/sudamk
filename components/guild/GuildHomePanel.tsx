@@ -54,76 +54,76 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
     };
 
     return (
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-4 rounded-xl flex flex-col h-full border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
+        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-2 sm:p-4 rounded-xl flex flex-col h-full border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-            <div className="relative z-10">
-                <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-bold text-lg text-highlight drop-shadow-lg flex items-center gap-2">
-                        <span className="text-xl">📅</span>
-                        <span>길드 출석부</span>
+            <div className="relative z-10 flex flex-col h-full min-h-0">
+                <div className="flex justify-between items-center mb-2 flex-shrink-0">
+                    <h3 className="font-bold text-sm sm:text-lg text-highlight drop-shadow-lg flex items-center gap-1 sm:gap-2">
+                        <span className="text-base sm:text-xl">📅</span>
+                        <span className="whitespace-nowrap">길드 출석부</span>
                     </h3>
                     <Button 
                         onClick={handleCheckIn} 
                         disabled={hasCheckedInToday} 
                         colorScheme="none"
-                        className={hasCheckedInToday ? getLuxuryButtonClasses('gray') : getLuxuryButtonClasses('green')}
+                        className={`${hasCheckedInToday ? getLuxuryButtonClasses('gray') : getLuxuryButtonClasses('green')} !text-xs sm:!text-sm !py-1 sm:!py-2 !px-2 sm:!px-4`}
                     >
                         {hasCheckedInToday ? '출석 완료' : '출석하기'}
                     </Button>
                 </div>
-                <p className="text-sm text-tertiary mb-3">
-                    오늘 출석: <span className="font-bold text-primary text-base">{todaysCheckIns} / {totalMembers}</span>명
+                <p className="text-xs sm:text-sm text-tertiary mb-2 flex-shrink-0">
+                    오늘 출석: <span className="font-bold text-primary text-sm sm:text-base">{todaysCheckIns} / {totalMembers}</span>명
                 </p>
-            </div>
-            <div className="my-3 relative z-10">
-                <div className="w-full bg-tertiary/60 rounded-full h-3 relative border-2 border-black/30 shadow-inner backdrop-blur-sm">
-                    <div className="bg-gradient-to-r from-emerald-400 via-green-500 to-emerald-600 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(74,222,128,0.6)]" style={{ width: `${progressPercent}%` }}></div>
-                    {GUILD_CHECK_IN_MILESTONE_REWARDS.map((milestone, index) => {
-                        // 마일스톤 구분선: totalMembers 기준으로 위치 계산
-                        const milestonePercent = totalMembers > 0 
-                            ? Math.min((milestone.count / totalMembers) * 100, 100) 
-                            : 0;
-                        // 마일스톤이 totalMembers보다 크면 표시하지 않음
-                        if (milestone.count > totalMembers) return null;
-                        return (
-                            <div 
-                                key={`milestone-line-${index}`} 
-                                className="absolute top-0 h-full w-0.5 bg-yellow-400/80 z-10 border-l border-yellow-300 shadow-[0_0_4px_rgba(251,191,36,0.8)]" 
-                                style={{ left: `${milestonePercent}%` }} 
-                                title={`${milestone.count}명 보상`}
-                            >
-                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-yellow-300 font-bold whitespace-nowrap drop-shadow-lg bg-black/40 px-1 rounded">
-                                    {milestone.count}명
+                <div className="my-2 relative z-10 flex-shrink-0">
+                    <div className="w-full bg-tertiary/60 rounded-full h-2 sm:h-3 relative border-2 border-black/30 shadow-inner backdrop-blur-sm">
+                        <div className="bg-gradient-to-r from-emerald-400 via-green-500 to-emerald-600 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(74,222,128,0.6)]" style={{ width: `${progressPercent}%` }}></div>
+                        {GUILD_CHECK_IN_MILESTONE_REWARDS.map((milestone, index) => {
+                            // 마일스톤 구분선: totalMembers 기준으로 위치 계산
+                            const milestonePercent = totalMembers > 0 
+                                ? Math.min((milestone.count / totalMembers) * 100, 100) 
+                                : 0;
+                            // 마일스톤이 totalMembers보다 크면 표시하지 않음
+                            if (milestone.count > totalMembers) return null;
+                            return (
+                                <div 
+                                    key={`milestone-line-${index}`} 
+                                    className="absolute top-0 h-full w-0.5 bg-yellow-400/80 z-10 border-l border-yellow-300 shadow-[0_0_4px_rgba(251,191,36,0.8)]" 
+                                    style={{ left: `${milestonePercent}%` }} 
+                                    title={`${milestone.count}명 보상`}
+                                >
+                                    <div className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 text-[8px] sm:text-[9px] text-yellow-300 font-bold whitespace-nowrap drop-shadow-lg bg-black/40 px-1 rounded">
+                                        {milestone.count}명
+                                    </div>
                                 </div>
+                            );
+                        })}
+                    </div>
+                </div>
+                <div className="mt-2 flex gap-1 sm:gap-3 flex-grow relative z-10 overflow-x-auto overflow-y-hidden min-h-0 justify-between sm:justify-start">
+                    {GUILD_CHECK_IN_MILESTONE_REWARDS.map((milestone, index) => {
+                        const isAchieved = todaysCheckIns >= milestone.count;
+                        const isClaimed = guild.dailyCheckInRewardsClaimed?.some(c => c.userId === currentUserWithStatus!.id && c.milestoneIndex === index);
+                        const canClaim = isAchieved && !isClaimed && hasCheckedInToday;
+                        
+                        return (
+                            <div key={index} className={`bg-gradient-to-br ${isAchieved ? 'from-yellow-900/40 via-amber-900/30 to-yellow-800/40' : 'from-tertiary/60 via-tertiary/50 to-tertiary/40'} p-1.5 sm:p-3 rounded-xl text-center flex flex-col items-center justify-between border-2 ${isAchieved ? 'border-yellow-500/60 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-transparent'} flex-shrink-0 flex-1 sm:flex-none sm:w-auto sm:aspect-square backdrop-blur-sm transition-all hover:scale-105`}>
+                                <div className="flex flex-col items-center">
+                                    <img src="/images/guild/tokken.png" alt="길드 코인" className="w-4 h-4 sm:w-8 sm:h-8 drop-shadow-lg mb-0.5 sm:mb-1"/>
+                                    <span className="text-[10px] sm:text-base font-bold text-primary drop-shadow">+{milestone.reward.guildCoins}</span>
+                                    <p className="text-[8px] sm:text-xs text-tertiary mt-0.5">{milestone.count}명</p>
+                                </div>
+                                <Button 
+                                    onClick={() => { if (canClaim) handleClaimMilestone(index); }} 
+                                    disabled={!canClaim} 
+                                    colorScheme="none"
+                                    className={canClaim ? `${getLuxuryButtonClasses('success')} !text-[8px] sm:!text-xs !py-0.5 sm:!py-1.5 !px-1 sm:!px-2 mt-1 sm:mt-2 w-full` : `${getLuxuryButtonClasses('gray')} !text-[8px] sm:!text-xs !py-0.5 sm:!py-1.5 !px-1 sm:!px-2 mt-1 sm:mt-2 w-full`}
+                                >
+                                    {isClaimed ? '완료' : (isAchieved ? '받기' : '미달성')}
+                                </Button>
                             </div>
                         );
                     })}
                 </div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 flex-grow relative z-10">
-                {GUILD_CHECK_IN_MILESTONE_REWARDS.map((milestone, index) => {
-                    const isAchieved = todaysCheckIns >= milestone.count;
-                    const isClaimed = guild.dailyCheckInRewardsClaimed?.some(c => c.userId === currentUserWithStatus!.id && c.milestoneIndex === index);
-                    const canClaim = isAchieved && !isClaimed && hasCheckedInToday;
-                    
-                    return (
-                        <div key={index} className={`bg-gradient-to-br ${isAchieved ? 'from-yellow-900/40 via-amber-900/30 to-yellow-800/40' : 'from-tertiary/60 via-tertiary/50 to-tertiary/40'} p-3 rounded-xl text-center flex flex-col items-center justify-between border-2 ${isAchieved ? 'border-yellow-500/60 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-transparent'} aspect-square backdrop-blur-sm transition-all hover:scale-105`}>
-                            <div className="flex flex-col items-center">
-                                <img src="/images/guild/tokken.png" alt="길드 코인" className="w-8 h-8 drop-shadow-lg mb-1"/>
-                                <span className="text-base font-bold text-primary drop-shadow">+{milestone.reward.guildCoins}</span>
-                                <p className="text-xs text-tertiary mt-0.5">{milestone.count}명</p>
-                            </div>
-                            <Button 
-                                onClick={() => { if (canClaim) handleClaimMilestone(index); }} 
-                                disabled={!canClaim} 
-                                colorScheme="none"
-                                className={canClaim ? `${getLuxuryButtonClasses('success')} !text-xs !py-1.5 !px-2 mt-2 w-full` : `${getLuxuryButtonClasses('gray')} !text-xs !py-1.5 !px-2 mt-2 w-full`}
-                            >
-                                {isClaimed ? '완료' : (isAchieved ? '받기' : '미달성')}
-                            </Button>
-                        </div>
-                    );
-                })}
             </div>
         </div>
     );
@@ -375,12 +375,19 @@ const GuildHomePanel: React.FC<GuildHomePanelProps> = ({ guild, myMemberInfo }) 
         <div className="flex flex-col gap-4 h-full">
             {isMobile ? (
                 <>
-                    {/* 모바일: 출석부와 공지를 같은 줄에 */}
-                    <div className="grid grid-cols-2 gap-4 flex-shrink-0">
-                        <GuildCheckInPanel guild={guild} />
-                        <GuildAnnouncementPanel guild={guild} />
+                    {/* 모바일: 출석부와 공지를 가로로 압축 배치 (PC 버전 압축) */}
+                    <div className="flex gap-4 flex-1 min-h-0">
+                        <div className="flex-1 min-h-0">
+                            <GuildCheckInPanel guild={guild} />
+                        </div>
+                        <div className="flex-1 min-h-0">
+                            <GuildAnnouncementPanel guild={guild} />
+                        </div>
                     </div>
-                    {/* 모바일: 채팅창은 사이드 메뉴에서 접근 */}
+                    {/* 모바일: 채팅창 */}
+                    <div className="flex-1 min-h-0" data-guild-chat>
+                        <GuildChat guild={guild} myMemberInfo={myMemberInfo} />
+                    </div>
                 </>
             ) : (
                 <>

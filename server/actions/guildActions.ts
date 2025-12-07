@@ -14,7 +14,9 @@ import {
 } from '../../types/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
-import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES } from '../../constants/index.js';
+import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES } from '../../shared/constants/index.js';
+import { EquipmentSlot, ItemGrade } from '../../types/enums.js';
+import { generateNewItem } from './inventoryActions.js';
 import * as currencyService from '../currencyService.js';
 import * as guildService from '../guildService.js';
 import { isSameDayKST, isDifferentWeekKST, isDifferentMonthKST } from '../../utils/timeUtils.js';
@@ -905,6 +907,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             guild.checkIns[user.id] = now;
             
+            // 길드 기여도 추가 (출석)
+            guildService.addContribution(guild, user.id, 10);
+            
             await guildService.updateGuildMissionProgress(user.guildId, 'checkIns', 1, guilds);
             
             needsSave = true;
@@ -1022,7 +1027,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 gainedGuildCoins = getRandomInt(GUILD_DONATION_GOLD_REWARDS.guildCoins[0], GUILD_DONATION_GOLD_REWARDS.guildCoins[1]);
                 gainedResearchPoints = getRandomInt(GUILD_DONATION_GOLD_REWARDS.researchPoints[0], GUILD_DONATION_GOLD_REWARDS.researchPoints[1]);
                 
-                user.guildCoins += gainedGuildCoins;
+                user.guildCoins = (user.guildCoins || 0) + gainedGuildCoins;
                 guild.researchPoints += gainedResearchPoints;
                 guild.xp += GUILD_DONATION_GOLD_REWARDS.guildXp;
                 guildService.addContribution(guild, user.id, GUILD_DONATION_GOLD_REWARDS.contribution);
@@ -1037,7 +1042,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 gainedGuildCoins = getRandomInt(GUILD_DONATION_DIAMOND_REWARDS.guildCoins[0], GUILD_DONATION_DIAMOND_REWARDS.guildCoins[1]);
                 gainedResearchPoints = getRandomInt(GUILD_DONATION_DIAMOND_REWARDS.researchPoints[0], GUILD_DONATION_DIAMOND_REWARDS.researchPoints[1]);
                 
-                user.guildCoins += gainedGuildCoins;
+                user.guildCoins = (user.guildCoins || 0) + gainedGuildCoins;
                 guild.researchPoints += gainedResearchPoints;
                 guild.xp += GUILD_DONATION_DIAMOND_REWARDS.guildXp;
                 guildService.addContribution(guild, user.id, GUILD_DONATION_DIAMOND_REWARDS.contribution);
@@ -1179,7 +1184,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
                 // WebSocket?�로 ?�용???�데?�트 브로?�캐?�트 (최적?�된 ?�수 ?�용)
                 const { broadcastUserUpdate } = await import('../socket.js');
-                broadcastUserUpdate(user, ['bonusStatPoints', 'guildCoins']);
+                broadcastUserUpdate(user, ['bonusStatPoints', 'guildCoins', 'dailyShopPurchases']);
                 
                 const rewardSummary = {
                     reward: { bonus: '?�탯+5' },
@@ -1322,6 +1327,162 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             return { clientResponse: { updatedUser: user, obtainedItemsBulk: itemsToAdd } };
         }
 
+        case 'START_GUILD_WAR': {
+            if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
+            
+            const guild = guilds[user.guildId];
+            if (!guild) return { error: '길드를 찾을 수 없습니다.' };
+            
+            // 길드장 또는 부길드장 권한 확인
+            const myMemberInfo = guild.members?.find(m => m.userId === user.id);
+            const canStartWar = myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
+            if (!canStartWar) {
+                return { error: '길드장 또는 부길드장만 전쟁을 시작할 수 있습니다.' };
+            }
+            
+            // 이미 활성 전쟁이 있는지 확인
+            const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
+            const existingWar = activeWars.find(w => 
+                (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && 
+                w.status === 'active'
+            );
+            if (existingWar) {
+                return { error: '이미 진행 중인 전쟁이 있습니다.' };
+            }
+            
+            // 이미 매칭 중인지 확인
+            if ((guild as any).guildWarMatching) {
+                return { error: '이미 매칭 중입니다.' };
+            }
+            
+            // 쿨타임 확인 (1시간)
+            const now = Date.now();
+            const lastWarAction = (guild as any).lastWarActionTime || 0;
+            const cooldownTime = 60 * 60 * 1000; // 1시간
+            if (lastWarAction && (now - lastWarAction) < cooldownTime) {
+                const remaining = cooldownTime - (now - lastWarAction);
+                const minutes = Math.floor(remaining / (1000 * 60));
+                const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+                return { error: `전쟁 신청 후 1시간이 지나야 취소할 수 있습니다. (남은 시간: ${minutes}분 ${seconds}초)` };
+            }
+            
+            // 매칭 큐 가져오기
+            const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
+            
+            // 이미 큐에 있는지 확인
+            if (matchingQueue.includes(user.guildId)) {
+                return { error: '이미 매칭 큐에 등록되어 있습니다.' };
+            }
+            
+            // 매칭 큐에 추가 (다음날 0시에 자동 매칭됨)
+            matchingQueue.push(user.guildId);
+            (guild as any).guildWarMatching = true;
+            (guild as any).lastWarActionTime = now;
+            
+            // 다음날 0시 계산
+            const { getStartOfDayKST } = await import('../../utils/timeUtils.js');
+            const todayStart = getStartOfDayKST(now);
+            const nextDayStart = todayStart + (24 * 60 * 60 * 1000); // 다음날 0시
+            
+            // 길드 채팅에 시스템 메시지 추가
+            const { randomUUID } = await import('crypto');
+            const nicknameEnding = user.nickname && /[가-힣]$/.test(user.nickname)
+                ? (user.nickname.charCodeAt(user.nickname.length - 1 - 0xAC00) % 28 === 0 ? '가' : '이')
+                : '이';
+            
+            const systemMessage: any = {
+                id: `msg-guild-war-${randomUUID()}`,
+                guildId: guild.id,
+                authorId: 'system',
+                content: `[${user.nickname}]${nicknameEnding} 길드 전쟁 매칭을 신청했습니다. 다음날 0시에 매칭됩니다.`,
+                createdAt: now,
+                system: true,
+            };
+            
+            if (!guild.chatHistory) guild.chatHistory = [];
+            guild.chatHistory.push(systemMessage);
+            if (guild.chatHistory.length > 100) {
+                guild.chatHistory.shift();
+            }
+            
+            await db.setKV('guildWarMatchingQueue', matchingQueue);
+            await db.setKV('guilds', guilds);
+            
+            // 브로드캐스트
+            await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+            
+            return { clientResponse: { matched: false, message: '매칭 신청이 완료되었습니다. 다음날 0시에 매칭됩니다.', nextMatchTime: nextDayStart, cooldownUntil: now + cooldownTime } };
+        }
+        
+        case 'CANCEL_GUILD_WAR': {
+            if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
+            
+            const guild = guilds[user.guildId];
+            if (!guild) return { error: '길드를 찾을 수 없습니다.' };
+            
+            // 길드장 또는 부길드장 권한 확인
+            const myMemberInfo = guild.members?.find(m => m.userId === user.id);
+            const canStartWar = myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
+            if (!canStartWar) {
+                return { error: '길드장 또는 부길드장만 전쟁을 취소할 수 있습니다.' };
+            }
+            
+            // 매칭 중이 아닌지 확인
+            if (!(guild as any).guildWarMatching) {
+                return { error: '매칭 중이 아닙니다.' };
+            }
+            
+            // 쿨타임 확인 (1시간)
+            const now = Date.now();
+            const lastWarAction = (guild as any).lastWarActionTime || 0;
+            const cooldownTime = 60 * 60 * 1000; // 1시간
+            if (lastWarAction && (now - lastWarAction) < cooldownTime) {
+                const remaining = cooldownTime - (now - lastWarAction);
+                const minutes = Math.floor(remaining / (1000 * 60));
+                const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+                return { error: `전쟁 신청 후 1시간이 지나야 취소할 수 있습니다. (남은 시간: ${minutes}분 ${seconds}초)` };
+            }
+            
+            // 매칭 큐에서 제거
+            const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
+            const queueIndex = matchingQueue.indexOf(user.guildId);
+            if (queueIndex >= 0) {
+                matchingQueue.splice(queueIndex, 1);
+            }
+            
+            (guild as any).guildWarMatching = false;
+            (guild as any).lastWarActionTime = now;
+            
+            // 길드 채팅에 시스템 메시지 추가
+            const { randomUUID } = await import('crypto');
+            const nicknameEnding = user.nickname && /[가-힣]$/.test(user.nickname)
+                ? (user.nickname.charCodeAt(user.nickname.length - 1 - 0xAC00) % 28 === 0 ? '가' : '이')
+                : '이';
+            
+            const systemMessage: any = {
+                id: `msg-guild-war-${randomUUID()}`,
+                guildId: guild.id,
+                authorId: 'system',
+                content: `[${user.nickname}]${nicknameEnding} 길드 전쟁 매칭을 취소했습니다.`,
+                createdAt: now,
+                system: true,
+            };
+            
+            if (!guild.chatHistory) guild.chatHistory = [];
+            guild.chatHistory.push(systemMessage);
+            if (guild.chatHistory.length > 100) {
+                guild.chatHistory.shift();
+            }
+            
+            await db.setKV('guildWarMatchingQueue', matchingQueue);
+            await db.setKV('guilds', guilds);
+            
+            // 브로드캐스트
+            await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+            
+            return { clientResponse: { message: '매칭이 취소되었습니다.', cooldownUntil: now + cooldownTime } };
+        }
+        
         case 'GET_GUILD_WAR_DATA': {
             if (!user.guildId) return { error: '길드??가?�되???��? ?�습?�다.' };
             
@@ -1361,7 +1522,198 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 nextMatchDate = todayStart + (daysUntilNext * 24 * 60 * 60 * 1000);
             }
             
-            return { clientResponse: { activeWar, guilds, nextMatchDate } };
+            // 매칭 중 여부 확인
+            const isMatching = (guild as any).guildWarMatching || false;
+            
+            // 다음 매칭 시간 계산 (매칭 중인 경우)
+            let nextMatchTime: number | undefined = undefined;
+            if (isMatching) {
+                const { getStartOfDayKST } = await import('../../utils/timeUtils.js');
+                const now = Date.now();
+                const todayStart = getStartOfDayKST(now);
+                nextMatchTime = todayStart + (24 * 60 * 60 * 1000); // 다음날 0시
+            }
+            
+            // 쿨타임 정보 가져오기
+            const lastWarAction = (guild as any).lastWarActionTime || 0;
+            const cooldownTime = 60 * 60 * 1000; // 1시간
+            const now = Date.now();
+            let warActionCooldown: number | null = null;
+            if (lastWarAction && (now - lastWarAction) < cooldownTime) {
+                warActionCooldown = lastWarAction + cooldownTime;
+            }
+            
+            return { clientResponse: { activeWar, guilds, isMatching, nextMatchTime, warActionCooldown } };
+        }
+        
+        case 'START_GUILD_WAR_GAME': {
+            const { boardId, isDemo } = payload;
+            if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
+            
+            const guilds = await db.getKV<Record<string, Guild>>('guilds') || {};
+            const guild = guilds[user.guildId];
+            if (!guild) return { error: '길드를 찾을 수 없습니다.' };
+            
+            let activeWar: any = null;
+            let board: any = null;
+            
+            if (isDemo) {
+                // 데모 모드: 클라이언트에서 전달된 보드 정보 사용
+                // 데모 모드에서는 서버에서 전쟁 데이터를 확인하지 않음
+                const { gameMode: clientGameMode } = payload;
+                board = {
+                    boardSize: 13,
+                    gameMode: clientGameMode || 'capture', // 클라이언트에서 전달받은 게임 모드
+                };
+            } else {
+                // 실제 모드: 활성 전쟁 확인
+                const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
+                activeWar = activeWars.find(w => 
+                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && 
+                    w.status === 'active'
+                );
+                
+                if (!activeWar) {
+                    return { error: '진행 중인 길드 전쟁이 없습니다.' };
+                }
+                
+                // 바둑판 확인
+                board = activeWar.boards?.[boardId];
+                if (!board) {
+                    return { error: '바둑판을 찾을 수 없습니다.' };
+                }
+                
+                // 하루 도전 횟수 확인
+                const { isSameDayKST } = await import('../../utils/timeUtils.js');
+                const now = Date.now();
+                const dailyAttempts = activeWar.dailyAttempts || {};
+                const userAttempts = dailyAttempts[user.id] || {};
+                const todayAttempts = isSameDayKST(userAttempts.date || 0, now) ? (userAttempts.count || 0) : 0;
+                
+                if (todayAttempts >= 3) {
+                    return { error: '오늘 도전 횟수를 모두 사용했습니다. (하루 3회)' };
+                }
+            }
+            
+            // 게임 모드 및 설정
+            const { GameMode, Player } = await import('../../types/enums.js');
+            const { getAiUser, aiUserId } = await import('../aiPlayer.js');
+            const { initializeGame } = await import('../gameModes.js');
+            const { randomUUID } = await import('crypto');
+            
+            let gameMode: GameMode;
+            if (board.gameMode === 'capture') {
+                gameMode = GameMode.Capture;
+            } else if (board.gameMode === 'hidden') {
+                gameMode = GameMode.Hidden;
+            } else if (board.gameMode === 'missile') {
+                gameMode = GameMode.Missile;
+            } else {
+                gameMode = GameMode.Standard;
+            }
+            
+            // AI 유저 생성
+            const aiUser = getAiUser(gameMode);
+            
+            // 게임 설정
+            const gameSettings = {
+                boardSize: board.boardSize || 13,
+                komi: 0.5,
+                timeLimit: 5,
+                byoyomiTime: 30,
+                byoyomiCount: 3,
+                timeIncrement: 0,
+                aiDifficulty: 5, // 중간 난이도
+            };
+            
+            // 게임 모드별 추가 설정
+            if (board.gameMode === 'capture') {
+                (gameSettings as any).captureTarget = 10;
+            } else if (board.gameMode === 'hidden') {
+                (gameSettings as any).hiddenStoneCount = 3;
+                (gameSettings as any).scanCount = 2;
+            } else if (board.gameMode === 'missile') {
+                (gameSettings as any).missileCount = 3;
+            }
+            
+            // Negotiation 생성
+            const negotiation = {
+                id: `guild-war-${randomUUID()}`,
+                challenger: user,
+                opponent: aiUser,
+                mode: gameMode,
+                settings: gameSettings,
+                proposerId: user.id,
+                status: 'pending' as const,
+                deadline: 0,
+            };
+            
+            // 게임 초기화
+            const game = await initializeGame(negotiation);
+            game.gameCategory = 'guildwar' as any;
+            if (!isDemo && activeWar) {
+                (game as any).guildWarId = activeWar.id;
+            }
+            (game as any).guildWarBoardId = boardId;
+            if (isDemo) {
+                (game as any).isDemo = true;
+            }
+            
+            // 게임 저장
+            await db.saveGame(game);
+            
+            // 데모 모드가 아닐 때만 도전 횟수 및 전쟁 상태 업데이트
+            if (!isDemo && activeWar) {
+                const { isSameDayKST } = await import('../../utils/timeUtils.js');
+                const now = Date.now();
+                const dailyAttempts = activeWar.dailyAttempts || {};
+                
+                // 도전 횟수 업데이트
+                if (!dailyAttempts[user.id]) {
+                    dailyAttempts[user.id] = { date: now, count: 0 };
+                }
+                if (!isSameDayKST(dailyAttempts[user.id].date, now)) {
+                    dailyAttempts[user.id] = { date: now, count: 0 };
+                }
+                dailyAttempts[user.id].count = (dailyAttempts[user.id].count || 0) + 1;
+                activeWar.dailyAttempts = dailyAttempts;
+                
+                // 바둑판 도전 중 상태 업데이트
+                if (!board.challenging) {
+                    board.challenging = {};
+                }
+                board.challenging[user.id] = {
+                    userId: user.id,
+                    gameId: game.id,
+                    startTime: now,
+                };
+                
+                // 길드 기여도 추가 (전쟁 참여)
+                guildService.addContribution(guild, user.id, 30);
+                
+                const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
+                const warIndex = activeWars.findIndex(w => w.id === activeWar.id);
+                if (warIndex >= 0) {
+                    activeWars[warIndex] = activeWar;
+                    await db.setKV('activeGuildWars', activeWars);
+                }
+            }
+            
+            // 사용자 상태 업데이트
+            volatileState.userStatuses[user.id] = { 
+                status: 'in_game' as any, 
+                mode: game.mode, 
+                gameId: game.id 
+            };
+            
+            const { broadcast } = await import('../socket.js');
+            if (!isDemo && activeWar) {
+                const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
+                await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });
+            }
+            await broadcast({ type: 'USER_STATUS_UPDATE', payload: { userStatuses: volatileState.userStatuses } });
+            
+            return { clientResponse: { gameId: game.id } };
         }
         
         case 'GET_GUILD_INFO': {
@@ -1478,6 +1830,69 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
         }
         
+        case 'SEND_GUILD_CHAT_MESSAGE': {
+            const { content } = payload;
+            if (!user.guildId) return { error: "길드에 가입되어 있지 않습니다." };
+            const guild = guilds[user.guildId];
+            if (!guild) return { error: "길드를 찾을 수 없습니다." };
+            
+            if (!content || typeof content !== 'string' || !content.trim()) {
+                return { error: '메시지 내용을 입력해주세요.' };
+            }
+            
+            const trimmedContent = content.trim();
+            if (trimmedContent.length > 200) {
+                return { error: '메시지는 200자 이하여야 합니다.' };
+            }
+            
+            if (containsProfanity(trimmedContent)) {
+                return { error: '메시지에 부적절한 단어가 포함되어 있습니다.' };
+            }
+            
+            const now = Date.now();
+            
+            // 스팸 방지 체크
+            const lastMessageTime = volatileState.userLastChatMessage[user.id] || 0;
+            if (now - lastMessageTime < 5000 && !user.isAdmin) {
+                return { error: '메시지를 너무 자주 보낼 수 없습니다.' };
+            }
+            
+            // chatHistory 초기화
+            if (!guild.chatHistory) {
+                guild.chatHistory = [];
+            }
+            
+            // 메시지 생성
+            const message: ChatMessage = {
+                id: `msg-guild-${randomUUID()}`,
+                user: { id: user.id, nickname: user.nickname },
+                authorId: user.id,
+                text: trimmedContent,
+                content: trimmedContent,
+                system: false,
+                timestamp: now,
+                createdAt: now,
+            };
+            
+            // 메시지 추가
+            guild.chatHistory.push(message);
+            
+            // 최대 100개까지만 유지
+            if (guild.chatHistory.length > 100) {
+                guild.chatHistory.shift();
+            }
+            
+            volatileState.userLastChatMessage[user.id] = now;
+            
+            // DB 저장
+            await db.setKV('guilds', guilds);
+            
+            // 브로드캐스트
+            await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+            
+            return { clientResponse: { message, guilds } };
+        }
+        
         case 'GUILD_DELETE_CHAT_MESSAGE': {
             const { messageId, timestamp } = payload;
             if (!user.guildId) return { error: "길드??가?�되???��? ?�습?�다." };
@@ -1547,8 +1962,104 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 freshUser.guildBossAttempts = (freshUser.guildBossAttempts || 0) + 1;
             }
 
-            freshUser.guildCoins = (freshUser.guildCoins || 0) + result.rewards.guildCoins;
-            user.guildCoins = freshUser.guildCoins; // user 객체도 동기화
+            // 길드 기여도 추가 (보스전 참여)
+            guildService.addContribution(guild, freshUser.id, 20);
+            
+            // 보상 지급
+            const rewards = result.rewards;
+            
+            // 길드 코인
+            freshUser.guildCoins = (freshUser.guildCoins || 0) + rewards.guildCoins;
+            user.guildCoins = freshUser.guildCoins;
+            
+            // 골드
+            freshUser.gold = (freshUser.gold || 0) + rewards.gold;
+            
+            // 길드 경험치
+            if (guild.xp === undefined) guild.xp = 0;
+            guild.xp += rewards.guildXp;
+            
+            // 연구소 포인트
+            if (!guild.researchPoints) guild.researchPoints = 0;
+            guild.researchPoints += rewards.researchPoints;
+            
+            // 인벤토리에 추가할 아이템들
+            const itemsToAdd: InventoryItem[] = [];
+            
+            // 강화재료 추가
+            const materialTemplate = MATERIAL_ITEMS[rewards.materials.name];
+            if (materialTemplate && rewards.materials.quantity > 0) {
+                itemsToAdd.push({
+                    ...materialTemplate,
+                    id: `item-${randomUUID()}`,
+                    createdAt: Date.now(),
+                    isEquipped: false,
+                    quantity: rewards.materials.quantity,
+                    level: 1,
+                    stars: 0,
+                } as InventoryItem);
+            }
+            
+            // 변경권 추가
+            for (const ticket of rewards.tickets) {
+                const ticketTemplate = CONSUMABLE_ITEMS.find(item => item.name === ticket.name);
+                if (ticketTemplate && ticket.quantity > 0) {
+                    itemsToAdd.push({
+                        ...ticketTemplate,
+                        id: `item-${randomUUID()}`,
+                        createdAt: Date.now(),
+                        isEquipped: false,
+                        quantity: ticket.quantity,
+                        level: 1,
+                        stars: 0,
+                    } as InventoryItem);
+                }
+            }
+            
+            // 장비 추가
+            let generatedEquipment: InventoryItem | null = null;
+            if (rewards.equipment && rewards.equipment.grade) {
+                const allSlots: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+                const randomSlot = allSlots[Math.floor(Math.random() * allSlots.length)];
+                generatedEquipment = generateNewItem(rewards.equipment.grade, randomSlot);
+                if (generatedEquipment) {
+                    itemsToAdd.push(generatedEquipment);
+                    console.log(`[START_GUILD_BOSS_BATTLE] Generated equipment: ${generatedEquipment.name} (${generatedEquipment.grade}, ${generatedEquipment.slot}) for user ${freshUser.id}`);
+                } else {
+                    console.error(`[START_GUILD_BOSS_BATTLE] Failed to generate equipment for user ${freshUser.id}`);
+                }
+            } else {
+                console.warn(`[START_GUILD_BOSS_BATTLE] No equipment in rewards for user ${freshUser.id}. Rewards:`, JSON.stringify(rewards));
+            }
+            
+            // 인벤토리에 아이템 추가
+            if (itemsToAdd.length > 0) {
+                const { success, updatedInventory } = addItemsToInventory(freshUser.inventory || [], freshUser.inventorySlots || { equipment: 30, consumable: 30, material: 30 }, itemsToAdd);
+                if (success && updatedInventory) {
+                    freshUser.inventory = updatedInventory;
+                    console.log(`[START_GUILD_BOSS_BATTLE] Successfully added ${itemsToAdd.length} items to inventory for user ${freshUser.id}. Equipment included: ${generatedEquipment ? 'Yes' : 'No'}`);
+                } else {
+                    console.error(`[START_GUILD_BOSS_BATTLE] Failed to add items to inventory for user ${freshUser.id}. Inventory may be full. Items attempted: ${itemsToAdd.length}`);
+                    // 인벤토리가 가득 찬 경우에도 다른 보상은 지급됨 (골드, 길드 코인 등)
+                }
+            } else {
+                console.warn(`[START_GUILD_BOSS_BATTLE] No items to add to inventory for user ${freshUser.id}`);
+            }
+            
+            // 실제 생성된 장비 정보를 result에 추가 (보상 모달에서 표시하기 위해)
+            if (generatedEquipment) {
+                if (!result.rewards.equipment) {
+                    result.rewards.equipment = {} as any;
+                }
+                (result.rewards.equipment as any).name = generatedEquipment.name;
+                (result.rewards.equipment as any).image = generatedEquipment.image;
+                (result.rewards.equipment as any).slot = generatedEquipment.slot;
+                (result.rewards.equipment as any).grade = generatedEquipment.grade;
+                console.log(`[START_GUILD_BOSS_BATTLE] Updated result.rewards.equipment with: name=${generatedEquipment.name}, image=${generatedEquipment.image}, slot=${generatedEquipment.slot}, grade=${generatedEquipment.grade}`);
+            } else {
+                console.warn(`[START_GUILD_BOSS_BATTLE] No generatedEquipment to add to result for user ${freshUser.id}`);
+            }
+            
             updateQuestProgress(freshUser, 'guild_boss_participate');
             
             const currentBoss = GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId);
@@ -1581,9 +2092,18 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 필수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(freshUser, ['guildCoins', 'guildBossAttempts']);
+            broadcastUserUpdate(freshUser, ['guildCoins', 'guildBossAttempts', 'gold', 'researchPoints', 'inventory', 'inventorySlots']);
             
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+            
+            // result 객체에 장비 정보 업데이트 (직접 수정)
+            if (generatedEquipment && result.rewards.equipment) {
+                (result.rewards.equipment as any).name = generatedEquipment.name;
+                (result.rewards.equipment as any).image = generatedEquipment.image;
+                (result.rewards.equipment as any).slot = generatedEquipment.slot;
+                (result.rewards.equipment as any).grade = generatedEquipment.grade;
+            }
+            
             return { clientResponse: { updatedUser: freshUser, guildBossBattleResult: result, guilds } };
         }
 
@@ -1599,75 +2119,73 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
             const completedWars = activeWars.filter(w => w.status === 'completed');
             
-            // 사용자의 길드가 이긴 길드전 찾기
-            const wonWar = completedWars.find(w => {
-                if (w.guild1Id === user.guildId) {
-                    return w.result?.winnerId === w.guild1Id;
-                } else if (w.guild2Id === user.guildId) {
-                    return w.result?.winnerId === w.guild2Id;
-                }
-                return false;
-            });
+            // 사용자의 길드가 참여한 완료된 길드전 찾기
+            const myWar = completedWars.find(w => 
+                w.guild1Id === user.guildId || w.guild2Id === user.guildId
+            );
             
-            if (!wonWar) return { error: '받을 수 있는 보상이 없습니다.' };
+            if (!myWar) return { error: '받을 수 있는 보상이 없습니다.' };
             
             // 이미 받았는지 확인
             const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
-            if (claimedRewards[wonWar.id]?.includes(user.id)) {
+            if (claimedRewards[myWar.id]?.includes(user.id)) {
                 return { error: '이미 보상을 받았습니다.' };
             }
             
+            // 승리/패배 확인
+            const isWinner = myWar.result?.winnerId === user.guildId;
+            
+            // 보상 계산
+            const rewards = {
+                guildCoins: isWinner ? getRandomInt(100, 200) : getRandomInt(10, 50),
+                guildXp: isWinner ? 10000 : 2000,
+                researchPoints: isWinner ? getRandomInt(1000, 3000) : getRandomInt(100, 1000),
+                gold: isWinner ? getRandomInt(3000, 5000) : getRandomInt(500, 1000),
+                diamonds: isWinner ? getRandomInt(20, 50) : getRandomInt(5, 10),
+            };
+            
+            // 최신 사용자 데이터 로드
+            const freshUser = await db.getUser(user.id);
+            if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
+            
             // 보상 지급
-            user.gold = (user.gold || 0) + 2000;
-            user.guildCoins = (user.guildCoins || 0) + 300;
+            freshUser.gold = (freshUser.gold || 0) + rewards.gold;
+            freshUser.guildCoins = (freshUser.guildCoins || 0) + rewards.guildCoins;
+            freshUser.diamonds = (freshUser.diamonds || 0) + rewards.diamonds;
             
-            // 랜덤 변경권 10개 생성
-            const { createConsumableItemInstance } = await import('../summaryService.js');
-            const ticketItems: InventoryItem[] = [];
+            // 길드 경험치
+            if (guild.xp === undefined) guild.xp = 0;
+            guild.xp += rewards.guildXp;
             
-            for (let i = 0; i < 10; i++) {
-                const ticketRandom = Math.random();
-                let ticketName: string;
-                if (ticketRandom < 0.1) {
-                    ticketName = '옵션 종류 변경권'; // 10%
-                } else if (ticketRandom < 0.9) {
-                    ticketName = '옵션 위치 변경권'; // 80%
-                } else {
-                    ticketName = '강화 옵션 변경권'; // 10%
-                }
-                
-                const ticketItem = createConsumableItemInstance(ticketName);
-                if (ticketItem) {
-                    ticketItems.push(ticketItem);
-                }
-            }
-            
-            // 인벤토리에 추가
-            const { success, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, ticketItems);
-            if (!success) {
-                return { error: '보상을 받기 위해 인벤토리 공간이 부족합니다.' };
-            }
-            
-            user.inventory = updatedInventory;
+            // 연구소 포인트
+            if (!guild.researchPoints) guild.researchPoints = 0;
+            guild.researchPoints += rewards.researchPoints;
             
             // 받기 기록 저장
-            if (!claimedRewards[wonWar.id]) {
-                claimedRewards[wonWar.id] = [];
+            if (!claimedRewards[myWar.id]) {
+                claimedRewards[myWar.id] = [];
             }
-            claimedRewards[wonWar.id].push(user.id);
+            claimedRewards[myWar.id].push(user.id);
             await db.setKV('guildWarClaimedRewards', claimedRewards);
+            await db.setKV('guilds', guilds);
             
-            await db.updateUser(user);
+            await db.updateUser(freshUser);
             
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['gold', 'guildCoins', 'inventory']);
+            broadcastUserUpdate(freshUser, ['gold', 'guildCoins', 'diamonds']);
+            await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
             
             return { 
                 clientResponse: { 
-                    updatedUser: user,
-                    rewardItems: ticketItems,
-                    rewardGold: 2000,
-                    rewardGuildCoins: 300
+                    updatedUser: freshUser,
+                    warResult: {
+                        isWinner,
+                        guild1Stars: myWar.result?.guild1Stars || 0,
+                        guild2Stars: myWar.result?.guild2Stars || 0,
+                        guild1Score: myWar.result?.guild1Score || 0,
+                        guild2Score: myWar.result?.guild2Score || 0,
+                    },
+                    rewards: rewards
                 } 
             };
         }

@@ -6,6 +6,7 @@ import { HandleActionResult } from '../types/api.js';
 import { Point } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
 import { stableStringify, parseHash } from '../utils/appUtils.js';
+import { getApiUrl, getWebSocketUrlFor } from '../utils/apiConfig.js';
 import { 
     DAILY_MILESTONE_THRESHOLDS,
     WEEKLY_MILESTONE_THRESHOLDS,
@@ -1119,7 +1120,7 @@ export const useApp = () => {
 
         try {
             audioService.initialize();
-            const res = await fetch('/api/action', {
+            const res = await fetch(getApiUrl('/api/action'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -1920,7 +1921,7 @@ export const useApp = () => {
         // 로그아웃 액션을 먼저 전송 (비동기 처리)
         try {
             // currentUser가 null이 되기 전에 userId를 직접 사용
-            const res = await fetch('/api/action', {
+            const res = await fetch(getApiUrl('/api/action'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -2118,8 +2119,9 @@ export const useApp = () => {
                     // 네트워크 주소(192.168.x.x)로 접속해도 프록시 사용
                     wsUrl = `${wsProtocol}//${window.location.host}/ws`;
                 } else {
-                    // 그 외 환경에서는 서버(4000)의 /ws 엔드포인트로 직접 연결
-                    wsUrl = `${wsProtocol}//${window.location.hostname}:4000/ws`;
+                    // 그 외 환경에서는 환경 변수로 설정된 WebSocket URL 사용
+                    // 환경 변수가 없으면 같은 호스트의 /ws 엔드포인트 사용
+                    wsUrl = getWebSocketUrlFor('/ws');
                 }
                 
                 console.log('[WebSocket] Connecting to:', wsUrl);
@@ -3378,7 +3380,7 @@ export const useApp = () => {
         
         // 로컬에 없으면 서버에서 가져오기
         try {
-            const response = await fetch(`/api/user/${userId}`);
+            const response = await fetch(getApiUrl(`/api/user/${userId}`));
             if (!response.ok) {
                 console.error(`[handleViewUser] Failed to fetch user ${userId}: ${response.statusText}`);
                 return;

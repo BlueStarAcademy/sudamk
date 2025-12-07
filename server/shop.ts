@@ -1,7 +1,7 @@
 
 import { randomUUID } from 'crypto';
-import { type InventoryItem, type EquipmentSlot, type ItemOptions, type ItemOption, CoreStat, SpecialStat, MythicStat, type ItemOptionType, type BorderInfo } from '../types/index.js';
-import { ItemGrade } from '../types/enums.js';
+import { type InventoryItem, type EquipmentSlot, type ItemOptions, type ItemOption, CoreStat, SpecialStat, MythicStat, type ItemOptionType, type BorderInfo } from '../shared/types/index.js';
+import { ItemGrade } from '../shared/types/enums.js';
 import {
     EQUIPMENT_POOL,
     MATERIAL_ITEMS,
@@ -10,7 +10,7 @@ import {
     SUB_OPTION_POOLS,
     SPECIAL_STATS_DATA,
     MYTHIC_STATS_DATA,
-} from '../constants/index.js';
+} from '../shared/constants/index.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;

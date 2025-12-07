@@ -442,14 +442,14 @@ const TournamentCard: React.FC<{
             {/* 단계 선택 드롭다운 - 던전 모드가 아닐 때만 표시 */}
             {!isDungeonMode && (
                 <div className="mt-1.5 sm:mt-2 relative">
-                    <div className="flex gap-1 items-center">
+                    <div className="flex flex-row gap-1 items-center">
                         <select
                             value={selectedStage}
                             onChange={(e) => {
                                 setSelectedStage(Number(e.target.value));
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex-1 text-[10px] sm:text-xs bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-purple-500"
+                            className="flex-1 text-[10px] sm:text-xs bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-purple-500 min-w-0"
                         >
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
                                 const isUnlocked = dungeonProgress.unlockedStages.includes(stage);
@@ -471,9 +471,9 @@ const TournamentCard: React.FC<{
                                 e.stopPropagation();
                                 onClick(selectedStage);
                             }}
-                            className="font-bold text-[10px] sm:text-xs lg:text-sm px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors"
+                            className="font-bold text-[10px] sm:text-xs lg:text-sm px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors whitespace-nowrap flex-shrink-0"
                         >
-                            {buttonText} &rarr;
+                            <span className="break-words">{buttonText}</span> <span>&rarr;</span>
                         </button>
                     </div>
                 </div>
@@ -726,10 +726,10 @@ const TournamentLobby: React.FC = () => {
                     {isMobile && (
                         <button 
                             onClick={() => setIsMobileSidebarOpen(true)}
-                            className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-gray-800/80 backdrop-blur-sm rounded-lg hover:bg-gray-700/80 transition-colors"
+                            className="w-11 h-12 sm:w-12 sm:h-14 flex items-center justify-center bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
                             aria-label="메뉴 열기"
                         >
-                            <span className="text-lg sm:text-2xl font-bold text-white">{'<'}</span>
+                            <span className="text-2xl sm:text-3xl font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{'<'}</span>
                         </button>
                     )}
                 </div>

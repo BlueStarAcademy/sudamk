@@ -3,8 +3,8 @@
 // FIX: Split type and value imports to resolve namespace collision errors
 // FIX: Changed imports to point to specific files to avoid namespace conflicts
 import type { User, Guild, GuildBossInfo, QuestReward, MannerEffects, GuildBossSkill, GuildBossActiveSkill, GuildBossPassiveSkill, GuildBossSkillEffect, GuildBossSkillSubEffect, BattleLogEntry, GuildBossBattleResult } from '../types/index.js';
-import { GuildResearchId, CoreStat, SpecialStat, MythicStat } from '../types/enums.js';
-import { GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/index.js';
+import { GuildResearchId, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../types/enums.js';
+import { GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, ACTION_POINT_REGEN_INTERVAL_MS, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_REWARDS_BY_TIER, GUILD_BOSS_EQUIPMENT_LOOT_TABLE, GUILD_BOSS_TICKET_TYPES } from '../constants/index.js';
 import { BOSS_SKILL_ICON_MAP, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_REGEN_IMG, GUILD_ATTACK_ICON } from '../assets.js';
 import { calculateUserEffects, calculateTotalStats } from './statUtils.js';
 import { getMannerEffects } from './mannerUtils.js';
@@ -16,6 +16,81 @@ const normalAttackCommentaries = ['침착한 한수로 응수합니다.', '정�
 const criticalAttackCommentaries = ['사활문제를 풀어냈습니다!', '엄청난 집중력으로 좋은 한수를 둡니다.', '예리한 묘수로 허를 찌릅니다!', '신의 한수!'];
 
 const getRandom = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+// 딜량에 따른 등급 계산 (1~5등급)
+const calculateDamageTier = (damage: number): 1 | 2 | 3 | 4 | 5 => {
+    if (damage < GUILD_BOSS_DAMAGE_TIERS[2].min) return 1;
+    if (damage < GUILD_BOSS_DAMAGE_TIERS[3].min) return 2;
+    if (damage < GUILD_BOSS_DAMAGE_TIERS[4].min) return 3;
+    if (damage < GUILD_BOSS_DAMAGE_TIERS[5].min) return 4;
+    return 5;
+};
+
+// 보상 계산 함수
+const calculateBossRewards = (damage: number): {
+    tier: number;
+    guildXp: number;
+    guildCoins: number;
+    researchPoints: number;
+    gold: number;
+    materials: { name: string; quantity: number };
+    tickets: { name: string; quantity: number }[];
+    equipment?: { grade: ItemGrade };
+} => {
+    const tier = calculateDamageTier(damage);
+    const tierRewards = GUILD_BOSS_REWARDS_BY_TIER[tier as keyof typeof GUILD_BOSS_REWARDS_BY_TIER];
+    
+    // 길드 경험치는 딜량에 비례하여 계산
+    const guildXpRange = tierRewards.guildXp;
+    const damageRatio = Math.min(1, damage / (GUILD_BOSS_DAMAGE_TIERS[5].min || 200000));
+    const guildXp = Math.floor(guildXpRange[0] + (guildXpRange[1] - guildXpRange[0]) * damageRatio);
+    
+    // 랜덤 보상 계산
+    const guildCoins = getRandom(tierRewards.guildCoins[0], tierRewards.guildCoins[1]);
+    const researchPoints = getRandom(tierRewards.researchPoints[0], tierRewards.researchPoints[1]);
+    const gold = getRandom(tierRewards.gold[0], tierRewards.gold[1]);
+    const materialQuantity = getRandom(tierRewards.materials.quantity[0], tierRewards.materials.quantity[1]);
+    const ticketCount = getRandom(tierRewards.tickets[0], tierRewards.tickets[1]);
+    
+    // 변경권 랜덤 선택
+    const tickets: { name: string; quantity: number }[] = [];
+    for (let i = 0; i < ticketCount; i++) {
+        const ticketType = GUILD_BOSS_TICKET_TYPES[Math.floor(Math.random() * GUILD_BOSS_TICKET_TYPES.length)];
+        const existingTicket = tickets.find(t => t.name === ticketType);
+        if (existingTicket) {
+            existingTicket.quantity++;
+        } else {
+            tickets.push({ name: ticketType, quantity: 1 });
+        }
+    }
+    
+    // 장비 보상 확률 계산
+    const totalWeight = GUILD_BOSS_EQUIPMENT_LOOT_TABLE.reduce((sum, item) => sum + item.weight, 0);
+    let random = Math.random() * totalWeight;
+    let selectedGrade: ItemGrade = ItemGrade.Normal;
+    
+    for (const item of GUILD_BOSS_EQUIPMENT_LOOT_TABLE) {
+        if (random < item.weight) {
+            selectedGrade = item.grade;
+            break;
+        }
+        random -= item.weight;
+    }
+    
+    return {
+        tier,
+        guildXp,
+        guildCoins,
+        researchPoints,
+        gold,
+        materials: {
+            name: tierRewards.materials.name,
+            quantity: materialQuantity,
+        },
+        tickets,
+        equipment: { grade: selectedGrade },
+    };
+};
 
 export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo): GuildBossBattleResult => {
     const totalStats = calculateTotalStats(user, guild);
@@ -289,12 +364,22 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
         if (userHp <= 0) break;
     }
     
-    const rewardCoins = 20 + Math.floor(Math.min(1, totalDamageDealt / 2000000) * 80);
+    const finalDamage = Math.max(0, Math.round(totalDamageDealt));
+    const calculatedRewards = calculateBossRewards(finalDamage);
 
     return {
-        damageDealt: Math.max(0, Math.round(totalDamageDealt)),
+        damageDealt: finalDamage,
         turnsSurvived,
-        rewards: { guildCoins: rewardCoins },
+        rewards: {
+            tier: calculatedRewards.tier,
+            guildXp: calculatedRewards.guildXp,
+            guildCoins: calculatedRewards.guildCoins,
+            researchPoints: calculatedRewards.researchPoints,
+            gold: calculatedRewards.gold,
+            materials: calculatedRewards.materials,
+            tickets: calculatedRewards.tickets,
+            equipment: calculatedRewards.equipment,
+        },
         battleLog,
         bossHpBefore: boss.hp,
         bossHpAfter: Math.max(0, Math.round(boss.hp - Math.max(0, totalDamageDealt))),

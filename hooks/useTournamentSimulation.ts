@@ -32,6 +32,12 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
             const isSimulationRunning = simulationIntervalRef.current !== null;
             const isNewMatch = newSeed && newSeed !== prevSeed;
             
+            // bracket_ready에서 round_in_progress로 변경되고 새로운 시드가 있으면 새로운 경기 시작
+            const isNewMatchStarting = prevStatus === 'bracket_ready' && 
+                                      newStatus === 'round_in_progress' && 
+                                      newSeed && 
+                                      tournament.currentSimulatingMatch;
+            
             // 플레이어 컨디션 변경 감지 (회복제 사용 등) - 모든 플레이어 확인
             const hasConditionChanged = tournament.players.some((p) => {
                 const localPlayer = localTournament?.players.find(lp => lp.id === p.id);
@@ -40,7 +46,7 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
             });
             
             // 시드가 새로 생성되면 시뮬레이션 재시작 (START_TOURNAMENT_MATCH에서만 시드가 생성됨)
-            if (isNewMatch) {
+            if (isNewMatch || isNewMatchStarting) {
                 if (import.meta.env.DEV) {
                     console.log(`[useTournamentSimulation] New match detected, resetting simulation state`);
                 }

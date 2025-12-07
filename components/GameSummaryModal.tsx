@@ -318,7 +318,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const borderUrl = useMemo(() => BORDER_POOL.find((b: BorderInfo) => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     
     // 모바일 텍스트 크기 조정
-    const mobileTextScale = isMobile ? 0.85 : 1;
+    const mobileTextScale = isMobile ? 1.15 : 1;
     const mobileImageScale = isMobile ? 0.7 : 1;
 
     useEffect(() => {

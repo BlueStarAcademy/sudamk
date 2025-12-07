@@ -25,7 +25,7 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
             windowId="claim-all-training-quest-rewards" 
             initialWidth={500}
             isTopmost={isTopmost}
-            zIndex={70}
+            zIndex={10000}
         >
             <div className="text-center">
                 <h2 className="text-xl font-bold mb-4">모든 수련 과제 보상을 수령했습니다!</h2>

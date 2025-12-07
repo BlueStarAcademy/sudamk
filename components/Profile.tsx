@@ -252,9 +252,9 @@ const getTier = (score: number, rank: number, totalGames: number) => {
 const StatSummaryPanel: React.FC<{ title: string; color: string; children: React.ReactNode }> = ({ title, color, children }) => {
     const childrenArray = React.Children.toArray(children).filter(Boolean); // Filter out null/undefined children
     return (
-        <div className="flex-1 bg-tertiary/30 p-2 rounded-md flex flex-col min-h-0">
-            <h4 className={`text-center font-semibold mb-1 text-sm flex-shrink-0 ${color}`}>{title}</h4>
-            <div className="flex-grow overflow-y-auto pr-1 space-y-1 text-xs">
+        <div className="flex-1 bg-tertiary/30 p-1.5 rounded-md flex flex-col min-h-0">
+            <h4 className={`text-center font-semibold mb-0.5 text-xs flex-shrink-0 ${color}`}>{title}</h4>
+            <div className="flex-grow overflow-y-auto pr-1 space-y-0.5 text-xs">
                 {childrenArray.length > 0 ? childrenArray : <p className="text-xs text-tertiary text-center">해당 없음</p>}
             </div>
         </div>
@@ -530,10 +530,10 @@ const Profile: React.FC<ProfileProps> = () => {
     
     const ProfilePanelContent = useMemo(() => (
         <>
-            <div className="flex flex-row gap-2 items-center">
-                <div className="flex-shrink-0 flex flex-col items-center gap-1 w-24">
+            <div className="flex flex-row gap-1.5 items-center">
+                <div className="flex-shrink-0 flex flex-col items-center gap-0.5 w-20">
                     <div className="relative">
-                        <Avatar userId={currentUserWithStatus.id} userName={nickname} size={80} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                        <Avatar userId={currentUserWithStatus.id} userName={nickname} size={64} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                         <button 
                             onClick={handlers.openProfileEditModal}
                             className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-secondary hover:bg-tertiary rounded-full p-1 border-2 border-primary transition-transform hover:scale-110 active:scale-95"
@@ -555,7 +555,7 @@ const Profile: React.FC<ProfileProps> = () => {
                     </div>
                 </div>
                 
-                <div className="flex-grow space-y-1 bg-tertiary/30 p-2 rounded-md flex flex-col justify-center">
+                <div className="flex-grow space-y-0.5 bg-tertiary/30 p-1.5 rounded-md flex flex-col justify-center">
                     <XpBar level={currentUserWithStatus.strategyLevel} currentXp={currentUserWithStatus.strategyXp} label="전략" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
                     <XpBar level={currentUserWithStatus.playfulLevel} currentXp={currentUserWithStatus.playfulXp} label="놀이" colorClass="bg-gradient-to-r from-yellow-500 to-orange-400" />
                     <button
@@ -576,8 +576,8 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
             </div>
 
-            <div className="flex-grow flex flex-col min-h-0 border-t border-color mt-2 pt-2">
-                <div className="bg-tertiary/30 p-2 rounded-md mb-2">
+            <div className="flex-grow flex flex-col min-h-0 border-t border-color mt-1 pt-1">
+                <div className="bg-tertiary/30 p-1.5 rounded-md mb-1">
                     {currentUserWithStatus.guildId ? (
                         guildInfo ? (
                             <button
@@ -627,7 +627,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         <Button 
                             onClick={handlers.openStatAllocationModal} 
                             colorScheme="none" 
-                            className="!text-[10px] !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
+                            className="!text-[9px] !py-0.5 !px-2 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
                         >
                             분배
                         </Button>
@@ -744,14 +744,14 @@ const Profile: React.FC<ProfileProps> = () => {
             </header>
             <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 {/* --- DESKTOP LAYOUT --- */}
-                <div className="hidden lg:flex flex-col h-full gap-2 min-w-0 overflow-hidden">
-                    <div className="flex flex-row gap-2 min-w-0 flex-shrink-0">
-                        <div className="w-[25%] min-w-[200px] max-w-[300px] bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col gap-1 overflow-hidden">{ProfilePanelContent}</div>
+                <div className="hidden lg:flex flex-col h-full gap-1 min-w-0 overflow-hidden">
+                    <div className="flex flex-row gap-1 min-w-0 flex-shrink-0 max-h-[380px]">
+                        <div className="w-[25%] min-w-[200px] max-w-[300px] bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col gap-0.5 overflow-hidden">{ProfilePanelContent}</div>
                         {/* New structure for equipped items, ranking boards, and quick access */}
-                        <div className="flex-1 flex flex-row gap-2 min-w-0 overflow-hidden">
-                            <div className="w-[280px] min-w-[200px] max-w-[280px] flex-shrink-0 bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col overflow-hidden">
-                                <h3 className="text-center font-semibold text-secondary text-sm flex-shrink-0 mb-2">장착 장비</h3>
-                                <div className="grid grid-cols-3 gap-2">
+                        <div className="flex-1 flex flex-row gap-1 min-w-0 overflow-hidden">
+                            <div className="w-[280px] min-w-[200px] max-w-[280px] flex-shrink-0 bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col overflow-hidden">
+                                <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0 mb-1">장착 장비</h3>
+                                <div className="grid grid-cols-3 gap-1.5">
                                     {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                         const item = getItemForSlot(slot);
                                         return (
@@ -765,26 +765,26 @@ const Profile: React.FC<ProfileProps> = () => {
                                         );
                                     })}
                                 </div>
-                                <Button 
-                                    onClick={handlers.openEquipmentEffectsModal} 
-                                    colorScheme="none" 
-                                    className="mt-2 !text-xs !py-0.5 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
-                                >
-                                    장비 효과 보기
-                                </Button>
-                                <div className="mt-2">
+                                <div className="mt-1 flex gap-1.5 items-center">
                                     <select
                                         value={selectedPreset}
                                         onChange={handlePresetChange}
-                                        className="bg-secondary border border-color text-xs rounded-md p-1 focus:ring-accent focus:border-accent w-full"
+                                        className="bg-secondary border border-color text-xs rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
                                     >
                                         {presets && presets.map((preset, index) => (
                                             <option key={index} value={index}>{preset.name}</option>
                                         ))}
                                     </select>
+                                    <Button 
+                                        onClick={handlers.openEquipmentEffectsModal} 
+                                        colorScheme="none" 
+                                        className="!text-[9px] !py-0.5 !px-2 flex-shrink-0 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
+                                    >
+                                        장비 효과
+                                    </Button>
                                 </div>
                             </div>
-                            <div className="flex-1 flex flex-row gap-2 min-w-0 overflow-hidden">
+                            <div className="flex-1 flex flex-row gap-1 min-w-0 overflow-hidden">
                                 <div className="flex-1 min-w-0 overflow-hidden">
                                     <GameRankingBoard />
                                 </div>
@@ -813,7 +813,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 {/* --- MOBILE LAYOUT --- */}
                 <div className="lg:hidden flex flex-col h-full gap-1 relative">
                     <div className="flex flex-row gap-1 flex-shrink-0">
-                        <div className="basis-[50%] min-w-[150px] bg-panel border border-color text-on-panel rounded-lg p-1 flex flex-col gap-0.5">
+                        <div className="basis-[50%] min-w-[150px] bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col gap-1">
                             <div className="flex flex-row gap-1 items-center">
                                 <div className="flex-shrink-0 flex flex-col items-center gap-0.5 w-16">
                                     <div className="relative">
@@ -920,12 +920,12 @@ const Profile: React.FC<ProfileProps> = () => {
                                 </div>
                                 <div className="flex justify-between items-center mb-0.5 flex-shrink-0 whitespace-nowrap">
                                     <h3 className="font-semibold text-secondary text-[10px] whitespace-nowrap overflow-hidden">능력치</h3>
-                                    <div className="text-[9px] flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                                    <div className="text-[9px] flex items-center gap-0.5 whitespace-nowrap overflow-hidden">
                                         <span className="whitespace-nowrap overflow-hidden">보너스: <span className="font-bold text-green-400">{availablePoints}</span>P</span>
                                         <Button 
                                             onClick={handlers.openStatAllocationModal} 
                                             colorScheme="none" 
-                                            className="!text-[7px] !py-0.5 !px-1 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
+                                            className="!text-[5px] !py-0.5 !px-0.5 rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_2px_8px_-6px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 leading-tight"
                                         >
                                             분배
                                         </Button>
@@ -952,9 +952,9 @@ const Profile: React.FC<ProfileProps> = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="basis-[50%] min-w-[150px] bg-panel border border-color text-on-panel rounded-lg p-1 flex flex-col">
-                            <h3 className="text-center font-semibold text-secondary text-[9px] flex-shrink-0 mb-0.5 whitespace-nowrap">장착 장비</h3>
-                            <div className="grid grid-cols-3 gap-0.5">
+                        <div className="basis-[50%] min-w-[150px] bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col">
+                            <h3 className="text-center font-semibold text-secondary text-[9px] flex-shrink-0 mb-1 whitespace-nowrap">장착 장비</h3>
+                            <div className="grid grid-cols-3 gap-1.5 px-4 py-1">
                                 {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                     const item = getItemForSlot(slot);
                                     return (
@@ -963,28 +963,29 @@ const Profile: React.FC<ProfileProps> = () => {
                                                 slot={slot}
                                                 item={item}
                                                 onClick={() => item && handlers.openViewingItem(item, true)}
+                                                scaleFactor={0.68}
                                             />
                                         </div>
                                     );
                                 })}
                             </div>
-                            <Button 
-                                onClick={handlers.openEquipmentEffectsModal} 
-                                colorScheme="none" 
-                                className="mt-0.5 !text-[7px] !py-0.5 !px-1 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
-                            >
-                                장비 효과 보기
-                            </Button>
-                            <div className="mt-0.5">
+                            <div className="mt-1 flex gap-1 items-center px-3">
                                 <select
                                     value={selectedPreset}
                                     onChange={handlePresetChange}
-                                    className="bg-secondary border border-color text-[8px] rounded-md p-0.5 focus:ring-accent focus:border-accent w-full"
+                                    className="bg-secondary border border-color text-[8px] rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
                                 >
                                     {presets && presets.map((preset, index) => (
                                         <option key={index} value={index}>{preset.name}</option>
                                     ))}
                                 </select>
+                                <Button 
+                                    onClick={handlers.openEquipmentEffectsModal} 
+                                    colorScheme="none" 
+                                    className="!text-[5px] !py-0.5 !px-0.5 flex-shrink-0 justify-center rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_2px_8px_-6px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 leading-tight"
+                                >
+                                    장비 효과
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -997,12 +998,12 @@ const Profile: React.FC<ProfileProps> = () => {
                     <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20">
                         <button
                             onClick={() => { setIsMobilePanelOpen(true); setHasNewMessage(false); }}
-                            className="w-8 h-12 bg-secondary/80 backdrop-blur-sm rounded-l-lg flex items-center justify-center text-primary shadow-lg"
+                            className="w-11 h-12 sm:w-12 sm:h-14 bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
                             aria-label="채팅/메뉴 열기"
                         >
-                            <span className="relative font-bold text-lg">
+                            <span className="relative font-bold text-2xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                                 {'<'}
-                                {hasNotification && <div className="absolute -top-1 -right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-secondary"></div>}
+                                {hasNotification && <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg animate-pulse"></div>}
                             </span>
                         </button>
                     </div>
@@ -1013,20 +1014,24 @@ const Profile: React.FC<ProfileProps> = () => {
                             <h3 className="text-lg font-bold">채팅 / 메뉴</h3>
                             <button onClick={() => setIsMobilePanelOpen(false)} className="text-2xl font-bold text-tertiary hover:text-primary">×</button>
                         </div>
-                        <div className="flex flex-col gap-2 p-2 flex-grow min-h-0 overflow-y-auto">
+                        <div className="flex flex-col gap-2 p-2 flex-grow min-h-0">
                             <div className="flex-shrink-0 p-1 bg-panel rounded-lg border border-color">
                                 <QuickAccessSidebar mobile={true} />
                             </div>
-                            <div className="flex-shrink-0 border-b border-color pb-2">
-                                <div className="bg-panel border border-color rounded-lg">
-                                    <GameRankingBoard />
+                            <div className="flex-1 flex flex-col gap-2 min-h-0">
+                                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg overflow-hidden">
+                                    <div className="h-full">
+                                        <GameRankingBoard />
+                                    </div>
                                 </div>
-                                <div className="bg-panel border border-color rounded-lg mt-2">
-                                    <BadukRankingBoard />
+                                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg overflow-hidden">
+                                    <div className="h-full">
+                                        <BadukRankingBoard />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex-1 min-h-[400px] bg-panel border border-color rounded-lg shadow-lg flex flex-col">
-                                <ChatWindow messages={globalChat} mode="global" onAction={handlers.handleAction} onViewUser={handlers.openViewingUser} locationPrefix="[홈]" />
+                                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg flex flex-col overflow-hidden">
+                                    <ChatWindow messages={globalChat} mode="global" onAction={handlers.handleAction} onViewUser={handlers.openViewingUser} locationPrefix="[홈]" />
+                                </div>
                             </div>
                         </div>
                     </div>

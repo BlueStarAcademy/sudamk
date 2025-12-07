@@ -1,7 +1,7 @@
-import { TournamentState, PlayerForTournament, CoreStat, CommentaryLine, Match, User, Round, TournamentType, TournamentSimulationStatus } from '../types/index.js';
+import { TournamentState, PlayerForTournament, CoreStat, CommentaryLine, Match, User, Round, TournamentType, TournamentSimulationStatus } from '../shared/types/index.js';
 import { calculateTotalStats } from './statService.js';
 import { randomUUID } from 'crypto';
-import { TOURNAMENT_DEFINITIONS, NEIGHBORHOOD_MATCH_REWARDS, NATIONAL_MATCH_REWARDS, WORLD_MATCH_REWARDS, DUNGEON_STAGE_BOT_STATS } from '../constants';
+import { TOURNAMENT_DEFINITIONS, NEIGHBORHOOD_MATCH_REWARDS, NATIONAL_MATCH_REWARDS, WORLD_MATCH_REWARDS, DUNGEON_STAGE_BOT_STATS, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT } from '../shared/constants';
 
 const EARLY_GAME_DURATION = 15;
 const MID_GAME_DURATION = 20;
@@ -221,7 +221,15 @@ const simulateAndFinishMatch = (match: Match, players: PlayerForTournament[], us
 };
 
 export const prepareNextRound = (state: TournamentState, user: User) => {
+    if (!state.rounds || state.rounds.length === 0) {
+        console.warn(`[prepareNextRound] No rounds found for ${state.type} tournament`);
+        return;
+    }
     const lastRound = state.rounds[state.rounds.length - 1];
+    if (!lastRound || !lastRound.matches || lastRound.matches.length === 0) {
+        console.warn(`[prepareNextRound] Invalid last round for ${state.type} tournament`);
+        return;
+    }
     if (lastRound.matches.every(m => m.isFinished)) {
         const winners = lastRound.matches.map(m => m.winner).filter(Boolean) as PlayerForTournament[];
 
@@ -269,32 +277,100 @@ export const prepareNextRound = (state: TournamentState, user: User) => {
     }
 };
 
+/**
+ * 다음 경기를 자동으로 시작하는 헬퍼 함수
+ * 첫 경기는 제외 (사용자가 수동으로 시작)
+ */
+const startNextMatchAutomatically = async (
+    state: TournamentState,
+    user: User,
+    round: Round,
+    match: Match
+): Promise<boolean> => {
+    try {
+        const roundIndex = state.rounds.findIndex(r => r.id === round.id);
+        const matchIndex = round.matches.findIndex(m => m.id === match.id);
+        
+        if (roundIndex < 0 || matchIndex < 0) {
+            console.warn(`[startNextMatchAutomatically] Invalid roundIndex or matchIndex: roundIndex=${roundIndex}, matchIndex=${matchIndex}`);
+            return false;
+        }
+
+        // processMatchCompletion에서 호출되는 경우는 이미 경기가 완료된 후이므로 항상 자동 시작
+        // 첫 경기는 사용자가 수동으로 시작하지만, 첫 경기 완료 후 두 번째 경기부터는 자동으로 시작
+        console.log(`[startNextMatchAutomatically] Auto-starting next match: roundIndex=${roundIndex}, matchIndex=${matchIndex}, tournamentType=${state.type}`);
+
+        // 유저의 최신 능력치 업데이트
+        const userPlayer = state.players.find(p => p.id === user.id);
+        if (userPlayer) {
+            const latestStats = calculateTotalStats(user);
+            userPlayer.originalStats = JSON.parse(JSON.stringify(latestStats));
+            userPlayer.stats = JSON.parse(JSON.stringify(latestStats));
+        }
+
+        // 경기 상대방의 능력치도 originalStats로 복구
+        if (match.players[0] && match.players[1]) {
+            const p1 = state.players.find(p => p.id === match.players[0]!.id);
+            const p2 = state.players.find(p => p.id === match.players[1]!.id);
+            
+            if (p1 && p1.originalStats) {
+                p1.stats = JSON.parse(JSON.stringify(p1.originalStats));
+            }
+            if (p2 && p2.originalStats) {
+                p2.stats = JSON.parse(JSON.stringify(p2.originalStats));
+            }
+        }
+
+        // 5초 카운트다운 후 경기 시작
+        const now = Date.now();
+        state.nextRoundStartTime = now + 5000; // 5초 후
+        state.status = 'bracket_ready'; // 카운트다운 표시를 위해 bracket_ready 상태로 설정
+        
+        // 경기 정보는 아직 설정하지 않음 (카운트다운 후 START_TOURNAMENT_MATCH에서 설정)
+
+        console.log(`[startNextMatchAutomatically] Set countdown for next match: roundIndex=${roundIndex}, matchIndex=${matchIndex}, startTime=${state.nextRoundStartTime}`);
+        return true;
+    } catch (error: any) {
+        console.error(`[startNextMatchAutomatically] Error auto-starting match:`, error);
+        console.error(`[startNextMatchAutomatically] Error stack:`, error?.stack);
+        console.error(`[startNextMatchAutomatically] Tournament state:`, {
+            type: state.type,
+            status: state.status,
+            roundsCount: state.rounds.length,
+            roundId: round.id,
+            matchId: match.id
+        });
+        return false;
+    }
+};
+
 export const processMatchCompletion = async (state: TournamentState, user: User, completedMatch: Match, roundIndex: number) => {
+    console.log(`[processMatchCompletion] Called for user ${user.id}, tournament type: ${state.type}, roundIndex: ${roundIndex}, matchId: ${completedMatch.id}`);
+    console.log(`[processMatchCompletion] Tournament status: ${state.status}, isDungeonMode: ${!!state.currentStageAttempt}, currentRoundRobinRound: ${state.currentRoundRobinRound}`);
+    
+    // 시뮬레이션 상태 초기화
     state.currentSimulatingMatch = null;
     
+    // 플레이어 능력치 복구 (originalStats로)
     completedMatch.players.forEach(p => {
         if (p) {
             const playerInState = state.players.find(player => player.id === p.id);
-            if (playerInState) {
-                // 컨디션은 처음 조정한 값을 경기 끝까지 유지 (변경하지 않음)
-                // 능력치는 originalStats로 복구
-                if (playerInState.originalStats) {
-                    playerInState.stats = JSON.parse(JSON.stringify(playerInState.originalStats));
-                }
+            if (playerInState && playerInState.originalStats) {
+                playerInState.stats = JSON.parse(JSON.stringify(playerInState.originalStats));
             }
         }
     });
 
-    // 던전 모드에서는 리그 기반 보상을 사용하지 않음 (단계별 보상 사용)
-    const isDungeonMode = !!state.currentStageAttempt;
+    // currentStageAttempt가 있으면 단계별 기본 보상 누적 (던전 모드)
+    const hasStageAttempt = !!state.currentStageAttempt;
+    console.log(`[processMatchCompletion] hasStageAttempt: ${hasStageAttempt}, completedMatch.isUserMatch: ${completedMatch.isUserMatch}, winner: ${completedMatch.winner?.id}`);
     
-    // 던전 모드: 경기 완료 시 단계별 기본 보상 누적
-    if (isDungeonMode && completedMatch.isUserMatch && completedMatch.winner) {
+    // 단계별 기본 보상 누적 (currentStageAttempt가 있는 경우)
+    if (hasStageAttempt && completedMatch.isUserMatch && completedMatch.winner) {
         const stage = state.currentStageAttempt || 1;
         const isUserWinner = completedMatch.winner.id === user.id;
         
         // 골드 보상 누적
-        const { DUNGEON_STAGE_BASE_REWARDS_GOLD } = await import('../../constants/tournaments.js');
         const goldReward = DUNGEON_STAGE_BASE_REWARDS_GOLD[stage] || 0;
         if (goldReward > 0) {
             if (!state.accumulatedGold) {
@@ -305,7 +381,6 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
         
         // 재료 보상 누적 (전국바둑대회, 월드챔피언십)
         if (state.type === 'national' || state.type === 'world') {
-            const { DUNGEON_STAGE_BASE_REWARDS_MATERIAL } = await import('../../constants/tournaments.js');
             const materialReward = DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage];
             if (materialReward) {
                 if (!state.accumulatedMaterials) {
@@ -318,7 +393,6 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
         
         // 장비상자 보상 누적 (월드챔피언십)
         if (state.type === 'world') {
-            const { DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT } = await import('../../constants/tournaments.js');
             const equipmentReward = DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage];
             if (equipmentReward) {
                 if (!state.accumulatedEquipmentBoxes) {
@@ -332,131 +406,13 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
         }
     }
     
-    if (state.type === 'neighborhood' && !isDungeonMode) {
-        // 동네바둑리그 (일반 토너먼트 모드): 유저의 경기 완료 시 골드 누적
-        if (completedMatch.isUserMatch && completedMatch.winner) {
-            const isUserWinner = completedMatch.winner.id === user.id;
-            const matchReward = NEIGHBORHOOD_MATCH_REWARDS[user.league];
-            if (matchReward) {
-                const goldEarned = isUserWinner ? matchReward.win : matchReward.loss;
-                if (!state.accumulatedGold) {
-                    state.accumulatedGold = 0;
-                }
-                state.accumulatedGold += goldEarned;
-            }
-        }
-        
-        const currentRound = state.currentRoundRobinRound || 1;
-        // rounds 배열에서 name이 "1회차", "2회차" 등인 라운드 찾기
-        const currentRoundObj = state.rounds.find(r => r.name === `${currentRound}회차`);
-        
-        if (!currentRoundObj) {
-            state.status = 'complete';
-            return;
-        }
-        
-        const roundMatches = currentRoundObj.matches;
-
-        // 유저가 아닌 매치들을 자동 처리
-        roundMatches.forEach(m => {
-            if (!m.isFinished && !m.isUserMatch) {
-                simulateAndFinishMatch(m, state.players, user.id);
-            }
-        });
-        
-        const allRoundMatchesFinished = roundMatches.every(m => m.isFinished);
-
-        if (allRoundMatchesFinished) {
-            if (currentRound >= 5) {
-                state.status = 'complete';
-            } else {
-                // 동네바둑리그: 다음 회차로 자동 진행
-                state.currentRoundRobinRound = currentRound + 1;
-                const nextRoundObj = state.rounds.find(r => r.name === `${currentRound + 1}회차`);
-                if (nextRoundObj) {
-                    const nextUserMatch = nextRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
-                    if (nextUserMatch) {
-                        // 2~5회차는 bracket_ready 상태로 설정 (클라이언트에서 카운트다운 처리)
-                        state.status = 'bracket_ready';
-                        // nextRoundStartTime은 클라이언트 카운트다운이 처리하므로 설정하지 않음
-                        state.nextRoundStartTime = null;
-                    } else {
-                        state.status = 'complete';
-                    }
-                } else {
-                    state.status = 'complete';
-                }
-            }
-        }
-        return;
-    }
-    
+    // 유저 패배 여부 확인
     const loser = completedMatch.players.find(p => p && p.id !== completedMatch.winner?.id) || null;
+    const isUserEliminated = loser?.id === user.id;
 
-    // 전국바둑대회 (일반 토너먼트 모드): 유저의 경기 완료 시 재료 누적
-    if (state.type === 'national' && !isDungeonMode && completedMatch.isUserMatch && completedMatch.winner) {
-        const isUserWinner = completedMatch.winner.id === user.id;
-        const matchReward = NATIONAL_MATCH_REWARDS[user.league];
-        if (matchReward) {
-            const materialReward = isUserWinner ? matchReward.win : matchReward.loss;
-            if (!state.accumulatedMaterials) {
-                state.accumulatedMaterials = {};
-            }
-            const currentQuantity = state.accumulatedMaterials[materialReward.materialName] || 0;
-            state.accumulatedMaterials[materialReward.materialName] = currentQuantity + materialReward.quantity;
-        }
-    }
-
-    // 월드챔피언십 (일반 토너먼트 모드): 유저의 경기 완료 시 장비상자 누적
-    if (state.type === 'world' && !isDungeonMode && completedMatch.isUserMatch && completedMatch.winner) {
-        const isUserWinner = completedMatch.winner.id === user.id;
-        const matchReward = WORLD_MATCH_REWARDS[user.league];
-        if (matchReward) {
-            const boxReward = isUserWinner ? matchReward.win : matchReward.loss;
-            if (!state.accumulatedEquipmentBoxes) {
-                state.accumulatedEquipmentBoxes = {};
-            }
-            const currentQuantity = state.accumulatedEquipmentBoxes[boxReward.boxName] || 0;
-            state.accumulatedEquipmentBoxes[boxReward.boxName] = currentQuantity + boxReward.quantity;
-        }
-    }
-
-    // 전국바둑대회/월드챔피언십: 현재 라운드의 유저가 아닌 매치들을 자동 처리
-    const currentRound = state.rounds[roundIndex];
-    if (currentRound) {
-        // 유저 경기가 끝나는 시점에 같은 라운드의 다른 경기들도 모두 자동 완료
-        currentRound.matches.forEach(m => {
-            if (!m.isFinished && !m.isUserMatch) {
-                simulateAndFinishMatch(m, state.players, user.id);
-            }
-        });
-        
-        // 현재 라운드의 모든 경기가 완료되었는지 확인
-        const currentRoundAllFinished = currentRound.matches.every(m => m.isFinished);
-        
-        if (currentRoundAllFinished) {
-            // 다음 라운드 준비
-            prepareNextRound(state, user);
-            
-            // 자동으로 다음 경기로 진행 (처음 컨디션 유지)
-            const nextUserMatch = state.rounds
-                .flatMap((round, rIdx) => round.matches.map((match, mIdx) => ({ match, roundIndex: rIdx, matchIndex: mIdx })))
-                .find(({ match }) => !match.isFinished && match.isUserMatch);
-            
-            if (nextUserMatch) {
-                // 다음 경기가 있으면 bracket_ready 상태로 설정 (클라이언트에서 카운트다운 처리)
-                state.status = 'bracket_ready';
-                // nextRoundStartTime은 클라이언트 카운트다운이 처리하므로 설정하지 않음
-                state.nextRoundStartTime = null;
-                // currentSimulatingMatch는 아직 설정하지 않음 (경기 시작 시 설정됨)
-            } else {
-                state.status = 'complete';
-            }
-        }
-    }
-
-    // 전국바둑대회/월드챔피언십: 유저 패배 시 자동 진행 종료
-    if (loser?.id === user.id && (state.type === 'national' || state.type === 'world')) {
+    // 유저 패배 시: 모든 경기 자동 시뮬레이션 후 종료 (전국/월드챔피언십만)
+    // 동네바둑리그는 패배해도 5회차까지 자동 진행됨
+    if (isUserEliminated && (state.type === 'national' || state.type === 'world')) {
         // 유저가 패배했으므로 모든 경기를 자동으로 시뮬레이션하고 완료
         state.status = 'eliminated';
         
@@ -579,295 +535,159 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
         return;
     }
     
-    // 이전 로직 (유저가 패배했지만 3/4위전 등이 남은 경우) - 이제는 사용하지 않음
-    if (loser?.id === user.id) {
-        // 유저가 패배한 경우: 유저가 참가하는 경기(예: 3/4위전)가 남아있는지 확인
-        const hasUnfinishedUserMatch = state.rounds.some(r => 
-            r.matches.some(m => !m.isFinished && m.isUserMatch)
-        );
+    // 보상 누적 처리 (currentStageAttempt가 없는 경우만 - 일반 토너먼트 모드)
+    if (completedMatch.isUserMatch && completedMatch.winner && !hasStageAttempt) {
+        const isUserWinner = completedMatch.winner.id === user.id;
         
-        if (hasUnfinishedUserMatch) {
-            // 유저가 참가하는 경기가 남아있으면 유저가 참가하지 않는 경기만 자동 완료
-            state.rounds.forEach(round => {
-                round.matches.forEach(match => {
-                    if (!match.isFinished && !match.isUserMatch) {
-                        simulateAndFinishMatch(match, state.players, user.id);
-                    }
-                });
-            });
-            
-            // 현재 라운드의 모든 경기가 완료되었는지 확인하고 다음 라운드 준비
-            const currentRound = state.rounds[roundIndex];
-            if (currentRound) {
-                const currentRoundAllFinished = currentRound.matches.every(m => m.isFinished);
-                if (currentRoundAllFinished) {
-                    prepareNextRound(state, user);
-                    
-                    // 자동으로 다음 경기로 진행 (처음 컨디션 유지)
-                    const nextUserMatch = state.rounds
-                        .flatMap((round, rIdx) => round.matches.map((match, mIdx) => ({ match, roundIndex: rIdx, matchIndex: mIdx })))
-                        .find(({ match }) => !match.isFinished && match.isUserMatch);
-                    
-                    if (nextUserMatch) {
-                        // 유저의 다음 경기가 있으면 자동으로 시작
-                        state.status = 'bracket_ready';
-                        // 자동으로 경기 시작 (컨디션 유지)
-                        state.currentSimulatingMatch = { roundIndex: nextUserMatch.roundIndex, matchIndex: nextUserMatch.matchIndex };
-                        state.currentMatchCommentary = [];
-                        state.timeElapsed = 0;
-                        state.currentMatchScores = { player1: 0, player2: 0 };
-                        state.lastScoreIncrement = null;
-                        state.simulationSeed = undefined;
-                    } else {
-                        // 유저의 다음 경기가 없으면 완료
-                        state.status = 'complete';
-                    }
-                    if (state.status === 'bracket_ready') {
-                        state.nextRoundStartTime = Date.now() + 5000;
-                    }
-                }
+        if (state.type === 'neighborhood') {
+            const matchReward = NEIGHBORHOOD_MATCH_REWARDS[user.league];
+            if (matchReward) {
+                const goldEarned = isUserWinner ? matchReward.win : matchReward.loss;
+                if (!state.accumulatedGold) state.accumulatedGold = 0;
+                state.accumulatedGold += goldEarned;
             }
-            
-            // 유저가 참가하는 경기가 남아있으므로 round_complete 상태로 설정 (다음경기 버튼 표시)
-            // 단, startNextRound에서 bracket_ready로 설정되었을 수 있으므로 확인
-            if (state.status !== 'bracket_ready') {
-                state.status = 'round_complete';
+        } else if (state.type === 'national') {
+            const matchReward = NATIONAL_MATCH_REWARDS[user.league];
+            if (matchReward) {
+                const materialReward = isUserWinner ? matchReward.win : matchReward.loss;
+                if (!state.accumulatedMaterials) state.accumulatedMaterials = {};
+                const currentQuantity = state.accumulatedMaterials[materialReward.materialName] || 0;
+                state.accumulatedMaterials[materialReward.materialName] = currentQuantity + materialReward.quantity;
             }
-        } else {
-            // 유저가 참가하는 경기가 없으면 모든 경기를 자동으로 시뮬레이션하고 완료
-            state.status = 'eliminated';
-            
-            // 먼저 현재 라운드의 모든 경기를 완료시킴
-            const currentRound = state.rounds[roundIndex];
-            if (currentRound) {
-                currentRound.matches.forEach(match => {
-                    if (!match.isFinished) {
-                        simulateAndFinishMatch(match, state.players, user.id);
-                    }
-                });
-            }
-            
-            // 모든 미완료 경기를 시뮬레이션하고 완료 (결승전까지 포함)
-            // 탈락 시 모든 라운드를 순차적으로 생성하고 시뮬레이션
-            let safety = 0;
-            while (safety < 50) { // safety limit 증가 (16강 -> 8강 -> 4강 -> 결승 -> 3/4위전)
-                safety++;
-                
-                // 먼저 모든 미완료 경기를 시뮬레이션하여 현재 라운드를 완료시킴
-                let anyMatchSimulated = false;
-                state.rounds.forEach(round => {
-                    round.matches.forEach(match => {
-                        if (!match.isFinished) {
-                            simulateAndFinishMatch(match, state.players, user.id);
-                            anyMatchSimulated = true;
-                        }
-                    });
-                });
-                
-                // 모든 라운드를 확인하여 완료된 라운드에서 다음 라운드 준비
-                let nextRoundPrepared = false;
-                for (let i = 0; i < state.rounds.length; i++) {
-                    const round = state.rounds[i];
-                    // 현재 라운드의 모든 경기가 완료되었는지 확인
-                    const roundAllFinished = round.matches.every(m => m.isFinished);
-                    
-                    if (roundAllFinished) {
-                        // 다음 라운드가 이미 존재하는지 확인
-                        const nextRoundExists = i + 1 < state.rounds.length;
-                        
-                        if (!nextRoundExists) {
-                            // 다음 라운드가 없으면 준비
-                            const winners = round.matches.map(m => m.winner).filter(Boolean) as PlayerForTournament[];
-                            
-                            // 결승전이 아니고 우승자가 2명 이상이면 다음 라운드 준비
-                            if (winners.length > 1 && round.name !== '결승' && round.name !== '3,4위전') {
-                                // prepareNextRound를 호출하기 전에 해당 라운드가 완료되었는지 확인
-                                // prepareNextRound는 lastRound가 완료되어야 작동하므로, 여기서는 직접 다음 라운드를 생성
-                                const nextRoundMatches: Match[] = [];
-                                for (let j = 0; j < winners.length; j += 2) {
-                                    const p1 = winners[j];
-                                    const p2 = winners[j + 1] || null;
-                                    nextRoundMatches.push({
-                                        id: `m-${state.rounds.length + 1}-${j / 2}`,
-                                        players: [p1, p2],
-                                        winner: p2 === null ? p1 : null,
-                                        isFinished: !p2,
-                                        commentary: [],
-                                        isUserMatch: false, // 유저는 이미 탈락했으므로 false
-                                        finalScore: null,
-                                        sgfFileIndex: Math.floor(Math.random() * 18) + 1,
-                                    });
-                                }
-                                const roundName = winners.length === 2 ? "결승" : `${winners.length}강`;
-                                state.rounds.push({ id: state.rounds.length + 1, name: roundName, matches: nextRoundMatches });
-                                nextRoundPrepared = true;
-                                break;
-                            } else if (round.name === '4강' && (state.type === 'national' || state.type === 'world')) {
-                                // 4강이 완료되었으면 3/4위전과 결승전 준비
-                                // 먼저 3/4위전이 있는지 확인
-                                const hasThirdPlaceMatch = state.rounds.some(r => r.name === '3,4위전');
-                                if (!hasThirdPlaceMatch) {
-                                    // 3/4위전 생성
-                                    const losers = round.matches.map(m => m.players.find(p => p && p.id !== m.winner?.id)).filter(Boolean) as PlayerForTournament[];
-                                    if (losers.length === 2) {
-                                        const thirdPlaceMatch: Match = {
-                                            id: `m-${state.rounds.length + 1}-3rd`,
-                                            players: [losers[0], losers[1]],
-                                            winner: null, 
-                                            isFinished: false, 
-                                            commentary: [],
-                                            isUserMatch: false, // 유저는 이미 탈락했으므로 false
-                                            finalScore: null,
-                                            sgfFileIndex: Math.floor(Math.random() * 18) + 1,
-                                        };
-                                        state.rounds.push({ id: state.rounds.length + 1, name: "3,4위전", matches: [thirdPlaceMatch] });
-                                    }
-                                }
-                                // 결승전 준비
-                                const winners = round.matches.map(m => m.winner).filter(Boolean) as PlayerForTournament[];
-                                if (winners.length === 2) {
-                                    const finalMatch: Match = {
-                                        id: `m-${state.rounds.length + 1}-final`,
-                                        players: [winners[0], winners[1]],
-                                        winner: null,
-                                        isFinished: false,
-                                        commentary: [],
-                                        isUserMatch: false,
-                                        finalScore: null,
-                                        sgfFileIndex: Math.floor(Math.random() * 18) + 1,
-                                    };
-                                    state.rounds.push({ id: state.rounds.length + 1, name: "결승", matches: [finalMatch] });
-                                    nextRoundPrepared = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // 다음 라운드를 준비했으면 새로 준비된 라운드의 경기들을 시뮬레이션
-                if (nextRoundPrepared) {
-                    // 새로 준비된 라운드의 모든 경기를 시뮬레이션
-                    const lastRound = state.rounds[state.rounds.length - 1];
-                    lastRound.matches.forEach(match => {
-                        if (!match.isFinished) {
-                            simulateAndFinishMatch(match, state.players, user.id);
-                        }
-                    });
-                } else if (!anyMatchSimulated) {
-                    // 경기를 시뮬레이션할 수 없고 다음 라운드도 준비할 수 없으면 종료
-                    break;
-                }
-
-                // 모든 매치가 완료되었는지 확인
-                const allMatchesFinished = state.rounds.every(r => r.matches.every(m => m.isFinished));
-                
-                if (allMatchesFinished) {
-                    // 모든 경기가 완료되었으면 종료
-                    break;
-                }
-            }
-            
-            // 모든 경기가 완료되었는지 최종 확인
-            const finalAllMatchesFinished = state.rounds.every(r => r.matches.every(m => m.isFinished));
-            if (finalAllMatchesFinished) {
-                // 모든 경기가 완료되었으므로 eliminated 상태 유지 (보상 수령 가능)
-                        // 컨디션은 처음 설정된 값을 유지 (변경하지 않음)
-            } else {
-                // 아직 완료되지 않은 경기가 있으면 강제로 완료
-                state.rounds.forEach(round => {
-                    round.matches.forEach(match => {
-                        if (!match.isFinished) {
-                            simulateAndFinishMatch(match, state.players, user.id);
-                        }
-                    });
-                });
-                // 모든 경기 완료 후 유저의 컨디션은 유지, 상대방만 초기화
-                state.players.forEach(p => {
-                    if (p.id !== user.id) {
-                        p.condition = 1000;
-                    }
-                });
+        } else if (state.type === 'world') {
+            const matchReward = WORLD_MATCH_REWARDS[user.league];
+            if (matchReward) {
+                const boxReward = isUserWinner ? matchReward.win : matchReward.loss;
+                if (!state.accumulatedEquipmentBoxes) state.accumulatedEquipmentBoxes = {};
+                const currentQuantity = state.accumulatedEquipmentBoxes[boxReward.boxName] || 0;
+                state.accumulatedEquipmentBoxes[boxReward.boxName] = currentQuantity + boxReward.quantity;
             }
         }
-    } else {
-        // 유저가 승리한 경우
-        const allTournamentMatchesFinished = state.rounds.every(r => r.matches.every(m => m.isFinished));
-        if (allTournamentMatchesFinished) {
-             state.status = 'complete';
-                        // 컨디션은 처음 설정된 값을 유지 (변경하지 않음)
+    }
+
+    // 동네바둑리그 처리
+    // 동네바둑리그는 유저가 패배해도 5회차까지 자동으로 진행됨
+    if (state.type === 'neighborhood') {
+        // currentRoundRobinRound가 없으면 roundIndex를 기반으로 회차 계산
+        let currentRound: number;
+        if (!state.currentRoundRobinRound) {
+            // roundIndex를 기반으로 회차 계산 (0-based index이므로 +1)
+            currentRound = roundIndex + 1;
+            state.currentRoundRobinRound = currentRound;
         } else {
-             // 현재 라운드가 완료되었으면 round_complete 상태로 설정
-             const currentRoundAllFinished = currentRound?.matches.every(m => m.isFinished) || false;
-             if (currentRoundAllFinished) {
-                 // prepareNextRound가 호출되었으므로 다음 라운드가 준비되었는지 확인
-                 // 마지막 라운드의 모든 경기가 완료되었는지 확인
-                 const lastRound = state.rounds[state.rounds.length - 1];
-                 
-                 // 결승전이 완료되었으면 바로 완료 상태로 설정
-                 if (currentRound.name === '결승' || currentRound.name === '3,4위전') {
-                     // 결승전 또는 3/4위전이 완료되었으면 모든 경기가 완료된 것
-                     // 남은 경기가 있는지 확인
-                     const remainingMatches = state.rounds.some(r => 
-                         r.matches.some(m => !m.isFinished)
-                     );
-                     if (!remainingMatches) {
-                         state.status = 'complete';
-                     } else {
-                         // 남은 경기가 있으면 자동 완료
-                         state.rounds.forEach(round => {
-                             round.matches.forEach(match => {
-                                 if (!match.isFinished) {
-                                     simulateAndFinishMatch(match, state.players, user.id);
-                                 }
-                             });
-                         });
-                         state.status = 'complete';
-                        // 컨디션은 처음 설정된 값을 유지 (변경하지 않음)
-                     }
-                 } else {
-                     // 다음 라운드가 준비되었는지 확인하고 startNextRound 호출
-                     const lastRound = state.rounds[state.rounds.length - 1];
-                     const hasNextRound = lastRound && lastRound.matches.some(m => !m.isFinished);
-                     
-                     // 또는 유저의 다음 경기가 있는지 확인
-                     const hasNextUserMatch = state.rounds.some(r => 
-                         r.matches.some(m => !m.isFinished && m.isUserMatch)
-                     );
-                     
-                    if (hasNextRound || hasNextUserMatch) {
-                        // prepareNextRound가 아직 호출되지 않았을 수 있으므로 호출
-                        prepareNextRound(state, user);
-                        
-                        // 자동으로 다음 경기로 진행 (처음 컨디션 유지)
-                        const nextUserMatch = state.rounds
-                            .flatMap((round, rIdx) => round.matches.map((match, mIdx) => ({ match, roundIndex: rIdx, matchIndex: mIdx })))
-                            .find(({ match }) => !match.isFinished && match.isUserMatch);
-                        
-                        if (nextUserMatch) {
-                            // 유저의 다음 경기가 있으면 자동으로 시작
+            currentRound = state.currentRoundRobinRound;
+        }
+        
+        const currentRoundObj = state.rounds.find(r => r.name === `${currentRound}회차`);
+        
+        if (!currentRoundObj) {
+            console.warn(`[processMatchCompletion] Current round object not found: ${currentRound}회차, rounds: ${state.rounds.map(r => r.name).join(', ')}`);
+            state.status = 'complete';
+            return;
+        }
+
+        // 같은 회차의 다른 경기들 자동 완료
+        let simulatedCount = 0;
+        currentRoundObj.matches.forEach(m => {
+            if (!m.isFinished && !m.isUserMatch) {
+                simulateAndFinishMatch(m, state.players, user.id);
+                simulatedCount++;
+            }
+        });
+        if (simulatedCount > 0) {
+            console.log(`[processMatchCompletion] Simulated ${simulatedCount} matches in round ${currentRound}`);
+        }
+
+        const allRoundMatchesFinished = currentRoundObj.matches.every(m => m.isFinished);
+        console.log(`[processMatchCompletion] Round ${currentRound} all matches finished: ${allRoundMatchesFinished}, matches: ${currentRoundObj.matches.map(m => ({ id: m.id, isFinished: m.isFinished, isUserMatch: m.isUserMatch }))}`);
+
+        if (allRoundMatchesFinished) {
+            if (currentRound >= 5) {
+                // 5회차까지 모두 완료
+                console.log(`[processMatchCompletion] All 5 rounds completed for neighborhood tournament`);
+                state.status = 'complete';
+            } else {
+                // 다음 회차로 진행 (유저가 패배했어도 계속 진행)
+                const nextRound = currentRound + 1;
+                state.currentRoundRobinRound = nextRound;
+                console.log(`[processMatchCompletion] Moving to next round: ${nextRound}회차`);
+                const nextRoundObj = state.rounds.find(r => r.name === `${nextRound}회차`);
+                if (nextRoundObj) {
+                    const nextUserMatch = nextRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
+                    if (nextUserMatch) {
+                        // 다음 경기 자동 시작 (유저가 패배했어도 진행)
+                        console.log(`[processMatchCompletion] Found next user match in round ${nextRound}, auto-starting...`);
+                        try {
+                            const started = await startNextMatchAutomatically(state, user, nextRoundObj, nextUserMatch);
+                            if (!started) {
+                                console.error(`[processMatchCompletion] Failed to auto-start next match in round ${nextRound}`);
+                                state.status = 'bracket_ready';
+                            } else {
+                                console.log(`[processMatchCompletion] Successfully auto-started next match in round ${nextRound}`);
+                            }
+                        } catch (error: any) {
+                            console.error(`[processMatchCompletion] Error auto-starting next match in round ${nextRound}:`, error);
+                            console.error(`[processMatchCompletion] Error stack:`, error?.stack);
                             state.status = 'bracket_ready';
-                            // 자동으로 경기 시작 (컨디션 유지)
-                            state.currentSimulatingMatch = { roundIndex: nextUserMatch.roundIndex, matchIndex: nextUserMatch.matchIndex };
-                            state.currentMatchCommentary = [];
-                            state.timeElapsed = 0;
-                            state.currentMatchScores = { player1: 0, player2: 0 };
-                            state.lastScoreIncrement = null;
-                            state.simulationSeed = undefined;
-                        } else {
-                            // 유저의 다음 경기가 없으면 완료
-                            state.status = 'complete';
                         }
                     } else {
-                        // 다음 라운드가 없으면 완료
+                        console.warn(`[processMatchCompletion] No unfinished user match found in round ${nextRound}`);
                         state.status = 'complete';
-                        // 컨디션은 처음 설정된 값을 유지 (변경하지 않음)
                     }
-                 }
-             } else {
-                 // 아직 현재 라운드에 미완료 경기가 있으면 대기 (이론적으로는 발생하지 않아야 함)
-                 state.status = 'round_complete';
-             }
+                } else {
+                    console.error(`[processMatchCompletion] Next round object not found: ${nextRound}회차, available rounds: ${state.rounds.map(r => r.name).join(', ')}`);
+                    state.status = 'complete';
+                }
+            }
+        } else {
+            console.log(`[processMatchCompletion] Round ${currentRound} not all finished yet, waiting...`);
+        }
+        return;
+    }
+
+    // 전국/월드챔피언십 처리
+    if (state.type === 'national' || state.type === 'world') {
+        const currentRound = state.rounds[roundIndex];
+        if (!currentRound) {
+            state.status = 'complete';
+            return;
+        }
+
+        // 같은 라운드의 다른 경기들 자동 완료
+        currentRound.matches.forEach(m => {
+            if (!m.isFinished && !m.isUserMatch) {
+                simulateAndFinishMatch(m, state.players, user.id);
+            }
+        });
+
+        const currentRoundAllFinished = currentRound.matches.every(m => m.isFinished);
+
+        if (currentRoundAllFinished) {
+            // 다음 라운드 준비
+            prepareNextRound(state, user);
+            
+            // 다음 경기 찾기
+            const nextUserMatch = state.rounds
+                .flatMap((round, rIdx) => round.matches.map((match, mIdx) => ({ match, roundIndex: rIdx, matchIndex: mIdx })))
+                .find(({ match }) => !match.isFinished && match.isUserMatch);
+            
+            if (nextUserMatch) {
+                // 다음 경기 자동 시작 (첫 경기 제외)
+                const nextRound = state.rounds[nextUserMatch.roundIndex];
+                try {
+                    const started = await startNextMatchAutomatically(state, user, nextRound, nextUserMatch.match);
+                    if (!started) {
+                        console.error(`[processMatchCompletion] Failed to auto-start next match in round ${nextUserMatch.roundIndex}`);
+                        state.status = 'bracket_ready';
+                    }
+                } catch (error: any) {
+                    console.error(`[processMatchCompletion] Error auto-starting next match in round ${nextUserMatch.roundIndex}:`, error);
+                    console.error(`[processMatchCompletion] Error stack:`, error?.stack);
+                    state.status = 'bracket_ready';
+                }
+            } else {
+                state.status = 'complete';
+            }
         }
     }
 };
@@ -945,6 +765,7 @@ export const createTournament = (type: TournamentType, user: User, players: Play
         accumulatedGold: type === 'neighborhood' ? 0 : undefined, // 동네바둑리그만 골드 누적
         accumulatedMaterials: type === 'national' ? {} : undefined, // 전국바둑대회만 재료 누적
         accumulatedEquipmentBoxes: type === 'world' ? {} : undefined, // 월드챔피언십만 장비상자 누적
+        currentRoundRobinRound: type === 'neighborhood' ? 1 : undefined, // 동네바둑리그는 1회차부터 시작
     };
 };
 

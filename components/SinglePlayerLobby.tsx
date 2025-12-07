@@ -53,10 +53,10 @@ const SinglePlayerLobby: React.FC = () => {
                 <div className="lg:hidden absolute top-1/2 -translate-y-1/2 right-0 z-20">
                     <button
                         onClick={() => setIsMobileSidebarOpen(true)}
-                        className="w-8 h-12 bg-secondary/80 backdrop-blur-sm rounded-l-lg flex items-center justify-center text-primary shadow-lg"
+                        className="w-11 h-12 sm:w-12 sm:h-14 bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
                         aria-label="메뉴 열기"
                     >
-                        <span className="relative font-bold text-lg">
+                        <span className="relative font-bold text-2xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                             {'<'}
                         </span>
                     </button>

@@ -386,7 +386,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             : "게임 결과";
 
     const isMobile = isMobileView;
-    const mobileTextScale = isMobileView ? 1.0 : 1.15;
+    const mobileTextScale = isMobileView ? 1.2 : 1.15;
 
     return (
         <DraggableWindow 

@@ -98,6 +98,7 @@ export const GUILD_SHOP_ITEMS: GuildShopItem[] = [
     { itemId: 'guild_equip_box_mythic', name: '신화 장비 상자', description: '신화 등급 장비 1개 획득', cost: 10000, image: '/images/Box/EquipmentBox6.png', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Mythic },
 
     // Materials
+    { itemId: '하급 강화석', name: '하급 강화석', description: '장비 강화에 사용되는 기본 재료.', cost: 10, image: '/images/materials/materials1.png', type: 'material', limit: 100, limitType: 'weekly', grade: ItemGrade.Normal },
     { itemId: '중급 강화석', name: '중급 강화석', description: '장비 강화에 사용되는 상급 재료.', cost: 25, image: '/images/materials/materials2.png', type: 'material', limit: 30, limitType: 'weekly', grade: ItemGrade.Uncommon },
     { itemId: '상급 강화석', name: '상급 강화석', description: '장비 강화에 사용되는 최상급 재료', cost: 50, image: '/images/materials/materials3.png', type: 'material', limit: 10, limitType: 'weekly', grade: ItemGrade.Rare },
     { itemId: '최상급 강화석', name: '최상급 강화석', description: '장비 강화에 사용되는 희귀 재료', cost: 150, image: '/images/materials/materials4.png', type: 'material', limit: 5, limitType: 'weekly', grade: ItemGrade.Epic },
@@ -108,7 +109,7 @@ export const GUILD_SHOP_ITEMS: GuildShopItem[] = [
     { itemId: '골드 꾸러미2', name: '골드 꾸러미2', description: '100 ~ 1,000 골드 획득', cost: 40, image: '/images/Box/GoldBox2.png', type: 'consumable', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
     { itemId: '골드 꾸러미3', name: '골드 꾸러미3', description: '500 ~ 3,000 골드 획득', cost: 60, image: '/images/Box/GoldBox3.png', type: 'consumable', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
     { itemId: '골드 꾸러미4', name: '골드 꾸러미4', description: '1,000 ~ 10,000 골드 획득', cost: 80, image: '/images/Box/GoldBox4.png', type: 'consumable', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
-    { itemId: '보너스 스탯 +5', name: '보너스 스탯 +5', description: '모든 능력치에 자유롭게 분배할 수 있는 보너스 스탯 포인트를 5개 획득합니다.', cost: 5000, image: '/images/button/statpoint.png', type: 'consumable', limit: 1, limitType: 'monthly', grade: ItemGrade.Legendary },
+    { itemId: '보너스 스탯 +5', name: '보너스 스탯 +5', description: '모든 능력치에 자유롭게 분배할 수 있는 보너스 스탯 포인트를 5개 획득합니다.', cost: 10000, image: '/images/button/statpoint.png', type: 'consumable', limit: 1, limitType: 'monthly', grade: ItemGrade.Legendary },
 ];
 
 const BOSS_STATS: Record<CoreStat, number> = {
@@ -180,6 +181,76 @@ export const GUILD_BOSSES: GuildBossInfo[] = [
 ];
 
 export const GUILD_BOSS_MAX_ATTEMPTS = 2;
+
+// 딜량 등급 구분 (1~5등급)
+export const GUILD_BOSS_DAMAGE_TIERS = {
+    1: { min: 0, max: 19999 },
+    2: { min: 20000, max: 49999 },
+    3: { min: 50000, max: 99999 },
+    4: { min: 100000, max: 199999 },
+    5: { min: 200000, max: Infinity },
+} as const;
+
+// 등급별 보상 (100% 확률)
+export const GUILD_BOSS_REWARDS_BY_TIER = {
+    1: {
+        guildXp: [100, 500],
+        guildCoins: [10, 30],
+        researchPoints: [50, 100],
+        gold: [100, 500],
+        materials: { name: '하급 강화석', quantity: [5, 7] },
+        tickets: [1, 2],
+    },
+    2: {
+        guildXp: [500, 1000],
+        guildCoins: [30, 60],
+        researchPoints: [100, 200],
+        gold: [500, 1500],
+        materials: { name: '중급 강화석', quantity: [5, 8] },
+        tickets: [1, 3],
+    },
+    3: {
+        guildXp: [1000, 2000],
+        guildCoins: [60, 100],
+        researchPoints: [200, 300],
+        gold: [1500, 3000],
+        materials: { name: '상급 강화석', quantity: [6, 8] },
+        tickets: [2, 4],
+    },
+    4: {
+        guildXp: [2000, 3500],
+        guildCoins: [100, 150],
+        researchPoints: [300, 400],
+        gold: [3000, 4500],
+        materials: { name: '최상급 강화석', quantity: [7, 9] },
+        tickets: [3, 5],
+    },
+    5: {
+        guildXp: [3500, 5000],
+        guildCoins: [150, 200],
+        researchPoints: [400, 500],
+        gold: [4500, 5000],
+        materials: { name: '신비의 강화석', quantity: [8, 10] },
+        tickets: [4, 5],
+    },
+} as const;
+
+// 장비 보상 확률 테이블
+export const GUILD_BOSS_EQUIPMENT_LOOT_TABLE: { grade: ItemGrade; weight: number }[] = [
+    { grade: ItemGrade.Normal, weight: 50 },
+    { grade: ItemGrade.Uncommon, weight: 25 },
+    { grade: ItemGrade.Rare, weight: 10 },
+    { grade: ItemGrade.Epic, weight: 5 },
+    { grade: ItemGrade.Legendary, weight: 1 },
+    { grade: ItemGrade.Mythic, weight: 0.1 },
+];
+
+// 변경권 종류
+export const GUILD_BOSS_TICKET_TYPES = [
+    '옵션 종류 변경권',
+    '옵션 수치 변경권',
+    '신화 옵션 변경권',
+] as const;
 
 export const GUILD_BOSS_PERSONAL_REWARDS_TIERS = [
     { damage: 10000, reward: { guildCoins: 20 } },

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Guild as GuildType, GuildMember, GuildMemberRole } from '../../types/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -11,7 +11,7 @@ interface GuildMembersPanelProps {
     myMemberInfo: GuildMember | undefined;
 }
 
-const Popover: React.FC<{
+const MemberManagementPopover: React.FC<{
     member: GuildMember;
     isMaster: boolean;
     isVice: boolean;
@@ -20,14 +20,35 @@ const Popover: React.FC<{
     onKick: () => void;
     onTransfer: () => void;
     onClose: () => void;
-}> = ({ member, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose }) => {
+    buttonElement: HTMLElement | null;
+}> = ({ member, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose, buttonElement }) => {
     const canPromoteToVice = isMaster && member.role === GuildMemberRole.Member;
     const canDemote = isMaster && member.role === GuildMemberRole.Vice;
     const canKick = (isMaster && member.role !== GuildMemberRole.Master) || (isVice && member.role === GuildMemberRole.Member);
     const canTransfer = isMaster && member.role !== GuildMemberRole.Master;
 
+    const [position, setPosition] = React.useState<{ top: number; left: number } | null>(null);
+
+    React.useEffect(() => {
+        if (buttonElement) {
+            const rect = buttonElement.getBoundingClientRect();
+            setPosition({
+                top: rect.bottom + 8,
+                left: rect.left - 144 - 8, // 144px is w-36 (144px), 8px is margin
+            });
+        }
+    }, [buttonElement]);
+
+    if (!position) return null;
+
     return (
-        <div className="absolute z-20 -top-1 right-full mr-2 w-36 bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 border-2 border-stone-600/60 rounded-xl shadow-2xl p-2 space-y-1.5 backdrop-blur-md">
+        <div 
+            className="fixed z-[9999] w-36 bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 border-2 border-stone-600/60 rounded-xl shadow-2xl p-2 space-y-1.5 backdrop-blur-md" 
+            style={{ 
+                top: `${position.top}px`,
+                left: `${position.left}px`
+            }}
+        >
             {canPromoteToVice && <Button onClick={onPromote} className="w-full !text-xs !py-2 border border-blue-500/50 bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg hover:shadow-xl transition-all">부길드장 임명</Button>}
             {canDemote && <Button onClick={onDemote} className="w-full !text-xs !py-2 border border-yellow-500/50 bg-gradient-to-r from-yellow-600/90 to-amber-600/90 text-white shadow-lg hover:shadow-xl transition-all">부길드장 해임</Button>}
             {canTransfer && <Button onClick={onTransfer} className="w-full !text-xs !py-2 border border-orange-500/50 bg-gradient-to-r from-orange-600/90 to-red-600/90 text-white shadow-lg hover:shadow-xl transition-all">길드장 위임</Button>}
@@ -40,6 +61,7 @@ const Popover: React.FC<{
 const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberInfo }) => {
     const { handlers, allUsers, onlineUsers, currentUserWithStatus } = useAppContext();
     const [managingMember, setManagingMember] = useState<GuildMember | null>(null);
+    const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
     const memberLimit = useMemo(() => {
         const baseLimit = GUILD_INITIAL_MEMBER_LIMIT;
@@ -146,7 +168,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
     };
 
     return (
-        <div className="flex flex-col h-full bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md p-6 relative overflow-hidden">
+        <div className="flex flex-col h-full bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md p-6 relative overflow-visible">
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
             <div className="relative z-10 flex flex-col h-full">
                 <div className="flex justify-between items-center mb-6 flex-shrink-0">
@@ -220,24 +242,35 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                     {(isMaster || isVice) && (
                                         <div className="relative w-20 text-center">
                                             {member.userId !== myMemberInfo?.userId && (
-                                                <Button 
-                                                    onClick={(e) => { e?.stopPropagation(); setManagingMember(member); }} 
-                                                    className="!text-xs !py-2.5 !px-4 border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
-                                                >
-                                                    관리
-                                                </Button>
-                                            )}
-                                            {managingMember?.userId === member.userId && (
-                                                <Popover 
-                                                    member={member}
-                                                    isMaster={isMaster}
-                                                    isVice={isVice}
-                                                    onPromote={() => handleAction('PROMOTE', member.userId)}
-                                                    onDemote={() => handleAction('DEMOTE', member.userId)}
-                                                    onKick={() => handleAction('KICK', member.userId)}
-                                                    onTransfer={() => handleAction('TRANSFER', member.userId)}
-                                                    onClose={() => setManagingMember(null)}
-                                                />
+                                                <>
+                                                    <Button 
+                                                        ref={(el) => {
+                                                            if (el) {
+                                                                buttonRefs.current[member.userId] = el;
+                                                            }
+                                                        }}
+                                                        onClick={(e) => { 
+                                                            e?.stopPropagation(); 
+                                                            setManagingMember(member); 
+                                                        }} 
+                                                        className="!text-xs !py-2.5 !px-4 border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+                                                    >
+                                                        관리
+                                                    </Button>
+                                                    {managingMember?.userId === member.userId && (
+                                                        <MemberManagementPopover
+                                                            member={member}
+                                                            isMaster={isMaster}
+                                                            isVice={isVice}
+                                                            onPromote={() => handleAction('PROMOTE', member.userId)}
+                                                            onDemote={() => handleAction('DEMOTE', member.userId)}
+                                                            onKick={() => handleAction('KICK', member.userId)}
+                                                            onTransfer={() => handleAction('TRANSFER', member.userId)}
+                                                            onClose={() => setManagingMember(null)}
+                                                            buttonElement={buttonRefs.current[member.userId] || null}
+                                                        />
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     )}

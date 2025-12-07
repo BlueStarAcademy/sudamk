@@ -3,8 +3,8 @@ import type { Prisma } from "@prisma/client";
 import type { User, InventoryItem, Equipment, Mail, QuestLog, EquipmentSlot } from "../../types/index.js";
 import { createDefaultBaseStats, createDefaultSpentStatPoints, createDefaultQuests } from "../initialData.ts";
 import { LeagueTier } from "../../types/enums.js";
-import { SINGLE_PLAYER_STAGES } from "../../constants/singlePlayerConstants.js";
-import { EQUIPMENT_POOL, MATERIAL_ITEMS, CONSUMABLE_ITEMS } from "../../constants/index.js";
+import { SINGLE_PLAYER_STAGES } from "../../shared/constants/singlePlayerConstants.js";
+import { EQUIPMENT_POOL, MATERIAL_ITEMS, CONSUMABLE_ITEMS } from "../../shared/constants/index.js";
 
 const DEFAULT_INVENTORY_SLOTS: User["inventorySlots"] = {
   equipment: 30,
@@ -301,6 +301,8 @@ const applyDefaults = (
     bonusStatPoints: user.bonusStatPoints ?? 0,
     singlePlayerMissions: user.singlePlayerMissions ?? {},
     guildId: user.guildId ?? undefined,
+    guildCoins: user.guildCoins ?? (status?.serializedUser?.guildCoins ?? 0),
+    dailyDonations: user.dailyDonations ?? (status?.serializedUser?.dailyDonations ?? undefined),
     blacksmithLevel: user.blacksmithLevel ?? 1,
     blacksmithXp: user.blacksmithXp ?? 0,
     cumulativeRankingScore: user.cumulativeRankingScore ?? {},
@@ -622,7 +624,9 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
       ? Number(prismaUser.lastTowerClearTime) 
       : safeNumber(legacy.lastTowerClearTime, undefined),
     monthlyTowerFloor: safeNumber((prismaUser as any).monthlyTowerFloor, safeNumber((legacy as any)?.monthlyTowerFloor, 0)),
-    guildId: user.guildId ?? (prismaUser.guildMember?.guildId ?? undefined)
+    guildId: user.guildId ?? (prismaUser.guildMember?.guildId ?? undefined),
+    guildCoins: user.guildCoins ?? (status.serializedUser?.guildCoins ?? safeNumber(legacy.guildCoins, 0)),
+    dailyDonations: user.dailyDonations ?? (status.serializedUser?.dailyDonations ?? parseJson(legacy.dailyDonations, undefined))
   };
 
   const applied = applyDefaults(partial, prismaUser, status);
