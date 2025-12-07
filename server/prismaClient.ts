@@ -3,9 +3,21 @@ import { PrismaClient } from "../generated/prisma/client.ts";
 
 // DATABASE_URL에 연결 풀링 파라미터 추가 (없는 경우)
 const getDatabaseUrl = () => {
-  let url = process.env.DATABASE_URL || '';
+  // Railway는 때때로 다른 이름으로 DATABASE_URL을 제공합니다
+  let url = process.env.DATABASE_URL || 
+            process.env.RAILWAY_SERVICE_POSTGRES_URL || 
+            process.env.POSTGRES_URL || 
+            process.env.POSTGRES_PRIVATE_URL || 
+            '';
+  
+  // 찾은 경우 DATABASE_URL로 설정
+  if (url && !process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = url;
+  }
+  
   if (!url) {
     console.error('[Prisma] DATABASE_URL is not set! Please set DATABASE_URL to Railway PostgreSQL connection string.');
+    console.error('[Prisma] Checked variables: DATABASE_URL, RAILWAY_SERVICE_POSTGRES_URL, POSTGRES_URL, POSTGRES_PRIVATE_URL');
     return url;
   }
   

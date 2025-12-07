@@ -160,7 +160,21 @@ const startServer = async () => {
     let dbInitialized = false;
     const dbInitPromise = (async () => {
         // --- Debug: Check DATABASE_URL ---
-        const dbUrl = process.env.DATABASE_URL;
+        // Railway는 때때로 다른 이름으로 DATABASE_URL을 제공합니다 (예: RAILWAY_SERVICE_POSTGRES_URL)
+        let dbUrl = process.env.DATABASE_URL;
+        if (!dbUrl) {
+            // Railway 자동 연결 변수 확인
+            dbUrl = process.env.RAILWAY_SERVICE_POSTGRES_URL || 
+                    process.env.POSTGRES_URL || 
+                    process.env.POSTGRES_PRIVATE_URL ||
+                    process.env.DATABASE_URL;
+            
+            // 찾은 경우 DATABASE_URL로 설정
+            if (dbUrl && !process.env.DATABASE_URL) {
+                process.env.DATABASE_URL = dbUrl;
+                console.log(`[Server Startup] Using ${Object.keys(process.env).find(k => process.env[k] === dbUrl)} as DATABASE_URL`);
+            }
+        }
         console.log(`[Server Startup] DATABASE_URL check: ${dbUrl ? `Set (length: ${dbUrl.length}, starts with: ${dbUrl.substring(0, 20)}...)` : 'NOT SET'}`);
         if (!dbUrl) {
             console.error("[Server Startup] DATABASE_URL is not set! Please check Railway Variables.");
@@ -3666,7 +3680,7 @@ const startServer = async () => {
     });
 
     // SPA fallback: serve index.html for all non-API routes (only if frontend serving is enabled)
-    // enableFrontendServing 변수는 위에서 이미 선언되었으므로 재사용
+    const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING === 'true';
     if (enableFrontendServing) {
         app.get('*', (req, res, next) => {
             // Skip API and WebSocket routes
