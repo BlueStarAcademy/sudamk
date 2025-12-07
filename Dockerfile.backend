@@ -145,6 +145,7 @@ COPY --from=build /app/prisma ./prisma
 
 # Copy application code
 COPY --from=build /app/server ./server
+COPY --from=build /app/shared ./shared
 COPY --from=build /app/types ./types
 COPY --from=build /app/utils ./utils
 COPY --from=build /app/constants ./constants
