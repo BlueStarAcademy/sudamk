@@ -1,9 +1,11 @@
 /**
- * 모든 유저의 챔피언십 관련 데이터를 완전히 초기화하는 스크립트
+ * 모든 유저의 챔피언십, 싱글플레이, 도전의 탑 관련 데이터를 완전히 초기화하는 스크립트
  * - 던전 진행 상태 초기화
  * - 토너먼트 상태 초기화
  * - 일일 랭킹 데이터 초기화
  * - 챔피언십 점수 초기화
+ * - 싱글플레이 진행 상태 초기화
+ * - 도전의 탑 진행 상태 초기화
  * - Prisma와 KV store 모두 업데이트
  * 
  * 실행 방법:
@@ -16,7 +18,7 @@ import * as types from '../../types/index.js';
 
 const resetAllChampionshipData = async () => {
     console.log('='.repeat(60));
-    console.log('챔피언십 데이터 초기화 시작...');
+    console.log('챔피언십, 싱글플레이, 도전의 탑 데이터 초기화 시작...');
     console.log('='.repeat(60));
     
     try {
@@ -27,6 +29,9 @@ const resetAllChampionshipData = async () => {
                 id: true,
                 nickname: true,
                 tournamentScore: true,
+                towerFloor: true,
+                lastTowerClearTime: true,
+                monthlyTowerFloor: true,
                 status: true
             }
         });
@@ -38,6 +43,8 @@ const resetAllChampionshipData = async () => {
         let tournamentStateReset = 0;
         let dailyRankingsReset = 0;
         let scoreReset = 0;
+        let singlePlayerReset = 0;
+        let towerReset = 0;
         
         // 2. 각 사용자의 챔피언십 데이터 초기화
         console.log('[2/3] 각 사용자의 챔피언십 데이터 초기화 중...');
@@ -53,6 +60,23 @@ const resetAllChampionshipData = async () => {
                 prismaUpdateData.tournamentScore = 0;
                 prismaNeedsUpdate = true;
                 scoreReset++;
+            }
+            
+            // Prisma: 도전의 탑 초기화
+            if (prismaUser.towerFloor !== 0) {
+                prismaUpdateData.towerFloor = 0;
+                prismaNeedsUpdate = true;
+                towerReset++;
+            }
+            if (prismaUser.lastTowerClearTime !== null) {
+                prismaUpdateData.lastTowerClearTime = null;
+                prismaNeedsUpdate = true;
+                towerReset++;
+            }
+            if (prismaUser.monthlyTowerFloor !== 0) {
+                prismaUpdateData.monthlyTowerFloor = 0;
+                prismaNeedsUpdate = true;
+                towerReset++;
             }
             
             // KV store 사용자 데이터 가져오기
@@ -162,6 +186,40 @@ const resetAllChampionshipData = async () => {
                     kvNeedsUpdate = true;
                 }
                 
+                // 8. 싱글플레이 진행 상태 초기화
+                if (updatedKvUser.singlePlayerProgress !== undefined && updatedKvUser.singlePlayerProgress !== 0) {
+                    updatedKvUser.singlePlayerProgress = 0;
+                    kvNeedsUpdate = true;
+                    singlePlayerReset++;
+                }
+                if (updatedKvUser.clearedSinglePlayerStages && updatedKvUser.clearedSinglePlayerStages.length > 0) {
+                    updatedKvUser.clearedSinglePlayerStages = [];
+                    kvNeedsUpdate = true;
+                    singlePlayerReset++;
+                }
+                if (updatedKvUser.singlePlayerMissions && Object.keys(updatedKvUser.singlePlayerMissions).length > 0) {
+                    updatedKvUser.singlePlayerMissions = {};
+                    kvNeedsUpdate = true;
+                    singlePlayerReset++;
+                }
+                
+                // 9. 도전의 탑 진행 상태 초기화 (KV store)
+                if (updatedKvUser.towerFloor !== undefined && updatedKvUser.towerFloor !== 0) {
+                    updatedKvUser.towerFloor = 0;
+                    kvNeedsUpdate = true;
+                    towerReset++;
+                }
+                if (updatedKvUser.lastTowerClearTime !== undefined && updatedKvUser.lastTowerClearTime !== null) {
+                    updatedKvUser.lastTowerClearTime = null;
+                    kvNeedsUpdate = true;
+                    towerReset++;
+                }
+                if (updatedKvUser.monthlyTowerFloor !== undefined && updatedKvUser.monthlyTowerFloor !== 0) {
+                    updatedKvUser.monthlyTowerFloor = 0;
+                    kvNeedsUpdate = true;
+                    towerReset++;
+                }
+                
                 // KV store 업데이트
                 if (kvNeedsUpdate) {
                     await db.updateUser(updatedKvUser);
@@ -188,8 +246,8 @@ const resetAllChampionshipData = async () => {
                 let statusNeedsUpdate = false;
                 const updatedStatus = { ...status };
                 
-                // status JSON에서 챔피언십 관련 필드 제거
-                const championshipFields = [
+                // status JSON에서 챔피언십, 싱글플레이, 도전의 탑 관련 필드 제거
+                const fieldsToRemove = [
                     'dungeonProgress',
                     'lastNeighborhoodTournament',
                     'lastNationalTournament',
@@ -205,10 +263,16 @@ const resetAllChampionshipData = async () => {
                     'worldRewardClaimed',
                     'dailyDungeonScore',
                     'cumulativeTournamentScore',
-                    'yesterdayTournamentScore'
+                    'yesterdayTournamentScore',
+                    'singlePlayerProgress',
+                    'clearedSinglePlayerStages',
+                    'singlePlayerMissions',
+                    'towerFloor',
+                    'lastTowerClearTime',
+                    'monthlyTowerFloor'
                 ];
                 
-                for (const field of championshipFields) {
+                for (const field of fieldsToRemove) {
                     if (updatedStatus[field] !== undefined) {
                         delete updatedStatus[field];
                         statusNeedsUpdate = true;
@@ -233,7 +297,7 @@ const resetAllChampionshipData = async () => {
         console.log(`  ✓ ${statusUsersUpdated}명의 사용자 status JSON 정리됨`);
         
         console.log('\n' + '='.repeat(60));
-        console.log('✓ 챔피언십 데이터 초기화 완료!');
+        console.log('✓ 챔피언십, 싱글플레이, 도전의 탑 데이터 초기화 완료!');
         console.log('='.repeat(60));
         console.log(`  - Prisma 사용자 업데이트: ${prismaUsersUpdated}명`);
         console.log(`  - KV store 사용자 업데이트: ${kvUsersUpdated}명`);
@@ -242,6 +306,8 @@ const resetAllChampionshipData = async () => {
         console.log(`  - 토너먼트 상태 초기화: ${tournamentStateReset}개`);
         console.log(`  - 일일 랭킹 초기화: ${dailyRankingsReset}명`);
         console.log(`  - 점수 초기화: ${scoreReset}개`);
+        console.log(`  - 싱글플레이 초기화: ${singlePlayerReset}명`);
+        console.log(`  - 도전의 탑 초기화: ${towerReset}개`);
         console.log('='.repeat(60));
         
     } catch (error: any) {
