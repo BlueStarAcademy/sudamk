@@ -3,8 +3,8 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
+# Install build dependencies (including autoconf/automake for mozjpeg)
+RUN apk add --no-cache python3 make g++ autoconf automake libtool pkgconfig nasm
 
 # Copy package files
 COPY package.json package-lock.json ./

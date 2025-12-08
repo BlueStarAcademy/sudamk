@@ -4,8 +4,8 @@ FROM node:20-alpine AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++ wget unzip
+# Install build dependencies (including autoconf/automake for mozjpeg)
+RUN apk add --no-cache python3 make g++ wget unzip autoconf automake libtool pkgconfig nasm
 
 FROM base AS deps
 # Install dependencies
