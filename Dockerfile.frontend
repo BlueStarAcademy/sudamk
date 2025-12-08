@@ -31,8 +31,8 @@ COPY client ./client
 COPY services ./services
 COPY shared ./shared
 
-# Build frontend
-RUN npm run build:client
+# Build frontend (NODE_ENV를 명시적으로 production으로 설정)
+RUN NODE_ENV=production npm run build:client
 
 FROM node:20-alpine AS runner
 WORKDIR /app
