@@ -48,9 +48,13 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
                     const result: any = await handlers.handleAction({ type: 'GET_GUILD_INFO' });
                     if (result?.error) {
                         console.warn('[GuildHome] Failed to load guild info:', result.error);
-                        // "가입한 길드가 없습니다" 또는 "길드를 찾을 수 없습니다" 오류는 더 이상 재시도하지 않음
+                        // "가입한 길드가 없습니다" 또는 "길드를 찾을 수 없습니다" 오류는 프로필로 리다이렉트
                         if (result.error.includes('가입한 길드가 없습니다') || result.error.includes('길드를 찾을 수 없습니다')) {
                             hasLoadedRef.current = true; // 재시도 방지
+                            // 길드가 없으면 프로필로 리다이렉트
+                            setTimeout(() => {
+                                window.location.hash = '#/profile';
+                            }, 500);
                         } else {
                             // 다른 오류는 재시도 가능하도록 false로 설정 (하지만 실제로는 true로 유지하여 무한 루프 방지)
                             hasLoadedRef.current = true;
@@ -62,6 +66,10 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
                 } catch (error) {
                     console.error('[GuildHome] Error loading guild info:', error);
                     hasLoadedRef.current = true; // 에러 발생 시에도 재시도 방지
+                    // 에러 발생 시 프로필로 리다이렉트
+                    setTimeout(() => {
+                        window.location.hash = '#/profile';
+                    }, 500);
                 } finally {
                     setIsLoading(false);
                 }
@@ -92,13 +100,14 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     }, [guildDonationAnimation]);
 
     // 사용자가 길드에 속해있지 않으면 즉시 프로필로 리다이렉트
+    useEffect(() => {
+        if (!currentUserWithStatus?.guildId) {
+            window.location.hash = '#/profile';
+        }
+    }, [currentUserWithStatus?.guildId]);
+    
     if (!currentUserWithStatus?.guildId) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full gap-4">
-                <BackButton onClick={() => window.location.hash = '#/profile'} />
-                <p className="text-gray-400">길드 정보를 불러오는 중...</p>
-            </div>
-        );
+        return null; // 리다이렉트 중이므로 아무것도 표시하지 않음
     }
 
     // 로딩 중이면 로딩 표시

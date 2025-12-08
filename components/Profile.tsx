@@ -296,24 +296,71 @@ const Profile: React.FC<ProfileProps> = () => {
         return guilds[currentUserWithStatus.guildId] || null;
     }, [currentUserWithStatus?.guildId, guilds]);
     
-    // 길드에 소속되어 있는데 길드 정보가 없으면 즉시 가져오기 (한 번만 실행)
+    // 길드 로딩 상태 및 타임아웃 관리
+    const [guildLoadingFailed, setGuildLoadingFailed] = useState(false);
     const hasLoadedGuildRef = useRef<Set<string>>(new Set());
+    const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
+    // 길드에 소속되어 있는데 길드 정보가 없으면 즉시 가져오기 (한 번만 실행)
     useEffect(() => {
         const guildId = currentUserWithStatus?.guildId;
         if (!guildId) {
+            setGuildLoadingFailed(false);
             return;
         }
         
         // 이미 로드 시도한 길드 ID는 다시 시도하지 않음
         if (hasLoadedGuildRef.current.has(guildId)) {
+            // 길드 정보가 여전히 없으면 로딩 실패로 간주
+            if (!guilds[guildId]) {
+                setGuildLoadingFailed(true);
+            }
             return;
         }
         
         // 길드 정보가 없으면 로드 시도 (guilds 객체는 의존성에서 제거하여 무한 루프 방지)
         if (!guilds[guildId]) {
             hasLoadedGuildRef.current.add(guildId);
-            handlers.handleAction({ type: 'GET_GUILD_INFO' });
+            setGuildLoadingFailed(false);
+            
+            // 타임아웃 설정 (5초 후 실패로 간주)
+            if (loadingTimeoutRef.current) {
+                clearTimeout(loadingTimeoutRef.current);
+            }
+            loadingTimeoutRef.current = setTimeout(() => {
+                if (!guilds[guildId]) {
+                    setGuildLoadingFailed(true);
+                }
+            }, 5000);
+            
+            handlers.handleAction({ type: 'GET_GUILD_INFO' }).then((result: any) => {
+                if (result?.error) {
+                    // "가입한 길드가 없습니다" 또는 "길드를 찾을 수 없습니다" 오류는 로딩 실패로 간주
+                    if (result.error.includes('가입한 길드가 없습니다') || result.error.includes('길드를 찾을 수 없습니다')) {
+                        setGuildLoadingFailed(true);
+                    }
+                } else if (result?.clientResponse?.guild) {
+                    // 길드 정보가 로드되었으면 로딩 실패 상태 해제
+                    setGuildLoadingFailed(false);
+                }
+                if (loadingTimeoutRef.current) {
+                    clearTimeout(loadingTimeoutRef.current);
+                }
+            }).catch(() => {
+                setGuildLoadingFailed(true);
+                if (loadingTimeoutRef.current) {
+                    clearTimeout(loadingTimeoutRef.current);
+                }
+            });
+        } else {
+            setGuildLoadingFailed(false);
         }
+        
+        return () => {
+            if (loadingTimeoutRef.current) {
+                clearTimeout(loadingTimeoutRef.current);
+            }
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUserWithStatus?.guildId]);
     
@@ -604,6 +651,14 @@ const Profile: React.FC<ProfileProps> = () => {
                                     →
                                 </div>
                             </button>
+                        ) : guildLoadingFailed ? (
+                            // 길드 로딩 실패 시 길드 창설/가입 버튼 표시
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 flex gap-2">
+                                    <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드창설</Button>
+                                    <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드가입</Button>
+                                </div>
+                            </div>
                         ) : (
                             <div className="w-full flex items-center justify-center p-2 text-sm text-gray-400">
                                 길드 정보 로딩 중...
