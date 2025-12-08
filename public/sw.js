@@ -97,6 +97,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // http:// 또는 https:// 스킴만 캐시 가능 (chrome-extension:, data: 등은 제외)
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    event.respondWith(fetch(request));
+    return;
+  }
+  
   // API 요청(/api, /ws)은 네트워크로 직접 전달
   if (url.pathname.startsWith('/api') || url.pathname.startsWith('/ws')) {
     event.respondWith(fetch(request));
@@ -113,11 +119,15 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // 네트워크에서 성공하면 캐시에 저장하고 반환 (GET 요청만)
-          if (response && response.status === 200 && request.method === 'GET') {
+          // 네트워크에서 성공하면 캐시에 저장하고 반환 (GET 요청만, http/https만)
+          if (response && response.status === 200 && request.method === 'GET' && 
+              (url.protocol === 'http:' || url.protocol === 'https:')) {
             const responseToCache = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
+              cache.put(request, responseToCache).catch((error) => {
+                // 캐시 실패는 무시 (chrome-extension 등 지원하지 않는 스킴)
+                console.warn('[Service Worker] Cache put failed:', error);
+              });
             });
           }
           return response;
@@ -150,13 +160,17 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          // 캐시에 없으면 네트워크에서 가져오고 캐시에 저장 (GET 요청만)
+          // 캐시에 없으면 네트워크에서 가져오고 캐시에 저장 (GET 요청만, http/https만)
           return fetch(request).then((response) => {
-            if (response && response.status === 200 && request.method === 'GET') {
+            if (response && response.status === 200 && request.method === 'GET' && 
+                (url.protocol === 'http:' || url.protocol === 'https:')) {
               const responseToCache = response.clone();
               // 이미지는 IMAGE_CACHE에 저장
               caches.open(IMAGE_CACHE_NAME).then((cache) => {
-                cache.put(request, responseToCache);
+                cache.put(request, responseToCache).catch((error) => {
+                  // 캐시 실패는 무시 (chrome-extension 등 지원하지 않는 스킴)
+                  console.warn('[Service Worker] Cache put failed:', error);
+                });
               });
             }
             return response;
