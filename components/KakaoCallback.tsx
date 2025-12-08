@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { getApiUrl } from '../utils/apiConfig.js';
 
 const KakaoCallback: React.FC = () => {
     const { setCurrentUserAndRoute } = useAppContext();
@@ -20,7 +21,7 @@ const KakaoCallback: React.FC = () => {
                 }
 
                 // 서버에 카카오 로그인 요청
-                const response = await fetch('/api/auth/kakao/callback', {
+                const response = await fetch(getApiUrl('/api/auth/kakao/callback'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code }),

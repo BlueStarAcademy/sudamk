@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Button from './Button.js';
 import { containsProfanity } from '../profanity.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { getApiUrl } from '../utils/apiConfig.js';
 
 const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 6;
@@ -23,7 +24,7 @@ const Register: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/auth/email/verify', {
+            const response = await fetch(getApiUrl('/api/auth/email/verify'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: userIdToVerify, code }),
@@ -35,7 +36,7 @@ const Register: React.FC = () => {
             }
             
             // 인증 성공, 사용자 정보 가져오기
-            const userResponse = await fetch('/api/state', {
+            const userResponse = await fetch(getApiUrl('/api/state'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: userIdToVerify }),
@@ -112,7 +113,7 @@ const Register: React.FC = () => {
                 hasPassword: !!requestBody.password
             });
             
-            const response = await fetch('/api/auth/register', {
+            const response = await fetch(getApiUrl('/api/auth/register'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody),

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Button from './Button.js';
 import { containsProfanity } from '../profanity.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { getApiUrl } from '../utils/apiConfig.js';
 
 const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 6;
@@ -45,7 +46,7 @@ const SetNickname: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const response = await fetch('/api/auth/set-nickname', {
+            const response = await fetch(getApiUrl('/api/auth/set-nickname'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nickname: nickname.trim(), userId: currentUser.id }),
