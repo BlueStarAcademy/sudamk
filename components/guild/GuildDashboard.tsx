@@ -572,11 +572,17 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     
     const canStartWar = myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
 
+    // handlers.handleAction을 ref로 저장하여 무한 루프 방지
+    const handleActionRef = React.useRef(handlers.handleAction);
+    React.useEffect(() => {
+        handleActionRef.current = handlers.handleAction;
+    }, [handlers.handleAction]);
+
     React.useEffect(() => {
         // 길드전 데이터 가져오기
         const fetchWarData = async () => {
             try {
-                const result = await handlers.handleAction({ type: 'GET_GUILD_WAR_DATA' }) as any;
+                const result = await handleActionRef.current({ type: 'GET_GUILD_WAR_DATA' }) as any;
                 if (result?.error) {
                     console.error('[WarPanel] Failed to fetch war data:', result.error);
                     return;
@@ -629,7 +635,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
         const interval = setInterval(fetchWarData, 30000); // 30초마다 갱신
         return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [guild.id, handlers, currentUserWithStatus?.id]);
+    }, [guild.id, currentUserWithStatus?.id]); // handlers를 의존성에서 제거하여 무한 루프 방지
     
     // 남은 시간 계산
     React.useEffect(() => {

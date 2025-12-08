@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
@@ -31,13 +31,19 @@ const GuildWar = () => {
     const [remainingTime, setRemainingTime] = useState<string>('');
     const [isDemoMode, setIsDemoMode] = useState(false);
 
+    // handlers.handleAction을 ref로 저장하여 무한 루프 방지
+    const handleActionRef = useRef(handlers.handleAction);
+    useEffect(() => {
+        handleActionRef.current = handlers.handleAction;
+    }, [handlers.handleAction]);
+
     // 길드전 데이터 가져오기
     useEffect(() => {
         const fetchWarData = async () => {
             if (!currentUserWithStatus?.guildId) return;
             
             try {
-                const result = await handlers.handleAction({ type: 'GET_GUILD_WAR_DATA' }) as any;
+                const result = await handleActionRef.current({ type: 'GET_GUILD_WAR_DATA' }) as any;
                 if (result?.error) {
                     console.error('[GuildWar] Failed to fetch war data:', result.error);
                     return;
@@ -208,7 +214,7 @@ const GuildWar = () => {
         };
         
         fetchWarData();
-    }, [currentUserWithStatus?.guildId, handlers, guilds, allUsers]);
+    }, [currentUserWithStatus?.guildId, guilds, allUsers]); // handlers를 의존성에서 제거하여 무한 루프 방지
     
     // 바둑판 클릭 시 도전
     const handleBoardClick = async (board: Board) => {
