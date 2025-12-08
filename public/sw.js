@@ -91,6 +91,18 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
+  // POST, PUT, DELETE 등 비GET 요청은 네트워크로 직접 전달 (캐시 불가)
+  if (request.method !== 'GET') {
+    event.respondWith(fetch(request));
+    return;
+  }
+  
+  // API 요청(/api, /ws)은 네트워크로 직접 전달
+  if (url.pathname.startsWith('/api') || url.pathname.startsWith('/ws')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+  
   // HTML, JS, CSS 파일은 네트워크 우선 전략 사용 (항상 최신 버전)
   if (request.destination === 'document' || 
       request.destination === 'script' || 
@@ -101,8 +113,8 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // 네트워크에서 성공하면 캐시에 저장하고 반환
-          if (response && response.status === 200) {
+          // 네트워크에서 성공하면 캐시에 저장하고 반환 (GET 요청만)
+          if (response && response.status === 200 && request.method === 'GET') {
             const responseToCache = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, responseToCache);
@@ -124,7 +136,7 @@ self.addEventListener('fetch', (event) => {
         })
     );
   } else {
-    // 이미지 등 정적 리소스는 캐시 우선 전략 사용
+    // 이미지 등 정적 리소스는 캐시 우선 전략 사용 (GET 요청만)
     event.respondWith(
       caches.match(request, { cacheName: IMAGE_CACHE_NAME })
         .then((cachedResponse) => {
@@ -138,9 +150,9 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          // 캐시에 없으면 네트워크에서 가져오고 캐시에 저장
+          // 캐시에 없으면 네트워크에서 가져오고 캐시에 저장 (GET 요청만)
           return fetch(request).then((response) => {
-            if (response && response.status === 200) {
+            if (response && response.status === 200 && request.method === 'GET') {
               const responseToCache = response.clone();
               // 이미지는 IMAGE_CACHE에 저장
               caches.open(IMAGE_CACHE_NAME).then((cache) => {
