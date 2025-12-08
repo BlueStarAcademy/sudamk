@@ -100,13 +100,23 @@ async function resetAllGuilds() {
             timeout: 30000, // 30초 타임아웃
         });
         
-        // 10. KV store의 guilds 초기화
-        console.log('[10/10] KV store의 길드 정보 초기화 중...');
+        // 10. KV store의 모든 길드 관련 데이터 초기화
+        console.log('[10/12] KV store의 길드 정보 초기화 중...');
         await db.setKV('guilds', {});
         console.log('  ✓ KV store의 길드 정보 초기화됨');
         
-        // 11. 모든 사용자의 길드 정보 완전히 제거
-        console.log('[11/11] 모든 사용자의 길드 정보 완전히 제거 중...');
+        // 11. KV store의 활성 길드전 초기화
+        console.log('[11/12] KV store의 활성 길드전 정보 초기화 중...');
+        await db.setKV('activeGuildWars', []);
+        console.log('  ✓ KV store의 활성 길드전 정보 초기화됨');
+        
+        // 12. KV store의 길드전 매칭 큐 초기화
+        console.log('[12/12] KV store의 길드전 매칭 큐 초기화 중...');
+        await db.setKV('guildWarMatchingQueue', []);
+        console.log('  ✓ KV store의 길드전 매칭 큐 초기화됨');
+        
+        // 13. 모든 사용자의 길드 정보 완전히 제거
+        console.log('[13/13] 모든 사용자의 길드 정보 완전히 제거 중...');
         const allUsers = await prisma.user.findMany({
             select: { 
                 id: true, 
