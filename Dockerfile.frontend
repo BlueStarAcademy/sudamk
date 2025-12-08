@@ -44,10 +44,15 @@ RUN npm install -g serve
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 
-# Expose port 3000
-EXPOSE 3000
+# Railway는 PORT 환경 변수를 자동으로 설정합니다
+# 기본값은 3000이지만 Railway가 설정한 PORT를 사용합니다
+ENV PORT=3000
 
-# Start static file server
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Expose port (Railway가 PORT 환경 변수로 설정)
+EXPOSE $PORT
+
+# Start static file server using Railway's PORT environment variable
+# sh를 사용하여 PORT 환경 변수를 명시적으로 전달
+CMD sh -c "serve -s dist -l ${PORT:-3000}"
 
 
