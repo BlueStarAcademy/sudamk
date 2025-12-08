@@ -10,6 +10,35 @@ const getDatabaseUrl = () => {
             process.env.POSTGRES_PRIVATE_URL || 
             '';
   
+  // Railway 변수 참조 문법 감지 및 처리
+  // Railway는 ${{Service.Variable}} 형식의 참조를 사용하는데, 런타임에 해석되지 않을 수 있음
+  if (url && (url.includes('${{') || url.includes('{{'))) {
+    console.warn('[Prisma] ⚠️ WARNING: DATABASE_URL contains Railway variable reference syntax!');
+    console.warn('[Prisma] Railway variable references like ${{Postgres.DATABASE_URL}} may not be resolved at runtime.');
+    console.warn('[Prisma] Please use the actual DATABASE_URL value instead of the reference.');
+    console.warn('[Prisma]');
+    console.warn('[Prisma] 🔧 How to fix:');
+    console.warn('[Prisma] 1. Go to Railway Dashboard → Postgres Service → Variables');
+    console.warn('[Prisma] 2. Copy the actual DATABASE_URL value (should start with postgresql://)');
+    console.warn('[Prisma] 3. Go to Backend Service → Variables');
+    console.warn('[Prisma] 4. Delete the ${{Postgres.DATABASE_URL}} variable');
+    console.warn('[Prisma] 5. Railway will automatically provide DATABASE_URL when Postgres is connected');
+    console.warn('[Prisma]    OR manually set DATABASE_URL with the copied value');
+    console.warn('[Prisma]');
+    // Railway 자동 변수 확인 (Railway가 Postgres 연결 시 자동으로 제공)
+    const autoUrl = process.env.RAILWAY_SERVICE_POSTGRES_URL || 
+                   process.env.POSTGRES_PRIVATE_URL ||
+                   process.env.POSTGRES_URL;
+    if (autoUrl && (autoUrl.startsWith('postgresql://') || autoUrl.startsWith('postgres://'))) {
+      console.log('[Prisma] ✅ Found Railway auto-provided DATABASE_URL, using it instead');
+      url = autoUrl;
+      process.env.DATABASE_URL = url;
+    } else {
+      console.error('[Prisma] ❌ Cannot resolve Railway variable reference. Please set DATABASE_URL manually.');
+      return url; // 원본 반환하여 Prisma가 명확한 에러 표시
+    }
+  }
+  
   // 찾은 경우 DATABASE_URL로 설정
   if (url && !process.env.DATABASE_URL) {
     process.env.DATABASE_URL = url;
@@ -19,6 +48,50 @@ const getDatabaseUrl = () => {
     console.error('[Prisma] DATABASE_URL is not set! Please set DATABASE_URL to Railway PostgreSQL connection string.');
     console.error('[Prisma] Checked variables: DATABASE_URL, RAILWAY_SERVICE_POSTGRES_URL, POSTGRES_URL, POSTGRES_PRIVATE_URL');
     return url;
+  }
+  
+  // 프로토콜이 없는 경우 Railway 자동 변수에서 올바른 URL 찾기 시도
+  if (!url.startsWith('postgresql://') && !url.startsWith('postgres://')) {
+    console.warn('[Prisma] ⚠️ WARNING: DATABASE_URL is missing protocol!');
+    console.warn('[Prisma] Current DATABASE_URL (first 50 chars):', url.substring(0, 50));
+    console.warn('[Prisma] Attempting to find correct DATABASE_URL from Railway auto-provided variables...');
+    
+    // Railway가 자동으로 제공하는 다른 환경 변수들 확인
+    const alternativeUrls = [
+      process.env.RAILWAY_SERVICE_POSTGRES_URL,
+      process.env.POSTGRES_PRIVATE_URL,
+      process.env.POSTGRES_URL,
+      process.env.PGDATABASE_URL,
+      process.env.DATABASE_PRIVATE_URL
+    ].filter(Boolean);
+    
+    // 프로토콜이 있는 올바른 URL 찾기
+    const correctUrl = alternativeUrls.find(u => 
+      u && (u.startsWith('postgresql://') || u.startsWith('postgres://'))
+    );
+    
+    if (correctUrl) {
+      console.log('[Prisma] ✅ Found correct DATABASE_URL in Railway auto-provided variables');
+      console.log('[Prisma] Using:', correctUrl.replace(/:[^:@]+@/, ':****@').substring(0, 80));
+      url = correctUrl;
+      process.env.DATABASE_URL = url;
+    } else {
+      console.error('[Prisma] ❌ ERROR: Could not find valid DATABASE_URL!');
+      console.error('[Prisma] DATABASE_URL must start with "postgresql://" or "postgres://"');
+      console.error('[Prisma]');
+      console.error('[Prisma] 🔧 How to fix in Railway:');
+      console.error('[Prisma] 1. Go to Railway Dashboard → Postgres Service → Variables');
+      console.error('[Prisma] 2. Find DATABASE_URL or POSTGRES_URL variable');
+      console.error('[Prisma] 3. Copy the FULL URL (must start with postgresql://)');
+      console.error('[Prisma] 4. Go to Backend Service → Variables');
+      console.error('[Prisma] 5. Set DATABASE_URL to the copied value');
+      console.error('[Prisma]');
+      console.error('[Prisma] Expected format:');
+      console.error('[Prisma]   postgresql://postgres:PASSWORD@HOST:PORT/DATABASE');
+      console.error('[Prisma]');
+      // 원본 URL 반환 (Prisma가 명확한 에러를 표시하도록)
+      return url;
+    }
   }
   
   // Supabase URL 감지 및 경고

@@ -170,6 +170,21 @@ const startServer = async () => {
     const dbInitPromise = (async () => {
         // --- Debug: Check DATABASE_URL ---
         // Railway는 때때로 다른 이름으로 DATABASE_URL을 제공합니다 (예: RAILWAY_SERVICE_POSTGRES_URL)
+        // 모든 DATABASE 관련 환경 변수 확인 및 로깅
+        const allDbVars = Object.keys(process.env).filter(k => 
+            k.includes('DATABASE') || k.includes('POSTGRES')
+        );
+        console.log(`[Server Startup] All DATABASE/POSTGRES environment variables: ${allDbVars.join(', ')}`);
+        
+        // 각 변수의 첫 50자만 로깅 (보안을 위해)
+        allDbVars.forEach(key => {
+            const value = process.env[key];
+            if (value) {
+                const preview = value.length > 50 ? value.substring(0, 50) + '...' : value;
+                console.log(`[Server Startup] ${key}: ${preview} (length: ${value.length})`);
+            }
+        });
+        
         let dbUrl = process.env.DATABASE_URL;
         if (!dbUrl) {
             // Railway 자동 연결 변수 확인
@@ -184,6 +199,20 @@ const startServer = async () => {
                 console.log(`[Server Startup] Using ${Object.keys(process.env).find(k => process.env[k] === dbUrl)} as DATABASE_URL`);
             }
         }
+        
+        // DATABASE_URL이 프로토콜 없이 시작하는 경우, Railway 자동 변수에서 올바른 값 찾기
+        if (dbUrl && !dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+            console.warn(`[Server Startup] ⚠️ DATABASE_URL is missing protocol! Looking for correct value...`);
+            const correctUrl = process.env.RAILWAY_SERVICE_POSTGRES_URL || 
+                              process.env.POSTGRES_PRIVATE_URL ||
+                              process.env.POSTGRES_URL;
+            if (correctUrl && (correctUrl.startsWith('postgresql://') || correctUrl.startsWith('postgres://'))) {
+                console.log(`[Server Startup] ✅ Found correct DATABASE_URL in Railway auto-provided variables`);
+                dbUrl = correctUrl;
+                process.env.DATABASE_URL = dbUrl;
+            }
+        }
+        
         console.log(`[Server Startup] DATABASE_URL check: ${dbUrl ? `Set (length: ${dbUrl.length}, starts with: ${dbUrl.substring(0, 20)}...)` : 'NOT SET'}`);
         if (!dbUrl) {
             console.error("[Server Startup] DATABASE_URL is not set! Please check Railway Variables.");
