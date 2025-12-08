@@ -457,6 +457,18 @@ const startServer = async () => {
     let isServerReady = false;
     
     // 헬스체크 엔드포인트를 가장 먼저 등록 (서버가 시작되기 전에도 응답 가능하도록)
+    // Root endpoint
+    app.get('/', (req, res) => {
+        res.json({
+            service: 'backend',
+            status: 'running',
+            endpoints: {
+                health: '/api/health',
+                api: '/api/*'
+            }
+        });
+    });
+    
     // Railway 헬스체크가 즉시 통과할 수 있도록 최우선 등록
     app.get('/api/health', (req, res) => {
         // 서버가 리스닝 중이 아니어도 헬스체크는 성공으로 반환
