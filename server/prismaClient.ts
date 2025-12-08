@@ -130,22 +130,21 @@ const getDatabaseUrl = () => {
   }
   
   // 연결 풀링 파라미터 추가 (Railway 환경 최적화)
-  // Railway 무료/스타터 플랜에 맞게 연결 수 조정
-  // connection_limit: 최대 연결 수 (Railway 제한 고려)
-  // pool_timeout: 연결 대기 시간 단축
-  // connect_timeout: 연결 타임아웃 단축
+  // Railway Postgres 연결 안정성을 위한 설정
+  // connection_limit: Railway의 연결 제한을 고려하여 낮게 설정 (연결 끊김 방지)
+  // pool_timeout: 연결 대기 시간
+  // connect_timeout: 연결 타임아웃
   // statement_cache_size: 쿼리 캐시 크기
+  // pgbouncer_mode: transaction 모드로 설정하여 연결 재사용 최적화
   const separator = url.includes('?') ? '&' : '?';
-  // Railway DB 연결 최적화 (로컬에서도 Railway DB 사용)
-  // Railway는 연결 수 제한이 있으므로 적절히 설정
-  // Railway DB는 네트워크 지연이 있으므로 연결 풀을 적절히 설정
-  // 연결 수를 늘려서 동시 요청 처리 능력 향상 (1000명 동시 접속 대응)
-  // 1000명 동시 접속 시 WebSocket 초기 상태 로드로 인한 동시 쿼리 증가 고려
-  const connectionLimit = isRailway ? '100' : '150'; // Railway: 100개, 로컬: 150개 연결 (1000명 대응)
-  const poolTimeout = isRailway ? '60' : '40'; // Railway: 60초, 로컬: 40초 대기 시간 (증가)
-  const connectTimeout = isRailway ? '20' : '15'; // Railway: 20초, 로컬: 15초 타임아웃 (증가)
-  // statement_cache_size를 0으로 설정하면 매번 쿼리를 파싱하므로, 캐시 활성화
-  const statementCacheSize = '500'; // 쿼리 캐시 크기 증가 (1000명 대응)
+  // Railway DB 연결 최적화
+  // Railway Postgres는 연결 수 제한이 있으므로 보수적으로 설정
+  // 연결이 끊어지는 문제를 방지하기 위해 connection_limit을 낮춤
+  const connectionLimit = isRailway ? '20' : '50'; // Railway: 20개 (연결 끊김 방지), 로컬: 50개
+  const poolTimeout = isRailway ? '30' : '20'; // Railway: 30초, 로컬: 20초
+  const connectTimeout = isRailway ? '10' : '5'; // Railway: 10초, 로컬: 5초
+  const statementCacheSize = '250'; // 쿼리 캐시 크기
+  // Railway 내부 네트워크에서 연결이 끊어지는 것을 방지하기 위한 설정
   return `${url}${separator}connection_limit=${connectionLimit}&pool_timeout=${poolTimeout}&connect_timeout=${connectTimeout}&statement_cache_size=${statementCacheSize}`;
 };
 
@@ -182,17 +181,23 @@ const reconnectPrisma = async () => {
   }
 };
 
-// 주기적으로 연결 상태 확인
+// 주기적으로 연결 상태 확인 (더 자주 확인하여 빠른 재연결)
 setInterval(async () => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+    ]);
   } catch (error: any) {
-    if (error.code === 'P1017' || error.message?.includes('closed the connection')) {
-      console.warn('[Prisma] Connection lost, attempting to reconnect...');
+    if (error.code === 'P1017' || 
+        error.message?.includes('closed the connection') ||
+        error.message?.includes('timeout') ||
+        error.kind === 'Closed') {
+      console.warn('[Prisma] Connection lost or timeout, attempting to reconnect...');
       await reconnectPrisma();
     }
   }
-}, 30000); // 30초마다 확인
+}, 15000); // 15초마다 확인 (더 자주 확인)
 
 // 프로세스 종료 시 정리
 process.on('beforeExit', async () => {
