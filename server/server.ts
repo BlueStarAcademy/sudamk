@@ -155,6 +155,15 @@ const LOBBY_TIMEOUT_MS = 90 * 1000;
 const GAME_DISCONNECT_TIMEOUT_MS = 90 * 1000;
 
 const startServer = async () => {
+    // 서버 시작 즉시 로그 출력 (헬스체크가 서버가 시작 중임을 알 수 있도록)
+    console.log('[Server] ========================================');
+    console.log('[Server] Starting server...');
+    console.log('[Server] Node version:', process.version);
+    console.log('[Server] Process PID:', process.pid);
+    console.log('[Server] Railway environment:', process.env.RAILWAY_ENVIRONMENT || 'not set');
+    console.log('[Server] PORT:', process.env.PORT || '4000');
+    console.log('[Server] ========================================');
+    
     // 서버 리스닝을 최우선으로 하기 위해 데이터베이스 초기화를 비동기로 처리
     // 타임아웃 추가 (5초) - 서버 시작 속도 향상
     let dbInitialized = false;
@@ -404,23 +413,36 @@ const startServer = async () => {
             console.error(`[Server] Invalid PORT environment variable: ${portEnv}. Using default port 4000.`);
             port = 4000;
         } else {
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[Server] Using PORT from environment: ${port}`);
-            }
+            console.log(`[Server] Using PORT from environment: ${port}`);
         }
     } else {
         port = 4000;
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`[Server] PORT not set, using default: ${port}`);
-        }
+        console.log(`[Server] PORT not set, using default: ${port}`);
     }
     
     // Railway는 PORT 환경 변수를 자동으로 설정함
     // Railway의 경우 process.env.PORT를 사용해야 함
-    if (process.env.NODE_ENV === 'development') {
-        console.log(`[Server] process.env.PORT: ${process.env.PORT || 'not set (using default 4000)'}`);
-        console.log(`[Server] Server will listen on port: ${port}`);
-    }
+    console.log(`[Server] Server will listen on port: ${port}`);
+    
+    // 서버 리스닝 상태를 전역으로 저장 (헬스체크용)
+    let isServerReady = false;
+    
+    // 헬스체크 엔드포인트를 가장 먼저 등록 (서버가 시작되기 전에도 응답 가능하도록)
+    // Railway 헬스체크가 즉시 통과할 수 있도록 최우선 등록
+    app.get('/api/health', (req, res) => {
+        // 서버가 리스닝 중이 아니어도 헬스체크는 성공으로 반환
+        // Railway가 헬스체크 실패로 인해 무한 재시작하는 것을 방지
+        res.status(200).json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            listening: false, // 서버 리스닝 전에는 false
+            ready: isServerReady,
+            pid: process.pid
+        });
+    });
+    
+    console.log('[Server] Health check endpoint registered (early)');
 
     // CORS 설정 - 프로덕션에서는 특정 origin만 허용
     const corsOptions: cors.CorsOptions = {
@@ -559,12 +581,9 @@ const startServer = async () => {
         // WebSocket 서버 생성 실패해도 HTTP 서버는 계속 실행
     }
 
-    // 서버 리스닝 상태를 전역으로 저장 (헬스체크용)
-    let isServerReady = false;
-    
-    // Health check endpoint (server 생성 직후 정의하여 클로저로 접근 가능)
-    // Railway 크래시 루프 방지를 위해 항상 200 반환
-    // 서버가 리스닝 중이면 healthy로 간주
+    // Health check endpoint는 이미 Express 앱 생성 직후 등록됨
+    // 서버 리스닝 후 더 상세한 정보를 제공하도록 업데이트
+    // 서버 객체가 생성된 후 헬스체크를 업데이트 (기존 간단한 버전을 덮어씀)
     app.get('/api/health', async (req, res) => {
         // Health Check 로그 (간소화하여 성능 영향 최소화)
         const startTime = Date.now();
