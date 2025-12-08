@@ -24,6 +24,7 @@ FROM build-deps AS build
 COPY package.json package-lock.json ./
 COPY server ./server
 COPY shared ./shared
+COPY types ./types
 COPY tsconfig.base.json ./
 
 # KataGo service doesn't need Prisma (no database access)
@@ -78,6 +79,7 @@ RUN for pkg in @swc/core @swc/helpers; do \
 # Copy application code
 COPY --from=build /app/server ./server
 COPY --from=build /app/shared ./shared
+COPY --from=build /app/types ./types
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/tsconfig.base.json ./tsconfig.base.json
 
