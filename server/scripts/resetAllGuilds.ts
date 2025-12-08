@@ -115,8 +115,8 @@ async function resetAllGuilds() {
         await db.setKV('guildWarMatchingQueue', []);
         console.log('  ✓ KV store의 길드전 매칭 큐 초기화됨');
         
-        // 13. 모든 사용자의 길드 정보 완전히 제거
-        console.log('[13/13] 모든 사용자의 길드 정보 완전히 제거 중...');
+        // 13. 모든 사용자의 길드 정보 완전히 제거 (Prisma)
+        console.log('[13/15] 모든 사용자의 길드 정보 완전히 제거 중 (Prisma)...');
         const allUsers = await prisma.user.findMany({
             select: { 
                 id: true, 
@@ -126,7 +126,7 @@ async function resetAllGuilds() {
             }
         });
         
-        let usersUpdated = 0;
+        let prismaUsersUpdated = 0;
         for (const user of allUsers) {
             let needsUpdate = false;
             const status = user.status && typeof user.status === 'object' ? { ...(user.status as any) } : {};
@@ -165,10 +165,73 @@ async function resetAllGuilds() {
                     where: { id: user.id },
                     data: updateData
                 });
-                usersUpdated++;
+                prismaUsersUpdated++;
             }
         }
-        console.log(`  ✓ ${usersUpdated}명의 사용자에서 모든 길드 정보 제거됨`);
+        console.log(`  ✓ ${prismaUsersUpdated}명의 사용자에서 모든 길드 정보 제거됨 (Prisma)`);
+        
+        // 14. KV store의 모든 사용자 데이터에서 길드 정보 제거
+        console.log('[14/15] KV store의 모든 사용자 데이터에서 길드 정보 제거 중...');
+        let kvUsersUpdated = 0;
+        for (const user of allUsers) {
+            try {
+                const kvUser = await db.getUser(user.id);
+                if (kvUser) {
+                    let needsKvUpdate = false;
+                    
+                    // KV store 사용자의 guildId 제거
+                    if (kvUser.guildId) {
+                        kvUser.guildId = undefined;
+                        needsKvUpdate = true;
+                    }
+                    
+                    // KV store 사용자의 status JSON에서 guildId 제거
+                    if (kvUser.status && typeof kvUser.status === 'object') {
+                        const kvStatus = { ...(kvUser.status as any) };
+                        if (kvStatus.guildId) {
+                            delete kvStatus.guildId;
+                            kvUser.status = kvStatus;
+                            needsKvUpdate = true;
+                        }
+                        if (kvStatus.guildApplications) {
+                            delete kvStatus.guildApplications;
+                            kvUser.status = kvStatus;
+                            needsKvUpdate = true;
+                        }
+                    }
+                    
+                    if (needsKvUpdate) {
+                        await db.updateUser(kvUser);
+                        kvUsersUpdated++;
+                    }
+                }
+            } catch (error: any) {
+                console.warn(`  ⚠ KV store 사용자 ${user.id} 업데이트 실패: ${error.message}`);
+            }
+        }
+        console.log(`  ✓ ${kvUsersUpdated}명의 사용자에서 모든 길드 정보 제거됨 (KV store)`);
+        
+        // 15. 최종 확인: 모든 사용자의 길드 정보가 제거되었는지 확인
+        console.log('[15/15] 최종 확인: 남아있는 길드 정보 확인 중...');
+        const remainingGuildUsers = await prisma.user.findMany({
+            where: {
+                OR: [
+                    { guild: { isNot: null } },
+                    { guildMember: { isNot: null } },
+                    { status: { path: ['guildId'], not: null } }
+                ]
+            },
+            select: { id: true, nickname: true }
+        });
+        
+        if (remainingGuildUsers.length > 0) {
+            console.warn(`  ⚠ ${remainingGuildUsers.length}명의 사용자에 아직 길드 정보가 남아있습니다:`);
+            for (const user of remainingGuildUsers) {
+                console.warn(`    - ${user.nickname} (${user.id})`);
+            }
+        } else {
+            console.log('  ✓ 모든 사용자의 길드 정보가 완전히 제거되었습니다.');
+        }
         
         console.log('\n' + '='.repeat(60));
         console.log('✓ 모든 길드 정보가 성공적으로 초기화되었습니다!');
