@@ -4,132 +4,257 @@
  * - 토너먼트 상태 초기화
  * - 일일 랭킹 데이터 초기화
  * - 챔피언십 점수 초기화
+ * - Prisma와 KV store 모두 업데이트
+ * 
+ * 실행 방법:
+ * npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipData.ts
  */
 
+import prisma from '../prismaClient.js';
 import * as db from '../db.js';
 import * as types from '../../types/index.js';
 
 const resetAllChampionshipData = async () => {
-    console.log('[ResetChampionshipData] Starting complete championship data reset...');
+    console.log('='.repeat(60));
+    console.log('챔피언십 데이터 초기화 시작...');
+    console.log('='.repeat(60));
     
-    const allUsers = await db.getAllUsers();
-    console.log(`[ResetChampionshipData] Found ${allUsers.length} users`);
-    
-    let usersUpdated = 0;
-    let dungeonProgressReset = 0;
-    let tournamentStateReset = 0;
-    let dailyRankingsReset = 0;
-    let scoreReset = 0;
-    
-    for (const user of allUsers) {
-        let hasChanges = false;
-        const updatedUser = JSON.parse(JSON.stringify(user));
+    try {
+        // 1. Prisma에서 모든 사용자 가져오기
+        console.log('[1/3] Prisma에서 모든 사용자 가져오는 중...');
+        const allPrismaUsers = await prisma.user.findMany({
+            select: {
+                id: true,
+                nickname: true,
+                tournamentScore: true,
+                status: true
+            }
+        });
+        console.log(`  ✓ ${allPrismaUsers.length}명의 사용자 발견`);
         
-        // 1. 던전 진행 상태 초기화
-        if (updatedUser.dungeonProgress) {
-            updatedUser.dungeonProgress = {
-                neighborhood: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
-                national: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
-                world: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
-            };
-            hasChanges = true;
-            dungeonProgressReset++;
-            console.log(`[ResetChampionshipData] Reset dungeonProgress for ${updatedUser.nickname} (${updatedUser.id})`);
-        }
+        let prismaUsersUpdated = 0;
+        let kvUsersUpdated = 0;
+        let dungeonProgressReset = 0;
+        let tournamentStateReset = 0;
+        let dailyRankingsReset = 0;
+        let scoreReset = 0;
         
-        // 2. 토너먼트 상태 초기화
-        if (updatedUser.lastNeighborhoodTournament) {
-            updatedUser.lastNeighborhoodTournament = null;
-            hasChanges = true;
-            tournamentStateReset++;
-        }
-        if (updatedUser.lastNationalTournament) {
-            updatedUser.lastNationalTournament = null;
-            hasChanges = true;
-            tournamentStateReset++;
-        }
-        if (updatedUser.lastWorldTournament) {
-            updatedUser.lastWorldTournament = null;
-            hasChanges = true;
-            tournamentStateReset++;
-        }
-        
-        // 3. 플레이 날짜 초기화
-        if (updatedUser.lastNeighborhoodPlayedDate) {
-            updatedUser.lastNeighborhoodPlayedDate = null;
-            hasChanges = true;
-        }
-        if (updatedUser.lastNationalPlayedDate) {
-            updatedUser.lastNationalPlayedDate = null;
-            hasChanges = true;
-        }
-        if (updatedUser.lastWorldPlayedDate) {
-            updatedUser.lastWorldPlayedDate = null;
-            hasChanges = true;
-        }
-        
-        // 4. 일일 랭킹 데이터 초기화 (championship 부분만)
-        if (updatedUser.dailyRankings) {
-            if (updatedUser.dailyRankings.championship) {
-                updatedUser.dailyRankings.championship = undefined;
-                hasChanges = true;
-                dailyRankingsReset++;
+        // 2. 각 사용자의 챔피언십 데이터 초기화
+        console.log('[2/3] 각 사용자의 챔피언십 데이터 초기화 중...');
+        for (const prismaUser of allPrismaUsers) {
+            let prismaNeedsUpdate = false;
+            let kvNeedsUpdate = false;
+            
+            // Prisma 업데이트 데이터
+            const prismaUpdateData: any = {};
+            
+            // Prisma: tournamentScore 초기화
+            if (prismaUser.tournamentScore !== 0) {
+                prismaUpdateData.tournamentScore = 0;
+                prismaNeedsUpdate = true;
+                scoreReset++;
+            }
+            
+            // KV store 사용자 데이터 가져오기
+            let kvUser: types.User | null = null;
+            try {
+                kvUser = await db.getUser(prismaUser.id);
+            } catch (error) {
+                // KV store에 없으면 건너뛰기
+            }
+            
+            if (kvUser) {
+                const updatedKvUser = JSON.parse(JSON.stringify(kvUser));
+                
+                // 1. 던전 진행 상태 초기화
+                if (updatedKvUser.dungeonProgress) {
+                    updatedKvUser.dungeonProgress = {
+                        neighborhood: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
+                        national: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
+                        world: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
+                    };
+                    kvNeedsUpdate = true;
+                    dungeonProgressReset++;
+                }
+                
+                // 2. 토너먼트 상태 초기화
+                if (updatedKvUser.lastNeighborhoodTournament) {
+                    updatedKvUser.lastNeighborhoodTournament = null;
+                    kvNeedsUpdate = true;
+                    tournamentStateReset++;
+                }
+                if (updatedKvUser.lastNationalTournament) {
+                    updatedKvUser.lastNationalTournament = null;
+                    kvNeedsUpdate = true;
+                    tournamentStateReset++;
+                }
+                if (updatedKvUser.lastWorldTournament) {
+                    updatedKvUser.lastWorldTournament = null;
+                    kvNeedsUpdate = true;
+                    tournamentStateReset++;
+                }
+                
+                // 3. 플레이 날짜 초기화
+                if (updatedKvUser.lastNeighborhoodPlayedDate) {
+                    updatedKvUser.lastNeighborhoodPlayedDate = null;
+                    kvNeedsUpdate = true;
+                }
+                if (updatedKvUser.lastNationalPlayedDate) {
+                    updatedKvUser.lastNationalPlayedDate = null;
+                    kvNeedsUpdate = true;
+                }
+                if (updatedKvUser.lastWorldPlayedDate) {
+                    updatedKvUser.lastWorldPlayedDate = null;
+                    kvNeedsUpdate = true;
+                }
+                
+                // 4. 일일 승리 횟수 초기화
+                if (updatedKvUser.dailyNeighborhoodWins) {
+                    updatedKvUser.dailyNeighborhoodWins = 0;
+                    kvNeedsUpdate = true;
+                }
+                if (updatedKvUser.dailyNationalWins) {
+                    updatedKvUser.dailyNationalWins = 0;
+                    kvNeedsUpdate = true;
+                }
+                if (updatedKvUser.dailyWorldWins) {
+                    updatedKvUser.dailyWorldWins = 0;
+                    kvNeedsUpdate = true;
+                }
+                
+                // 5. 일일 랭킹 데이터 초기화 (championship 부분만)
+                if (updatedKvUser.dailyRankings) {
+                    if (updatedKvUser.dailyRankings.championship) {
+                        updatedKvUser.dailyRankings.championship = undefined;
+                        kvNeedsUpdate = true;
+                        dailyRankingsReset++;
+                    }
+                }
+                
+                // 6. 챔피언십 점수 초기화
+                if (updatedKvUser.dailyDungeonScore !== undefined && updatedKvUser.dailyDungeonScore !== 0) {
+                    updatedKvUser.dailyDungeonScore = 0;
+                    kvNeedsUpdate = true;
+                    scoreReset++;
+                }
+                if (updatedKvUser.cumulativeTournamentScore !== undefined && updatedKvUser.cumulativeTournamentScore !== 0) {
+                    updatedKvUser.cumulativeTournamentScore = 0;
+                    kvNeedsUpdate = true;
+                    scoreReset++;
+                }
+                if (updatedKvUser.yesterdayTournamentScore !== undefined && updatedKvUser.yesterdayTournamentScore !== 0) {
+                    updatedKvUser.yesterdayTournamentScore = 0;
+                    kvNeedsUpdate = true;
+                    scoreReset++;
+                }
+                
+                // 7. 보상 수령 상태 초기화
+                if (updatedKvUser.neighborhoodRewardClaimed) {
+                    updatedKvUser.neighborhoodRewardClaimed = false;
+                    kvNeedsUpdate = true;
+                }
+                if (updatedKvUser.nationalRewardClaimed) {
+                    updatedKvUser.nationalRewardClaimed = false;
+                    kvNeedsUpdate = true;
+                }
+                if (updatedKvUser.worldRewardClaimed) {
+                    updatedKvUser.worldRewardClaimed = false;
+                    kvNeedsUpdate = true;
+                }
+                
+                // KV store 업데이트
+                if (kvNeedsUpdate) {
+                    await db.updateUser(updatedKvUser);
+                    kvUsersUpdated++;
+                }
+            }
+            
+            // Prisma 업데이트
+            if (prismaNeedsUpdate) {
+                await prisma.user.update({
+                    where: { id: prismaUser.id },
+                    data: prismaUpdateData
+                });
+                prismaUsersUpdated++;
             }
         }
         
-        // 5. 챔피언십 점수 초기화
-        if (updatedUser.dailyDungeonScore !== undefined && updatedUser.dailyDungeonScore !== 0) {
-            updatedUser.dailyDungeonScore = 0;
-            hasChanges = true;
-            scoreReset++;
+        // 3. status JSON 필드에서도 챔피언십 데이터 제거
+        console.log('[3/3] Prisma status JSON 필드에서 챔피언십 데이터 제거 중...');
+        let statusUsersUpdated = 0;
+        for (const prismaUser of allPrismaUsers) {
+            if (prismaUser.status && typeof prismaUser.status === 'object') {
+                const status = prismaUser.status as any;
+                let statusNeedsUpdate = false;
+                const updatedStatus = { ...status };
+                
+                // status JSON에서 챔피언십 관련 필드 제거
+                const championshipFields = [
+                    'dungeonProgress',
+                    'lastNeighborhoodTournament',
+                    'lastNationalTournament',
+                    'lastWorldTournament',
+                    'lastNeighborhoodPlayedDate',
+                    'lastNationalPlayedDate',
+                    'lastWorldPlayedDate',
+                    'dailyNeighborhoodWins',
+                    'dailyNationalWins',
+                    'dailyWorldWins',
+                    'neighborhoodRewardClaimed',
+                    'nationalRewardClaimed',
+                    'worldRewardClaimed',
+                    'dailyDungeonScore',
+                    'cumulativeTournamentScore',
+                    'yesterdayTournamentScore'
+                ];
+                
+                for (const field of championshipFields) {
+                    if (updatedStatus[field] !== undefined) {
+                        delete updatedStatus[field];
+                        statusNeedsUpdate = true;
+                    }
+                }
+                
+                // dailyRankings.championship 제거
+                if (updatedStatus.dailyRankings && updatedStatus.dailyRankings.championship) {
+                    delete updatedStatus.dailyRankings.championship;
+                    statusNeedsUpdate = true;
+                }
+                
+                if (statusNeedsUpdate) {
+                    await prisma.user.update({
+                        where: { id: prismaUser.id },
+                        data: { status: updatedStatus }
+                    });
+                    statusUsersUpdated++;
+                }
+            }
         }
-        if (updatedUser.cumulativeTournamentScore !== undefined && updatedUser.cumulativeTournamentScore !== 0) {
-            updatedUser.cumulativeTournamentScore = 0;
-            hasChanges = true;
-            scoreReset++;
-        }
-        if (updatedUser.tournamentScore !== undefined && updatedUser.tournamentScore !== 0) {
-            updatedUser.tournamentScore = 0;
-            hasChanges = true;
-            scoreReset++;
-        }
+        console.log(`  ✓ ${statusUsersUpdated}명의 사용자 status JSON 정리됨`);
         
-        // 6. 보상 수령 상태 초기화 (선택사항)
-        if (updatedUser.neighborhoodRewardClaimed) {
-            updatedUser.neighborhoodRewardClaimed = false;
-            hasChanges = true;
-        }
-        if (updatedUser.nationalRewardClaimed) {
-            updatedUser.nationalRewardClaimed = false;
-            hasChanges = true;
-        }
-        if (updatedUser.worldRewardClaimed) {
-            updatedUser.worldRewardClaimed = false;
-            hasChanges = true;
-        }
+        console.log('\n' + '='.repeat(60));
+        console.log('✓ 챔피언십 데이터 초기화 완료!');
+        console.log('='.repeat(60));
+        console.log(`  - Prisma 사용자 업데이트: ${prismaUsersUpdated}명`);
+        console.log(`  - KV store 사용자 업데이트: ${kvUsersUpdated}명`);
+        console.log(`  - Status JSON 업데이트: ${statusUsersUpdated}명`);
+        console.log(`  - 던전 진행 상태 초기화: ${dungeonProgressReset}명`);
+        console.log(`  - 토너먼트 상태 초기화: ${tournamentStateReset}개`);
+        console.log(`  - 일일 랭킹 초기화: ${dailyRankingsReset}명`);
+        console.log(`  - 점수 초기화: ${scoreReset}개`);
+        console.log('='.repeat(60));
         
-        if (hasChanges) {
-            await db.updateUser(updatedUser);
-            usersUpdated++;
-        }
+    } catch (error: any) {
+        console.error('\n❌ 오류 발생:', error);
+        console.error('스택 트레이스:', error.stack);
+        process.exit(1);
+    } finally {
+        await prisma.$disconnect();
     }
-    
-    console.log(`[ResetChampionshipData] Reset complete:`);
-    console.log(`  - Users updated: ${usersUpdated}/${allUsers.length}`);
-    console.log(`  - Dungeon progress reset: ${dungeonProgressReset}`);
-    console.log(`  - Tournament states reset: ${tournamentStateReset}`);
-    console.log(`  - Daily rankings reset: ${dailyRankingsReset}`);
-    console.log(`  - Scores reset: ${scoreReset}`);
-    console.log(`[ResetChampionshipData] All championship data has been reset. Users can now start fresh.`);
 };
 
 // 스크립트 실행
-resetAllChampionshipData()
-    .then(() => {
-        console.log('[ResetChampionshipData] Script completed successfully');
-        process.exit(0);
-    })
-    .catch((error) => {
-        console.error('[ResetChampionshipData] Script failed:', error);
-        process.exit(1);
-    });
+resetAllChampionshipData().catch((error) => {
+    console.error('예상치 못한 오류:', error);
+    process.exit(1);
+});
