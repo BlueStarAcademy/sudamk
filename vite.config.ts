@@ -77,7 +77,7 @@ export default defineConfig({
   },
   define: {
     // require를 정의하지 않음 (브라우저 환경)
-    'require': undefined,
+    // 'require': undefined, // React와 충돌할 수 있으므로 주석 처리
     'global': 'globalThis',
   },
   optimizeDeps: {
