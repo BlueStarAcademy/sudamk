@@ -31,7 +31,22 @@ COPY client ./client
 COPY services ./services
 COPY shared ./shared
 
+# Accept build-time arguments for Vite environment variables
+# Railway will pass these as build-time environment variables
+ARG VITE_API_URL
+ARG VITE_BACKEND_URL
+ARG VITE_WS_URL
+ARG VITE_BACKEND_WS_URL
+
+# Set as environment variables for Vite build
+# Vite will replace these in the bundle at build time
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+ENV VITE_BACKEND_WS_URL=$VITE_BACKEND_WS_URL
+
 # Build frontend (NODE_ENV를 명시적으로 production으로 설정)
+# Vite will use the VITE_* environment variables during build
 RUN NODE_ENV=production npm run build:client
 
 FROM node:20-alpine AS runner
