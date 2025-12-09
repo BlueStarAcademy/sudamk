@@ -102,20 +102,31 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 : rewards.equipment.grade;
             const isLegendaryOrMythic = equipmentGrade === ItemGrade.Legendary || equipmentGrade === ItemGrade.Mythic;
             
-            // 디버깅을 위한 로그
-            if (!rewards.equipment.name) {
-                console.warn('[GuildBossBattleResultModal] Equipment name is missing:', rewards.equipment);
+            // 장비 이름 확인 및 디버깅
+            const equipmentName = rewards.equipment.name;
+            if (!equipmentName) {
+                console.warn('[GuildBossBattleResultModal] Equipment name is missing:', {
+                    equipment: rewards.equipment,
+                    hasName: !!rewards.equipment.name,
+                    hasImage: !!rewards.equipment.image,
+                    hasSlot: !!rewards.equipment.slot,
+                    grade: equipmentGrade,
+                    equipmentKeys: Object.keys(rewards.equipment)
+                });
             }
+            
+            // 장비 이름이 없으면 fallback 사용 (하지만 서버에서 항상 제공해야 함)
+            const displayName = equipmentName || `${equipmentGrade} 등급 장비`;
             
             cards.push({
                 type: 'equipment',
-                name: rewards.equipment.name || `${equipmentGrade} 등급 장비`,
+                name: displayName,
                 image: rewards.equipment.image || gradeBackgrounds[equipmentGrade] || '/images/equipments/normalbgi.png',
                 grade: equipmentGrade,
                 isSpecial: isLegendaryOrMythic,
                 equipment: {
                     slot: rewards.equipment.slot ? slotNames[rewards.equipment.slot] : undefined,
-                    fullName: rewards.equipment.name,
+                    fullName: equipmentName || displayName, // fullName도 실제 이름 사용
                 },
             });
         }
@@ -246,6 +257,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                                                 />
                                                 <div className="text-center w-full px-0.5">
                                                     <div className={`text-[9px] font-semibold mb-0.5 leading-tight ${card.isSpecial ? 'text-yellow-100' : 'text-white'}`}>
+                                                        {/* 장비 이름 우선순위: equipment.fullName > card.name (실제 장비 이름 표시) */}
                                                         {card.equipment?.fullName || card.name}
                                                     </div>
                                                     {card.equipment?.slot && (

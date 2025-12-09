@@ -37,10 +37,25 @@ const GuildWar = () => {
         handleActionRef.current = handlers.handleAction;
     }, [handlers.handleAction]);
 
+    // 무한루프 방지를 위한 ref
+    const isFetchingRef = useRef(false);
+    const lastFetchTimeRef = useRef(0);
+    const hasInitializedRef = useRef(false);
+    const FETCH_COOLDOWN = 10000; // 10초 쿨다운
+    
     // 길드전 데이터 가져오기
     useEffect(() => {
         const fetchWarData = async () => {
             if (!currentUserWithStatus?.guildId) return;
+            
+            // 이미 fetch 중이거나 쿨다운 중이면 스킵
+            const now = Date.now();
+            if (isFetchingRef.current || (now - lastFetchTimeRef.current < FETCH_COOLDOWN)) {
+                return;
+            }
+            
+            isFetchingRef.current = true;
+            lastFetchTimeRef.current = now;
             
             try {
                 const result = await handleActionRef.current({ type: 'GET_GUILD_WAR_DATA' }) as any;
@@ -50,7 +65,8 @@ const GuildWar = () => {
                 }
                 
                 const war = result?.clientResponse?.activeWar;
-                const guildsData = result?.clientResponse?.guilds || guilds;
+                // guilds를 의존성에서 제거하고 result에서 받은 데이터만 사용
+                const guildsData = result?.clientResponse?.guilds || {};
                 
                 if (!war) {
                     // 활성 길드전이 없음
@@ -210,11 +226,29 @@ const GuildWar = () => {
                 }
             } catch (error) {
                 console.error('[GuildWar] Error fetching war data:', error);
+            } finally {
+                isFetchingRef.current = false;
             }
         };
         
-        fetchWarData();
-    }, [currentUserWithStatus?.guildId, guilds, allUsers]); // handlers를 의존성에서 제거하여 무한 루프 방지
+        // 초기 로드 시에만 실행하고, 이후에는 interval만 사용
+        if (!hasInitializedRef.current) {
+            hasInitializedRef.current = true;
+            fetchWarData();
+        }
+        
+        // 30초마다 갱신 (초기 로드 후)
+        const interval = setInterval(() => {
+            fetchWarData();
+        }, 30000);
+        
+        return () => {
+            clearInterval(interval);
+            // 컴포넌트 언마운트 시에만 초기화 플래그 리셋
+            hasInitializedRef.current = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUserWithStatus?.guildId]); // guilds와 allUsers를 의존성에서 제거하여 무한 루프 방지
     
     // 바둑판 클릭 시 도전
     const handleBoardClick = async (board: Board) => {

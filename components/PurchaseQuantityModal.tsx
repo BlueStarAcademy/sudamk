@@ -54,7 +54,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
     };
 
     return (
-        <DraggableWindow title="수량 선택" onClose={onClose} windowId="purchase-quantity" initialWidth={400} zIndex={60}>
+        <DraggableWindow title="수량 선택" onClose={onClose} windowId="purchase-quantity" initialWidth={400}>
             <div className="text-center flex flex-col items-center">
                 <h3 className="text-xl font-bold mb-4">{item.name}</h3>
                 

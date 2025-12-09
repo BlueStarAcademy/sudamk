@@ -44,7 +44,6 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
             onClose={onClose} 
             windowId="sellMaterialBulk" 
             isTopmost={isTopmost}
-            zIndex={60}
         >
             <div className="p-4 text-on-panel flex flex-col items-center">
                 <div className="mb-4 text-center w-full">

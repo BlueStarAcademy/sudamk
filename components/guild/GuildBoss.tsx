@@ -570,6 +570,24 @@ const GuildBoss: React.FC = () => {
                 const serverResult = (actionResult as any)?.clientResponse?.guildBossBattleResult;
                 const resultToUse = serverResult || finalResult;
                 
+                // 디버깅: 장비 정보 확인
+                if (resultToUse?.rewards?.equipment) {
+                    console.log('[GuildBoss] Equipment info in result:', {
+                        hasName: !!resultToUse.rewards.equipment.name,
+                        name: resultToUse.rewards.equipment.name,
+                        hasImage: !!resultToUse.rewards.equipment.image,
+                        hasSlot: !!resultToUse.rewards.equipment.slot,
+                        grade: resultToUse.rewards.equipment.grade,
+                        equipmentKeys: Object.keys(resultToUse.rewards.equipment)
+                    });
+                } else {
+                    console.warn('[GuildBoss] No equipment in result:', {
+                        hasRewards: !!resultToUse?.rewards,
+                        hasEquipment: !!resultToUse?.rewards?.equipment,
+                        rewardsKeys: resultToUse?.rewards ? Object.keys(resultToUse.rewards) : []
+                    });
+                }
+                
                 // 보스전 후 순위 계산
                 const updatedGuild = (actionResult as any)?.clientResponse?.guilds?.[myGuild.id] || myGuild;
                 const updatedRanking = Object.entries(updatedGuild?.guildBossState?.totalDamageLog || {})

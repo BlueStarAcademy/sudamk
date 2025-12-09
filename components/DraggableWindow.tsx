@@ -34,9 +34,30 @@ interface DraggableWindowProps {
 
 const SETTINGS_KEY = 'draggableWindowSettings';
 
+// 전역 z-index 카운터: 최상위 모달이 항상 가장 높은 z-index를 가지도록 함
+let globalZIndexCounter = 10000;
 
+const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onClose, children, initialWidth = 800, initialHeight, modal = true, closeOnOutsideClick = true, isTopmost = true, headerContent, zIndex, variant = 'default' }) => {
+    // isTopmost가 true일 때는 전역 카운터를 사용하여 항상 최상위에 표시
+    const [effectiveZIndex, setEffectiveZIndex] = useState(() => {
+        if (isTopmost) {
+            // 최상위 모달은 전역 카운터를 증가시켜 항상 최상위에 표시
+            globalZIndexCounter += 1;
+            return globalZIndexCounter;
+        }
+        // isTopmost가 false일 때만 전달된 zIndex 사용 (기본값 50)
+        return zIndex ?? 50;
+    });
 
-const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onClose, children, initialWidth = 800, initialHeight, modal = true, closeOnOutsideClick = true, isTopmost = true, headerContent, zIndex = 9999, variant = 'default' }) => {
+    // isTopmost나 zIndex가 변경될 때 z-index 업데이트
+    useEffect(() => {
+        if (isTopmost) {
+            globalZIndexCounter += 1;
+            setEffectiveZIndex(globalZIndexCounter);
+        } else {
+            setEffectiveZIndex(zIndex ?? 50);
+        }
+    }, [isTopmost, zIndex]);
 
     const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -515,7 +536,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
     const modalContent = (
         <>
             {modal && (
-                 <div className={`fixed inset-0 bg-black/50 ${!isTopmost ? 'backdrop-blur-sm' : ''}`} style={{ zIndex: zIndex - 1 }} />
+                 <div className={`fixed inset-0 bg-black/50 ${!isTopmost ? 'backdrop-blur-sm' : ''}`} style={{ zIndex: effectiveZIndex - 1 }} />
             )}
             <div
                 ref={windowRef}
@@ -537,7 +558,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                         : transformStyle,
                     transformOrigin: 'center',
                     boxShadow: !isStoreVariant && isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : undefined,
-                    zIndex: zIndex,
+                    zIndex: effectiveZIndex,
                 }}
             >
                 {!isTopmost && (

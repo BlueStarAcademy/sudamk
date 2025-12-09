@@ -37,7 +37,6 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
             onClose={onClose} 
             windowId="sellItemConfirm" 
             isTopmost={isTopmost}
-            zIndex={60}
         >
             <div className="p-4 text-on-panel flex flex-col items-center">
                 <div className="mb-4 text-center">

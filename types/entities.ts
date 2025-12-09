@@ -1108,7 +1108,12 @@ export type GuildBossBattleResult = {
         gold: number;
         materials: { name: string; quantity: number };
         tickets: { name: string; quantity: number }[];
-        equipment?: { grade: ItemGrade };
+        equipment?: { 
+            grade: ItemGrade;
+            name?: string;
+            image?: string;
+            slot?: string;
+        };
     };
     battleLog: BattleLogEntry[];
     bossHpBefore: number;

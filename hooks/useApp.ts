@@ -1873,17 +1873,32 @@ export const useApp = () => {
                 if (action.type === 'GET_GUILD_INFO' && result?.clientResponse?.guild) {
                     const guild = result.clientResponse.guild;
                     if (guild && guild.id) {
+                        console.log('[useApp] GET_GUILD_INFO - Updating guilds state:', {
+                            guildId: guild.id,
+                            guildName: guild.name,
+                            hasName: !!guild.name,
+                            guildKeys: Object.keys(guild)
+                        });
                         setGuilds(prev => ({ ...prev, [guild.id]: guild }));
+                    } else {
+                        console.warn('[useApp] GET_GUILD_INFO - Guild data invalid:', {
+                            hasGuild: !!result?.clientResponse?.guild,
+                            guildId: result?.clientResponse?.guild?.id,
+                            guildName: result?.clientResponse?.guild?.name
+                        });
                     }
                 }
                 
                 // Handle other guild responses that might include guilds
-                if (result?.clientResponse?.guilds && typeof result.clientResponse.guilds === 'object') {
-                    setGuilds(prev => ({ ...prev, ...result.clientResponse.guilds }));
-                }
-                
-                if (result?.guilds && typeof result.guilds === 'object') {
-                    setGuilds(prev => ({ ...prev, ...result.guilds }));
+                // GET_GUILD_WAR_DATA는 무한루프 방지를 위해 guilds 업데이트 제외
+                if (action.type !== 'GET_GUILD_WAR_DATA') {
+                    if (result?.clientResponse?.guilds && typeof result.clientResponse.guilds === 'object') {
+                        setGuilds(prev => ({ ...prev, ...result.clientResponse.guilds }));
+                    }
+                    
+                    if (result?.guilds && typeof result.guilds === 'object') {
+                        setGuilds(prev => ({ ...prev, ...result.guilds }));
+                    }
                 }
                 
                 // Return result for actions that need it (preserve original structure)

@@ -61,7 +61,14 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
                         }
                     } else if (result?.clientResponse?.guild) {
                         // 길드 정보가 로드되었으면 hasLoadedRef를 true로 유지
+                        console.log('[GuildHome] GET_GUILD_INFO success:', {
+                            guildId: result.clientResponse.guild.id,
+                            guildName: result.clientResponse.guild.name,
+                            hasName: !!result.clientResponse.guild.name,
+                            guildKeys: Object.keys(result.clientResponse.guild)
+                        });
                         hasLoadedRef.current = true;
+                        // guilds 상태는 useApp.ts에서 자동으로 업데이트됨
                     }
                 } catch (error) {
                     console.error('[GuildHome] Error loading guild info:', error);
