@@ -494,14 +494,59 @@ const startServer = async () => {
 
     // CORS 설정 - 프로덕션에서는 특정 origin만 허용
     const corsOptions: cors.CorsOptions = {
-        origin: process.env.NODE_ENV === 'production' 
-            ? [
+        origin: (origin, callback) => {
+            // 개발 환경에서는 모든 origin 허용
+            if (process.env.NODE_ENV !== 'production') {
+                callback(null, true);
+                return;
+            }
+            
+            // 프로덕션 환경
+            // origin이 없는 경우 (같은 origin에서의 요청 등) 허용
+            if (!origin) {
+                callback(null, true);
+                return;
+            }
+            
+            // 허용할 origin 목록
+            const allowedOrigins = [
                 process.env.FRONTEND_URL,
                 /\.railway\.app$/,
                 /\.up\.railway\.app$/
-              ].filter((origin): origin is string | RegExp => origin !== undefined && origin !== null) as (string | RegExp)[]
-            : true,
-        credentials: true
+            ].filter((o): o is string | RegExp => o !== undefined && o !== null);
+            
+            // 로깅 추가 (디버깅용)
+            console.log('[CORS] Request from origin:', origin);
+            console.log('[CORS] FRONTEND_URL:', process.env.FRONTEND_URL || 'NOT SET');
+            console.log('[CORS] Allowed origins:', allowedOrigins);
+            
+            // 허용 목록 확인
+            const isAllowed = allowedOrigins.some(allowed => {
+                if (typeof allowed === 'string') {
+                    return origin === allowed || origin.startsWith(allowed);
+                } else if (allowed instanceof RegExp) {
+                    return allowed.test(origin);
+                }
+                return false;
+            });
+            
+            if (isAllowed) {
+                console.log('[CORS] ✅ Origin allowed:', origin);
+                callback(null, true);
+            } else {
+                console.warn('[CORS] ❌ Origin blocked:', origin);
+                // Railway 도메인은 일단 허용 (임시)
+                if (origin.includes('railway.app')) {
+                    console.warn('[CORS] ⚠️ Allowing Railway domain temporarily:', origin);
+                    callback(null, true);
+                } else {
+                    callback(new Error('Not allowed by CORS'));
+                }
+            }
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
     };
     app.use(cors(corsOptions));
     
