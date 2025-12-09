@@ -164,6 +164,13 @@ const startServer = async () => {
     console.log('[Server] PORT:', process.env.PORT || '4000');
     console.log('[Server] ========================================');
     
+    // 전역 에러 핸들러 등록 확인 로그
+    console.log('[Server] Global error handlers registered:');
+    console.log('[Server] - unhandledRejection: registered');
+    console.log('[Server] - uncaughtException: registered');
+    console.log('[Server] - SIGTERM/SIGINT: registered');
+    console.log('[Server] - Express error handler: will be registered after routes');
+    
     // 서버 리스닝을 최우선으로 하기 위해 데이터베이스 초기화를 비동기로 처리
     // 타임아웃 추가 (5초) - 서버 시작 속도 향상
     let dbInitialized = false;
@@ -691,9 +698,45 @@ const startServer = async () => {
     });
 
     server.on('error', (error: NodeJS.ErrnoException) => {
+        const errorInfo = {
+            timestamp: new Date().toISOString(),
+            type: 'serverError',
+            error: error,
+            errorCode: error.code,
+            errorMessage: error.message,
+            errorStack: error.stack,
+            port: port,
+            pid: process.pid,
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            railwayEnv: process.env.RAILWAY_ENVIRONMENT || 'not set'
+        };
+        
+        // 상세한 에러 로깅
+        console.error('[Server] ========== SERVER ERROR ==========');
+        console.error('[Server] Timestamp:', errorInfo.timestamp);
+        console.error('[Server] PID:', errorInfo.pid);
+        console.error('[Server] Port:', errorInfo.port);
+        console.error('[Server] Error code:', errorInfo.errorCode);
+        console.error('[Server] Error message:', errorInfo.errorMessage);
+        console.error('[Server] Error stack:', errorInfo.errorStack);
+        console.error('[Server] Memory:', JSON.stringify(errorInfo.memory));
+        console.error('[Server] Full error info:', JSON.stringify(errorInfo, null, 2));
+        console.error('[Server] ===================================');
+        
+        // stderr로도 직접 출력 (Railway 로그에 확실히 기록)
+        process.stderr.write(`\n[SERVER ERROR] at ${errorInfo.timestamp}\n`);
+        process.stderr.write(`Port: ${errorInfo.port}\n`);
+        process.stderr.write(`Error: ${errorInfo.errorCode} - ${errorInfo.errorMessage}\n`);
+        if (errorInfo.errorStack) {
+            process.stderr.write(`Stack: ${errorInfo.errorStack}\n`);
+        }
+        process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
+        
         if (error.code === 'EADDRINUSE') {
             console.error(`[Server] Port ${port} is already in use. Please stop the process using this port or use a different port.`);
             console.error(`[Server] To find and kill the process: netstat -ano | findstr ":${port}"`);
+            process.stderr.write(`[SERVER ERROR] Port ${port} is already in use\n`);
             // Railway 환경에서는 포트 충돌 시에도 프로세스를 종료하지 않음
             // Railway가 자동으로 재시작하는 것을 방지
             if (!process.env.RAILWAY_ENVIRONMENT) {
@@ -2853,11 +2896,49 @@ const startServer = async () => {
             sendResponse(200, { user: sanitizedUser });
         } catch (e: any) {
             clearTimeout(requestTimeout);
-            console.error('[/api/auth/login] Login error:', e);
-            console.error('[/api/auth/login] Error stack:', e?.stack);
-            console.error('[/api/auth/login] Error message:', e?.message);
-            console.error('[/api/auth/login] Error code:', e?.code);
-            console.error('[/api/auth/login] Error name:', e?.name);
+            
+            // 상세한 에러 정보 수집
+            const errorInfo = {
+                timestamp: new Date().toISOString(),
+                endpoint: '/api/auth/login',
+                error: e,
+                errorName: e?.name,
+                errorMessage: e?.message,
+                errorCode: e?.code,
+                errorStack: e?.stack,
+                username: req.body?.username || 'N/A',
+                requestId: req.headers['x-request-id'] || 'N/A',
+                pid: process.pid,
+                uptime: process.uptime(),
+                memory: process.memoryUsage(),
+                responseSent: responseSent,
+                headersSent: res.headersSent
+            };
+            
+            // 상세한 에러 로깅
+            console.error('[/api/auth/login] ========== LOGIN ERROR ==========');
+            console.error('[/api/auth/login] Timestamp:', errorInfo.timestamp);
+            console.error('[/api/auth/login] PID:', errorInfo.pid);
+            console.error('[/api/auth/login] Username:', errorInfo.username);
+            console.error('[/api/auth/login] Error name:', errorInfo.errorName);
+            console.error('[/api/auth/login] Error message:', errorInfo.errorMessage);
+            console.error('[/api/auth/login] Error code:', errorInfo.errorCode);
+            console.error('[/api/auth/login] Error stack:', errorInfo.errorStack);
+            console.error('[/api/auth/login] Memory:', JSON.stringify(errorInfo.memory));
+            console.error('[/api/auth/login] Response sent:', errorInfo.responseSent);
+            console.error('[/api/auth/login] Headers sent:', errorInfo.headersSent);
+            console.error('[/api/auth/login] Full error info:', JSON.stringify(errorInfo, null, 2));
+            console.error('[/api/auth/login] =================================');
+            
+            // stderr로도 직접 출력 (Railway 로그에 확실히 기록)
+            process.stderr.write(`\n[LOGIN ERROR] at ${errorInfo.timestamp}\n`);
+            process.stderr.write(`Username: ${errorInfo.username}\n`);
+            process.stderr.write(`Error: ${errorInfo.errorName} - ${errorInfo.errorMessage}\n`);
+            process.stderr.write(`Code: ${errorInfo.errorCode || 'N/A'}\n`);
+            if (errorInfo.errorStack) {
+                process.stderr.write(`Stack: ${errorInfo.errorStack}\n`);
+            }
+            process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
             
             // 데이터베이스 연결 오류인 경우 더 명확한 메시지
             const isDbError = e?.code?.startsWith('P') || 
@@ -2880,6 +2961,7 @@ const startServer = async () => {
                     });
                 } catch (sendError: any) {
                     console.error('[/api/auth/login] Failed to send error response:', sendError);
+                    process.stderr.write(`[LOGIN ERROR] Failed to send response: ${sendError.message}\n`);
                     // Express 전역 에러 핸들러로 전달
                     if (!res.headersSent) {
                         next(e);
@@ -2887,6 +2969,7 @@ const startServer = async () => {
                 }
             } else {
                 console.error('[/api/auth/login] Response already sent, cannot send error response');
+                process.stderr.write(`[LOGIN ERROR] Response already sent, cannot send error response\n`);
                 // Express 전역 에러 핸들러로 전달
                 if (!res.headersSent) {
                     next(e);
@@ -3783,10 +3866,46 @@ const startServer = async () => {
     // Express 전역 에러 핸들러 (모든 라우트 정의 후에 추가)
     // 처리되지 않은 에러를 잡아서 500 응답 반환
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-        console.error('[Express Error Handler] Unhandled error:', err);
-        console.error('[Express Error Handler] Request path:', req.path);
-        console.error('[Express Error Handler] Request method:', req.method);
-        console.error('[Express Error Handler] Error stack:', err?.stack);
+        const errorInfo = {
+            timestamp: new Date().toISOString(),
+            type: 'expressErrorHandler',
+            error: err,
+            errorName: err?.name,
+            errorMessage: err?.message,
+            errorCode: err?.code,
+            errorStack: err?.stack,
+            requestPath: req.path,
+            requestMethod: req.method,
+            requestQuery: req.query,
+            requestBody: req.body ? (typeof req.body === 'object' ? JSON.stringify(req.body).substring(0, 500) : String(req.body).substring(0, 500)) : undefined,
+            requestHeaders: req.headers,
+            pid: process.pid,
+            uptime: process.uptime(),
+            memory: process.memoryUsage()
+        };
+        
+        // 상세한 에러 로깅
+        console.error('[Express Error Handler] ========== EXPRESS ERROR ==========');
+        console.error('[Express Error Handler] Timestamp:', errorInfo.timestamp);
+        console.error('[Express Error Handler] PID:', errorInfo.pid);
+        console.error('[Express Error Handler] Request path:', errorInfo.requestPath);
+        console.error('[Express Error Handler] Request method:', errorInfo.requestMethod);
+        console.error('[Express Error Handler] Error name:', errorInfo.errorName);
+        console.error('[Express Error Handler] Error message:', errorInfo.errorMessage);
+        console.error('[Express Error Handler] Error code:', errorInfo.errorCode);
+        console.error('[Express Error Handler] Error stack:', errorInfo.errorStack);
+        console.error('[Express Error Handler] Full error info:', JSON.stringify(errorInfo, null, 2));
+        console.error('[Express Error Handler] ====================================');
+        
+        // stderr로도 직접 출력 (Railway 로그에 확실히 기록)
+        process.stderr.write(`\n[EXPRESS ERROR] at ${errorInfo.timestamp}\n`);
+        process.stderr.write(`Path: ${errorInfo.requestPath} ${errorInfo.requestMethod}\n`);
+        process.stderr.write(`Error: ${errorInfo.errorName} - ${errorInfo.errorMessage}\n`);
+        process.stderr.write(`Code: ${errorInfo.errorCode || 'N/A'}\n`);
+        if (errorInfo.errorStack) {
+            process.stderr.write(`Stack: ${errorInfo.errorStack}\n`);
+        }
+        process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
         
         // 응답이 이미 전송된 경우 next() 호출
         if (res.headersSent) {
@@ -3827,15 +3946,50 @@ const startServer = async () => {
 
 // 전역 에러 핸들러 추가 (처리되지 않은 Promise rejection 및 예외 처리)
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-    console.error('[Server] Unhandled Rejection at:', promise);
+    // stderr로 강제 출력 (Railway 로그에 확실히 기록되도록)
+    const errorInfo = {
+        timestamp: new Date().toISOString(),
+        type: 'unhandledRejection',
+        reason: reason,
+        reasonType: typeof reason,
+        reasonMessage: reason?.message || String(reason),
+        reasonCode: reason?.code,
+        reasonStack: reason instanceof Error ? reason.stack : undefined,
+        promise: promise?.toString(),
+        pid: process.pid,
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        railwayEnv: process.env.RAILWAY_ENVIRONMENT || 'not set'
+    };
+    
+    // console.error와 stderr.write 모두 사용하여 확실히 로그 출력
+    console.error('[Server] ========== UNHANDLED REJECTION ==========');
+    console.error('[Server] Timestamp:', errorInfo.timestamp);
+    console.error('[Server] PID:', errorInfo.pid);
+    console.error('[Server] Uptime:', errorInfo.uptime, 'seconds');
+    console.error('[Server] Memory:', JSON.stringify(errorInfo.memory));
     console.error('[Server] Reason:', reason);
+    console.error('[Server] Reason type:', errorInfo.reasonType);
+    console.error('[Server] Reason message:', errorInfo.reasonMessage);
+    console.error('[Server] Reason code:', errorInfo.reasonCode);
     if (reason instanceof Error) {
         console.error('[Server] Error stack:', reason.stack);
     }
+    console.error('[Server] Full error info:', JSON.stringify(errorInfo, null, 2));
+    console.error('[Server] =========================================');
+    
+    // stderr로도 직접 출력 (Railway 로그에 확실히 기록)
+    process.stderr.write(`\n[CRITICAL] UNHANDLED REJECTION at ${errorInfo.timestamp}\n`);
+    process.stderr.write(`Reason: ${errorInfo.reasonMessage}\n`);
+    if (reason instanceof Error && reason.stack) {
+        process.stderr.write(`Stack: ${reason.stack}\n`);
+    }
+    process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
     
     // 메모리 부족 에러인 경우 프로세스 종료 (Railway가 재시작)
     if (reason && typeof reason === 'object' && 'code' in reason && reason.code === 'ENOMEM') {
         console.error('[Server] Out of memory error detected. Exiting for Railway restart.');
+        process.stderr.write('[CRITICAL] Out of memory - exiting\n');
         process.exit(1);
     }
     
@@ -3862,14 +4016,47 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 });
 
 process.on('uncaughtException', (error: Error) => {
-    console.error('[Server] Uncaught Exception:', error);
-    console.error('[Server] Stack trace:', error.stack);
-    console.error('[Server] Error message:', error.message);
-    console.error('[Server] Error name:', error.name);
+    // stderr로 강제 출력 (Railway 로그에 확실히 기록되도록)
+    const errorInfo = {
+        timestamp: new Date().toISOString(),
+        type: 'uncaughtException',
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        code: (error as any)?.code,
+        pid: process.pid,
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        railwayEnv: process.env.RAILWAY_ENVIRONMENT || 'not set'
+    };
+    
+    // console.error와 stderr.write 모두 사용하여 확실히 로그 출력
+    console.error('[Server] ========== UNCAUGHT EXCEPTION ==========');
+    console.error('[Server] Timestamp:', errorInfo.timestamp);
+    console.error('[Server] PID:', errorInfo.pid);
+    console.error('[Server] Uptime:', errorInfo.uptime, 'seconds');
+    console.error('[Server] Memory:', JSON.stringify(errorInfo.memory));
+    console.error('[Server] Error name:', errorInfo.name);
+    console.error('[Server] Error message:', errorInfo.message);
+    console.error('[Server] Error code:', errorInfo.code);
+    console.error('[Server] Stack trace:', errorInfo.stack);
+    console.error('[Server] Full error info:', JSON.stringify(errorInfo, null, 2));
+    console.error('[Server] =========================================');
+    
+    // stderr로도 직접 출력 (Railway 로그에 확실히 기록)
+    process.stderr.write(`\n[CRITICAL] UNCAUGHT EXCEPTION at ${errorInfo.timestamp}\n`);
+    process.stderr.write(`Name: ${errorInfo.name}\n`);
+    process.stderr.write(`Message: ${errorInfo.message}\n`);
+    process.stderr.write(`Code: ${errorInfo.code || 'N/A'}\n`);
+    if (errorInfo.stack) {
+        process.stderr.write(`Stack: ${errorInfo.stack}\n`);
+    }
+    process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
     
     // 메모리 부족 에러인 경우 프로세스 종료 (Railway가 재시작)
     if ((error as any)?.code === 'ENOMEM' || error.message?.includes('out of memory')) {
         console.error('[Server] Out of memory error detected. Exiting for Railway restart.');
+        process.stderr.write('[CRITICAL] Out of memory - exiting\n');
         process.exit(1);
     }
     
