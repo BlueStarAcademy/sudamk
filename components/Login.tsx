@@ -20,11 +20,36 @@ const Login: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(getApiUrl('/api/auth/login'), {
+      const apiUrl = getApiUrl('/api/auth/login');
+      console.log('[Login] Attempting login to:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
+      
+      // 응답 Content-Type 확인
+      const contentType = response.headers.get('content-type');
+      const isJson = contentType && contentType.includes('application/json');
+      
+      console.log('[Login] Response status:', response.status);
+      console.log('[Login] Response Content-Type:', contentType);
+      console.log('[Login] Response OK:', response.ok);
+      
+      // HTML 응답인 경우 (백엔드 서버가 응답하지 않거나 잘못된 URL)
+      if (!isJson) {
+        const text = await response.text();
+        console.error('[Login] Received non-JSON response:', text.substring(0, 200));
+        
+        if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+          setError('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+          return;
+        }
+        
+        setError(`서버 응답 오류: 예상하지 못한 응답 형식을 받았습니다. (상태: ${response.status})`);
+        return;
+      }
       
       if (!response.ok) {
         let errorMessage = `로그인 실패 (${response.statusText})`;
@@ -35,11 +60,19 @@ const Login: React.FC = () => {
             }
         } catch (e) {
             console.error("Login failed with a non-JSON response body.", e);
+            setError(`서버 응답 오류: JSON 파싱 실패 (상태: ${response.status})`);
+            return;
         }
         throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      
+      if (!data || !data.user) {
+        setError('서버 응답 오류: 사용자 정보를 받을 수 없습니다.');
+        return;
+      }
+      
       setCurrentUserAndRoute(data.user);
       
       // 닉네임이 없거나 임시 닉네임이면 닉네임 설정 화면으로, 아니면 프로필로
@@ -49,7 +82,16 @@ const Login: React.FC = () => {
         window.location.hash = '#/profile';
       }
     } catch (err: any) {
-      setError(err.message);
+      console.error('[Login] Login error:', err);
+      
+      // 네트워크 에러인 경우
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setError('백엔드 서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.');
+      } else if (err.message && err.message.includes('JSON')) {
+        setError('서버 응답 오류: JSON 파싱 실패. 백엔드 서버가 정상적으로 실행 중인지 확인해주세요.');
+      } else {
+        setError(err.message || '로그인 중 오류가 발생했습니다.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -126,13 +168,39 @@ const Login: React.FC = () => {
                 className="w-full"
                 onClick={async () => {
                     try {
-                        const response = await fetch(getApiUrl('/api/auth/kakao/url'));
+                        const apiUrl = getApiUrl('/api/auth/kakao/url');
+                        console.log('[Login] Attempting Kakao login URL fetch:', apiUrl);
+                        
+                        const response = await fetch(apiUrl);
+                        
+                        // 응답 Content-Type 확인
+                        const contentType = response.headers.get('content-type');
+                        const isJson = contentType && contentType.includes('application/json');
+                        
+                        if (!isJson) {
+                            const text = await response.text();
+                            console.error('[Login] Kakao URL: Received non-JSON response:', text.substring(0, 200));
+                            if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                                setError('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+                            } else {
+                                setError('카카오 로그인 URL을 가져올 수 없습니다.');
+                            }
+                            return;
+                        }
+                        
                         const data = await response.json();
                         if (data.url) {
                             window.location.href = data.url;
+                        } else {
+                            setError('카카오 로그인 URL을 받을 수 없습니다.');
                         }
                     } catch (err: any) {
-                        setError('카카오 로그인에 실패했습니다.');
+                        console.error('[Login] Kakao login error:', err);
+                        if (err.name === 'TypeError' && err.message.includes('fetch')) {
+                            setError('백엔드 서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.');
+                        } else {
+                            setError('카카오 로그인에 실패했습니다.');
+                        }
                     }
                 }}
              >
