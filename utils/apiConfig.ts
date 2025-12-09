@@ -10,17 +10,30 @@
 const getApiBaseUrl = (): string => {
     // In development, use relative paths (Vite proxy handles it)
     if (import.meta.env.DEV) {
+        console.log('[API Config] Development mode: using relative paths');
         return '';
     }
     
     // In production, use environment variable if set
     const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL;
+    
+    // Debug logging
+    console.log('[API Config] Environment check:');
+    console.log('[API Config] - DEV:', import.meta.env.DEV);
+    console.log('[API Config] - MODE:', import.meta.env.MODE);
+    console.log('[API Config] - VITE_API_URL:', import.meta.env.VITE_API_URL || 'NOT SET');
+    console.log('[API Config] - VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL || 'NOT SET');
+    
     if (apiUrl) {
         // Remove trailing slash
-        return apiUrl.replace(/\/$/, '');
+        const cleanUrl = apiUrl.replace(/\/$/, '');
+        console.log('[API Config] Using API URL:', cleanUrl);
+        return cleanUrl;
     }
     
     // Fallback to relative path (same origin)
+    console.warn('[API Config] ⚠️ No VITE_API_URL or VITE_BACKEND_URL set! Using relative path (same origin)');
+    console.warn('[API Config] This may cause CORS errors if frontend and backend are on different domains');
     return '';
 };
 
