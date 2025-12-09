@@ -47,7 +47,14 @@ const getWebSocketUrl = (): string => {
     
     // In production, use environment variable if set
     const wsUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_BACKEND_WS_URL;
+    
+    // Debug logging
+    console.log('[API Config] WebSocket URL check:');
+    console.log('[API Config] - VITE_WS_URL:', import.meta.env.VITE_WS_URL || 'NOT SET');
+    console.log('[API Config] - VITE_BACKEND_WS_URL:', import.meta.env.VITE_BACKEND_WS_URL || 'NOT SET');
+    
     if (wsUrl) {
+        console.log('[API Config] Using WebSocket URL:', wsUrl);
         return wsUrl;
     }
     
@@ -56,12 +63,17 @@ const getWebSocketUrl = (): string => {
     if (apiUrl) {
         const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:';
         const host = apiUrl.replace(/^https?:\/\//, '');
-        return `${protocol}//${host}`;
+        const derivedUrl = `${protocol}//${host}`;
+        console.log('[API Config] Derived WebSocket URL from API URL:', derivedUrl);
+        return derivedUrl;
     }
     
-    // Fallback to same origin
+    // Fallback to same origin (WARNING: This will fail if frontend and backend are on different domains)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}`;
+    const sameOriginUrl = `${protocol}//${window.location.host}`;
+    console.warn('[API Config] ⚠️ No VITE_WS_URL or VITE_BACKEND_WS_URL set! Using same origin:', sameOriginUrl);
+    console.warn('[API Config] This will fail if frontend and backend are on different domains');
+    return sameOriginUrl;
 };
 
 export const API_BASE_URL = getApiBaseUrl();
