@@ -86,11 +86,13 @@
    - 또는 `node node_modules/tsx/dist/cli.mjs --tsconfig server/tsconfig.json server/server.ts`
 6. Settings → Variables:
    ```
-   ENABLE_FRONTEND_SERVING=false
    KATAGO_API_URL=https://your-katago-service.railway.app
    DATABASE_URL=<your-database-url>
-   PORT=4000
    ```
+   **참고**: 
+   - `PORT` 환경 변수는 Railway가 자동으로 설정하므로 수동으로 설정하지 마세요.
+   - 통합 배포인 경우 `ENABLE_FRONTEND_SERVING` 환경 변수를 설정하지 않으면 기본값(`true`)이 사용됩니다.
+   - 분리 배포인 경우에만 `ENABLE_FRONTEND_SERVING=false`를 설정하세요.
    (기존 환경 변수들도 모두 설정)
 
 #### 4단계: KataGo 서비스 배포
@@ -205,7 +207,7 @@
    - **Add** 클릭
 
 5. 기존 환경 변수들도 확인:
-   - `PORT=4000`
+   - **참고**: `PORT` 환경 변수는 Railway가 자동으로 설정하므로 수동으로 설정하지 마세요.
    - 기타 필요한 환경 변수들 (JWT_SECRET, EMAIL 설정 등)
 
 **KataGo 서비스 환경 변수 설정:**
@@ -461,6 +463,180 @@ Healthcheck failed!
    - 있으면 Backend 서비스 URL이 올바른지 확인
 3. Frontend 서비스 재배포
 4. 브라우저 캐시 삭제 후 다시 시도
+
+### 502 Bad Gateway 오류 (서버 응답 없음)
+
+**증상:**
+- 모든 요청이 502 에러 반환
+- `/api/auth/login`, CSS 파일, ServiceWorker 등 모든 리소스가 502
+- 브라우저 콘솔: "Failed to load resource: the server responded with a status of 502"
+- "Application failed to respond" 메시지
+
+**원인:**
+502 에러는 서버가 시작되지 않았거나 크래시되었을 때 발생합니다. 주요 원인:
+1. 서버가 시작되지 않음 (빌드 실패, 시작 스크립트 오류)
+2. 데이터베이스 연결 실패로 인한 서버 시작 실패
+3. 포트 설정 문제 (Railway의 PORT 환경 변수 미인식)
+4. 메모리 부족으로 인한 크래시
+5. 헬스체크 실패로 인한 재시작 루프
+
+**해결 방법:**
+
+**1단계: Railway 로그 확인 (가장 중요)**
+
+1. Railway Dashboard 접속
+2. 문제가 있는 서비스 선택 (Backend 또는 Frontend)
+3. **Logs** 탭 클릭 (또는 **Deployments** → 최신 배포 → **View Logs**)
+4. 다음 메시지들을 확인:
+
+**정상적인 시작 메시지:**
+```
+[Server] Starting server...
+[Server] Server listening on port 4000
+[Server] Server is ready and accepting connections
+```
+
+**문제가 있는 경우:**
+```
+Error: ...
+Failed to connect to database
+Cannot find module ...
+FATAL ERROR: ...
+```
+
+**2단계: 배포 상태 확인**
+
+1. 서비스 → **Deployments** 탭
+2. 최신 배포 상태 확인:
+   - ✅ **Active**: 배포 성공
+   - ❌ **Failed**: 배포 실패 (로그 확인 필요)
+   - ⏳ **Building**: 아직 빌드 중
+
+**3단계: 일반적인 원인별 해결**
+
+**원인 A: 데이터베이스 연결 실패**
+
+**증상:** 로그에 다음 메시지가 보임:
+```
+Error: P1001: Can't reach database server
+Database connection failed or timed out
+```
+
+**해결:**
+1. Backend 서비스 → **Variables** 탭
+2. `DATABASE_URL` 확인:
+   - ✅ 올바른 형식: `postgresql://postgres:PASSWORD@postgres.railway.internal:5432/railway`
+   - ❌ 잘못된 형식: `postgres-production-xxx.up.railway.app:5432` (프로토콜 없음)
+3. `DATABASE_URL`이 없거나 잘못된 경우:
+   - Postgres 서비스 → **Variables** → `DATABASE_URL` 또는 `POSTGRES_PRIVATE_URL` 복사
+   - Backend 서비스 → **Variables** → `DATABASE_URL`로 설정
+   - 호스트를 `postgres.railway.internal`로 변경 (내부 네트워크 사용)
+4. 재배포
+
+**원인 B: 서버 시작 스크립트 오류**
+
+**증상:** 로그에 모듈을 찾을 수 없다는 에러:
+```
+Cannot find module 'tsx'
+Error: Cannot find module './server/server.ts'
+```
+
+**해결:**
+1. Backend 서비스 → **Settings** → **Deploy**
+2. **Start Command** 확인:
+   - 올바른 명령: `node node_modules/tsx/dist/cli.mjs --tsconfig server/tsconfig.json server/server.ts`
+   - 또는: `npm run start-server`
+3. Dockerfile을 사용하는 경우 Start Command는 비워두기 (Dockerfile의 CMD 사용)
+4. 재배포
+
+**원인 C: 포트 설정 문제**
+
+**증상:** 로그에 포트 관련 오류 또는 서버가 리스닝하지 않음
+
+**해결:**
+1. Railway는 자동으로 `PORT` 환경 변수를 설정합니다
+2. Backend 서비스 → **Variables** 탭
+3. `PORT` 변수가 있으면 **삭제** (Railway가 자동으로 설정)
+4. **중요**: `package.json`의 `start-server` 스크립트에서 `PORT=4000` 하드코딩이 없어야 합니다
+   - ✅ 올바른 예: `node node_modules/tsx/dist/cli.mjs ...`
+   - ❌ 잘못된 예: `cross-env PORT=4000 node node_modules/tsx/dist/cli.mjs ...`
+5. 서버 코드가 `process.env.PORT`를 사용하는지 확인 (이미 구현되어 있음)
+6. 재배포 후 로그에서 실제 사용된 포트 확인:
+   - `[Server] Using PORT from environment: <포트번호>` 메시지 확인
+   - Railway가 할당한 포트와 일치하는지 확인
+
+**원인 D: 메모리 부족**
+
+**증상:** 로그에 다음 메시지:
+```
+FATAL ERROR: Reached heap limit
+JavaScript heap out of memory
+```
+
+**해결:**
+1. Railway 서비스 → **Settings** → **Resources**
+2. 메모리 제한 확인 (기본값: 512MB)
+3. 필요시 메모리 증가 (유료 플랜 필요)
+4. 또는 코드 최적화 (불필요한 의존성 제거)
+
+**원인 E: 헬스체크 실패로 인한 재시작 루프**
+
+**증상:** 서버가 계속 재시작됨
+
+**해결:**
+1. Backend 서비스 → **Settings** → **Health**
+2. **Health Check Path** 확인:
+   - 올바른 경로: `/api/health` 또는 `/`
+   - 잘못된 경로: `/health` (존재하지 않는 경로)
+3. **Health Check Timeout** 증가 (기본값: 30초 → 60초)
+4. 또는 헬스체크 비활성화 (임시, 개발 환경에서만)
+
+**4단계: 수동 재배포**
+
+위의 설정을 변경한 후:
+1. 서비스 → **Settings** → **Deploy**
+2. **Redeploy** 버튼 클릭
+3. 배포 로그 확인
+
+**5단계: 서비스 상태 확인**
+
+배포 완료 후:
+1. 서비스 → **Logs** 탭에서 실시간 로그 확인
+2. 다음 메시지가 보이면 정상:
+   ```
+   [Server] Server listening on port 4000
+   [Server] Server is ready and accepting connections
+   ```
+3. 브라우저에서 `/api/health` 엔드포인트 테스트:
+   ```
+   https://your-service.railway.app/api/health
+   ```
+4. 정상 응답 예시:
+   ```json
+   {
+     "status": "ok",
+     "timestamp": "2024-01-01T00:00:00.000Z",
+     "uptime": 123.45,
+     "listening": true,
+     "ready": true
+   }
+   ```
+
+**빠른 체크리스트:**
+
+- [ ] Railway 로그 확인 (가장 중요!)
+- [ ] 배포 상태 확인 (Active/Failed)
+- [ ] `DATABASE_URL` 환경 변수 확인 및 수정
+- [ ] `PORT` 환경 변수 확인 (있으면 삭제, Railway가 자동 설정)
+- [ ] Start Command 확인
+- [ ] 헬스체크 경로 확인 (`/api/health` 또는 `/`)
+- [ ] 재배포 후 로그 재확인
+- [ ] `/api/health` 엔드포인트 테스트
+
+**참고:**
+- Railway는 서비스가 응답하지 않으면 자동으로 재시작합니다
+- 로그를 확인하면 정확한 원인을 파악할 수 있습니다
+- 대부분의 경우 데이터베이스 연결 문제 또는 환경 변수 설정 문제입니다
 
 ## 참고사항
 
