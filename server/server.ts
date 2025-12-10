@@ -3789,7 +3789,7 @@ const startServer = async () => {
     // Note: enableFrontendServing is already declared above
     if (enableFrontendServing) {
         // Serve index.html for root path and all non-API routes
-        app.get('*', (req, res, next) => {
+        app.get('*', async (req, res, next) => {
             // Skip API and WebSocket routes
             if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
                 return res.status(404).json({ message: 'Not found' });
