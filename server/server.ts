@@ -476,23 +476,37 @@ const startServer = async () => {
         });
     });
     
-    // Railway 헬스체크가 즉시 통과할 수 있도록 최우선 등록
-    // 이 엔드포인트는 나중에 더 상세한 버전으로 덮어씌워지지만,
-    // 서버 리스닝 전에도 응답할 수 있도록 보장
-    app.get('/api/health', (req, res) => {
-        // 서버가 리스닝 중이 아니어도 헬스체크는 성공으로 반환
-        // Railway가 헬스체크 실패로 인해 무한 재시작하는 것을 방지
-        res.status(200).json({
-            status: 'ok',
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime(),
-            listening: false, // 서버 리스닝 전에는 false
-            ready: isServerReady,
-            pid: process.pid
+    // 서버를 즉시 생성하고 리스닝 시작 (헬스체크가 통과할 수 있도록)
+    // 나머지 미들웨어와 라우트는 리스닝 후에 설정됨
+    const server = http.createServer((req, res) => {
+        // 타임아웃 설정 (2분으로 증가 - 대용량 데이터 처리 시간 고려)
+        req.setTimeout(120000, () => {
+            if (!res.headersSent) {
+                res.writeHead(408, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request timeout' }));
+            }
         });
+        
+        app(req, res);
     });
     
-    console.log('[Server] Health check endpoint registered (early)');
+    // 서버 타임아웃 설정 (1000명 동시 접속 대응)
+    server.timeout = 120000; // 2분으로 증가 (1000명 처리 시간 고려)
+    server.keepAliveTimeout = 120000; // 2분으로 증가
+    server.headersTimeout = 130000; // 2분 10초로 증가
+    
+    // 서버 리스닝을 최우선으로 시작 (헬스체크가 즉시 통과할 수 있도록)
+    console.log('[Server] Starting server listen immediately for healthcheck...');
+    server.listen(port, '0.0.0.0', () => {
+        console.log(`[Server] ========================================`);
+        console.log(`[Server] Server listening on port ${port}`);
+        console.log(`[Server] Process PID: ${process.pid}`);
+        console.log(`[Server] Health check endpoint is available at /api/health`);
+        console.log(`[Server] ========================================`);
+        
+        // 서버 준비 상태 설정 (헬스체크가 통과할 수 있도록)
+        isServerReady = true;
+    });
 
     // CORS 설정 - 프로덕션에서는 특정 origin만 허용
     const corsOptions: cors.CorsOptions = {
@@ -569,106 +583,23 @@ const startServer = async () => {
     // --- Constants ---
     const DISCONNECT_TIMER_S = 90;
 
-    // 요청 타임아웃 설정 (1000명 동시 접속 대응: 2분으로 증가)
-    // 서버를 먼저 생성하여 헬스체크가 즉시 통과할 수 있도록 함
-    const server = http.createServer((req, res) => {
-        // 타임아웃 설정 (2분으로 증가 - 대용량 데이터 처리 시간 고려)
-        req.setTimeout(120000, () => {
-            if (!res.headersSent) {
-                res.writeHead(408, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request timeout' }));
-            }
+    // 헬스체크 엔드포인트를 서버 생성 직후에 등록 (서버 객체 사용 가능)
+    // 서버 리스닝 전에도 작동하도록 보장
+    // 매우 단순하게 만들어서 빠르게 응답
+    app.get('/api/health', (req, res) => {
+        // 항상 200 반환 (서버가 시작 중이어도 재시작하지 않도록 함)
+        // Railway 헬스체크는 서버가 응답할 수 있으면 성공으로 간주
+        res.status(200).json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            listening: server?.listening || false,
+            ready: isServerReady,
+            pid: process.pid
         });
-        
-        app(req, res);
     });
     
-    // 서버 타임아웃 설정 (1000명 동시 접속 대응)
-    server.timeout = 120000; // 2분으로 증가 (1000명 처리 시간 고려)
-    server.keepAliveTimeout = 120000; // 2분으로 증가
-    server.headersTimeout = 130000; // 2분 10초로 증가
-
-    // 서버 리스닝을 최우선으로 시작 (헬스체크가 즉시 통과할 수 있도록)
-    // 나머지 초기화는 리스닝 후 비동기로 처리
-    console.log('[Server] Starting server listen immediately for healthcheck...');
-    server.listen(port, '0.0.0.0', () => {
-        console.log(`[Server] ========================================`);
-        console.log(`[Server] Server listening on port ${port}`);
-        console.log(`[Server] Process PID: ${process.pid}`);
-        console.log(`[Server] Health check endpoint is available at /api/health`);
-        console.log(`[Server] ========================================`);
-        
-        // 서버 준비 상태 설정 (헬스체크가 통과할 수 있도록)
-        isServerReady = true;
-    });
-
-    // 헬스체크 엔드포인트를 서버 생성 직후에 업데이트 (서버 객체 사용 가능)
-    // 서버 리스닝 전에도 작동하도록 보장
-    app.get('/api/health', async (req, res) => {
-        // Health Check 로그 (간소화하여 성능 영향 최소화)
-        const startTime = Date.now();
-        
-        try {
-            // 데이터베이스 연결 상태 확인 (비동기, 타임아웃 1초로 단축)
-            let dbStatus = 'unknown';
-            try {
-                const dbCheckPromise = (async () => {
-                    const prismaClient = (await import('./prismaClient.js')).default;
-                    await prismaClient.$queryRaw`SELECT 1`;
-                    return 'connected';
-                })();
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('timeout')), 1000)
-                );
-                await Promise.race([dbCheckPromise, timeoutPromise]);
-                dbStatus = 'connected';
-            } catch (dbError) {
-                dbStatus = 'disconnected';
-            }
-            
-            // 서버가 완전히 준비되지 않았어도 헬스체크는 성공으로 반환
-            // Railway가 헬스체크 실패로 인해 무한 재시작하는 것을 방지
-            const serverStatus = {
-                status: (server && server.listening) ? 'ok' : 'starting',
-                timestamp: new Date().toISOString(),
-                uptime: process.uptime(),
-                listening: server?.listening || false,
-                ready: isServerReady,
-                database: dbStatus,
-                pid: process.pid,
-                memory: process.env.RAILWAY_ENVIRONMENT ? {
-                    rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
-                    heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-                    heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
-                } : undefined
-            };
-            
-            // 항상 200 반환 (서버가 시작 중이어도 재시작하지 않도록 함)
-            // Railway 헬스체크는 서버가 응답할 수 있으면 성공으로 간주
-            res.status(200).json(serverStatus);
-            
-            // Health Check 로그 (첫 번째 요청과 느린 요청만 출력)
-            const elapsed = Date.now() - startTime;
-            const isFirstCheck = !(global as any).healthCheckCount;
-            (global as any).healthCheckCount = ((global as any).healthCheckCount || 0) + 1;
-            
-            if (isFirstCheck || elapsed > 100 || !serverStatus.listening || dbStatus === 'disconnected' || (global as any).healthCheckCount % 10 === 0) {
-                console.log(`[Health Check] ${serverStatus.status} (${elapsed}ms, listening: ${serverStatus.listening}, ready: ${serverStatus.ready}, db: ${dbStatus}, count: ${(global as any).healthCheckCount})`);
-            }
-        } catch (error) {
-            console.error('[Health Check] Error:', error);
-            // 에러가 발생해도 200 반환하여 재시작 방지
-            if (!res.headersSent) {
-                res.status(200).json({ 
-                    status: 'ok', 
-                    message: 'Health check error but server is running',
-                    timestamp: new Date().toISOString(),
-                    pid: process.pid,
-                    listening: server?.listening || false
-                });
-            }
-        }
-    });
+    console.log('[Server] Health check endpoint registered (simple version)');
 
     // 나머지 초기화 작업은 서버 리스닝 후 비동기로 처리
     // 서버가 이미 리스닝 중이므로 헬스체크는 통과할 수 있음
@@ -816,9 +747,10 @@ const startServer = async () => {
         }
     }));
     
-    // Serve frontend build files only if ENABLE_FRONTEND_SERVING is true
-    // In separated deployment, frontend is served by a separate service
-    const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING === 'true';
+    // Serve frontend build files
+    // Default to true for integrated deployment (can be disabled with ENABLE_FRONTEND_SERVING=false)
+    // In separated deployment, set ENABLE_FRONTEND_SERVING=false
+    const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING !== 'false';
     if (enableFrontendServing) {
         const distPath = path.join(__dirname, '..', 'dist');
         
