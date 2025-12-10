@@ -44,7 +44,7 @@ RUN echo "=== Verifying node_modules before COPY ===" && \
     (test -d node_modules/vite && echo "=== vite package exists before COPY ===" || (echo "ERROR: vite not found before COPY" && ls -la node_modules/ | head -20 && exit 1))
 
 # Copy source code selectively (excluding node_modules via .dockerignore)
-# Copy essential files for Vite build
+# Copy essential files for Vite build and backend
 COPY package.json package-lock.json ./
 COPY vite.config.ts tsconfig.json tsconfig.base.json tsconfig.node.json ./
 COPY postcss.config.js ./
@@ -155,7 +155,7 @@ COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/tsconfig.base.json ./tsconfig.base.json
 
 # Copy frontend build files (for integrated deployment)
-# When ENABLE_FRONTEND_SERVING=true, backend will serve the frontend
+# Backend will serve the frontend when ENABLE_FRONTEND_SERVING=true
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/public ./public
 
