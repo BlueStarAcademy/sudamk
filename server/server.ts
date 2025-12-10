@@ -564,6 +564,221 @@ const startServer = async () => {
     // 전역 에러 핸들러 미들웨어 (모든 라우트 이후에 추가)
     // 이 핸들러는 모든 라우트 정의 후에 추가됩니다
 
+    // --- Constants ---
+    const DISCONNECT_TIMER_S = 90;
+
+    // 요청 타임아웃 설정 (1000명 동시 접속 대응: 2분으로 증가)
+    // 서버를 먼저 생성하여 헬스체크가 즉시 통과할 수 있도록 함
+    const server = http.createServer((req, res) => {
+        // 타임아웃 설정 (2분으로 증가 - 대용량 데이터 처리 시간 고려)
+        req.setTimeout(120000, () => {
+            if (!res.headersSent) {
+                res.writeHead(408, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request timeout' }));
+            }
+        });
+        
+        app(req, res);
+    });
+    
+    // 서버 타임아웃 설정 (1000명 동시 접속 대응)
+    server.timeout = 120000; // 2분으로 증가 (1000명 처리 시간 고려)
+    server.keepAliveTimeout = 120000; // 2분으로 증가
+    server.headersTimeout = 130000; // 2분 10초로 증가
+
+    // 서버 에러 핸들러 등록 (리스닝 전에 등록)
+    server.on('error', (error: NodeJS.ErrnoException) => {
+        const errorInfo = {
+            timestamp: new Date().toISOString(),
+            type: 'serverError',
+            error: error,
+            errorCode: error.code,
+            errorMessage: error.message,
+            errorStack: error.stack,
+            port: port,
+            pid: process.pid,
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            railwayEnv: process.env.RAILWAY_ENVIRONMENT || 'not set'
+        };
+        
+        // 상세한 에러 로깅
+        console.error('[Server] ========== SERVER ERROR ==========');
+        console.error('[Server] Timestamp:', errorInfo.timestamp);
+        console.error('[Server] PID:', errorInfo.pid);
+        console.error('[Server] Port:', errorInfo.port);
+        console.error('[Server] Error code:', errorInfo.errorCode);
+        console.error('[Server] Error message:', errorInfo.errorMessage);
+        console.error('[Server] Error stack:', errorInfo.errorStack);
+        console.error('[Server] Memory:', JSON.stringify(errorInfo.memory));
+        console.error('[Server] Full error info:', JSON.stringify(errorInfo, null, 2));
+        console.error('[Server] ===================================');
+        
+        // stderr로도 직접 출력 (Railway 로그에 확실히 기록)
+        process.stderr.write(`\n[SERVER ERROR] at ${errorInfo.timestamp}\n`);
+        process.stderr.write(`Port: ${errorInfo.port}\n`);
+        process.stderr.write(`Error: ${errorInfo.errorCode} - ${errorInfo.errorMessage}\n`);
+        if (errorInfo.errorStack) {
+            process.stderr.write(`Stack: ${errorInfo.errorStack}\n`);
+        }
+        process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
+        
+        if (error.code === 'EADDRINUSE') {
+            console.error(`[Server] Port ${port} is already in use. Please stop the process using this port or use a different port.`);
+            console.error(`[Server] To find and kill the process: netstat -ano | findstr ":${port}"`);
+            process.stderr.write(`[SERVER ERROR] Port ${port} is already in use\n`);
+            // Railway 환경에서는 포트 충돌 시에도 프로세스를 종료하지 않음
+            // Railway가 자동으로 재시작하는 것을 방지
+            if (!process.env.RAILWAY_ENVIRONMENT) {
+                process.exit(1);
+            }
+        } else {
+            console.error('[Server] Server error:', error);
+            console.error('[Server] Server error code:', error.code);
+            console.error('[Server] Server error message:', error.message);
+            // Railway 환경에서는 즉시 종료하지 않고 로그만 남김
+            // 서버가 계속 실행되도록 보장
+            if (!process.env.RAILWAY_ENVIRONMENT) {
+                process.exit(1);
+            }
+        }
+    });
+
+    // 헬스체크 엔드포인트 업데이트 (서버 객체 사용)
+    app.get('/api/health', async (req, res) => {
+        // Health Check 로그 (간소화하여 성능 영향 최소화)
+        const startTime = Date.now();
+        
+        try {
+            // 데이터베이스 연결 상태 확인 (비동기, 타임아웃 1초로 단축)
+            let dbStatus = 'unknown';
+            try {
+                const dbCheckPromise = (async () => {
+                    const prismaClient = (await import('./prismaClient.js')).default;
+                    await prismaClient.$queryRaw`SELECT 1`;
+                    return 'connected';
+                })();
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('timeout')), 1000)
+                );
+                await Promise.race([dbCheckPromise, timeoutPromise]);
+                dbStatus = 'connected';
+            } catch (dbError) {
+                dbStatus = 'disconnected';
+            }
+            
+            // 서버가 완전히 준비되지 않았어도 헬스체크는 성공으로 반환
+            // Railway가 헬스체크 실패로 인해 무한 재시작하는 것을 방지
+            const serverStatus = {
+                status: server && server.listening ? 'ok' : 'starting',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                listening: server?.listening || false,
+                ready: isServerReady,
+                database: dbStatus,
+                pid: process.pid,
+                memory: process.env.RAILWAY_ENVIRONMENT ? {
+                    rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
+                    heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                    heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+                } : undefined
+            };
+            
+            // 항상 200 반환 (서버가 시작 중이어도 재시작하지 않도록 함)
+            // Railway 헬스체크는 서버가 응답할 수 있으면 성공으로 간주
+            res.status(200).json(serverStatus);
+            
+            // Health Check 로그 (첫 번째 요청과 느린 요청만 출력)
+            const elapsed = Date.now() - startTime;
+            const isFirstCheck = !(global as any).healthCheckCount;
+            (global as any).healthCheckCount = ((global as any).healthCheckCount || 0) + 1;
+            
+            if (isFirstCheck || elapsed > 100 || !serverStatus.listening || dbStatus === 'disconnected' || (global as any).healthCheckCount % 10 === 0) {
+                console.log(`[Health Check] ${serverStatus.status} (${elapsed}ms, listening: ${serverStatus.listening}, ready: ${serverStatus.ready}, db: ${dbStatus}, count: ${(global as any).healthCheckCount})`);
+            }
+        } catch (error) {
+            console.error('[Health Check] Error:', error);
+            // 에러가 발생해도 200 반환하여 재시작 방지
+            if (!res.headersSent) {
+                res.status(200).json({ 
+                    status: 'error', 
+                    message: 'Health check error but server is running',
+                    timestamp: new Date().toISOString(),
+                    pid: process.pid
+                });
+            }
+        }
+    });
+
+    // 서버 리스닝을 즉시 시작 (헬스체크가 통과할 수 있도록)
+    // 나머지 라우트와 미들웨어는 리스닝 후에 설정됨
+    console.log('[Server] Starting server listen immediately for healthcheck...');
+    server.listen(port, '0.0.0.0', () => {
+        // 리스닝 시작 즉시 로그 출력 (헬스체크가 통과할 수 있도록)
+        console.log(`[Server] ========================================`);
+        console.log(`[Server] Server listening on port ${port}`);
+        console.log(`[Server] Process PID: ${process.pid}`);
+        console.log(`[Server] Node version: ${process.version}`);
+        console.log(`[Server] Railway environment: ${process.env.RAILWAY_ENVIRONMENT || 'not set'}`);
+        console.log(`[Server] Health check endpoint is available at /api/health`);
+        
+        // 즉시 메모리 사용량 로그 출력 (크래시 진단용)
+        const initialMemUsage = process.memoryUsage();
+        const initialMemMB = {
+            rss: Math.round(initialMemUsage.rss / 1024 / 1024),
+            heapTotal: Math.round(initialMemUsage.heapTotal / 1024 / 1024),
+            heapUsed: Math.round(initialMemUsage.heapUsed / 1024 / 1024),
+            external: Math.round(initialMemUsage.external / 1024 / 1024)
+        };
+        console.log(`[Server] Initial memory usage: RSS=${initialMemMB.rss}MB, Heap=${initialMemMB.heapUsed}/${initialMemMB.heapTotal}MB, External=${initialMemMB.external}MB`);
+        
+        // 서버 준비 상태 설정 (헬스체크가 통과할 수 있도록)
+        isServerReady = true;
+        console.log('[Server] Server is ready and accepting connections');
+        console.log(`[Server] ========================================`);
+        
+        // Keep-alive: 주기적으로 로그를 출력하여 프로세스가 살아있음을 확인
+        // Railway가 프로세스를 종료하지 않도록 하기 위함
+        setInterval(() => {
+            console.log(`[Server] Keep-alive: Server is running (uptime: ${Math.round(process.uptime())}s, PID: ${process.pid})`);
+        }, 300000); // 5분마다
+        
+        // WebSocket 서버 생성 (실패해도 HTTP 서버는 계속 실행)
+        try {
+            createWebSocketServer(server);
+            console.log('[Server] WebSocket server initialization attempted');
+        } catch (wsError: any) {
+            console.error('[Server] Failed to create WebSocket server:', wsError);
+            console.error('[Server] HTTP server will continue without WebSocket support');
+            // WebSocket 서버 생성 실패해도 HTTP 서버는 계속 실행
+        }
+        
+        // 무거운 초기화 작업은 비동기로 처리 (서버 리스닝 후)
+        // KataGo 엔진 초기화 (서버 시작 후 비동기로 처리, 블로킹 방지)
+        setImmediate(() => {
+            (async () => {
+                try {
+                    // 타임아웃 추가 (60초)
+                    const timeout = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('KataGo initialization timeout')), 60000);
+                    });
+                    await Promise.race([
+                        initializeKataGo(),
+                        timeout
+                    ]);
+                } catch (error: any) {
+                    console.error('[Server] Failed to initialize KataGo during server startup:', error?.message || error);
+                    console.error('[Server] Server will continue without KataGo pre-initialization');
+                    // 서버는 계속 실행 (KataGo 초기화 실패는 치명적이지 않음)
+                }
+            })().catch((outerError: any) => {
+                // async 함수 자체가 실패한 경우
+                console.error('[Server] Critical error in KataGo initialization wrapper:', outerError);
+                // 프로세스를 종료하지 않음
+            });
+        });
+    });
+
     // Serve static files from public directory with optimized caching
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
@@ -641,163 +856,7 @@ const startServer = async () => {
         threshold: 1024, // 1KB 이상만 압축
     }));
 
-    // --- Constants ---
-    const DISCONNECT_TIMER_S = 90;
-
-    // 요청 타임아웃 설정 (1000명 동시 접속 대응: 2분으로 증가)
-    const server = http.createServer((req, res) => {
-        // 타임아웃 설정 (2분으로 증가 - 대용량 데이터 처리 시간 고려)
-        req.setTimeout(120000, () => {
-            if (!res.headersSent) {
-                res.writeHead(408, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request timeout' }));
-            }
-        });
-        
-        app(req, res);
-    });
-    
-    // 서버 타임아웃 설정 (1000명 동시 접속 대응)
-    server.timeout = 120000; // 2분으로 증가 (1000명 처리 시간 고려)
-    server.keepAliveTimeout = 120000; // 2분으로 증가
-    server.headersTimeout = 130000; // 2분 10초로 증가
-    // maxConnections는 Node.js http.Server에서 직접 지원하지 않음
-    // 대신 연결 관리는 운영체제 레벨에서 처리됨
-    
-    // WebSocket 서버 생성 (실패해도 HTTP 서버는 계속 실행)
-    try {
-        createWebSocketServer(server);
-        console.log('[Server] WebSocket server initialization attempted');
-    } catch (wsError: any) {
-        console.error('[Server] Failed to create WebSocket server:', wsError);
-        console.error('[Server] HTTP server will continue without WebSocket support');
-        // WebSocket 서버 생성 실패해도 HTTP 서버는 계속 실행
-    }
-
-    // Health check endpoint는 이미 Express 앱 생성 직후 등록됨
-    // 서버 리스닝 후 더 상세한 정보를 제공하도록 업데이트
-    // 서버 객체가 생성된 후 헬스체크를 업데이트 (기존 간단한 버전을 덮어씀)
-    app.get('/api/health', async (req, res) => {
-        // Health Check 로그 (간소화하여 성능 영향 최소화)
-        const startTime = Date.now();
-        
-        try {
-            // 데이터베이스 연결 상태 확인 (비동기, 타임아웃 1초로 단축)
-            let dbStatus = 'unknown';
-            try {
-                const dbCheckPromise = (async () => {
-                    const prismaClient = (await import('./prismaClient.js')).default;
-                    await prismaClient.$queryRaw`SELECT 1`;
-                    return 'connected';
-                })();
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('timeout')), 1000)
-                );
-                await Promise.race([dbCheckPromise, timeoutPromise]);
-                dbStatus = 'connected';
-            } catch (dbError) {
-                dbStatus = 'disconnected';
-            }
-            
-            // 서버가 완전히 준비되지 않았어도 헬스체크는 성공으로 반환
-            // Railway가 헬스체크 실패로 인해 무한 재시작하는 것을 방지
-            const serverStatus = {
-                status: server && server.listening ? 'ok' : 'starting',
-                timestamp: new Date().toISOString(),
-                uptime: process.uptime(),
-                listening: server?.listening || false,
-                ready: isServerReady,
-                database: dbStatus,
-                pid: process.pid,
-                memory: process.env.RAILWAY_ENVIRONMENT ? {
-                    rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
-                    heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-                    heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
-                } : undefined
-            };
-            
-            // 항상 200 반환 (서버가 시작 중이어도 재시작하지 않도록 함)
-            // Railway 헬스체크는 서버가 응답할 수 있으면 성공으로 간주
-            res.status(200).json(serverStatus);
-            
-            // Health Check 로그 (첫 번째 요청과 느린 요청만 출력)
-            const elapsed = Date.now() - startTime;
-            const isFirstCheck = !(global as any).healthCheckCount;
-            (global as any).healthCheckCount = ((global as any).healthCheckCount || 0) + 1;
-            
-            if (isFirstCheck || elapsed > 100 || !serverStatus.listening || dbStatus === 'disconnected' || (global as any).healthCheckCount % 10 === 0) {
-                console.log(`[Health Check] ${serverStatus.status} (${elapsed}ms, listening: ${serverStatus.listening}, ready: ${serverStatus.ready}, db: ${dbStatus}, count: ${(global as any).healthCheckCount})`);
-            }
-        } catch (error) {
-            console.error('[Health Check] Error:', error);
-            // 에러가 발생해도 200 반환하여 재시작 방지
-            if (!res.headersSent) {
-                res.status(200).json({ 
-                    status: 'error', 
-                    message: 'Health check error but server is running',
-                    timestamp: new Date().toISOString(),
-                    pid: process.pid
-                });
-            }
-        }
-    });
-
-    server.on('error', (error: NodeJS.ErrnoException) => {
-        const errorInfo = {
-            timestamp: new Date().toISOString(),
-            type: 'serverError',
-            error: error,
-            errorCode: error.code,
-            errorMessage: error.message,
-            errorStack: error.stack,
-            port: port,
-            pid: process.pid,
-            uptime: process.uptime(),
-            memory: process.memoryUsage(),
-            railwayEnv: process.env.RAILWAY_ENVIRONMENT || 'not set'
-        };
-        
-        // 상세한 에러 로깅
-        console.error('[Server] ========== SERVER ERROR ==========');
-        console.error('[Server] Timestamp:', errorInfo.timestamp);
-        console.error('[Server] PID:', errorInfo.pid);
-        console.error('[Server] Port:', errorInfo.port);
-        console.error('[Server] Error code:', errorInfo.errorCode);
-        console.error('[Server] Error message:', errorInfo.errorMessage);
-        console.error('[Server] Error stack:', errorInfo.errorStack);
-        console.error('[Server] Memory:', JSON.stringify(errorInfo.memory));
-        console.error('[Server] Full error info:', JSON.stringify(errorInfo, null, 2));
-        console.error('[Server] ===================================');
-        
-        // stderr로도 직접 출력 (Railway 로그에 확실히 기록)
-        process.stderr.write(`\n[SERVER ERROR] at ${errorInfo.timestamp}\n`);
-        process.stderr.write(`Port: ${errorInfo.port}\n`);
-        process.stderr.write(`Error: ${errorInfo.errorCode} - ${errorInfo.errorMessage}\n`);
-        if (errorInfo.errorStack) {
-            process.stderr.write(`Stack: ${errorInfo.errorStack}\n`);
-        }
-        process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
-        
-        if (error.code === 'EADDRINUSE') {
-            console.error(`[Server] Port ${port} is already in use. Please stop the process using this port or use a different port.`);
-            console.error(`[Server] To find and kill the process: netstat -ano | findstr ":${port}"`);
-            process.stderr.write(`[SERVER ERROR] Port ${port} is already in use\n`);
-            // Railway 환경에서는 포트 충돌 시에도 프로세스를 종료하지 않음
-            // Railway가 자동으로 재시작하는 것을 방지
-            if (!process.env.RAILWAY_ENVIRONMENT) {
-                process.exit(1);
-            }
-        } else {
-            console.error('[Server] Server error:', error);
-            console.error('[Server] Server error code:', error.code);
-            console.error('[Server] Server error message:', error.message);
-            // Railway 환경에서는 즉시 종료하지 않고 로그만 남김
-            // 서버가 계속 실행되도록 보장
-            if (!process.env.RAILWAY_ENVIRONMENT) {
-                process.exit(1);
-            }
-        }
-    });
+    // WebSocket 서버 생성은 server.listen() 콜백 내부에서 처리됨
 
     // Graceful shutdown 함수
     const gracefulShutdown = async (server: http.Server) => {
@@ -849,65 +908,6 @@ const startServer = async () => {
         });
     });
 
-    // 서버 리스닝 시작 (에러가 발생해도 반드시 리스닝을 시작하도록 보장)
-    // 헬스체크가 즉시 통과할 수 있도록 리스닝을 최우선으로 시작
-    // server.listen은 비동기이므로 try-catch로 감쌀 수 없음 (에러는 server.on('error')로 처리)
-    // 리스닝을 즉시 시작 (콜백 내부의 무거운 작업은 비동기로 처리)
-    server.listen(port, '0.0.0.0', () => {
-            // 리스닝 시작 즉시 로그 출력 (헬스체크가 통과할 수 있도록)
-            console.log(`[Server] ========================================`);
-            console.log(`[Server] Server listening on port ${port}`);
-            console.log(`[Server] Process PID: ${process.pid}`);
-            console.log(`[Server] Node version: ${process.version}`);
-            console.log(`[Server] Railway environment: ${process.env.RAILWAY_ENVIRONMENT || 'not set'}`);
-            console.log(`[Server] Health check endpoint is available at /api/health`);
-            
-            // 즉시 메모리 사용량 로그 출력 (크래시 진단용)
-            const initialMemUsage = process.memoryUsage();
-            const initialMemMB = {
-                rss: Math.round(initialMemUsage.rss / 1024 / 1024),
-                heapTotal: Math.round(initialMemUsage.heapTotal / 1024 / 1024),
-                heapUsed: Math.round(initialMemUsage.heapUsed / 1024 / 1024),
-                external: Math.round(initialMemUsage.external / 1024 / 1024)
-            };
-            console.log(`[Server] Initial memory usage: RSS=${initialMemMB.rss}MB, Heap=${initialMemMB.heapUsed}/${initialMemMB.heapTotal}MB, External=${initialMemMB.external}MB`);
-            
-            // 서버 준비 상태 설정 (헬스체크가 통과할 수 있도록)
-            isServerReady = true;
-            console.log('[Server] Server is ready and accepting connections');
-            console.log(`[Server] ========================================`);
-            
-            // Keep-alive: 주기적으로 로그를 출력하여 프로세스가 살아있음을 확인
-            // Railway가 프로세스를 종료하지 않도록 하기 위함
-            setInterval(() => {
-                console.log(`[Server] Keep-alive: Server is running (uptime: ${Math.round(process.uptime())}s, PID: ${process.pid})`);
-            }, 300000); // 5분마다
-            
-            // 무거운 초기화 작업은 비동기로 처리 (서버 리스닝 후)
-            // KataGo 엔진 초기화 (서버 시작 후 비동기로 처리, 블로킹 방지)
-            setImmediate(() => {
-                (async () => {
-                    try {
-                        // 타임아웃 추가 (60초)
-                        const timeout = new Promise((_, reject) => {
-                            setTimeout(() => reject(new Error('KataGo initialization timeout')), 60000);
-                        });
-                        await Promise.race([
-                            initializeKataGo(),
-                            timeout
-                        ]);
-                    } catch (error: any) {
-                        console.error('[Server] Failed to initialize KataGo during server startup:', error?.message || error);
-                        console.error('[Server] Server will continue without KataGo pre-initialization');
-                        // 서버는 계속 실행 (KataGo 초기화 실패는 치명적이지 않음)
-                    }
-                })().catch((outerError: any) => {
-                    // async 함수 자체가 실패한 경우
-                    console.error('[Server] Critical error in KataGo initialization wrapper:', outerError);
-                    // 프로세스를 종료하지 않음
-                });
-            });
-        });
 
     const processActiveTournamentSimulations = async () => {
         if (isProcessingTournamentTick) return;
