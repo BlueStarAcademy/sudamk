@@ -463,41 +463,9 @@ const startServer = async () => {
     // 서버 리스닝 상태를 전역으로 저장 (헬스체크용)
     let isServerReady = false;
     
-    // 헬스체크 엔드포인트는 나중에 등록됨 (서버 객체 필요)
-    // Root endpoint는 프론트엔드 서빙이 활성화되어 있으면 SPA fallback에서 처리됨
+    // === 중요: Express 미들웨어를 서버 리스닝 전에 설정 ===
+    // 서버가 리스닝을 시작하기 전에 최소한의 미들웨어를 설정하여 요청이 처리되도록 함
     
-    // 서버를 즉시 생성하고 리스닝 시작 (헬스체크가 통과할 수 있도록)
-    // 나머지 미들웨어와 라우트는 리스닝 후에 설정됨
-    const server = http.createServer((req, res) => {
-        // 타임아웃 설정 (2분으로 증가 - 대용량 데이터 처리 시간 고려)
-        req.setTimeout(120000, () => {
-            if (!res.headersSent) {
-                res.writeHead(408, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request timeout' }));
-            }
-        });
-        
-        app(req, res);
-    });
-    
-    // 서버 타임아웃 설정 (1000명 동시 접속 대응)
-    server.timeout = 120000; // 2분으로 증가 (1000명 처리 시간 고려)
-    server.keepAliveTimeout = 120000; // 2분으로 증가
-    server.headersTimeout = 130000; // 2분 10초로 증가
-    
-    // 서버 리스닝을 최우선으로 시작 (헬스체크가 즉시 통과할 수 있도록)
-    console.log('[Server] Starting server listen immediately for healthcheck...');
-    server.listen(port, '0.0.0.0', () => {
-        console.log(`[Server] ========================================`);
-        console.log(`[Server] Server listening on port ${port}`);
-        console.log(`[Server] Process PID: ${process.pid}`);
-        console.log(`[Server] Health check endpoint is available at /api/health`);
-        console.log(`[Server] ========================================`);
-        
-        // 서버 준비 상태 설정 (헬스체크가 통과할 수 있도록)
-        isServerReady = true;
-    });
-
     // CORS 설정 - 프로덕션에서는 특정 origin만 허용
     const corsOptions: cors.CorsOptions = {
         origin: (origin, callback) => {
@@ -567,29 +535,70 @@ const startServer = async () => {
     
     app.use(express.json({ limit: '10mb' }) as any);
     
-    // 전역 에러 핸들러 미들웨어 (모든 라우트 이후에 추가)
-    // 이 핸들러는 모든 라우트 정의 후에 추가됩니다
-
-    // --- Constants ---
-    const DISCONNECT_TIMER_S = 90;
-
-    // 헬스체크 엔드포인트를 서버 생성 직후에 등록 (서버 객체 사용 가능)
-    // 서버 리스닝 전에도 작동하도록 보장
-    // 매우 단순하게 만들어서 빠르게 응답
+    app.use(express.urlencoded({ extended: true, limit: '10mb' }) as any);
+    
+    // 헬스체크 엔드포인트를 서버 리스닝 전에 등록 (즉시 응답 가능하도록)
     app.get('/api/health', (req, res) => {
-        // 항상 200 반환 (서버가 시작 중이어도 재시작하지 않도록 함)
-        // Railway 헬스체크는 서버가 응답할 수 있으면 성공으로 간주
         res.status(200).json({
             status: 'ok',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
-            listening: server?.listening || false,
+            listening: false, // 서버 객체가 아직 생성되지 않았으므로 false
             ready: isServerReady,
             pid: process.pid
         });
     });
     
-    console.log('[Server] Health check endpoint registered (simple version)');
+    console.log('[Server] Health check endpoint registered (before server listen)');
+    
+    // 서버를 생성하고 리스닝 시작 (Express 미들웨어가 이미 설정됨)
+    const server = http.createServer((req, res) => {
+        // 타임아웃 설정 (2분으로 증가 - 대용량 데이터 처리 시간 고려)
+        req.setTimeout(120000, () => {
+            if (!res.headersSent) {
+                res.writeHead(408, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request timeout' }));
+            }
+        });
+        
+        app(req, res);
+    });
+    
+    // 서버 타임아웃 설정 (1000명 동시 접속 대응)
+    server.timeout = 120000; // 2분으로 증가 (1000명 처리 시간 고려)
+    server.keepAliveTimeout = 120000; // 2분으로 증가
+    server.headersTimeout = 130000; // 2분 10초로 증가
+    
+    // 서버 리스닝 시작 (Express 미들웨어가 이미 설정되어 있음)
+    console.log('[Server] Starting server listen...');
+    server.listen(port, '0.0.0.0', () => {
+        console.log(`[Server] ========================================`);
+        console.log(`[Server] Server listening on port ${port}`);
+        console.log(`[Server] Process PID: ${process.pid}`);
+        console.log(`[Server] Health check endpoint is available at /api/health`);
+        console.log(`[Server] ========================================`);
+        
+        // 서버 준비 상태 설정
+        isServerReady = true;
+        
+        // 헬스체크 엔드포인트 업데이트 (서버 객체 사용 가능)
+        app.get('/api/health', (req, res) => {
+            res.status(200).json({
+                status: 'ok',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                listening: server.listening,
+                ready: isServerReady,
+                pid: process.pid
+            });
+        });
+    });
+
+    // 전역 에러 핸들러 미들웨어 (모든 라우트 이후에 추가)
+    // 이 핸들러는 모든 라우트 정의 후에 추가됩니다
+
+    // --- Constants ---
+    const DISCONNECT_TIMER_S = 90;
 
     // 나머지 초기화 작업은 서버 리스닝 후 비동기로 처리
     // 서버가 이미 리스닝 중이므로 헬스체크는 통과할 수 있음
@@ -741,6 +750,9 @@ const startServer = async () => {
     // Default to true for integrated deployment (can be disabled with ENABLE_FRONTEND_SERVING=false)
     // In separated deployment, set ENABLE_FRONTEND_SERVING=false
     const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING !== 'false';
+    console.log(`[Server] ENABLE_FRONTEND_SERVING: ${process.env.ENABLE_FRONTEND_SERVING || 'not set (defaulting to true)'}`);
+    console.log(`[Server] Frontend serving: ${enableFrontendServing ? 'ENABLED' : 'DISABLED'}`);
+    
     if (enableFrontendServing) {
         const distPath = path.join(__dirname, '..', 'dist');
         
@@ -748,10 +760,19 @@ const startServer = async () => {
         const fs = await import('fs');
         const distExists = fs.existsSync(distPath);
         if (!distExists) {
-            console.warn(`[Server] WARNING: dist directory not found at ${distPath}. Frontend files may not be available.`);
+            console.error(`[Server] ERROR: dist directory not found at ${distPath}. Frontend files may not be available.`);
+            console.error(`[Server] This will cause 502 errors. Please ensure the frontend is built and dist/ directory exists.`);
         } else {
             const distFiles = fs.readdirSync(distPath);
-            console.log(`[Server] dist directory found with ${distFiles.length} files/directories`);
+            console.log(`[Server] ✅ dist directory found at ${distPath} with ${distFiles.length} files/directories`);
+            
+            // index.html 존재 여부 확인
+            const indexPath = path.join(distPath, 'index.html');
+            if (fs.existsSync(indexPath)) {
+                console.log(`[Server] ✅ index.html found - frontend can be served`);
+            } else {
+                console.error(`[Server] ERROR: index.html not found in dist directory. Frontend cannot be served.`);
+            }
         }
         
         app.use(express.static(distPath, {
