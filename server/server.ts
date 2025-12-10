@@ -961,12 +961,45 @@ const startServer = async () => {
                         // 첫 실행 로그
                         const isFirstRun = !hasLoggedMainLoopSkip;
                         if (isFirstRun) {
-                            console.log('[MainLoop] First run starting...');
+                            console.log('[MainLoop] ========== FIRST RUN STARTING ==========');
+                            console.log('[MainLoop] Database initialized:', dbInitialized);
+                            console.log('[MainLoop] Memory:', JSON.stringify(process.memoryUsage()));
                             hasLoggedMainLoopSkip = true;
                         }
                         
                         try {
                             const now = Date.now();
+                            
+                            // 첫 실행에서는 최소한의 작업만 수행
+                            if (isFirstRun) {
+                                console.log('[MainLoop] First run: Skipping heavy operations, only doing basic checks...');
+                                // 첫 실행에서는 게임 로드만 하고 나머지는 스킵
+                                try {
+                                    const gamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
+                                        setTimeout(() => {
+                                            console.log('[MainLoop] First run: getAllActiveGames timeout, using empty array');
+                                            resolve([]);
+                                        }, 10000); // 첫 실행: 10초 타임아웃
+                                    });
+                                    const activeGames = await Promise.race([
+                                        db.getAllActiveGames().catch((err: any) => {
+                                            console.error('[MainLoop] First run: getAllActiveGames error:', err?.message);
+                                            return [];
+                                        }),
+                                        gamesTimeout
+                                    ]);
+                                    console.log(`[MainLoop] ✅ First run completed: Loaded ${activeGames.length} active games`);
+                                    console.log('[MainLoop] =========================================');
+                                } catch (firstRunError: any) {
+                                    console.error('[MainLoop] First run error:', firstRunError?.message);
+                                    console.error('[MainLoop] First run error stack:', firstRunError?.stack);
+                                    console.log('[MainLoop] =========================================');
+                                }
+                                // 첫 실행 완료 후 다음 루프로 진행
+                                isProcessingMainLoop = false;
+                                scheduleMainLoop(2000); // 2초 후 정상 루프 시작
+                                return;
+                            }
                 
                 // 랭킹전 매칭 처리 (1초마다) - 에러 핸들링 추가
                 if (volatileState.rankedMatchingQueue) {
