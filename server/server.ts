@@ -957,6 +957,14 @@ const startServer = async () => {
 
                         isProcessingMainLoop = true;
                         hasLoggedMainLoopSkip = false;
+                        
+                        // 첫 실행 로그
+                        const isFirstRun = !hasLoggedMainLoopSkip;
+                        if (isFirstRun) {
+                            console.log('[MainLoop] First run starting...');
+                            hasLoggedMainLoopSkip = true;
+                        }
+                        
                         try {
                             const now = Date.now();
                 
@@ -975,6 +983,7 @@ const startServer = async () => {
                         }
                     } catch (matchingError: any) {
                         console.error('[MainLoop] Error in ranked matching:', matchingError?.message);
+                        console.error('[MainLoop] Matching error stack:', matchingError?.stack);
                     }
                 }
 
@@ -1110,18 +1119,30 @@ const startServer = async () => {
                 }
             }
 
-            // 게임 로드에 타임아웃 추가 (10초)
+            // 게임 로드에 타임아웃 추가 (첫 실행: 30초, 이후: 10초)
             let activeGames: types.LiveGameSession[] = [];
             try {
+                const timeoutDuration = isFirstRun ? 30000 : 10000; // 첫 실행: 30초, 이후: 10초
                 const gamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
-                    setTimeout(() => resolve([]), 10000);
+                    setTimeout(() => {
+                        console.warn(`[MainLoop] getAllActiveGames timeout after ${timeoutDuration}ms`);
+                        resolve([]);
+                    }, timeoutDuration);
                 });
                 activeGames = await Promise.race([
-                    db.getAllActiveGames(),
+                    db.getAllActiveGames().catch((err: any) => {
+                        console.error('[MainLoop] getAllActiveGames error:', err?.message || err);
+                        console.error('[MainLoop] getAllActiveGames error stack:', err?.stack);
+                        return [];
+                    }),
                     gamesTimeout
                 ]);
+                if (isFirstRun) {
+                    console.log(`[MainLoop] ✅ First run completed: Loaded ${activeGames.length} active games`);
+                }
             } catch (error: any) {
                 console.error('[MainLoop] Failed to load active games:', error?.message || error);
+                console.error('[MainLoop] Load games error stack:', error?.stack);
                 activeGames = [];
             }
             
