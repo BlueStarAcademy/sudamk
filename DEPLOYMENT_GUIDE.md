@@ -188,16 +188,20 @@
    - **Name**: `DATABASE_URL`
    - **Value**: PostgreSQL 데이터베이스 연결 URL
    - **⚠️ 중요**: DATABASE_URL은 반드시 `postgresql://` 또는 `postgres://`로 시작해야 합니다!
+   - **⚠️ 절대 하지 말아야 할 것**: Postgres 서비스의 Variables에서 `DATABASE_URL`을 직접 수정하지 마세요! Postgres 서비스의 Variables는 Railway가 자동으로 관리합니다.
    - **설정 방법**:
-     1. Railway 프로젝트에서 **PostgreSQL 서비스** 선택
-     2. **Variables** 탭으로 이동
-     3. `DATABASE_URL` 또는 `POSTGRES_URL` 변수 찾기
-     4. 전체 URL 복사 (예: `postgresql://postgres:PASSWORD@postgres-production-xxxx.up.railway.app:5432/railway`)
-     5. Backend 서비스의 Variables에 `DATABASE_URL`로 붙여넣기
-   - **또는**: Railway가 자동으로 제공하는 경우:
-     - Postgres 서비스를 Backend 서비스와 같은 프로젝트에 배포
-     - Railway가 자동으로 `DATABASE_URL` 환경 변수를 제공
-     - Backend 서비스의 Variables에서 확인
+     1. **Postgres 서비스의 Variables는 건드리지 마세요!**
+     2. **Backend 서비스** → **Variables** 탭으로 이동
+     3. `DATABASE_URL` 변수 찾기 (없으면 "+ New Variable" 클릭)
+     4. **내부 네트워크 URL 사용 (권장)**:
+        - Value: `postgresql://postgres:PASSWORD@postgres.railway.internal:5432/railway`
+        - PASSWORD는 Postgres 서비스의 Variables에서 `POSTGRES_PASSWORD` 또는 `PGPASSWORD` 확인
+        - 호스트는 반드시 `postgres.railway.internal` 사용
+     5. **또는 Variable Reference 사용**:
+        - "+ New Variable" → "Add Variable Reference" 클릭
+        - Postgres 서비스 선택 → `DATABASE_URL` 선택
+        - Railway가 자동으로 연결해주지만, 내부 네트워크를 사용하려면 직접 설정하는 것이 더 확실합니다
+     6. **Save** 클릭
    - **Add** 클릭
 
 5. 기존 환경 변수들도 확인:
@@ -334,7 +338,60 @@ error: Error validating datasource `db`: the URL must start with the protocol `p
 4. **내부 네트워크 사용 (권장):**
    - Railway 내부 네트워크를 사용하면 더 빠르고 안정적입니다
    - 형식: `postgresql://postgres:PASSWORD@postgres.railway.internal:5432/railway`
-   - Postgres 서비스의 Variables에서 `POSTGRES_PRIVATE_URL` 사용
+   - **설정 방법:**
+     
+     **방법 A: Railway Dashboard에서 직접 설정 (가장 확실)**
+     
+     1. Railway Dashboard → **Postgres** 서비스 선택
+     2. **Variables** 탭으로 이동
+     3. `DATABASE_URL` 또는 `POSTGRES_PRIVATE_URL` 변수 찾기
+     4. 값이 `postgres.railway.internal`을 포함하는지 확인
+        - ✅ 올바른 형식: `postgresql://postgres:PASSWORD@postgres.railway.internal:5432/railway`
+        - ❌ 잘못된 형식: `postgresql://postgres:PASSWORD@postgres-production-xxx.up.railway.app:5432/railway`
+     5. 만약 외부 URL(`.up.railway.app`)을 사용 중이라면:
+        - Backend 서비스 → **Variables** 탭으로 이동
+        - `DATABASE_URL` 변수 찾기
+        - **Edit** 클릭
+        - 호스트 부분을 `postgres.railway.internal`로 변경
+        - 예: `postgres-production-xxx.up.railway.app` → `postgres.railway.internal`
+        - **Save** 클릭
+     6. Railway가 자동으로 재배포합니다
+     
+     **방법 B: Railway CLI 사용**
+     
+     ```powershell
+     # Railway CLI로 로그인 (필요시)
+     railway login
+     
+     # 프로젝트 연결
+     railway link
+     
+     # Backend 서비스 선택
+     railway service
+     # 목록에서 backend 서비스 선택
+     
+     # 현재 DATABASE_URL 확인
+     railway variables | findstr DATABASE_URL
+     
+     # 내부 네트워크로 변경 (비밀번호는 실제 값으로 교체)
+     railway variables --set "DATABASE_URL=postgresql://postgres:PASSWORD@postgres.railway.internal:5432/railway"
+     ```
+     
+     **방법 C: Postgres 서비스의 Variables 사용**
+     
+     - Postgres 서비스의 Variables에서 `POSTGRES_PRIVATE_URL` 또는 내부 네트워크 URL 복사
+     - Backend 서비스의 Variables에 `DATABASE_URL`로 설정
+     
+   - **확인 방법:**
+     - 서버 재시작 후 로그에서 다음 메시지 확인:
+       ```
+       [Prisma] Converted Railway public URL to internal network: postgresql://postgres:****@postgres.railway.internal:5432/railway
+       ```
+     - 또는 경고 메시지가 사라졌는지 확인:
+       ```
+       [Server Startup] WARNING: DATABASE_URL is not using Railway internal network.
+       ```
+       이 메시지가 더 이상 나타나지 않으면 성공입니다.
 
 ### Frontend가 Backend에 연결되지 않는 경우
 - `VITE_API_URL`과 `VITE_WS_URL`이 올바른지 확인
@@ -347,6 +404,63 @@ error: Error validating datasource `db`: the URL must start with the protocol `p
 ### 빌드 실패
 - 각 서비스의 Dockerfile 경로가 올바른지 확인
 - 빌드 로그 확인 (Railway 대시보드 → Deployments → View Logs)
+
+### 헬스체크 실패 문제
+
+**증상:**
+```
+Healthcheck failed!
+1/1 replicas never became healthy!
+```
+
+**원인:**
+- 서버가 시작되는 데 시간이 오래 걸림
+- 헬스체크 경로가 잘못 설정됨
+- 서버가 실제로 시작되지 않음
+
+**해결 방법:**
+
+**방법 1: 헬스체크 경로 변경**
+1. Backend 서비스 → **Settings** → **Health**
+2. **Health Check Path**를 `/`로 변경
+3. 재배포
+
+**방법 2: 헬스체크 비활성화 (임시)**
+1. Backend 서비스 → **Settings** → **Health**
+2. **Health Check Path**를 비워두기
+3. 재배포
+
+**방법 3: 헬스체크 타임아웃 증가**
+1. Backend 서비스 → **Settings** → **Health**
+2. **Health Check Timeout**을 더 길게 설정 (예: 10분)
+3. 재배포
+
+**방법 4: 서버 로그 확인**
+- Backend 서비스 → **Logs** 탭에서 서버 시작 메시지 확인
+- 다음 메시지가 보이면 서버는 정상:
+  ```
+  [Server] Server listening on port 4000
+  [Server] Server is ready and accepting connections
+  ```
+- 서버가 정상이면 헬스체크 설정 문제일 수 있으므로 방법 1-3 시도
+
+### 로그인 실패 문제
+
+**증상:**
+- 로그인 시도 시 에러 발생
+- "Unexpected token '<', "<!DOCTYPE "... is not valid JSON" 에러
+
+**원인:**
+- Frontend가 Backend API를 찾지 못함
+- `VITE_API_URL` 환경 변수가 설정되지 않음
+
+**해결 방법:**
+1. Frontend 서비스 → **Variables** 탭
+2. `VITE_API_URL` 확인:
+   - 없으면 추가: `https://your-backend-service.railway.app`
+   - 있으면 Backend 서비스 URL이 올바른지 확인
+3. Frontend 서비스 재배포
+4. 브라우저 캐시 삭제 후 다시 시도
 
 ## 참고사항
 

@@ -100,5 +100,10 @@ USER nodejs
 
 EXPOSE 4001
 
-CMD ["npm", "run", "start-katago"]
+# Use Railway's PORT if provided, otherwise default to 4001
+ENV PORT=${PORT:-4001}
+
+# Start command - use tsx directly to avoid cross-env issues
+# Railway will set PORT automatically, so we don't need to override it
+CMD ["node", "node_modules/tsx/dist/cli.mjs", "--tsconfig", "server/tsconfig.json", "server/katagoServer.ts"]
 
