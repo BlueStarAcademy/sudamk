@@ -55,10 +55,26 @@ export async function getLiveGame(id: string): Promise<LiveGameSession | null> {
 
 export async function getAllActiveGames(): Promise<LiveGameSession[]> {
   try {
-    const rows = await prisma.liveGame.findMany({
-      where: { isEnded: false }
+    // 타임아웃 추가: 5초 내에 완료되지 않으면 빈 배열 반환
+    const timeoutPromise = new Promise<LiveGameSession[]>((resolve) => {
+      setTimeout(() => {
+        console.warn('[gameService] getAllActiveGames query timeout (5000ms)');
+        resolve([]);
+      }, 5000);
     });
-    return rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
+
+    const queryPromise = prisma.liveGame.findMany({
+      where: { isEnded: false },
+      // 필요한 필드만 선택하여 성능 최적화
+      select: {
+        id: true,
+        data: true,
+        status: true,
+        category: true
+      }
+    }).then(rows => rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null));
+
+    return await Promise.race([queryPromise, timeoutPromise]);
   } catch (error: any) {
     // 연결 오류 시 재시도
     if (error.code === 'P1017' || error.message?.includes('closed the connection')) {
@@ -66,7 +82,13 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
       try {
         await prisma.$connect();
         const rows = await prisma.liveGame.findMany({
-          where: { isEnded: false }
+          where: { isEnded: false },
+          select: {
+            id: true,
+            data: true,
+            status: true,
+            category: true
+          }
         });
         return rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
       } catch (retryError) {

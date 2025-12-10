@@ -194,6 +194,9 @@ model LiveGame {
   data      Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([isEnded])
+  @@index([isEnded, updatedAt])
 }
 
 model KeyValue {
