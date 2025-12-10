@@ -463,18 +463,8 @@ const startServer = async () => {
     // 서버 리스닝 상태를 전역으로 저장 (헬스체크용)
     let isServerReady = false;
     
-    // 헬스체크 엔드포인트를 가장 먼저 등록 (서버가 시작되기 전에도 응답 가능하도록)
-    // Root endpoint
-    app.get('/', (req, res) => {
-        res.json({
-            service: 'backend',
-            status: 'running',
-            endpoints: {
-                health: '/api/health',
-                api: '/api/*'
-            }
-        });
-    });
+    // 헬스체크 엔드포인트는 나중에 등록됨 (서버 객체 필요)
+    // Root endpoint는 프론트엔드 서빙이 활성화되어 있으면 SPA fallback에서 처리됨
     
     // 서버를 즉시 생성하고 리스닝 시작 (헬스체크가 통과할 수 있도록)
     // 나머지 미들웨어와 라우트는 리스닝 후에 설정됨
@@ -3796,8 +3786,9 @@ const startServer = async () => {
     });
 
     // SPA fallback: serve index.html for all non-API routes (only if frontend serving is enabled)
-    // Note: enableFrontendServing is already declared above (line 483)
+    // Note: enableFrontendServing is already declared above
     if (enableFrontendServing) {
+        // Serve index.html for root path and all non-API routes
         app.get('*', (req, res, next) => {
             // Skip API and WebSocket routes
             if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
@@ -3815,14 +3806,14 @@ const startServer = async () => {
                 return res.status(404).json({ message: 'Static file not found' });
             }
             
-            // Serve index.html for SPA routing
+            // Serve index.html for SPA routing (including root path)
             const __filename = fileURLToPath(import.meta.url);
             const __dirname = path.dirname(__filename);
             const distPath = path.join(__dirname, '..', 'dist');
             const indexPath = path.join(distPath, 'index.html');
             
             // index.html 존재 여부 확인
-            const fs = require('fs');
+            const fs = await import('fs');
             if (!fs.existsSync(indexPath)) {
                 console.error(`[SPA] index.html not found at ${indexPath}`);
                 return res.status(500).json({ message: 'Frontend not found. Please rebuild the application.' });
@@ -3838,7 +3829,18 @@ const startServer = async () => {
             });
         });
     } else {
-        // If frontend serving is disabled, return 404 for all non-API routes
+        // If frontend serving is disabled, return JSON for root, 404 for others
+        app.get('/', (req, res) => {
+            res.json({
+                service: 'backend',
+                status: 'running',
+                endpoints: {
+                    health: '/api/health',
+                    api: '/api/*'
+                }
+            });
+        });
+        
         app.get('*', (req, res) => {
             if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
                 return res.status(404).json({ message: 'API endpoint not found' });
