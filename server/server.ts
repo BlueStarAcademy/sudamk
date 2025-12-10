@@ -943,6 +943,13 @@ const startServer = async () => {
                 // setTimeout 내부도 보호
                 (async () => {
                     try {
+                        // 첫 실행 전에 데이터베이스 연결 확인
+                        if (!dbInitialized) {
+                            console.log('[MainLoop] Database not initialized yet, skipping first run...');
+                            scheduleMainLoop(Math.min(delay * 2, 10000)); // 10초 후 재시도
+                            return;
+                        }
+                        
                         if (isProcessingMainLoop) {
                             scheduleMainLoop(Math.min(delay * 2, 5000));
                             return;
@@ -1915,40 +1922,41 @@ const startServer = async () => {
     };
 
     // --- Main Game Loop ---
-    // 절대 실패하지 않도록 보호
-    try {
-        scheduleMainLoop(1000);
-        console.log('[Server] Main game loop scheduled successfully');
-    } catch (error: any) {
-        console.error('[Server] CRITICAL: Failed to schedule main loop:', error);
-        // 5초 후 재시도
-        setTimeout(() => {
-            try {
-                scheduleMainLoop(1000);
-                console.log('[Server] Main game loop scheduled successfully (retry)');
-            } catch (retryError: any) {
-                console.error('[Server] CRITICAL: Failed to schedule main loop (retry):', retryError);
-                // 계속 재시도
-                setInterval(() => {
-                    try {
-                        scheduleMainLoop(1000);
-                    } catch (e: any) {
-                        console.error('[Server] CRITICAL: Failed to schedule main loop (continuous retry):', e);
-                    }
-                }, 10000);
-            }
-        }, 5000);
-    }
+    // 메인 게임 루프는 서버 리스닝 후에 시작 (데이터베이스 초기화 완료 대기)
+    // 첫 실행을 지연시켜서 서버가 완전히 준비된 후에 시작
+    console.log('[Server] Main game loop will start after server is ready...');
     
-    // 서버가 리스닝을 시작한 후 메인 루프 시작
-    console.log('[Server] Starting main game loop...');
-    try {
-        scheduleMainLoop(1000);
-        console.log('[Server] Main game loop scheduled successfully');
-    } catch (error) {
-        console.error('[Server] Failed to start main game loop:', error);
-        // 메인 루프 시작 실패는 치명적이지 않음 (서버는 계속 실행)
-    }
+    // 서버 리스닝 후 메인 루프 시작 (5초 지연으로 서버 안정화 대기)
+    setTimeout(() => {
+        console.log('[Server] Starting main game loop...');
+        try {
+            // 첫 실행을 더 안전하게 만들기 위해 지연 시간 증가
+            scheduleMainLoop(5000); // 1초 -> 5초로 증가하여 서버 안정화 대기
+            console.log('[Server] Main game loop scheduled successfully');
+        } catch (error: any) {
+            console.error('[Server] CRITICAL: Failed to schedule main loop:', error);
+            console.error('[Server] Error stack:', error?.stack);
+            // 10초 후 재시도
+            setTimeout(() => {
+                try {
+                    scheduleMainLoop(5000);
+                    console.log('[Server] Main game loop scheduled successfully (retry)');
+                } catch (retryError: any) {
+                    console.error('[Server] CRITICAL: Failed to schedule main loop (retry):', retryError);
+                    console.error('[Server] Retry error stack:', retryError?.stack);
+                    // 계속 재시도 (더 긴 간격)
+                    setInterval(() => {
+                        try {
+                            scheduleMainLoop(5000);
+                        } catch (e: any) {
+                            console.error('[Server] CRITICAL: Failed to schedule main loop (continuous retry):', e);
+                            console.error('[Server] Continuous retry error stack:', e?.stack);
+                        }
+                    }, 30000); // 10초 -> 30초로 증가
+                }
+            }, 10000); // 5초 -> 10초로 증가
+        }
+    }, 5000); // 서버 리스닝 후 5초 대기
     
     // --- API Endpoints ---
     // Health check endpoint는 server 생성 직후에 정의됨 (위 참조)
