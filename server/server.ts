@@ -1004,7 +1004,7 @@ const startServer = async () => {
                                 }
                                 // 첫 실행 완료 후 다음 루프로 진행
                                 isProcessingMainLoop = false;
-                                scheduleMainLoop(2000); // 2초 후 정상 루프 시작
+                                scheduleMainLoop(10000); // 10초 후 정상 루프 시작 (서버 부하 감소)
                                 return;
                             }
                 
@@ -1937,7 +1937,7 @@ const startServer = async () => {
                                 isProcessingMainLoop = false;
                                 // 에러 발생 시에도 다음 루프를 스케줄링 (서버가 계속 실행되도록)
                                 // 에러 발생 시 지연 시간을 늘려서 서버 부하 감소
-                                const nextDelay = 2000; // 2초로 증가
+                                const nextDelay = 10000; // 10초로 증가 (서버 부하 감소)
                                 // 절대 실패하지 않도록 보호
                                 try {
                                     scheduleMainLoop(nextDelay);
@@ -2012,7 +2012,7 @@ const startServer = async () => {
         console.log('[Server] Starting main game loop...');
         try {
             // 첫 실행을 더 안전하게 만들기 위해 지연 시간 증가
-            scheduleMainLoop(5000); // 1초 -> 5초로 증가하여 서버 안정화 대기
+            scheduleMainLoop(10000); // 10초로 증가하여 서버 안정화 및 부하 감소
             console.log('[Server] Main game loop scheduled successfully');
         } catch (error: any) {
             console.error('[Server] CRITICAL: Failed to schedule main loop:', error);
