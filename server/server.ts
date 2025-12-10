@@ -3971,13 +3971,35 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
     if (reason instanceof Error && reason.stack) {
         process.stderr.write(`Stack: ${reason.stack}\n`);
     }
-    process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
+    const memMB = {
+        rss: Math.round(errorInfo.memory.rss / 1024 / 1024),
+        heapUsed: Math.round(errorInfo.memory.heapUsed / 1024 / 1024),
+        heapTotal: Math.round(errorInfo.memory.heapTotal / 1024 / 1024),
+        external: Math.round(errorInfo.memory.external / 1024 / 1024)
+    };
+    process.stderr.write(`Memory: RSS=${memMB.rss}MB, Heap=${memMB.heapUsed}/${memMB.heapTotal}MB, External=${memMB.external}MB\n`);
+    process.stderr.write(`PID: ${errorInfo.pid}, Uptime: ${errorInfo.uptime}s\n\n`);
     
     // 메모리 부족 에러인 경우 프로세스 종료 (Railway가 재시작)
     if (reason && typeof reason === 'object' && 'code' in reason && reason.code === 'ENOMEM') {
         console.error('[Server] Out of memory error detected. Exiting for Railway restart.');
         process.stderr.write('[CRITICAL] Out of memory - exiting\n');
+        // 메모리 정리 시도
+        try {
+            if (global.gc) {
+                global.gc();
+                console.log('[Server] Manual garbage collection triggered before exit');
+            }
+        } catch (gcError) {
+            console.error('[Server] Failed to trigger GC:', gcError);
+        }
         process.exit(1);
+    }
+    
+    // 메모리 사용량이 매우 높은 경우 경고
+    if (memMB.rss > 400) {
+        console.error(`[Server] WARNING: High memory usage detected (${memMB.rss}MB RSS) during unhandled rejection`);
+        process.stderr.write(`[WARNING] High memory usage: ${memMB.rss}MB RSS\n`);
     }
     
     // 데이터베이스 연결 에러는 치명적이지 않음 (서버는 계속 실행)
@@ -4038,13 +4060,35 @@ process.on('uncaughtException', (error: Error) => {
     if (errorInfo.stack) {
         process.stderr.write(`Stack: ${errorInfo.stack}\n`);
     }
-    process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
+    const memMB = {
+        rss: Math.round(errorInfo.memory.rss / 1024 / 1024),
+        heapUsed: Math.round(errorInfo.memory.heapUsed / 1024 / 1024),
+        heapTotal: Math.round(errorInfo.memory.heapTotal / 1024 / 1024),
+        external: Math.round(errorInfo.memory.external / 1024 / 1024)
+    };
+    process.stderr.write(`Memory: RSS=${memMB.rss}MB, Heap=${memMB.heapUsed}/${memMB.heapTotal}MB, External=${memMB.external}MB\n`);
+    process.stderr.write(`PID: ${errorInfo.pid}, Uptime: ${errorInfo.uptime}s\n\n`);
     
     // 메모리 부족 에러인 경우 프로세스 종료 (Railway가 재시작)
     if ((error as any)?.code === 'ENOMEM' || error.message?.includes('out of memory')) {
         console.error('[Server] Out of memory error detected. Exiting for Railway restart.');
         process.stderr.write('[CRITICAL] Out of memory - exiting\n');
+        // 메모리 정리 시도
+        try {
+            if (global.gc) {
+                global.gc();
+                console.log('[Server] Manual garbage collection triggered before exit');
+            }
+        } catch (gcError) {
+            console.error('[Server] Failed to trigger GC:', gcError);
+        }
         process.exit(1);
+    }
+    
+    // 메모리 사용량이 매우 높은 경우 경고
+    if (memMB.rss > 400) {
+        console.error(`[Server] WARNING: High memory usage detected (${memMB.rss}MB RSS) during uncaught exception`);
+        process.stderr.write(`[WARNING] High memory usage: ${memMB.rss}MB RSS\n`);
     }
     
     // 데이터베이스 연결 에러는 치명적이지 않음

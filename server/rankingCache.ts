@@ -44,17 +44,56 @@ export async function buildRankingCache(): Promise<RankingCache> {
     // 이미 빌드 중이면 기존 Promise를 기다림 (동시 빌드 방지)
     if (buildingPromise) {
         console.log('[RankingCache] Cache build in progress, waiting for existing build...');
-        return buildingPromise;
+        try {
+            // 기존 빌드에 타임아웃 추가 (60초)
+            const timeoutPromise = new Promise<RankingCache>((_, reject) => {
+                setTimeout(() => reject(new Error('Ranking cache build timeout (waiting for existing build)')), 60000);
+            });
+            return await Promise.race([buildingPromise, timeoutPromise]);
+        } catch (error) {
+            console.error('[RankingCache] Error waiting for existing build:', error);
+            // 기존 빌드가 실패하면 새로 시작
+            buildingPromise = null;
+        }
     }
     
     console.log('[RankingCache] Building ranking cache...');
     const startTime = Date.now();
     
+    // 메모리 사용량 확인
+    const memUsageBefore = process.memoryUsage();
+    const memUsageMBBefore = {
+        rss: Math.round(memUsageBefore.rss / 1024 / 1024),
+        heapUsed: Math.round(memUsageBefore.heapUsed / 1024 / 1024)
+    };
+    console.log(`[RankingCache] Memory before build: RSS=${memUsageMBBefore.rss}MB, Heap=${memUsageMBBefore.heapUsed}MB`);
+    
+    // 메모리 사용량이 너무 높으면 기존 캐시 반환
+    if (memUsageMBBefore.rss > 400) {
+        console.warn(`[RankingCache] High memory usage (${memUsageMBBefore.rss}MB), returning stale cache`);
+        if (rankingCache) {
+            return rankingCache;
+        }
+    }
+    
     // 빌드 시작: Promise를 저장하여 동시 호출 방지
     buildingPromise = (async () => {
         try {
-            // inventory/equipment 없이 사용자 목록 가져오기 (더 빠름)
-            const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false });
+            // 전체 빌드에 타임아웃 추가 (120초)
+            const overallTimeout = new Promise<RankingCache>((_, reject) => {
+                setTimeout(() => reject(new Error('Ranking cache build overall timeout')), 120000);
+            });
+            
+            const buildPromise = (async () => {
+                // inventory/equipment 없이 사용자 목록 가져오기 (더 빠름)
+                // 타임아웃 추가 (30초)
+                const usersTimeout = new Promise<any[]>((_, reject) => {
+                    setTimeout(() => reject(new Error('getAllUsers timeout')), 30000);
+                });
+                const allUsers = await Promise.race([
+                    db.getAllUsers({ includeEquipment: false, includeInventory: false }),
+                    usersTimeout
+                ]);
             
             if (!allUsers || allUsers.length === 0) {
                 console.warn('[RankingCache] No users found, returning empty cache');
@@ -117,13 +156,43 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 timestamp: now
             };
             
-            const elapsed = Date.now() - startTime;
-            console.log(`[RankingCache] Ranking cache built in ${elapsed}ms (${allUsers.length} users)`);
+                const elapsed = Date.now() - startTime;
+                const memUsageAfter = process.memoryUsage();
+                const memUsageMBAfter = {
+                    rss: Math.round(memUsageAfter.rss / 1024 / 1024),
+                    heapUsed: Math.round(memUsageAfter.heapUsed / 1024 / 1024)
+                };
+                console.log(`[RankingCache] Ranking cache built in ${elapsed}ms (${allUsers.length} users)`);
+                console.log(`[RankingCache] Memory after build: RSS=${memUsageMBAfter.rss}MB, Heap=${memUsageMBAfter.heapUsed}MB`);
+                
+                return rankingCache;
+            })();
             
-            return rankingCache;
-        } catch (error) {
-            console.error('[RankingCache] Error building ranking cache:', error);
-            console.error('[RankingCache] Error stack:', (error as Error)?.stack);
+            return await Promise.race([buildPromise, overallTimeout]);
+        } catch (error: any) {
+            console.error('[RankingCache] ========== ERROR BUILDING RANKING CACHE ==========');
+            console.error('[RankingCache] Error:', error);
+            console.error('[RankingCache] Error message:', error?.message);
+            console.error('[RankingCache] Error stack:', error?.stack);
+            console.error('[RankingCache] Error code:', error?.code);
+            const memUsage = process.memoryUsage();
+            const memUsageMB = {
+                rss: Math.round(memUsage.rss / 1024 / 1024),
+                heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024)
+            };
+            console.error(`[RankingCache] Memory at error: RSS=${memUsageMB.rss}MB, Heap=${memUsageMB.heapUsed}MB`);
+            console.error('[RankingCache] =================================================');
+            
+            // 메모리 부족 에러인 경우
+            if (error?.code === 'ENOMEM' || error?.message?.includes('out of memory')) {
+                console.error('[RankingCache] Out of memory error detected!');
+                // 메모리 정리 시도
+                if (global.gc) {
+                    global.gc();
+                    console.log('[RankingCache] Manual garbage collection triggered');
+                }
+            }
+            
             // 에러 발생 시 기존 캐시 반환 또는 빈 캐시 반환
             if (rankingCache) {
                 console.warn('[RankingCache] Returning stale cache due to error');
@@ -262,26 +331,50 @@ async function calculateCombatRankings(allUsers: any[]): Promise<RankingEntry[]>
     const allGameModes = [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES];
     
     try {
-        // 최적화: 상위 500명만 계산 (전체 사용자 계산 시 메모리 부족 가능)
-        // Railway 환경에서는 메모리가 제한적이므로 상위 사용자만 처리
-        const maxUsersToProcess = 500;
+        // 메모리 사용량 확인
+        const memUsage = process.memoryUsage();
+        const memUsageMB = {
+            rss: Math.round(memUsage.rss / 1024 / 1024),
+            heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024)
+        };
+        
+        // 메모리 사용량이 너무 높으면 처리 제한
+        const maxUsersToProcess = memUsageMB.rss > 350 ? 200 : 500;
         const usersToProcess = allUsers.slice(0, maxUsersToProcess);
         
-        // 배치로 처리하여 메모리 사용량 제한 (한 번에 50명씩)
-        const batchSize = 50;
+        // 배치로 처리하여 메모리 사용량 제한 (한 번에 30명씩으로 감소)
+        const batchSize = memUsageMB.rss > 350 ? 30 : 50;
         const { getUser } = await import('./db.js');
+        
+        console.log(`[RankingCache] Processing combat rankings: ${usersToProcess.length} users in batches of ${batchSize} (Memory: ${memUsageMB.rss}MB RSS)`);
         
         // inventory가 필요한 사용자 계산 (배치 처리)
         for (let i = 0; i < usersToProcess.length; i += batchSize) {
+            // 메모리 체크 (배치마다)
+            const currentMemUsage = process.memoryUsage();
+            const currentMemMB = Math.round(currentMemUsage.rss / 1024 / 1024);
+            if (currentMemMB > 450) {
+                console.warn(`[RankingCache] Memory usage too high (${currentMemMB}MB), stopping combat ranking calculation`);
+                break;
+            }
+            
             const batch = usersToProcess.slice(i, i + batchSize);
             
-            // 배치 단위로 병렬 처리 (50명씩)
-            await Promise.all(batch.map(async (user) => {
+            // 배치 단위로 병렬 처리 (타임아웃 추가)
+            await Promise.allSettled(batch.map(async (user) => {
                 if (!user || !user.id) return;
                 
                 try {
-                    // inventory를 포함한 사용자 데이터 가져오기
-                    const fullUser = await getUser(user.id, { includeEquipment: true, includeInventory: true });
+                    // 각 사용자 조회에 타임아웃 추가 (5초)
+                    const userTimeout = new Promise<any>((_, reject) => {
+                        setTimeout(() => reject(new Error('getUser timeout')), 5000);
+                    });
+                    
+                    const fullUser = await Promise.race([
+                        getUser(user.id, { includeEquipment: true, includeInventory: true }),
+                        userTimeout
+                    ]);
+                    
                     if (!fullUser) return;
                     
                     // calculateTotalStats로 6가지 능력치 합계 계산 (장비 보너스 포함)
@@ -300,21 +393,25 @@ async function calculateCombatRankings(allUsers: any[]): Promise<RankingEntry[]>
                         losses: 0,
                         league: fullUser.league
                     });
-                } catch (error) {
-                    console.error(`[RankingCache] Error calculating combat ranking for user ${user.id}:`, error);
+                } catch (error: any) {
+                    console.error(`[RankingCache] Error calculating combat ranking for user ${user.id}:`, error?.message || error);
                     // 에러 발생해도 계속 진행
                 }
             }));
             
-            // 배치 처리 사이에 짧은 대기 (메모리 압력 완화)
+            // 배치 처리 사이에 대기 시간 증가 (메모리 압력 완화)
             if (i + batchSize < usersToProcess.length) {
-                await new Promise(resolve => setTimeout(resolve, 10));
+                await new Promise(resolve => setTimeout(resolve, 50)); // 10ms -> 50ms로 증가
             }
         }
         
         console.log(`[RankingCache] Processed ${rankings.length} users for combat rankings (limited to ${maxUsersToProcess})`);
-    } catch (error) {
-        console.error('[RankingCache] Error loading users with inventory for combat rankings:', error);
+    } catch (error: any) {
+        console.error('[RankingCache] ========== ERROR IN COMBAT RANKINGS ==========');
+        console.error('[RankingCache] Error:', error);
+        console.error('[RankingCache] Error message:', error?.message);
+        console.error('[RankingCache] Error stack:', error?.stack);
+        console.error('[RankingCache] ==============================================');
         // 에러 발생 시 빈 배열 반환 (서버 크래시 방지)
         return [];
     }
