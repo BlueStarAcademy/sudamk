@@ -68,6 +68,10 @@ const DAILY_TASK_CHECK_INTERVAL_MS = 60_000; // 1 minute
 let lastDailyTaskCheckAt = 0;
 let lastBotScoreUpdateAt = 0;
 
+// getAllActiveGames 타임아웃 백오프 추적
+let lastGetAllActiveGamesTimeout = 0;
+const GET_ALL_ACTIVE_GAMES_BACKOFF_MS = 60000; // 타임아웃 발생 시 60초 동안 스킵
+
 // 만료된 negotiation 정리 함수
 const cleanupExpiredNegotiations = (volatileState: types.VolatileState, now: number): void => {
     const expiredNegIds: string[] = [];
@@ -1156,30 +1160,50 @@ const startServer = async () => {
             }
 
             // 게임 로드에 타임아웃 추가 (첫 실행: 30초, 이후: 10초)
+            // 백오프 로직: 타임아웃이 발생하면 일정 시간 동안 스킵
             let activeGames: types.LiveGameSession[] = [];
-            try {
-                const timeoutDuration = isFirstRun ? 30000 : 10000; // 첫 실행: 30초, 이후: 10초
-                const gamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
-                    setTimeout(() => {
-                        console.warn(`[MainLoop] getAllActiveGames timeout after ${timeoutDuration}ms`);
-                        resolve([]);
-                    }, timeoutDuration);
-                });
-                activeGames = await Promise.race([
-                    db.getAllActiveGames().catch((err: any) => {
-                        console.error('[MainLoop] getAllActiveGames error:', err?.message || err);
-                        console.error('[MainLoop] getAllActiveGames error stack:', err?.stack);
-                        return [];
-                    }),
-                    gamesTimeout
-                ]);
-                if (isFirstRun) {
-                    console.log(`[MainLoop] ✅ First run completed: Loaded ${activeGames.length} active games`);
-                }
-            } catch (error: any) {
-                console.error('[MainLoop] Failed to load active games:', error?.message || error);
-                console.error('[MainLoop] Load games error stack:', error?.stack);
+            const timeSinceLastTimeout = now - lastGetAllActiveGamesTimeout;
+            const shouldSkipDueToBackoff = lastGetAllActiveGamesTimeout > 0 && timeSinceLastTimeout < GET_ALL_ACTIVE_GAMES_BACKOFF_MS;
+            
+            if (shouldSkipDueToBackoff) {
+                // 백오프 중: 조용히 스킵 (로그 스팸 방지)
                 activeGames = [];
+            } else {
+                let timeoutOccurred = false;
+                try {
+                    const timeoutDuration = isFirstRun ? 30000 : 10000; // 첫 실행: 30초, 이후: 10초
+                    const gamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
+                        setTimeout(() => {
+                            // 타임아웃 발생 시 백오프 시작
+                            timeoutOccurred = true;
+                            lastGetAllActiveGamesTimeout = Date.now();
+                            // 첫 타임아웃만 경고 로그 출력 (로그 스팸 방지)
+                            if (timeSinceLastTimeout >= GET_ALL_ACTIVE_GAMES_BACKOFF_MS) {
+                                console.warn(`[MainLoop] getAllActiveGames timeout after ${timeoutDuration}ms. Skipping for ${GET_ALL_ACTIVE_GAMES_BACKOFF_MS / 1000}s`);
+                            }
+                            resolve([]);
+                        }, timeoutDuration);
+                    });
+                    activeGames = await Promise.race([
+                        db.getAllActiveGames().catch((err: any) => {
+                            console.error('[MainLoop] getAllActiveGames error:', err?.message || err);
+                            console.error('[MainLoop] getAllActiveGames error stack:', err?.stack);
+                            return [];
+                        }),
+                        gamesTimeout
+                    ]);
+                    // 성공 시 백오프 리셋 (타임아웃이 발생하지 않았고 게임이 로드된 경우)
+                    if (!timeoutOccurred && activeGames.length > 0) {
+                        lastGetAllActiveGamesTimeout = 0;
+                    }
+                    if (isFirstRun) {
+                        console.log(`[MainLoop] ✅ First run completed: Loaded ${activeGames.length} active games`);
+                    }
+                } catch (error: any) {
+                    console.error('[MainLoop] Failed to load active games:', error?.message || error);
+                    console.error('[MainLoop] Load games error stack:', error?.stack);
+                    activeGames = [];
+                }
             }
             
             const originalGamesJson = activeGames.map(g => JSON.stringify(g));
