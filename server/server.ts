@@ -60,6 +60,7 @@ const getTournamentStateByType = (user: types.User, type: types.TournamentType):
 let isProcessingTournamentTick = false;
 let isProcessingMainLoop = false;
 let hasLoggedMainLoopSkip = false;
+let hasCompletedFirstRun = false; // 첫 실행 완료 플래그 (전역)
 
 const OFFLINE_REGEN_INTERVAL_MS = 60_000; // 1 minute
 let lastOfflineRegenAt = 0;
@@ -956,15 +957,13 @@ const startServer = async () => {
                         }
 
                         isProcessingMainLoop = true;
-                        hasLoggedMainLoopSkip = false;
                         
-                        // 첫 실행 로그
-                        const isFirstRun = !hasLoggedMainLoopSkip;
+                        // 첫 실행 확인 (전역 플래그 사용)
+                        const isFirstRun = !hasCompletedFirstRun;
                         if (isFirstRun) {
                             console.log('[MainLoop] ========== FIRST RUN STARTING ==========');
                             console.log('[MainLoop] Database initialized:', dbInitialized);
                             console.log('[MainLoop] Memory:', JSON.stringify(process.memoryUsage()));
-                            hasLoggedMainLoopSkip = true;
                         }
                         
                         try {
@@ -990,10 +989,14 @@ const startServer = async () => {
                                     ]);
                                     console.log(`[MainLoop] ✅ First run completed: Loaded ${activeGames.length} active games`);
                                     console.log('[MainLoop] =========================================');
+                                    // 첫 실행 완료 플래그 설정
+                                    hasCompletedFirstRun = true;
                                 } catch (firstRunError: any) {
                                     console.error('[MainLoop] First run error:', firstRunError?.message);
                                     console.error('[MainLoop] First run error stack:', firstRunError?.stack);
                                     console.log('[MainLoop] =========================================');
+                                    // 에러가 발생해도 첫 실행 완료로 표시 (다음 루프에서 정상 실행)
+                                    hasCompletedFirstRun = true;
                                 }
                                 // 첫 실행 완료 후 다음 루프로 진행
                                 isProcessingMainLoop = false;
