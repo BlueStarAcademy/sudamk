@@ -1016,22 +1016,24 @@ const startServer = async () => {
                             // 첫 실행에서는 최소한의 작업만 수행
                             if (isFirstRun) {
                                 console.log('[MainLoop] First run: Skipping heavy operations, only doing basic checks...');
-                                // 첫 실행에서는 게임 로드만 하고 나머지는 스킵
+                                // 첫 실행에서는 게임 로드를 완전히 스킵하여 서버 시작 속도 향상
+                                // 게임은 필요할 때 개별적으로 로드되므로 전체 로드 불필요
                                 try {
-                                    const gamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
-                                        setTimeout(() => {
-                                            console.log('[MainLoop] First run: getAllActiveGames timeout, using empty array');
-                                            resolve([]);
-                                        }, 10000); // 첫 실행: 10초 타임아웃
-                                    });
-                                    const activeGames = await Promise.race([
-                                        db.getAllActiveGames().catch((err: any) => {
-                                            console.error('[MainLoop] First run: getAllActiveGames error:', err?.message);
+                                    // 경량 버전으로 활성 게임 개수만 확인 (data 필드 없이)
+                                    const { getAllActiveGamesLight } = await import('./prisma/gameService.js');
+                                    const activeGamesLight = await Promise.race([
+                                        getAllActiveGamesLight().catch((err: any) => {
+                                            console.error('[MainLoop] First run: getAllActiveGamesLight error:', err?.message);
                                             return [];
                                         }),
-                                        gamesTimeout
+                                        new Promise<Array<{ id: string; status: string; category: string | null; updatedAt: Date }>>((resolve) => {
+                                            setTimeout(() => {
+                                                console.log('[MainLoop] First run: getAllActiveGamesLight timeout, using empty array');
+                                                resolve([]);
+                                            }, 3000); // 3초 타임아웃 (경량 쿼리이므로 빠름)
+                                        })
                                     ]);
-                                    console.log(`[MainLoop] ✅ First run completed: Loaded ${activeGames.length} active games`);
+                                    console.log(`[MainLoop] ✅ First run completed: Found ${activeGamesLight.length} active games (metadata only)`);
                                     console.log('[MainLoop] =========================================');
                                     // 첫 실행 완료 플래그 설정
                                     hasCompletedFirstRun = true;

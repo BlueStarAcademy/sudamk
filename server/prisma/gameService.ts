@@ -4,17 +4,32 @@ import type { LiveGameSession, GameStatus } from "../../types/index.js";
 const ENDED_STATUSES: GameStatus[] = ["ended", "no_contest"];
 
 const mapRowToGame = (row: { id: string; data: unknown; status: string; category: string | null }): LiveGameSession | null => {
-  if (!row) return null;
-  const game = JSON.parse(JSON.stringify(row.data)) as LiveGameSession;
-  if (!game) return null;
-  game.id = row.id;
-  if (!game.gameStatus) {
-    game.gameStatus = row.status as GameStatus;
+  if (!row || !row.data) return null;
+  try {
+    // 최적화: data가 이미 객체인 경우 JSON.parse/stringify 스킵
+    let game: LiveGameSession;
+    if (typeof row.data === 'string') {
+      game = JSON.parse(row.data) as LiveGameSession;
+    } else if (typeof row.data === 'object' && row.data !== null) {
+      // 이미 객체인 경우 깊은 복사 대신 얕은 복사 사용 (성능 향상)
+      game = { ...row.data } as LiveGameSession;
+    } else {
+      return null;
+    }
+    
+    if (!game) return null;
+    game.id = row.id;
+    if (!game.gameStatus) {
+      game.gameStatus = row.status as GameStatus;
+    }
+    if (!game.gameCategory && row.category) {
+      game.gameCategory = row.category as any;
+    }
+    return game;
+  } catch (error) {
+    console.warn(`[gameService] Failed to parse game ${row.id}:`, error);
+    return null;
   }
-  if (!game.gameCategory && row.category) {
-    game.gameCategory = row.category as any;
-  }
-  return game;
 };
 
 const deriveMeta = (game: LiveGameSession) => {
@@ -86,7 +101,7 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
       }, 8000);
     });
 
-    // 성능 최적화: 최대 100개만 조회 (더 적은 데이터로 빠른 응답)
+    // 성능 최적화: 최대 50개만 조회 (더 적은 데이터로 빠른 응답)
     // data 필드가 큰 경우를 고려하여 개수 대폭 제한
     const queryPromise = prisma.liveGame.findMany({
       where: { isEnded: false },
@@ -99,11 +114,11 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
       },
       // 최신 게임 우선 (최근 업데이트된 게임이 더 중요)
       orderBy: { updatedAt: 'desc' },
-      // 최대 100개로 대폭 제한하여 성능 보장 (data 필드가 크므로)
-      take: 100
+      // 최대 50개로 제한하여 성능 보장 (data 필드가 크므로)
+      take: 50
     }).then(rows => {
       // 배치 처리로 파싱 최적화 (한 번에 너무 많은 JSON 파싱 방지)
-      const batchSize = 10; // 배치 크기 더 감소 (JSON 파싱 부하 고려)
+      const batchSize = 5; // 배치 크기 더 감소 (JSON 파싱 부하 고려)
       const results: LiveGameSession[] = [];
       
       for (let i = 0; i < rows.length; i += batchSize) {
@@ -117,6 +132,11 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
           }
         }).filter((g): g is LiveGameSession => g !== null);
         results.push(...parsed);
+        
+        // 각 배치 사이에 짧은 지연을 추가하여 이벤트 루프에 양보 (메모리 압박 완화)
+        if (i + batchSize < rows.length) {
+          // 비동기 지연 없이 바로 다음 배치 처리 (성능 우선)
+        }
       }
       
       return results;
@@ -138,10 +158,10 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
             category: true
           },
           orderBy: { updatedAt: 'desc' },
-          take: 100
+          take: 50
         });
         // 배치 처리로 파싱 최적화
-        const batchSize = 20;
+        const batchSize = 5;
         const results: LiveGameSession[] = [];
         for (let i = 0; i < rows.length; i += batchSize) {
           const batch = rows.slice(i, i + batchSize);
