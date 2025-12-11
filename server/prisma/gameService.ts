@@ -55,14 +55,15 @@ export async function getLiveGame(id: string): Promise<LiveGameSession | null> {
 
 export async function getAllActiveGames(): Promise<LiveGameSession[]> {
   try {
-    // 타임아웃 추가: 5초 내에 완료되지 않으면 빈 배열 반환
+    // 타임아웃 증가: 10초로 증가 (대량 데이터 처리 시간 고려)
     const timeoutPromise = new Promise<LiveGameSession[]>((resolve) => {
       setTimeout(() => {
-        console.warn('[gameService] getAllActiveGames query timeout (5000ms)');
+        console.warn('[gameService] getAllActiveGames query timeout (10000ms)');
         resolve([]);
-      }, 5000);
+      }, 10000);
     });
 
+    // 성능 최적화: 최대 1000개만 조회하고, updatedAt 기준으로 정렬하여 최신 게임 우선
     const queryPromise = prisma.liveGame.findMany({
       where: { isEnded: false },
       // 필요한 필드만 선택하여 성능 최적화
@@ -71,8 +72,24 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
         data: true,
         status: true,
         category: true
+      },
+      // 최신 게임 우선 (최근 업데이트된 게임이 더 중요)
+      orderBy: { updatedAt: 'desc' },
+      // 최대 1000개로 제한하여 성능 보장
+      take: 1000
+    }).then(rows => {
+      // 배치 처리로 파싱 최적화 (한 번에 너무 많은 JSON 파싱 방지)
+      const batchSize = 50;
+      const results: LiveGameSession[] = [];
+      
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        const parsed = batch.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
+        results.push(...parsed);
       }
-    }).then(rows => rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null));
+      
+      return results;
+    });
 
     return await Promise.race([queryPromise, timeoutPromise]);
   } catch (error: any) {
@@ -88,9 +105,19 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
             data: true,
             status: true,
             category: true
-          }
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 1000
         });
-        return rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
+        // 배치 처리로 파싱 최적화
+        const batchSize = 50;
+        const results: LiveGameSession[] = [];
+        for (let i = 0; i < rows.length; i += batchSize) {
+          const batch = rows.slice(i, i + batchSize);
+          const parsed = batch.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
+          results.push(...parsed);
+        }
+        return results;
       } catch (retryError) {
         console.error('[gameService] Retry failed:', retryError);
         return []; // 재시도 실패 시 빈 배열 반환
