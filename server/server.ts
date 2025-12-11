@@ -780,20 +780,32 @@ const startServer = async () => {
             }
         }
         
-        app.use(express.static(distPath, {
-            maxAge: '1h', // Cache HTML for 1 hour (shorter for SPA updates)
-            etag: true,
-            lastModified: true,
-            index: false, // Don't serve index.html for directory requests
-            setHeaders: (res, filePath) => {
-                // Set proper MIME types for JS modules
-                if (filePath.endsWith('.js')) {
-                    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-                }
-            },
-            // 404 에러를 조용히 처리 (SPA fallback으로 넘어가도록)
-            fallthrough: true
-        }));
+        // API 경로는 정적 파일 서빙에서 제외
+        app.use((req, res, next) => {
+            // API, WebSocket, 이미지, 사운드 경로는 건너뛰기
+            if (req.path.startsWith('/api') || 
+                req.path.startsWith('/ws') || 
+                req.path.startsWith('/socket.io') ||
+                req.path.startsWith('/images') ||
+                req.path.startsWith('/sounds')) {
+                return next();
+            }
+            // 정적 파일 서빙으로 전달
+            express.static(distPath, {
+                maxAge: '1h', // Cache HTML for 1 hour (shorter for SPA updates)
+                etag: true,
+                lastModified: true,
+                index: false, // Don't serve index.html for directory requests
+                setHeaders: (res, filePath) => {
+                    // Set proper MIME types for JS modules
+                    if (filePath.endsWith('.js')) {
+                        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+                    }
+                },
+                // 404 에러를 조용히 처리 (SPA fallback으로 넘어가도록)
+                fallthrough: true
+            })(req, res, next);
+        });
     } else {
         console.log('[Server] Frontend serving is disabled. Frontend should be served by a separate service.');
     }
