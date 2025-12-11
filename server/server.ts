@@ -3047,8 +3047,67 @@ const startServer = async () => {
                 volatileState.userStatuses[userForLogin.id] = { status: types.UserStatus.Online };
             }
             
-            const sanitizedUser = JSON.parse(JSON.stringify(userForLogin));
-            sendResponse(200, { user: sanitizedUser });
+            // 최종 응답 전송: 반드시 실행되도록 보장
+            try {
+                // JSON 직렬화 시도 (순환 참조 등으로 실패할 수 있음)
+                let sanitizedUser: any;
+                try {
+                    sanitizedUser = JSON.parse(JSON.stringify(userForLogin));
+                } catch (jsonError: any) {
+                    console.warn('[/api/auth/login] JSON serialization failed, using user object directly:', jsonError?.message);
+                    // JSON 직렬화 실패 시 원본 사용 (중요한 필드만 포함)
+                    sanitizedUser = {
+                        id: userForLogin.id,
+                        nickname: userForLogin.nickname,
+                        username: userForLogin.username,
+                        isAdmin: userForLogin.isAdmin,
+                        stats: userForLogin.stats,
+                        baseStats: userForLogin.baseStats,
+                        inventory: userForLogin.inventory,
+                        equipment: userForLogin.equipment,
+                        equipmentPresets: userForLogin.equipmentPresets,
+                        strategyLevel: userForLogin.strategyLevel,
+                        playfulLevel: userForLogin.playfulLevel,
+                        gold: userForLogin.gold,
+                        ownedBorders: userForLogin.ownedBorders,
+                        mail: userForLogin.mail,
+                        actionPoints: userForLogin.actionPoints,
+                        quests: userForLogin.quests,
+                        league: userForLogin.league,
+                        tournamentScore: userForLogin.tournamentScore,
+                        weeklyCompetitors: userForLogin.weeklyCompetitors
+                    };
+                }
+                sendResponse(200, { user: sanitizedUser });
+            } catch (finalError: any) {
+                console.error('[/api/auth/login] Failed to send success response:', finalError?.message);
+                // 최종 응답 전송 실패 시에도 응답 보장
+                if (!responseSent && !res.headersSent) {
+                    try {
+                        responseSent = true;
+                        // 최소한의 사용자 정보만 포함하여 응답
+                        res.status(200).json({ 
+                            user: {
+                                id: userForLogin.id,
+                                nickname: userForLogin.nickname,
+                                username: userForLogin.username,
+                                isAdmin: userForLogin.isAdmin
+                            }
+                        });
+                    } catch (lastResortError: any) {
+                        console.error('[/api/auth/login] CRITICAL: Failed to send any response:', lastResortError?.message);
+                        // 마지막 수단: Express 에러 핸들러에 전달
+                        if (!res.headersSent) {
+                            try {
+                                res.status(200).end('{"user":{"id":"' + userForLogin.id + '","nickname":"' + (userForLogin.nickname || '') + '"}}');
+                            } catch (absoluteLastError) {
+                                // 모든 시도 실패 - 연결이 이미 끊어진 것으로 간주
+                                console.error('[/api/auth/login] ABSOLUTE LAST RESORT FAILED');
+                            }
+                        }
+                    }
+                }
+            }
         } catch (e: any) {
             clearTimeout(requestTimeout);
             
@@ -3086,14 +3145,18 @@ const startServer = async () => {
             console.error('[/api/auth/login] =================================');
             
             // stderr로도 직접 출력 (Railway 로그에 확실히 기록)
-            process.stderr.write(`\n[LOGIN ERROR] at ${errorInfo.timestamp}\n`);
-            process.stderr.write(`Username: ${errorInfo.username}\n`);
-            process.stderr.write(`Error: ${errorInfo.errorName} - ${errorInfo.errorMessage}\n`);
-            process.stderr.write(`Code: ${errorInfo.errorCode || 'N/A'}\n`);
-            if (errorInfo.errorStack) {
-                process.stderr.write(`Stack: ${errorInfo.errorStack}\n`);
+            try {
+                process.stderr.write(`\n[LOGIN ERROR] at ${errorInfo.timestamp}\n`);
+                process.stderr.write(`Username: ${errorInfo.username}\n`);
+                process.stderr.write(`Error: ${errorInfo.errorName} - ${errorInfo.errorMessage}\n`);
+                process.stderr.write(`Code: ${errorInfo.errorCode || 'N/A'}\n`);
+                if (errorInfo.errorStack) {
+                    process.stderr.write(`Stack: ${errorInfo.errorStack.substring(0, 500)}\n`);
+                }
+                process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
+            } catch (stderrError) {
+                // stderr 쓰기 실패는 무시
             }
-            process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
             
             // 데이터베이스 연결 오류인 경우 더 명확한 메시지
             const isDbError = e?.code?.startsWith('P') || 
@@ -3102,6 +3165,7 @@ const startServer = async () => {
                             e?.message?.includes('timeout') ||
                             e?.code === 'ECONNREFUSED';
             
+            // 응답이 아직 전송되지 않았으면 반드시 전송
             if (!responseSent && !res.headersSent) {
                 try {
                     const errorMessage = isDbError 
@@ -3115,21 +3179,23 @@ const startServer = async () => {
                         errorCode: process.env.NODE_ENV === 'development' ? e?.code : undefined
                     });
                 } catch (sendError: any) {
-                    console.error('[/api/auth/login] Failed to send error response:', sendError);
-                    process.stderr.write(`[LOGIN ERROR] Failed to send response: ${sendError.message}\n`);
-                    // Express 전역 에러 핸들러로 전달
+                    console.error('[/api/auth/login] Failed to send error response:', sendError?.message);
+                    // 마지막 시도: Express 에러 핸들러에 전달
                     if (!res.headersSent) {
-                        next(e);
+                        try {
+                            res.status(500).end('Internal Server Error');
+                        } catch (lastError) {
+                            // 모든 시도 실패 - 연결이 이미 끊어진 것으로 간주
+                            console.error('[/api/auth/login] CRITICAL: All response attempts failed');
+                        }
                     }
                 }
             } else {
                 console.error('[/api/auth/login] Response already sent, cannot send error response');
-                process.stderr.write(`[LOGIN ERROR] Response already sent, cannot send error response\n`);
-                // Express 전역 에러 핸들러로 전달
-                if (!res.headersSent) {
-                    next(e);
-                }
             }
+        } finally {
+            // 타임아웃 정리 보장
+            clearTimeout(requestTimeout);
         }
     });
 
