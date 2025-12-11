@@ -1015,35 +1015,14 @@ const startServer = async () => {
                             
                             // 첫 실행에서는 최소한의 작업만 수행
                             if (isFirstRun) {
-                                console.log('[MainLoop] First run: Skipping heavy operations, only doing basic checks...');
-                                // 첫 실행에서는 게임 로드를 완전히 스킵하여 서버 시작 속도 향상
+                                console.log('[MainLoop] First run: Skipping all database queries for fast startup...');
+                                // 첫 실행에서는 모든 데이터베이스 쿼리를 완전히 스킵하여 서버 시작 속도 최대화
                                 // 게임은 필요할 때 개별적으로 로드되므로 전체 로드 불필요
-                                try {
-                                    // 경량 버전으로 활성 게임 개수만 확인 (data 필드 없이)
-                                    const { getAllActiveGamesLight } = await import('./prisma/gameService.js');
-                                    const activeGamesLight = await Promise.race([
-                                        getAllActiveGamesLight().catch((err: any) => {
-                                            console.error('[MainLoop] First run: getAllActiveGamesLight error:', err?.message);
-                                            return [];
-                                        }),
-                                        new Promise<Array<{ id: string; status: string; category: string | null; updatedAt: Date }>>((resolve) => {
-                                            setTimeout(() => {
-                                                console.log('[MainLoop] First run: getAllActiveGamesLight timeout, using empty array');
-                                                resolve([]);
-                                            }, 3000); // 3초 타임아웃 (경량 쿼리이므로 빠름)
-                                        })
-                                    ]);
-                                    console.log(`[MainLoop] ✅ First run completed: Found ${activeGamesLight.length} active games (metadata only)`);
-                                    console.log('[MainLoop] =========================================');
-                                    // 첫 실행 완료 플래그 설정
-                                    hasCompletedFirstRun = true;
-                                } catch (firstRunError: any) {
-                                    console.error('[MainLoop] First run error:', firstRunError?.message);
-                                    console.error('[MainLoop] First run error stack:', firstRunError?.stack);
-                                    console.log('[MainLoop] =========================================');
-                                    // 에러가 발생해도 첫 실행 완료로 표시 (다음 루프에서 정상 실행)
-                                    hasCompletedFirstRun = true;
-                                }
+                                // 사용자도 필요할 때 로드되므로 첫 실행에서 로드 불필요
+                                console.log('[MainLoop] ✅ First run completed: Skipped all heavy operations');
+                                console.log('[MainLoop] =========================================');
+                                // 첫 실행 완료 플래그 설정
+                                hasCompletedFirstRun = true;
                                 // 첫 실행 완료 후 다음 루프로 진행
                                 isProcessingMainLoop = false;
                                 scheduleMainLoop(10000); // 10초 후 정상 루프 시작 (서버 부하 감소)

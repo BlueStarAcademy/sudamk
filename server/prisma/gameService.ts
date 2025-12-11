@@ -70,10 +70,19 @@ export async function getLiveGame(id: string): Promise<LiveGameSession | null> {
 
 /**
  * 경량 버전: data 필드 없이 빠르게 조회 (MainLoop용)
+ * 타임아웃 보호 포함
  */
 export async function getAllActiveGamesLight(): Promise<Array<{ id: string; status: string; category: string | null; updatedAt: Date }>> {
   try {
-    const rows = await prisma.liveGame.findMany({
+    // 타임아웃 보호: 5초 내에 완료되지 않으면 빈 배열 반환
+    const timeoutPromise = new Promise<Array<{ id: string; status: string; category: string | null; updatedAt: Date }>>((resolve) => {
+      setTimeout(() => {
+        console.warn('[gameService] getAllActiveGamesLight query timeout (5000ms)');
+        resolve([]);
+      }, 5000);
+    });
+
+    const queryPromise = prisma.liveGame.findMany({
       where: { isEnded: false },
       select: {
         id: true,
@@ -82,9 +91,10 @@ export async function getAllActiveGamesLight(): Promise<Array<{ id: string; stat
         updatedAt: true
       },
       orderBy: { updatedAt: 'desc' },
-      take: 1000
+      take: 100 // 최대 100개로 제한하여 성능 보장
     });
-    return rows;
+
+    return await Promise.race([queryPromise, timeoutPromise]);
   } catch (error: any) {
     console.error('[gameService] Error fetching active games (light):', error);
     return [];
