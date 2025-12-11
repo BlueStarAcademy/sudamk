@@ -1192,7 +1192,29 @@ const startServer = async () => {
                 activeGames = getAllCachedGames();
                 if (activeGames.length === 0) {
                     // 캐시가 비어있으면 강제로 로드 (첫 실행 후)
-                    console.log('[MainLoop] Cache empty, forcing game load...');
+                    // 하지만 타임아웃이 발생하지 않도록 짧은 타임아웃 사용
+                    console.log('[MainLoop] Cache empty, forcing game load with short timeout...');
+                    try {
+                        const shortTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
+                            setTimeout(() => {
+                                console.warn('[MainLoop] Forced game load timeout (5000ms), using empty array');
+                                resolve([]);
+                            }, 5000);
+                        });
+                        activeGames = await Promise.race([
+                            db.getAllActiveGames().catch((err: any) => {
+                                console.error('[MainLoop] Forced getAllActiveGames error:', err?.message || err);
+                                return [];
+                            }),
+                            shortTimeout
+                        ]);
+                        if (activeGames.length > 0) {
+                            lastGetAllActiveGamesSuccess = now;
+                        }
+                    } catch (error: any) {
+                        console.error('[MainLoop] Forced game load failed:', error?.message || error);
+                        activeGames = [];
+                    }
                 } else {
                     // 캐시에서 로드 성공, DB 쿼리 스킵
                     // console.log(`[MainLoop] Using cached games (${activeGames.length} games, ${Math.round(timeSinceLastSuccess / 1000)}s since last DB load)`);
