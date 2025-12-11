@@ -73,7 +73,6 @@ let lastGetAllActiveGamesTimeout = 0;
 const GET_ALL_ACTIVE_GAMES_BACKOFF_MS = 60000; // 타임아웃 발생 시 60초 동안 스킵
 let lastGetAllActiveGamesSuccess = 0; // 마지막 성공한 게임 로드 시간
 const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = 10000; // 게임 목록을 10초마다 한 번만 로드 (성능 최적화)
-const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = 5000; // 게임 목록을 5초마다 한 번만 로드 (성능 최적화)
 
 // 만료된 negotiation 정리 함수
 const cleanupExpiredNegotiations = (volatileState: types.VolatileState, now: number): void => {
