@@ -545,15 +545,29 @@ const startServer = async () => {
     app.use(express.urlencoded({ extended: true, limit: '10mb' }) as any);
     
     // 헬스체크 엔드포인트를 서버 리스닝 전에 등록 (즉시 응답 가능하도록)
+    // Railway 헬스체크는 서버가 시작되면 즉시 통과해야 함
     app.get('/api/health', (req, res) => {
-        res.status(200).json({
-            status: 'ok',
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime(),
-            listening: false, // 서버 객체가 아직 생성되지 않았으므로 false
-            ready: isServerReady,
-            pid: process.pid
-        });
+        try {
+            // 서버가 리스닝 중이 아니어도 헬스체크는 통과 (서버 시작 중)
+            res.status(200).json({
+                status: 'ok',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                listening: false, // 서버 객체가 아직 생성되지 않았으므로 false
+                ready: isServerReady,
+                pid: process.pid,
+                message: 'Server starting up'
+            });
+        } catch (error: any) {
+            // 헬스체크 자체가 실패하지 않도록 보호
+            console.error('[Health] Health check error:', error);
+            res.status(200).json({
+                status: 'ok',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                error: 'Health check handler error (non-fatal)'
+            });
+        }
     });
     
     console.log('[Server] Health check endpoint registered (before server listen)');
@@ -590,14 +604,26 @@ const startServer = async () => {
         
         // 헬스체크 엔드포인트 업데이트 (서버 객체 사용 가능)
         app.get('/api/health', (req, res) => {
-            res.status(200).json({
-                status: 'ok',
-                timestamp: new Date().toISOString(),
-                uptime: process.uptime(),
-                listening: server.listening,
-                ready: isServerReady,
-                pid: process.pid
-            });
+            try {
+                res.status(200).json({
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                    uptime: process.uptime(),
+                    listening: server.listening,
+                    ready: isServerReady,
+                    pid: process.pid,
+                    database: dbInitialized ? 'connected' : 'initializing'
+                });
+            } catch (error: any) {
+                // 헬스체크 자체가 실패하지 않도록 보호
+                console.error('[Health] Health check error:', error);
+                res.status(200).json({
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                    uptime: process.uptime(),
+                    error: 'Health check handler error (non-fatal)'
+                });
+            }
         });
     });
 
