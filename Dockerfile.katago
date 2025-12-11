@@ -5,7 +5,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Install build dependencies (including autoconf/automake for mozjpeg)
-RUN apk add --no-cache python3 make g++ wget unzip autoconf automake libtool pkgconfig nasm
+# py3-setuptools provides distutils which is needed for node-gyp to build native modules like sqlite3
+RUN apk add --no-cache python3 py3-setuptools make g++ wget unzip autoconf automake libtool pkgconfig nasm
 
 FROM base AS deps
 # Install dependencies
