@@ -1669,17 +1669,29 @@ const startServer = async () => {
 
             const onlineUserIds = Object.keys(volatileState.userConnections);
             let updatedGames: types.LiveGameSession[] = [];
-            try {
-                const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
-                    setTimeout(() => resolve(activeGames), 10000); // 10초 타임아웃
-                });
-                updatedGames = await Promise.race([
-                    updateGameStates(activeGames, now),
-                    updateGamesTimeout
-                ]);
-            } catch (error: any) {
-                console.error('[MainLoop] Error in updateGameStates:', error?.message || error);
-                updatedGames = activeGames; // 에러 발생 시 원본 게임 상태 유지
+            
+            // 게임 업데이트: 에러가 발생해도 서버는 계속 실행되도록 보장
+            if (activeGames.length > 0) {
+                try {
+                    const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
+                        setTimeout(() => {
+                            console.warn(`[MainLoop] updateGameStates timeout (10000ms) for ${activeGames.length} games, using original state`);
+                            resolve(activeGames); // 타임아웃 시 원본 상태 유지
+                        }, 10000); // 10초 타임아웃
+                    });
+                    updatedGames = await Promise.race([
+                        updateGameStates(activeGames, now).catch((err: any) => {
+                            console.error('[MainLoop] Error in updateGameStates:', err?.message || err);
+                            return activeGames; // 에러 발생 시 원본 게임 상태 유지
+                        }),
+                        updateGamesTimeout
+                    ]);
+                } catch (error: any) {
+                    console.error('[MainLoop] Fatal error in updateGameStates:', error?.message || error);
+                    updatedGames = activeGames; // 에러 발생 시 원본 게임 상태 유지
+                }
+            } else {
+                updatedGames = activeGames; // 게임이 없으면 빈 배열
             }
 
             // Check for mutual disconnection - 에러 핸들링 추가
