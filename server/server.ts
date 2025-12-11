@@ -71,6 +71,9 @@ let lastBotScoreUpdateAt = 0;
 // getAllActiveGames 타임아웃 백오프 추적
 let lastGetAllActiveGamesTimeout = 0;
 const GET_ALL_ACTIVE_GAMES_BACKOFF_MS = 60000; // 타임아웃 발생 시 60초 동안 스킵
+let lastGetAllActiveGamesSuccess = 0; // 마지막 성공한 게임 로드 시간
+const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = 10000; // 게임 목록을 10초마다 한 번만 로드 (성능 최적화)
+const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = 5000; // 게임 목록을 5초마다 한 번만 로드 (성능 최적화)
 
 // 만료된 negotiation 정리 함수
 const cleanupExpiredNegotiations = (volatileState: types.VolatileState, now: number): void => {
@@ -1173,13 +1176,27 @@ const startServer = async () => {
 
             // 게임 로드에 타임아웃 추가 (첫 실행: 30초, 이후: 10초)
             // 백오프 로직: 타임아웃이 발생하면 일정 시간 동안 스킵
+            // 성능 최적화: 게임 목록을 일정 간격으로만 로드 (10초마다)
             let activeGames: types.LiveGameSession[] = [];
             const timeSinceLastTimeout = now - lastGetAllActiveGamesTimeout;
+            const timeSinceLastSuccess = now - lastGetAllActiveGamesSuccess;
             const shouldSkipDueToBackoff = lastGetAllActiveGamesTimeout > 0 && timeSinceLastTimeout < GET_ALL_ACTIVE_GAMES_BACKOFF_MS;
+            const shouldSkipDueToInterval = !isFirstRun && timeSinceLastSuccess < GET_ALL_ACTIVE_GAMES_INTERVAL_MS;
             
             if (shouldSkipDueToBackoff) {
                 // 백오프 중: 조용히 스킵 (로그 스팸 방지)
                 activeGames = [];
+            } else if (shouldSkipDueToInterval) {
+                // 간격 제한: 캐시에서 게임 로드 시도
+                const { getAllCachedGames } = await import('./gameCache.js');
+                activeGames = getAllCachedGames();
+                if (activeGames.length === 0) {
+                    // 캐시가 비어있으면 강제로 로드 (첫 실행 후)
+                    console.log('[MainLoop] Cache empty, forcing game load...');
+                } else {
+                    // 캐시에서 로드 성공, DB 쿼리 스킵
+                    // console.log(`[MainLoop] Using cached games (${activeGames.length} games, ${Math.round(timeSinceLastSuccess / 1000)}s since last DB load)`);
+                }
             } else {
                 let timeoutOccurred = false;
                 try {
@@ -1204,9 +1221,10 @@ const startServer = async () => {
                         }),
                         gamesTimeout
                     ]);
-                    // 성공 시 백오프 리셋 (타임아웃이 발생하지 않았고 게임이 로드된 경우)
+                    // 성공 시 백오프 리셋 및 성공 시간 기록 (타임아웃이 발생하지 않았고 게임이 로드된 경우)
                     if (!timeoutOccurred && activeGames.length > 0) {
                         lastGetAllActiveGamesTimeout = 0;
+                        lastGetAllActiveGamesSuccess = now;
                     }
                     if (isFirstRun) {
                         console.log(`[MainLoop] ✅ First run completed: Loaded ${activeGames.length} active games`);

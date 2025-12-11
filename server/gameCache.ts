@@ -58,6 +58,32 @@ export function removeGameFromCache(gameId: string): void {
 }
 
 /**
+ * 캐시에서 모든 활성 게임 가져오기 (MainLoop 최적화용)
+ */
+export function getAllCachedGames(): LiveGameSession[] {
+    const cache = volatileState.gameCache;
+    if (!cache) {
+        return [];
+    }
+    
+    const now = Date.now();
+    const games: LiveGameSession[] = [];
+    
+    // 캐시에서 만료되지 않은 활성 게임만 반환
+    for (const [gameId, cached] of cache.entries()) {
+        if (cached && (now - cached.lastUpdated) < CACHE_TTL_MS) {
+            const game = cached.game;
+            // 활성 게임만 반환 (ended, no_contest 제외)
+            if (game && game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest') {
+                games.push(game);
+            }
+        }
+    }
+    
+    return games;
+}
+
+/**
  * 사용자 정보를 캐시에서 가져오거나 DB에서 로드
  */
 export async function getCachedUser(userId: string): Promise<User | null> {
