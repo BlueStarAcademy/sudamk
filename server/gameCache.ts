@@ -194,3 +194,68 @@ export function cleanupExpiredCache(): void {
     }
 }
 
+/**
+ * 모든 캐시를 강제로 정리 (메모리 부족 시 사용)
+ */
+export function clearAllCache(): void {
+    const gameCache = volatileState.gameCache;
+    const userCache = volatileState.userCache;
+    
+    let gamesCleared = 0;
+    let usersCleared = 0;
+    
+    if (gameCache) {
+        gamesCleared = gameCache.size;
+        gameCache.clear();
+    }
+    
+    if (userCache) {
+        usersCleared = userCache.size;
+        userCache.clear();
+    }
+    
+    if (gamesCleared > 0 || usersCleared > 0) {
+        console.log(`[Cache] Cleared all cache: ${gamesCleared} games, ${usersCleared} users`);
+    }
+}
+
+/**
+ * 적극적인 캐시 정리 (메모리 사용량이 높을 때 사용)
+ * 캐시 크기를 절반으로 줄임
+ */
+export function aggressiveCacheCleanup(): void {
+    const now = Date.now();
+    let gamesCleaned = 0;
+    let usersCleaned = 0;
+    
+    // 게임 캐시를 절반으로 줄임
+    const gameCache = volatileState.gameCache;
+    if (gameCache && gameCache.size > 0) {
+        const targetSize = Math.floor(gameCache.size / 2);
+        const sorted = Array.from(gameCache.entries())
+            .sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
+        const toRemove = sorted.slice(0, gameCache.size - targetSize);
+        for (const [gameId] of toRemove) {
+            gameCache.delete(gameId);
+            gamesCleaned++;
+        }
+    }
+    
+    // 사용자 캐시를 절반으로 줄임
+    const userCache = volatileState.userCache;
+    if (userCache && userCache.size > 0) {
+        const targetSize = Math.floor(userCache.size / 2);
+        const sorted = Array.from(userCache.entries())
+            .sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
+        const toRemove = sorted.slice(0, userCache.size - targetSize);
+        for (const [userId] of toRemove) {
+            userCache.delete(userId);
+            usersCleaned++;
+        }
+    }
+    
+    if (gamesCleaned > 0 || usersCleaned > 0) {
+        console.log(`[Cache] Aggressive cleanup: removed ${gamesCleaned} games, ${usersCleaned} users from cache`);
+    }
+}
+

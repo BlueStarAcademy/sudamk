@@ -164,40 +164,78 @@ prisma.$on('error' as never, (e: any) => {
 
 // 연결 끊김 시 재연결 시도
 let isReconnecting = false;
+let consecutiveConnectionFailures = 0;
+const MAX_CONSECUTIVE_FAILURES = 5;
 
-const reconnectPrisma = async () => {
-  if (isReconnecting) return;
+const reconnectPrisma = async (): Promise<boolean> => {
+  if (isReconnecting) return false;
   isReconnecting = true;
   
   try {
     console.log('[Prisma] Attempting to reconnect...');
-    await prisma.$disconnect();
+    try {
+      await prisma.$disconnect();
+    } catch (disconnectError) {
+      // 연결이 이미 끊어진 경우 무시
+    }
+    
     await prisma.$connect();
     console.log('[Prisma] Reconnected successfully');
-  } catch (error) {
-    console.error('[Prisma] Reconnection failed:', error);
+    consecutiveConnectionFailures = 0;
+    return true;
+  } catch (error: any) {
+    consecutiveConnectionFailures++;
+    console.error(`[Prisma] Reconnection failed (attempt ${consecutiveConnectionFailures}/${MAX_CONSECUTIVE_FAILURES}):`, error?.message || error);
+    
+    // 연속 실패가 너무 많으면 경고
+    if (consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
+      console.error('[Prisma] CRITICAL: Multiple reconnection failures. Database may be unavailable.');
+      process.stderr.write(`[CRITICAL] Prisma reconnection failed ${consecutiveConnectionFailures} times\n`);
+    }
+    
+    return false;
   } finally {
     isReconnecting = false;
   }
 };
 
-// 주기적으로 연결 상태 확인 (더 자주 확인하여 빠른 재연결)
+// 주기적으로 연결 상태 확인 (Railway 환경에서는 더 자주 확인)
+const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway');
+const connectionCheckInterval = isRailway ? 10000 : 15000; // Railway: 10초, 로컬: 15초
+
 setInterval(async () => {
   try {
     await Promise.race([
       prisma.$queryRaw`SELECT 1`,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)) // 3초 타임아웃
     ]);
+    // 연결 성공 시 실패 카운터 리셋
+    if (consecutiveConnectionFailures > 0) {
+      consecutiveConnectionFailures = 0;
+    }
   } catch (error: any) {
-    if (error.code === 'P1017' || 
-        error.message?.includes('closed the connection') ||
-        error.message?.includes('timeout') ||
-        error.kind === 'Closed') {
+    const isConnectionError = 
+      error.code === 'P1017' || 
+      error.code === 'P1001' ||
+      error.message?.includes('closed the connection') ||
+      error.message?.includes('timeout') ||
+      error.message?.includes("Can't reach database server") ||
+      error.kind === 'Closed';
+    
+    if (isConnectionError) {
       console.warn('[Prisma] Connection lost or timeout, attempting to reconnect...');
-      await reconnectPrisma();
+      const reconnected = await reconnectPrisma();
+      if (!reconnected && consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
+        // 연속 실패가 너무 많으면 프로세스 종료 (Railway가 재시작)
+        console.error('[Prisma] CRITICAL: Too many reconnection failures. Exiting for Railway restart.');
+        process.stderr.write('[CRITICAL] Database connection lost - exiting for restart\n');
+        setTimeout(() => {
+          process.exit(1);
+        }, 5000);
+      }
     }
   }
-}, 15000); // 15초마다 확인 (더 자주 확인)
+}, connectionCheckInterval);
 
 // 프로세스 종료 시 정리
 process.on('beforeExit', async () => {

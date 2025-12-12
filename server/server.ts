@@ -61,6 +61,8 @@ let isProcessingTournamentTick = false;
 let isProcessingMainLoop = false;
 let hasLoggedMainLoopSkip = false;
 let hasCompletedFirstRun = false; // 첫 실행 완료 플래그 (전역)
+let mainLoopConsecutiveFailures = 0; // 연속 실패 횟수 추적
+const MAX_CONSECUTIVE_FAILURES = 10; // 최대 연속 실패 횟수
 
 const OFFLINE_REGEN_INTERVAL_MS = 60_000; // 1 minute
 let lastOfflineRegenAt = 0;
@@ -496,10 +498,13 @@ const startServer = async () => {
                 /\.up\.railway\.app$/
             ].filter((o): o is string | RegExp => o !== undefined && o !== null);
             
-            // 로깅 추가 (디버깅용)
-            console.log('[CORS] Request from origin:', origin);
-            console.log('[CORS] FRONTEND_URL:', process.env.FRONTEND_URL || 'NOT SET');
-            console.log('[CORS] Allowed origins:', allowedOrigins);
+            // 로깅은 개발 환경에서만 (프로덕션에서는 로그 스팸 방지)
+            const isDevelopment = process.env.NODE_ENV === 'development';
+            if (isDevelopment) {
+                console.log('[CORS] Request from origin:', origin);
+                console.log('[CORS] FRONTEND_URL:', process.env.FRONTEND_URL || 'NOT SET');
+                console.log('[CORS] Allowed origins:', allowedOrigins);
+            }
             
             // 허용 목록 확인
             const isAllowed = allowedOrigins.some(allowed => {
@@ -512,13 +517,18 @@ const startServer = async () => {
             });
             
             if (isAllowed) {
-                console.log('[CORS] ✅ Origin allowed:', origin);
+                if (isDevelopment) {
+                    console.log('[CORS] ✅ Origin allowed:', origin);
+                }
                 callback(null, true);
             } else {
+                // 차단된 origin은 항상 로그 (보안상 중요)
                 console.warn('[CORS] ❌ Origin blocked:', origin);
                 // Railway 도메인은 일단 허용 (임시)
                 if (origin.includes('railway.app')) {
-                    console.warn('[CORS] ⚠️ Allowing Railway domain temporarily:', origin);
+                    if (isDevelopment) {
+                        console.warn('[CORS] ⚠️ Allowing Railway domain temporarily:', origin);
+                    }
                     callback(null, true);
                 } else {
                     callback(new Error('Not allowed by CORS'));
@@ -1240,24 +1250,67 @@ const startServer = async () => {
                     };
                     console.log(`[Memory] RSS: ${memUsageMB.rss}MB, Heap: ${memUsageMB.heapUsed}/${memUsageMB.heapTotal}MB, External: ${memUsageMB.external}MB`);
                     
-                    // Railway 환경에서 메모리 제한을 더 엄격하게 관리 (250MB 이상이면 경고)
-                    if (memUsageMB.rss > 250) {
+                    // Railway 환경에서 메모리 제한을 더 엄격하게 관리
+                    // Railway의 무료 플랜은 보통 512MB 메모리 제한이 있으므로, 200MB 이상이면 경고
+                    if (memUsageMB.rss > 200) {
                         console.warn(`[Memory] High memory usage detected: ${memUsageMB.rss}MB RSS`);
-                        // 메모리 사용량이 280MB를 초과하면 강제 캐시 정리 (더 보수적으로)
-                        if (memUsageMB.rss > 280) {
+                        
+                        // 메모리 사용량이 250MB를 초과하면 강제 캐시 정리
+                        if (memUsageMB.rss > 250) {
                             console.warn(`[Memory] Forcing aggressive cache cleanup due to high memory usage (${memUsageMB.rss}MB)`);
                             try {
-                                const { cleanupExpiredCache } = await import('./gameCache.js');
+                                const { cleanupExpiredCache, clearAllCache } = await import('./gameCache.js');
+                                // 먼저 만료된 캐시 정리
                                 cleanupExpiredCache();
                                 
-                                // 추가 메모리 정리: 가비지 컬렉션 힌트 (Node.js가 GC를 실행하도록 유도)
+                                // 메모리가 여전히 높으면 더 적극적으로 정리
+                                if (memUsageMB.rss > 300) {
+                                    console.warn(`[Memory] Very high memory usage (${memUsageMB.rss}MB). Performing aggressive cache cleanup.`);
+                                    try {
+                                        const { aggressiveCacheCleanup, clearAllCache } = await import('./gameCache.js');
+                                        // 350MB 이상이면 모든 캐시 클리어
+                                        if (memUsageMB.rss > 350) {
+                                            clearAllCache();
+                                        } else {
+                                            // 300-350MB 사이면 적극적인 정리만 수행
+                                            aggressiveCacheCleanup();
+                                        }
+                                    } catch (cleanupError: any) {
+                                        console.error('[Memory] Failed to perform aggressive cleanup:', cleanupError?.message);
+                                    }
+                                }
+                                
+                                // 추가 메모리 정리: 가비지 컬렉션 힌트
                                 if (global.gc) {
                                     global.gc();
                                     console.log('[Memory] Manual garbage collection triggered');
+                                    
+                                    // GC 후 메모리 재확인
+                                    const memAfterGC = process.memoryUsage();
+                                    const memAfterGCMB = Math.round(memAfterGC.rss / 1024 / 1024);
+                                    console.log(`[Memory] After GC: ${memAfterGCMB}MB RSS (reduced by ${memUsageMB.rss - memAfterGCMB}MB)`);
                                 }
                             } catch (cleanupError: any) {
                                 console.error('[Memory] Failed to cleanup cache:', cleanupError?.message);
                             }
+                        }
+                        
+                        // 메모리 사용량이 400MB를 초과하면 프로세스 종료 (Railway가 재시작)
+                        if (memUsageMB.rss > 400) {
+                            console.error(`[Memory] CRITICAL: Memory usage too high (${memUsageMB.rss}MB). Exiting for Railway restart.`);
+                            process.stderr.write(`[CRITICAL] Memory too high (${memUsageMB.rss}MB) - exiting\n`);
+                            // 메모리 정리 시도
+                            try {
+                                if (global.gc) {
+                                    global.gc();
+                                }
+                            } catch (gcError) {
+                                // 무시
+                            }
+                            // Railway가 재시작하도록 프로세스 종료
+                            setTimeout(() => {
+                                process.exit(1);
+                            }, 2000);
                         }
                     }
                 }
@@ -2056,9 +2109,16 @@ const startServer = async () => {
                     console.warn(`[MainLoop] Failed to GC game ${game.id}:`, gcError?.message);
                 }
             }
-
+                            
+                            // 메인 루프가 성공적으로 완료되면 연속 실패 카운터 리셋
+                            if (mainLoopConsecutiveFailures > 0) {
+                                console.log(`[MainLoop] Loop completed successfully. Resetting failure counter (was ${mainLoopConsecutiveFailures}).`);
+                                mainLoopConsecutiveFailures = 0;
+                            }
+                            
                             } catch (e: any) {
-                                console.error('[FATAL] Unhandled error in main loop:', e);
+                                mainLoopConsecutiveFailures++;
+                                console.error(`[FATAL] Unhandled error in main loop (failure #${mainLoopConsecutiveFailures}):`, e);
                                 console.error('[FATAL] Error stack:', e?.stack);
                                 console.error('[FATAL] Error details:', {
                                     message: e?.message,
@@ -2066,8 +2126,28 @@ const startServer = async () => {
                                     code: e?.code
                                 });
                                 
+                                // 연속 실패가 너무 많으면 프로세스 종료 (Railway가 재시작)
+                                if (mainLoopConsecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                                    console.error(`[FATAL] Main loop failed ${mainLoopConsecutiveFailures} times consecutively. Exiting for Railway restart.`);
+                                    process.stderr.write(`[CRITICAL] Main loop repeated failures (${mainLoopConsecutiveFailures}x) - exiting\n`);
+                                    // 메모리 정리 시도
+                                    try {
+                                        const { cleanupExpiredCache } = await import('./gameCache.js');
+                                        cleanupExpiredCache();
+                                        if (global.gc) {
+                                            global.gc();
+                                        }
+                                    } catch (cleanupError: any) {
+                                        // 무시
+                                    }
+                                    // Railway가 재시작하도록 프로세스 종료
+                                    setTimeout(() => {
+                                        process.exit(1);
+                                    }, 1000);
+                                    return;
+                                }
+                                
                                 // 메모리 부족 에러인 경우에만 프로세스 종료 (Railway가 재시작)
-                                // 하지만 메인 루프는 계속 실행되도록 보장
                                 if (e?.code === 'ENOMEM' || e?.message?.includes('out of memory')) {
                                     console.error('[FATAL] Out of memory error detected.');
                                     // 메모리 정리 시도
@@ -2083,24 +2163,24 @@ const startServer = async () => {
                                     }
                                     
                                     // Railway 환경에서만 프로세스 종료 (재시작을 위해)
-                                    // 하지만 메인 루프는 계속 실행되도록 보장
                                     if (process.env.RAILWAY_ENVIRONMENT) {
-                                        // 프로세스 종료 전에 메인 루프가 계속 실행되도록 보장
                                         console.error('[FATAL] Exiting for Railway restart after memory cleanup.');
-                                        // 약간의 지연 후 종료하여 로그가 기록되도록 함
                                         setTimeout(() => {
                                             process.exit(1);
                                         }, 1000);
+                                        return;
                                     }
                                 }
                                 
                                 // 다른 모든 에러는 치명적이지 않음 - 서버는 계속 실행
-                                // Railway의 health check가 실패하면 자동 재시작됨
                             } finally {
                                 isProcessingMainLoop = false;
-                                // 에러 발생 시에도 다음 루프를 스케줄링 (서버가 계속 실행되도록)
-                                // 에러 발생 시 지연 시간을 늘려서 서버 부하 감소
-                                const nextDelay = 15000; // 15초로 증가 (Railway 부하 감소)
+                                
+                                // 에러 발생 시 지연 시간을 백오프로 증가 (연속 실패 시 더 긴 대기)
+                                const baseDelay = 15000; // 기본 15초
+                                const backoffMultiplier = Math.min(mainLoopConsecutiveFailures, 5); // 최대 5배
+                                const nextDelay = baseDelay * backoffMultiplier;
+                                
                                 // 절대 실패하지 않도록 보호
                                 try {
                                     scheduleMainLoop(nextDelay);
@@ -4441,8 +4521,52 @@ process.on('uncaughtException', (error: Error) => {
         return; // 서버는 계속 실행
     }
     
+    // 치명적인 에러 타입 체크
+    const isFatalError = 
+        error.name === 'TypeError' && error.message?.includes('Cannot read property') ||
+        error.name === 'ReferenceError' ||
+        error.name === 'SyntaxError' ||
+        error.message?.includes('ECONNREFUSED') ||
+        error.message?.includes('EADDRINUSE') ||
+        error.message?.includes('EACCES') ||
+        (error as any)?.code === 'EADDRINUSE' ||
+        (error as any)?.code === 'EACCES';
+    
+    // 치명적인 에러는 프로세스를 종료하여 Railway가 재시작하도록 함
+    if (isFatalError) {
+        console.error('[Server] Fatal error detected. Exiting for Railway restart.');
+        process.stderr.write('[CRITICAL] Fatal error - exiting for restart\n');
+        // 메모리 정리 시도
+        try {
+            if (global.gc) {
+                global.gc();
+            }
+        } catch (gcError) {
+            // 무시
+        }
+        // Railway가 재시작하도록 프로세스 종료
+        process.exit(1);
+    }
+    
+    // 연속 에러 추적 (같은 에러가 5번 연속 발생하면 종료)
+    const errorKey = `${error.name}:${error.message?.substring(0, 100)}`;
+    (global as any).uncaughtExceptionCount = (global as any).uncaughtExceptionCount || {};
+    (global as any).uncaughtExceptionCount[errorKey] = ((global as any).uncaughtExceptionCount[errorKey] || 0) + 1;
+    
+    if ((global as any).uncaughtExceptionCount[errorKey] >= 5) {
+        console.error(`[Server] Same error occurred 5 times consecutively. Exiting for Railway restart.`);
+        process.stderr.write(`[CRITICAL] Repeated error (5x) - exiting for restart\n`);
+        process.exit(1);
+    }
+    
+    // 1분 후 카운터 리셋
+    setTimeout(() => {
+        if ((global as any).uncaughtExceptionCount) {
+            (global as any).uncaughtExceptionCount[errorKey] = 0;
+        }
+    }, 60000);
+    
     // Railway 환경에서는 치명적이지 않은 에러는 로깅만 하고 계속 실행
-    // 프로세스를 종료하지 않음 (Railway가 재시작하는 것을 방지)
     if (process.env.RAILWAY_ENVIRONMENT) {
         console.error('[Server] Railway environment detected. Attempting to continue despite error...');
         // 프로세스를 종료하지 않음 - 서버는 계속 실행되어야 함
