@@ -85,6 +85,10 @@ export class StandardGameMode {
       gameData.moveHistory.length
     );
 
+    if (!result.success || !result.newBoardState) {
+      return { success: false, error: result.error || 'Invalid move' };
+    }
+
     if (!result.success) {
       return { success: false, error: result.error || 'Invalid move' };
     }
@@ -112,6 +116,10 @@ export class StandardGameMode {
             turn: gameData.moveHistory.length + 1,
           }
         : null,
+      captures: {
+        ...gameData.captures,
+        [playerNumber]: gameData.captures[playerNumber] + (result.captures || 0),
+      },
       lastMoveTime: Date.now(),
       gameStatus: 'active',
     };
