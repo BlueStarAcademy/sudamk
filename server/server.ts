@@ -1161,19 +1161,23 @@ const startServer = async () => {
                     };
                     console.log(`[Memory] RSS: ${memUsageMB.rss}MB, Heap: ${memUsageMB.heapUsed}/${memUsageMB.heapTotal}MB, External: ${memUsageMB.external}MB`);
                     
-                    // 메모리 사용량이 300MB를 초과하면 경고 및 캐시 정리
-                    if (memUsageMB.rss > 300) {
+                    // Railway 환경에서 메모리 제한을 더 엄격하게 관리 (250MB 이상이면 경고)
+                    if (memUsageMB.rss > 250) {
                         console.warn(`[Memory] High memory usage detected: ${memUsageMB.rss}MB RSS`);
-                        // 메모리 사용량이 350MB를 초과하면 강제 캐시 정리
-                        if (memUsageMB.rss > 350) {
+                        // 메모리 사용량이 280MB를 초과하면 강제 캐시 정리 (더 보수적으로)
+                        if (memUsageMB.rss > 280) {
                             console.warn(`[Memory] Forcing aggressive cache cleanup due to high memory usage (${memUsageMB.rss}MB)`);
-                            const { cleanupExpiredCache } = await import('./gameCache.js');
-                            cleanupExpiredCache();
-                            
-                            // 추가 메모리 정리: 가비지 컬렉션 힌트 (Node.js가 GC를 실행하도록 유도)
-                            if (global.gc) {
-                                global.gc();
-                                console.log('[Memory] Manual garbage collection triggered');
+                            try {
+                                const { cleanupExpiredCache } = await import('./gameCache.js');
+                                cleanupExpiredCache();
+                                
+                                // 추가 메모리 정리: 가비지 컬렉션 힌트 (Node.js가 GC를 실행하도록 유도)
+                                if (global.gc) {
+                                    global.gc();
+                                    console.log('[Memory] Manual garbage collection triggered');
+                                }
+                            } catch (cleanupError: any) {
+                                console.error('[Memory] Failed to cleanup cache:', cleanupError?.message);
                             }
                         }
                     }
@@ -1226,41 +1230,51 @@ const startServer = async () => {
                     // console.log(`[MainLoop] Using cached games (${activeGames.length} games, ${Math.round(timeSinceLastSuccess / 1000)}s since last DB load)`);
                 }
             } else {
-                let timeoutOccurred = false;
-                try {
-                    const timeoutDuration = isFirstRun ? 30000 : 10000; // 첫 실행: 30초, 이후: 10초
-                    const gamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
-                        setTimeout(() => {
-                            // 타임아웃 발생 시 백오프 시작
-                            timeoutOccurred = true;
-                            lastGetAllActiveGamesTimeout = Date.now();
-                            // 첫 타임아웃만 경고 로그 출력 (로그 스팸 방지)
-                            if (timeSinceLastTimeout >= GET_ALL_ACTIVE_GAMES_BACKOFF_MS) {
-                                console.warn(`[MainLoop] getAllActiveGames timeout after ${timeoutDuration}ms. Skipping for ${GET_ALL_ACTIVE_GAMES_BACKOFF_MS / 1000}s`);
-                            }
-                            resolve([]);
-                        }, timeoutDuration);
-                    });
-                    activeGames = await Promise.race([
-                        db.getAllActiveGames().catch((err: any) => {
-                            console.error('[MainLoop] getAllActiveGames error:', err?.message || err);
-                            console.error('[MainLoop] getAllActiveGames error stack:', err?.stack);
-                            return [];
-                        }),
-                        gamesTimeout
-                    ]);
-                    // 성공 시 백오프 리셋 및 성공 시간 기록 (타임아웃이 발생하지 않았고 게임이 로드된 경우)
-                    if (!timeoutOccurred && activeGames.length > 0) {
-                        lastGetAllActiveGamesTimeout = 0;
-                        lastGetAllActiveGamesSuccess = now;
+                // 첫 실행에서는 DB 쿼리를 완전히 스킵하고 캐시만 사용
+                if (isFirstRun) {
+                    console.log('[MainLoop] First run: Skipping DB query, using cache only...');
+                    const { getAllCachedGames } = await import('./gameCache.js');
+                    activeGames = getAllCachedGames();
+                    if (activeGames.length === 0) {
+                        console.log('[MainLoop] First run: Cache is empty, will load from DB on next run');
+                        // 첫 실행에서는 빈 배열 반환 (다음 루프에서 로드)
+                    } else {
+                        console.log(`[MainLoop] First run: Using ${activeGames.length} cached games`);
                     }
-                    if (isFirstRun) {
-                        console.log(`[MainLoop] ✅ First run completed: Loaded ${activeGames.length} active games`);
+                } else {
+                    let timeoutOccurred = false;
+                    try {
+                        const timeoutDuration = 5000; // 5초로 단축 (빠른 실패)
+                        const gamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
+                            setTimeout(() => {
+                                // 타임아웃 발생 시 백오프 시작
+                                timeoutOccurred = true;
+                                lastGetAllActiveGamesTimeout = Date.now();
+                                // 첫 타임아웃만 경고 로그 출력 (로그 스팸 방지)
+                                if (timeSinceLastTimeout >= GET_ALL_ACTIVE_GAMES_BACKOFF_MS) {
+                                    console.warn(`[MainLoop] getAllActiveGames timeout after ${timeoutDuration}ms. Skipping for ${GET_ALL_ACTIVE_GAMES_BACKOFF_MS / 1000}s`);
+                                }
+                                resolve([]);
+                            }, timeoutDuration);
+                        });
+                        activeGames = await Promise.race([
+                            db.getAllActiveGames().catch((err: any) => {
+                                console.error('[MainLoop] getAllActiveGames error:', err?.message || err);
+                                console.error('[MainLoop] getAllActiveGames error stack:', err?.stack);
+                                return [];
+                            }),
+                            gamesTimeout
+                        ]);
+                        // 성공 시 백오프 리셋 및 성공 시간 기록 (타임아웃이 발생하지 않았고 게임이 로드된 경우)
+                        if (!timeoutOccurred && activeGames.length > 0) {
+                            lastGetAllActiveGamesTimeout = 0;
+                            lastGetAllActiveGamesSuccess = now;
+                        }
+                    } catch (error: any) {
+                        console.error('[MainLoop] Failed to load active games:', error?.message || error);
+                        console.error('[MainLoop] Load games error stack:', error?.stack);
+                        activeGames = [];
                     }
-                } catch (error: any) {
-                    console.error('[MainLoop] Failed to load active games:', error?.message || error);
-                    console.error('[MainLoop] Load games error stack:', error?.stack);
-                    activeGames = [];
                 }
             }
             
@@ -1675,9 +1689,9 @@ const startServer = async () => {
                 try {
                     const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                         setTimeout(() => {
-                            console.warn(`[MainLoop] updateGameStates timeout (10000ms) for ${activeGames.length} games, using original state`);
+                            console.warn(`[MainLoop] updateGameStates timeout (8000ms) for ${activeGames.length} games, using original state`);
                             resolve(activeGames); // 타임아웃 시 원본 상태 유지
-                        }, 10000); // 10초 타임아웃
+                        }, 8000); // 8초 타임아웃 (더 짧게)
                     });
                     updatedGames = await Promise.race([
                         updateGameStates(activeGames, now).catch((err: any) => {
