@@ -40,13 +40,17 @@
 
 ### 진행 중인 작업
 - **Phase 1 완료!** ✅
-- **Phase 2 진행 중** (40% 완료)
+- **Phase 2 진행 중** (55% 완료)
   - Fastify 서버 설정 완료
-  - tRPC 라우터 기본 구조 완료
+  - tRPC 라우터 완료 (User, Game, Inventory, Guild, GameAction)
   - Repository 패턴 구현 완료
   - 인증 시스템 구현 완료
   - WebSocket 서버 구현 완료
-  - 다음: 게임 모드 구현
+  - Standard 게임 모드 기본 구조 완료
+  - Go 규칙 구현 완료 (processMove)
+  - 게임 상태 관리 완료
+  - 배경 작업 시스템 완료
+  - 다음: 나머지 게임 모드 구현 또는 프론트엔드 시작
 
 ### 발견한 이슈
 - 없음
