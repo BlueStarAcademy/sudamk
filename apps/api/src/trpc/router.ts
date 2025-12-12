@@ -56,6 +56,8 @@ export const appRouter = router({
   gameAction: gameActionRouter,
   inventory: inventoryRouter,
   guild: guildRouter,
+  shop: shopRouter,
+  quest: questRouter,
   
   // Health check
   health: publicProcedure.query(() => {
