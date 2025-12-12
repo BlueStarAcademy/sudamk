@@ -20,6 +20,7 @@ interface AuthState {
   login: (user: User, token: string) => void;
   logout: () => void;
   setUser: (user: User) => void;
+  initialize: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -47,6 +48,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   
   setUser: (user: User) => {
     set({ user });
+  },
+  
+  initialize: () => {
+    const token = getToken();
+    if (token) {
+      set({ token, isAuthenticated: true });
+      // User will be loaded via tRPC query
+    }
   },
 }));
 

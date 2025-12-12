@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { TRPCProvider } from '../providers/trpc-provider';
+import { Header } from '../components/layout/header';
 
 export const metadata: Metadata = {
   title: 'SUDAM - 바둑 게임 플랫폼',
@@ -15,7 +16,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <TRPCProvider>{children}</TRPCProvider>
+        <TRPCProvider>
+          <Header />
+          {children}
+        </TRPCProvider>
       </body>
     </html>
   );

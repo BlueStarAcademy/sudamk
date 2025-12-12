@@ -19,7 +19,7 @@ function getBaseUrl() {
   }
   
   // Development SSR should use localhost
-  return `http://localhost:${process.env.PORT ?? 4000}`;
+  return process.env.NEXT_PUBLIC_API_URL || `http://localhost:4000`;
 }
 
 export const trpc = createTRPCNext<AppRouter>({
@@ -31,10 +31,8 @@ export const trpc = createTRPCNext<AppRouter>({
           url: `${getBaseUrl()}/trpc`,
           // Optional: Add headers for authentication
           headers() {
-            const token = typeof window !== 'undefined' 
-              ? localStorage.getItem('token') 
-              : null;
-            
+            if (typeof window === 'undefined') return {};
+            const token = localStorage.getItem('sudam_token');
             return token ? { authorization: `Bearer ${token}` } : {};
           },
         }),
