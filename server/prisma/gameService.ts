@@ -198,8 +198,19 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
 
 export async function getAllEndedGames(): Promise<LiveGameSession[]> {
   try {
+    // 성능 최적화: 필요한 필드만 선택
     const rows = await prisma.liveGame.findMany({
-      where: { isEnded: true }
+      where: { isEnded: true },
+      select: {
+        id: true,
+        data: true,
+        status: true,
+        category: true
+      },
+      // 최신 게임 우선 (최근 종료된 게임이 더 중요)
+      orderBy: { updatedAt: 'desc' },
+      // 최대 100개로 제한하여 성능 보장
+      take: 100
     });
     return rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
   } catch (error: any) {
@@ -208,7 +219,15 @@ export async function getAllEndedGames(): Promise<LiveGameSession[]> {
       try {
         await prisma.$connect();
         const rows = await prisma.liveGame.findMany({
-          where: { isEnded: true }
+          where: { isEnded: true },
+          select: {
+            id: true,
+            data: true,
+            status: true,
+            category: true
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 100
         });
         return rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
       } catch (retryError) {
@@ -228,10 +247,17 @@ export async function getLiveGameByPlayerId(playerId: string): Promise<LiveGameS
   try {
     // JSON 필드에서 player1.id 또는 player2.id로 검색
     // Prisma는 JSON 필드 검색이 제한적이므로, 모든 활성 게임을 가져와서 필터링
-    // 하지만 성능을 위해 최대 100개만 조회
+    // 하지만 성능을 위해 최대 50개만 조회하고 필요한 필드만 선택
     const rows = await prisma.liveGame.findMany({
       where: { isEnded: false },
-      take: 100 // 최대 100개만 조회하여 성능 최적화
+      select: {
+        id: true,
+        data: true,
+        status: true,
+        category: true
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 50 // 최대 50개만 조회하여 성능 최적화
     });
     
     for (const row of rows) {

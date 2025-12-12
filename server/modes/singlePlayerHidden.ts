@@ -240,7 +240,6 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             if (!isMyTurn) {
                 console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT rejected: Not my turn - isMyTurn=${isMyTurn}, myPlayerEnum=${myPlayerEnum}, currentPlayer=${game.currentPlayer}`);
                 return { error: "Not your turn to use an item." };
-<<<<<<< Updated upstream
             }
             if (game.gameStatus !== 'playing') {
                 console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT rejected: Wrong game status - gameStatus=${game.gameStatus}`);

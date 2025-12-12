@@ -2546,11 +2546,11 @@ const startServer = async () => {
             return;
         }
         
-        // 요청 타임아웃 설정 (30초)
+        // 요청 타임아웃 설정 (10초 - Railway 환경 최적화)
         const requestTimeout = setTimeout(() => {
             if (!responseSent && !res.headersSent) {
                 responseSent = true;
-                console.error('[/api/auth/login] Request timeout after 30 seconds');
+                console.error('[/api/auth/login] Request timeout after 10 seconds');
                 try {
                     res.status(504).json({ message: '로그인 요청이 시간 초과되었습니다. 다시 시도해주세요.' });
                 } catch (err) {
@@ -2560,7 +2560,7 @@ const startServer = async () => {
                     }
                 }
             }
-        }, 30000); // 30초 타임아웃
+        }, 10000); // 10초 타임아웃 (Railway 환경 최적화)
         
         // 요청이 종료되면 타임아웃 정리
         req.on('close', () => {
@@ -2603,11 +2603,11 @@ const startServer = async () => {
             }
             
             console.log('[/api/auth/login] Attempting to get user credentials for:', username);
-            // 데이터베이스 조회에 타임아웃 추가 (3초)
+            // 데이터베이스 조회에 타임아웃 추가 (2초 - Railway 환경 최적화)
             let credentials: { username: string; passwordHash: string; userId: string } | null = null;
             try {
                 const credentialsTimeout = new Promise<null>((_, reject) => 
-                    setTimeout(() => reject(new Error('getUserCredentials timeout')), 3000)
+                    setTimeout(() => reject(new Error('getUserCredentials timeout')), 2000)
                 );
                 credentials = await Promise.race([
                     db.getUserCredentials(username),
@@ -2619,7 +2619,7 @@ const startServer = async () => {
                 } else {
                     console.log('[/api/auth/login] No credentials found for username. Attempting to get user by nickname:', username);
                     const nicknameTimeout = new Promise<null>((_, reject) => 
-                        setTimeout(() => reject(new Error('getUserByNickname timeout')), 3000)
+                        setTimeout(() => reject(new Error('getUserByNickname timeout')), 2000)
                     );
                     const userByNickname = await Promise.race([
                         db.getUserByNickname(username),
@@ -2629,7 +2629,7 @@ const startServer = async () => {
                     if (userByNickname) {
                         console.log('[/api/auth/login] User found by nickname. Getting credentials by userId:', userByNickname.id);
                         const userIdTimeout = new Promise<null>((_, reject) => 
-                            setTimeout(() => reject(new Error('getUserCredentialsByUserId timeout')), 3000)
+                            setTimeout(() => reject(new Error('getUserCredentialsByUserId timeout')), 2000)
                         );
                         credentials = await Promise.race([
                             db.getUserCredentialsByUserId(userByNickname.id),
@@ -2718,12 +2718,12 @@ const startServer = async () => {
                 return;
             }
             console.log('[/api/auth/login] Authentication successful for username:', username, '. Getting user details.');
-            // 사용자 조회에 타임아웃 추가 (10초 - 데이터베이스 연결이 느릴 수 있음)
+            // 사용자 조회에 타임아웃 추가 (5초 - Railway 환경 최적화)
             // equipment/inventory는 제외하여 빠르게 조회
             // 재시도 로직 추가 (데이터베이스 연결이 불안정할 수 있음)
             let user: types.User | null = null;
             let getUserAttempts = 0;
-            const maxGetUserAttempts = 3;
+            const maxGetUserAttempts = 2; // 재시도 횟수 감소 (2회로 제한)
             let getUserError: any = null;
             
             while (getUserAttempts < maxGetUserAttempts) {
@@ -2736,7 +2736,7 @@ const startServer = async () => {
                     }
                     
                     const getUserTimeout = new Promise<null>((_, reject) => 
-                        setTimeout(() => reject(new Error('getUser timeout')), 10000)
+                        setTimeout(() => reject(new Error('getUser timeout')), 5000)
                     );
                     const fetchedUser = await Promise.race([
                         db.getUser(credentials.userId, { includeEquipment: false, includeInventory: false }),
@@ -2801,11 +2801,11 @@ const startServer = async () => {
             const hadInventoryBefore = Array.isArray(userForLogin.inventory) && userForLogin.inventory.length > 0;
             const hadEquipmentBefore = userForLogin.equipment && Object.keys(userForLogin.equipment).length > 0;
 
-            // 무거운 작업들에 타임아웃 추가 (각 5초)
+            // 무거운 작업들에 타임아웃 추가 (각 3초 - Railway 환경 최적화)
             let updatedUser = userForLogin;
             try {
                 const questTimeout = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('resetAndGenerateQuests timeout')), 5000)
+                    setTimeout(() => reject(new Error('resetAndGenerateQuests timeout')), 3000)
                 );
                 updatedUser = await Promise.race([
                     resetAndGenerateQuests(user),
@@ -2818,7 +2818,7 @@ const startServer = async () => {
 
             try {
                 const leagueTimeout = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('processWeeklyLeagueUpdates timeout')), 5000)
+                    setTimeout(() => reject(new Error('processWeeklyLeagueUpdates timeout')), 3000)
                 );
                 updatedUser = await Promise.race([
                     processWeeklyLeagueUpdates(updatedUser),
@@ -2831,7 +2831,7 @@ const startServer = async () => {
 
             try {
                 const actionPointTimeout = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('regenerateActionPoints timeout')), 5000)
+                    setTimeout(() => reject(new Error('regenerateActionPoints timeout')), 3000)
                 );
                 updatedUser = await Promise.race([
                     regenerateActionPoints(updatedUser),
@@ -2950,11 +2950,11 @@ const startServer = async () => {
                 }
             }
 
-            // 사용자 업데이트에 타임아웃 추가 (5초)
+            // 사용자 업데이트에 타임아웃 추가 (3초 - Railway 환경 최적화)
             if (userBeforeUpdate !== JSON.stringify(updatedUser) || statsMigrated || itemsUnequipped || presetsMigrated) {
                 try {
                     const updateTimeout = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('updateUser timeout')), 5000)
+                        setTimeout(() => reject(new Error('updateUser timeout')), 3000)
                     );
                     await Promise.race([
                         db.updateUser(updatedUser),
@@ -2973,11 +2973,11 @@ const startServer = async () => {
             
             // 최적화: 사용자가 참여한 게임만 찾기 (전체 게임 목록 조회 대신)
             // volatileState에서 먼저 확인하고, 없으면 캐시 또는 DB에서 조회
-            // 게임 조회에 타임아웃 추가 (3초)
+            // 게임 조회에 타임아웃 추가 (2초 - Railway 환경 최적화)
             let activeGame: types.LiveGameSession | null = null;
             try {
                 const gameTimeout = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('getActiveGame timeout')), 3000)
+                    setTimeout(() => reject(new Error('getActiveGame timeout')), 2000)
                 );
                 
                 const gamePromise = (async () => {
@@ -3006,10 +3006,10 @@ const startServer = async () => {
                 // 게임 조회 실패는 치명적이지 않으므로 계속 진행
             }
     
-            // 게임 상태 업데이트에 타임아웃 추가 (3초)
+            // 게임 상태 업데이트에 타임아웃 추가 (2초 - Railway 환경 최적화)
             try {
                 const gameStateTimeout = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('gameStateUpdate timeout')), 3000)
+                    setTimeout(() => reject(new Error('gameStateUpdate timeout')), 2000)
                 );
                 
                 const gameStatePromise = (async () => {

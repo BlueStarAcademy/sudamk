@@ -1216,7 +1216,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 }
             }
             
-            const { success } = addItemsToInventory(user.inventory, user.inventorySlots, itemsToAdd);
+            const { success, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, itemsToAdd);
             if (!success) {
                 if (!user.isAdmin) { user.guildCoins = (user.guildCoins || 0) + itemToBuy.cost; } // Refund
                 return { error: '?�벤?�리 공간??부족합?�다.' };
@@ -1307,7 +1307,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 }
             }
 
-            const { success } = addItemsToInventory(user.inventory, user.inventorySlots, itemsToAdd);
+            const { success, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, itemsToAdd);
             if (!success) {
                 user.guildCoins = (user.guildCoins || 0) + totalCost; // Refund
                 return { error: '?�벤?�리 공간??부족합?�다.' };
@@ -1798,6 +1798,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     
                     const guildWithFixedIcon = {
                         ...basicGuild,
+                        name: basicGuild.name || dbGuild.name || '이름 없는 길드', // name 필드 보장
                         icon: basicGuild.icon?.startsWith('/images/guild/icon') 
                             ? basicGuild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
                             : (basicGuild.icon || '/images/guild/profile/icon1.png')
@@ -1812,9 +1813,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     await db.setKV('guilds', guilds);
                 }
                 
-                // 아이콘 경로 수정
+                // 아이콘 경로 수정 및 name 필드 보장
                 const guildWithFixedIcon = {
                     ...guild,
+                    name: guild.name || '이름 없는 길드', // name 필드 보장
                     members: guild.members || [],
                     icon: guild.icon?.startsWith('/images/guild/icon') 
                         ? guild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
