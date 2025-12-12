@@ -37,6 +37,24 @@ export class GuildRepository {
     });
   }
 
+  async findByMemberId(userId: string): Promise<Guild | null> {
+    const member = await prisma.guildMember.findFirst({
+      where: { userId },
+      include: {
+        guild: {
+          include: {
+            leader: true,
+            members: {
+              include: { user: true },
+            },
+          },
+        },
+      },
+    });
+
+    return member?.guild || null;
+  }
+
   async create(data: {
     id: string;
     name: string;
