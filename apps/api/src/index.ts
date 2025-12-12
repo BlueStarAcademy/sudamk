@@ -64,12 +64,19 @@ server.setErrorHandler((error, request, reply) => {
   });
 });
 
+// Start game loop
+const { startGameLoop, stopGameLoop } = await import('./background/game-loop.js');
+
 // Start server
 const start = async () => {
   try {
     await server.listen({ port: env.PORT, host: '0.0.0.0' });
     server.log.info(`[Server] Server listening on port ${env.PORT}`);
     server.log.info(`[Server] Environment: ${env.NODE_ENV}`);
+    
+    // Start game loop after server is ready
+    startGameLoop();
+    server.log.info('[Server] Game loop started');
   } catch (err) {
     server.log.error(err);
     process.exit(1);
@@ -79,6 +86,7 @@ const start = async () => {
 // Graceful shutdown
 const shutdown = async () => {
   server.log.info('[Server] Shutting down gracefully...');
+  stopGameLoop();
   await server.close();
   process.exit(0);
 };
