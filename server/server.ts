@@ -1821,9 +1821,14 @@ const startServer = async () => {
                 try {
                     const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                         setTimeout(() => {
-                            console.warn(`[MainLoop] updateGameStates timeout (8000ms) for ${activeGames.length} games, using original state`);
+                            // 로그 스팸 방지: 첫 타임아웃만 경고
+                            const shouldLog = !(global as any).lastUpdateGamesTimeout || (Date.now() - (global as any).lastUpdateGamesTimeout > 30000);
+                            if (shouldLog) {
+                                console.warn(`[MainLoop] updateGameStates timeout (5000ms) for ${activeGames.length} games, using original state`);
+                                (global as any).lastUpdateGamesTimeout = Date.now();
+                            }
                             resolve(activeGames); // 타임아웃 시 원본 상태 유지
-                        }, 8000); // 8초 타임아웃 (더 짧게)
+                        }, 5000); // 8초 -> 5초로 단축
                     });
                     updatedGames = await Promise.race([
                         updateGameStates(activeGames, now).catch((err: any) => {

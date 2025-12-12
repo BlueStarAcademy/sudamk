@@ -803,28 +803,30 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             return games; // PVE 게임만 있으면 원본 반환
         }
 
-        // 배치 처리: 5개씩 병렬 처리하여 메모리 및 CPU 부하 분산
-        const BATCH_SIZE = 5;
+        // 배치 처리: 3개씩 병렬 처리하여 메모리 및 CPU 부하 분산 (성능 개선)
+        const BATCH_SIZE = 3;
         const results: LiveGameSession[] = [];
         
         for (let i = 0; i < multiPlayerGames.length; i += BATCH_SIZE) {
             const batch = multiPlayerGames.slice(i, i + BATCH_SIZE);
             
-            // 각 배치에 타임아웃 추가 (5초)
+            // 각 배치에 타임아웃 추가 (3초로 단축 - 더 빠른 실패)
             const batchTimeout = new Promise<LiveGameSession[]>((resolve) => {
                 setTimeout(() => {
-                    console.warn(`[updateGameStates] Batch timeout (5000ms) for ${batch.length} games, using original state`);
+                    // 로그 스팸 방지: 첫 타임아웃만 경고
+                    if (i === 0 || Math.random() < 0.1) { // 10% 확률로만 로그
+                        console.warn(`[updateGameStates] Batch timeout (3000ms) for ${batch.length} games, using original state`);
+                    }
                     resolve(batch); // 타임아웃 시 원본 게임들 반환
-                }, 5000);
+                }, 3000); // 5초 -> 3초로 단축
             });
 
-            // 각 게임 처리에 개별 타임아웃 추가 (2초)
+            // 각 게임 처리에 개별 타임아웃 추가 (1초로 단축)
             const processGameWithTimeout = async (game: LiveGameSession): Promise<LiveGameSession> => {
                 const gameTimeout = new Promise<LiveGameSession>((resolve) => {
                     setTimeout(() => {
-                        console.warn(`[updateGameStates] Game ${game.id} timeout (2000ms), using original state`);
-                        resolve(game); // 타임아웃 시 원본 게임 반환
-                    }, 2000);
+                        resolve(game); // 타임아웃 시 원본 게임 반환 (로그 제거로 스팸 방지)
+                    }, 1000); // 2초 -> 1초로 단축
                 });
 
                 try {
@@ -892,75 +894,16 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 return game;
             }
 
-            // PVE 게임 (싱글플레이어, 도전의 탑)은 클라이언트에서 실행되므로 서버 루프에서 제외
-            // AI 게임은 서버에서 처리해야 하므로 PVE 게임에서 제외
-            const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
-            const isTower = game.gameCategory === 'tower';
-            if (isPVEGame) {
-                // PVE 게임은 클라이언트에서 실행되므로 서버에서는 최소한의 처리만 수행
-                // player1 정보만 필요시 업데이트 (AI는 업데이트 불필요)
-                const { getCachedUser } = await import('./gameCache.js');
-                const p1 = await getCachedUser(game.player1.id);
-                if (p1) game.player1 = p1;
-
-                // 도전의 탑은 클라이언트에서 모든 처리가 이루어지므로 서버에서 액션 버튼 업데이트 불필요
-                // 싱글플레이어만 액션 버튼 업데이트 수행
-                if (game.isSinglePlayer && !isTower) {
-                    const playableStatuses: types.GameStatus[] = [
-                        'playing', 'hidden_placing', 'scanning', 'missile_selecting',
-                        'alkkagi_playing',
-                        'curling_playing',
-                        'dice_rolling',
-                        'dice_placing',
-                        'thief_rolling',
-                        'thief_placing',
-                    ];
-
-                    // 액션 버튼 업데이트만 수행 (싱글플레이에서만)
-                    if (playableStatuses.includes(game.gameStatus)) {
-                        if (!game.currentActionButtons) game.currentActionButtons = {};
-                        const deadline = game.actionButtonCooldownDeadline?.[game.player1.id];
-                        if (typeof deadline !== 'number' || now >= deadline) {
-                            game.currentActionButtons[game.player1.id] = getNewActionButtons(game);
-
-                            const effects = effectService.calculateUserEffects(game.player1);
-                            const cooldown = (5 * 60 - (effects.mythicStatBonuses[types.MythicStat.MannerActionCooldown]?.flat || 0)) * 1000;
-
-                            if (!game.actionButtonCooldownDeadline) game.actionButtonCooldownDeadline = {};
-                            game.actionButtonCooldownDeadline[game.player1.id] = now + cooldown;
-                            if (game.actionButtonUsedThisCycle) {
-                                game.actionButtonUsedThisCycle[game.player1.id] = false;
-                            }
-                        }
-                    }
-                }
-
-                // PVE 게임은 클라이언트에서 실행되지만, 미사일 애니메이션 등 일부 상태 업데이트는 서버에서도 처리 필요
-                // 미사일 애니메이션 업데이트 (애니메이션 종료 시 게임 상태 복원)
-                if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                    await updateStrategicGameState(game, now);
-                    // 미사일 상태가 변경된 경우 (아이템 시간 초과 등) DB 저장 및 브로드캐스트 필요
-                    if ((game as any)._missileStateChanged) {
-                        (game as any)._missileStateChanged = false;
-                        const { updateGameCache } = await import('./gameCache.js');
-                        updateGameCache(game);
-                        await db.saveGame(game);
-                        const { broadcastToGameParticipants } = await import('./socket.js');
-                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                    }
-                } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode }) => m.mode === game.mode)) {
-                    await updatePlayfulGameState(game, now);
-                }
-                
-                // PVE 게임은 클라이언트에서 실행되므로 서버에서는 최소한의 정보만 유지 (게임 종료 시 저장용)
-                return game;
-            }
+            // PVE 게임은 이미 updateGameStates에서 필터링되었으므로 여기서는 처리하지 않음
+            // 이 함수는 멀티플레이어 게임만 처리함
 
             // 멀티플레이 게임 처리 (기존 로직)
-            // 캐시를 사용하여 DB 조회 최소화
+            // 캐시를 사용하여 DB 조회 최소화 (병렬 처리로 성능 개선)
             const { getCachedUser } = await import('./gameCache.js');
-            const p1 = await getCachedUser(game.player1.id);
-            const p2 = game.player2.id === aiUserId ? getAiUser(game.mode) : await getCachedUser(game.player2.id);
+            const [p1, p2] = await Promise.all([
+                getCachedUser(game.player1.id),
+                game.player2.id === aiUserId ? Promise.resolve(getAiUser(game.mode)) : getCachedUser(game.player2.id)
+            ]);
             if (p1) game.player1 = p1;
             if (p2) game.player2 = p2;
 
@@ -1027,10 +970,14 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 }
             }
 
-            if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                await updateStrategicGameState(game, now);
-            } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode }) => m.mode === game.mode)) {
-                await updatePlayfulGameState(game, now);
+            // 게임 상태 업데이트는 필요한 경우에만 수행 (성능 최적화)
+            // ended, no_contest, scoring 상태는 업데이트 불필요
+            if (game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest' && game.gameStatus !== 'scoring') {
+                if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                    await updateStrategicGameState(game, now);
+                } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode }) => m.mode === game.mode)) {
+                    await updatePlayfulGameState(game, now);
+                }
             }
 
             return game;
