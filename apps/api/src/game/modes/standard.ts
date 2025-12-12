@@ -112,6 +112,8 @@ export class StandardGameMode {
             turn: gameData.moveHistory.length + 1,
           }
         : null,
+      lastMoveTime: Date.now(),
+      gameStatus: 'active',
     };
 
     // Check for game end conditions (simplified - in production, check for pass/pass)
