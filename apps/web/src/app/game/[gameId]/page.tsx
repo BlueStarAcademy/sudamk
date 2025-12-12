@@ -9,6 +9,7 @@ import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { trpc } from '../../../lib/trpc/utils';
 import { GoBoard } from '../../../components/game/go-board';
+import { GameInfo } from '../../../components/game/game-info';
 import { AuthGuard } from '../../../components/auth/auth-guard';
 import type { BoardState } from '@sudam/game-logic';
 
@@ -24,6 +25,18 @@ export default function GamePage() {
   );
   
   const makeMoveMutation = trpc.gameAction.makeMove.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const passMutation = trpc.gameAction.pass.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const resignMutation = trpc.gameAction.resign.useMutation({
     onSuccess: () => {
       refetch();
     },
@@ -65,18 +78,16 @@ export default function GamePage() {
   return (
     <AuthGuard>
       <div className="container mx-auto p-8">
-        <div className="flex flex-col items-center gap-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-2">게임 #{game.id.slice(0, 8)}</h1>
-            <p className="text-gray-600">
-              현재 차례: {currentPlayer === 1 ? '흑' : '백'}
-            </p>
-            <p className="text-sm text-gray-500">
-              상태: {game.status} | 모드: {game.category || 'Standard'}
-            </p>
-          </div>
+        <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold mb-2">게임 #{game.id.slice(0, 8)}</h1>
+              <p className="text-sm text-gray-500">
+                모드: {game.category || 'Standard'}
+              </p>
+            </div>
 
-          <GoBoard
+            <GoBoard
             boardSize={boardSize}
             boardState={boardState}
             currentPlayer={currentPlayer}
@@ -89,28 +100,40 @@ export default function GamePage() {
             }
           />
 
-          <div className="flex gap-4">
+            <div className="flex gap-4">
             <button
               onClick={() => {
-                // TODO: Implement pass
+                passMutation.mutate({ gameId: game.id });
               }}
               className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              disabled={makeMoveMutation.isPending || game.isEnded}
+              disabled={makeMoveMutation.isPending || passMutation.isPending || game.isEnded}
             >
               패스
             </button>
             <button
               onClick={() => {
-                // TODO: Implement resign
+                resignMutation.mutate({ gameId: game.id });
               }}
               className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              disabled={makeMoveMutation.isPending || game.isEnded}
+              disabled={makeMoveMutation.isPending || resignMutation.isPending || game.isEnded}
             >
               기권
             </button>
+            </div>
           </div>
 
-          {game.isEnded && (
+          <div className="w-full lg:w-64">
+            <GameInfo
+              currentPlayer={currentPlayer}
+              captures={gameData.captures || { 1: 0, 2: 0 }}
+              moveCount={gameData.moveHistory?.length || 0}
+              gameStatus={game.status}
+            />
+          </div>
+        </div>
+
+        {game.isEnded && (
+          <div className="mt-8 text-center">
             <div className="text-center">
               <p className="text-lg font-semibold">게임 종료</p>
               {gameData.winner && (
