@@ -34,6 +34,12 @@ export class UserRepository {
     });
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    return prisma.user.findUnique({
+      where: { email },
+    });
+  }
+
   async create(data: {
     id: string;
     nickname: string;

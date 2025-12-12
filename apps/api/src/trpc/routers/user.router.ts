@@ -142,11 +142,36 @@ export const userRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const user = await userRepository.update(ctx.user.id, input);
+      const user = await userRepository.findById(ctx.user.id);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Check if nickname is already taken
+      if (input.nickname && input.nickname !== user.nickname) {
+        const existingUser = await userRepository.findByNickname(input.nickname);
+        if (existingUser && existingUser.id !== ctx.user.id) {
+          throw new Error('Nickname already taken');
+        }
+      }
+
+      // Check if email is already taken
+      if (input.email && input.email !== user.email) {
+        const existingUser = await userRepository.findByEmail(input.email);
+        if (existingUser && existingUser.id !== ctx.user.id) {
+          throw new Error('Email already taken');
+        }
+      }
+
+      const updatedUser = await userRepository.update(ctx.user.id, {
+        nickname: input.nickname,
+        email: input.email,
+      });
+
       return {
-        id: user.id,
-        nickname: user.nickname,
-        email: user.email,
+        id: updatedUser.id,
+        nickname: updatedUser.nickname,
+        email: updatedUser.email,
       };
     }),
 });
