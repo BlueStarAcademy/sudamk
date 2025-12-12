@@ -40,22 +40,20 @@ export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
-// Example router (will be replaced with actual routers)
+// Import routers
+import { userRouter } from './routers/user.router.js';
+import { gameRouter } from './routers/game.router.js';
+
+// Main app router
 export const appRouter = router({
-  hello: publicProcedure
-    .input(z.object({ name: z.string().optional() }))
-    .query(({ input }) => {
-      return {
-        greeting: `Hello ${input.name ?? 'World'}!`,
-      };
-    }),
+  user: userRouter,
+  game: gameRouter,
   
-  // Protected example
-  me: protectedProcedure.query(async ({ ctx }) => {
+  // Health check
+  health: publicProcedure.query(() => {
     return {
-      userId: ctx.user.id,
-      username: ctx.user.username,
-      isAdmin: ctx.user.isAdmin,
+      status: 'ok',
+      timestamp: new Date().toISOString(),
     };
   }),
 });
