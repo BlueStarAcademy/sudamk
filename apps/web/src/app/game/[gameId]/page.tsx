@@ -149,13 +149,12 @@ export default function GamePage() {
 
         {game.isEnded && (
           <div className="mt-8 text-center">
-            <div className="text-center">
-              <p className="text-lg font-semibold">게임 종료</p>
-              {gameData.winner && (
-                <p>승자: {gameData.winner === 1 ? '흑' : '백'}</p>
-              )}
-            </div>
-          )}
+            <p className="text-lg font-semibold">게임 종료</p>
+            {gameData.winner && (
+              <p>승자: {gameData.winner === 1 ? '흑' : '백'}</p>
+            )}
+          </div>
+        )}
         </div>
       </div>
     </AuthGuard>
