@@ -30,8 +30,20 @@ export default function GamePage() {
     url: `/ws`,
     enabled: !!gameId,
     onMessage: (data) => {
-      if (data.type === 'GAME_UPDATE' && data.payload[gameId]) {
+      if (data.type === 'GAME_UPDATE' && data.payload && data.payload[gameId]) {
         refetch();
+      }
+    },
+    onOpen: () => {
+      // Subscribe to game updates
+      if (gameId) {
+        send({ type: 'subscribe_game', gameId });
+      }
+    },
+    onClose: () => {
+      // Unsubscribe from game updates
+      if (gameId) {
+        send({ type: 'unsubscribe_game', gameId });
       }
     },
   });

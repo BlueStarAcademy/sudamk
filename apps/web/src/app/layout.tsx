@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ToastContainer } from '../components/common/toast';
 import './globals.css';
 import { TRPCProvider } from '../providers/trpc-provider';
 import { Header } from '../components/layout/header';
@@ -19,6 +20,7 @@ export default function RootLayout({
         <TRPCProvider>
           <Header />
           {children}
+          <ToastContainer />
         </TRPCProvider>
       </body>
     </html>
