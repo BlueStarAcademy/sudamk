@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../router.js';
-import { userRepository } from '../../repositories/index.js';
+import { userRepository, credentialRepository } from '../../repositories/index.js';
 import { hashPassword, verifyPassword } from '../../auth/password.js';
 import { generateToken } from '../../auth/jwt.js';
 
@@ -36,12 +36,12 @@ export const userRouter = router({
         isAdmin: false,
       });
 
-      // TODO: Create credentials
-      // await credentialRepository.create({
-      //   username: input.username,
-      //   passwordHash,
-      //   userId: user.id,
-      // });
+      // Create credentials
+      await credentialRepository.create({
+        username: input.username,
+        passwordHash,
+        userId: user.id,
+      });
 
       const token = generateToken({
         userId: user.id,
@@ -70,20 +70,24 @@ export const userRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      // TODO: Verify credentials
-      // const credential = await credentialRepository.findByUsername(input.username);
-      // if (!credential) {
-      //   throw new Error('Invalid credentials');
-      // }
-      // const isValid = await verifyPassword(input.password, credential.passwordHash);
-      // if (!isValid) {
-      //   throw new Error('Invalid credentials');
-      // }
-
-      // For now, find user by username
-      const user = await userRepository.findByNickname(input.username);
-      if (!user) {
+      // Verify credentials
+      const credential = await credentialRepository.findByUsername(input.username);
+      if (!credential) {
         throw new Error('Invalid credentials');
+      }
+
+      if (!credential.passwordHash) {
+        throw new Error('Password not set');
+      }
+
+      const isValid = await verifyPassword(input.password, credential.passwordHash);
+      if (!isValid) {
+        throw new Error('Invalid credentials');
+      }
+
+      const user = credential.user;
+      if (!user) {
+        throw new Error('User not found');
       }
 
       const token = generateToken({

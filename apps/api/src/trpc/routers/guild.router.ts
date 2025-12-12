@@ -44,11 +44,35 @@ export const guildRouter = router({
 
   // Get my guild
   getMyGuild: protectedProcedure.query(async ({ ctx }) => {
-    // Find guild where user is a member
-    // This is a simplified version - in production, you'd query GuildMember
-    const userGuilds = await guildRepository.findById(''); // TODO: Implement proper query
-    
-    return null; // Placeholder
+    const guild = await guildRepository.findByMemberId(ctx.user.id);
+    if (!guild) {
+      return null;
+    }
+
+    return {
+      id: guild.id,
+      name: guild.name,
+      description: guild.description,
+      emblem: guild.emblem,
+      level: guild.level,
+      experience: guild.experience.toString(),
+      gold: guild.gold.toString(),
+      leader: {
+        id: guild.leader.id,
+        nickname: guild.leader.nickname,
+      },
+      memberCount: guild.members.length,
+      members: guild.members.map((m) => ({
+        userId: m.userId,
+        role: m.role,
+        contributionTotal: m.contributionTotal.toString(),
+        joinDate: m.joinDate,
+        user: {
+          id: m.user.id,
+          nickname: m.user.nickname,
+        },
+      })),
+    };
   }),
 
   // Create guild
