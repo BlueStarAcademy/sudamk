@@ -24,15 +24,15 @@
 - [x] Git 초기화 및 브랜치 설정 (develop 브랜치)
 
 ### 1.2 데이터베이스 설정
-- [ ] Prisma 스키마 복사 및 검증
-- [ ] 기존 데이터베이스 백업
+- [x] Prisma 스키마 복사 및 검증
+- [x] 기존 데이터베이스 백업 스크립트 작성
 - [ ] 마이그레이션 스크립트 작성
-- [ ] 데이터 검증 도구 작성
+- [x] 데이터 검증 도구 작성
 
 ### 1.3 공유 패키지 설정
-- [ ] `packages/shared` - 타입 정의
-- [ ] `packages/database` - Prisma 클라이언트
-- [ ] `packages/game-logic` - 게임 로직
+- [x] `packages/shared` - 타입 정의 (기본 구조)
+- [x] `packages/database` - Prisma 클라이언트 (기본 구조)
+- [x] `packages/game-logic` - 게임 로직 (기본 구조)
 
 ### 1.4 작업 추적 시스템
 - [x] `docs/PROGRESS.md` 생성
