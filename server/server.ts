@@ -546,10 +546,25 @@ const startServer = async () => {
     
     // 헬스체크 엔드포인트를 서버 리스닝 전에 등록 (즉시 응답 가능하도록)
     // Railway 헬스체크는 서버가 시작되면 즉시 통과해야 함
+    // 초기 헬스체크 엔드포인트 (서버 시작 전에도 응답)
+    // Railway health check를 위해 매우 빠르고 안정적으로 응답
     app.get('/api/health', (req, res) => {
+        // 타임아웃 설정 (1초 내에 응답 보장)
+        const healthTimeout = setTimeout(() => {
+            if (!res.headersSent) {
+                res.status(200).json({
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                    uptime: process.uptime(),
+                    pid: process.pid,
+                    warning: 'Health check response delayed'
+                });
+            }
+        }, 1000);
+        
         try {
             // 서버가 리스닝 중이 아니어도 헬스체크는 통과 (서버 시작 중)
-            res.status(200).json({
+            const response = {
                 status: 'ok',
                 timestamp: new Date().toISOString(),
                 uptime: process.uptime(),
@@ -557,16 +572,22 @@ const startServer = async () => {
                 ready: isServerReady,
                 pid: process.pid,
                 message: 'Server starting up'
-            });
+            };
+            clearTimeout(healthTimeout);
+            res.status(200).json(response);
         } catch (error: any) {
             // 헬스체크 자체가 실패하지 않도록 보호
+            clearTimeout(healthTimeout);
             console.error('[Health] Health check error:', error);
-            res.status(200).json({
-                status: 'ok',
-                timestamp: new Date().toISOString(),
-                uptime: process.uptime(),
-                error: 'Health check handler error (non-fatal)'
-            });
+            if (!res.headersSent) {
+                res.status(200).json({
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                    uptime: process.uptime(),
+                    pid: process.pid,
+                    error: 'Health check handler error (non-fatal)'
+                });
+            }
         }
     });
     
@@ -574,6 +595,13 @@ const startServer = async () => {
     
     // 서버를 생성하고 리스닝 시작 (Express 미들웨어가 이미 설정됨)
     const server = http.createServer((req, res) => {
+        // Health check는 매우 빠르게 처리 (Railway health check 대응)
+        if (req.url === '/api/health' || req.url === '/') {
+            // Health check는 타임아웃 없이 즉시 처리
+            app(req, res);
+            return;
+        }
+        
         // 타임아웃 설정 (2분으로 증가 - 대용량 데이터 처리 시간 고려)
         req.setTimeout(120000, () => {
             if (!res.headersSent) {
@@ -590,6 +618,30 @@ const startServer = async () => {
     server.keepAliveTimeout = 120000; // 2분으로 증가
     server.headersTimeout = 130000; // 2분 10초로 증가
     
+    // Railway health check를 위한 루트 경로 추가 (Railway는 기본적으로 / 경로를 체크)
+    app.get('/', (req, res) => {
+        // Health check와 동일한 응답
+        try {
+            const response = {
+                status: 'ok',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                listening: server.listening,
+                ready: isServerReady,
+                pid: process.pid,
+                database: dbInitialized ? 'connected' : 'initializing'
+            };
+            res.status(200).json(response);
+        } catch (error: any) {
+            res.status(200).json({
+                status: 'ok',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                pid: process.pid
+            });
+        }
+    });
+    
     // 서버 리스닝 시작 (Express 미들웨어가 이미 설정되어 있음)
     console.log('[Server] Starting server listen...');
     server.listen(port, '0.0.0.0', () => {
@@ -603,9 +655,24 @@ const startServer = async () => {
         isServerReady = true;
         
         // 헬스체크 엔드포인트 업데이트 (서버 객체 사용 가능)
+        // Railway health check를 위해 매우 빠르고 안정적으로 응답
         app.get('/api/health', (req, res) => {
+            // 타임아웃 설정 (1초 내에 응답 보장)
+            const healthTimeout = setTimeout(() => {
+                if (!res.headersSent) {
+                    res.status(200).json({
+                        status: 'ok',
+                        timestamp: new Date().toISOString(),
+                        uptime: process.uptime(),
+                        pid: process.pid,
+                        warning: 'Health check response delayed'
+                    });
+                }
+            }, 1000);
+            
             try {
-                res.status(200).json({
+                // 즉시 응답 (DB 체크 없이 빠르게)
+                const response = {
                     status: 'ok',
                     timestamp: new Date().toISOString(),
                     uptime: process.uptime(),
@@ -613,16 +680,22 @@ const startServer = async () => {
                     ready: isServerReady,
                     pid: process.pid,
                     database: dbInitialized ? 'connected' : 'initializing'
-                });
+                };
+                clearTimeout(healthTimeout);
+                res.status(200).json(response);
             } catch (error: any) {
                 // 헬스체크 자체가 실패하지 않도록 보호
+                clearTimeout(healthTimeout);
                 console.error('[Health] Health check error:', error);
-                res.status(200).json({
-                    status: 'ok',
-                    timestamp: new Date().toISOString(),
-                    uptime: process.uptime(),
-                    error: 'Health check handler error (non-fatal)'
-                });
+                if (!res.headersSent) {
+                    res.status(200).json({
+                        status: 'ok',
+                        timestamp: new Date().toISOString(),
+                        uptime: process.uptime(),
+                        pid: process.pid,
+                        error: 'Health check handler error (non-fatal)'
+                    });
+                }
             }
         });
     });
@@ -650,10 +723,16 @@ const startServer = async () => {
         console.log('[Server] Server is ready and accepting connections');
         
         // Keep-alive: 주기적으로 로그를 출력하여 프로세스가 살아있음을 확인
-        // Railway가 프로세스를 종료하지 않도록 하기 위함
+        // Railway가 프로세스를 종료하지 않도록 하기 위함 (더 자주 출력)
         setInterval(() => {
-            console.log(`[Server] Keep-alive: Server is running (uptime: ${Math.round(process.uptime())}s, PID: ${process.pid})`);
-        }, 300000); // 5분마다
+            const memUsage = process.memoryUsage();
+            const memMB = {
+                rss: Math.round(memUsage.rss / 1024 / 1024),
+                heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+                heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024)
+            };
+            console.log(`[Server] Keep-alive: Server is running (uptime: ${Math.round(process.uptime())}s, PID: ${process.pid}, Memory: ${memMB.rss}MB RSS, ${memMB.heapUsed}/${memMB.heapTotal}MB Heap)`);
+        }, 60000); // 1분마다 (더 자주 출력하여 Railway가 프로세스를 종료하지 않도록)
         
         // WebSocket 서버 생성 (실패해도 HTTP 서버는 계속 실행)
         try {
@@ -4192,6 +4271,7 @@ const startServer = async () => {
 };
 
 // 전역 에러 핸들러 추가 (처리되지 않은 Promise rejection 및 예외 처리)
+// 전역 에러 핸들러: 프로세스가 절대 크래시되지 않도록 보장
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
     // stderr로 강제 출력 (Railway 로그에 확실히 기록되도록)
     const errorInfo = {
