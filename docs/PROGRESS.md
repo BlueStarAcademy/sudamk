@@ -9,7 +9,7 @@
 ## 전체 진행률
 
 - [x] Phase 1: 프로젝트 설정 및 인프라 (100% - 완료)
-- [ ] Phase 2: 백엔드 재작성 (45%)
+- [ ] Phase 2: 백엔드 재작성 (55%)
 - [ ] Phase 3: 프론트엔드 재작성 (0%)
 - [ ] Phase 4: 데이터 마이그레이션 (0%)
 - [ ] Phase 5: 통합 및 테스트 (0%)
@@ -64,6 +64,9 @@
 - [x] Context 생성 (사용자 정보)
 - [x] User router 구현
 - [x] Game router 구현
+- [x] Inventory router 구현
+- [x] Guild router 구현
+- [x] Game action router 구현
 - [ ] 에러 핸들링 개선
 
 ### 2.3 데이터베이스 레이어
