@@ -9,7 +9,7 @@
 ## 전체 진행률
 
 - [x] Phase 1: 프로젝트 설정 및 인프라 (100% - 완료)
-- [ ] Phase 2: 백엔드 재작성 (55%)
+- [ ] Phase 2: 백엔드 재작성 (60%)
 - [ ] Phase 3: 프론트엔드 재작성 (60%)
 - [ ] Phase 3: 프론트엔드 재작성 (0%)
 - [ ] Phase 4: 데이터 마이그레이션 (0%)
@@ -77,6 +77,7 @@
   - [x] GameRepository
   - [x] InventoryRepository
   - [x] GuildRepository
+  - [x] CredentialRepository
 - [ ] 트랜잭션 관리
 - [ ] 캐싱 전략
 
