@@ -21,10 +21,26 @@
   - ESLint 설정
   - Prettier 설정
 - [x] README.md 작성
+- [x] 공유 패키지 생성
+  - `packages/shared` - 타입 정의 기본 구조
+  - `packages/database` - Prisma 스키마 복사 및 설정
+  - `packages/game-logic` - 게임 로직 기본 구조
+- [x] 데이터베이스 마이그레이션 도구
+  - 백업 스크립트 작성
+  - 마이그레이션 스크립트 작성
+  - 데이터 검증 스크립트 작성
+- [x] 백엔드 앱 기본 구조 (`apps/api`)
+  - Fastify 서버 설정
+  - 기본 헬스체크 엔드포인트
+- [x] 프론트엔드 앱 기본 구조 (`apps/web`)
+  - Next.js 14 App Router 설정
+  - Tailwind CSS 설정
+  - 기본 레이아웃 및 페이지
+- [x] Git 원격 저장소 연결 및 푸시
 
 ### 진행 중인 작업
-- Phase 1: 프로젝트 설정 및 인프라
-  - Monorepo 설정 준비 중
+- **Phase 1 완료!** ✅
+- 다음: Phase 2 - 백엔드 재작성 시작 준비
 
 ### 발견한 이슈
 - 없음
