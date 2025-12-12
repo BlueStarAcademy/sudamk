@@ -63,6 +63,14 @@ export function Header() {
               >
                 퀘스트
               </button>
+              {user?.isAdmin && (
+                <Link
+                  href="/admin"
+                  className="text-sm text-red-600 hover:text-red-700"
+                >
+                  관리자
+                </Link>
+              )}
               <button
                 onClick={logout}
                 className="text-sm text-gray-600 hover:text-gray-700"
