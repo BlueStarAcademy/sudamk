@@ -18,13 +18,17 @@
     "db:generate": "pnpm --filter @sudam/database prisma generate",
     "db:migrate": "pnpm --filter @sudam/database prisma migrate dev",
     "db:push": "pnpm --filter @sudam/database prisma db push",
-    "db:studio": "pnpm --filter @sudam/database prisma studio"
+    "db:studio": "pnpm --filter @sudam/database prisma studio",
+    "migrate:data": "tsx scripts/migrate-data.ts",
+    "migrate:validate": "tsx scripts/validate-migration.ts",
+    "migrate:backup": "tsx scripts/backup-database.ts"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "prettier": "^3.1.0",
     "turbo": "^1.11.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.0"
   },
   "packageManager": "pnpm@8.10.0",
   "engines": {
