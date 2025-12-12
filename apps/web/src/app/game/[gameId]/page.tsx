@@ -11,6 +11,7 @@ import { trpc } from '../../../lib/trpc/utils';
 import { GoBoard } from '../../../components/game/go-board';
 import { GameInfo } from '../../../components/game/game-info';
 import { AuthGuard } from '../../../components/auth/auth-guard';
+import { useWebSocket } from '../../../hooks/use-websocket';
 import type { BoardState } from '@sudam/game-logic';
 
 export default function GamePage() {
@@ -20,9 +21,20 @@ export default function GamePage() {
   const { data: game, refetch } = trpc.game.getById.useQuery(
     { gameId },
     {
-      refetchInterval: 2000, // Poll every 2 seconds
+      refetchInterval: 5000, // Fallback polling every 5 seconds
     }
   );
+
+  // WebSocket for real-time updates
+  const { isConnected, send } = useWebSocket({
+    url: `/ws`,
+    enabled: !!gameId,
+    onMessage: (data) => {
+      if (data.type === 'GAME_UPDATE' && data.payload[gameId]) {
+        refetch();
+      }
+    },
+  });
   
   const makeMoveMutation = trpc.gameAction.makeMove.useMutation({
     onSuccess: () => {
@@ -84,6 +96,9 @@ export default function GamePage() {
               <h1 className="text-2xl font-bold mb-2">게임 #{game.id.slice(0, 8)}</h1>
               <p className="text-sm text-gray-500">
                 모드: {game.category || 'Standard'}
+              </p>
+              <p className={`text-xs mt-1 ${isConnected ? 'text-green-600' : 'text-gray-400'}`}>
+                {isConnected ? '● 실시간 연결됨' : '○ 폴링 모드'}
               </p>
             </div>
 
