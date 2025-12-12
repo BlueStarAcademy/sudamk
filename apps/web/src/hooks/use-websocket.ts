@@ -34,7 +34,12 @@ export function useWebSocket({
     const connect = () => {
       try {
         const token = getToken();
-        const wsUrl = token ? `${url}?token=${token}` : url;
+        // Determine WebSocket URL based on environment
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = process.env.NEXT_PUBLIC_API_URL 
+          ? process.env.NEXT_PUBLIC_API_URL.replace(/^https?:/, protocol)
+          : `${protocol}//${window.location.host}`;
+        const wsUrl = token ? `${host}${url}?token=${token}` : `${host}${url}`;
         const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {

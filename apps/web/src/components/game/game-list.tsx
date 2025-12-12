@@ -7,6 +7,8 @@
 
 import Link from 'next/link';
 import { trpc } from '../../lib/trpc/utils';
+import { LoadingSpinner } from '../common/loading-spinner';
+import { EmptyState } from '../common/empty-state';
 
 interface GameListProps {
   filter?: 'active' | 'pending' | 'ended';
@@ -17,18 +19,15 @@ export function GameList({ filter, limit = 20 }: GameListProps) {
   const { data: games, isLoading } = trpc.game.getActive.useQuery();
 
   if (isLoading) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">게임 목록을 불러오는 중...</p>
-      </div>
-    );
+    return <LoadingSpinner size="md" className="py-8" />;
   }
 
   if (!games || games.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">게임이 없습니다.</p>
-      </div>
+      <EmptyState
+        title="게임이 없습니다"
+        description="새 게임을 만들어보세요!"
+      />
     );
   }
 

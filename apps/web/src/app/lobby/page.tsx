@@ -9,9 +9,11 @@ import { trpc } from '../../lib/trpc/utils';
 import { AuthGuard } from '../../components/auth/auth-guard';
 import { GameList } from '../../components/game/game-list';
 import { QuickMatch } from '../../components/game/quick-match';
+import { LoadingSpinner } from '../../components/common/loading-spinner';
+import { ErrorMessage } from '../../components/common/error-message';
 
 export default function LobbyPage() {
-  const { data: games } = trpc.game.getActive.useQuery();
+  const { data: games, isLoading, error, refetch } = trpc.game.getActive.useQuery();
 
   return (
     <AuthGuard>
