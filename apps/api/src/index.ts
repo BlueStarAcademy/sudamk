@@ -67,6 +67,9 @@ server.setErrorHandler((error, request, reply) => {
 // Start game loop
 const { startGameLoop, stopGameLoop } = await import('./background/game-loop.js');
 
+// Start action point regeneration
+const { startActionPointRegeneration, stopActionPointRegeneration } = await import('./background/action-points.js');
+
 // Start server
 const start = async () => {
   try {
@@ -77,6 +80,10 @@ const start = async () => {
     // Start game loop after server is ready
     startGameLoop();
     server.log.info('[Server] Game loop started');
+    
+    // Start action point regeneration
+    startActionPointRegeneration();
+    server.log.info('[Server] Action point regeneration started');
   } catch (err) {
     server.log.error(err);
     process.exit(1);
@@ -87,6 +94,8 @@ const start = async () => {
 const shutdown = async () => {
   server.log.info('[Server] Shutting down gracefully...');
   stopGameLoop();
+  const { stopActionPointRegeneration } = await import('./background/action-points.js');
+  stopActionPointRegeneration();
   await server.close();
   process.exit(0);
 };
