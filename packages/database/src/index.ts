@@ -1,9 +1,8 @@
 // Database package exports
-// Prisma client will be generated here
+export { getPrismaClient, disconnectPrisma } from './client.js';
+export type { PrismaClient } from './generated';
 
-export { PrismaClient } from '@prisma/client';
-
-// Re-export Prisma types
+// Re-export Prisma types (will be available after prisma generate)
 export type {
   User,
   UserInventory,
@@ -17,5 +16,5 @@ export type {
   GuildMessage,
   KeyValue,
   HomeBoardPost,
-} from '@prisma/client';
+} from './generated';
 
