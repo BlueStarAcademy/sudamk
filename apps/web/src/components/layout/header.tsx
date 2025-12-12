@@ -8,10 +8,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '../../stores/auth-store';
 import { InventoryModal } from '../inventory/inventory-modal';
+import { ShopModal } from '../shop/shop-modal';
+import { QuestModal } from '../quest/quest-modal';
 
 export function Header() {
   const { isAuthenticated, user, logout } = useAuthStore();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isShopOpen, setIsShopOpen] = useState(false);
+  const [isQuestOpen, setIsQuestOpen] = useState(false);
 
   return (
     <header className="border-b border-gray-200 bg-white">
@@ -48,6 +52,18 @@ export function Header() {
                 인벤토리
               </button>
               <button
+                onClick={() => setIsShopOpen(true)}
+                className="text-sm text-green-600 hover:text-green-700"
+              >
+                상점
+              </button>
+              <button
+                onClick={() => setIsQuestOpen(true)}
+                className="text-sm text-orange-600 hover:text-orange-700"
+              >
+                퀘스트
+              </button>
+              <button
                 onClick={logout}
                 className="text-sm text-gray-600 hover:text-gray-700"
               >
@@ -75,6 +91,14 @@ export function Header() {
       <InventoryModal
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}
+      />
+      <ShopModal
+        isOpen={isShopOpen}
+        onClose={() => setIsShopOpen(false)}
+      />
+      <QuestModal
+        isOpen={isQuestOpen}
+        onClose={() => setIsQuestOpen(false)}
       />
     </header>
   );

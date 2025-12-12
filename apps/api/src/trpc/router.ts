@@ -46,6 +46,8 @@ import { gameRouter } from './routers/game.router.js';
 import { inventoryRouter } from './routers/inventory.router.js';
 import { guildRouter } from './routers/guild.router.js';
 import { gameActionRouter } from './routers/game-action.router.js';
+import { shopRouter } from './routers/shop.router.js';
+import { questRouter } from './routers/quest.router.js';
 
 // Main app router
 export const appRouter = router({
