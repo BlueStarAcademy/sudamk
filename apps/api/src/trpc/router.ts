@@ -43,11 +43,17 @@ export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 // Import routers
 import { userRouter } from './routers/user.router.js';
 import { gameRouter } from './routers/game.router.js';
+import { inventoryRouter } from './routers/inventory.router.js';
+import { guildRouter } from './routers/guild.router.js';
+import { gameActionRouter } from './routers/game-action.router.js';
 
 // Main app router
 export const appRouter = router({
   user: userRouter,
   game: gameRouter,
+  gameAction: gameActionRouter,
+  inventory: inventoryRouter,
+  guild: guildRouter,
   
   // Health check
   health: publicProcedure.query(() => {

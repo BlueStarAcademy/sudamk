@@ -38,28 +38,55 @@ export const gameRouter = router({
       };
     }),
 
-  // Create game (placeholder)
+  // Create game
   create: protectedProcedure
     .input(
       z.object({
-        mode: z.string(),
+        mode: z.string().default('standard'),
+        player2Id: z.string().optional(),
+        boardSize: z.number().min(9).max(19).default(19),
         settings: z.record(z.any()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // TODO: Implement game creation logic
+      // Import game mode initializer
+      const { StandardGameMode } = await import('../../game/modes/index.js');
+      
+      // Initialize game data based on mode
+      let gameData: any;
+      if (input.mode === 'standard' || input.mode === '클래식 바둑') {
+        gameData = StandardGameMode.initializeGame(
+          ctx.user.id,
+          input.player2Id,
+          input.boardSize
+        );
+        gameData.mode = 'standard';
+      } else {
+        // Default to standard for now
+        gameData = StandardGameMode.initializeGame(
+          ctx.user.id,
+          input.player2Id,
+          input.boardSize
+        );
+        gameData.mode = input.mode;
+      }
+
+      // Merge with additional settings
+      if (input.settings) {
+        gameData.settings = { ...gameData.settings, ...input.settings };
+      }
+
       const game = await gameRepository.create({
         id: crypto.randomUUID(),
         status: 'pending',
-        data: {
-          mode: input.mode,
-          settings: input.settings,
-          player1Id: ctx.user.id,
-        },
+        category: input.mode,
+        data: gameData,
       });
+
       return {
         id: game.id,
         status: game.status,
+        mode: input.mode,
       };
     }),
 });
