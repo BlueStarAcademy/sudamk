@@ -25,6 +25,10 @@ const server = Fastify({
 await server.register(registerCors);
 await server.register(registerWebSocket);
 
+// Setup WebSocket server
+const { setupWebSocket } = await import('./websocket/server.js');
+setupWebSocket(server);
+
 // Register tRPC
 const { registerTRPC } = await import('./trpc/fastify-plugin.js');
 await server.register(registerTRPC);
