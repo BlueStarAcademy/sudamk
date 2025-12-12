@@ -7,6 +7,8 @@
 import Link from 'next/link';
 import { trpc } from '../../lib/trpc/utils';
 import { AuthGuard } from '../../components/auth/auth-guard';
+import { GameList } from '../../components/game/game-list';
+import { QuickMatch } from '../../components/game/quick-match';
 
 export default function LobbyPage() {
   const { data: games } = trpc.game.getActive.useQuery();
@@ -24,18 +26,25 @@ export default function LobbyPage() {
           </Link>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {games?.map((game) => (
-            <Link
-              key={game.id}
-              href={`/game/${game.id}`}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow block"
-            >
-              <h2 className="text-xl font-semibold mb-2">게임 #{game.id.slice(0, 8)}</h2>
-              <p className="text-sm text-gray-600">모드: {game.category || 'Standard'}</p>
-              <p className="text-sm text-gray-600">상태: {game.status}</p>
-            </Link>
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-2">
+            <QuickMatch />
+          </div>
+          <div className="lg:col-span-1">
+            {/* Stats or other info can go here */}
+          </div>
+        </div>
+        
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold mb-4">진행 중인 게임</h2>
+            <GameList filter="active" limit={10} />
+          </div>
+          
+          <div>
+            <h2 className="text-xl font-semibold mb-4">대기 중인 게임</h2>
+            <GameList filter="pending" limit={10} />
+          </div>
         </div>
         
         {games && games.length === 0 && (
