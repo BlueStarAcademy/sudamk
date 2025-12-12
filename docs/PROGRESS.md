@@ -9,7 +9,7 @@
 ## 전체 진행률
 
 - [x] Phase 1: 프로젝트 설정 및 인프라 (100% - 완료)
-- [ ] Phase 2: 백엔드 재작성 (20%)
+- [ ] Phase 2: 백엔드 재작성 (40%)
 - [ ] Phase 3: 프론트엔드 재작성 (0%)
 - [ ] Phase 4: 데이터 마이그레이션 (0%)
 - [ ] Phase 5: 통합 및 테스트 (0%)
@@ -60,17 +60,19 @@
 - [x] tRPC 초기화
 - [x] 기본 프로시저 타입 정의
 - [x] Fastify 플러그인 통합
-- [ ] 미들웨어 (인증, 권한 등)
-- [ ] 에러 핸들링
+- [x] 미들웨어 (인증, 권한 등)
+- [x] Context 생성 (사용자 정보)
+- [x] User router 구현
+- [x] Game router 구현
+- [ ] 에러 핸들링 개선
 
 ### 2.3 데이터베이스 레이어
 - [x] Prisma 클라이언트 설정 (싱글톤)
 - [x] Repository 패턴 구현
   - [x] UserRepository
   - [x] GameRepository
-  - [ ] InventoryRepository
-  - [ ] GuildRepository
-  - 등등...
+  - [x] InventoryRepository
+  - [x] GuildRepository
 - [ ] 트랜잭션 관리
 - [ ] 캐싱 전략
 
