@@ -4,11 +4,14 @@
 
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '../../stores/auth-store';
+import { InventoryModal } from '../inventory/inventory-modal';
 
 export function Header() {
   const { isAuthenticated, user, logout } = useAuthStore();
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
 
   return (
     <header className="border-b border-gray-200 bg-white">
@@ -20,15 +23,30 @@ export function Header() {
         <nav className="flex items-center gap-4">
           {isAuthenticated ? (
             <>
-              <span className="text-sm text-gray-600">
+              <Link
+                href="/profile"
+                className="text-sm text-gray-600 hover:text-gray-700"
+              >
                 {user?.nickname}
-              </span>
+              </Link>
               <Link
                 href="/lobby"
                 className="text-sm text-blue-600 hover:text-blue-700"
               >
                 로비
               </Link>
+              <Link
+                href="/guild"
+                className="text-sm text-orange-600 hover:text-orange-700"
+              >
+                길드
+              </Link>
+              <button
+                onClick={() => setIsInventoryOpen(true)}
+                className="text-sm text-purple-600 hover:text-purple-700"
+              >
+                인벤토리
+              </button>
               <button
                 onClick={logout}
                 className="text-sm text-gray-600 hover:text-gray-700"
@@ -54,6 +72,10 @@ export function Header() {
           )}
         </nav>
       </div>
+      <InventoryModal
+        isOpen={isInventoryOpen}
+        onClose={() => setIsInventoryOpen(false)}
+      />
     </header>
   );
 }
