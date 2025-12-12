@@ -785,55 +785,75 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
     }
 
     try {
-        // 싱글플레이 게임과 멀티플레이 게임을 분리하여 처리
-        // 도전의 탑도 싱글플레이어 게임과 동일하게 처리
-        const singlePlayerGames: LiveGameSession[] = [];
+        // PVE 게임 완전 제외 (싱글플레이어, 도전의 탑, AI 게임)
+        // PVE 게임은 클라이언트에서 실행되므로 서버 루프에서 처리 불필요
         const multiPlayerGames: LiveGameSession[] = [];
         
         for (const game of games) {
             if (!game || !game.id) continue; // 유효하지 않은 게임 스킵
-            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
-                singlePlayerGames.push(game);
-            } else {
+            // PVE 게임 제외: 싱글플레이어, 도전의 탑, AI 게임은 메인 루프에서 처리하지 않음
+            const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.isAiGame;
+            if (!isPVEGame) {
                 multiPlayerGames.push(game);
             }
         }
 
-        // 싱글플레이 게임은 완전히 독립적으로 병렬 처리 (각 게임이 서로 영향을 주지 않음)
-        // 에러가 발생해도 다른 게임은 계속 처리되도록 개별 에러 핸들링
-        const processSinglePlayerGame = async (game: LiveGameSession): Promise<LiveGameSession> => {
-            try {
-                return await processGame(game, now);
-            } catch (error: any) {
-                console.error(`[updateGameStates] Error processing single player game ${game.id}:`, error?.message || error);
-                return game; // 에러 발생 시 원본 게임 반환
-            }
-        };
+        // 멀티플레이 게임만 처리 (배치 처리로 최적화)
+        if (multiPlayerGames.length === 0) {
+            return games; // PVE 게임만 있으면 원본 반환
+        }
 
-        // 멀티플레이 게임 처리
-        const processMultiPlayerGame = async (game: LiveGameSession): Promise<LiveGameSession> => {
-            try {
-                return await processGame(game, now);
-            } catch (error: any) {
-                console.error(`[updateGameStates] Error processing multi player game ${game.id}:`, error?.message || error);
-                return game; // 에러 발생 시 원본 게임 반환
-            }
-        };
+        // 배치 처리: 5개씩 병렬 처리하여 메모리 및 CPU 부하 분산
+        const BATCH_SIZE = 5;
+        const results: LiveGameSession[] = [];
+        
+        for (let i = 0; i < multiPlayerGames.length; i += BATCH_SIZE) {
+            const batch = multiPlayerGames.slice(i, i + BATCH_SIZE);
+            
+            // 각 배치에 타임아웃 추가 (5초)
+            const batchTimeout = new Promise<LiveGameSession[]>((resolve) => {
+                setTimeout(() => {
+                    console.warn(`[updateGameStates] Batch timeout (5000ms) for ${batch.length} games, using original state`);
+                    resolve(batch); // 타임아웃 시 원본 게임들 반환
+                }, 5000);
+            });
 
-        // 싱글플레이와 멀티플레이를 병렬로 처리
-        // 각 게임의 에러는 개별적으로 처리되므로 Promise.all이 실패하지 않음
-        const [singlePlayerResults, multiPlayerResults] = await Promise.all([
-            Promise.all(singlePlayerGames.map(processSinglePlayerGame)).catch((err: any) => {
-                console.error('[updateGameStates] Error processing single player games:', err?.message || err);
-                return singlePlayerGames; // 에러 발생 시 원본 게임들 반환
-            }),
-            Promise.all(multiPlayerGames.map(processMultiPlayerGame)).catch((err: any) => {
-                console.error('[updateGameStates] Error processing multi player games:', err?.message || err);
-                return multiPlayerGames; // 에러 발생 시 원본 게임들 반환
-            }),
-        ]);
+            // 각 게임 처리에 개별 타임아웃 추가 (2초)
+            const processGameWithTimeout = async (game: LiveGameSession): Promise<LiveGameSession> => {
+                const gameTimeout = new Promise<LiveGameSession>((resolve) => {
+                    setTimeout(() => {
+                        console.warn(`[updateGameStates] Game ${game.id} timeout (2000ms), using original state`);
+                        resolve(game); // 타임아웃 시 원본 게임 반환
+                    }, 2000);
+                });
 
-        return [...singlePlayerResults, ...multiPlayerResults];
+                try {
+                    return await Promise.race([
+                        processGame(game, now),
+                        gameTimeout
+                    ]);
+                } catch (error: any) {
+                    console.error(`[updateGameStates] Error processing game ${game.id}:`, error?.message || error);
+                    return game; // 에러 발생 시 원본 게임 반환
+                }
+            };
+
+            // 배치 병렬 처리
+            const batchResults = await Promise.race([
+                Promise.all(batch.map(processGameWithTimeout)),
+                batchTimeout
+            ]);
+
+            results.push(...batchResults);
+        }
+
+        // PVE 게임은 원본 그대로 반환 (처리하지 않음)
+        const pveGames = games.filter(game => {
+            if (!game || !game.id) return false;
+            return game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.isAiGame;
+        });
+
+        return [...results, ...pveGames];
     } catch (error: any) {
         console.error('[updateGameStates] Fatal error:', error?.message || error);
         return games; // 치명적 에러 발생 시 원본 게임들 반환

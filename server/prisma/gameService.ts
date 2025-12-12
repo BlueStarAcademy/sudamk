@@ -103,15 +103,15 @@ export async function getAllActiveGamesLight(): Promise<Array<{ id: string; stat
 
 export async function getAllActiveGames(): Promise<LiveGameSession[]> {
   try {
-    // 타임아웃 단축: 8초로 단축 (빠른 실패)
+    // 타임아웃 단축: 5초로 단축 (빠른 실패)
     const timeoutPromise = new Promise<LiveGameSession[]>((resolve) => {
       setTimeout(() => {
-        console.warn('[gameService] getAllActiveGames query timeout (8000ms)');
+        console.warn('[gameService] getAllActiveGames query timeout (5000ms)');
         resolve([]);
-      }, 8000);
+      }, 5000);
     });
 
-    // 성능 최적화: 최대 50개만 조회 (더 적은 데이터로 빠른 응답)
+    // 성능 최적화: 최대 20개만 조회 (더 적은 데이터로 빠른 응답)
     // data 필드가 큰 경우를 고려하여 개수 대폭 제한
     const queryPromise = prisma.liveGame.findMany({
       where: { isEnded: false },
@@ -124,8 +124,8 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
       },
       // 최신 게임 우선 (최근 업데이트된 게임이 더 중요)
       orderBy: { updatedAt: 'desc' },
-      // 최대 50개로 제한하여 성능 보장 (data 필드가 크므로)
-      take: 50
+      // 최대 20개로 제한하여 성능 보장 (data 필드가 크므로)
+      take: 20
     }).then(rows => {
       // 배치 처리로 파싱 최적화 (한 번에 너무 많은 JSON 파싱 방지)
       const batchSize = 5; // 배치 크기 더 감소 (JSON 파싱 부하 고려)
@@ -168,7 +168,7 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
             category: true
           },
           orderBy: { updatedAt: 'desc' },
-          take: 50
+          take: 20
         });
         // 배치 처리로 파싱 최적화
         const batchSize = 5;
@@ -257,7 +257,7 @@ export async function getLiveGameByPlayerId(playerId: string): Promise<LiveGameS
         category: true
       },
       orderBy: { updatedAt: 'desc' },
-      take: 50 // 최대 50개만 조회하여 성능 최적화
+      take: 20 // 최대 20개만 조회하여 성능 최적화
     });
     
     for (const row of rows) {

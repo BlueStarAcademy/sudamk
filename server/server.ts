@@ -70,9 +70,9 @@ let lastBotScoreUpdateAt = 0;
 
 // getAllActiveGames 타임아웃 백오프 추적
 let lastGetAllActiveGamesTimeout = 0;
-const GET_ALL_ACTIVE_GAMES_BACKOFF_MS = 60000; // 타임아웃 발생 시 60초 동안 스킵
+const GET_ALL_ACTIVE_GAMES_BACKOFF_MS = 120000; // 타임아웃 발생 시 120초 동안 스킵 (더 보수적으로)
 let lastGetAllActiveGamesSuccess = 0; // 마지막 성공한 게임 로드 시간
-const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = 10000; // 게임 목록을 10초마다 한 번만 로드 (성능 최적화)
+const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = 30000; // 게임 목록을 30초마다 한 번만 로드 (DB 쿼리 최소화)
 
 // 만료된 negotiation 정리 함수
 const cleanupExpiredNegotiations = (volatileState: types.VolatileState, now: number): void => {
@@ -2007,7 +2007,7 @@ const startServer = async () => {
                                 isProcessingMainLoop = false;
                                 // 에러 발생 시에도 다음 루프를 스케줄링 (서버가 계속 실행되도록)
                                 // 에러 발생 시 지연 시간을 늘려서 서버 부하 감소
-                                const nextDelay = 10000; // 10초로 증가 (서버 부하 감소)
+                                const nextDelay = 15000; // 15초로 증가 (Railway 부하 감소)
                                 // 절대 실패하지 않도록 보호
                                 try {
                                     scheduleMainLoop(nextDelay);
