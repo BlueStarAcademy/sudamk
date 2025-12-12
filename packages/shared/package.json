@@ -1,0 +1,17 @@
+{
+  "name": "@sudam/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for SUDAM v2",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
+

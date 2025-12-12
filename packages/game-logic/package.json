@@ -1,0 +1,19 @@
+{
+  "name": "@sudam/game-logic",
+  "version": "1.0.0",
+  "description": "Shared game logic for SUDAM v2 (Go rules, game modes, etc.)",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@sudam/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
+
