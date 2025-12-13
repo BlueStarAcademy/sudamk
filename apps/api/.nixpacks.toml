@@ -1,5 +1,5 @@
 # Nixpacks configuration for SUDAM Backend
-# This file should be in the service root directory (apps/api)
+# This file is used when Root Directory is set to apps/api
 [phases.setup]
 nixPkgs = ["nodejs_20", "pnpm"]
 

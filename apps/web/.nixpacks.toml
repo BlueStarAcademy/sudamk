@@ -1,5 +1,5 @@
 # Nixpacks configuration for SUDAM Frontend
-# This file should be in the service root directory (apps/web)
+# This file is used when Root Directory is set to apps/web
 [phases.setup]
 nixPkgs = ["nodejs_20", "pnpm"]
 
