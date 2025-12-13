@@ -1,0 +1,53 @@
+# syntax=docker/dockerfile:1.6
+# Backend (Fastify + tRPC) 서비스용 Dockerfile
+# Railway 배포용
+
+FROM node:20-alpine AS base
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
+
+FROM base AS deps
+# Install dependencies
+WORKDIR /app
+COPY package.json pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/*/package.json ./packages/*/
+RUN pnpm install --frozen-lockfile || pnpm install
+
+FROM base AS build
+# Build application
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=deps /app/packages ./packages
+COPY . .
+RUN pnpm --filter @sudam/database exec prisma generate
+RUN pnpm --filter @sudam/api build
+
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=4000
+
+# Copy built application
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/package.json ./apps/api/
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/packages ./packages
+
+WORKDIR /app/apps/api
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+EXPOSE 4000
+
+CMD ["node", "dist/index.js"]
+
