@@ -98,27 +98,28 @@ export const questRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if quest template exists
-      const template = await prisma.questTemplate.findUnique({
-        where: { id: input.questId },
-      });
+      try {
+        // Check if quest template exists
+        const template = await prisma.questTemplate.findUnique({
+          where: { id: input.questId },
+        });
 
-      if (!template || !template.isActive) {
-        throw new Error('Quest not available');
-      }
+        if (!template || !template.isActive) {
+          throw AppError.validationError('Quest not available');
+        }
 
-      // Check if user already has this quest
-      const existingQuest = await prisma.quest.findFirst({
-        where: {
-          userId: ctx.user.id,
-          templateId: input.questId,
-          status: { in: ['active', 'completed'] },
-        },
-      });
+        // Check if user already has this quest
+        const existingQuest = await prisma.quest.findFirst({
+          where: {
+            userId: ctx.user.id,
+            templateId: input.questId,
+            status: { in: ['active', 'completed'] },
+          },
+        });
 
-      if (existingQuest) {
-        throw new Error('Quest already accepted');
-      }
+        if (existingQuest) {
+          throw AppError.validationError('Quest already accepted');
+        }
 
       // Create quest
       await prisma.quest.create({
@@ -130,7 +131,10 @@ export const questRouter = router({
         },
       });
 
-      return { success: true };
+        return { success: true };
+      } catch (error) {
+        throw handleUnknownError(error);
+      }
     }),
 
   // Complete quest
@@ -141,22 +145,23 @@ export const questRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const quest = await prisma.quest.findUnique({
-        where: { id: input.questId },
-        include: { template: true },
-      });
+      try {
+        const quest = await prisma.quest.findUnique({
+          where: { id: input.questId },
+          include: { template: true },
+        });
 
-      if (!quest || quest.userId !== ctx.user.id) {
-        throw new Error('Quest not found');
-      }
+        if (!quest || quest.userId !== ctx.user.id) {
+          throw AppError.notFound('Quest', input.questId);
+        }
 
-      if (quest.status !== 'active') {
-        throw new Error('Quest not active');
-      }
+        if (quest.status !== 'active') {
+          throw AppError.validationError('Quest not active');
+        }
 
-      if (quest.progress < quest.template.target) {
-        throw new Error('Quest not completed');
-      }
+        if (quest.progress < quest.template.target) {
+          throw AppError.validationError('Quest not completed');
+        }
 
       // Update quest status
       await prisma.quest.update({
@@ -167,11 +172,11 @@ export const questRouter = router({
         },
       });
 
-      // Give rewards
-      const user = await userRepository.findById(ctx.user.id);
-      if (!user) {
-        throw new Error('User not found');
-      }
+        // Give rewards
+        const user = await userRepository.findById(ctx.user.id);
+        if (!user) {
+          throw AppError.userNotFound(ctx.user.id);
+        }
 
       const updates: any = {};
       if (quest.template.rewardGold) {
@@ -181,11 +186,14 @@ export const questRouter = router({
         updates.diamonds = user.diamonds + Number(quest.template.rewardDiamonds);
       }
 
-      if (Object.keys(updates).length > 0) {
-        await userRepository.update(user.id, updates);
-      }
+        if (Object.keys(updates).length > 0) {
+          await userRepository.update(user.id, updates);
+        }
 
-      return { success: true };
+        return { success: true };
+      } catch (error) {
+        throw handleUnknownError(error);
+      }
     }),
 });
 

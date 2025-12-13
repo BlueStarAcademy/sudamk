@@ -48,6 +48,20 @@ sudam-v2/
 
 발견된 이슈와 버그는 [docs/ISSUES.md](./docs/ISSUES.md)를 참고하세요.
 
+## 배포 가이드
+
+### 빠른 배포 (5분)
+[QUICK_DEPLOY.md](./QUICK_DEPLOY.md)를 참고하세요.
+
+### 자동 배포
+✅ **Git에 푸시하면 자동으로 배포됩니다!**
+- [자동 배포 가이드](./AUTO_DEPLOY.md) - 자동 배포 작동 방식 및 설정
+
+### 상세 배포 가이드
+- [Railway 배포 설정](./RAILWAY_SETUP.md) - 단계별 상세 가이드
+- [배포 가이드](./DEPLOYMENT.md) - 전체 배포 문서
+- [배포 체크리스트](./DEPLOYMENT_CHECKLIST.md) - 배포 전 확인사항
+
 ## 개발 가이드
 
 ### 작업 재개 (다른 PC에서)

@@ -5,41 +5,46 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../router.js';
 import { guildRepository } from '../../repositories/index.js';
+import { AppError, handleUnknownError } from '../../utils/errors.js';
 
 export const guildRouter = router({
   // Get guild by ID
   getById: protectedProcedure
     .input(z.object({ guildId: z.string() }))
     .query(async ({ input }) => {
-      const guild = await guildRepository.findById(input.guildId);
-      if (!guild) {
-        throw new Error('Guild not found');
-      }
+      try {
+        const guild = await guildRepository.findById(input.guildId);
+        if (!guild) {
+          throw AppError.guildNotFound(input.guildId);
+        }
 
-      return {
-        id: guild.id,
-        name: guild.name,
-        description: guild.description,
-        emblem: guild.emblem,
-        level: guild.level,
-        experience: guild.experience.toString(),
-        gold: guild.gold.toString(),
-        leader: {
-          id: guild.leader.id,
-          nickname: guild.leader.nickname,
-        },
-        memberCount: guild.members.length,
-        members: guild.members.map((m) => ({
-          userId: m.userId,
-          role: m.role,
-          contributionTotal: m.contributionTotal.toString(),
-          joinDate: m.joinDate,
-          user: {
-            id: m.user.id,
-            nickname: m.user.nickname,
+        return {
+          id: guild.id,
+          name: guild.name,
+          description: guild.description,
+          emblem: guild.emblem,
+          level: guild.level,
+          experience: guild.experience.toString(),
+          gold: guild.gold.toString(),
+          leader: {
+            id: guild.leader.id,
+            nickname: guild.leader.nickname,
           },
-        })),
-      };
+          memberCount: guild.members.length,
+          members: guild.members.map((m) => ({
+            userId: m.userId,
+            role: m.role,
+            contributionTotal: m.contributionTotal.toString(),
+            joinDate: m.joinDate,
+            user: {
+              id: m.user.id,
+              nickname: m.user.nickname,
+            },
+          })),
+        };
+      } catch (error) {
+        throw handleUnknownError(error);
+      }
     }),
 
   // Get my guild
@@ -85,19 +90,20 @@ export const guildRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if user already has a guild
-      const existingGuild = await guildRepository.findByLeaderId(ctx.user.id);
-      if (existingGuild) {
-        throw new Error('User already has a guild');
-      }
+      try {
+        // Check if user already has a guild
+        const existingGuild = await guildRepository.findByLeaderId(ctx.user.id);
+        if (existingGuild) {
+          throw AppError.validationError('User already has a guild');
+        }
 
-      // Check if name is taken
-      const nameTaken = await guildRepository.findByName(input.name);
-      if (nameTaken) {
-        throw new Error('Guild name already taken');
-      }
+        // Check if name is taken
+        const nameTaken = await guildRepository.findByName(input.name);
+        if (nameTaken) {
+          throw AppError.validationError('Guild name already taken');
+        }
 
-      const guild = await guildRepository.create({
+        const guild = await guildRepository.create({
         id: crypto.randomUUID(),
         name: input.name,
         leaderId: ctx.user.id,
@@ -108,10 +114,13 @@ export const guildRouter = router({
       // Add leader as member
       await guildRepository.addMember(guild.id, ctx.user.id, 'leader');
 
-      return {
-        id: guild.id,
-        name: guild.name,
-      };
+        return {
+          id: guild.id,
+          name: guild.name,
+        };
+      } catch (error) {
+        throw handleUnknownError(error);
+      }
     }),
 
   // Join guild

@@ -1,0 +1,28 @@
+# Railway 프로젝트 설정 파일
+# Railway Project Configuration
+
+[build]
+builder = "NIXPACKS"
+
+# Backend 서비스 설정
+[services.api]
+name = "sudam-api"
+source = "."
+root = "."
+buildCommand = "pnpm install && pnpm --filter @sudam/database exec prisma generate && pnpm --filter @sudam/api build"
+startCommand = "cd apps/api && node dist/index.js"
+
+[services.api.variables]
+NODE_ENV = "production"
+
+# Frontend 서비스 설정
+[services.web]
+name = "sudam-web"
+source = "."
+root = "."
+buildCommand = "pnpm install && pnpm --filter @sudam/database exec prisma generate && pnpm --filter @sudam/web build"
+startCommand = "cd apps/web && pnpm start"
+
+[services.web.variables]
+NODE_ENV = "production"
+

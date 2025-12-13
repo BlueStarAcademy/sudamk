@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../router.js';
 import { inventoryRepository } from '../../repositories/index.js';
+import { AppError, handleUnknownError } from '../../utils/errors.js';
 
 export const inventoryRouter = router({
   // Get user inventory
@@ -51,21 +52,25 @@ export const inventoryRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify item belongs to user
-      const item = await inventoryRepository.findById(input.inventoryId);
-      if (!item || item.userId !== ctx.user.id) {
-        throw new Error('Item not found or does not belong to user');
+      try {
+        // Verify item belongs to user
+        const item = await inventoryRepository.findById(input.inventoryId);
+        if (!item || item.userId !== ctx.user.id) {
+          throw AppError.notFound('Item', input.inventoryId);
+        }
+
+        // Equip item
+        await inventoryRepository.equipItem(ctx.user.id, input.slot, input.inventoryId);
+
+        // Update item's isEquipped status
+        await inventoryRepository.update(input.inventoryId, {
+          isEquipped: true,
+        });
+
+        return { success: true };
+      } catch (error) {
+        throw handleUnknownError(error);
       }
-
-      // Equip item
-      await inventoryRepository.equipItem(ctx.user.id, input.slot, input.inventoryId);
-
-      // Update item's isEquipped status
-      await inventoryRepository.update(input.inventoryId, {
-        isEquipped: true,
-      });
-
-      return { success: true };
     }),
 
   // Unequip item

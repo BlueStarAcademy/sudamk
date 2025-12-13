@@ -54,12 +54,25 @@ server.get('/api', async () => {
 
 // Error handlers
 server.setErrorHandler((error, request, reply) => {
-  server.log.error(error);
+  // Log error with context
+  server.log.error({
+    err: error,
+    url: request.url,
+    method: request.method,
+    statusCode: error.statusCode || 500,
+  });
+  
+  // Don't expose internal errors in production
+  const isDevelopment = env.NODE_ENV === 'development';
+  const message = isDevelopment || error.statusCode < 500
+    ? error.message
+    : 'Internal server error';
   
   reply.status(error.statusCode || 500).send({
     error: {
-      message: error.message,
+      message,
       statusCode: error.statusCode || 500,
+      ...(isDevelopment && { stack: error.stack }),
     },
   });
 });

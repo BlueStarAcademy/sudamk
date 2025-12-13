@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { router, adminProcedure } from '../router.js';
 import { userRepository, gameRepository } from '../../repositories/index.js';
 import { getPrismaClient } from '@sudam/database';
+import { AppError, handleUnknownError } from '../../utils/errors.js';
 
 const prisma = getPrismaClient();
 
@@ -106,13 +107,17 @@ export const adminRouter = router({
   deleteUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      // Prevent self-deletion
-      if (input.userId === ctx.user.id) {
-        throw new Error('Cannot delete yourself');
-      }
+      try {
+        // Prevent self-deletion
+        if (input.userId === ctx.user.id) {
+          throw AppError.validationError('Cannot delete yourself');
+        }
 
-      await userRepository.delete(input.userId);
-      return { success: true };
+        await userRepository.delete(input.userId);
+        return { success: true };
+      } catch (error) {
+        throw handleUnknownError(error);
+      }
     }),
 
   // Get all games
@@ -149,17 +154,21 @@ export const adminRouter = router({
   endGame: adminProcedure
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ input }) => {
-      const game = await gameRepository.findById(input.gameId);
-      if (!game) {
-        throw new Error('Game not found');
+      try {
+        const game = await gameRepository.findById(input.gameId);
+        if (!game) {
+          throw AppError.gameNotFound(input.gameId);
+        }
+
+        await gameRepository.update(input.gameId, {
+          status: 'ended',
+          isEnded: true,
+        });
+
+        return { success: true };
+      } catch (error) {
+        throw handleUnknownError(error);
       }
-
-      await gameRepository.update(input.gameId, {
-        status: 'ended',
-        isEnded: true,
-      });
-
-      return { success: true };
     }),
 
   // Get system stats

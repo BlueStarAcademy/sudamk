@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { router, protectedProcedure } from '../router.js';
 import { getPrismaClient } from '@sudam/database';
 import { userRepository } from '../../repositories/index.js';
+import { AppError, handleUnknownError } from '../../utils/errors.js';
 
 const prisma = getPrismaClient();
 
@@ -54,23 +55,24 @@ export const shopRouter = router({
         where: { id: input.itemId },
       });
 
-      if (!item || !item.isShopItem) {
-        throw new Error('Item not available in shop');
-      }
+      try {
+        if (!item || !item.isShopItem) {
+          throw AppError.validationError('Item not available in shop');
+        }
 
-      const user = await userRepository.findById(ctx.user.id);
-      if (!user) {
-        throw new Error('User not found');
-      }
+        const user = await userRepository.findById(ctx.user.id);
+        if (!user) {
+          throw AppError.userNotFound(ctx.user.id);
+        }
 
-      // Check if user has enough currency
-      if (item.priceGold && user.gold < Number(item.priceGold)) {
-        throw new Error('Not enough gold');
-      }
+        // Check if user has enough currency
+        if (item.priceGold && user.gold < Number(item.priceGold)) {
+          throw AppError.insufficientGold(Number(item.priceGold), Number(user.gold));
+        }
 
-      if (item.priceDiamonds && user.diamonds < Number(item.priceDiamonds)) {
-        throw new Error('Not enough diamonds');
-      }
+        if (item.priceDiamonds && user.diamonds < Number(item.priceDiamonds)) {
+          throw AppError.insufficientDiamonds(Number(item.priceDiamonds), Number(user.diamonds));
+        }
 
       // Deduct currency
       if (item.priceGold) {
@@ -110,7 +112,10 @@ export const shopRouter = router({
         });
       }
 
-      return { success: true };
+        return { success: true };
+      } catch (error) {
+        throw handleUnknownError(error);
+      }
     }),
 });
 
