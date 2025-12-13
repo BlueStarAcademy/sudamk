@@ -62,7 +62,14 @@ sudam-v2/
 - [배포 가이드](./DEPLOYMENT.md) - 전체 배포 문서
 - [배포 체크리스트](./DEPLOYMENT_CHECKLIST.md) - 배포 전 확인사항
 
+### KataGo 배포 (선택사항)
+- [KataGo 빠른 배포](./QUICK_KATAGO_SETUP.md) - 5분 빠른 가이드
+- [KataGo 상세 배포 가이드](./KATAGO_DEPLOYMENT.md) - 전체 KataGo 배포 문서
+
 ## 개발 가이드
+
+### 로컬 실행
+- [로컬 개발 환경 설정](./LOCAL_SETUP.md) - 로컬에서 프로젝트 실행하기
 
 ### 작업 재개 (다른 PC에서)
 
