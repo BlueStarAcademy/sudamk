@@ -1,0 +1,104 @@
+# syntax=docker/dockerfile:1.6
+# KataGo 서비스용 Dockerfile
+# Railway 배포용
+
+FROM node:20-alpine AS base
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Install build dependencies
+RUN apk add --no-cache python3 make g++ wget unzip
+
+FROM base AS deps
+# Install dependencies
+RUN npm config set update-notifier false
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+FROM base AS build-deps
+# Install all dependencies including dev for tsx
+ENV NODE_ENV=development
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM build-deps AS build
+# Copy source code
+COPY package.json package-lock.json ./
+COPY server ./server
+COPY shared ./shared
+COPY types ./types
+COPY tsconfig.base.json ./
+
+# Download KataGo Linux binary and model
+RUN echo "=== Starting KataGo download ===" && \
+    mkdir -p /app/katago /tmp/katago_extract && \
+    cd /tmp && \
+    echo "[1/4] Downloading KataGo binary v1.16.4..." && \
+    (wget --progress=dot:giga --no-check-certificate --timeout=120 --tries=2 --read-timeout=120 --dns-timeout=20 --connect-timeout=60 \
+        https://github.com/lightvector/KataGo/releases/download/v1.16.4/katago-v1.16.4-eigenavx2-linux-x64.zip -O katago.zip && \
+    echo "[2/4] Verifying download..." && \
+    test -f katago.zip && test -s katago.zip && \
+    echo "[3/4] Extracting KataGo binary..." && \
+    unzip -q katago.zip -d katago_extract && \
+    KATAGO_BIN=$(find katago_extract -name "katago" -type f | head -1) && \
+    test -n "$KATAGO_BIN" && \
+    cp "$KATAGO_BIN" /app/katago/katago && \
+    chmod +x /app/katago/katago && \
+    echo "[4/4] Downloading KataGo model..." && \
+    cd /app/katago && \
+    (wget --progress=dot:giga --no-check-certificate --timeout=300 --tries=2 --read-timeout=300 --dns-timeout=20 --connect-timeout=120 \
+        https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
+    test -f kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
+    echo "=== KataGo binary and model installation complete ===" || \
+    echo "WARNING: KataGo model download failed.") && \
+    rm -rf /tmp/katago.zip /tmp/katago_extract) || \
+    (echo "ERROR: KataGo binary download failed." && exit 1)
+
+FROM base AS runner
+WORKDIR /app
+ENV PORT=4001
+
+# Copy production dependencies
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy tsx and its dependencies from build stage
+RUN mkdir -p ./node_modules/.bin
+COPY --from=build /app/node_modules/tsx ./node_modules/tsx
+COPY --from=build /app/node_modules/esbuild ./node_modules/esbuild
+RUN mkdir -p ./node_modules/@esbuild
+COPY --from=build /app/node_modules/@esbuild ./node_modules/@esbuild
+COPY --from=build /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
+COPY --from=build /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
+RUN for pkg in @swc/core @swc/helpers; do \
+      if [ -d "/app/node_modules/$pkg" ]; then \
+        mkdir -p "./node_modules/$(dirname $pkg)" && \
+        cp -r "/app/node_modules/$pkg" "./node_modules/$(dirname $pkg)/"; \
+      fi; \
+    done
+
+# Copy application code
+COPY --from=build /app/server ./server
+COPY --from=build /app/shared ./shared
+COPY --from=build /app/types ./types
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/tsconfig.base.json ./tsconfig.base.json
+
+# Copy KataGo binary and model
+RUN mkdir -p ./katago
+COPY --from=build /app/katago/katago ./katago/katago
+COPY --from=build /app/katago/*.bin.gz ./katago/
+RUN chmod +x ./katago/katago || true
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Change ownership
+RUN chown -R nodejs:nodejs /app
+
+USER nodejs
+
+EXPOSE 4001
+
+CMD ["npm", "run", "start-katago"]
+
