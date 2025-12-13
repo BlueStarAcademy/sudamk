@@ -77,6 +77,8 @@ RUN for pkg in @swc/core @swc/helpers; do \
         cp -r "/app/node_modules/$pkg" "./node_modules/$(dirname $pkg)/"; \
       fi; \
     done
+# Ensure tsx is executable
+RUN chmod +x ./node_modules/tsx/dist/cli.mjs || true
 
 # Copy application code
 COPY --from=build /app/src ./src
@@ -103,4 +105,5 @@ USER nodejs
 
 EXPOSE 4001
 
-CMD ["npm", "run", "start-katago"]
+# Use node directly to avoid permission issues
+CMD ["node", "node_modules/tsx/dist/cli.mjs", "--tsconfig", "tsconfig.json", "src/katagoServer.ts"]
