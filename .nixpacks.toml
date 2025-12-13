@@ -1,7 +1,6 @@
 # Nixpacks 빌드 설정
 # Nixpacks Build Configuration
-# Note: 각 서비스는 railway.json 또는 서비스별 .nixpacks.toml을 사용합니다.
-# This file is a fallback and should not define [start] command.
+# Railway는 루트에서 빌드하므로 여기서 모든 서비스를 처리합니다.
 
 [phases.setup]
 nixPkgs = ["nodejs_20", "pnpm"]
@@ -20,5 +19,12 @@ cmds = [
   "pnpm --filter @sudam/web build"
 ]
 
-# [start] command는 각 서비스의 railway.json에서 정의됩니다.
-
+# Start command는 Railway 대시보드에서 각 서비스별로 설정해야 합니다.
+# Frontend: cd apps/web && pnpm start
+# Backend: cd apps/api && node dist/index.js
+# 
+# Railway 대시보드 → 각 서비스 → Settings → Deploy → Start Command에서 설정하세요.
+#
+# 임시 기본값 (Backend)
+[start]
+cmd = "cd apps/api && node dist/index.js"
