@@ -14,14 +14,14 @@ FROM base AS deps
 RUN npm config set update-notifier false
 WORKDIR /app
 COPY apps/katago/package.json ./package.json
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 FROM base AS build-deps
 # Install all dependencies including dev for tsx
 ENV NODE_ENV=development
 WORKDIR /app
 COPY apps/katago/package.json ./package.json
-RUN npm ci
+RUN npm install
 
 FROM build-deps AS build
 # Copy KataGo service source code
