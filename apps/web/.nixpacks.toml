@@ -1,4 +1,5 @@
 # Nixpacks configuration for SUDAM Frontend
+# This file should be in the service root directory (apps/web)
 [phases.setup]
 nixPkgs = ["nodejs_20", "pnpm"]
 
@@ -6,15 +7,14 @@ nixPkgs = ["nodejs_20", "pnpm"]
 cmds = [
   "corepack enable",
   "corepack prepare pnpm@8.10.0 --activate",
-  "pnpm install --frozen-lockfile"
+  "cd ../.. && pnpm install --frozen-lockfile"
 ]
 
 [phases.build]
 cmds = [
-  "pnpm --filter @sudam/database exec prisma generate",
-  "pnpm --filter @sudam/web build"
+  "cd ../.. && pnpm --filter @sudam/database exec prisma generate",
+  "cd ../.. && pnpm --filter @sudam/web build"
 ]
 
 [start]
-cmd = "cd apps/web && pnpm start"
-
+cmd = "pnpm start"
