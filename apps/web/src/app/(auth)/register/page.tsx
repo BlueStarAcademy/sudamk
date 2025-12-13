@@ -2,7 +2,7 @@
  * Register page
  */
 
-import { RegisterForm } from '../../components/auth/register-form.tsx';
+import { RegisterForm } from '../../components/auth/register-form';
 
 export default function RegisterPage() {
   return (
