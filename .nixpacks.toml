@@ -4,6 +4,7 @@
 
 [phases.setup]
 nixPkgs = ["nodejs_20", "pnpm"]
+providers = ["nixpacks"]
 
 [phases.install]
 cmds = [
