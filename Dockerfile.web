@@ -35,6 +35,7 @@ COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages ./packages
 # Copy all source files
 COPY package.json pnpm-workspace.yaml ./
+COPY tsconfig.json ./tsconfig.json
 COPY apps/web ./apps/web
 COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
