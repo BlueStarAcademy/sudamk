@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.6
 # KataGo 서비스용 Dockerfile
-# Railway 배포용
+# Railway 배포용 - apps/katago 디렉토리 기준
 
 FROM node:20-alpine AS base
 WORKDIR /app
@@ -10,24 +10,26 @@ ENV NODE_ENV=production
 RUN apk add --no-cache python3 make g++ wget unzip
 
 FROM base AS deps
-# Install dependencies
+# Install KataGo service dependencies
 RUN npm config set update-notifier false
-COPY package.json package-lock.json ./
+WORKDIR /app
+COPY apps/katago/package.json ./package.json
 RUN npm ci --omit=dev
 
 FROM base AS build-deps
 # Install all dependencies including dev for tsx
 ENV NODE_ENV=development
-COPY package.json package-lock.json ./
+WORKDIR /app
+COPY apps/katago/package.json ./package.json
 RUN npm ci
 
 FROM build-deps AS build
-# Copy source code
-COPY package.json package-lock.json ./
-COPY server ./server
-COPY shared ./shared
-COPY types ./types
-COPY tsconfig.base.json ./
+# Copy KataGo service source code
+WORKDIR /app
+COPY apps/katago/src ./src
+COPY apps/katago/types ./types
+COPY apps/katago/package.json ./package.json
+COPY apps/katago/tsconfig.json ./tsconfig.json
 
 # Download KataGo Linux binary and model
 RUN echo "=== Starting KataGo download ===" && \
@@ -77,11 +79,12 @@ RUN for pkg in @swc/core @swc/helpers; do \
     done
 
 # Copy application code
-COPY --from=build /app/server ./server
-COPY --from=build /app/shared ./shared
+COPY --from=build /app/src ./src
 COPY --from=build /app/types ./types
 COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/tsconfig.base.json ./tsconfig.base.json
+COPY --from=build /app/tsconfig.json ./tsconfig.json
+# Create katago_home directory
+RUN mkdir -p ./src/katago_home
 
 # Copy KataGo binary and model
 RUN mkdir -p ./katago
@@ -101,4 +104,3 @@ USER nodejs
 EXPOSE 4001
 
 CMD ["npm", "run", "start-katago"]
-
