@@ -10,8 +10,9 @@ ENV NODE_ENV=production
 RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
 
 FROM base AS deps
-# Install dependencies
+# Install dependencies (including devDependencies for Prisma)
 WORKDIR /app
+ENV NODE_ENV=development
 # Copy workspace configuration
 COPY package.json pnpm-workspace.yaml ./
 # Copy all package.json files first
@@ -23,7 +24,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/database ./packages/database
 COPY packages/game-logic ./packages/game-logic
 COPY packages/shared ./packages/shared
-# Install dependencies
+# Install dependencies (including devDependencies for Prisma generation)
 RUN pnpm install
 
 FROM base AS build
