@@ -14,8 +14,10 @@ FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/
-COPY packages/*/package.json ./packages/*/
-RUN pnpm install --frozen-lockfile || pnpm install
+COPY packages/database/package.json ./packages/database/
+COPY packages/game-logic/package.json ./packages/game-logic/
+COPY packages/shared/package.json ./packages/shared/
+RUN pnpm install
 
 FROM base AS build
 # Build application
