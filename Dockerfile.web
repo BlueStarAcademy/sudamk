@@ -33,7 +33,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages ./packages
-COPY . .
+# Copy all source files
+COPY package.json pnpm-workspace.yaml ./
+COPY apps/web ./apps/web
+COPY apps/api/package.json ./apps/api/
+COPY packages ./packages
 RUN pnpm --filter @sudam/database exec prisma generate
 RUN pnpm --filter @sudam/web build
 
