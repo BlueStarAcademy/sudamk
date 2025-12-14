@@ -42,6 +42,9 @@ RUN pnpm --filter @sudam/database exec prisma generate
 # Ensure generated Prisma client is available
 RUN ls -la packages/database/generated || echo "Prisma client not found"
 RUN pnpm --filter @sudam/api build
+# Verify build output location
+RUN ls -la apps/api/dist || echo "dist not found in apps/api"
+RUN find . -name "index.js" -type f | head -5 || echo "index.js not found"
 
 FROM base AS runner
 WORKDIR /app
@@ -49,8 +52,11 @@ ENV NODE_ENV=production
 ENV PORT=4000
 
 # Copy built application
+# Build output should be in apps/api/dist after fixing rootDir
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/apps/api/package.json ./apps/api/
+# Verify dist exists before proceeding
+RUN test -d apps/api/dist || (echo "ERROR: dist folder not found" && ls -la apps/api/ && exit 1)
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/packages ./packages
