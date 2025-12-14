@@ -41,6 +41,8 @@ COPY packages ./packages
 RUN pnpm --filter @sudam/database exec prisma generate
 # Ensure generated Prisma client is available
 RUN ls -la packages/database/generated || echo "Prisma client not found"
+# Build packages/database first (needed by @sudam/api)
+RUN pnpm --filter @sudam/database build
 RUN pnpm --filter @sudam/api build
 # Verify build output location - with rootDir ../../, output is in apps/api/dist/apps/api/src/
 # Move it to apps/api/dist/ for easier access
@@ -87,6 +89,8 @@ COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/packages ./packages
 # Copy generated Prisma client
 COPY --from=build /app/packages/database/generated ./packages/database/generated
+# Ensure packages/database/dist exists (built output)
+RUN test -d packages/database/dist || (echo "ERROR: packages/database/dist not found" && ls -la packages/database/ && exit 1)
 
 WORKDIR /app/apps/api
 
