@@ -29,7 +29,9 @@ export function useWebSocket({
   const maxReconnectAttempts = 5;
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      return undefined;
+    }
 
     const connect = () => {
       try {
