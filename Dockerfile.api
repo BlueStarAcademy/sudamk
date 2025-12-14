@@ -43,7 +43,6 @@ RUN pnpm --filter @sudam/database exec prisma generate
 RUN ls -la packages/database/generated || echo "Prisma client not found"
 # Build packages/database and packages/game-logic first (needed by @sudam/api)
 RUN pnpm --filter @sudam/database build
-RUN pnpm --filter @sudam/game-logic build
 # Verify packages/database/dist exists - check both dist/index.js and dist/src/index.js
 RUN if [ -f "packages/database/dist/index.js" ]; then \
       echo "✓ Found: packages/database/dist/index.js"; \
@@ -56,6 +55,21 @@ RUN if [ -f "packages/database/dist/index.js" ]; then \
       echo "Checking dist structure:"; \
       find packages/database/dist -name "*.js" -type f | head -10; \
       ls -la packages/database/dist/; \
+      exit 1; \
+    fi
+RUN pnpm --filter @sudam/game-logic build
+# Verify packages/game-logic/dist exists - check both dist/index.js and dist/src/index.js
+RUN if [ -f "packages/game-logic/dist/index.js" ]; then \
+      echo "✓ Found: packages/game-logic/dist/index.js"; \
+    elif [ -f "packages/game-logic/dist/src/index.js" ]; then \
+      echo "✓ Found: packages/game-logic/dist/src/index.js, moving to dist/index.js"; \
+      mv packages/game-logic/dist/src/* packages/game-logic/dist/ && \
+      rm -rf packages/game-logic/dist/src; \
+    else \
+      echo "ERROR: packages/game-logic/dist/index.js not found after build"; \
+      echo "Checking dist structure:"; \
+      find packages/game-logic/dist -name "*.js" -type f | head -10; \
+      ls -la packages/game-logic/dist/; \
       exit 1; \
     fi
 RUN pnpm --filter @sudam/api build
