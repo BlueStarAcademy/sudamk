@@ -18,8 +18,19 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
     },
   }));
 
+  const trpcClient = typeof window !== 'undefined' ? trpc.createClient() : null;
+  
+  if (!trpcClient) {
+    // During SSR/SSG, return a minimal provider
+    return (
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    );
+  }
+
   return (
-    <trpc.Provider client={trpc.createClient()} queryClient={queryClient}>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>

@@ -23,17 +23,7 @@ function getBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL || `http://localhost:4000`;
 }
 
-// Create a minimal router type to avoid runtime errors
-type MinimalRouter = {
-  [key: string]: {
-    [key: string]: {
-      useQuery: (...args: any[]) => any;
-      useMutation: (...args: any[]) => any;
-    };
-  };
-};
-
-const _trpc = createTRPCNext<MinimalRouter>({
+const _trpc = createTRPCNext<any>({
   config() {
     return {
       transformer: superjson,
