@@ -4,7 +4,7 @@
  */
 
 import { TRPCError } from '@trpc/server';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 /**
  * Application error codes
@@ -139,11 +139,15 @@ function mapErrorCodeToTRPC(code: ErrorCode): TRPCError['code'] {
  * Handle Prisma errors and convert to TRPCError
  */
 export function handlePrismaError(error: unknown): TRPCError {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (error.code) {
+  // Check if it's a Prisma error by checking the constructor name
+  if (error && typeof error === 'object' && 'code' in error) {
+    const prismaError = error as any;
+    if (prismaError.code && prismaError.meta) {
+      // It's a PrismaClientKnownRequestError
+      switch (prismaError.code) {
       case 'P2002':
         // Unique constraint violation
-        const target = (error.meta?.target as string[]) || [];
+        const target = (prismaError.meta?.target as string[]) || [];
         const field = target[0] || 'field';
         return createTRPCError(
           ErrorCode.ALREADY_EXISTS,
@@ -156,7 +160,7 @@ export function handlePrismaError(error: unknown): TRPCError {
         return createTRPCError(
           ErrorCode.NOT_FOUND,
           'Record not found',
-          { cause: error }
+          { cause: prismaError }
         );
       
       case 'P2003':
@@ -164,31 +168,33 @@ export function handlePrismaError(error: unknown): TRPCError {
         return createTRPCError(
           ErrorCode.VALIDATION_ERROR,
           'Invalid reference',
-          { cause: error }
+          { cause: prismaError }
         );
       
       default:
         return createTRPCError(
           ErrorCode.DATABASE_ERROR,
           'Database operation failed',
-          { cause: error, details: { code: error.code } }
+          { cause: prismaError, details: { code: prismaError.code } }
         );
+      }
     }
-  }
-
-  if (error instanceof Prisma.PrismaClientValidationError) {
-    return createTRPCError(
-      ErrorCode.VALIDATION_ERROR,
-      'Invalid data format',
-      { cause: error }
-    );
+    
+    // Check if it's a PrismaClientValidationError
+    if (prismaError.constructor?.name === 'PrismaClientValidationError') {
+      return createTRPCError(
+        ErrorCode.VALIDATION_ERROR,
+        'Invalid data format',
+        { cause: prismaError }
+      );
+    }
   }
 
   // Unknown Prisma error
   return createTRPCError(
     ErrorCode.DATABASE_ERROR,
     'Database error occurred',
-    { cause: error as Error }
+    { cause: error instanceof Error ? error : new Error(String(error)) }
   );
 }
 
@@ -200,9 +206,13 @@ export function handleUnknownError(error: unknown): TRPCError {
     return error;
   }
 
-  if (error instanceof Prisma.PrismaClientKnownRequestError || 
-      error instanceof Prisma.PrismaClientValidationError) {
-    return handlePrismaError(error);
+  // Check if it's a Prisma error
+  if (error && typeof error === 'object' && 'code' in error) {
+    const prismaError = error as any;
+    if (prismaError.constructor?.name === 'PrismaClientKnownRequestError' ||
+        prismaError.constructor?.name === 'PrismaClientValidationError') {
+      return handlePrismaError(error);
+    }
   }
 
   if (error instanceof Error) {

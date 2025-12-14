@@ -59,3 +59,20 @@ tmp/
 temp/
 *.tmp
 
+# Database files
+*.sqlite
+*.sqlite.backup
+*.sqlite.broken
+database_*.sqlite
+
+# KataGo binary files (too large for Git)
+katago/*.bin.gz
+katago/katago
+katago/katago.exe
+katago/*.dll
+katago/*.cfg
+
+# Backup files
+*.bak
+railway.json.bak
+

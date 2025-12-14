@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { router, protectedProcedure } from '../router.js';
 import { getPrismaClient } from '@sudam/database';
 import { userRepository } from '../../repositories/index.js';
+import { AppError, handleUnknownError } from '../../utils/errors.js';
 
 const prisma = getPrismaClient();
 

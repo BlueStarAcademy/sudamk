@@ -5,6 +5,7 @@
     "dockerfilePath": "Dockerfile.katago"
   },
   "deploy": {
+    "startCommand": "node node_modules/tsx/dist/cli.mjs --tsconfig tsconfig.json src/katagoServer.ts",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/api/health",
