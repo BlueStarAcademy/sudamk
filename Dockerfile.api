@@ -43,8 +43,20 @@ RUN pnpm --filter @sudam/database exec prisma generate
 RUN ls -la packages/database/generated || echo "Prisma client not found"
 # Build packages/database first (needed by @sudam/api)
 RUN pnpm --filter @sudam/database build
-# Verify packages/database/dist exists
-RUN test -d packages/database/dist && test -f packages/database/dist/index.js || (echo "ERROR: packages/database/dist not found after build" && ls -la packages/database/ && exit 1)
+# Verify packages/database/dist exists - check both dist/index.js and dist/src/index.js
+RUN if [ -f "packages/database/dist/index.js" ]; then \
+      echo "✓ Found: packages/database/dist/index.js"; \
+    elif [ -f "packages/database/dist/src/index.js" ]; then \
+      echo "✓ Found: packages/database/dist/src/index.js, moving to dist/index.js"; \
+      mv packages/database/dist/src/* packages/database/dist/ && \
+      rm -rf packages/database/dist/src; \
+    else \
+      echo "ERROR: packages/database/dist/index.js not found after build"; \
+      echo "Checking dist structure:"; \
+      find packages/database/dist -name "*.js" -type f | head -10; \
+      ls -la packages/database/dist/; \
+      exit 1; \
+    fi
 RUN pnpm --filter @sudam/api build
 # Verify build output location - with rootDir ../../, output is in apps/api/dist/apps/api/src/
 # Move it to apps/api/dist/ for easier access
