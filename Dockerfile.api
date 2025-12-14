@@ -43,6 +43,8 @@ RUN pnpm --filter @sudam/database exec prisma generate
 RUN ls -la packages/database/generated || echo "Prisma client not found"
 # Build packages/database first (needed by @sudam/api)
 RUN pnpm --filter @sudam/database build
+# Verify packages/database/dist exists
+RUN test -d packages/database/dist && test -f packages/database/dist/index.js || (echo "ERROR: packages/database/dist not found after build" && ls -la packages/database/ && exit 1)
 RUN pnpm --filter @sudam/api build
 # Verify build output location - with rootDir ../../, output is in apps/api/dist/apps/api/src/
 # Move it to apps/api/dist/ for easier access
@@ -90,7 +92,9 @@ COPY --from=build /app/packages ./packages
 # Copy generated Prisma client
 COPY --from=build /app/packages/database/generated ./packages/database/generated
 # Ensure packages/database/dist exists (built output)
-RUN test -d packages/database/dist || (echo "ERROR: packages/database/dist not found" && ls -la packages/database/ && exit 1)
+RUN test -d packages/database/dist && test -f packages/database/dist/index.js || (echo "ERROR: packages/database/dist/index.js not found" && ls -la packages/database/ && find packages/database -name "*.js" -type f | head -10 && exit 1)
+# Verify @sudam/database is accessible from node_modules
+RUN test -L node_modules/@sudam/database || test -d node_modules/@sudam/database || (echo "ERROR: @sudam/database not found in node_modules" && ls -la node_modules/@sudam/ 2>/dev/null || echo "node_modules/@sudam/ does not exist" && exit 1)
 
 WORKDIR /app/apps/api
 
