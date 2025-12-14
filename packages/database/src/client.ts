@@ -2,7 +2,7 @@
  * Prisma client singleton
  */
 
-import { PrismaClient } from './generated';
+import { PrismaClient } from '../generated';
 
 // Prisma client singleton instance
 let prisma: PrismaClient | null = null;

@@ -4,7 +4,7 @@
  */
 
 import { TRPCError } from '@trpc/server';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@sudam/database';
 
 /**
  * Application error codes
