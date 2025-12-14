@@ -41,8 +41,8 @@ export function setupWebSocket(fastify: FastifyInstance) {
       try {
         const data = JSON.parse(message.toString());
         handleMessage(connectionId, data);
-      } catch (error: any) {
-        fastify.log.error('[WebSocket] Error parsing message:', error as any);
+      } catch (error: unknown) {
+        fastify.log.error('[WebSocket] Error parsing message:', String(error));
       }
     });
     
@@ -51,8 +51,8 @@ export function setupWebSocket(fastify: FastifyInstance) {
       fastify.log.info(`[WebSocket] Connection closed: ${connectionId}`);
     });
     
-    ws.on('error', (error: any) => {
-      fastify.log.error(`[WebSocket] Error on connection ${connectionId}:`, error as any);
+    ws.on('error', (error: unknown) => {
+      fastify.log.error(`[WebSocket] Error on connection ${connectionId}:`, String(error));
       connections.delete(connectionId);
     });
   });

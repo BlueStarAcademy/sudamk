@@ -1,6 +1,6 @@
 // Database package exports
 export { getPrismaClient, disconnectPrisma } from './client.js';
-export type { PrismaClient, Prisma } from '../generated';
+export type { PrismaClient, Prisma } from '@prisma/client';
 
 // Re-export Prisma types (will be available after prisma generate)
 export type {
@@ -17,5 +17,5 @@ export type {
   KeyValue,
   HomeBoardPost,
   UserCredential,
-} from '../generated';
+} from '@prisma/client';
 
