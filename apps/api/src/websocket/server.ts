@@ -42,7 +42,8 @@ export function setupWebSocket(fastify: FastifyInstance) {
         const data = JSON.parse(message.toString());
         handleMessage(connectionId, data);
       } catch (error: unknown) {
-        fastify.log.error('[WebSocket] Error parsing message:', String(error));
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        fastify.log.error({ err: error }, '[WebSocket] Error parsing message:');
       }
     });
     
@@ -52,7 +53,8 @@ export function setupWebSocket(fastify: FastifyInstance) {
     });
     
     ws.on('error', (error: unknown) => {
-      fastify.log.error(`[WebSocket] Error on connection ${connectionId}:`, String(error));
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      fastify.log.error({ err: error }, `[WebSocket] Error on connection ${connectionId}:`);
       connections.delete(connectionId);
     });
   });
