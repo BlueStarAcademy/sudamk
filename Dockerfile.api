@@ -55,11 +55,24 @@ ENV NODE_ENV=production
 ENV PORT=4000
 
 # Copy built application
-# Build output is confirmed to be in apps/api/dist
-COPY --from=build /app/apps/api/dist ./apps/api/dist
+# With rootDir ../../, output might be in dist/apps/api/src/
+# Copy both possible locations
+COPY --from=build /app/apps/api/dist ./apps/api/dist 2>/dev/null || true
+COPY --from=build /app/dist ./dist 2>/dev/null || true
 COPY --from=build /app/apps/api/package.json ./apps/api/
+# Move dist/apps/api/src to apps/api/dist if needed
+RUN if [ ! -f "apps/api/dist/index.js" ] && [ -d "dist/apps/api/src" ]; then \
+      echo "Moving dist/apps/api/src to apps/api/dist" && \
+      rm -rf apps/api/dist && \
+      mkdir -p apps/api && \
+      cp -r dist/apps/api/src apps/api/dist; \
+    fi
 # Verify dist exists and contains index.js
-RUN test -f apps/api/dist/index.js || (echo "ERROR: apps/api/dist/index.js not found" && ls -la apps/api/ && ls -la apps/api/dist/ 2>/dev/null || echo "dist folder does not exist" && exit 1)
+RUN test -f apps/api/dist/index.js || (echo "ERROR: apps/api/dist/index.js not found" && \
+    echo "Checking apps/api/dist:" && ls -la apps/api/dist/ 2>/dev/null || echo "apps/api/dist does not exist" && \
+    echo "Checking dist/apps/api/src:" && ls -la dist/apps/api/src/ 2>/dev/null || echo "dist/apps/api/src does not exist" && \
+    echo "Searching for index.js:" && find . -name "index.js" -type f | head -10 && \
+    exit 1)
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/packages ./packages
