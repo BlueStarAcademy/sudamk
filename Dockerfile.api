@@ -42,9 +42,9 @@ RUN pnpm --filter @sudam/database exec prisma generate
 # Ensure generated Prisma client is available
 RUN ls -la packages/database/generated || echo "Prisma client not found"
 RUN pnpm --filter @sudam/api build
-# Verify build output location
+# Verify build output location (with rootDir ../../, output will be in apps/api/dist)
 RUN ls -la apps/api/dist || echo "dist not found in apps/api"
-RUN find . -name "index.js" -type f | head -5 || echo "index.js not found"
+RUN find apps/api -name "index.js" -type f | head -5 || echo "index.js not found"
 
 FROM base AS runner
 WORKDIR /app
