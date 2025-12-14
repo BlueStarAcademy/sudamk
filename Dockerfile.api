@@ -42,10 +42,16 @@ RUN pnpm --filter @sudam/database exec prisma generate
 # Ensure generated Prisma client is available
 RUN ls -la packages/database/generated || echo "Prisma client not found"
 RUN pnpm --filter @sudam/api build
-# Verify build output location - with rootDir ../../, output might be in dist/apps/api/src/
-# But based on tsconfig.json, it should be in apps/api/dist
+# Verify build output location - with rootDir ../../, output is in apps/api/dist/apps/api/src/
+# Move it to apps/api/dist/ for easier access
 RUN echo "=== Checking build output ===" && \
-    if [ -d "apps/api/dist" ] && [ -f "apps/api/dist/index.js" ]; then \
+    if [ -f "apps/api/dist/apps/api/src/index.js" ]; then \
+      echo "✓ Found: apps/api/dist/apps/api/src/index.js, moving to apps/api/dist/" && \
+      mv apps/api/dist/apps/api/src/* apps/api/dist/ && \
+      rm -rf apps/api/dist/apps && \
+      echo "✓ Moved to apps/api/dist/" && \
+      ls -la apps/api/dist/ | head -10; \
+    elif [ -f "apps/api/dist/index.js" ]; then \
       echo "✓ Found: apps/api/dist/index.js" && \
       ls -la apps/api/dist/ | head -10; \
     elif [ -d "dist/apps/api/src" ] && [ -f "dist/apps/api/src/index.js" ]; then \
@@ -57,9 +63,8 @@ RUN echo "=== Checking build output ===" && \
     else \
       echo "✗ ERROR: index.js not found in expected locations" && \
       echo "Searching for index.js:" && \
-      find . -name "index.js" -type f | head -10 && \
+      find . -path "*/apps/api/src/index.js" -type f | head -10 && \
       echo "Checking apps/api/dist:" && ls -la apps/api/dist/ 2>/dev/null || echo "apps/api/dist does not exist" && \
-      echo "Checking dist/apps/api/src:" && ls -la dist/apps/api/src/ 2>/dev/null || echo "dist/apps/api/src does not exist" && \
       exit 1; \
     fi
 
