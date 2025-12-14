@@ -38,6 +38,8 @@ COPY package.json pnpm-workspace.yaml ./
 COPY tsconfig.json ./tsconfig.json
 COPY apps/web ./apps/web
 COPY apps/api/package.json ./apps/api/
+COPY apps/api/src ./apps/api/src
+COPY apps/api/tsconfig.json ./apps/api/
 COPY packages ./packages
 RUN pnpm --filter @sudam/database exec prisma generate
 RUN pnpm --filter @sudam/web build
