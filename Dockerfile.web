@@ -52,10 +52,8 @@ ENV PORT=3000
 # Copy built application
 COPY --from=build /app/apps/web/.next ./apps/web/.next
 COPY --from=build /app/apps/web/package.json ./apps/web/
-# Create public directory (Next.js requires it, even if empty)
+# Create empty public directory (Next.js may need it, but we don't have public assets)
 RUN mkdir -p ./apps/web/public
-# Copy public directory if it exists (will fail silently if not present)
-COPY --from=build /app/apps/web/public ./apps/web/public 2>/dev/null || true
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=build /app/packages ./packages
