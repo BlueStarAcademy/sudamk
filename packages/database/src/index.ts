@@ -1,6 +1,8 @@
 // Database package exports
 export { getPrismaClient, disconnectPrisma } from './client.js';
-export type { PrismaClient, Prisma } from '@prisma/client';
+export type { PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+export type { Prisma };
 
 // Re-export Prisma model types using Prisma namespace
 // These types are available from @prisma/client after prisma generate

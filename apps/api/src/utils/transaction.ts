@@ -6,6 +6,9 @@
 import { getPrismaClient } from '@sudam/database';
 import type { Prisma } from '@sudam/database';
 
+// Transaction isolation level type
+type TransactionIsolationLevel = 'ReadUncommitted' | 'ReadCommitted' | 'RepeatableRead' | 'Serializable';
+
 /**
  * Execute a transaction with automatic rollback on error
  */
@@ -14,7 +17,7 @@ export async function executeTransaction<T>(
   options?: {
     maxWait?: number;
     timeout?: number;
-    isolationLevel?: Prisma.TransactionIsolationLevel;
+    isolationLevel?: TransactionIsolationLevel;
   }
 ): Promise<T> {
   const prisma = getPrismaClient();
@@ -40,7 +43,7 @@ export async function executeBatchTransaction<T>(
   options?: {
     maxWait?: number;
     timeout?: number;
-    isolationLevel?: Prisma.TransactionIsolationLevel;
+    isolationLevel?: TransactionIsolationLevel;
   }
 ): Promise<T[]> {
   return executeTransaction(
@@ -59,7 +62,7 @@ export function withTransaction(
   options?: {
     maxWait?: number;
     timeout?: number;
-    isolationLevel?: Prisma.TransactionIsolationLevel;
+    isolationLevel?: TransactionIsolationLevel;
   }
 ) {
   return function (
