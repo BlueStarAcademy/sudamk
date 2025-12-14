@@ -2,6 +2,7 @@
   "name": "@sudam/database",
   "version": "1.0.0",
   "description": "Database package with Prisma client for SUDAM v2",
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {

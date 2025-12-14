@@ -41,8 +41,9 @@ COPY packages ./packages
 RUN pnpm --filter @sudam/database exec prisma generate
 # Ensure generated Prisma client is available
 RUN ls -la packages/database/generated || echo "Prisma client not found"
-# Build packages/database first (needed by @sudam/api)
+# Build packages/database and packages/game-logic first (needed by @sudam/api)
 RUN pnpm --filter @sudam/database build
+RUN pnpm --filter @sudam/game-logic build
 # Verify packages/database/dist exists - check both dist/index.js and dist/src/index.js
 RUN if [ -f "packages/database/dist/index.js" ]; then \
       echo "✓ Found: packages/database/dist/index.js"; \
@@ -105,7 +106,7 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/packages/database/generated ./packages/database/generated
 # Ensure packages/database/dist exists (built output)
 RUN test -d packages/database/dist && test -f packages/database/dist/index.js || (echo "ERROR: packages/database/dist/index.js not found" && ls -la packages/database/ && find packages/database -name "*.js" -type f | head -10 && exit 1)
-# Ensure @sudam/database is accessible from node_modules (workspace symlink)
+# Ensure @sudam/database and @sudam/game-logic are accessible from node_modules (workspace symlink)
 # If symlink doesn't work, copy dist directly
 RUN if [ -L "node_modules/@sudam/database" ] || [ -d "node_modules/@sudam/database" ]; then \
       echo "✓ @sudam/database found in node_modules"; \
@@ -120,6 +121,19 @@ RUN if [ -L "node_modules/@sudam/database" ] || [ -d "node_modules/@sudam/databa
       cp -r packages/database node_modules/@sudam/database; \
     fi
 RUN test -f node_modules/@sudam/database/dist/index.js || (echo "ERROR: node_modules/@sudam/database/dist/index.js not found" && ls -la node_modules/@sudam/database/ 2>/dev/null || echo "node_modules/@sudam/database does not exist" && exit 1)
+RUN if [ -L "node_modules/@sudam/game-logic" ] || [ -d "node_modules/@sudam/game-logic" ]; then \
+      echo "✓ @sudam/game-logic found in node_modules"; \
+      if [ ! -f "node_modules/@sudam/game-logic/dist/index.js" ]; then \
+        echo "Copying packages/game-logic/dist to node_modules/@sudam/game-logic/dist"; \
+        mkdir -p node_modules/@sudam/game-logic/dist; \
+        cp -r packages/game-logic/dist/* node_modules/@sudam/game-logic/dist/; \
+      fi; \
+    else \
+      echo "Creating @sudam/game-logic in node_modules"; \
+      mkdir -p node_modules/@sudam; \
+      cp -r packages/game-logic node_modules/@sudam/game-logic; \
+    fi
+RUN test -f node_modules/@sudam/game-logic/dist/index.js || (echo "ERROR: node_modules/@sudam/game-logic/dist/index.js not found" && ls -la node_modules/@sudam/game-logic/ 2>/dev/null || echo "node_modules/@sudam/game-logic does not exist" && exit 1)
 
 WORKDIR /app/apps/api
 
