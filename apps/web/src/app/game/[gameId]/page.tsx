@@ -49,7 +49,7 @@ export default function GamePage() {
   }, [game, gameId, setCurrentGame, setCurrentGameId]);
 
   // WebSocket for real-time updates
-  const { isConnected, send } = useWebSocket({
+  const { send } = useWebSocket({
     url: `/ws`,
     enabled: !!gameId,
     onMessage: (data) => {
