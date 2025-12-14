@@ -4,7 +4,7 @@
  */
 
 import { getPrismaClient } from '@sudam/database';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@sudam/database';
 
 /**
  * Execute a transaction with automatic rollback on error

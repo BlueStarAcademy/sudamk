@@ -1,22 +1,20 @@
 // Database package exports
 export { getPrismaClient, disconnectPrisma } from './client.js';
-export type { PrismaClient } from '@prisma/client';
-export type { Prisma } from '../generated';
+export type { PrismaClient, Prisma } from '@prisma/client';
 
-// Re-export Prisma types (will be available after prisma generate)
-export type {
-  User,
-  UserInventory,
-  UserEquipment,
-  UserMail,
-  UserQuest,
-  UserMission,
-  LiveGame,
-  Guild,
-  GuildMember,
-  GuildMessage,
-  KeyValue,
-  HomeBoardPost,
-  UserCredential,
-} from '../generated';
+// Re-export Prisma model types using Prisma namespace
+// These types are available from @prisma/client after prisma generate
+export type User = Prisma.UserGetPayload<{}>;
+export type UserInventory = Prisma.UserInventoryGetPayload<{}>;
+export type UserEquipment = Prisma.UserEquipmentGetPayload<{}>;
+export type UserMail = Prisma.UserMailGetPayload<{}>;
+export type UserQuest = Prisma.UserQuestGetPayload<{}>;
+export type UserMission = Prisma.UserMissionGetPayload<{}>;
+export type LiveGame = Prisma.LiveGameGetPayload<{}>;
+export type Guild = Prisma.GuildGetPayload<{}>;
+export type GuildMember = Prisma.GuildMemberGetPayload<{}>;
+export type GuildMessage = Prisma.GuildMessageGetPayload<{}>;
+export type KeyValue = Prisma.KeyValueGetPayload<{}>;
+export type HomeBoardPost = Prisma.HomeBoardPostGetPayload<{}>;
+export type UserCredential = Prisma.UserCredentialGetPayload<{}>;
 
