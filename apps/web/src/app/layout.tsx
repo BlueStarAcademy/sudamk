@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   description: 'SUDAM v2 - Supreme Universe of Dueling Ascending Masters',
 };
 
+// Force dynamic rendering to avoid tRPC client initialization errors during static generation
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: {
