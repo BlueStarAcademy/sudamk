@@ -118,6 +118,16 @@ COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/packages ./packages
 # Copy generated Prisma client
 COPY --from=build /app/packages/database/generated ./packages/database/generated
+# Link Prisma Client to node_modules so @prisma/client can find it
+RUN mkdir -p node_modules/.prisma && \
+    ln -sf /app/packages/database/generated node_modules/.prisma/client || \
+    cp -r packages/database/generated node_modules/.prisma/client
+# Also ensure @prisma/client package exists
+RUN if [ ! -d "node_modules/@prisma/client" ]; then \
+      echo "ERROR: @prisma/client not found in node_modules" && \
+      ls -la node_modules/@prisma/ 2>/dev/null || echo "node_modules/@prisma/ does not exist" && \
+      exit 1; \
+    fi
 # Ensure packages/database/dist exists (built output)
 RUN test -d packages/database/dist && test -f packages/database/dist/index.js || (echo "ERROR: packages/database/dist/index.js not found" && ls -la packages/database/ && find packages/database -name "*.js" -type f | head -10 && exit 1)
 # Ensure @sudam/database and @sudam/game-logic are accessible from node_modules (workspace symlink)
