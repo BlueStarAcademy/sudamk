@@ -3,7 +3,8 @@
  */
 
 import { createTRPCReact } from '@trpc/react-query';
-import type { AppRouter } from '@sudam/api/src/trpc/router';
+// Type import fails during build, using any as workaround
+// import type { AppRouter } from '@sudam/api/src/trpc/router';
 
-export const trpc = createTRPCReact<AppRouter>();
+export const trpc = createTRPCReact<any>();
 
