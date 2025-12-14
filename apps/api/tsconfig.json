@@ -4,7 +4,11 @@
     "outDir": "./dist",
     "rootDir": "../../",
     "module": "ESNext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "strict": false,
+    "skipLibCheck": true
   },
   "include": ["src/**/*", "../../packages/**/*"],
   "exclude": ["node_modules", "dist", "src/**/__tests__/**/*", "src/**/*.test.ts", "src/**/*.spec.ts"]

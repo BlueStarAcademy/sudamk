@@ -30,6 +30,9 @@ COPY apps/katago/src ./src
 COPY apps/katago/types ./types
 COPY apps/katago/package.json ./package.json
 COPY apps/katago/tsconfig.json ./tsconfig.json
+# Copy root tsconfig.json for extends reference
+COPY tsconfig.json ./tsconfig.json
+RUN mkdir -p ../.. && cp tsconfig.json ../../tsconfig.json
 
 # Download KataGo Linux binary and model
 RUN echo "=== Starting KataGo download ===" && \
@@ -85,8 +88,8 @@ COPY --from=build /app/src ./src
 COPY --from=build /app/types ./types
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/tsconfig.json ./tsconfig.json
-# Copy root tsconfig.json for extends reference (relative to /app)
-COPY --from=build /app/../../tsconfig.json ../../tsconfig.json
+# Copy root tsconfig.json for extends reference
+RUN mkdir -p ../.. && cp tsconfig.json ../../tsconfig.json
 # Create katago_home directory
 RUN mkdir -p ./src/katago_home
 

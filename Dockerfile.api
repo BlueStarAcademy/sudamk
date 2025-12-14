@@ -39,6 +39,8 @@ COPY tsconfig.json ./tsconfig.json
 COPY apps/api ./apps/api
 COPY packages ./packages
 RUN pnpm --filter @sudam/database exec prisma generate
+# Ensure generated Prisma client is available
+RUN ls -la packages/database/generated || echo "Prisma client not found"
 RUN pnpm --filter @sudam/api build
 
 FROM base AS runner
