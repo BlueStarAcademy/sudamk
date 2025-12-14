@@ -16,7 +16,7 @@ const connections = new Map<string, Connection>();
 
 export function setupWebSocket(fastify: FastifyInstance) {
   fastify.get('/ws', { websocket: true }, (connection, req) => {
-    const ws = connection.socket;
+    const ws = connection as any;
     const connectionId = `${Date.now()}-${Math.random()}`;
     
     // Authenticate connection
@@ -41,8 +41,8 @@ export function setupWebSocket(fastify: FastifyInstance) {
       try {
         const data = JSON.parse(message.toString());
         handleMessage(connectionId, data);
-      } catch (error) {
-        fastify.log.error('[WebSocket] Error parsing message:', error);
+      } catch (error: any) {
+        fastify.log.error('[WebSocket] Error parsing message:', error as any);
       }
     });
     
@@ -51,8 +51,8 @@ export function setupWebSocket(fastify: FastifyInstance) {
       fastify.log.info(`[WebSocket] Connection closed: ${connectionId}`);
     });
     
-    ws.on('error', (error) => {
-      fastify.log.error(`[WebSocket] Error on connection ${connectionId}:`, error);
+    ws.on('error', (error: any) => {
+      fastify.log.error(`[WebSocket] Error on connection ${connectionId}:`, error as any);
       connections.delete(connectionId);
     });
   });

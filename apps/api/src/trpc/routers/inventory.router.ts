@@ -97,7 +97,13 @@ export const inventoryRouter = router({
     .mutation(async ({ ctx, input }) => {
       const item = await inventoryRepository.create({
         userId: ctx.user.id,
-        ...input,
+        templateId: input.templateId,
+        quantity: input.quantity,
+        slot: input.slot,
+        enhancementLvl: input.enhancementLvl,
+        stars: input.stars,
+        rarity: input.rarity,
+        metadata: input.metadata,
       });
 
       return {

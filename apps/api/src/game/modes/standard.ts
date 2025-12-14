@@ -22,6 +22,7 @@ export interface StandardGameData {
   gameStatus: 'pending' | 'active' | 'ended' | 'no_contest';
   winner?: 1 | 2;
   winReason?: string;
+  lastMoveTime?: number;
 }
 
 export class StandardGameMode {
