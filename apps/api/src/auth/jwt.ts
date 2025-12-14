@@ -2,7 +2,8 @@
  * JWT authentication utilities
  */
 
-import { sign, verify } from 'jsonwebtoken';
+import pkg from 'jsonwebtoken';
+const { sign, verify } = pkg;
 import { getEnv } from '../utils/env.js';
 
 const env = getEnv();
