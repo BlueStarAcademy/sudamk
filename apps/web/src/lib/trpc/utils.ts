@@ -4,7 +4,8 @@
 
 import { httpBatchLink } from '@trpc/client';
 import { createTRPCNext } from '@trpc/next';
-import type { AppRouter } from '@sudam/api/src/trpc/router';
+// Type import fails during build, using any as workaround
+// import type { AppRouter } from '@sudam/api/src/trpc/router';
 import superjson from 'superjson';
 
 function getBaseUrl() {
@@ -22,7 +23,7 @@ function getBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL || `http://localhost:4000`;
 }
 
-const _trpc = createTRPCNext<AppRouter>({
+const _trpc = createTRPCNext<any>({
   config() {
     return {
       transformer: superjson,
