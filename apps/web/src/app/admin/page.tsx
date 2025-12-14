@@ -12,8 +12,7 @@ import { ErrorMessage } from '../../components/common/error-message';
 import { useState } from 'react';
 
 export default function AdminPage() {
-  // @ts-ignore - Temporary fix for type inference issue
-  const { data: user } = (trpc as any).user.me.useQuery();
+  const { data: user } = trpc.user.me.useQuery();
   const [activeTab, setActiveTab] = useState<'users' | 'games' | 'system'>('users');
 
   // Check if user is admin
@@ -80,8 +79,7 @@ export default function AdminPage() {
 
 function UsersTab() {
   const [searchTerm, setSearchTerm] = useState('');
-  // @ts-ignore - Temporary fix for type inference issue
-  const { data: usersData, isLoading, error, refetch } = (trpc as any).admin.getUsers.useQuery({
+  const { data: usersData, isLoading, error, refetch } = trpc.admin.getUsers.useQuery({
     search: searchTerm || undefined,
     skip: 0,
     take: 50,
@@ -187,8 +185,7 @@ function UsersTab() {
 }
 
 function GamesTab() {
-  // @ts-ignore - Temporary fix for type inference issue
-  const { data: games, isLoading, error } = (trpc as any).game.getActive.useQuery();
+  const { data: games, isLoading, error } = trpc.game.getActive.useQuery();
 
   return (
     <div className="space-y-4">
@@ -265,8 +262,7 @@ function GamesTab() {
 }
 
 function SystemTab() {
-  // @ts-ignore - health endpoint exists but type inference fails
-  const { data: health } = (trpc as any).health.useQuery();
+  const { data: health } = trpc.health.useQuery();
 
   return (
     <div className="space-y-6">
