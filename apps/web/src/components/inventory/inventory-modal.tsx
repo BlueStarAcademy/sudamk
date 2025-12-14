@@ -60,7 +60,7 @@ export function InventoryModal({ isOpen, onClose }: InventoryModalProps) {
             <h3 className="text-lg font-semibold mb-3">착용 중인 장비</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {['weapon', 'armor', 'accessory1', 'accessory2'].map((slot) => {
-                const equipped = equipmentMap.get(slot);
+                const equipped = equipmentMap.get(slot) as any;
                 return (
                   <div
                     key={slot}
@@ -75,7 +75,7 @@ export function InventoryModal({ isOpen, onClose }: InventoryModalProps) {
                     {equipped ? (
                       <div>
                         <div className="text-sm font-medium">
-                          {equipped.templateId}
+                          {equipped?.templateId || 'N/A'}
                         </div>
                         <button
                           onClick={() => {
