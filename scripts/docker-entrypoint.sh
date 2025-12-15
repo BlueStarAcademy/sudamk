@@ -1,7 +1,9 @@
 #!/bin/sh
 set -e
 
-echo "=== Prisma Client Setup ==="
+echo "=========================================="
+echo "=== Prisma Client Setup Script Start ==="
+echo "=========================================="
 
 GENERATED_PATH="/app/packages/database/generated"
 
@@ -12,6 +14,8 @@ if [ ! -d "$GENERATED_PATH" ]; then
 fi
 
 echo "✓ Found generated Prisma Client at $GENERATED_PATH"
+echo "Contents of generated directory:"
+ls -la "$GENERATED_PATH" | head -10
 
 # 1. Copy to node_modules/.prisma/client (standard location)
 echo "Copying to node_modules/.prisma/client..."
@@ -22,18 +26,41 @@ echo "✓ Copied to node_modules/.prisma/client"
 
 # 2. Copy to all @prisma/client instances in .pnpm store
 if [ -d "/app/node_modules/.pnpm" ]; then
+  echo ""
   echo "Searching for @prisma/client in .pnpm store..."
-  find /app/node_modules/.pnpm -type d -name "@prisma+client@*" 2>/dev/null | while read PRISMA_PNPM_DIR; do
+  PRISMA_COUNT=0
+  for PRISMA_PNPM_DIR in $(find /app/node_modules/.pnpm -type d -name "@prisma+client@*" 2>/dev/null); do
     if [ -d "$PRISMA_PNPM_DIR/node_modules/@prisma/client" ]; then
       TARGET_PATH="$PRISMA_PNPM_DIR/node_modules/.prisma/client"
-      echo "  Copying to $TARGET_PATH..."
+      echo "  [${PRISMA_COUNT}] Processing: $PRISMA_PNPM_DIR"
+      echo "    Target: $TARGET_PATH"
       mkdir -p "$(dirname "$TARGET_PATH")"
       rm -rf "$TARGET_PATH"
       cp -r "$GENERATED_PATH" "$TARGET_PATH"
-      echo "    ✓ Copied successfully"
-      echo "    Files in target: $(ls -1 "$TARGET_PATH" | head -5 | tr '\n' ' ')"
+      
+      # Verify copy was successful
+      if [ -d "$TARGET_PATH" ]; then
+        echo "    ✓ Copied successfully"
+        FILE_COUNT=$(find "$TARGET_PATH" -type f | wc -l)
+        echo "    File count: $FILE_COUNT"
+        if [ -f "$TARGET_PATH/index.js" ]; then
+          echo "    ✓ index.js found"
+        elif [ -f "$TARGET_PATH/index.d.ts" ]; then
+          echo "    ✓ index.d.ts found"
+        else
+          echo "    WARNING: No index.js or index.d.ts found"
+          echo "    First 5 files:"
+          find "$TARGET_PATH" -type f | head -5 | sed 's/^/      /'
+        fi
+      else
+        echo "    ✗ ERROR: Copy failed!"
+      fi
+      PRISMA_COUNT=$((PRISMA_COUNT + 1))
     fi
   done
+  echo "  Total @prisma/client instances processed: $PRISMA_COUNT"
+else
+  echo "  No .pnpm directory found"
 fi
 
 # 3. Ensure @prisma/client package is accessible from packages/database/node_modules
@@ -83,7 +110,30 @@ if [ ! -f "/app/node_modules/.prisma/client/index.js" ] && \
 fi
 
 echo ""
+echo "=========================================="
+echo "=== Final Verification ==="
+echo "=========================================="
+
+# Verify the specific path that's failing
+FAILING_PATH="/app/node_modules/.pnpm/@prisma+client@6.19.1_prisma@6.19.1_typescript@5.9.3/node_modules/.prisma/client"
+if [ -d "$FAILING_PATH" ]; then
+  echo "✓ Found failing path: $FAILING_PATH"
+  echo "  Files in this directory:"
+  ls -la "$FAILING_PATH" | head -10
+  if [ -f "$FAILING_PATH/index.js" ] || [ -f "$FAILING_PATH/index.d.ts" ]; then
+    echo "  ✓ Critical files exist"
+  else
+    echo "  ✗ WARNING: Critical files missing"
+  fi
+else
+  echo "✗ WARNING: Failing path not found: $FAILING_PATH"
+  echo "  Searching for similar paths..."
+  find /app/node_modules/.pnpm -type d -path "*@prisma+client@*/.prisma/client" 2>/dev/null | head -5
+fi
+
+echo ""
 echo "✓ Prisma Client setup complete!"
+echo "=========================================="
 echo ""
 
 # Execute the main command
