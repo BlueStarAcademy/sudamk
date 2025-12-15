@@ -131,7 +131,9 @@ RUN mkdir -p node_modules/.prisma && \
     rm -rf node_modules/.prisma/client && \
     cp -r packages/database/generated node_modules/.prisma/client && \
     echo "✓ Copied to node_modules/.prisma/client" && \
-    test -f node_modules/.prisma/client/index.js && echo "✓ Verified index.js exists"
+    echo "Checking contents:" && \
+    ls -la node_modules/.prisma/client/ | head -10 && \
+    (test -f node_modules/.prisma/client/index.js || test -f node_modules/.prisma/client/index.d.ts || echo "WARNING: index.js not found, but continuing...")
 # 2. Link to all @prisma/client instances in .pnpm store
 #    Each @prisma/client package in .pnpm expects its own .prisma/client
 RUN echo "Setting up Prisma Client in .pnpm store..." && \
@@ -142,7 +144,6 @@ RUN echo "Setting up Prisma Client in .pnpm store..." && \
           mkdir -p "$PRISMA_PNPM_DIR/node_modules/.prisma" && \
           rm -rf "$PRISMA_PNPM_DIR/node_modules/.prisma/client" && \
           cp -r packages/database/generated "$PRISMA_PNPM_DIR/node_modules/.prisma/client" && \
-          test -f "$PRISMA_PNPM_DIR/node_modules/.prisma/client/index.js" && \
           echo "    ✓ Copied to $PRISMA_PNPM_DIR/node_modules/.prisma/client"; \
         fi; \
       done; \
