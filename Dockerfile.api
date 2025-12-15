@@ -118,46 +118,45 @@ COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/packages ./packages
 # Copy generated Prisma client
 COPY --from=build /app/packages/database/generated ./packages/database/generated
-# Link Prisma Client to node_modules so @prisma/client can find it
+# Link Prisma Client to all locations where @prisma/client expects it
+# 1. Root node_modules/.prisma/client (standard location)
 RUN mkdir -p node_modules/.prisma && \
-    ln -sf /app/packages/database/generated node_modules/.prisma/client || \
     cp -r packages/database/generated node_modules/.prisma/client
-# Ensure @prisma/client package exists
-# In pnpm workspaces, dependencies may be in .pnpm store or nested node_modules
-# Find @prisma/client and make it accessible at node_modules/@prisma/client
-RUN if [ ! -d "node_modules/@prisma/client" ]; then \
-      echo "@prisma/client not directly accessible, searching..." && \
-      PRISMA_FOUND=0 && \
-      if [ -d "packages/database/node_modules/@prisma/client" ]; then \
-        echo "✓ Found in packages/database/node_modules, copying..." && \
-        mkdir -p node_modules/@prisma && \
-        cp -r packages/database/node_modules/@prisma/client node_modules/@prisma/client && \
-        PRISMA_FOUND=1; \
-      fi && \
-      if [ "$PRISMA_FOUND" = "0" ] && [ -d "node_modules/.pnpm" ]; then \
-        PRISMA_PNPM=$(find node_modules/.pnpm -type d -name "@prisma+client@*" 2>/dev/null | head -1) && \
-        if [ -n "$PRISMA_PNPM" ] && [ -d "$PRISMA_PNPM/node_modules/@prisma/client" ]; then \
-          echo "✓ Found in pnpm store at $PRISMA_PNPM, copying..." && \
-          mkdir -p node_modules/@prisma && \
-          cp -r "$PRISMA_PNPM/node_modules/@prisma/client" node_modules/@prisma/client && \
-          PRISMA_FOUND=1; \
+# 2. Link to all @prisma/client instances in .pnpm store
+#    Each @prisma/client package in .pnpm expects its own .prisma/client
+RUN if [ -d "node_modules/.pnpm" ]; then \
+      echo "Linking Prisma Client to .pnpm store packages..." && \
+      find node_modules/.pnpm -type d -name "@prisma+client@*" 2>/dev/null | while read PRISMA_PNPM_DIR; do \
+        if [ -d "$PRISMA_PNPM_DIR/node_modules/@prisma/client" ]; then \
+          echo "  Linking to $PRISMA_PNPM_DIR/node_modules/.prisma/client" && \
+          mkdir -p "$PRISMA_PNPM_DIR/node_modules/.prisma" && \
+          cp -r packages/database/generated "$PRISMA_PNPM_DIR/node_modules/.prisma/client" || true; \
         fi; \
-      fi && \
-      if [ "$PRISMA_FOUND" = "0" ]; then \
-        echo "ERROR: @prisma/client not found in any expected location" && \
-        echo "Searched in:" && \
-        echo "  - node_modules/@prisma/client" && \
-        echo "  - packages/database/node_modules/@prisma/client" && \
-        echo "  - node_modules/.pnpm/@prisma+client@*" && \
-        echo "Available locations:" && \
-        find . -name "@prisma" -type d 2>/dev/null | head -10 && \
-        exit 1; \
-      else \
-        echo "✓ @prisma/client is now available"; \
-      fi; \
-    else \
-      echo "✓ @prisma/client already available"; \
+      done; \
     fi
+# 3. Also link to packages/database/node_modules if it exists
+RUN if [ -d "packages/database/node_modules/@prisma/client" ]; then \
+      echo "Linking to packages/database/node_modules/@prisma/client" && \
+      mkdir -p packages/database/node_modules/@prisma && \
+      cp -r packages/database/generated packages/database/node_modules/@prisma/client || true; \
+    fi
+# 4. Ensure @prisma/client package itself is accessible (for imports)
+RUN if [ ! -d "node_modules/@prisma/client" ]; then \
+      echo "@prisma/client package not directly accessible, locating..." && \
+      if [ -d "packages/database/node_modules/@prisma/client" ]; then \
+        echo "✓ Found in packages/database/node_modules, linking..." && \
+        mkdir -p node_modules/@prisma && \
+        cp -r packages/database/node_modules/@prisma/client node_modules/@prisma/client; \
+      elif [ -d "node_modules/.pnpm" ]; then \
+        PRISMA_PNPM=$(find node_modules/.pnpm -type d -name "@prisma+client@*" -exec test -d {}/node_modules/@prisma/client \; -print 2>/dev/null | head -1) && \
+        if [ -n "$PRISMA_PNPM" ] && [ -d "$PRISMA_PNPM/node_modules/@prisma/client" ]; then \
+          echo "✓ Found in pnpm store, linking..." && \
+          mkdir -p node_modules/@prisma && \
+          cp -r "$PRISMA_PNPM/node_modules/@prisma/client" node_modules/@prisma/client; \
+        fi; \
+      fi; \
+    fi && \
+    echo "✓ Prisma Client setup complete"
 # Ensure packages/database/dist exists (built output)
 RUN test -d packages/database/dist && test -f packages/database/dist/index.js || (echo "ERROR: packages/database/dist/index.js not found" && ls -la packages/database/ && find packages/database -name "*.js" -type f | head -10 && exit 1)
 # Ensure @sudam/database and @sudam/game-logic are accessible from node_modules (workspace symlink)
