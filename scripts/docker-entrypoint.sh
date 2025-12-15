@@ -5,17 +5,39 @@ echo "=========================================="
 echo "=== Prisma Client Setup Script Start ==="
 echo "=========================================="
 
+# Check if we need to regenerate Prisma Client
+# This ensures Prisma Client is always in the correct location
+if [ -d "/app/packages/database" ] && [ -f "/app/packages/database/schema.prisma" ]; then
+  echo "Running prisma generate to ensure Prisma Client is properly initialized..."
+  cd /app/packages/database
+  
+  # Try to use prisma from node_modules
+  if [ -f "/app/node_modules/.bin/prisma" ]; then
+    /app/node_modules/.bin/prisma generate --schema ./schema.prisma
+  elif [ -f "/app/node_modules/prisma/build/index.js" ]; then
+    node /app/node_modules/prisma/build/index.js generate --schema ./schema.prisma
+  elif command -v pnpm >/dev/null 2>&1 && [ -f "/app/package.json" ]; then
+    cd /app
+    pnpm --filter @sudam/database exec prisma generate || echo "pnpm prisma generate failed, trying npx..."
+    cd /app/packages/database
+    npx prisma generate --schema ./schema.prisma || echo "npx prisma generate also failed"
+  else
+    npx prisma generate --schema ./schema.prisma || echo "npx prisma generate failed"
+  fi
+  
+  cd /app
+  echo "✓ Prisma generate attempt completed"
+fi
+
 GENERATED_PATH="/app/packages/database/generated"
 
 # Check if generated Prisma Client exists
 if [ ! -d "$GENERATED_PATH" ]; then
-  echo "ERROR: Generated Prisma Client not found at $GENERATED_PATH"
+  echo "ERROR: Generated Prisma Client not found at $GENERATED_PATH after generation"
   exit 1
 fi
 
 echo "✓ Found generated Prisma Client at $GENERATED_PATH"
-echo "Contents of generated directory:"
-ls -la "$GENERATED_PATH" | head -10
 
 # 1. Copy to node_modules/.prisma/client (standard location)
 echo "Copying to node_modules/.prisma/client..."

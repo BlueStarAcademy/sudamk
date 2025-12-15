@@ -224,6 +224,9 @@ WORKDIR /app/apps/api
 COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
+# Ensure prisma CLI is available (from node_modules)
+RUN test -f node_modules/.bin/prisma || test -f node_modules/prisma/cli.js || echo "WARNING: prisma CLI may not be available"
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
