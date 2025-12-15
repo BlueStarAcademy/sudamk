@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client"
-  // Use default output location for better compatibility with pnpm
+  output   = "./generated"
 }
 
 datasource db {
