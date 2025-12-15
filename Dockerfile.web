@@ -42,6 +42,40 @@ COPY apps/api/src ./apps/api/src
 COPY apps/api/tsconfig.json ./apps/api/
 COPY packages ./packages
 RUN pnpm --filter @sudam/database exec prisma generate
+# Build dependencies first (needed by @sudam/web)
+# @sudam/shared doesn't need build (uses src directly), but @sudam/game-logic does
+RUN pnpm --filter @sudam/game-logic build
+# Verify build output
+RUN if [ -f "packages/game-logic/dist/index.js" ]; then \
+      echo "✓ Found: packages/game-logic/dist/index.js"; \
+    elif [ -f "packages/game-logic/dist/src/index.js" ]; then \
+      echo "✓ Found: packages/game-logic/dist/src/index.js, moving to dist/index.js"; \
+      mv packages/game-logic/dist/src/* packages/game-logic/dist/ && \
+      rm -rf packages/game-logic/dist/src; \
+    else \
+      echo "ERROR: packages/game-logic/dist/index.js not found after build"; \
+      ls -la packages/game-logic/dist/ 2>/dev/null || echo "packages/game-logic/dist does not exist"; \
+      exit 1; \
+    fi
+# Ensure workspace packages are accessible in node_modules (for Next.js webpack)
+RUN if [ ! -d "node_modules/@sudam/game-logic" ] || [ ! -f "node_modules/@sudam/game-logic/dist/index.js" ]; then \
+      echo "Setting up @sudam/game-logic in node_modules" && \
+      mkdir -p node_modules/@sudam && \
+      if [ -L "node_modules/@sudam/game-logic" ]; then \
+        rm node_modules/@sudam/game-logic; \
+      fi && \
+      cp -r packages/game-logic node_modules/@sudam/game-logic && \
+      test -f node_modules/@sudam/game-logic/dist/index.js && echo "✓ @sudam/game-logic ready"; \
+    fi
+RUN if [ ! -d "node_modules/@sudam/shared" ]; then \
+      echo "Setting up @sudam/shared in node_modules" && \
+      mkdir -p node_modules/@sudam && \
+      if [ -L "node_modules/@sudam/shared" ]; then \
+        rm node_modules/@sudam/shared; \
+      fi && \
+      cp -r packages/shared node_modules/@sudam/shared && \
+      echo "✓ @sudam/shared ready"; \
+    fi
 RUN pnpm --filter @sudam/web build
 
 FROM base AS runner
