@@ -13,6 +13,8 @@ FROM base AS deps
 # Install dependencies (including devDependencies for Prisma)
 WORKDIR /app
 ENV NODE_ENV=development
+# Install build dependencies for native modules (bcrypt, etc.)
+RUN apk add --no-cache python3 make g++ libc-dev
 # Copy workspace configuration
 COPY package.json pnpm-workspace.yaml ./
 # Copy all package.json files first
