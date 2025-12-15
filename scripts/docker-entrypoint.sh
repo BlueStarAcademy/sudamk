@@ -1,78 +1,28 @@
 #!/bin/sh
-# Don't use set -e, we want to continue even if some steps fail
+set -e
 
 echo "=========================================="
 echo "=== Prisma Client Setup Script Start ==="
 echo "=========================================="
 
-# Check if we need to regenerate Prisma Client
-# This ensures Prisma Client is always in the correct location
-if [ -d "/app/packages/database" ] && [ -f "/app/packages/database/schema.prisma" ]; then
-  echo "Running prisma generate to ensure Prisma Client is properly initialized..."
-  echo "Current directory: $(pwd)"
-  echo "Checking for prisma CLI..."
-  
-  cd /app/packages/database
-  
-  PRISMA_CMD=""
-  
-  # Try to use prisma from node_modules
-  if [ -f "/app/node_modules/.bin/prisma" ]; then
-    PRISMA_CMD="/app/node_modules/.bin/prisma"
-    echo "Found prisma at: $PRISMA_CMD"
-  elif [ -f "/app/node_modules/prisma/cli.js" ]; then
-    PRISMA_CMD="node /app/node_modules/prisma/cli.js"
-    echo "Found prisma at: /app/node_modules/prisma/cli.js"
-  elif command -v pnpm >/dev/null 2>&1 && [ -f "/app/package.json" ]; then
-    echo "Using pnpm to run prisma generate..."
-    cd /app
-    pnpm --filter @sudam/database exec prisma generate 2>&1 || {
-      echo "pnpm prisma generate failed, trying direct prisma..."
-      cd /app/packages/database
-      if [ -f "/app/node_modules/.bin/prisma" ]; then
-        PRISMA_CMD="/app/node_modules/.bin/prisma"
-      else
-        PRISMA_CMD="npx prisma"
-      fi
-    }
-    cd /app/packages/database
-  else
-    echo "Using npx to run prisma generate..."
-    PRISMA_CMD="npx prisma"
-  fi
-  
-  if [ -n "$PRISMA_CMD" ]; then
-    echo "Executing: $PRISMA_CMD generate --schema ./schema.prisma"
-    $PRISMA_CMD generate --schema ./schema.prisma 2>&1 || {
-      echo "ERROR: prisma generate failed with exit code $?"
-    }
-  fi
-  
-  cd /app
-  echo "✓ Prisma generate attempt completed"
-  echo "Checking if generated files exist..."
-  find /app -name ".prisma" -type d 2>/dev/null | head -5
-  find /app/packages/database -name "generated" -type d 2>/dev/null | head -5
-else
-  echo "WARNING: /app/packages/database or schema.prisma not found"
-fi
-
-# Find generated Prisma Client (default location after prisma generate)
+# Find generated Prisma Client from build stage
 GENERATED_PATH=""
 if [ -d "/app/node_modules/.prisma/client" ]; then
   GENERATED_PATH="/app/node_modules/.prisma/client"
-  echo "✓ Found generated Prisma Client at $GENERATED_PATH"
-elif [ -d "/app/packages/database/node_modules/.prisma/client" ]; then
-  GENERATED_PATH="/app/packages/database/node_modules/.prisma/client"
-  echo "✓ Found generated Prisma Client at $GENERATED_PATH"
-elif [ -d "/app/packages/database/generated" ]; then
-  GENERATED_PATH="/app/packages/database/generated"
-  echo "✓ Found generated Prisma Client at $GENERATED_PATH"
+  echo "✓ Found Prisma Client from build stage at $GENERATED_PATH"
 else
-  echo "ERROR: Generated Prisma Client not found after generation"
-  echo "Searching for .prisma/client directories..."
+  echo "ERROR: Prisma Client not found at /app/node_modules/.prisma/client"
+  echo "This should have been copied from the build stage!"
+  echo "Searching for .prisma directories..."
   find /app -type d -name ".prisma" 2>/dev/null | head -10
   exit 1
+fi
+
+# Verify critical files exist
+if [ ! -f "$GENERATED_PATH/index.js" ] && [ ! -f "$GENERATED_PATH/index.d.ts" ] && [ ! -f "$GENERATED_PATH/default.js" ]; then
+  echo "WARNING: Standard Prisma Client files not found"
+  echo "Files in $GENERATED_PATH:"
+  ls -la "$GENERATED_PATH" | head -10
 fi
 
 # 1. Copy to node_modules/.prisma/client (standard location)
@@ -171,23 +121,6 @@ echo ""
 echo "=========================================="
 echo "=== Final Verification ==="
 echo "=========================================="
-
-# Verify the specific path that's failing
-FAILING_PATH="/app/node_modules/.pnpm/@prisma+client@6.19.1_prisma@6.19.1_typescript@5.9.3/node_modules/.prisma/client"
-if [ -d "$FAILING_PATH" ]; then
-  echo "✓ Found failing path: $FAILING_PATH"
-  echo "  Files in this directory:"
-  ls -la "$FAILING_PATH" | head -10
-  if [ -f "$FAILING_PATH/index.js" ] || [ -f "$FAILING_PATH/index.d.ts" ]; then
-    echo "  ✓ Critical files exist"
-  else
-    echo "  ✗ WARNING: Critical files missing"
-  fi
-else
-  echo "✗ WARNING: Failing path not found: $FAILING_PATH"
-  echo "  Searching for similar paths..."
-  find /app/node_modules/.pnpm -type d -path "*@prisma+client@*/.prisma/client" 2>/dev/null | head -5
-fi
 
 echo ""
 echo "✓ Prisma Client setup complete!"
