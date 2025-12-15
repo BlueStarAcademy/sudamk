@@ -36,7 +36,40 @@ if [ -d "/app/node_modules/.pnpm" ]; then
   done
 fi
 
-# 3. List files in .prisma/client to verify structure
+# 3. Ensure @prisma/client package is accessible from packages/database/node_modules
+#    This is needed because packages/database/dist/client.js imports from '@prisma/client'
+#    and Node.js ESM resolver looks in packages/database/node_modules/@prisma/client
+echo "Setting up @prisma/client in packages/database/node_modules..."
+if [ ! -d "/app/packages/database/node_modules/@prisma/client" ]; then
+  echo "  Creating packages/database/node_modules/@prisma/client..."
+  mkdir -p /app/packages/database/node_modules/@prisma
+  
+  # Find @prisma/client package from root node_modules or .pnpm store
+  if [ -d "/app/node_modules/@prisma/client" ]; then
+    cp -r /app/node_modules/@prisma/client /app/packages/database/node_modules/@prisma/client
+    echo "  ✓ Copied from /app/node_modules/@prisma/client"
+  elif [ -d "/app/node_modules/.pnpm" ]; then
+    PRISMA_PNPM=$(find /app/node_modules/.pnpm -type d -name "@prisma+client@*" 2>/dev/null | head -1)
+    if [ -n "$PRISMA_PNPM" ] && [ -d "$PRISMA_PNPM/node_modules/@prisma/client" ]; then
+      cp -r "$PRISMA_PNPM/node_modules/@prisma/client" /app/packages/database/node_modules/@prisma/client
+      echo "  ✓ Copied from $PRISMA_PNPM/node_modules/@prisma/client"
+    else
+      echo "  WARNING: Could not find @prisma/client package to copy"
+    fi
+  fi
+fi
+
+# 4. Ensure .prisma/client exists in packages/database/node_modules/@prisma/client
+if [ -d "/app/packages/database/node_modules/@prisma/client" ]; then
+  echo "  Setting up .prisma/client in packages/database/node_modules/@prisma/client..."
+  mkdir -p /app/packages/database/node_modules/@prisma/client/.prisma
+  rm -rf /app/packages/database/node_modules/@prisma/client/.prisma/client
+  cp -r "$GENERATED_PATH" /app/packages/database/node_modules/@prisma/client/.prisma/client
+  echo "  ✓ Copied Prisma Client to packages/database/node_modules/@prisma/client/.prisma/client"
+fi
+
+# 5. List files in .prisma/client to verify structure
+echo ""
 echo "Files in /app/node_modules/.prisma/client:"
 ls -la /app/node_modules/.prisma/client/ | head -10
 
@@ -49,6 +82,7 @@ if [ ! -f "/app/node_modules/.prisma/client/index.js" ] && \
   find /app/node_modules/.prisma/client -type f | head -10
 fi
 
+echo ""
 echo "✓ Prisma Client setup complete!"
 echo ""
 
