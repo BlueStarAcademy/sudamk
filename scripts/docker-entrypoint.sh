@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+# Don't use set -e, we want to continue even if some steps fail
 
 echo "=========================================="
 echo "=== Prisma Client Setup Script Start ==="
@@ -9,24 +9,52 @@ echo "=========================================="
 # This ensures Prisma Client is always in the correct location
 if [ -d "/app/packages/database" ] && [ -f "/app/packages/database/schema.prisma" ]; then
   echo "Running prisma generate to ensure Prisma Client is properly initialized..."
+  echo "Current directory: $(pwd)"
+  echo "Checking for prisma CLI..."
+  
   cd /app/packages/database
+  
+  PRISMA_CMD=""
   
   # Try to use prisma from node_modules
   if [ -f "/app/node_modules/.bin/prisma" ]; then
-    /app/node_modules/.bin/prisma generate --schema ./schema.prisma
-  elif [ -f "/app/node_modules/prisma/build/index.js" ]; then
-    node /app/node_modules/prisma/build/index.js generate --schema ./schema.prisma
+    PRISMA_CMD="/app/node_modules/.bin/prisma"
+    echo "Found prisma at: $PRISMA_CMD"
+  elif [ -f "/app/node_modules/prisma/cli.js" ]; then
+    PRISMA_CMD="node /app/node_modules/prisma/cli.js"
+    echo "Found prisma at: /app/node_modules/prisma/cli.js"
   elif command -v pnpm >/dev/null 2>&1 && [ -f "/app/package.json" ]; then
+    echo "Using pnpm to run prisma generate..."
     cd /app
-    pnpm --filter @sudam/database exec prisma generate || echo "pnpm prisma generate failed, trying npx..."
+    pnpm --filter @sudam/database exec prisma generate 2>&1 || {
+      echo "pnpm prisma generate failed, trying direct prisma..."
+      cd /app/packages/database
+      if [ -f "/app/node_modules/.bin/prisma" ]; then
+        PRISMA_CMD="/app/node_modules/.bin/prisma"
+      else
+        PRISMA_CMD="npx prisma"
+      fi
+    }
     cd /app/packages/database
-    npx prisma generate --schema ./schema.prisma || echo "npx prisma generate also failed"
   else
-    npx prisma generate --schema ./schema.prisma || echo "npx prisma generate failed"
+    echo "Using npx to run prisma generate..."
+    PRISMA_CMD="npx prisma"
+  fi
+  
+  if [ -n "$PRISMA_CMD" ]; then
+    echo "Executing: $PRISMA_CMD generate --schema ./schema.prisma"
+    $PRISMA_CMD generate --schema ./schema.prisma 2>&1 || {
+      echo "ERROR: prisma generate failed with exit code $?"
+    }
   fi
   
   cd /app
   echo "✓ Prisma generate attempt completed"
+  echo "Checking if generated files exist..."
+  find /app -name ".prisma" -type d 2>/dev/null | head -5
+  find /app/packages/database -name "generated" -type d 2>/dev/null | head -5
+else
+  echo "WARNING: /app/packages/database or schema.prisma not found"
 fi
 
 GENERATED_PATH="/app/packages/database/generated"
