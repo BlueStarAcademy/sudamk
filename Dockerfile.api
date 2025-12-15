@@ -118,39 +118,56 @@ COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/packages ./packages
 # Copy generated Prisma client
 COPY --from=build /app/packages/database/generated ./packages/database/generated
+# Verify generated Prisma Client exists
+RUN if [ ! -d "packages/database/generated" ]; then \
+      echo "ERROR: Generated Prisma Client not found!" && exit 1; \
+    else \
+      echo "✓ Generated Prisma Client found at packages/database/generated" && \
+      ls -la packages/database/generated/ | head -5; \
+    fi
 # Link Prisma Client to all locations where @prisma/client expects it
 # 1. Root node_modules/.prisma/client (standard location)
 RUN mkdir -p node_modules/.prisma && \
-    cp -r packages/database/generated node_modules/.prisma/client
+    rm -rf node_modules/.prisma/client && \
+    cp -r packages/database/generated node_modules/.prisma/client && \
+    echo "✓ Copied to node_modules/.prisma/client" && \
+    test -f node_modules/.prisma/client/index.js && echo "✓ Verified index.js exists"
 # 2. Link to all @prisma/client instances in .pnpm store
 #    Each @prisma/client package in .pnpm expects its own .prisma/client
-RUN if [ -d "node_modules/.pnpm" ]; then \
-      echo "Linking Prisma Client to .pnpm store packages..." && \
-      find node_modules/.pnpm -type d -name "@prisma+client@*" 2>/dev/null | while read PRISMA_PNPM_DIR; do \
+RUN echo "Setting up Prisma Client in .pnpm store..." && \
+    if [ -d "node_modules/.pnpm" ]; then \
+      for PRISMA_PNPM_DIR in $(find node_modules/.pnpm -type d -name "@prisma+client@*" 2>/dev/null); do \
         if [ -d "$PRISMA_PNPM_DIR/node_modules/@prisma/client" ]; then \
-          echo "  Linking to $PRISMA_PNPM_DIR/node_modules/.prisma/client" && \
+          echo "  Processing $PRISMA_PNPM_DIR" && \
           mkdir -p "$PRISMA_PNPM_DIR/node_modules/.prisma" && \
-          cp -r packages/database/generated "$PRISMA_PNPM_DIR/node_modules/.prisma/client" || true; \
+          rm -rf "$PRISMA_PNPM_DIR/node_modules/.prisma/client" && \
+          cp -r packages/database/generated "$PRISMA_PNPM_DIR/node_modules/.prisma/client" && \
+          test -f "$PRISMA_PNPM_DIR/node_modules/.prisma/client/index.js" && \
+          echo "    ✓ Copied to $PRISMA_PNPM_DIR/node_modules/.prisma/client"; \
         fi; \
       done; \
+    else \
+      echo "  No .pnpm directory found"; \
     fi
 # 3. Also link to packages/database/node_modules if it exists
 RUN if [ -d "packages/database/node_modules/@prisma/client" ]; then \
-      echo "Linking to packages/database/node_modules/@prisma/client" && \
+      echo "Setting up in packages/database/node_modules..." && \
       mkdir -p packages/database/node_modules/@prisma && \
-      cp -r packages/database/generated packages/database/node_modules/@prisma/client || true; \
+      rm -rf packages/database/node_modules/@prisma/client && \
+      cp -r packages/database/generated packages/database/node_modules/@prisma/client && \
+      echo "✓ Copied to packages/database/node_modules/@prisma/client"; \
     fi
 # 4. Ensure @prisma/client package itself is accessible (for imports)
 RUN if [ ! -d "node_modules/@prisma/client" ]; then \
       echo "@prisma/client package not directly accessible, locating..." && \
       if [ -d "packages/database/node_modules/@prisma/client" ]; then \
-        echo "✓ Found in packages/database/node_modules, linking..." && \
+        echo "✓ Found in packages/database/node_modules, copying..." && \
         mkdir -p node_modules/@prisma && \
         cp -r packages/database/node_modules/@prisma/client node_modules/@prisma/client; \
       elif [ -d "node_modules/.pnpm" ]; then \
-        PRISMA_PNPM=$(find node_modules/.pnpm -type d -name "@prisma+client@*" -exec test -d {}/node_modules/@prisma/client \; -print 2>/dev/null | head -1) && \
+        PRISMA_PNPM=$(find node_modules/.pnpm -type d -name "@prisma+client@*" 2>/dev/null | head -1) && \
         if [ -n "$PRISMA_PNPM" ] && [ -d "$PRISMA_PNPM/node_modules/@prisma/client" ]; then \
-          echo "✓ Found in pnpm store, linking..." && \
+          echo "✓ Found in pnpm store at $PRISMA_PNPM, copying..." && \
           mkdir -p node_modules/@prisma && \
           cp -r "$PRISMA_PNPM/node_modules/@prisma/client" node_modules/@prisma/client; \
         fi; \
@@ -190,6 +207,10 @@ RUN test -f node_modules/@sudam/game-logic/dist/index.js || (echo "ERROR: node_m
 
 WORKDIR /app/apps/api
 
+# Copy entrypoint script for Prisma Client setup
+COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
@@ -198,5 +219,6 @@ USER nodejs
 
 EXPOSE 4000
 
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
 
