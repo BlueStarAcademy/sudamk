@@ -57,15 +57,23 @@ else
   echo "WARNING: /app/packages/database or schema.prisma not found"
 fi
 
-GENERATED_PATH="/app/packages/database/generated"
-
-# Check if generated Prisma Client exists
-if [ ! -d "$GENERATED_PATH" ]; then
-  echo "ERROR: Generated Prisma Client not found at $GENERATED_PATH after generation"
+# Find generated Prisma Client (default location after prisma generate)
+GENERATED_PATH=""
+if [ -d "/app/node_modules/.prisma/client" ]; then
+  GENERATED_PATH="/app/node_modules/.prisma/client"
+  echo "✓ Found generated Prisma Client at $GENERATED_PATH"
+elif [ -d "/app/packages/database/node_modules/.prisma/client" ]; then
+  GENERATED_PATH="/app/packages/database/node_modules/.prisma/client"
+  echo "✓ Found generated Prisma Client at $GENERATED_PATH"
+elif [ -d "/app/packages/database/generated" ]; then
+  GENERATED_PATH="/app/packages/database/generated"
+  echo "✓ Found generated Prisma Client at $GENERATED_PATH"
+else
+  echo "ERROR: Generated Prisma Client not found after generation"
+  echo "Searching for .prisma/client directories..."
+  find /app -type d -name ".prisma" 2>/dev/null | head -10
   exit 1
 fi
-
-echo "✓ Found generated Prisma Client at $GENERATED_PATH"
 
 # 1. Copy to node_modules/.prisma/client (standard location)
 echo "Copying to node_modules/.prisma/client..."
