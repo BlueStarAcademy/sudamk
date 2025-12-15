@@ -122,11 +122,41 @@ COPY --from=build /app/packages/database/generated ./packages/database/generated
 RUN mkdir -p node_modules/.prisma && \
     ln -sf /app/packages/database/generated node_modules/.prisma/client || \
     cp -r packages/database/generated node_modules/.prisma/client
-# Also ensure @prisma/client package exists
+# Ensure @prisma/client package exists
+# In pnpm workspaces, dependencies may be in .pnpm store or nested node_modules
+# Find @prisma/client and make it accessible at node_modules/@prisma/client
 RUN if [ ! -d "node_modules/@prisma/client" ]; then \
-      echo "ERROR: @prisma/client not found in node_modules" && \
-      ls -la node_modules/@prisma/ 2>/dev/null || echo "node_modules/@prisma/ does not exist" && \
-      exit 1; \
+      echo "@prisma/client not directly accessible, searching..." && \
+      PRISMA_FOUND=0 && \
+      if [ -d "packages/database/node_modules/@prisma/client" ]; then \
+        echo "✓ Found in packages/database/node_modules, copying..." && \
+        mkdir -p node_modules/@prisma && \
+        cp -r packages/database/node_modules/@prisma/client node_modules/@prisma/client && \
+        PRISMA_FOUND=1; \
+      fi && \
+      if [ "$PRISMA_FOUND" = "0" ] && [ -d "node_modules/.pnpm" ]; then \
+        PRISMA_PNPM=$(find node_modules/.pnpm -type d -name "@prisma+client@*" 2>/dev/null | head -1) && \
+        if [ -n "$PRISMA_PNPM" ] && [ -d "$PRISMA_PNPM/node_modules/@prisma/client" ]; then \
+          echo "✓ Found in pnpm store at $PRISMA_PNPM, copying..." && \
+          mkdir -p node_modules/@prisma && \
+          cp -r "$PRISMA_PNPM/node_modules/@prisma/client" node_modules/@prisma/client && \
+          PRISMA_FOUND=1; \
+        fi; \
+      fi && \
+      if [ "$PRISMA_FOUND" = "0" ]; then \
+        echo "ERROR: @prisma/client not found in any expected location" && \
+        echo "Searched in:" && \
+        echo "  - node_modules/@prisma/client" && \
+        echo "  - packages/database/node_modules/@prisma/client" && \
+        echo "  - node_modules/.pnpm/@prisma+client@*" && \
+        echo "Available locations:" && \
+        find . -name "@prisma" -type d 2>/dev/null | head -10 && \
+        exit 1; \
+      else \
+        echo "✓ @prisma/client is now available"; \
+      fi; \
+    else \
+      echo "✓ @prisma/client already available"; \
     fi
 # Ensure packages/database/dist exists (built output)
 RUN test -d packages/database/dist && test -f packages/database/dist/index.js || (echo "ERROR: packages/database/dist/index.js not found" && ls -la packages/database/ && find packages/database -name "*.js" -type f | head -10 && exit 1)
