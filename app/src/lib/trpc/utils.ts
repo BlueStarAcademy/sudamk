@@ -3,12 +3,12 @@
  */
 
 import { httpBatchLink } from '@trpc/client';
-import { createTRPCReact } from '@trpc/react-query';
+import { createTRPCReact, type CreateTRPCReact } from '@trpc/react-query';
 import type { AppRouter } from '@/server/trpc/router';
 import superjson from 'superjson';
 
 // Create tRPC React hooks
-export const trpc = createTRPCReact<AppRouter>();
+export const trpc: CreateTRPCReact<AppRouter, unknown> = createTRPCReact<AppRouter>();
 
 // Helper function to get base URL
 export function getBaseUrl() {
