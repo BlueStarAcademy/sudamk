@@ -22,8 +22,11 @@ COPY packages/database/package.json ./packages/database/
 COPY packages/game-logic/package.json ./packages/game-logic/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install dependencies (--no-frozen-lockfile for Railway)
+# Install dependencies including devDependencies (TypeScript 등 빌드에 필요)
+# NODE_ENV를 unset하여 devDependencies도 설치되도록 함
+ENV NODE_ENV=
 RUN pnpm install --no-frozen-lockfile
+ENV NODE_ENV=production
 
 FROM base AS build
 WORKDIR /app
@@ -47,7 +50,7 @@ RUN prisma generate --schema ./schema.prisma
 WORKDIR /app
 
 # Build packages in correct order
-RUN pnpm --filter @sudam/shared build
+# @sudam/shared는 build 스크립트가 없으므로 건너뜀
 RUN pnpm --filter @sudam/database build
 RUN pnpm --filter @sudam/game-logic build
 
