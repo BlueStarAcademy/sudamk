@@ -45,8 +45,10 @@ export function getPrismaClient(): PrismaClient {
     if (process.env.NODE_ENV === 'development') {
       setInterval(async () => {
         try {
-          const result = await prisma?.$queryRaw`SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database()`;
-          console.log('[Prisma] Active connections:', result);
+          if (prisma) {
+            const result = await prisma.$queryRaw`SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database()`;
+            console.log('[Prisma] Active connections:', result);
+          }
         } catch (error) {
           // Ignore monitoring errors
         }
