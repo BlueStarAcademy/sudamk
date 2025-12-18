@@ -36,9 +36,12 @@ COPY --from=deps /app/packages ./packages
 # Copy all source code
 COPY . .
 
+# Install Prisma CLI globally for Prisma Client generation
+RUN npm install -g prisma@^6.19.0
+
 # Generate Prisma Client (packages/database 디렉토리에서 실행)
 WORKDIR /app/packages/database
-RUN pnpm prisma:generate
+RUN prisma generate --schema ./schema.prisma
 
 # Return to app root
 WORKDIR /app
