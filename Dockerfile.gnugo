@@ -1,0 +1,55 @@
+# syntax=docker/dockerfile:1.6
+# GNU Go 서비스용 Dockerfile
+# Railway 배포용 - apps/gnugo 디렉토리 기준
+
+FROM node:20-alpine AS base
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Install build dependencies and GNU Go
+RUN apk add --no-cache python3 make g++ gnugo
+
+FROM base AS deps
+# Install GNU Go service dependencies
+RUN npm config set update-notifier false
+WORKDIR /app
+COPY apps/gnugo/package.json ./package.json
+RUN npm install --omit=dev
+
+FROM base AS build-deps
+# Install all dependencies including dev for tsx
+ENV NODE_ENV=development
+WORKDIR /app
+COPY apps/gnugo/package.json ./package.json
+RUN npm install
+
+FROM build-deps AS build
+# Copy GNU Go service source code
+WORKDIR /app
+COPY apps/gnugo/src ./src
+COPY apps/gnugo/package.json ./package.json
+COPY apps/gnugo/tsconfig.json ./tsconfig.json
+COPY tsconfig.json ./tsconfig.json
+
+FROM base AS runner
+WORKDIR /app
+
+# Copy built application
+COPY --from=build /app/src ./src
+COPY --from=build /app/package.json ./package.json
+COPY --from=deps /app/node_modules ./node_modules
+
+# GNU Go는 시스템에 설치되어 있음 (apk add gnugo)
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+EXPOSE 4002
+
+ENV PORT=4002
+
+CMD ["node", "node_modules/tsx/dist/cli.mjs", "--tsconfig", "tsconfig.json", "src/gnugoServer.ts"]
+

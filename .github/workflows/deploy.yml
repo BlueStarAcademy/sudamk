@@ -1,0 +1,49 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.10.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+      
+      - name: Build
+        run: pnpm build
+      
+      - name: Deploy to Railway
+        if: env.RAILWAY_TOKEN != ''
+        run: |
+          echo "✅ Build completed successfully"
+          echo "📦 Railway will automatically deploy from GitHub"
+          echo "🔗 Check Railway dashboard for deployment status"
+          # Note: Railway automatically deploys when connected to GitHub
+          # Manual deployment via CLI is optional:
+          # npm install -g @railway/cli
+          # railway login
+          # railway up --service backend
+          # railway up --service frontend
+
