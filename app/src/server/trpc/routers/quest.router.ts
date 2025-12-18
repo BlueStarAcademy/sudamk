@@ -3,10 +3,10 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
+import { router, protectedProcedure } from '../router';
 import { getPrismaClient } from '@sudam/database';
-import { userRepository } from '../../repositories/index.js';
-import { AppError, handleUnknownError } from '../../utils/errors.js';
+import { userRepository } from '../../repositories/index';
+import { AppError, handleUnknownError } from '../../utils/errors';
 
 const prisma = getPrismaClient();
 

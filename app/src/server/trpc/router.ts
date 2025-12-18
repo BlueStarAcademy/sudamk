@@ -4,7 +4,7 @@
 
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
-import type { Context } from './context.js';
+import type { Context } from './context';
 
 // Initialize tRPC with context
 const t = initTRPC.context<Context>().create({
@@ -43,14 +43,14 @@ export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 });
 
 // Import routers
-import { userRouter } from './routers/user.router.js';
-import { gameRouter } from './routers/game.router.js';
-import { inventoryRouter } from './routers/inventory.router.js';
-import { guildRouter } from './routers/guild.router.js';
-import { gameActionRouter } from './routers/game-action.router.js';
-import { shopRouter } from './routers/shop.router.js';
-import { questRouter } from './routers/quest.router.js';
-import { adminRouter } from './routers/admin.router.js';
+import { userRouter } from './routers/user.router';
+import { gameRouter } from './routers/game.router';
+import { inventoryRouter } from './routers/inventory.router';
+import { guildRouter } from './routers/guild.router';
+import { gameActionRouter } from './routers/game-action.router';
+import { shopRouter } from './routers/shop.router';
+import { questRouter } from './routers/quest.router';
+import { adminRouter } from './routers/admin.router';
 
 // Main app router
 export const appRouter = router({

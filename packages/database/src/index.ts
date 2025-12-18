@@ -1,5 +1,5 @@
 // Database package exports
-export { getPrismaClient, disconnectPrisma } from './client.js';
+export { getPrismaClient, disconnectPrisma } from './client';
 export type { PrismaClient } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 export type { Prisma };

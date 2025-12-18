@@ -5,10 +5,10 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
-import { gameRepository } from '../../repositories/index.js';
-import { StandardGameMode } from '../../game/modes/index.js';
-import { AppError, handleUnknownError } from '../../utils/errors.js';
+import { router, protectedProcedure } from '../router';
+import { gameRepository } from '../../repositories/index';
+import { StandardGameMode } from '../../game/modes/index';
+import { AppError, handleUnknownError } from '../../utils/errors';
 
 export const gameActionRouter = router({
   // Make a move

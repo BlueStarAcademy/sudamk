@@ -4,7 +4,7 @@
  * 각 게임은 독립적인 세션으로 관리됨 (gameId로 격리)
  */
 
-import { gameRepository } from '../repositories/index.js';
+import { gameRepository } from '../repositories/index';
 // WebSocket은 나중에 구현
 // import { broadcastToGame } from '../websocket/server.js';
 

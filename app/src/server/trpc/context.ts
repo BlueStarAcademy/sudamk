@@ -2,8 +2,8 @@
  * tRPC context creation for Next.js
  */
 
-import { extractTokenFromHeader, verifyToken } from '../auth/jwt.js';
-import { userRepository } from '../repositories/index.js';
+import { extractTokenFromHeader, verifyToken } from '../auth/jwt';
+import { userRepository } from '../repositories/index';
 
 export interface Context {
   user?: {

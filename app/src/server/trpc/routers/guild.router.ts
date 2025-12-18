@@ -3,9 +3,9 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
-import { guildRepository } from '../../repositories/index.js';
-import { AppError, handleUnknownError } from '../../utils/errors.js';
+import { router, protectedProcedure } from '../router';
+import { guildRepository } from '../../repositories/index';
+import { AppError, handleUnknownError } from '../../utils/errors';
 
 export const guildRouter = router({
   // Get guild by ID

@@ -5,7 +5,7 @@
 
 import type { LiveGame } from '@sudam/database';
 import { processMove, type Move, type BoardState } from '@sudam/game-logic';
-import { gameStateManager } from '../game-state-manager.js';
+import { gameStateManager } from '../game-state-manager';
 
 export interface StandardGameData {
   boardState: BoardState;

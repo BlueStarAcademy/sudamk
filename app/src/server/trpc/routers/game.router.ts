@@ -4,9 +4,9 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
-import { gameRepository } from '../../repositories/index.js';
-import { AppError, handleUnknownError } from '../../utils/errors.js';
+import { router, protectedProcedure } from '../router';
+import { gameRepository } from '../../repositories/index';
+import { AppError, handleUnknownError } from '../../utils/errors';
 
 export const gameRouter = router({
   // Get active games

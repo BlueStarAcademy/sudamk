@@ -3,11 +3,11 @@
  */
 
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../router.js';
-import { userRepository, credentialRepository } from '../../repositories/index.js';
-import { hashPassword, verifyPassword } from '../../auth/password.js';
-import { generateToken } from '../../auth/jwt.js';
-import { AppError, handleUnknownError } from '../../utils/errors.js';
+import { router, publicProcedure, protectedProcedure } from '../router';
+import { userRepository, credentialRepository } from '../../repositories/index';
+import { hashPassword, verifyPassword } from '../../auth/password';
+import { generateToken } from '../../auth/jwt';
+import { AppError, handleUnknownError } from '../../utils/errors';
 
 export const userRouter = router({
   // Register

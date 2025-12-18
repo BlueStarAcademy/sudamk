@@ -3,7 +3,7 @@
  * 모든 게임 모드 지원
  */
 
-export { StandardGameMode, type StandardGameData } from './standard.js';
+export { StandardGameMode, type StandardGameData } from './standard';
 
 // TODO: Export other game modes as they are implemented
 // export { BaseGameMode } from './base.js';

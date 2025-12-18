@@ -4,10 +4,10 @@
  */
 
 import { z } from 'zod';
-import { router, adminProcedure } from '../router.js';
-import { userRepository, gameRepository } from '../../repositories/index.js';
+import { router, adminProcedure } from '../router';
+import { userRepository, gameRepository } from '../../repositories/index';
 import { getPrismaClient } from '@sudam/database';
-import { AppError, handleUnknownError } from '../../utils/errors.js';
+import { AppError, handleUnknownError } from '../../utils/errors';
 
 const prisma = getPrismaClient();
 

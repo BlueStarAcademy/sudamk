@@ -3,9 +3,9 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
-import { inventoryRepository } from '../../repositories/index.js';
-import { AppError, handleUnknownError } from '../../utils/errors.js';
+import { router, protectedProcedure } from '../router';
+import { inventoryRepository } from '../../repositories/index';
+import { AppError, handleUnknownError } from '../../utils/errors';
 
 export const inventoryRouter = router({
   // Get user inventory
