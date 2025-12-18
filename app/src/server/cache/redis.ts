@@ -19,6 +19,7 @@ export async function initRedis(): Promise<void> {
 
   try {
     // Dynamic import to avoid errors if redis is not installed
+    // @ts-expect-error - redis is optional dependency
     const { createClient } = await import('redis');
     redisClient = createClient({ url: REDIS_URL });
     
