@@ -23,7 +23,8 @@ COPY packages/*/package.json ./packages/*/
 RUN npm install -g pnpm@8.10.0
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+# pnpm-lock.yaml이 없을 수 있으므로 --no-frozen-lockfile 사용
+RUN pnpm install --no-frozen-lockfile
 
 FROM base AS build
 WORKDIR /app
