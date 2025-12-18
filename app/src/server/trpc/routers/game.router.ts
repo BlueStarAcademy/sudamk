@@ -61,7 +61,7 @@ export const gameRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         // Import game mode initializer
-        const { StandardGameMode } = await import('../../game/modes/index.js');
+        const { StandardGameMode } = await import('../../game/modes/index');
         
         // Initialize game data based on mode
         let gameData: any;
