@@ -6,45 +6,47 @@ FROM node:20-alpine AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
+# Install build dependencies and pnpm globally
+RUN apk add --no-cache python3 make g++ && \
+    npm install -g pnpm@8.10.0
 
 FROM base AS deps
-# Install dependencies
-RUN npm config set update-notifier false
 WORKDIR /app
 
-# Copy package files
+# Copy workspace configuration files
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
+
+# Copy package.json files for all workspaces
 COPY app/package.json ./app/
-# Copy packages directory structure (package.json files for workspace resolution)
-COPY packages/ ./packages/
+COPY packages/database/package.json ./packages/database/
+COPY packages/game-logic/package.json ./packages/game-logic/
+COPY packages/shared/package.json ./packages/shared/
 
-# Install pnpm
-RUN npm install -g pnpm@8.10.0
-
-# Install dependencies
-# pnpm-lock.yaml이 없을 수 있으므로 --no-frozen-lockfile 사용
+# Install dependencies (--no-frozen-lockfile for Railway)
 RUN pnpm install --no-frozen-lockfile
 
 FROM base AS build
 WORKDIR /app
 
-# Copy dependencies
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/app/node_modules ./app/node_modules
 COPY --from=deps /app/packages ./packages
 
-# Copy source code
+# Copy all source code
 COPY . .
 
-# Generate Prisma Client
-RUN pnpm --filter @sudam/database prisma:generate
+# Generate Prisma Client (packages/database 디렉토리에서 실행)
+WORKDIR /app/packages/database
+RUN pnpm prisma:generate
 
-# Build packages
+# Return to app root
+WORKDIR /app
+
+# Build packages in correct order
+RUN pnpm --filter @sudam/shared build
 RUN pnpm --filter @sudam/database build
 RUN pnpm --filter @sudam/game-logic build
-RUN pnpm --filter @sudam/shared build
 
 # Build Next.js app
 RUN pnpm --filter @sudam/app build
@@ -56,16 +58,19 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
-# Copy built application
+# Copy built application from build stage
 COPY --from=build /app/app/.next/standalone ./
 COPY --from=build /app/app/.next/static ./app/.next/static
 COPY --from=build /app/app/public ./app/public
 
-# Copy packages
+# Copy built packages
 COPY --from=build /app/packages ./packages
+
+# Copy node_modules (Prisma Client 포함)
+COPY --from=build /app/node_modules ./node_modules
 
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app
@@ -78,4 +83,3 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "app/server.js"]
-
