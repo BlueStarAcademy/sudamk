@@ -21,7 +21,10 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@sudam/database": ["../packages/database/src"],
+      "@sudam/game-logic": ["../packages/game-logic/src"],
+      "@sudam/shared": ["../packages/shared/src"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

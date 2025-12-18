@@ -51,10 +51,13 @@ WORKDIR /app
 
 # Build packages in correct order
 # @sudam/shared는 build 스크립트가 없으므로 건너뜀
+# Note: Next.js는 webpack alias를 통해 소스 파일을 직접 사용하므로
+# 패키지를 빌드할 필요는 없지만, 타입 체크를 위해 빌드함
 RUN pnpm --filter @sudam/database build
 RUN pnpm --filter @sudam/game-logic build
 
 # Build Next.js app
+# Next.js는 webpack alias를 통해 packages/*/src를 직접 참조함
 RUN pnpm --filter @sudam/app build
 
 FROM base AS runner
