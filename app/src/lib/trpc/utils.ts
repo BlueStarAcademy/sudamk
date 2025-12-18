@@ -1,13 +1,17 @@
 /**
- * tRPC utilities
+ * tRPC utilities for Next.js 14 App Router
  */
 
 import { httpBatchLink } from '@trpc/client';
-import { createTRPCNext } from '@trpc/next';
+import { createTRPCReact } from '@trpc/react-query';
 import type { AppRouter } from '@/server/trpc/router';
 import superjson from 'superjson';
 
-function getBaseUrl() {
+// Create tRPC React hooks
+export const trpc = createTRPCReact<AppRouter>();
+
+// Helper function to get base URL
+export function getBaseUrl() {
   if (typeof window !== 'undefined') {
     // Browser should use relative path
     return '';
@@ -22,23 +26,21 @@ function getBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL || `http://localhost:3000`;
 }
 
-export const trpc = createTRPCNext<AppRouter>({
-  config() {
-    return {
-      transformer: superjson,
-      links: [
-        httpBatchLink({
-          url: `${getBaseUrl()}/api/trpc`,
-          // Optional: Add headers for authentication
-          headers() {
-            if (typeof window === 'undefined') return {};
-            const token = localStorage.getItem('sudam_token');
-            return token ? { authorization: `Bearer ${token}` } : {};
-          },
-        }),
-      ],
-    };
-  },
-  ssr: false, // Disable SSR for now, can enable later
-});
+// Create tRPC client configuration
+export function getTRPCClientConfig() {
+  return {
+    transformer: superjson,
+    links: [
+      httpBatchLink({
+        url: `${getBaseUrl()}/api/trpc`,
+        // Optional: Add headers for authentication
+        headers() {
+          if (typeof window === 'undefined') return {};
+          const token = localStorage.getItem('sudam_token');
+          return token ? { authorization: `Bearer ${token}` } : {};
+        },
+      }),
+    ],
+  };
+}
 
