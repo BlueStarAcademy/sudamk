@@ -2,12 +2,15 @@
 # GNU Go 서비스용 Dockerfile
 # Railway 배포용 - apps/gnugo 디렉토리 기준
 
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
 # Install build dependencies and GNU Go
-RUN apk add --no-cache python3 make g++ gnugo
+# Debian/Ubuntu 기반 이미지 사용 (Alpine에는 gnugo 패키지가 없음)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 make g++ gnugo && \
+    rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 # Install GNU Go service dependencies
@@ -39,11 +42,11 @@ COPY --from=build /app/src ./src
 COPY --from=build /app/package.json ./package.json
 COPY --from=deps /app/node_modules ./node_modules
 
-# GNU Go는 시스템에 설치되어 있음 (apk add gnugo)
+# GNU Go는 시스템에 설치되어 있음 (apt-get install gnugo)
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN groupadd -r -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs nodejs
 RUN chown -R nodejs:nodejs /app
 USER nodejs
 
