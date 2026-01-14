@@ -7,7 +7,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Install build dependencies
-RUN apk add --no-cache python3 make g++ wget unzip
+RUN apk add --no-cache python3 make g++ wget curl unzip
 
 FROM base AS deps
 # Install KataGo service dependencies
@@ -51,11 +51,18 @@ RUN echo "=== Starting KataGo download ===" && \
     chmod +x /app/katago/katago && \
     echo "[4/4] Downloading KataGo model..." && \
     cd /app/katago && \
-    (wget --progress=dot:giga --no-check-certificate --timeout=300 --tries=2 --read-timeout=300 --dns-timeout=20 --connect-timeout=120 \
-        https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
+    (wget --progress=dot:giga --no-check-certificate --timeout=300 --tries=3 --read-timeout=300 --dns-timeout=20 --connect-timeout=120 \
+        --user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+        --header="Accept: */*" \
+        https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz -O kata1-b28c512nbt-s9853922560-d5031756885.bin.gz || \
+     curl -L --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36" \
+        --max-time 300 --retry 3 --retry-delay 5 \
+        --fail --silent --show-error \
+        https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz \
+        -o kata1-b28c512nbt-s9853922560-d5031756885.bin.gz) && \
     test -f kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
-    echo "=== KataGo binary and model installation complete ===" || \
-    echo "WARNING: KataGo model download failed.") && \
+    test -s kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
+    echo "=== KataGo binary and model installation complete ===" && \
     rm -rf /tmp/katago.zip /tmp/katago_extract) || \
     (echo "ERROR: KataGo binary download failed." && exit 1)
 

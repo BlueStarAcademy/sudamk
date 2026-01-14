@@ -23,7 +23,7 @@ COPY packages/*/package.json ./packages/*/
 RUN npm install -g pnpm@8.10.0
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 FROM base AS build
 WORKDIR /app
