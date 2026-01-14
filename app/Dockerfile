@@ -24,8 +24,10 @@ COPY packages/shared/package.json ./packages/shared/
 # Install pnpm
 RUN npm install -g pnpm@8.10.0
 
-# Install dependencies
+# Install dependencies including devDependencies (TypeScript 등 빌드에 필요)
+ENV NODE_ENV=development
 RUN pnpm install --no-frozen-lockfile
+ENV NODE_ENV=production
 
 FROM base AS build
 WORKDIR /app
