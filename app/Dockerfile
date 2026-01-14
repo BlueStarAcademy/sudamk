@@ -30,6 +30,9 @@ RUN pnpm install --no-frozen-lockfile
 FROM base AS build
 WORKDIR /app
 
+# Install pnpm (needed for build commands)
+RUN npm install -g pnpm@8.10.0
+
 # Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/app/node_modules ./app/node_modules

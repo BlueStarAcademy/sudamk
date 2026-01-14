@@ -103,8 +103,10 @@ RUN mkdir -p ./src/katago_home
 # Copy KataGo binary and model
 RUN mkdir -p ./katago
 COPY --from=build /app/katago/katago ./katago/katago
-COPY --from=build /app/katago/*.bin.gz ./katago/
-RUN chmod +x ./katago/katago || true
+COPY --from=build /app/katago/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz ./katago/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz
+RUN chmod +x ./katago/katago || true && \
+    test -f ./katago/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
+    echo "✓ KataGo model file copied successfully"
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
