@@ -42,6 +42,26 @@ COPY --from=build /app/src ./src
 COPY --from=build /app/package.json ./package.json
 COPY --from=deps /app/node_modules ./node_modules
 
+# Copy tsx and its dependencies from build stage (needed to run TypeScript files)
+RUN mkdir -p ./node_modules/.bin
+COPY --from=build /app/node_modules/tsx ./node_modules/tsx
+COPY --from=build /app/node_modules/esbuild ./node_modules/esbuild
+RUN mkdir -p ./node_modules/@esbuild
+COPY --from=build /app/node_modules/@esbuild ./node_modules/@esbuild
+COPY --from=build /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
+COPY --from=build /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
+RUN for pkg in @swc/core @swc/helpers; do \
+      if [ -d "/app/node_modules/$pkg" ]; then \
+        mkdir -p "./node_modules/$(dirname $pkg)" && \
+        cp -r "/app/node_modules/$pkg" "./node_modules/$(dirname $pkg)/"; \
+      fi; \
+    done
+# Ensure tsx is executable
+RUN chmod +x ./node_modules/tsx/dist/cli.mjs || true
+
+# Copy tsconfig.json
+COPY --from=build /app/tsconfig.json ./tsconfig.json
+
 # GNU Go는 시스템에 설치되어 있음 (apt-get install gnugo)
 
 # Create non-root user

@@ -17,7 +17,9 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
 COPY app/package.json ./app/
-COPY packages/*/package.json ./packages/*/
+COPY packages/database/package.json ./packages/database/
+COPY packages/game-logic/package.json ./packages/game-logic/
+COPY packages/shared/package.json ./packages/shared/
 
 # Install pnpm
 RUN npm install -g pnpm@8.10.0
