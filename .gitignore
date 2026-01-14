@@ -33,6 +33,12 @@ database_*.sqlite
 *.sqlite-journal
 *.sqlite.backup
 *.sqlite.broken
+database*.backup*
+
+# Backup files
+*.backup
+*.bak
+*.tmp
 
 # Environment files
 .env

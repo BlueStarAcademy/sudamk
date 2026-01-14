@@ -10,6 +10,7 @@ import * as types from '../types/index.js';
 import * as summaryService from './summaryService.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import * as db from './db.js';
+import { generateGnuGoMove, isGnuGoAvailable } from './gnugoService.js';
 
 /**
  * AI 봇 단계별 특성 정의
@@ -393,10 +394,67 @@ export async function makeGoAiBotMove(
         return;
     }
     
-    const profile = getGoAiBotProfile(aiLevel);
     const aiPlayerEnum = game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
+    
+    // GnuGo를 메인으로 사용, 실패 시 goAiBot으로 fallback
+    let selectedMove: Point;
+    let useGnuGoMove = false;
+    
+    try {
+        if (isGnuGoAvailable()) {
+            // AI가 볼 수 있는 보드 상태 (유저의 히든 돌 제거)
+            const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
+            
+            // GnuGo에 필요한 플레이어 문자열 변환 (Player.Black = 1, Player.White = 2)
+            const playerString = aiPlayerEnum === types.Player.Black ? 'black' : 'white';
+            
+            // GnuGo로 수 생성 시도
+            const gnuGoMove = await generateGnuGoMove({
+                boardState: aiBoardState,
+                boardSize: game.settings.boardSize,
+                player: playerString,
+                moveHistory: game.moveHistory || []
+            });
+            
+            // GnuGo가 생성한 수가 유효한지 확인
+            const { processMove } = await import('./goLogic.js');
+            const moveResult = processMove(
+                game.boardState,
+                { ...gnuGoMove, player: aiPlayerEnum },
+                game.koInfo,
+                game.moveHistory.length,
+                {
+                    ignoreSuicide: false,
+                    isSinglePlayer: game.isSinglePlayer || game.gameCategory === 'tower',
+                    opponentPlayer: (game.isSinglePlayer || game.gameCategory === 'tower') ? opponentPlayerEnum : undefined
+                }
+            );
+            
+            if (moveResult.isValid) {
+                // GnuGo 수가 유효하면 사용
+                console.log(`[GnuGo] Successfully generated move: (${gnuGoMove.x}, ${gnuGoMove.y})`);
+                selectedMove = gnuGoMove;
+                useGnuGoMove = true;
+            } else {
+                console.warn(`[GnuGo] Generated invalid move: (${gnuGoMove.x}, ${gnuGoMove.y}), falling back to goAiBot`);
+                throw new Error('GnuGo generated invalid move');
+            }
+        } else {
+            console.log('[GnuGo] Not available, using goAiBot');
+            throw new Error('GnuGo not available');
+        }
+    } catch (error: any) {
+        // GnuGo 실패 시 기존 로직으로 fallback
+        console.log(`[GoAiBot] Falling back to goAiBot: ${error.message}`);
+        // fallthrough to existing logic
+    }
+    
+    // GnuGo 수를 사용하지 않는 경우에만 goAiBot 로직 실행
+    if (!useGnuGoMove) {
+        // 기존 goAiBot 로직 (fallback 또는 GnuGo를 사용하지 않는 경우)
+        const profile = getGoAiBotProfile(aiLevel);
     
     // AI가 볼 수 있는 보드 상태 (유저의 히든 돌 제거)
     const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
@@ -455,7 +513,6 @@ export async function makeGoAiBotMove(
     }
 
     // 3. 실수 확률 적용
-    let selectedMove: Point;
     if (Math.random() < profile.mistakeRate && scoredMoves.length > 1) {
         // 실수를 할 경우
         const mistakeChance = Math.random();
