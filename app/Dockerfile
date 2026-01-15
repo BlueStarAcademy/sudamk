@@ -46,6 +46,9 @@ COPY --from=deps /app/packages ./packages
 # Copy source code
 COPY . .
 
+# Ensure public directory exists for standalone copy step
+RUN mkdir -p /app/app/public
+
 # Generate Prisma Client
 RUN pnpm --filter @sudam/database prisma:generate
 
