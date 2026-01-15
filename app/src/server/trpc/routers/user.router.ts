@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../router';
+import { router, publicProcedure, protectedProcedure } from '../core';
 import { userRepository, credentialRepository } from '../../repositories/index';
 import { hashPassword, verifyPassword } from '../../auth/password';
 import { generateToken } from '../../auth/jwt';

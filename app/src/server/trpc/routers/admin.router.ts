@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { router, adminProcedure } from '../router';
+import { router, adminProcedure } from '../core';
 import { userRepository, gameRepository } from '../../repositories/index';
 import { getPrismaClient } from '@sudam/database';
 import { AppError, handleUnknownError } from '../../utils/errors';

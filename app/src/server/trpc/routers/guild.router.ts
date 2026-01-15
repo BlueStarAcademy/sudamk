@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router';
+import { router, protectedProcedure } from '../core';
 import { guildRepository } from '../../repositories/index';
 import { AppError, handleUnknownError } from '../../utils/errors';
 

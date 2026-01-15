@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router';
+import { router, protectedProcedure } from '../core';
 import { gameRepository } from '../../repositories/index';
 import { StandardGameMode } from '../../game/modes/index';
 import { AppError, handleUnknownError } from '../../utils/errors';
