@@ -19,10 +19,24 @@ const isLinux = process.platform === 'linux';
 
 // GNU Go 경로 설정
 const defaultGnugoPath = isLinux
-  ? '/usr/bin/gnugo' // Linux: 시스템에 설치된 GNU Go
+  ? '/usr/games/gnugo' // Debian/Ubuntu 기본 경로
   : path.resolve(PROJECT_ROOT, 'gnugo/gnugo.exe'); // Windows
 
 const GNUGO_PATH = process.env.GNUGO_PATH || defaultGnugoPath;
+const GNUGO_PATHS_TO_TRY = [
+  ...(process.env.GNUGO_PATH ? [process.env.GNUGO_PATH] : []),
+  '/usr/games/gnugo',
+  '/usr/bin/gnugo',
+];
+
+const resolveGnugoPath = (): string => {
+  for (const candidate of GNUGO_PATHS_TO_TRY) {
+    if (candidate && fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return GNUGO_PATH;
+};
 
 // GNU Go 레벨 범위: 1-10 (GNU Go 기본 지원 범위)
 const MIN_LEVEL = 1;
@@ -139,7 +153,8 @@ class GnugoProcessPool {
   private async createProcess(): Promise<ChildProcess | null> {
     try {
       // GNU Go는 GTP 프로토콜을 사용
-      const gnugo = spawn(GNUGO_PATH, [
+      const gnugoBinary = resolveGnugoPath();
+      const gnugo = spawn(gnugoBinary, [
         '--mode', 'gtp',
         '--level', GNUGO_LEVEL.toString(),
       ]);
@@ -184,11 +199,12 @@ class GnugoService {
 
     try {
       // GNU Go 바이너리 확인
-      if (!fs.existsSync(GNUGO_PATH)) {
-        console.warn(`[GNU Go] Binary not found at ${GNUGO_PATH}. GNU Go may not be available.`);
+      const gnugoBinary = resolveGnugoPath();
+      if (!fs.existsSync(gnugoBinary)) {
+        console.warn(`[GNU Go] Binary not found at ${gnugoBinary}. GNU Go may not be available.`);
         console.warn('[GNU Go] Install GNU Go: apt-get install gnugo (Linux) or download from source');
       } else {
-        console.log(`[GNU Go] Binary found at ${GNUGO_PATH}`);
+        console.log(`[GNU Go] Binary found at ${gnugoBinary}`);
       }
 
       this.isInitialized = true;
@@ -203,7 +219,8 @@ class GnugoService {
    * 서비스 준비 상태 확인
    */
   async isReady(): Promise<boolean> {
-    return this.isInitialized && fs.existsSync(GNUGO_PATH);
+    const gnugoBinary = resolveGnugoPath();
+    return this.isInitialized && fs.existsSync(gnugoBinary);
   }
 
   /**
@@ -328,8 +345,8 @@ class GnugoService {
       initialized: this.isInitialized,
       poolSize: this.pool['processes'].length,
       maxPoolSize: GNUGO_POOL_SIZE,
-      gnugoPath: GNUGO_PATH,
-      gnugoExists: fs.existsSync(GNUGO_PATH),
+      gnugoPath: resolveGnugoPath(),
+      gnugoExists: fs.existsSync(resolveGnugoPath()),
       level: {
         current: GNUGO_LEVEL,
         min: MIN_LEVEL,
