@@ -8,12 +8,12 @@ import { getPrismaClient } from '@sudam/database';
 import { userRepository } from '../../repositories/index';
 import { AppError, handleUnknownError } from '../../utils/errors';
 
-const prisma = getPrismaClient();
+const prisma = () => getPrismaClient();
 
 export const questRouter = router({
   // Get active quests
   getActive: protectedProcedure.query(async ({ ctx }) => {
-    const quests = await prisma.userQuest.findMany({
+    const quests = await prisma().userQuest.findMany({
       where: {
         userId: ctx.user.id,
         status: 'active',
@@ -36,7 +36,7 @@ export const questRouter = router({
 
   // Get completed quests
   getCompleted: protectedProcedure.query(async ({ ctx }) => {
-    const quests = await prisma.userQuest.findMany({
+    const quests = await prisma().userQuest.findMany({
       where: {
         userId: ctx.user.id,
         status: 'completed',
@@ -63,7 +63,7 @@ export const questRouter = router({
   // Get available quests
   getAvailable: protectedProcedure.query(async ({ ctx }) => {
     // Get quest templates that user hasn't accepted yet
-    const activeQuestTemplateIds = await prisma.userQuest.findMany({
+    const activeQuestTemplateIds = await prisma().userQuest.findMany({
       where: {
         userId: ctx.user.id,
         status: { in: ['active', 'completed'] },
@@ -73,7 +73,7 @@ export const questRouter = router({
 
     const templateIds = activeQuestTemplateIds.map((q) => q.templateId);
 
-    const templates = await prisma.questTemplate.findMany({
+    const templates = await prisma().questTemplate.findMany({
       where: {
         id: { notIn: templateIds },
         isActive: true,
@@ -101,7 +101,7 @@ export const questRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         // Check if quest template exists
-        const template = await prisma.questTemplate.findUnique({
+        const template = await prisma().questTemplate.findUnique({
           where: { id: input.questId },
         });
 
@@ -110,7 +110,7 @@ export const questRouter = router({
         }
 
         // Check if user already has this quest
-        const existingQuest = await prisma.userQuest.findFirst({
+        const existingQuest = await prisma().userQuest.findFirst({
           where: {
             userId: ctx.user.id,
             templateId: input.questId,
@@ -123,7 +123,7 @@ export const questRouter = router({
         }
 
         // Create quest
-        await prisma.userQuest.create({
+        await prisma().userQuest.create({
           data: {
             userId: ctx.user.id,
             templateId: input.questId,
@@ -147,7 +147,7 @@ export const questRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const quest = await prisma.userQuest.findUnique({
+        const quest = await prisma().userQuest.findUnique({
           where: { id: input.questId },
           include: { template: true },
         });
@@ -165,7 +165,7 @@ export const questRouter = router({
         }
 
         // Update quest status
-        await prisma.userQuest.update({
+        await prisma().userQuest.update({
           where: { id: input.questId },
           data: {
             status: 'completed',

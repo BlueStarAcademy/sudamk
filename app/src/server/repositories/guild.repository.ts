@@ -6,11 +6,11 @@
 import { getPrismaClient } from '@sudam/database';
 import type { Guild, GuildMember, GuildMessage } from '@sudam/database';
 
-const prisma = getPrismaClient();
+const prisma = () => getPrismaClient();
 
 export class GuildRepository {
   async findById(id: string): Promise<Guild | null> {
-    return prisma.guild.findUnique({
+    return prisma().guild.findUnique({
       where: { id },
       include: {
         leader: true,
@@ -26,19 +26,19 @@ export class GuildRepository {
   }
 
   async findByName(name: string): Promise<Guild | null> {
-    return prisma.guild.findUnique({
+    return prisma().guild.findUnique({
       where: { name },
     });
   }
 
   async findByLeaderId(leaderId: string): Promise<Guild | null> {
-    return prisma.guild.findUnique({
+    return prisma().guild.findUnique({
       where: { leaderId },
     });
   }
 
   async findByMemberId(userId: string): Promise<Guild | null> {
-    const member = await prisma.guildMember.findFirst({
+    const member = await prisma().guildMember.findFirst({
       where: { userId },
       include: {
         guild: {
@@ -63,26 +63,26 @@ export class GuildRepository {
     emblem?: string;
     settings?: any;
   }): Promise<Guild> {
-    return prisma.guild.create({
+    return prisma().guild.create({
       data,
     });
   }
 
   async update(id: string, data: Partial<Guild>): Promise<Guild> {
-    return prisma.guild.update({
+    return prisma().guild.update({
       where: { id },
       data,
     });
   }
 
   async delete(id: string): Promise<void> {
-    await prisma.guild.delete({
+    await prisma().guild.delete({
       where: { id },
     });
   }
 
   async addMember(guildId: string, userId: string, role?: string): Promise<GuildMember> {
-    return prisma.guildMember.create({
+    return prisma().guildMember.create({
       data: {
         guildId,
         userId,
@@ -92,7 +92,7 @@ export class GuildRepository {
   }
 
   async removeMember(guildId: string, userId: string): Promise<void> {
-    await prisma.guildMember.delete({
+    await prisma().guildMember.delete({
       where: {
         guildId_userId: { guildId, userId },
       },
@@ -100,7 +100,7 @@ export class GuildRepository {
   }
 
   async updateMemberRole(guildId: string, userId: string, role: string): Promise<GuildMember> {
-    return prisma.guildMember.update({
+    return prisma().guildMember.update({
       where: {
         guildId_userId: { guildId, userId },
       },
@@ -109,7 +109,7 @@ export class GuildRepository {
   }
 
   async addMessage(guildId: string, authorId: string, content: string): Promise<GuildMessage> {
-    return prisma.guildMessage.create({
+    return prisma().guildMessage.create({
       data: {
         guildId,
         authorId,
@@ -119,7 +119,7 @@ export class GuildRepository {
   }
 
   async getMessages(guildId: string, limit = 50): Promise<GuildMessage[]> {
-    return prisma.guildMessage.findMany({
+    return prisma().guildMessage.findMany({
       where: { guildId },
       take: limit,
       orderBy: { createdAt: 'desc' },

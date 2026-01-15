@@ -6,7 +6,7 @@
 import { getPrismaClient } from '@sudam/database';
 import type { User } from '@sudam/database';
 
-const prisma = getPrismaClient();
+const prisma = () => getPrismaClient();
 
 export class UserRepository {
   /**
@@ -28,20 +28,20 @@ export class UserRepository {
     if (options?.includeQuests) include.quests = true;
     if (options?.includeMissions) include.missions = true;
 
-    return prisma.user.findUnique({
+    return prisma().user.findUnique({
       where: { id },
       ...(Object.keys(include).length > 0 ? { include } : {}),
     });
   }
 
   async findByNickname(nickname: string): Promise<User | null> {
-    return prisma.user.findUnique({
+    return prisma().user.findUnique({
       where: { nickname },
     });
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return prisma.user.findUnique({
+    return prisma().user.findUnique({
       where: { email },
     });
   }
@@ -53,20 +53,20 @@ export class UserRepository {
     email?: string;
     isAdmin?: boolean;
   }): Promise<User> {
-    return prisma.user.create({
+    return prisma().user.create({
       data,
     });
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {
-    return prisma.user.update({
+    return prisma().user.update({
       where: { id },
       data,
     });
   }
 
   async delete(id: string): Promise<void> {
-    await prisma.user.delete({
+    await prisma().user.delete({
       where: { id },
     });
   }
@@ -76,7 +76,7 @@ export class UserRepository {
     take?: number;
     orderBy?: { [key: string]: 'asc' | 'desc' };
   }): Promise<User[]> {
-    return prisma.user.findMany({
+    return prisma().user.findMany({
       skip: options?.skip,
       take: options?.take,
       orderBy: options?.orderBy,

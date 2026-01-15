@@ -6,11 +6,11 @@
 import { getPrismaClient } from '@sudam/database';
 import type { LiveGame } from '@sudam/database';
 
-const prisma = getPrismaClient();
+const prisma = () => getPrismaClient();
 
 export class GameRepository {
   async findById(id: string): Promise<LiveGame | null> {
-    return prisma.liveGame.findUnique({
+    return prisma().liveGame.findUnique({
       where: { id },
     });
   }
@@ -20,7 +20,7 @@ export class GameRepository {
    * 최적화: limit 추가 및 인덱스 활용
    */
   async findActive(limit: number = 50, skip: number = 0): Promise<LiveGame[]> {
-    return prisma.liveGame.findMany({
+    return prisma().liveGame.findMany({
       where: { isEnded: false },
       orderBy: { updatedAt: 'desc' },
       take: limit,
@@ -34,7 +34,7 @@ export class GameRepository {
     category?: string;
     data: any;
   }): Promise<LiveGame> {
-    return prisma.liveGame.create({
+    return prisma().liveGame.create({
       data: {
         ...data,
         isEnded: false,
@@ -43,20 +43,20 @@ export class GameRepository {
   }
 
   async update(id: string, data: Partial<LiveGame>): Promise<LiveGame> {
-    return prisma.liveGame.update({
+    return prisma().liveGame.update({
       where: { id },
       data,
     });
   }
 
   async delete(id: string): Promise<void> {
-    await prisma.liveGame.delete({
+    await prisma().liveGame.delete({
       where: { id },
     });
   }
 
   async markAsEnded(id: string): Promise<LiveGame> {
-    return prisma.liveGame.update({
+    return prisma().liveGame.update({
       where: { id },
       data: { isEnded: true },
     });

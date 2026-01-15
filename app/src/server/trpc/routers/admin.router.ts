@@ -9,7 +9,7 @@ import { userRepository, gameRepository } from '../../repositories/index';
 import { getPrismaClient } from '@sudam/database';
 import { AppError, handleUnknownError } from '../../utils/errors';
 
-const prisma = getPrismaClient();
+const prisma = () => getPrismaClient();
 
 export const adminRouter = router({
   // Get all users (with pagination and search)
@@ -33,7 +33,7 @@ export const adminRouter = router({
         : undefined;
 
       const [users, total] = await Promise.all([
-        prisma.user.findMany({
+        prisma().user.findMany({
           where,
           skip: input.skip,
           take: input.take,
@@ -53,7 +53,7 @@ export const adminRouter = router({
             createdAt: true,
           },
         }),
-        prisma.user.count({ where }),
+        prisma().user.count({ where }),
       ]);
 
       return {
@@ -133,13 +133,13 @@ export const adminRouter = router({
       const where = input.status ? { status: input.status } : undefined;
 
       const [games, total] = await Promise.all([
-        prisma.liveGame.findMany({
+        prisma().liveGame.findMany({
           where,
           skip: input.skip,
           take: input.take,
           orderBy: { createdAt: 'desc' },
         }),
-        prisma.liveGame.count({ where }),
+        prisma().liveGame.count({ where }),
       ]);
 
       return {
@@ -174,10 +174,10 @@ export const adminRouter = router({
   // Get system stats
   getSystemStats: adminProcedure.query(async () => {
     const [userCount, gameCount, activeGameCount, guildCount] = await Promise.all([
-      prisma.user.count(),
-      prisma.liveGame.count(),
-      prisma.liveGame.count({ where: { status: 'active' } }),
-      prisma.guild.count(),
+      prisma().user.count(),
+      prisma().liveGame.count(),
+      prisma().liveGame.count({ where: { status: 'active' } }),
+      prisma().guild.count(),
     ]);
 
     return {
