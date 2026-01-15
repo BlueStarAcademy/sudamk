@@ -349,7 +349,9 @@ class KataGoManager {
             // 모델 파일이 없으면 런타임에 다운로드 시도
             if (!foundModel) {
                 console.log('[KataGo] Model file not found locally, attempting to download...');
-                const modelUrl = 'https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz';
+                const modelUrl = process.env.KATAGO_MODEL_URL
+                    ? process.env.KATAGO_MODEL_URL.trim()
+                    : 'https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz';
                 const modelDir = path.resolve(PROJECT_ROOT, 'katago');
                 const modelPath = path.resolve(modelDir, 'kata1-b28c512nbt-s9853922560-d5031756885.bin.gz');
                 
@@ -359,21 +361,40 @@ class KataGoManager {
                 }
                 
                 // 모델 파일 다운로드 (Promise 내부에서 동기적으로 import 사용)
-                import('https').then((https) => {
-                    console.log(`[KataGo] Downloading model from ${modelUrl}...`);
+                const headers = {
+                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': '*/*',
+                };
+
+                const downloadWithRedirect = (url: string, redirects = 0) => {
+                    const client = url.startsWith('https://') ? https : http;
+                    console.log(`[KataGo] Downloading model from ${url}...`);
                     const writeStream = fs.createWriteStream(modelPath);
-                    
-                    https.get(modelUrl, (response) => {
-                        if (response.statusCode !== 200) {
+
+                    const request = client.get(url, { headers }, (response) => {
+                        const statusCode = response.statusCode ?? 0;
+                        const redirectLocation = response.headers.location;
+
+                        if ([301, 302, 303, 307, 308].includes(statusCode) && redirectLocation && redirects < 5) {
+                            response.resume();
                             writeStream.close();
-                            fs.unlinkSync(modelPath); // 실패한 파일 삭제
-                            const errorMsg = `[KataGo] Model file not found and download failed. Tried paths:\n${modelPathsToTry.map(p => `  - ${p}`).join('\n')}\n\nDownload error: HTTP ${response.statusCode}\n\nPlease set KATAGO_MODEL_PATH environment variable or place the model file in one of the expected locations.`;
+                            return downloadWithRedirect(redirectLocation, redirects + 1);
+                        }
+
+                        if (statusCode !== 200) {
+                            response.resume();
+                            writeStream.close();
+                            if (fs.existsSync(modelPath)) {
+                                fs.unlinkSync(modelPath);
+                            }
+                            const errorMsg = `[KataGo] Model file not found and download failed. Tried paths:\n${modelPathsToTry.map(p => `  - ${p}`).join('\n')}\n\nDownload error: HTTP ${statusCode}\n\nPlease set KATAGO_MODEL_PATH environment variable or place the model file in one of the expected locations.`;
                             console.error(errorMsg);
                             this.isStarting = false;
                             this.readyPromise = null;
                             reject(new Error(errorMsg));
                             return;
                         }
+
                         response.pipe(writeStream);
                         writeStream.on('finish', () => {
                             writeStream.close();
@@ -383,7 +404,9 @@ class KataGoManager {
                             // 다운로드 완료 후 KataGo 시작 계속
                             this.continueKataGoStart(actualKataGoPath, actualModelPath, resolve, reject);
                         });
-                    }).on('error', (err) => {
+                    });
+
+                    request.on('error', (err) => {
                         writeStream.close();
                         if (fs.existsSync(modelPath)) {
                             fs.unlinkSync(modelPath);
@@ -394,13 +417,9 @@ class KataGoManager {
                         this.readyPromise = null;
                         reject(new Error(errorMsg));
                     });
-                }).catch((importError: any) => {
-                    const errorMsg = `[KataGo] Failed to import https module: ${importError.message}`;
-                    console.error(errorMsg);
-                    this.isStarting = false;
-                    this.readyPromise = null;
-                    reject(new Error(errorMsg));
-                });
+                };
+
+                downloadWithRedirect(modelUrl);
                 return; // 다운로드가 완료될 때까지 대기
             }
             

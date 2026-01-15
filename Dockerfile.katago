@@ -69,6 +69,8 @@ RUN echo "=== Starting KataGo download ===" && \
 FROM base AS runner
 WORKDIR /app
 ENV PORT=4001
+ENV KATAGO_PATH=/app/katago/katago
+ENV KATAGO_MODEL_PATH=/app/katago/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz
 
 # Copy production dependencies
 COPY --from=deps /app/node_modules ./node_modules
