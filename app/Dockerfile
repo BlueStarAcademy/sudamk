@@ -70,12 +70,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Ensure runtime dependencies are available for standalone server.js
-COPY --from=deps /app/node_modules ./node_modules
-# Merge app-specific dependencies (e.g. next) into runtime node_modules
-COPY --from=deps /app/app/node_modules ./node_modules
 # Copy built application (standalone includes server.js and traced deps)
-COPY --from=build /app/app/.next/standalone ./
+COPY --from=build /app/app/.next/standalone ./app
 COPY --from=build /app/app/.next/static ./app/.next/static
 COPY --from=build /app/app/public ./app/public
 
@@ -92,5 +88,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["node", "app/server.js"]
 
