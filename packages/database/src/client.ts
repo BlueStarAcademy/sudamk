@@ -3,7 +3,9 @@
  * 1000명 동시 사용자 지원을 위한 연결 풀 최적화
  */
 
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+
+const { PrismaClient } = prismaPkg;
 
 // Prisma client singleton instance
 let prisma: PrismaClient | null = null;
