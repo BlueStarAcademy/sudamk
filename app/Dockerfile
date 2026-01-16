@@ -75,6 +75,10 @@ COPY --from=build /app/app/.next/standalone ./app
 COPY --from=build /app/app/.next/static ./app/.next/static
 COPY --from=build /app/app/public ./app/public
 
+# Ensure runtime dependencies exist under /app/app/node_modules (pnpm symlinks)
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/app/node_modules ./app/node_modules
+
 # Copy packages
 COPY --from=build /app/packages ./packages
 
