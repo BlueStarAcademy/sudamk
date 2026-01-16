@@ -26,7 +26,27 @@
 2. Root Directory 확인: `/` (프로젝트 루트)
 3. Railway가 `apps/katago/railway.json` 또는 루트의 `railway.json`을 자동 인식
 
-### 3단계: 환경 변수 설정 (2분)
+### 3단계: 모델 파일 준비 (1분)
+
+`katagotraining.org`는 일부 환경에서 403이 발생할 수 있으므로 **GitHub 릴리즈 미러를 사용**하세요.
+
+**Windows (PowerShell)**
+```
+curl -L -o apps/katago/katago/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz https://github.com/lightvector/KataGo/releases/download/v1.16.4/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz
+```
+
+**macOS/Linux**
+```
+mkdir -p apps/katago/katago
+curl -L -o apps/katago/katago/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz https://github.com/lightvector/KataGo/releases/download/v1.16.4/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz
+```
+
+모델 파일이 아래 위치에 있어야 합니다:
+```
+apps/katago/katago/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz
+```
+
+### 4단계: 환경 변수 설정 (2분)
 
 **Settings** → **Variables** 탭에서 추가:
 
@@ -44,7 +64,7 @@ ALLOWED_ORIGINS=<Backend 서비스 URL>
 
 **참고**: Dockerfile을 사용하면 `KATAGO_PATH`와 `KATAGO_MODEL_PATH`는 자동으로 설정됩니다.
 
-### 4단계: Backend 서비스에 KataGo URL 추가 (1분)
+### 5단계: Backend 서비스에 KataGo URL 추가 (1분)
 
 **Backend 서비스** → **Settings** → **Variables**:
 
@@ -56,7 +76,7 @@ KATAGO_API_URL=<KataGo 서비스 URL>
 - KataGo 서비스 → Settings → Networking → Public Domain
 - 예: `https://katago.up.railway.app`
 
-### 5단계: 배포 확인
+### 6단계: 배포 확인
 
 1. KataGo 서비스 배포 시작 (자동)
 2. Health Check 확인:
