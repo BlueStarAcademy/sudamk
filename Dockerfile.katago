@@ -26,7 +26,6 @@ RUN npm install
 FROM build-deps AS build
 # Copy KataGo service source code
 WORKDIR /app
-ARG KATAGO_MODEL_URL="https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz"
 COPY apps/katago/src ./src
 COPY apps/katago/types ./types
 COPY apps/katago/package.json ./package.json
@@ -34,8 +33,8 @@ COPY apps/katago/tsconfig.json ./tsconfig.json
 # Copy root tsconfig.json for extends reference
 COPY tsconfig.json ./tsconfig.json
 RUN mkdir -p ../.. && cp tsconfig.json ../../tsconfig.json
-# Optional: include pre-downloaded model from repo if present
-COPY katago ./katago_repo
+# Include pre-downloaded kataGo binary/model from repo (apps/katago/katago)
+COPY apps/katago/katago ./katago_repo
 
 # Download KataGo Linux binary and model
 RUN echo "=== Starting KataGo download ===" && \
@@ -58,16 +57,8 @@ RUN echo "=== Starting KataGo download ===" && \
         echo "[4/4] Using pre-downloaded model from repo" && \
         cp /app/katago_repo/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz ./kata1-b28c512nbt-s9853922560-d5031756885.bin.gz; \
     else \
-        echo "[4/4] Downloading KataGo model from ${KATAGO_MODEL_URL}..." && \
-        (wget --progress=dot:giga --no-check-certificate --timeout=300 --tries=3 --read-timeout=300 --dns-timeout=20 --connect-timeout=120 \
-            --user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-            --header="Accept: */*" \
-            "${KATAGO_MODEL_URL}" -O kata1-b28c512nbt-s9853922560-d5031756885.bin.gz || \
-         curl -L --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36" \
-            --max-time 300 --retry 3 --retry-delay 5 \
-            --fail --silent --show-error \
-            "${KATAGO_MODEL_URL}" \
-            -o kata1-b28c512nbt-s9853922560-d5031756885.bin.gz); \
+        echo "ERROR: KataGo model not found in apps/katago/katago. Please add the model file to the repo." && \
+        exit 1; \
     fi && \
     test -f kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
     test -s kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
