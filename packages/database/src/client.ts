@@ -3,10 +3,11 @@
  * 1000명 동시 사용자 지원을 위한 연결 풀 최적화
  */
 
-import prismaPkg from '@prisma/client';
+import { createRequire } from 'module';
 import type { PrismaClient as PrismaClientType } from '@prisma/client';
 
-const { PrismaClient } = prismaPkg;
+const require = createRequire(import.meta.url);
+const { PrismaClient } = require('@prisma/client') as typeof import('@prisma/client');
 
 // Prisma client singleton instance
 let prisma: PrismaClientType | null = null;
