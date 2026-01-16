@@ -71,15 +71,16 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy built application from build stage
-COPY --from=build /app/app/.next/standalone ./
+COPY --from=build /app/app/.next/standalone ./app
 COPY --from=build /app/app/.next/static ./app/.next/static
 COPY --from=build /app/app/public ./app/public
 
 # Copy built packages
 COPY --from=build /app/packages ./packages
 
-# Copy node_modules (Prisma Client 포함)
+# Ensure runtime node_modules are present under /app/app (pnpm symlinks)
 COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/app/node_modules ./app/node_modules
 
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app
