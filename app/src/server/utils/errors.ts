@@ -142,6 +142,12 @@ export function handlePrismaError(error: unknown): TRPCError {
   // Check if it's a Prisma error by checking the constructor name
   if (error && typeof error === 'object' && 'code' in error) {
     const prismaError = error as any;
+    console.error('[Prisma] Error:', {
+      name: prismaError?.constructor?.name,
+      code: prismaError?.code,
+      message: prismaError?.message,
+      meta: prismaError?.meta,
+    });
     if (prismaError.code && prismaError.meta) {
       // It's a PrismaClientKnownRequestError
       switch (prismaError.code) {
@@ -153,6 +159,22 @@ export function handlePrismaError(error: unknown): TRPCError {
           ErrorCode.ALREADY_EXISTS,
           `${field} already exists`,
           { details: { field, target } }
+        );
+      
+      case 'P2021':
+        // Table does not exist
+        return createTRPCError(
+          ErrorCode.DATABASE_ERROR,
+          'Database schema is not initialized. Please run migrations.',
+          { cause: prismaError, details: { code: prismaError.code } }
+        );
+      
+      case 'P2024':
+        // Connection pool timeout
+        return createTRPCError(
+          ErrorCode.DATABASE_ERROR,
+          'Database connection timeout. Please try again.',
+          { cause: prismaError, details: { code: prismaError.code } }
         );
       
       case 'P2025':
@@ -216,6 +238,11 @@ export function handleUnknownError(error: unknown): TRPCError {
   }
 
   if (error instanceof Error) {
+    console.error('[tRPC] Unknown error:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    });
     return createTRPCError(
       ErrorCode.INTERNAL_SERVER_ERROR,
       error.message || 'An unexpected error occurred',
@@ -223,6 +250,7 @@ export function handleUnknownError(error: unknown): TRPCError {
     );
   }
 
+  console.error('[tRPC] Unknown non-error thrown:', error);
   return createTRPCError(
     ErrorCode.INTERNAL_SERVER_ERROR,
     'An unexpected error occurred',
