@@ -4,17 +4,18 @@
  */
 
 import prismaPkg from '@prisma/client';
+import type { PrismaClient as PrismaClientType } from '@prisma/client';
 
 const { PrismaClient } = prismaPkg;
 
 // Prisma client singleton instance
-let prisma: PrismaClient | null = null;
+let prisma: PrismaClientType | null = null;
 
 /**
  * Get optimized Prisma client with connection pooling
  * Connection pool size: 최소 20, 최대 50 (1000명 동시 사용자 지원)
  */
-export function getPrismaClient(): PrismaClient {
+export function getPrismaClient(): PrismaClientType {
   if (!prisma) {
     // DATABASE_URL에서 연결 풀 파라미터 추출
     const databaseUrl = process.env.DATABASE_URL || '';
