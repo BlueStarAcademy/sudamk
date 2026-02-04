@@ -3,13 +3,13 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
+import { router, nicknameProcedure } from '../router.js';
 import { inventoryRepository } from '../../repositories/index.js';
 import { AppError, handleUnknownError } from '../../utils/errors.js';
 
 export const inventoryRouter = router({
   // Get user inventory
-  getMyInventory: protectedProcedure.query(async ({ ctx }) => {
+  getMyInventory: nicknameProcedure.query(async ({ ctx }) => {
     const items = await inventoryRepository.findByUserId(ctx.user.id);
     return items.map((item) => ({
       id: item.id,
@@ -26,7 +26,7 @@ export const inventoryRouter = router({
   }),
 
   // Get equipment
-  getMyEquipment: protectedProcedure.query(async ({ ctx }) => {
+  getMyEquipment: nicknameProcedure.query(async ({ ctx }) => {
     const equipment = await inventoryRepository.getEquipment(ctx.user.id);
     return equipment.map((eq) => ({
       slot: eq.slot,
@@ -44,7 +44,7 @@ export const inventoryRouter = router({
   }),
 
   // Equip item
-  equip: protectedProcedure
+  equip: nicknameProcedure
     .input(
       z.object({
         inventoryId: z.string(),
@@ -74,7 +74,7 @@ export const inventoryRouter = router({
     }),
 
   // Unequip item
-  unequip: protectedProcedure
+  unequip: nicknameProcedure
     .input(z.object({ slot: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await inventoryRepository.unequipItem(ctx.user.id, input.slot);
@@ -82,7 +82,7 @@ export const inventoryRouter = router({
     }),
 
   // Add item (admin only, or for testing)
-  addItem: protectedProcedure
+  addItem: nicknameProcedure
     .input(
       z.object({
         templateId: z.string(),

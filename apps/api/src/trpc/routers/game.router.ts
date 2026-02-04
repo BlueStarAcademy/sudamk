@@ -3,13 +3,13 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
+import { router, nicknameProcedure } from '../router.js';
 import { gameRepository } from '../../repositories/index.js';
 import { AppError, handleUnknownError } from '../../utils/errors.js';
 
 export const gameRouter = router({
   // Get active games
-  getActive: protectedProcedure.query(async () => {
+  getActive: nicknameProcedure.query(async () => {
     try {
       const games = await gameRepository.findActive();
       return games.map((game) => ({
@@ -25,7 +25,7 @@ export const gameRouter = router({
   }),
 
   // Get game by ID
-  getById: protectedProcedure
+  getById: nicknameProcedure
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input }) => {
       try {
@@ -48,7 +48,7 @@ export const gameRouter = router({
     }),
 
   // Create game
-  create: protectedProcedure
+  create: nicknameProcedure
     .input(
       z.object({
         mode: z.string().default('standard'),

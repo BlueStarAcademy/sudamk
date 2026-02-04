@@ -29,6 +29,17 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   });
 });
 
+// Nickname protected procedure (requires authentication + nickname set)
+export const nicknameProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (!ctx.user.nickname) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Nickname is required',
+    });
+  }
+  return next({ ctx });
+});
+
 // Admin procedure (requires admin role)
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (!ctx.user.isAdmin) {

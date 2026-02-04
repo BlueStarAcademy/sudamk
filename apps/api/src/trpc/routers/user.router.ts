@@ -8,6 +8,7 @@ import { userRepository, credentialRepository } from '../../repositories/index.j
 import { hashPassword, verifyPassword } from '../../auth/password.js';
 import { generateToken } from '../../auth/jwt.js';
 import { AppError, handleUnknownError } from '../../utils/errors.js';
+import { validateNickname } from '@sudam/shared';
 
 export const userRouter = router({
   // Register
@@ -16,25 +17,19 @@ export const userRouter = router({
       z.object({
         username: z.string().min(3).max(20),
         password: z.string().min(6),
-        nickname: z.string().min(2).max(20),
-        email: z.string().email().optional(),
       })
     )
     .mutation(async ({ input }) => {
       try {
-        // Check if username exists
-        const existingUser = await userRepository.findByNickname(input.nickname);
-        if (existingUser) {
-          throw AppError.nicknameExists();
-        }
+        // Check if username exists (credentials are keyed by username)
+        const existingCredential = await credentialRepository.findByUsername(input.username);
+        if (existingCredential) throw AppError.alreadyExists('username', 'username');
 
         // Create user
         const passwordHash = await hashPassword(input.password);
         const user = await userRepository.create({
           id: crypto.randomUUID(),
-          nickname: input.nickname,
           username: input.username,
-          email: input.email,
           isAdmin: false,
         });
 
@@ -127,7 +122,7 @@ export const userRouter = router({
 
       return {
         id: user.id,
-        nickname: user.nickname,
+        nickname: user.nickname ?? null,
         username: user.username,
         email: user.email,
         isAdmin: user.isAdmin,
@@ -146,11 +141,58 @@ export const userRouter = router({
     }
   }),
 
+  // Set nickname (first time only)
+  setNickname: protectedProcedure
+    .input(
+      z.object({
+        nickname: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const user = await userRepository.findById(ctx.user.id);
+        if (!user) throw AppError.userNotFound(ctx.user.id);
+
+        // Only allow setting once
+        if (user.nickname) {
+          throw AppError.forbidden('Nickname can only be set once');
+        }
+
+        const validation = validateNickname(input.nickname);
+        if (!validation.ok) {
+          if (validation.reason === 'format') {
+            throw AppError.validationError('Nickname must be Korean (1~6 characters)');
+          }
+          if (validation.reason === 'reserved') {
+            throw AppError.validationError('Nickname is not allowed');
+          }
+          if (validation.reason === 'profanity') {
+            throw AppError.validationError('Nickname is not allowed');
+          }
+        }
+
+        // Check if nickname is already taken
+        const existing = await userRepository.findByNickname(input.nickname);
+        if (existing) throw AppError.nicknameExists();
+
+        const updatedUser = await userRepository.update(ctx.user.id, {
+          nickname: input.nickname,
+        });
+
+        return {
+          id: updatedUser.id,
+          nickname: updatedUser.nickname ?? null,
+        };
+      } catch (error) {
+        throw handleUnknownError(error);
+      }
+    }),
+
   // Update profile
   updateProfile: protectedProcedure
     .input(
       z.object({
-        nickname: z.string().min(2).max(20).optional(),
+        nickname: z.string().optional(),
         email: z.string().email().optional(),
       })
     )
@@ -161,12 +203,19 @@ export const userRouter = router({
           throw AppError.userNotFound(ctx.user.id);
         }
 
-        // Check if nickname is already taken
+        // Nickname can only be set once (same rule as setNickname)
         if (input.nickname && input.nickname !== user.nickname) {
-          const existingUser = await userRepository.findByNickname(input.nickname);
-          if (existingUser && existingUser.id !== ctx.user.id) {
-            throw AppError.nicknameExists();
+          if (user.nickname) {
+            throw AppError.forbidden('Nickname can only be set once');
           }
+
+          const validation = validateNickname(input.nickname);
+          if (!validation.ok) {
+            throw AppError.validationError('Nickname is not allowed');
+          }
+
+          const existingUser = await userRepository.findByNickname(input.nickname);
+          if (existingUser && existingUser.id !== ctx.user.id) throw AppError.nicknameExists();
         }
 
         // Check if email is already taken
@@ -184,7 +233,7 @@ export const userRouter = router({
 
         return {
           id: updatedUser.id,
-          nickname: updatedUser.nickname,
+          nickname: updatedUser.nickname ?? null,
           email: updatedUser.email,
         };
       } catch (error) {

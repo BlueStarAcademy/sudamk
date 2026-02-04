@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
+import { router, nicknameProcedure } from '../router.js';
 import { getPrismaClient } from '@sudam/database';
 import { userRepository } from '../../repositories/index.js';
 import { AppError, handleUnknownError } from '../../utils/errors.js';
@@ -12,7 +12,7 @@ const prisma = getPrismaClient();
 
 export const shopRouter = router({
   // Get shop items
-  getItems: protectedProcedure
+  getItems: nicknameProcedure
     .input(
       z.object({
         category: z.enum(['item', 'equipment', 'consumable']).optional(),
@@ -44,7 +44,7 @@ export const shopRouter = router({
     }),
 
   // Purchase item
-  purchase: protectedProcedure
+  purchase: nicknameProcedure
     .input(
       z.object({
         itemId: z.string(),

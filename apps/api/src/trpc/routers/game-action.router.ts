@@ -4,14 +4,14 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
+import { router, nicknameProcedure } from '../router.js';
 import { gameRepository } from '../../repositories/index.js';
 import { StandardGameMode } from '../../game/modes/index.js';
 import { AppError, handleUnknownError } from '../../utils/errors.js';
 
 export const gameActionRouter = router({
   // Make a move
-  makeMove: protectedProcedure
+  makeMove: nicknameProcedure
     .input(
       z.object({
         gameId: z.string(),
@@ -50,7 +50,7 @@ export const gameActionRouter = router({
     }),
 
   // Pass
-  pass: protectedProcedure
+  pass: nicknameProcedure
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -77,7 +77,7 @@ export const gameActionRouter = router({
     }),
 
   // Resign
-  resign: protectedProcedure
+  resign: nicknameProcedure
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {

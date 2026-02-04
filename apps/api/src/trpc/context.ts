@@ -10,6 +10,7 @@ export interface Context {
   user?: {
     id: string;
     username?: string;
+    nickname?: string | null;
     isAdmin?: boolean;
   };
   request: FastifyRequest;
@@ -42,6 +43,7 @@ export async function createContext(opts: { req: FastifyRequest }): Promise<Cont
     user: {
       id: user.id,
       username: user.username ?? undefined,
+      nickname: user.nickname ?? null,
       isAdmin: user.isAdmin,
     },
     request: req,

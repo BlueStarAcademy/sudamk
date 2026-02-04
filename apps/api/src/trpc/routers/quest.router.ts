@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
+import { router, nicknameProcedure } from '../router.js';
 import { getPrismaClient } from '@sudam/database';
 import { userRepository } from '../../repositories/index.js';
 import { AppError, handleUnknownError } from '../../utils/errors.js';
@@ -12,7 +12,7 @@ const prisma = getPrismaClient();
 
 export const questRouter = router({
   // Get active quests
-  getActive: protectedProcedure.query(async ({ ctx }) => {
+  getActive: nicknameProcedure.query(async ({ ctx }) => {
     const quests = await prisma.quest.findMany({
       where: {
         userId: ctx.user.id,
@@ -35,7 +35,7 @@ export const questRouter = router({
   }),
 
   // Get completed quests
-  getCompleted: protectedProcedure.query(async ({ ctx }) => {
+  getCompleted: nicknameProcedure.query(async ({ ctx }) => {
     const quests = await prisma.quest.findMany({
       where: {
         userId: ctx.user.id,
@@ -61,7 +61,7 @@ export const questRouter = router({
   }),
 
   // Get available quests
-  getAvailable: protectedProcedure.query(async ({ ctx }) => {
+  getAvailable: nicknameProcedure.query(async ({ ctx }) => {
     // Get quest templates that user hasn't accepted yet
     const activeQuestTemplateIds = await prisma.quest.findMany({
       where: {
@@ -92,7 +92,7 @@ export const questRouter = router({
   }),
 
   // Accept quest
-  accept: protectedProcedure
+  accept: nicknameProcedure
     .input(
       z.object({
         questId: z.string(),
@@ -139,7 +139,7 @@ export const questRouter = router({
     }),
 
   // Complete quest
-  complete: protectedProcedure
+  complete: nicknameProcedure
     .input(
       z.object({
         questId: z.string(),

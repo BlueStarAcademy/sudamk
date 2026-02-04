@@ -36,13 +36,16 @@ export class UserRepository {
 
   async create(data: {
     id: string;
-    nickname: string;
+    nickname?: string | null;
     username?: string;
     email?: string;
     isAdmin?: boolean;
   }): Promise<User> {
     return prisma.user.create({
-      data,
+      data: {
+        ...data,
+        nickname: data.nickname ?? undefined,
+      },
     });
   }
 

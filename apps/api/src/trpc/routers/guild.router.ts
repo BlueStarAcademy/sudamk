@@ -3,13 +3,13 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../router.js';
+import { router, nicknameProcedure } from '../router.js';
 import { guildRepository } from '../../repositories/index.js';
 import { AppError, handleUnknownError } from '../../utils/errors.js';
 
 export const guildRouter = router({
   // Get guild by ID
-  getById: protectedProcedure
+  getById: nicknameProcedure
     .input(z.object({ guildId: z.string() }))
     .query(async ({ input }) => {
       try {
@@ -48,7 +48,7 @@ export const guildRouter = router({
     }),
 
   // Get my guild
-  getMyGuild: protectedProcedure.query(async ({ ctx }) => {
+  getMyGuild: nicknameProcedure.query(async ({ ctx }) => {
     const guild = await guildRepository.findByMemberId(ctx.user.id);
     if (!guild) {
       return null;
@@ -81,7 +81,7 @@ export const guildRouter = router({
   }),
 
   // Create guild
-  create: protectedProcedure
+  create: nicknameProcedure
     .input(
       z.object({
         name: z.string().min(2).max(20),
@@ -124,7 +124,7 @@ export const guildRouter = router({
     }),
 
   // Join guild
-  join: protectedProcedure
+  join: nicknameProcedure
     .input(z.object({ guildId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await guildRepository.addMember(input.guildId, ctx.user.id);
@@ -132,7 +132,7 @@ export const guildRouter = router({
     }),
 
   // Leave guild
-  leave: protectedProcedure
+  leave: nicknameProcedure
     .input(z.object({ guildId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await guildRepository.removeMember(input.guildId, ctx.user.id);
@@ -140,7 +140,7 @@ export const guildRouter = router({
     }),
 
   // Get guild messages
-  getMessages: protectedProcedure
+  getMessages: nicknameProcedure
     .input(
       z.object({
         guildId: z.string(),
@@ -158,7 +158,7 @@ export const guildRouter = router({
     }),
 
   // Send guild message
-  sendMessage: protectedProcedure
+  sendMessage: nicknameProcedure
     .input(
       z.object({
         guildId: z.string(),

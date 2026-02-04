@@ -7,7 +7,7 @@ import { getToken, setToken, removeToken } from '../lib/auth';
 
 interface User {
   id: string;
-  nickname: string;
+  nickname?: string | null;
   username?: string;
   email?: string;
   isAdmin: boolean;
