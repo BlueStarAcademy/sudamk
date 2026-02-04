@@ -77,10 +77,14 @@ fi
 # Step 4: Ensure .prisma/client exists in root node_modules
 echo ""
 echo "Step 4: Ensuring .prisma/client in root node_modules..."
-mkdir -p /app/node_modules/.prisma
-rm -rf /app/node_modules/.prisma/client
-cp -r "$GENERATED_PATH" /app/node_modules/.prisma/client
-echo "  ✓ Copied to /app/node_modules/.prisma/client"
+if [ "$GENERATED_PATH" = "/app/node_modules/.prisma/client" ]; then
+  echo "  ✓ Prisma Client already at /app/node_modules/.prisma/client (skipping copy)"
+else
+  mkdir -p /app/node_modules/.prisma
+  rm -rf /app/node_modules/.prisma/client
+  cp -r "$GENERATED_PATH" /app/node_modules/.prisma/client
+  echo "  ✓ Copied to /app/node_modules/.prisma/client"
+fi
 
 # Step 5: Ensure @prisma/client and .prisma/client in packages/database/node_modules
 echo ""
