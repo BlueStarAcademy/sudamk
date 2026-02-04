@@ -1,25 +1,16 @@
 /**
  * Profile page
- * 프로필 페이지
+ * 프로필 페이지 (닉네임 변경 불가)
  */
 
 'use client';
 
 import { trpc } from '../../lib/trpc/utils';
 import { AuthGuard } from '../../components/auth/auth-guard';
-import { useState } from 'react';
 
 export default function ProfilePage() {
   const { data: user, refetch } = trpc.user.me.useQuery();
-  const [isEditing, setIsEditing] = useState(false);
-  const [nickname, setNickname] = useState('');
-
-  const updateProfileMutation = trpc.user.updateProfile.useMutation({
-    onSuccess: () => {
-      refetch();
-      setIsEditing(false);
-    },
-  });
+  void refetch; // keep existing behavior (query caches), refetch may be used later
 
   if (!user) {
     return (
@@ -31,12 +22,6 @@ export default function ProfilePage() {
     );
   }
 
-  const handleSave = () => {
-    updateProfileMutation.mutate({
-      nickname: nickname || undefined,
-    });
-  };
-
   return (
     <AuthGuard>
       <div className="container mx-auto p-8 max-w-4xl">
@@ -47,45 +32,15 @@ export default function ProfilePage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               닉네임
             </label>
-            {isEditing ? (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={nickname || user.nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  className="flex-1 rounded-md border border-gray-300 px-3 py-2"
-                />
-                <button
-                  onClick={handleSave}
-                  disabled={updateProfileMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                >
-                  저장
-                </button>
-                <button
-                  onClick={() => {
-                    setIsEditing(false);
-                    setNickname('');
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-                >
-                  취소
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{user.nickname}</span>
-                <button
-                  onClick={() => {
-                    setIsEditing(true);
-                    setNickname(user.nickname);
-                  }}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  수정
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{user.nickname}</span>
+              <span className="text-xs rounded bg-gray-100 px-2 py-1 text-gray-600">
+                변경 불가
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              닉네임은 최초 1회 설정되며 이후 변경할 수 없습니다.
+            </p>
           </div>
 
           <div>

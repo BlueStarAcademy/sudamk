@@ -62,6 +62,9 @@ export function NicknameSetupModal({ open }: { open: boolean }) {
         <p className="mt-2 text-sm text-gray-600">
           게임을 이용하려면 닉네임을 <b>최초 1회</b> 설정해야 합니다.
         </p>
+        <p className="mt-1 text-xs text-gray-500">
+          설정 후에는 닉네임을 변경할 수 없습니다.
+        </p>
 
         <form onSubmit={onSubmit} className="mt-4 space-y-3">
           <div>

@@ -16,6 +16,7 @@ export function Header() {
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [isQuestOpen, setIsQuestOpen] = useState(false);
+  const hasNickname = !!user?.nickname;
 
   return (
     <header className="border-b border-gray-200 bg-white">
@@ -31,38 +32,44 @@ export function Header() {
                 href="/profile"
                 className="text-sm text-gray-600 hover:text-gray-700"
               >
-                {user?.nickname}
+                {user?.nickname ?? '닉네임 설정'}
               </Link>
-              <Link
-                href="/lobby"
-                className="text-sm text-blue-600 hover:text-blue-700"
-              >
-                로비
-              </Link>
-              <Link
-                href="/guild"
-                className="text-sm text-orange-600 hover:text-orange-700"
-              >
-                길드
-              </Link>
-              <button
-                onClick={() => setIsInventoryOpen(true)}
-                className="text-sm text-purple-600 hover:text-purple-700"
-              >
-                인벤토리
-              </button>
-              <button
-                onClick={() => setIsShopOpen(true)}
-                className="text-sm text-green-600 hover:text-green-700"
-              >
-                상점
-              </button>
-              <button
-                onClick={() => setIsQuestOpen(true)}
-                className="text-sm text-orange-600 hover:text-orange-700"
-              >
-                퀘스트
-              </button>
+              {hasNickname ? (
+                <>
+                  <Link
+                    href="/lobby"
+                    className="text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    로비
+                  </Link>
+                  <Link
+                    href="/guild"
+                    className="text-sm text-orange-600 hover:text-orange-700"
+                  >
+                    길드
+                  </Link>
+                  <button
+                    onClick={() => setIsInventoryOpen(true)}
+                    className="text-sm text-purple-600 hover:text-purple-700"
+                  >
+                    인벤토리
+                  </button>
+                  <button
+                    onClick={() => setIsShopOpen(true)}
+                    className="text-sm text-green-600 hover:text-green-700"
+                  >
+                    상점
+                  </button>
+                  <button
+                    onClick={() => setIsQuestOpen(true)}
+                    className="text-sm text-orange-600 hover:text-orange-700"
+                  >
+                    퀘스트
+                  </button>
+                </>
+              ) : (
+                <span className="text-xs text-gray-500">닉네임 설정 필요</span>
+              )}
               {user?.isAdmin && (
                 <Link
                   href="/admin"
