@@ -10,8 +10,9 @@ import superjson from 'superjson';
 
 function getBaseUrl() {
   if (typeof window !== 'undefined') {
-    // Browser should use relative path
-    return '';
+    // Browser must call the API service directly when web/api are deployed separately.
+    // Fallback to relative path only when NEXT_PUBLIC_API_URL is not set (e.g. local dev).
+    return process.env.NEXT_PUBLIC_API_URL || '';
   }
   
   // SSR should use full URL
