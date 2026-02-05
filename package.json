@@ -1,7 +1,7 @@
 {
-  "name": "gemini-go-app",
+  "name": "sudamr-go-app",
   "version": "1.0.0",
-  "description": "Go game with Gemini and KataGo AI",
+  "description": "Go game with KataGo AI",
   "type": "module",
   "main": "server/server.ts",
   "scripts": {
@@ -31,9 +31,9 @@
     "fix-orphaned-guild-refs": "npx tsx --tsconfig server/tsconfig.json server/scripts/fixOrphanedGuildReferences.ts",
     "reset-championship-data": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipData.ts",
     "clean-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanAdminGuild.ts",
-      "check-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/checkAdminGuild.ts",
-      "test-db-performance": "npx tsx --tsconfig server/tsconfig.json server/scripts/testDbPerformance.ts",
-      "analyze-db-queries": "npx tsx --tsconfig server/tsconfig.json server/scripts/analyzeDbQueries.ts",
+    "check-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/checkAdminGuild.ts",
+    "test-db-performance": "npx tsx --tsconfig server/tsconfig.json server/scripts/testDbPerformance.ts",
+    "analyze-db-queries": "npx tsx --tsconfig server/tsconfig.json server/scripts/analyzeDbQueries.ts",
     "optimize-images": "node scripts/optimizeImages.js",
     "compress-images": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts",
     "compress-images:dry": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts --dry-run",
@@ -43,7 +43,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.936.0",
-    "@google/genai": "^1.28.0",
     "@prisma/client": "^6.19.0",
     "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.8.1",

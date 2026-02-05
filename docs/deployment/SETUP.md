@@ -39,10 +39,8 @@ KATAGO_MAX_VISITS=1000
 KATAGO_NN_MAX_BATCH_SIZE=16
 ```
 
-**Google Gemini API** (AI 기능 사용 시):
 ```env
 # .env.local 파일에 설정 (README 참조)
-GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 **소셜 로그인** (OAuth 사용 시):
@@ -104,17 +102,17 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 - 서버 실행 확인 완료
 
 ⚠️ **확인 필요:**
-- GEMINI_API_KEY 설정 (`.env.local` 파일 생성 필요)
+- DATABASE_URL 설정 (`.env.local` 파일 생성 필요)
 - KataGo 파일 다운로드 및 설정 (AI 분석 기능 사용 시)
 - 소셜 로그인 키 설정 (OAuth 기능 사용 시)
 
 ## 빠른 시작
 
 1. `.env` 파일 확인 (이미 존재함)
-2. `.env.local` 파일 생성 (Gemini API 사용 시):
+2. `.env.local` 파일 생성:
    ```bash
    # .env.local 파일 생성
-   echo "GEMINI_API_KEY=your_key_here" > .env.local
+   echo "DATABASE_URL=postgresql://..." > .env.local
    ```
 3. 서버 실행:
    ```bash

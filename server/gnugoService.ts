@@ -23,21 +23,10 @@ const GNUGO_PATH = process.env.GNUGO_PATH || 'gnugo';
 const GNUGO_LEVEL = parseInt(process.env.GNUGO_LEVEL || '10', 10); // Level 1-10 (10 is strongest)
 
 // HTTP API URL for GnuGo service (Railway deployment)
-const DEPLOYED_SITE_URL = process.env.DEPLOYED_SITE_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
+// 주의: Railway 멀티서비스 구조에서 자동 도메인 추론은 백엔드 자기 자신을 가리킬 수 있어
+// 반드시 GNUGO_API_URL을 명시적으로 설정하는 것을 권장합니다.
 const IS_LOCAL = process.env.NODE_ENV !== 'production';
-
-let GNUGO_API_URL: string | undefined;
-if (IS_LOCAL) {
-    if (process.env.GNUGO_API_URL && process.env.GNUGO_API_URL.trim() !== '') {
-        GNUGO_API_URL = process.env.GNUGO_API_URL.trim();
-    } else if (DEPLOYED_SITE_URL) {
-        GNUGO_API_URL = `${DEPLOYED_SITE_URL}/api/gnugo/move`;
-    }
-} else {
-    GNUGO_API_URL = process.env.GNUGO_API_URL && process.env.GNUGO_API_URL.trim() !== '' 
-        ? process.env.GNUGO_API_URL.trim()
-        : (DEPLOYED_SITE_URL ? `${DEPLOYED_SITE_URL}/api/gnugo/move` : undefined);
-}
+let GNUGO_API_URL: string | undefined = process.env.GNUGO_API_URL?.trim();
 
 // 프로토콜이 없으면 자동으로 https:// 추가
 if (GNUGO_API_URL && !GNUGO_API_URL.match(/^https?:\/\//)) {

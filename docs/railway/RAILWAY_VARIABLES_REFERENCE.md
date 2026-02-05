@@ -27,7 +27,8 @@ NODE_ENV=production
 PORT=4000
 ENABLE_FRONTEND_SERVING=false
 DATABASE_URL=postgresql://postgres:PASSWORD@postgres-production-xxxx.up.railway.app:5432/railway
-KATAGO_API_URL=https://your-katago-service.railway.app
+KATAGO_API_URL=https://your-katago-service.railway.app/api/katago/analyze
+GNUGO_API_URL=https://your-gnugo-service.railway.app/api/gnugo/move
 FRONTEND_URL=https://your-frontend-service.railway.app
 ```
 

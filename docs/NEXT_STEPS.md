@@ -130,10 +130,10 @@ Railway에 다음 4개의 서비스를 배포해야 합니다:
 ```bash
 DATABASE_URL=postgresql://postgres:password@postgres.railway.internal:5432/railway
 NODE_ENV=production
-ENABLE_FRONTEND_SERVING=true
-FRONTEND_URL=https://your-backend-service.railway.app
-KATAGO_API_URL=https://your-katago-service.railway.app
-GNUGO_API_URL=https://your-gnugo-service.railway.app
+ENABLE_FRONTEND_SERVING=false
+FRONTEND_URL=https://your-frontend-service.railway.app
+KATAGO_API_URL=https://your-katago-service.railway.app/api/katago/analyze
+GNUGO_API_URL=https://your-gnugo-service.railway.app/api/gnugo/move
 ```
 
 **선택사항:**

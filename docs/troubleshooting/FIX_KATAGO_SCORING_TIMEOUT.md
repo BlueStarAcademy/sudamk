@@ -44,7 +44,7 @@ Railway에서 KataGo를 로컬 프로세스로 실행:
 
 1. **KATAGO_API_URL 설정**:
    ```powershell
-   railway variables --set "KATAGO_API_URL=https://katago-api.yourdomain.com/api/analyze"
+   railway variables --set "KATAGO_API_URL=https://katago-api.yourdomain.com/api/katago/analyze"
    ```
    > **중요**: `localhost`가 아닌 공개 URL을 사용해야 합니다
 

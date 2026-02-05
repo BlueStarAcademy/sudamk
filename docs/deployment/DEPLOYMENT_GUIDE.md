@@ -86,13 +86,14 @@
    - 또는 `node node_modules/tsx/dist/cli.mjs --tsconfig server/tsconfig.json server/server.ts`
 6. Settings → Variables:
    ```
-   KATAGO_API_URL=https://your-katago-service.railway.app
+   KATAGO_API_URL=https://your-katago-service.railway.app/api/katago/analyze
+   GNUGO_API_URL=https://your-gnugo-service.railway.app/api/gnugo/move
    DATABASE_URL=<your-database-url>
    ```
    **참고**: 
    - `PORT` 환경 변수는 Railway가 자동으로 설정하므로 수동으로 설정하지 마세요.
-   - 통합 배포인 경우 `ENABLE_FRONTEND_SERVING` 환경 변수를 설정하지 않으면 기본값(`true`)이 사용됩니다.
-   - 분리 배포인 경우에만 `ENABLE_FRONTEND_SERVING=false`를 설정하세요.
+  - **분리 배포(Frontend/Backend 별도 서비스)** 인 경우 `ENABLE_FRONTEND_SERVING=false`를 설정하세요. (권장)
+  - **통합 배포(Backend가 dist를 서빙)** 가 필요하면 `ENABLE_FRONTEND_SERVING=true`를 명시적으로 설정하세요.
    (기존 환경 변수들도 모두 설정)
 
 #### 4단계: KataGo 서비스 배포

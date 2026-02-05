@@ -37,32 +37,18 @@ const KATAGO_NUM_SEARCH_THREADS = parseInt(process.env.KATAGO_NUM_SEARCH_THREADS
 const KATAGO_MAX_VISITS = parseInt(process.env.KATAGO_MAX_VISITS || (isRailway ? '500' : '1000'), 10);
 const KATAGO_NN_MAX_BATCH_SIZE = parseInt(process.env.KATAGO_NN_MAX_BATCH_SIZE || (isRailway ? '8' : '16'), 10);
 
-// 배포 환경에서 KataGo HTTP API URL (환경 변수로 설정 가능)
-// 로컬 환경에서도 배포된 사이트의 KataGo를 사용할 수 있도록 DEPLOYED_SITE_URL 지원
-const DEPLOYED_SITE_URL = process.env.DEPLOYED_SITE_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
-const IS_LOCAL = process.env.NODE_ENV !== 'production'; // 로컬 환경 확인
+// KataGo HTTP API URL (Railway에서는 별도 KataGo 서비스 도메인을 여기에 설정)
+// 주의: Railway 멀티서비스 구조에서 "자동 도메인 추론"은 백엔드 자기 자신을 가리키는
+// 오동작을 유발할 수 있으므로 사용하지 않습니다. (반드시 KATAGO_API_URL을 명시적으로 설정)
+const IS_LOCAL = process.env.NODE_ENV !== 'production';
+let KATAGO_API_URL: string | undefined = process.env.KATAGO_API_URL?.trim();
 
-// 로컬 환경에서는 항상 배포된 사이트의 KataGo를 사용하도록 설정
-let KATAGO_API_URL: string | undefined;
-if (IS_LOCAL) {
-    // 로컬 환경: 배포된 사이트의 KataGo 사용 (우선순위: KATAGO_API_URL > DEPLOYED_SITE_URL)
-    if (process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '') {
-        KATAGO_API_URL = process.env.KATAGO_API_URL.trim();
-    } else if (DEPLOYED_SITE_URL) {
-        KATAGO_API_URL = `${DEPLOYED_SITE_URL}/api/katago/analyze`;
-    }
-} else {
-    // 배포 환경: 환경 변수로 설정된 경우에만 HTTP API 사용
-    KATAGO_API_URL = process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '' 
-        ? process.env.KATAGO_API_URL.trim()
-        : (DEPLOYED_SITE_URL ? `${DEPLOYED_SITE_URL}/api/katago/analyze` : undefined);
-}
-
-// 프로토콜이 없으면 자동으로 https:// 추가 (Railway는 HTTPS를 사용)
+// 프로토콜이 없으면 자동으로 https:// 추가
 if (KATAGO_API_URL && !KATAGO_API_URL.match(/^https?:\/\//)) {
     KATAGO_API_URL = `https://${KATAGO_API_URL}`;
 }
-const USE_HTTP_API = !!KATAGO_API_URL && KATAGO_API_URL.trim() !== ''; // API URL이 설정되어 있으면 HTTP API 사용
+
+const USE_HTTP_API = !!KATAGO_API_URL && KATAGO_API_URL.trim() !== '';
 
 const LETTERS = "ABCDEFGHJKLMNOPQRST";
 
@@ -625,7 +611,7 @@ export const initializeKataGo = async (): Promise<void> => {
     if (USE_HTTP_API) {
         if (!KATAGO_API_URL) {
             console.error(`[KataGo] WARNING: USE_HTTP_API is true but KATAGO_API_URL is not set!`);
-            console.error(`[KataGo] Please set KATAGO_API_URL or DEPLOYED_SITE_URL environment variable.`);
+            console.error(`[KataGo] Please set KATAGO_API_URL environment variable.`);
             console.error(`[KataGo] Auto-scoring will fall back to manual scoring if KataGo is unavailable.`);
         } else {
             console.log(`[KataGo] Using HTTP API: ${KATAGO_API_URL}`);
@@ -802,7 +788,7 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
         
         let urlToUse = apiUrl || KATAGO_API_URL || (analysisQuery.__fallbackUrl ? analysisQuery.__fallbackUrl : undefined);
         if (!urlToUse) {
-            throw new Error('KATAGO_API_URL is not set. Please configure KATAGO_API_URL or DEPLOYED_SITE_URL environment variable.');
+            throw new Error('KATAGO_API_URL is not set. Please configure KATAGO_API_URL environment variable.');
         }
         
         // 프로토콜이 없으면 자동으로 https:// 추가 (Railway는 HTTPS를 사용)
@@ -925,7 +911,7 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
         // HTTP API를 사용하는 경우
         if (USE_HTTP_API) {
             if (!KATAGO_API_URL) {
-                throw new Error('KATAGO_API_URL is not configured. Please set KATAGO_API_URL or DEPLOYED_SITE_URL environment variable.');
+                throw new Error('KATAGO_API_URL is not configured. Please set KATAGO_API_URL environment variable.');
             }
             console.log(`[KataGo] Using HTTP API: ${KATAGO_API_URL}`);
             response = await queryKataGoViaHttp(query);
@@ -936,7 +922,7 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
                     console.log(`[KataGo] Local environment detected. Using deployed site KataGo API: ${KATAGO_API_URL}`);
                     response = await queryKataGoViaHttp(query, KATAGO_API_URL);
                 } else {
-                    throw new Error('KataGo is disabled in local environment. Please set KATAGO_API_URL or DEPLOYED_SITE_URL environment variable to use HTTP API.');
+                    throw new Error('KataGo is disabled in local environment. Please set KATAGO_API_URL environment variable to use HTTP API.');
                 }
             } else {
                 // 배포 환경에서 로컬 프로세스 사용

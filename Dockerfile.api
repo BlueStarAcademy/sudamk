@@ -1,0 +1,153 @@
+# NOTE:
+# Railway의 일부 서비스 설정이 `Dockerfile.api`를 참조하는 경우가 있어,
+# `Dockerfile.backend`와 동일한 내용으로 제공하여 빌드 실패를 방지합니다.
+# 실제 백엔드/통합배포 빌드 정의는 `Dockerfile.backend`를 참고하세요.
+
+# syntax=docker/dockerfile:1.6
+
+FROM node:20-alpine AS base
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Install build dependencies
+RUN apk add --no-cache python3 make g++
+
+FROM base AS deps
+# Install dependencies first (supports npm ci cache)
+# Suppress npm update notices
+RUN npm config set update-notifier false
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+FROM base AS build-deps
+# Install all dependencies including dev for Prisma generation and Vite build
+# Also install wget and unzip for KataGo download
+# Install build tools for mozjpeg (imagemin-mozjpeg dependency)
+RUN apk add --no-cache wget unzip autoconf automake libtool pkgconfig nasm
+# Set NODE_ENV to development to ensure devDependencies are installed
+ENV NODE_ENV=development
+COPY package.json package-lock.json ./
+RUN echo "=== Installing npm dependencies (this may take a while) ===" && \
+    NODE_ENV=development npm ci && \
+    echo "=== npm dependencies installed ===" && \
+    echo "=== Verifying vite installation ===" && \
+    (test -f node_modules/.bin/vite && echo "=== vite binary found ===" || (echo "ERROR: vite not found in node_modules/.bin" && ls -la node_modules/.bin/ | head -20 && exit 1)) && \
+    (test -d node_modules/vite && echo "=== vite package found ===" || (echo "ERROR: vite package not found" && exit 1)) && \
+    npx vite --version && \
+    echo "=== vite verification complete ==="
+
+FROM build-deps AS build
+# Override NODE_ENV to ensure devDependencies are installed
+ENV NODE_ENV=development
+
+# Suppress npm update notices
+RUN npm config set update-notifier false
+
+# Verify node_modules exists before copying source code
+RUN echo "=== Verifying node_modules before COPY ===" && \
+    (test -d node_modules && echo "=== node_modules exists ===" || (echo "ERROR: node_modules not found in build-deps stage" && exit 1)) && \
+    (test -d node_modules/vite && echo "=== vite package exists before COPY ===" || (echo "ERROR: vite not found before COPY" && ls -la node_modules/ | head -20 && exit 1))
+
+# Copy source code selectively (excluding node_modules via .dockerignore)
+# Copy essential files for Vite build and backend
+COPY package.json package-lock.json ./
+COPY vite.config.ts tsconfig.json tsconfig.base.json tsconfig.node.json ./
+COPY postcss.config.js ./
+COPY vite-env.d.ts ./
+COPY index.html index.tsx index.css ./
+COPY App.tsx Game.tsx ./
+COPY constants.ts types.ts gameRules.ts ./
+COPY assets.ts profanity.ts ./
+COPY public ./public
+COPY components ./components
+COPY hooks ./hooks
+COPY utils ./utils
+COPY constants ./constants
+COPY types ./types
+COPY contexts ./contexts
+COPY client ./client
+COPY services ./services
+COPY shared ./shared
+COPY server ./server
+COPY prisma ./prisma
+
+# Verify node_modules still exists after COPY
+RUN echo "=== Verifying node_modules after COPY ===" && \
+    (test -d node_modules && echo "=== node_modules still exists ===" || (echo "ERROR: node_modules lost after COPY" && exit 1)) && \
+    (test -d node_modules/vite && echo "=== vite package exists after COPY ===" || (echo "ERROR: vite not found after COPY" && ls -la node_modules/ | grep -i vite && exit 1)) && \
+    (test -f node_modules/.bin/vite && echo "=== vite binary exists after COPY ===" || (echo "ERROR: vite binary not found after COPY" && exit 1))
+
+# Generate Prisma client (DATABASE_URL not needed for generation, but prisma.config.ts requires it)
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+RUN echo "=== Generating Prisma client ===" && \
+    npx prisma generate --schema prisma/schema.prisma && \
+    echo "=== Prisma client generated ==="
+
+# Build frontend - use npx to ensure vite is found
+# Increase Node.js memory limit for large builds
+# Set NODE_ENV to production for build (Vite uses this for optimizations)
+RUN echo "=== Checking vite availability ===" && \
+    (test -f node_modules/.bin/vite && echo "=== vite binary exists ===" || echo "WARNING: vite binary not found") && \
+    (test -d node_modules/vite && echo "=== vite package exists ===" || (echo "ERROR: vite package not found" && ls -la node_modules/ | grep -i vite || echo "No vite-related packages found" && exit 1)) && \
+    echo "=== Verifying vite via npx ===" && \
+    (npx vite --version || (echo "ERROR: vite not found via npx" && echo "NODE_ENV=$NODE_ENV" && echo "Current directory: $(pwd)" && ls -la node_modules/.bin/ | head -10 && exit 1)) && \
+    echo "=== Building frontend with Vite ===" && \
+    NODE_ENV=production NODE_OPTIONS="--max-old-space-size=4096" npx vite build || \
+    (echo "=== Vite build failed ===" && exit 1) && \
+    echo "=== Frontend build complete ==="
+
+FROM base AS runner
+WORKDIR /app
+ENV PORT=4000
+
+# Copy production dependencies
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy tsx and its dependencies from build stage (needed for running TypeScript server files)
+RUN mkdir -p ./node_modules/.bin
+COPY --from=build /app/node_modules/tsx ./node_modules/tsx
+COPY --from=build /app/node_modules/esbuild ./node_modules/esbuild
+RUN mkdir -p ./node_modules/@esbuild
+COPY --from=build /app/node_modules/@esbuild ./node_modules/@esbuild
+COPY --from=build /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
+COPY --from=build /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
+RUN for pkg in @swc/core @swc/helpers; do \
+      if [ -d "/app/node_modules/$pkg" ]; then \
+        mkdir -p "./node_modules/$(dirname $pkg)" && \
+        cp -r "/app/node_modules/$pkg" "./node_modules/$(dirname $pkg)/"; \
+      fi; \
+    done
+
+# Copy Prisma client and schema
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/generated ./generated
+COPY --from=build /app/prisma ./prisma
+
+# Copy application code
+COPY --from=build /app/server ./server
+COPY --from=build /app/shared ./shared
+COPY --from=build /app/types ./types
+COPY --from=build /app/utils ./utils
+COPY --from=build /app/constants ./constants
+COPY --from=build /app/assets.ts ./assets.ts
+COPY --from=build /app/profanity.ts ./profanity.ts
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/tsconfig.base.json ./tsconfig.base.json
+
+# Copy frontend build files (for integrated deployment)
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/public ./public
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Change ownership
+RUN chown -R nodejs:nodejs /app
+
+USER nodejs
+
+EXPOSE 4000 4001
+
+CMD ["npm", "run", "start-server"]
+

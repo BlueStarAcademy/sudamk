@@ -8,7 +8,7 @@
 - **백엔드**: Node.js + Express + TypeScript
 - **데이터베이스**: SQLite
 - **실시간 통신**: WebSocket (ws)
-- **AI**: Google Gemini API, KataGo
+- **AI**: KataGo
 
 ---
 
@@ -189,7 +189,7 @@ App.tsx
 ### 2. **게임 시스템**
 - 다양한 게임 모드 (표준, 플레이풀, 전략, 특수 모드)
 - 실시간 멀티플레이어 게임
-- AI 대전 (KataGo, Gemini)
+- AI 대전 (KataGo)
 - 싱글 플레이어 모드
 
 ### 3. **인벤토리 및 장비 시스템**
@@ -287,7 +287,6 @@ URL 해시 (#/profile, #/game/:id 등)
 - **WebSocket (ws)** - 실시간 통신
 
 ### AI/외부 서비스
-- **Google Gemini API** - AI 분석
 - **KataGo** - 바둑 AI 엔진
 
 ---
@@ -334,7 +333,7 @@ URL 해시 (#/profile, #/game/:id 등)
 npm install
 
 # 환경 변수 설정 (.env.local)
-GEMINI_API_KEY=your_key
+DATABASE_URL=postgresql://...
 
 # 개발 서버 실행 (클라이언트 + 서버 동시)
 npm start

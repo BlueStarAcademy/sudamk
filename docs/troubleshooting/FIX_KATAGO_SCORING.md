@@ -22,7 +22,7 @@ Railway에서 KataGo 모델 다운로드가 실패하므로, 별도의 KataGo HT
 1. **Railway Dashboard** → **Sudam1** → **Variables**
 2. `KATAGO_API_URL` 추가/수정:
    ```
-   https://katago-api.yourdomain.com/api/analyze
+   https://katago-api.yourdomain.com/api/katago/analyze
    ```
    또는 배포된 KataGo API URL
 

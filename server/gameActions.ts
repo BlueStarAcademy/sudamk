@@ -352,6 +352,18 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             // 계가 요청은 서버에서 처리
             if (type === 'REQUEST_SCORING') {
                 const { boardState, moveHistory, settings } = payload;
+                // KataGo는 "바둑 종료 후 계가(스코어링)"에만 사용
+                // 클라이언트에서 임의로 분석을 요청하는 것을 방지하기 위해,
+                // 마지막 2수 연속 패스(= 종료 조건)일 때만 허용합니다.
+                const isPass = (m: any) => m && m.x === -1 && m.y === -1;
+                if (!Array.isArray(moveHistory) || moveHistory.length < 2) {
+                    return { error: '계가를 요청하려면 수순이 필요합니다.' };
+                }
+                const lastTwo = moveHistory.slice(-2);
+                if (!isPass(lastTwo[0]) || !isPass(lastTwo[1])) {
+                    return { error: '계가는 두 번 연속 패스 후에만 가능합니다.' };
+                }
+
                 // KataGo를 사용한 계가 분석
                 const { analyzeGame } = await import('./kataGoService.js');
                 const analysisGame = {

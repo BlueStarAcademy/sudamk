@@ -996,6 +996,7 @@ export async function makeGoAiBotMove(
         }
     }
     }
+    }
 
     // 히든 돌 공개 애니메이션 직후에는 턴을 넘기지 않음
     // (updateHiddenState에서 이미 AI 턴을 유지하고 aiProcessingQueue에 추가했으므로)
@@ -3718,4 +3719,3 @@ function canGroupBeSaved(
     // 기본적으로 살릴 수 있다고 판단
     return true;
 }
-

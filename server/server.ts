@@ -23,7 +23,6 @@ import { handleAction, resetAndGenerateQuests, updateQuestProgress } from './gam
 import { regenerateActionPoints } from './effectService.js';
 import { updateGameStates } from './gameModes.js';
 import * as db from './db.js';
-import { analyzeGame, initializeKataGo } from './kataGoService.js';
 // FIX: Import missing types from the centralized types file.
 import * as types from '../shared/types/index.js';
 import { Player } from '../shared/types/index.js';
@@ -755,29 +754,8 @@ const startServer = async () => {
         }
         
         // 무거운 초기화 작업은 비동기로 처리 (서버 리스닝 후)
-        // KataGo 엔진 초기화 (서버 시작 후 비동기로 처리, 블로킹 방지)
-        setImmediate(() => {
-            (async () => {
-                try {
-                    // 타임아웃 추가 (60초)
-                    const timeout = new Promise((_, reject) => {
-                        setTimeout(() => reject(new Error('KataGo initialization timeout')), 60000);
-                    });
-                    await Promise.race([
-                        initializeKataGo(),
-                        timeout
-                    ]);
-                } catch (error: any) {
-                    console.error('[Server] Failed to initialize KataGo during server startup:', error?.message || error);
-                    console.error('[Server] Server will continue without KataGo pre-initialization');
-                    // 서버는 계속 실행 (KataGo 초기화 실패는 치명적이지 않음)
-                }
-            })().catch((outerError: any) => {
-                // async 함수 자체가 실패한 경우
-                console.error('[Server] Critical error in KataGo initialization wrapper:', outerError);
-                // 프로세스를 종료하지 않음
-            });
-        });
+        // NOTE: Railway 멀티서비스 구조에서는 KataGo를 별도 서비스로 운영하므로
+        // 백엔드에서 KataGo 로컬 프로세스를 사전 초기화하지 않습니다.
     });
 
     // 서버 에러 핸들러 등록 (리스닝 전에 등록)
@@ -868,11 +846,14 @@ const startServer = async () => {
         }
     }));
     
-    // Serve frontend build files
-    // Default to true for integrated deployment (can be disabled with ENABLE_FRONTEND_SERVING=false)
-    // In separated deployment, set ENABLE_FRONTEND_SERVING=false
-    const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING !== 'false';
-    console.log(`[Server] ENABLE_FRONTEND_SERVING: ${process.env.ENABLE_FRONTEND_SERVING || 'not set (defaulting to true)'}`);
+    // Serve frontend build files (integrated deployment only)
+    // Railway 멀티서비스(Frontend/Backend 분리) 구조에서는 기본적으로 비활성화하는 것이 안전합니다.
+    // 통합 배포가 필요하면 ENABLE_FRONTEND_SERVING=true 를 명시적으로 설정하세요.
+    const defaultFrontendServing = process.env.NODE_ENV !== 'production';
+    const enableFrontendServing = process.env.ENABLE_FRONTEND_SERVING
+        ? process.env.ENABLE_FRONTEND_SERVING === 'true'
+        : defaultFrontendServing;
+    console.log(`[Server] ENABLE_FRONTEND_SERVING: ${process.env.ENABLE_FRONTEND_SERVING || `not set (defaulting to ${defaultFrontendServing ? 'true' : 'false'})`}`);
     console.log(`[Server] Frontend serving: ${enableFrontendServing ? 'ENABLED' : 'DISABLED'}`);
     
     if (enableFrontendServing) {
@@ -3786,33 +3767,8 @@ const startServer = async () => {
         }
     });
 
-    // KataGo 분석 API 엔드포인트 (로컬 프로세스를 사용)
-    app.post('/api/katago/analyze', async (req, res) => {
-        try {
-            const query = req.body;
-            if (!query || !query.id) {
-                return res.status(400).json({ error: 'Invalid query: missing id' });
-            }
-
-            // HTTP API 모드일 때는 이 엔드포인트를 사용하지 않음 (순환 참조 방지)
-            const useHttpApi = !!(process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '');
-            if (useHttpApi) {
-                const errorMsg = 'This server is configured to use HTTP API mode. Please use the external KataGo API instead of the local process endpoint.';
-                console.error(`[KataGo API] ${errorMsg}`);
-                return res.status(503).json({ error: errorMsg });
-            }
-
-            // 로컬 KataGo 프로세스를 사용하여 분석 수행
-            const { getKataGoManager } = await import('./kataGoService.js');
-            const manager = getKataGoManager();
-            const response = await manager.query(query);
-            
-            res.json(response);
-        } catch (error: any) {
-            console.error('[KataGo API] Error:', error);
-            res.status(500).json({ error: error.message || 'Internal server error' });
-        }
-    });
+    // NOTE: KataGo 분석 API는 별도 `KataGo` 서비스(`server/katagoServer.ts`)에서만 제공합니다.
+    // 백엔드는 게임 종료 후 계가(스코어링) 시점에만 KataGo 서비스로 HTTP 요청합니다.
 
     app.post('/api/action', async (req, res) => {
         const startTime = Date.now();
@@ -3952,62 +3908,58 @@ const startServer = async () => {
 
     // 긴급 봇 점수 복구 엔드포인트 (점수가 0인 봇만 복구)
     // KataGo 상태 확인 엔드포인트 (관리자 전용)
+    // NOTE: Railway 멀티서비스 구조에서는 KataGo를 별도 서비스로 운영하므로
+    // 여기서는 "외부 KataGo 서비스"의 헬스체크 결과를 보여줍니다.
     app.get('/api/admin/katago-status', async (req, res) => {
         try {
-            const { getKataGoManager, initializeKataGo } = await import('./kataGoService.js');
-            const manager = getKataGoManager();
-            
-            // KataGo 프로세스 상태 확인
-            const processRunning = manager && (manager as any).process && !(manager as any).process.killed;
-            const isStarting = (manager as any).isStarting || false;
-            const pendingQueries = (manager as any).pendingQueries ? (manager as any).pendingQueries.size : 0;
-            
-            // 환경 변수 확인
-            const config = {
-                KATAGO_PATH: process.env.KATAGO_PATH || 'not set',
-                KATAGO_MODEL_PATH: process.env.KATAGO_MODEL_PATH || 'not set',
-                KATAGO_HOME_PATH: process.env.KATAGO_HOME_PATH || 'not set',
-                KATAGO_API_URL: process.env.KATAGO_API_URL || 'not set',
-                KATAGO_NUM_ANALYSIS_THREADS: process.env.KATAGO_NUM_ANALYSIS_THREADS || 'not set',
-                KATAGO_NUM_SEARCH_THREADS: process.env.KATAGO_NUM_SEARCH_THREADS || 'not set',
-                KATAGO_MAX_VISITS: process.env.KATAGO_MAX_VISITS || 'not set',
-                KATAGO_NN_MAX_BATCH_SIZE: process.env.KATAGO_NN_MAX_BATCH_SIZE || 'not set',
+            const raw = process.env.KATAGO_API_URL?.trim() || '';
+            const KATAGO_API_URL = raw ? (raw.match(/^https?:\/\//) ? raw : `https://${raw}`) : '';
+            const USE_HTTP_API = !!KATAGO_API_URL;
+
+            const buildUrl = (pathName: string) => {
+                try {
+                    if (!KATAGO_API_URL) return null;
+                    const u = new URL(KATAGO_API_URL);
+                    u.pathname = pathName;
+                    u.search = '';
+                    return u.toString();
+                } catch {
+                    return null;
+                }
+            };
+
+            const healthUrl = buildUrl('/api/health');
+            const statusUrl = buildUrl('/api/katago/status');
+
+            let health: { ok: boolean; status?: number; error?: string } | null = null;
+            if (healthUrl) {
+                try {
+                    const r = await fetch(healthUrl, { method: 'GET' });
+                    health = { ok: r.ok, status: r.status };
+                } catch (e: any) {
+                    health = { ok: false, error: e?.message || String(e) };
+                }
+            }
+
+            // UI 호환을 위해 기존 필드 유지
+            const config: Record<string, string | number | boolean> = {
+                USE_HTTP_API,
+                KATAGO_API_URL: KATAGO_API_URL || 'not set',
+                KATAGO_HEALTH_URL: healthUrl || 'not set',
+                KATAGO_STATUS_URL: statusUrl || 'not set',
                 NODE_ENV: process.env.NODE_ENV || 'not set',
                 RAILWAY_ENVIRONMENT: process.env.RAILWAY_ENVIRONMENT || 'not set',
-                USE_HTTP_API: !!(process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== ''),
+                MODE: 'external_service',
             };
-            
-            // 로그 파일 읽기 시도
-            let logContent = null;
-            try {
-                const fs = await import('fs');
-                const path = await import('path');
-                const logPath = path.resolve(process.cwd(), 'katago', 'katago_analysis_log.txt');
-                if (fs.existsSync(logPath)) {
-                    const logStats = fs.statSync(logPath);
-                    const logBuffer = fs.readFileSync(logPath);
-                    // 최근 500줄만 읽기 (파일이 클 수 있음)
-                    const logLines = logBuffer.toString().split('\n');
-                    const recentLines = logLines.slice(-500);
-                    logContent = {
-                        path: logPath,
-                        size: logStats.size,
-                        lastModified: logStats.mtime.toISOString(),
-                        recentLines: recentLines,
-                        totalLines: logLines.length
-                    };
-                }
-            } catch (logError: any) {
-                console.error('[Admin] Failed to read KataGo log:', logError.message);
-            }
-            
+
+            const running = USE_HTTP_API && !!health?.ok;
             res.json({
-                status: processRunning ? 'running' : (isStarting ? 'starting' : 'stopped'),
-                processRunning,
-                isStarting,
-                pendingQueries,
+                status: running ? 'running' : 'stopped',
+                processRunning: running,
+                isStarting: false,
+                pendingQueries: 0,
                 config,
-                log: logContent
+                log: null,
             });
         } catch (error: any) {
             console.error('[Admin] Error getting KataGo status:', error);
@@ -4077,55 +4029,12 @@ const startServer = async () => {
     });
     
     // KataGo 시작 엔드포인트 (관리자 전용)
-    app.post('/api/admin/katago-start', async (req, res) => {
-        try {
-            const { getKataGoManager, initializeKataGo } = await import('./kataGoService.js');
-            const manager = getKataGoManager();
-            
-            // HTTP API 모드인 경우 시작 불가
-            const USE_HTTP_API = !!(process.env.KATAGO_API_URL && process.env.KATAGO_API_URL.trim() !== '');
-            if (USE_HTTP_API) {
-                return res.status(400).json({ 
-                    error: 'KataGo is configured to use HTTP API mode. Local process cannot be started.',
-                    message: 'HTTP API 모드에서는 로컬 KataGo 프로세스를 시작할 수 없습니다.'
-                });
-            }
-            
-            // 이미 실행 중이면 에러 반환
-            const processRunning = manager && (manager as any).process && !(manager as any).process.killed;
-            if (processRunning) {
-                return res.status(400).json({ 
-                    error: 'KataGo is already running.',
-                    message: 'KataGo가 이미 실행 중입니다.'
-                });
-            }
-            
-            // 시작 중이면 에러 반환
-            const isStarting = (manager as any).isStarting || false;
-            if (isStarting) {
-                return res.status(400).json({ 
-                    error: 'KataGo is already starting.',
-                    message: 'KataGo가 이미 시작 중입니다.'
-                });
-            }
-            
-            console.log('[Admin] Starting KataGo engine...');
-            
-            // KataGo 초기화 시작 (비동기로 처리)
-            initializeKataGo().then(() => {
-                console.log('[Admin] KataGo engine started successfully');
-            }).catch((error: any) => {
-                console.error('[Admin] Failed to start KataGo engine:', error);
-            });
-            
-            res.json({ 
-                success: true,
-                message: 'KataGo 엔진 시작을 요청했습니다. 상태를 확인하려면 새로고침 버튼을 클릭하세요.'
-            });
-        } catch (error: any) {
-            console.error('[Admin] Error starting KataGo:', error);
-            res.status(500).json({ error: error.message });
-        }
+    // NOTE: KataGo는 별도 서비스로 운영하므로 백엔드에서 로컬 프로세스를 시작하지 않습니다.
+    app.post('/api/admin/katago-start', async (_req, res) => {
+        return res.status(400).json({
+            error: 'KataGo is running as a separate service. Start it from the Railway KataGo service.',
+            message: 'KataGo는 별도 서비스로 운영됩니다. Railway의 KataGo 서비스에서 관리하세요.',
+        });
     });
     
     app.post('/api/admin/recover-bot-scores', async (req, res) => {

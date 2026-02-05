@@ -26,7 +26,8 @@ railway variables set VITE_WS_URL=wss://your-backend.railway.app --service front
 
 # Backend 서비스 환경 변수 설정
 railway variables set ENABLE_FRONTEND_SERVING=false --service backend
-railway variables set KATAGO_API_URL=https://your-katago.railway.app --service backend
+railway variables set KATAGO_API_URL=https://your-katago.railway.app/api/katago/analyze --service backend
+railway variables set GNUGO_API_URL=https://your-gnugo.railway.app/api/gnugo/move --service backend
 
 # KataGo 서비스 환경 변수 설정
 railway variables set PORT=4001 --service katago

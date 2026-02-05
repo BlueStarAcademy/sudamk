@@ -61,7 +61,10 @@ PORT=4000
 FRONTEND_URL=https://your-service.up.railway.app
 
 # KataGo API (별도 서비스 사용 시)
-KATAGO_API_URL=https://your-katago-service.up.railway.app
+KATAGO_API_URL=https://your-katago-service.up.railway.app/api/katago/analyze
+
+# GnuGo API (AI봇 대전에서 사용)
+GNUGO_API_URL=https://your-gnugo-service.up.railway.app/api/gnugo/move
 
 # Railway 환경 감지
 RAILWAY_ENVIRONMENT=true
@@ -81,8 +84,6 @@ KAKAO_CLIENT_ID=your-kakao-client-id
 KAKAO_CLIENT_SECRET=your-kakao-client-secret
 KAKAO_REDIRECT_URI=https://your-service.up.railway.app/api/auth/kakao/callback
 
-# Gemini AI (선택)
-GEMINI_API_KEY=your-gemini-api-key
 ```
 
 ---
@@ -107,7 +108,10 @@ railway variables set RAILWAY_ENVIRONMENT=true
 railway variables set FRONTEND_URL=https://your-service.up.railway.app
 
 # KataGo API URL 설정 (별도 서비스 사용 시)
-railway variables set KATAGO_API_URL=https://your-katago-service.up.railway.app
+railway variables set KATAGO_API_URL=https://your-katago-service.up.railway.app/api/katago/analyze
+
+# GnuGo API URL 설정 (AI봇 대전에서 사용)
+railway variables set GNUGO_API_URL=https://your-gnugo-service.up.railway.app/api/gnugo/move
 ```
 
 ### 2.2 railway.json 설정
