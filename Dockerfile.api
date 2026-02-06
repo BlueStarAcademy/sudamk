@@ -15,7 +15,10 @@ FROM base AS deps
 RUN npm config set update-notifier false
 COPY package.json package-lock.json ./
 # Install production deps only (API 서비스는 devDependencies 설치 불필요)
-RUN npm ci --omit=dev
+# 일부 환경에서 tsx가 누락되는 문제가 있어, 명시적으로 설치하고 존재를 확인합니다.
+RUN npm ci --omit=dev && \
+    npm i --no-save tsx && \
+    test -f node_modules/tsx/dist/cli.mjs
 
 # Prisma config + schema (for prisma generate)
 COPY prisma.config.ts ./
