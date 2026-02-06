@@ -15,9 +15,7 @@ FROM base AS deps
 RUN npm config set update-notifier false
 COPY package.json package-lock.json ./
 # Install production deps only (API 서비스는 devDependencies 설치 불필요)
-# NOTE: Railway 캐시/lock 상태에 따라 tsx가 누락되어 런타임 크래시가 발생할 수 있어,
-# 런타임에 필요한 tsx는 명시적으로 한 번 더 설치하여 보장합니다.
-RUN npm ci --omit=dev && npm i --no-save tsx
+RUN npm ci --omit=dev
 
 # Prisma config + schema (for prisma generate)
 COPY prisma.config.ts ./
