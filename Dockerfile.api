@@ -14,26 +14,14 @@ RUN apk add --no-cache python3 py3-setuptools make g++
 FROM base AS deps
 RUN npm config set update-notifier false
 COPY package.json package-lock.json ./
-# Install production deps only
+# Install production deps only (API 서비스는 devDependencies 설치 불필요)
 RUN npm ci --omit=dev
 
-FROM base AS build
-# Need dev deps for tsx + prisma generate
-ENV NODE_ENV=development
-RUN npm config set update-notifier false
-COPY package.json package-lock.json ./
-RUN npm ci
-
-# Copy only backend-relevant sources
-COPY server ./server
-COPY shared ./shared
-COPY types ./types
-COPY utils ./utils
-COPY constants ./constants
-COPY assets.ts profanity.ts tsconfig.base.json ./
+# Prisma config + schema (for prisma generate)
+COPY prisma.config.ts ./
 COPY prisma ./prisma
 
-# Generate Prisma client (no DB connection needed, but prisma config may expect DATABASE_URL)
+# Generate Prisma client using production dependencies only
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate --schema prisma/schema.prisma
 
@@ -43,34 +31,21 @@ ENV PORT=4000
 
 COPY --from=deps /app/node_modules ./node_modules
 
-# tsx is a devDependency but required at runtime (server runs TypeScript via tsx)
-RUN mkdir -p ./node_modules/.bin
-COPY --from=build /app/node_modules/tsx ./node_modules/tsx
-COPY --from=build /app/node_modules/esbuild ./node_modules/esbuild
-RUN mkdir -p ./node_modules/@esbuild
-COPY --from=build /app/node_modules/@esbuild ./node_modules/@esbuild
-COPY --from=build /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
-COPY --from=build /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
-RUN for pkg in @swc/core @swc/helpers; do \
-      if [ -d "/app/node_modules/$pkg" ]; then \
-        mkdir -p "./node_modules/$(dirname $pkg)" && \
-        cp -r "/app/node_modules/$pkg" "./node_modules/$(dirname $pkg)/"; \
-      fi; \
-    done
+# Copy generated Prisma artifacts + backend sources
+COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=deps /app/generated ./generated
+COPY --from=deps /app/prisma ./prisma
+COPY --from=deps /app/prisma.config.ts ./prisma.config.ts
 
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/generated ./generated
-COPY --from=build /app/prisma ./prisma
-
-COPY --from=build /app/server ./server
-COPY --from=build /app/shared ./shared
-COPY --from=build /app/types ./types
-COPY --from=build /app/utils ./utils
-COPY --from=build /app/constants ./constants
-COPY --from=build /app/assets.ts ./assets.ts
-COPY --from=build /app/profanity.ts ./profanity.ts
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/tsconfig.base.json ./tsconfig.base.json
+COPY server ./server
+COPY shared ./shared
+COPY types ./types
+COPY utils ./utils
+COPY constants ./constants
+COPY assets.ts ./assets.ts
+COPY profanity.ts ./profanity.ts
+COPY package.json ./package.json
+COPY tsconfig.base.json ./tsconfig.base.json
 
 # Non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
