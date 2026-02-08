@@ -324,11 +324,11 @@ const startNextMatchAutomatically = async (
         // 5초 카운트다운 후 경기 시작
         const now = Date.now();
         state.nextRoundStartTime = now + 5000; // 5초 후
-        state.status = 'bracket_ready'; // 카운트다운 표시를 위해 bracket_ready 상태로 설정
+        state.status = 'round_ready'; // 자동 시작 대기 중 (컨디션 회복제 사용 불가)
         
         // 경기 정보는 아직 설정하지 않음 (카운트다운 후 START_TOURNAMENT_MATCH에서 설정)
 
-        console.log(`[startNextMatchAutomatically] Set countdown for next match: roundIndex=${roundIndex}, matchIndex=${matchIndex}, startTime=${state.nextRoundStartTime}`);
+        console.log(`[startNextMatchAutomatically] Set countdown for next match: roundIndex=${roundIndex}, matchIndex=${matchIndex}, startTime=${state.nextRoundStartTime}, status=round_ready`);
         return true;
     } catch (error: any) {
         console.error(`[startNextMatchAutomatically] Error auto-starting match:`, error);
@@ -642,6 +642,10 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
         } else {
             console.log(`[processMatchCompletion] Round ${currentRound} not all finished yet, waiting...`);
         }
+        // 자동 진행 활성화 상태인데 다음 경기 카운트다운이 없으면 설정
+        if (state.autoAdvanceEnabled && state.status === 'bracket_ready' && !state.nextRoundStartTime && !state.currentStageAttempt) {
+            state.nextRoundStartTime = Date.now() + 5000;
+        }
         return;
     }
 
@@ -689,6 +693,10 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                 state.status = 'complete';
             }
         }
+        // 자동 진행 활성화 상태인데 다음 경기 카운트다운이 없으면 설정
+        if (state.autoAdvanceEnabled && state.status === 'bracket_ready' && !state.nextRoundStartTime && !state.currentStageAttempt) {
+            state.nextRoundStartTime = Date.now() + 5000;
+        }
     }
 };
 
@@ -697,7 +705,33 @@ export const createTournament = (type: TournamentType, user: User, players: Play
     const rounds: Round[] = [];
     
     // 경기 시작 전에 컨디션을 40~100 사이로 랜덤 부여
-    players.forEach(p => p.condition = Math.floor(Math.random() * 61) + 40);
+    // 단, 유저 플레이어는 오늘 이미 참여한 적이 있으면 기존 컨디션 유지
+    const stateKey: keyof User = type === 'neighborhood' ? 'lastNeighborhoodTournament' : type === 'national' ? 'lastNationalTournament' : 'lastWorldTournament';
+    const dateKey: keyof User = type === 'neighborhood' ? 'lastNeighborhoodPlayedDate' : type === 'national' ? 'lastNationalPlayedDate' : 'lastWorldPlayedDate';
+    const existingTournament = (user as any)[stateKey] as TournamentState | null;
+    const lastPlayedDate = (user as any)[dateKey] as number | null;
+    const now = Date.now();
+    const isSameDayKST = (timestamp1: number | null, timestamp2: number) => {
+        if (!timestamp1) return false;
+        const kstOffset = 9 * 60 * 60 * 1000;
+        const d1 = new Date(timestamp1 + kstOffset);
+        const d2 = new Date(timestamp2 + kstOffset);
+        return d1.getUTCFullYear() === d2.getUTCFullYear() &&
+               d1.getUTCMonth() === d2.getUTCMonth() &&
+               d1.getUTCDate() === d2.getUTCDate();
+    };
+    const isToday = isSameDayKST(lastPlayedDate, now);
+    const userCondition = (isToday && existingTournament) 
+        ? existingTournament.players.find(p => p.id === user.id)?.condition 
+        : undefined;
+
+    players.forEach(p => {
+        if (p.id === user.id && userCondition !== undefined) {
+            p.condition = userCondition; // 오늘 이미 참여했으면 기존 컨디션 유지
+        } else {
+            p.condition = Math.floor(Math.random() * 61) + 40; // 랜덤 부여
+        }
+    });
 
     if (definition.format === 'tournament') {
         const matches: Match[] = [];
@@ -842,6 +876,9 @@ export const startNextRound = (state: TournamentState, user: User) => {
             // 유저의 매치가 있으면 대기 상태로 두고, 유저가 경기 시작 버튼을 눌러야 시작됨
             // 경기 시작은 START_TOURNAMENT_MATCH 액션으로 처리됨
             state.status = 'bracket_ready';
+            if (state.autoAdvanceEnabled && !state.currentStageAttempt) {
+                state.nextRoundStartTime = Date.now() + 5000;
+            }
             // currentRoundRobinRound가 아직 설정되지 않았으면 설정
             if (!state.currentRoundRobinRound) {
                 state.currentRoundRobinRound = currentRound;
@@ -896,6 +933,9 @@ export const startNextRound = (state: TournamentState, user: User) => {
         // 유저의 매치가 있으면 대기 상태로 두고, 유저가 경기 시작 버튼을 눌러야 시작됨
         // 경기 시작은 START_TOURNAMENT_ROUND 액션으로 처리됨
         state.status = 'bracket_ready';
+        if (state.autoAdvanceEnabled && !state.currentStageAttempt) {
+            state.nextRoundStartTime = Date.now() + 5000;
+        }
         
         // 완료된 유저 경기 수 확인 (첫 경기인지 판단)
         const finishedUserMatches = state.rounds.reduce((count, r) => {

@@ -723,10 +723,14 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
         gameStartTime: undefined, // 게임이 실제로 시작될 때 설정됨
     };
 
-    if (SPECIAL_GAME_MODES.some(m => m.mode === mode)) {
-        await initializeStrategicGame(game, neg, now);
-    } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode; }) => m.mode === mode)) {
-        await initializePlayfulGame(game, neg, now);
+    // AI 게임은 대국실 입장 후 "경기 시작" 확인을 받아야 시작되므로,
+    // 생성 시에는 항상 pending 상태로 유지하고, 실제 초기화는 CONFIRM_AI_GAME_START에서 수행합니다.
+    if (!isAiGame) {
+        if (SPECIAL_GAME_MODES.some(m => m.mode === mode)) {
+            await initializeStrategicGame(game, neg, now);
+        } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode; }) => m.mode === mode)) {
+            await initializePlayfulGame(game, neg, now);
+        }
     }
     
     if (game.gameStatus === 'playing' && game.currentPlayer === types.Player.None) {
@@ -785,14 +789,15 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
     }
 
     try {
-        // PVE 게임 완전 제외 (싱글플레이어, 도전의 탑, AI 게임)
+        // PVE 게임 완전 제외 (싱글플레이어, 도전의 탑)
         // PVE 게임은 클라이언트에서 실행되므로 서버 루프에서 처리 불필요
         const multiPlayerGames: LiveGameSession[] = [];
         
         for (const game of games) {
             if (!game || !game.id) continue; // 유효하지 않은 게임 스킵
-            // PVE 게임 제외: 싱글플레이어, 도전의 탑, AI 게임은 메인 루프에서 처리하지 않음
-            const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.isAiGame;
+            // PVE 게임 제외: 싱글플레이어, 도전의 탑만 메인 루프에서 처리하지 않음
+            // AI 게임은 서버에서 진행(타이머/AI 수 포함)하므로 멀티플레이 루프에 포함
+            const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
             if (!isPVEGame) {
                 multiPlayerGames.push(game);
             }
@@ -852,7 +857,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
         // PVE 게임은 원본 그대로 반환 (처리하지 않음)
         const pveGames = games.filter(game => {
             if (!game || !game.id) return false;
-            return game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.isAiGame;
+            return game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
         });
 
         return [...results, ...pveGames];
@@ -942,7 +947,9 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 }
             }
 
-            const isAiTurn = game.isAiGame && game.currentPlayer !== types.Player.None &&
+            const isManuallyPaused = game.isAiGame && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
+
+            const isAiTurn = game.isAiGame && !isManuallyPaused && game.currentPlayer !== types.Player.None &&
                 (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId) &&
                 // 클라이언트 전용 AI로 동작시킬 게임(도전의 탑)은 서버에서 AI 수를 처리하지 않음
                 game.gameCategory !== 'tower';

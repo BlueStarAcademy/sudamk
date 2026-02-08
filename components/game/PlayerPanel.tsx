@@ -349,6 +349,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     // 싱글플레이/도전의 탑 턴 안내 패널 계산
     const turnInfo = useMemo(() => {
+        // 초기 동기화 payload에서 moveHistory가 생략될 수 있으므로 방어
+        const moveHistory = session.moveHistory ?? [];
         const isTower = session.gameCategory === 'tower';
         if ((!isSinglePlayer && !isTower) || !session.stageId) return null;
         
@@ -360,7 +362,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         
         // 따내기바둑: 흑의 남은 턴 (blackTurnLimit이 있는 경우)
         if (stage.blackTurnLimit) {
-            const blackMovesCount = session.moveHistory.filter(m => m.player === Player.Black && m.x !== -1).length;
+            const blackMovesCount = moveHistory.filter(m => m.player === Player.Black && m.x !== -1).length;
             // 도전의 탑에서 턴 추가 아이템으로 증가한 턴을 반영
             const blackTurnLimitBonus = (session as any).blackTurnLimitBonus || 0;
             const effectiveBlackTurnLimit = stage.blackTurnLimit + blackTurnLimitBonus;
@@ -376,7 +378,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         // 살리기바둑: 백의 남은 턴
         if (stage.survivalTurns) {
             // 백이 수를 둔 횟수를 moveHistory에서 직접 계산 (백이 수를 둘 때마다만 카운팅)
-            const whiteMovesCount = session.moveHistory.filter(m => m.player === Player.White && m.x !== -1).length;
+            const whiteMovesCount = moveHistory.filter(m => m.player === Player.White && m.x !== -1).length;
             const remainingTurns = Math.max(0, stage.survivalTurns - whiteMovesCount);
             return {
                 type: 'survival' as const,
@@ -388,7 +390,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         
         // 자동계가: 자동계가까지 남은 턴
         if (stage.autoScoringTurns) {
-            const totalTurns = session.totalTurns ?? session.moveHistory.filter(m => m.x !== -1 && m.player !== Player.None).length;
+            const totalTurns = session.totalTurns ?? moveHistory.filter(m => m.x !== -1 && m.player !== Player.None).length;
             const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
             return {
                 type: 'auto_scoring' as const,

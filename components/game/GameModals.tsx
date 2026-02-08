@@ -27,6 +27,7 @@ import CurlingStartConfirmationModal from '../CurlingStartConfirmationModal.js';
 import AlkkagiStartConfirmationModal from '../AlkkagiStartConfirmationModal.js';
 import SinglePlayerSummaryModal from '../SinglePlayerSummaryModal.js';
 import TowerSummaryModal from '../TowerSummaryModal.js';
+import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 
 interface GameModalsProps extends GameProps {
     confirmModalType: 'resign' | null;
@@ -40,6 +41,14 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
     const { gameStatus, mode, id: gameId } = session;
 
     const renderModals = () => {
+        // AI 봇 대전(대기실의 "AI와 대결하기"로 시작된 일반/로비 AI 경기만):
+        // 대국실 입장 시 룰 설명 모달을 먼저 띄우고, "경기 시작" 확인 후 진행
+        // (협상(draft) 상태가 남아 activeNegotiation이 잡히더라도, 게임 화면에서는 AI 시작 모달이 우선)
+        if (session.isAiGame && gameStatus === 'pending' && !session.isSinglePlayer && session.gameCategory !== 'tower') {
+            if (isSpectator) return null;
+            return <AiGameDescriptionModal session={session} onAction={onAction} />;
+        }
+
         if (activeNegotiation) {
             return <NegotiationModal negotiation={activeNegotiation} currentUser={currentUser} onAction={onAction} onlineUsers={onlineUsers} />;
         }

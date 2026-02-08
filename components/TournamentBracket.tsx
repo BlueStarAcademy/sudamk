@@ -550,19 +550,31 @@ const PlayerProfilePanel: React.FC<{
                         +{conditionIncreaseAmount}
                     </span>
                 )}
-                {/* 회복제 사용 버튼 (현재 유저이고, bracket_ready 상태일 때만 표시, 컨디션이 100이면 비활성화) */}
-                {isCurrentUser && isUserMatch && tournamentStatus === 'bracket_ready' && totalPotionCount > 0 && onUseConditionPotion && (
+                {/* + 버튼 (현재 유저이고, 경기 전일 때만 표시, 자동 진행 대기 중이거나 경기 시작 후에는 비활성화) */}
+                {isCurrentUser && isUserMatch && (tournamentStatus === 'bracket_ready' || tournamentStatus === 'round_ready' || tournamentStatus === 'round_in_progress') && onUseConditionPotion && (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            if (playerCondition >= 100) return; // 컨디션이 100이면 클릭 무시
+                            if (playerCondition >= 100 || tournamentStatus === 'round_in_progress' || tournamentStatus === 'round_ready') return;
                             onUseConditionPotion();
                         }}
-                        disabled={playerCondition >= 100}
-                        className={`ml-1 md:ml-2 ${isMobile ? 'text-[7px] px-1 py-0.5' : 'text-[9px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1'} ${playerCondition >= 100 ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-green-600 hover:bg-green-700'} text-white rounded transition-colors flex-shrink-0`}
-                        title={playerCondition >= 100 ? "컨디션이 이미 최대입니다" : "컨디션 회복제 사용"}
+                        disabled={playerCondition >= 100 || tournamentStatus === 'round_in_progress' || tournamentStatus === 'round_ready'}
+                        className={`ml-1 md:ml-2 ${isMobile ? 'text-[10px] w-4 h-4' : 'text-sm md:text-base w-5 h-5 md:w-6 md:h-6'} ${
+                            playerCondition >= 100 || tournamentStatus === 'round_in_progress' || tournamentStatus === 'round_ready'
+                                ? 'bg-gray-600 cursor-not-allowed opacity-50' 
+                                : 'bg-green-600 hover:bg-green-700'
+                        } text-white rounded-full transition-colors flex-shrink-0 flex items-center justify-center font-bold`}
+                        title={
+                            tournamentStatus === 'round_ready'
+                                ? "다음 경기 자동 시작 대기 중"
+                                : tournamentStatus === 'round_in_progress' 
+                                    ? "경기 시작 후에는 사용할 수 없습니다" 
+                                    : playerCondition >= 100 
+                                        ? "컨디션이 이미 최대입니다" 
+                                        : "컨디션 회복제 사용"
+                        }
                     >
-                        회복제
+                        +
                     </button>
                 )}
             </div>
@@ -1304,8 +1316,8 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
     const handleClaim = () => {
         if (canClaimReward) {
             audioService.claimReward();
-            // 던전 모드인지 확인 (currentStageAttempt가 있으면 던전 모드)
-            const isDungeonMode = tournamentState.currentStageAttempt !== undefined && tournamentState.currentStageAttempt !== null;
+            // 던전 모드인지 확인 (currentStageAttempt가 1 이상이면 던전 모드)
+            const isDungeonMode = tournamentState.currentStageAttempt !== undefined && tournamentState.currentStageAttempt !== null && tournamentState.currentStageAttempt >= 1;
             if (isDungeonMode && tournamentState.currentStageAttempt) {
                 // 던전 모드: COMPLETE_DUNGEON_STAGE 액션 호출
                 onAction({ 
@@ -2527,6 +2539,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const countdownRef = useRef<number>(0); // 카운트다운 값을 저장하는 ref
     const hasAutoStartedRef = useRef(false); // 오늘 처음 입장했는지 확인
     const tournamentRef = useRef<TournamentState | undefined>(tournament); // 최신 tournament 상태를 ref로 저장
+    const autoStartTimeRef = useRef<number | null>(null);
     
     // 안전성 검사: tournament가 없으면 로딩 메시지 표시
     if (!tournament) {
@@ -2653,17 +2666,28 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     // nextRoundStartTime 체크: 5초 카운트다운 후 자동으로 경기 시작
     useEffect(() => {
-        const nextRoundStartTime = tournament?.nextRoundStartTime;
         const status = tournament?.status;
-        
-        // nextRoundStartTime이 없거나 bracket_ready 상태가 아니면 타이머 정리하고 종료
-        if (!nextRoundStartTime || status !== 'bracket_ready') {
+        const autoAdvanceEnabled = !!tournament?.autoAdvanceEnabled;
+        const nextRoundStartTime = tournament?.nextRoundStartTime;
+        // round_ready는 자동 시작 대기 중 상태
+        const isWaitingForAutoStart = (status === 'bracket_ready' || status === 'round_ready') && nextRoundStartTime;
+        const shouldClientAutoStart = autoAdvanceEnabled && status === 'bracket_ready' && !nextRoundStartTime;
+
+        if (shouldClientAutoStart && !autoStartTimeRef.current) {
+            autoStartTimeRef.current = Date.now() + 5000;
+        }
+
+        const effectiveStartTime = nextRoundStartTime ?? autoStartTimeRef.current;
+
+        // start time이 없거나 대기 상태가 아니면 타이머 정리하고 종료
+        if (!effectiveStartTime || (!isWaitingForAutoStart && status !== 'bracket_ready')) {
             setAutoNextCountdown(null);
             if (autoNextTimerRef.current) {
                 clearInterval(autoNextTimerRef.current);
                 autoNextTimerRef.current = null;
             }
             countdownRef.current = 0;
+            autoStartTimeRef.current = null;
             return;
         }
 
@@ -2675,7 +2699,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
         const updateCountdown = () => {
             const currentTournament = tournamentRef.current;
-            if (!currentTournament || !currentTournament.nextRoundStartTime || currentTournament.status !== 'bracket_ready') {
+            const currentStartTime = currentTournament?.nextRoundStartTime ?? autoStartTimeRef.current;
+            const currentStatus = currentTournament?.status;
+            const isWaiting = (currentStatus === 'bracket_ready' || currentStatus === 'round_ready') && currentStartTime;
+            
+            if (!currentTournament || !currentStartTime || (!isWaiting && currentStatus !== 'bracket_ready')) {
                 setAutoNextCountdown(null);
                 countdownRef.current = 0;
                 if (autoNextTimerRef.current) {
@@ -2685,7 +2713,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 return;
             }
 
-            const startTime = currentTournament.nextRoundStartTime;
+            const startTime = currentStartTime;
             const now = Date.now();
             const timeUntilStart = startTime - now;
             const secondsLeft = Math.max(0, Math.ceil(timeUntilStart / 1000));
@@ -2711,6 +2739,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     clearInterval(autoNextTimerRef.current);
                     autoNextTimerRef.current = null;
                 }
+                autoStartTimeRef.current = null;
                 
                 // 다음 경기 찾기
                 const rounds = currentTournament.rounds || [];
@@ -2753,7 +2782,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         };
 
         // 즉시 한 번 실행하고 타이머 시작
-        const timeUntilStart = nextRoundStartTime - Date.now();
+        const timeUntilStart = effectiveStartTime - Date.now();
         console.log(`[TournamentBracket] nextRoundStartTime detected: ${nextRoundStartTime}, current time: ${Date.now()}, time until start: ${timeUntilStart}ms, status: ${status}`);
         
         // 이미 시간이 지나간 경우 즉시 시작

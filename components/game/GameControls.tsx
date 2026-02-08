@@ -393,10 +393,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isGameActive = ACTIVE_GAME_STATUSES.includes(gameStatus);
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
+    // 일반 AI 대국(대기실 'AI와 대결하기')에서만 사용되는 수동 일시정지/재개 플래그
+    const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+    const isManuallyPausedAi = isPausableAiGame && session.pausedTurnTimeLeft !== undefined && !session.turnDeadline && !session.itemUseDeadline;
     const handlePass = () => { 
         if (isMyTurn && !isSpectator && gameStatus === 'playing') {
-            // PVE 게임은 클라이언트에서 처리, PVP 게임은 서버로 전송
-            const isPVEGame = session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer' || session.isAiGame;
+            // PVE(싱글/타워)만 클라이언트에서 처리, 그 외(일반/AI)는 서버로 전송
+            const isPVEGame = session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer';
             if (isPVEGame) {
                 // PVE 게임: 클라이언트에서 패스 처리 및 계가 요청
                 const currentPassCount = (session.passCount || 0) + 1;
@@ -831,16 +834,28 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                         title="한 수 쉬기"
                                     />
                                 )}
-                                <LabeledControlButton
-                                    key="resign"
-                                    src="/images/button/giveup.png"
-                                    alt="기권"
-                                    label="기권"
-                                    onClick={handleResign}
-                                    disabled={isSpectator || session.isAiGame || isPreGame}
-                                    title="기권하기"
-                                    variant="danger"
-                                />
+                                {isPausableAiGame ? (
+                                    <Button
+                                        onClick={() => onAction({ type: isManuallyPausedAi ? 'RESUME_AI_GAME' : 'PAUSE_AI_GAME', payload: { gameId } } as any)}
+                                        colorScheme={isManuallyPausedAi ? 'green' : 'yellow'}
+                                        className="whitespace-nowrap"
+                                        disabled={isSpectator || isPreGame}
+                                        title={isManuallyPausedAi ? '대국 재개' : '일시 정지'}
+                                    >
+                                        {isManuallyPausedAi ? '대국 재개' : '일시 정지'}
+                                    </Button>
+                                ) : (
+                                    <LabeledControlButton
+                                        key="resign"
+                                        src="/images/button/giveup.png"
+                                        alt="기권"
+                                        label="기권"
+                                        onClick={handleResign}
+                                        disabled={isSpectator || session.isAiGame || isPreGame}
+                                        title="기권하기"
+                                        variant="danger"
+                                    />
+                                )}
                             </>
                         )}
                     </div>

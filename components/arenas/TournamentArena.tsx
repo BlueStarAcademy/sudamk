@@ -129,7 +129,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         if (tournamentState) {
             // bracket_ready 상태에서 컨디션이 부여되지 않은 경우에만 컨디션 부여를 위해 START_TOURNAMENT_ROUND 호출
             // 이미 유효한 컨디션이 있으면(40-100 사이) 다시 호출하지 않음 (뒤로가기 후 다시 들어온 경우 컨디션 유지)
-            if (tournamentState.status === 'bracket_ready' && 
+            if (!tournamentState.autoAdvanceEnabled && tournamentState.status === 'bracket_ready' && 
                 tournamentState.players.some((p: PlayerForTournament) => {
                     const hasValidCondition = p.condition !== undefined && 
                                               p.condition !== null && 

@@ -364,8 +364,8 @@ const TournamentCard: React.FC<{
     }
     const lastPlayedDate = currentUser[playedDateKey as keyof UserWithStatus] as number | null | undefined;
     const hasPlayedToday = lastPlayedDate && isSameDayKST(lastPlayedDate, now);
-    // 입장 가능 횟수: 오늘 플레이하지 않았으면 1, 플레이했으면 0
-    const availableEntries = hasPlayedToday ? 0 : 1;
+    // 하루 1회 참여: 표시용 (N/1) = 오늘 참여 횟수/1
+    const playedCountToday = hasPlayedToday ? 1 : 0;
 
     // 보상 미수령 여부 확인 (토너먼트가 완료되었지만 보상을 받지 않은 경우)
     const rewardClaimed = currentUser[rewardClaimedKey as keyof UserWithStatus] as boolean | undefined;
@@ -430,7 +430,10 @@ const TournamentCard: React.FC<{
                 <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full z-10 border-2 border-gray-800"></div>
             )}
             <div className="flex justify-between items-center mb-1.5 sm:mb-2">
-                <h2 className="text-xs sm:text-sm lg:text-lg font-bold">{definition.name}</h2>
+                <h2 className="text-xs sm:text-sm lg:text-lg font-bold">
+                    {definition.name}{' '}
+                    <span className="text-[10px] sm:text-xs text-gray-300 font-semibold">({playedCountToday}/1)</span>
+                </h2>
                 {dungeonProgress.currentStage > 0 && (
                     <span className="text-[10px] sm:text-xs text-yellow-400">최고 {dungeonProgress.currentStage}단계</span>
                 )}

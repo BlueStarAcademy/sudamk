@@ -72,7 +72,8 @@ const AppContent: React.FC = () => {
         aggregatedMythicStats,
     } = useAppContext();
     
-    const [isPreloading, setIsPreloading] = useState(true);
+    // 에셋 프리로딩은 UX를 위해 백그라운드로 돌리고, 화면을 막지 않도록 함
+    const [isPreloading, setIsPreloading] = useState(false);
     const [showQuestToast, setShowQuestToast] = useState(false);
     
     const prevHasClaimableQuest = usePrevious(hasClaimableQuest);
@@ -121,9 +122,27 @@ const AppContent: React.FC = () => {
         if (currentUser) {
             // 우선순위가 높은 이미지들만 먼저 로드 (UI에 즉시 필요한 것들)
             // 나머지는 백그라운드에서 점진적으로 로드
-            preloadImages(ALL_IMAGE_URLS, { priority: 'low', batchSize: 15 }).then(() => {
-                setIsPreloading(false);
-            });
+            let cancelled = false;
+
+            // 프리로딩이 오래 걸릴 때만 표시 (짧은 로드는 표시하지 않음)
+            const showTimer = setTimeout(() => {
+                if (!cancelled) setIsPreloading(true);
+            }, 500);
+
+            preloadImages(ALL_IMAGE_URLS, { priority: 'low', batchSize: 15 })
+                .catch(() => {
+                    // 프리로딩 실패는 치명적이지 않음 (이미지는 필요 시 로드됨)
+                })
+                .finally(() => {
+                    if (cancelled) return;
+                    clearTimeout(showTimer);
+                    setIsPreloading(false);
+                });
+
+            return () => {
+                cancelled = true;
+                clearTimeout(showTimer);
+            };
         } else {
             setIsPreloading(false);
         }
@@ -187,9 +206,9 @@ const AppContent: React.FC = () => {
             paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : '0px'
         }}>
             {isPreloading && (
-                <div className="fixed inset-0 bg-tertiary z-[100] flex flex-col items-center justify-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-                    <p className="mt-4 text-primary">에셋 로딩 중...</p>
+                <div className="fixed bottom-4 right-4 z-[100] bg-panel border border-color text-on-panel rounded-lg shadow-xl px-3 py-2 flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm">에셋 로딩 중...</span>
                 </div>
             )}
             {showExitToast && (

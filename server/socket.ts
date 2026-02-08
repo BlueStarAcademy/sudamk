@@ -227,13 +227,41 @@ export const createWebSocketServer = (server: Server) => {
                 // 타임아웃 추가 (10초로 증가)
                 let allGames: any[] = [];
                 try {
+                    // DB가 느리거나 타임아웃이 자주 나는 환경에서는 캐시를 우선 사용해 초기 로딩을 단축
+                    // (캐시가 비어있을 때만 DB 조회)
+                    try {
+                        const { getAllCachedGames } = await import('./gameCache.js');
+                        const cachedGames = getAllCachedGames();
+                        if (Array.isArray(cachedGames) && cachedGames.length > 0) {
+                            allGames = cachedGames;
+                        }
+                    } catch {
+                        // 캐시 모듈 로드 실패는 무시 (DB로 폴백)
+                    }
+
                     const gamesTimeout = new Promise<any[]>((resolve) => {
                         setTimeout(() => resolve([]), 10000); // 10초로 증가
                     });
-                    allGames = await Promise.race([
-                        db.getAllActiveGames(),
-                        gamesTimeout
-                    ]);
+
+                    if (allGames.length === 0) {
+                        allGames = await Promise.race([
+                            db.getAllActiveGames(),
+                            gamesTimeout
+                        ]);
+                    }
+
+                    // DB 조회가 타임아웃/실패로 빈 배열이면 캐시로 한 번 더 폴백
+                    if (allGames.length === 0) {
+                        try {
+                            const { getAllCachedGames } = await import('./gameCache.js');
+                            const cachedGames = getAllCachedGames();
+                            if (Array.isArray(cachedGames) && cachedGames.length > 0) {
+                                allGames = cachedGames;
+                            }
+                        } catch {
+                            // ignore
+                        }
+                    }
                 } catch (error) {
                     console.warn('[WebSocket] Failed to load games:', error);
                     allGames = [];

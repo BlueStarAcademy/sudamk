@@ -23,6 +23,10 @@ interface SidebarProps extends GameProps {
     isNoContestLeaveAvailable: boolean;
     onClose?: () => void;
     onOpenSettings?: () => void;
+    onTogglePause?: () => void;
+    isPaused?: boolean;
+    resumeCountdown?: number;
+    pauseButtonCooldown?: number;
 }
 
 export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () => void, onOpenSettings?: () => void }> = ({ session, onClose, onOpenSettings }) => {
@@ -587,10 +591,12 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
 };
 
 const Sidebar: React.FC<SidebarProps> = (props) => {
-    const { session, onLeaveOrResign, isNoContestLeaveAvailable, isSpectator } = props;
+    const { session, onLeaveOrResign, isNoContestLeaveAvailable, isSpectator, onTogglePause, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0 } = props;
     const { gameStatus } = session;
 
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
+    const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+
     const leaveButtonText = isNoContestLeaveAvailable ? '무효처리' : (isGameEnded ? '나가기' : (isSpectator ? '관전종료' : '기권하기'));
     const leaveButtonColor = isNoContestLeaveAvailable ? 'yellow' : 'red';
     
@@ -604,9 +610,22 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                 <ChatPanel {...props} />
             </div>
             <div className="flex-shrink-0 pt-2">
-                <Button onClick={onLeaveOrResign} colorScheme={leaveButtonColor} className="w-full">
-                    {leaveButtonText}
-                </Button>
+                {isPausableAiGame && !isGameEnded && !isSpectator && onTogglePause ? (
+                    <Button
+                        onClick={onTogglePause}
+                        colorScheme={isPaused ? 'green' : 'yellow'}
+                        className="w-full"
+                        disabled={(isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0)}
+                    >
+                        {isPaused
+                            ? (resumeCountdown > 0 ? `대국 재개 (${resumeCountdown})` : '대국 재개')
+                            : (pauseButtonCooldown > 0 ? `일시 정지 (${pauseButtonCooldown})` : '일시 정지')}
+                    </Button>
+                ) : (
+                    <Button onClick={onLeaveOrResign} colorScheme={leaveButtonColor} className="w-full">
+                        {leaveButtonText}
+                    </Button>
+                )}
             </div>
         </div>
     );

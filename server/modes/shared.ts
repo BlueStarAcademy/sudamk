@@ -8,6 +8,11 @@ import { updateQuestProgress } from '../questService.js';
 import * as types from '../../types/index.js';
 import { broadcast } from '../socket.js';
 
+// AI 대국 일시정지/재개 쿨다운 (서버 메모리 기반)
+// - "일시정지" 후 5초가 지나야 "대국 재개" 허용
+// - 서버 재시작 시 맵은 초기화되며, 그 경우 재개를 즉시 허용(UX 우선)
+const aiManualPauseResumeAvailableAt = new Map<string, number>();
+
 // FIX: Corrected the type definition for `rpsStatusMap`. `Partial` takes one type argument, and the original code provided two. This also fixes a typo with an extra '>' and resolves subsequent parsing errors on the following lines.
 const rpsStatusMap: Partial<Record<types.GameMode, types.GameStatus>> = {
     [types.GameMode.Alkkagi]: 'alkkagi_rps',
@@ -271,6 +276,65 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
     const now = Date.now();
     
     switch (type) {
+        case 'PAUSE_AI_GAME': {
+            // "AI와 대결하기"로 들어간 일반 AI 대국에서만 허용
+            const isPausableAiGame = game.isAiGame && !game.isSinglePlayer && game.gameCategory !== 'tower' && game.gameCategory !== 'singleplayer';
+            if (!isPausableAiGame) return { error: '이 게임에서는 일시정지를 사용할 수 없습니다.' };
+            if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
+                return { error: '게임이 종료된 상태에서는 일시정지할 수 없습니다.' };
+            }
+            // 아이템 사용/애니메이션 등으로 이미 타이머가 정지된 상태에서는 수동 일시정지 불가
+            if (game.itemUseDeadline) return { error: '특수 기능 처리 중에는 일시정지할 수 없습니다.' };
+
+            const isAlreadyManuallyPaused = game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
+            if (isAlreadyManuallyPaused) return { error: '이미 일시정지 상태입니다.' };
+
+            // 참가자만 허용 (관전자는 불가)
+            const isParticipant = user.id === game.player1?.id || user.id === game.player2?.id;
+            if (!isParticipant) return { error: 'Only participants can pause the game.' };
+
+            // 현재 턴의 남은 시간 저장 + currentPlayer의 timeLeft도 함께 갱신(클라이언트 표시 정확도)
+            const currentPlayerTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            const remaining = game.turnDeadline
+                ? Math.max(0, (game.turnDeadline - now) / 1000)
+                : (game[currentPlayerTimeKey] ?? 0);
+
+            game.pausedTurnTimeLeft = remaining;
+            game[currentPlayerTimeKey] = remaining;
+            game.turnDeadline = undefined;
+            game.turnStartTime = undefined;
+            game.itemUseDeadline = undefined;
+
+            aiManualPauseResumeAvailableAt.set(game.id, now + 5000);
+            return {};
+        }
+
+        case 'RESUME_AI_GAME': {
+            const isPausableAiGame = game.isAiGame && !game.isSinglePlayer && game.gameCategory !== 'tower' && game.gameCategory !== 'singleplayer';
+            if (!isPausableAiGame) return { error: '이 게임에서는 대국 재개를 사용할 수 없습니다.' };
+            if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
+                return { error: '게임이 종료된 상태에서는 재개할 수 없습니다.' };
+            }
+
+            const isManuallyPaused = game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
+            if (!isManuallyPaused) return { error: '일시정지 상태가 아닙니다.' };
+
+            const availableAt = aiManualPauseResumeAvailableAt.get(game.id);
+            if (typeof availableAt === 'number' && now < availableAt) {
+                const seconds = Math.ceil((availableAt - now) / 1000);
+                return { error: `대국 재개는 ${seconds}초 후에 가능합니다.` };
+            }
+
+            // 참가자만 허용
+            const isParticipant = user.id === game.player1?.id || user.id === game.player2?.id;
+            if (!isParticipant) return { error: 'Only participants can resume the game.' };
+
+            // shared helper로 byoyomi/fischer 포함 복원
+            resumeGameTimer(game, now, game.currentPlayer);
+            aiManualPauseResumeAvailableAt.delete(game.id);
+            return {};
+        }
+
         case 'USE_ACTION_BUTTON': {
             if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
                 return { error: 'Game has already ended.' };

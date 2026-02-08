@@ -835,6 +835,11 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             const tournamentState = (freshUser as any)[stateKey] as types.TournamentState | null;
             if (!tournamentState) return { error: '토너먼트 정보를 찾을 수 없습니다.' };
+
+            // 던전 모드가 아닌 일반 토너먼트는 첫 경기 시작 이후 자동 진행 활성화
+            if (!tournamentState.currentStageAttempt) {
+                tournamentState.autoAdvanceEnabled = true;
+            }
             
             // 유저의 다음 경기 찾기 (상태 확인 전에 먼저 찾기)
             let userMatch: types.Match | null = null;

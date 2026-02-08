@@ -345,9 +345,33 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
         
         console.log(`[handleAction] Game found: gameId=${gameId}, type=${type}, isSinglePlayer=${game.isSinglePlayer}, gameStatus=${game.gameStatus}`);
+
+        // 일반 AI 대국의 수동 일시정지 중에는 착수/통과 등 주요 게임 액션을 차단
+        const isManuallyPausedAi = game.isAiGame && !game.isSinglePlayer && game.gameCategory !== 'tower' && game.gameCategory !== 'singleplayer'
+            && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
+        if (isManuallyPausedAi) {
+            const allowedWhilePaused = new Set([
+                'RESUME_AI_GAME',
+                'LEAVE_AI_GAME',
+                'LEAVE_GAME_ROOM',
+                'SEND_CHAT_MESSAGE',
+                'LEAVE_SPECTATING',
+                'SET_USER_STATUS',
+            ]);
+            if (!allowedWhilePaused.has(type)) {
+                return { error: '일시 정지 상태에서는 해당 동작을 할 수 없습니다.' };
+            }
+        }
         
-        // PVE 게임 (타워, 싱글플레이어, AI 게임)의 착수 액션은 클라이언트에서만 처리
-        const isPVEGame = game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.isSinglePlayer || game.isAiGame;
+        // AI 게임은 서버에서 진행/검증/AI 수 처리까지 담당해야 하므로 PVE로 분류하지 않음
+        // (싱글플레이/도전의 탑만 클라이언트 전용 처리)
+        const isPVEGame = game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.isSinglePlayer;
+
+        // AI 게임 시작 확인은 게임 분류와 상관없이 서버에서 처리 (대국실 입장 후 시작 버튼)
+        if (type === 'CONFIRM_AI_GAME_START') {
+            const { handleAiAction } = await import('./actions/aiActions.js');
+            return handleAiAction(volatileState, action, userData);
+        }
         if (isPVEGame) {
             // 계가 요청은 서버에서 처리
             if (type === 'REQUEST_SCORING') {

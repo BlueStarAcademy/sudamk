@@ -41,11 +41,35 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
             break;
         case types.GameMode.Hidden:
             initializeHidden(game);
-            initializeNigiri(game, now); // Also uses nigiri
+            if (game.isAiGame) {
+                const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
+                if (humanPlayerColor === types.Player.Black) {
+                    game.blackPlayerId = p1.id;
+                    game.whitePlayerId = p2.id;
+                } else {
+                    game.whitePlayerId = p1.id;
+                    game.blackPlayerId = p2.id;
+                }
+                transitionToPlaying(game, now);
+            } else {
+                initializeNigiri(game, now); // Also uses nigiri
+            }
             break;
         case types.GameMode.Missile:
             initializeMissile(game);
-            initializeNigiri(game, now); // Also uses nigiri
+            if (game.isAiGame) {
+                const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
+                if (humanPlayerColor === types.Player.Black) {
+                    game.blackPlayerId = p1.id;
+                    game.whitePlayerId = p2.id;
+                } else {
+                    game.whitePlayerId = p1.id;
+                    game.blackPlayerId = p2.id;
+                }
+                transitionToPlaying(game, now);
+            } else {
+                initializeNigiri(game, now); // Also uses nigiri
+            }
             break;
     }
 };

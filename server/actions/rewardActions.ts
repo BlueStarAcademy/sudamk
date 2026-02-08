@@ -488,6 +488,35 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             
             console.log(`[CLAIM_TOURNAMENT_REWARD] tournamentType: ${tournamentType}, userRank: ${userRank}, scoreRewardKey: ${scoreRewardKey}, scoreReward: ${scoreReward}, currentTournamentScore: ${freshUser.tournamentScore || 0}`);
             
+            // 던전 진행 상태 초기화 및 다음 단계 언락 (순위에 따라)
+            if (!freshUser.dungeonProgress) {
+                freshUser.dungeonProgress = {
+                    neighborhood: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
+                    national: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
+                    world: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
+                };
+            }
+            
+            const dungeonProgress = freshUser.dungeonProgress[tournamentType];
+            
+            // 토너먼트 완료 시 다음 단계 언락 조건: 3등 이상 달성 시
+            // currentStageAttempt가 없으므로 currentStage를 기준으로 함
+            const currentStage = dungeonProgress.currentStage || 1;
+            const cleared = userRank <= 6; // 6등 이내면 클리어로 간주
+            
+            if (cleared) {
+                if (currentStage > dungeonProgress.currentStage) {
+                    dungeonProgress.currentStage = currentStage;
+                }
+                
+                // 다음 단계 언락: 3등 이상이면 다음 단계 언락
+                if (userRank <= 3 && !dungeonProgress.unlockedStages.includes(currentStage + 1) && currentStage < 10) {
+                    dungeonProgress.unlockedStages.push(currentStage + 1);
+                    dungeonProgress.unlockedStages.sort((a, b) => a - b);
+                    console.log(`[CLAIM_TOURNAMENT_REWARD] Unlocked next stage ${currentStage + 1} for ${tournamentType}`);
+                }
+            }
+            
             const itemReward = itemRewardInfo.rewards?.[itemRewardKey];
 
             if (!itemReward) {
@@ -565,6 +594,9 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 // 보상 수령 후에도 토너먼트 상태를 유지하기 위해 DB에 저장
                 (freshUser as any)[tourneyKey] = tournamentState;
                 
+                // 중복 보상 방지: statusKey를 설정한 후 즉시 DB에 동기적으로 저장
+                await db.updateUser(freshUser);
+                
                 // 사용자 캐시 업데이트 (즉시 반영)
                 const { updateUserCache } = await import('../gameCache.js');
                 updateUserCache(freshUser);
@@ -576,11 +608,6 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 const fullUserForBroadcast = JSON.parse(JSON.stringify(freshUser));
                 const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(fullUserForBroadcast, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints', 'mail']);
-                
-                // DB 저장은 비동기로 처리하여 응답 지연 최소화
-                db.updateUser(freshUser).catch((error: any) => {
-                    console.error(`[CLAIM_TOURNAMENT_REWARD] Error updating user ${freshUser.id}:`, error);
-                });
                 
                 const allObtainedItems: any[] = [...accumulatedMaterials, ...accumulatedEquipmentBoxes];
                 if (accumulatedGold > 0) {
@@ -684,29 +711,19 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             // 보상 수령 후에도 토너먼트 상태를 유지하기 위해 DB에 저장
             (freshUser as any)[tourneyKey] = tournamentState;
             
+            // 중복 보상 방지: statusKey를 설정한 후 즉시 DB에 동기적으로 저장
+            await db.updateUser(freshUser);
+            
             // 사용자 캐시 업데이트 (즉시 반영)
             const { updateUserCache } = await import('../gameCache.js');
             updateUserCache(freshUser);
             
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(freshUser, 'CLAIM_TOURNAMENT_REWARD', { includeAll: true });
-            
-            // DB 저장은 비동기로 처리하여 응답 지연 최소화
-            db.updateUser(freshUser).catch((error: any) => {
-                console.error(`[CLAIM_TOURNAMENT_REWARD] Failed to save user ${freshUser.id}:`, error);
-            });
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(freshUser, ['inventory', 'gold', 'diamonds', 'tournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament']);
-            const fullUserForBroadcast = JSON.parse(JSON.stringify(freshUser));
-            const { broadcast } = await import('../socket.js');
-            broadcast({ type: 'USER_UPDATE', payload: { [freshUser.id]: fullUserForBroadcast } });
-            
-            // DB 저장은 비동기로 처리하여 응답 지연 최소화
-            db.updateUser(freshUser).catch((error: any) => {
-                console.error(`[CLAIM_TOURNAMENT_REWARD] Error updating user ${freshUser.id}:`, error);
-            });
 
             const allObtainedItems: InventoryItem[] = itemsToCreate.map(item => ({
                 ...item,

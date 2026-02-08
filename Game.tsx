@@ -352,7 +352,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const handleBoardClick = useCallback((x: number, y: number) => {
         audioService.stopTimerWarning();
         if (isSpectator || gameStatus === 'missile_animating') return;
-        if ((session.isSinglePlayer || isTower) && isPaused) return;
+        const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+        if ((session.isSinglePlayer || isTower || isPausableAiGame) && isPaused) return;
         if ((session.isSinglePlayer || isTower) && isBoardLocked) {
             console.log('[Game] Board is locked, ignoring click', { isBoardLocked, serverRevision: session.serverRevision });
             return;
@@ -476,7 +477,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 currentUser: currentUser.id
             });
         }
-    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory]);
+    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory]);
 
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
@@ -516,7 +517,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         setIsPaused(false);
         setResumeCountdown(0);
         setPauseButtonCooldown(5);
-        if (pauseStartedAtRef.current) {
+        // 싱글플레이/도전의 탑은 클라이언트가 타이머를 직접 조정(로컬 실행)
+        // 일반 AI 대국은 서버가 타이머를 관리하므로 여기서 deadline을 조정하지 않음
+        const isTower = session.gameCategory === 'tower';
+        const shouldAdjustDeadlinesLocally = session.isSinglePlayer || isTower;
+
+        if (shouldAdjustDeadlinesLocally && pauseStartedAtRef.current) {
             const pausedDuration = Date.now() - pauseStartedAtRef.current;
             pauseStartedAtRef.current = null;
             const newTurnDeadline = session.turnDeadline ? session.turnDeadline + pausedDuration : undefined;
@@ -551,13 +557,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const handlePauseToggle = useCallback(() => {
         const isTower = session.gameCategory === 'tower';
-        if (!(session.isSinglePlayer || isTower)) return;
+        const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+        if (!(session.isSinglePlayer || isTower || isPausableAiGame)) return;
         if (!isPaused) {
             initiatePause();
+            if (isPausableAiGame) {
+                handlers.handleAction({ type: 'PAUSE_AI_GAME', payload: { gameId: session.id } } as any);
+            }
         } else {
             resumeFromPause();
+            if (isPausableAiGame) {
+                handlers.handleAction({ type: 'RESUME_AI_GAME', payload: { gameId: session.id } } as any);
+            }
         }
-    }, [isPaused, initiatePause, resumeFromPause, session.isSinglePlayer, session.gameCategory]);
+    }, [isPaused, initiatePause, resumeFromPause, session.isSinglePlayer, session.gameCategory, session.isAiGame, session.id, handlers.handleAction]);
 
     useEffect(() => {
         if (pauseButtonCooldown <= 0) return;
@@ -1313,6 +1326,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return 'bg-tertiary';
     }, [mode]);
 
+    const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+    const isServerManuallyPausedAi = isPausableAiGame && session.pausedTurnTimeLeft !== undefined && !session.turnDeadline && !session.itemUseDeadline;
+    const effectivePaused = (session.isSinglePlayer || isTower) ? isPaused : (isPausableAiGame ? (isPaused || isServerManuallyPausedAi) : false);
+
     return (
         <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full ${pvpBackgroundClass}`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
             {session.disconnectionState && <DisconnectionModal session={session} currentUser={currentUser} />}
@@ -1332,17 +1349,29 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         </div>
                         <div className="flex-1 w-full relative">
                             <div className="absolute inset-0">
-                                <GameArena 
-                                    {...gameProps}
-                                    isMyTurn={isMyTurn} 
-                                    myPlayerEnum={myPlayerEnum} 
-                                    handleBoardClick={handleBoardClick} 
-                                    isItemModeActive={isItemModeActive} 
-                                    showTerritoryOverlay={showFinalTerritory} 
-                                    isMobile={isMobile}
-                                    myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
-                                    showLastMoveMarker={settings.features.lastMoveMarker}
-                                />
+                                <div className={`w-full h-full transition-opacity duration-500 ${effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                                    <GameArena 
+                                        {...gameProps}
+                                        isMyTurn={isMyTurn} 
+                                        myPlayerEnum={myPlayerEnum} 
+                                        handleBoardClick={handleBoardClick} 
+                                        isItemModeActive={isItemModeActive} 
+                                        showTerritoryOverlay={showFinalTerritory} 
+                                        isMobile={isMobile}
+                                        myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
+                                        showLastMoveMarker={settings.features.lastMoveMarker}
+                                    />
+                                </div>
+                                {effectivePaused && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
+                                        <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>
+                                        {resumeCountdown > 0 && (
+                                            <p className="text-lg font-semibold text-amber-200">
+                                                재개 가능까지 {resumeCountdown}초
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -1365,6 +1394,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             onLeaveOrResign={handleLeaveOrResignClick}
                             isNoContestLeaveAvailable={isNoContestLeaveAvailable}
                             onOpenSettings={handlers.openSettingsModal}
+                            onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                            isPaused={effectivePaused}
+                            resumeCountdown={resumeCountdown}
+                            pauseButtonCooldown={pauseButtonCooldown}
                         />
                     </div>
                 )}
@@ -1378,6 +1411,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 isNoContestLeaveAvailable={isNoContestLeaveAvailable}
                                 onClose={() => setIsMobileSidebarOpen(false)}
                                 onOpenSettings={handlers.openSettingsModal}
+                                onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                                isPaused={effectivePaused}
+                                resumeCountdown={resumeCountdown}
+                                pauseButtonCooldown={pauseButtonCooldown}
                             />
                         </div>
                         {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}

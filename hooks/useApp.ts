@@ -1581,7 +1581,8 @@ export const useApp = () => {
                     showError(result.declinedMessage.message);
                 }
                 
-                // ACCEPT_NEGOTIATION, START_AI_GAME, START_SINGLE_PLAYER_GAME, START_TOWER_GAME, CONFIRM_TOWER_GAME_START, CONFIRM_SINGLE_PLAYER_GAME_START 후 게임이 생성되었거나 업데이트되었을 때 처리
+                // ACCEPT_NEGOTIATION, START_AI_GAME, START_SINGLE_PLAYER_GAME, START_TOWER_GAME,
+                // CONFIRM_TOWER_GAME_START, CONFIRM_SINGLE_PLAYER_GAME_START, CONFIRM_AI_GAME_START 후 게임이 생성되었거나 업데이트되었을 때 처리
                 // 서버 응답 구조: { success: true, ...result.clientResponse }
                 // 따라서 result.gameId 또는 result.clientResponse?.gameId 둘 다 확인
                 const gameId = (result as any).gameId || result.clientResponse?.gameId;
@@ -1625,7 +1626,7 @@ export const useApp = () => {
                     }
                 }
                 
-                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START')) {
+                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START')) {
                     console.log(`[handleAction] ${action.type} - gameId received:`, effectiveGameId, 'hasGame:', !!game, 'result keys:', Object.keys(result), 'clientResponse keys:', result.clientResponse ? Object.keys(result.clientResponse) : []);
                     
                     // 응답에 게임 데이터가 있으면 즉시 상태에 추가 (WebSocket 업데이트를 기다리지 않음)
@@ -1654,6 +1655,10 @@ export const useApp = () => {
                             });
                         } else {
                             setLiveGames(currentGames => {
+                                // CONFIRM_AI_GAME_START는 pending -> 실제 시작으로 상태가 바뀌므로 항상 업데이트
+                                if (action.type === 'CONFIRM_AI_GAME_START') {
+                                    return { ...currentGames, [effectiveGameId]: { ...currentGames[effectiveGameId], ...game } };
+                                }
                                 if (currentGames[gameId]) {
                                     return currentGames;
                                 }

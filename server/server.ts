@@ -1880,8 +1880,9 @@ const startServer = async () => {
             for (let i = 0; i < updatedGames.length; i++) {
                 const updatedGame = updatedGames[i];
                 
-                // PVE 게임 (싱글플레이어, 도전의 탑, AI 게임)은 클라이언트에서 실행되므로 서버 루프에서 최소 처리
-                const isPVEGame = updatedGame.isSinglePlayer || updatedGame.gameCategory === 'tower' || updatedGame.gameCategory === 'singleplayer' || updatedGame.isAiGame;
+                // PVE 게임 (싱글플레이어, 도전의 탑)은 클라이언트에서 실행되므로 서버 루프에서 최소 처리
+                // AI 게임은 서버에서 진행/저장/브로드캐스트가 필요하므로 제외하지 않음
+                const isPVEGame = updatedGame.isSinglePlayer || updatedGame.gameCategory === 'tower' || updatedGame.gameCategory === 'singleplayer';
                 if (isPVEGame) {
                     // PVE 게임은 클라이언트에서 실행되므로 서버 루프에서 브로드캐스트하지 않음
                     // 게임 상태 변경은 클라이언트에서 처리되거나, 액션 처리 시에만 브로드캐스트됨

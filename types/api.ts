@@ -118,6 +118,9 @@ export type ServerAction =
     | { type: 'ACCEPT_NEGOTIATION', payload: { negotiationId: string; settings: any } }
     | { type: 'DECLINE_NEGOTIATION', payload: { negotiationId: string } }
     | { type: 'START_AI_GAME', payload: { mode: GameMode, settings: any } }
+    | { type: 'CONFIRM_AI_GAME_START', payload: { gameId: string } }
+    | { type: 'PAUSE_AI_GAME', payload: { gameId: string } }
+    | { type: 'RESUME_AI_GAME', payload: { gameId: string } }
     | { type: 'REQUEST_REMATCH', payload: { opponentId: string, originalGameId: string } }
     // Ranked Matching
     | { type: 'START_RANKED_MATCHING', payload: { lobbyType: 'strategic' | 'playful'; selectedModes: GameMode[] } }

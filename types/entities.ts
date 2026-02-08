@@ -216,6 +216,7 @@ export type TournamentState = {
     }>;
     dailyStageAttempts?: Record<number, number>; // 일일 단계별 시도 횟수 (리셋용)
     currentStageAttempt?: number; // 현재 진행 중인 단계
+    autoAdvanceEnabled?: boolean; // 첫 경기 시작 후 자동 진행 여부
 };
 
 export type LeagueOutcome = 'promote' | 'maintain' | 'demote';
