@@ -470,6 +470,7 @@ const startServer = async () => {
     
     // 서버 리스닝 상태를 전역으로 저장 (헬스체크용)
     let isServerReady = false;
+    let serverInstance: http.Server | null = null; // 서버 객체를 전역으로 저장
     
     // === 중요: Express 미들웨어를 서버 리스닝 전에 설정 ===
     // 서버가 리스닝을 시작하기 전에 최소한의 미들웨어를 설정하여 요청이 처리되도록 함
@@ -572,15 +573,16 @@ const startServer = async () => {
         }, 1000);
         
         try {
-            // 서버가 리스닝 중이 아니어도 헬스체크는 통과 (서버 시작 중)
+            // 서버 객체가 있으면 실제 리스닝 상태 확인, 없으면 false
+            const isListening = serverInstance ? serverInstance.listening : false;
             const response = {
                 status: 'ok',
                 timestamp: new Date().toISOString(),
                 uptime: process.uptime(),
-                listening: false, // 서버 객체가 아직 생성되지 않았으므로 false
+                listening: isListening,
                 ready: isServerReady,
                 pid: process.pid,
-                message: 'Server starting up'
+                message: isListening ? 'Server is running' : 'Server starting up'
             };
             clearTimeout(healthTimeout);
             res.status(200).json(response);
@@ -651,6 +653,9 @@ const startServer = async () => {
         }
     });
     
+    // 서버 객체를 전역 변수에 저장 (헬스체크에서 사용)
+    serverInstance = server;
+    
     // 서버 리스닝 시작 (Express 미들웨어가 이미 설정되어 있음)
     console.log('[Server] Starting server listen...');
     server.listen(port, '0.0.0.0', () => {
@@ -663,50 +668,9 @@ const startServer = async () => {
         // 서버 준비 상태 설정
         isServerReady = true;
         
-        // 헬스체크 엔드포인트 업데이트 (서버 객체 사용 가능)
+        // 헬스체크 엔드포인트는 이미 등록되어 있고, serverInstance를 통해 리스닝 상태를 확인함
         // Railway health check를 위해 매우 빠르고 안정적으로 응답
-        app.get('/api/health', (req, res) => {
-            // 타임아웃 설정 (1초 내에 응답 보장)
-            const healthTimeout = setTimeout(() => {
-                if (!res.headersSent) {
-                    res.status(200).json({
-                        status: 'ok',
-                        timestamp: new Date().toISOString(),
-                        uptime: process.uptime(),
-                        pid: process.pid,
-                        warning: 'Health check response delayed'
-                    });
-                }
-            }, 1000);
-            
-            try {
-                // 즉시 응답 (DB 체크 없이 빠르게)
-                const response = {
-                    status: 'ok',
-                    timestamp: new Date().toISOString(),
-                    uptime: process.uptime(),
-                    listening: server.listening,
-                    ready: isServerReady,
-                    pid: process.pid,
-                    database: dbInitialized ? 'connected' : 'initializing'
-                };
-                clearTimeout(healthTimeout);
-                res.status(200).json(response);
-            } catch (error: any) {
-                // 헬스체크 자체가 실패하지 않도록 보호
-                clearTimeout(healthTimeout);
-                console.error('[Health] Health check error:', error);
-                if (!res.headersSent) {
-                    res.status(200).json({
-                        status: 'ok',
-                        timestamp: new Date().toISOString(),
-                        uptime: process.uptime(),
-                        pid: process.pid,
-                        error: 'Health check handler error (non-fatal)'
-                    });
-                }
-            }
-        });
+        // (중복 등록 방지: 이미 위에서 등록됨)
     });
 
     // 전역 에러 핸들러 미들웨어 (모든 라우트 이후에 추가)
