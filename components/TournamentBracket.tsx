@@ -2244,7 +2244,9 @@ const TournamentRoundViewer: React.FC<{
     }, [nextRoundTrigger, activeTab, getRoundsForTabs, tournamentType]);
 
     // nextRoundStartTime이 설정되면 다음 경기가 있는 탭으로 자동 이동
+    // 단, 경기가 실제로 시작된 후 (round_in_progress 상태)에만 탭 변경하여 시뮬레이션 중단 방지
     const prevNextRoundStartTime = useRef<number | null | undefined>(nextRoundStartTime);
+    const pendingTabChange = useRef<number | null>(null);
     useEffect(() => {
         if (nextRoundStartTime && nextRoundStartTime !== prevNextRoundStartTime.current && getRoundsForTabs && tournamentState) {
             // 다음 경기가 있는 탭 찾기
@@ -2268,7 +2270,9 @@ const TournamentRoundViewer: React.FC<{
                     });
                     
                     if (targetTabIndex !== -1 && targetTabIndex !== activeTab) {
-                        setActiveTab(targetTabIndex);
+                        // 경기가 시작되기 전이면 탭 변경을 대기
+                        // 경기가 시작된 후 (round_in_progress)에 탭 변경
+                        pendingTabChange.current = targetTabIndex;
                     }
                 }
             }
@@ -2278,6 +2282,23 @@ const TournamentRoundViewer: React.FC<{
             prevNextRoundStartTime.current = nextRoundStartTime;
         }
     }, [nextRoundStartTime, getRoundsForTabs, tournamentState, rounds, activeTab]);
+
+    // 경기가 시작되면 (round_in_progress 상태) 대기 중인 탭 변경 실행
+    useEffect(() => {
+        if (tournamentState?.status === 'round_in_progress' && pendingTabChange.current !== null) {
+            const targetTabIndex = pendingTabChange.current;
+            if (targetTabIndex !== activeTab) {
+                console.log(`[TournamentRoundViewer] 경기 시작 후 탭 변경: ${activeTab} -> ${targetTabIndex}`);
+                // 약간의 지연을 두어 시뮬레이션이 완전히 시작된 후 탭 변경
+                setTimeout(() => {
+                    setActiveTab(targetTabIndex);
+                    pendingTabChange.current = null;
+                }, 100);
+            } else {
+                pendingTabChange.current = null;
+            }
+        }
+    }, [tournamentState?.status, activeTab]);
 
     if (!getRoundsForTabs) {
         const desiredOrder = ["16강", "8강", "4강", "3,4위전", "결승"];
@@ -2667,20 +2688,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     // nextRoundStartTime 체크: 5초 카운트다운 후 자동으로 경기 시작
     useEffect(() => {
         const status = tournament?.status;
-        const autoAdvanceEnabled = !!tournament?.autoAdvanceEnabled;
         const nextRoundStartTime = tournament?.nextRoundStartTime;
-        // round_ready는 자동 시작 대기 중 상태
-        const isWaitingForAutoStart = (status === 'bracket_ready' || status === 'round_ready') && nextRoundStartTime;
-        const shouldClientAutoStart = autoAdvanceEnabled && status === 'bracket_ready' && !nextRoundStartTime;
-
-        if (shouldClientAutoStart && !autoStartTimeRef.current) {
-            autoStartTimeRef.current = Date.now() + 5000;
-        }
-
-        const effectiveStartTime = nextRoundStartTime ?? autoStartTimeRef.current;
+        // bracket_ready 상태이고 nextRoundStartTime이 설정되어 있으면 자동 시작 대기 중
+        const isWaitingForAutoStart = status === 'bracket_ready' && nextRoundStartTime;
 
         // start time이 없거나 대기 상태가 아니면 타이머 정리하고 종료
-        if (!effectiveStartTime || (!isWaitingForAutoStart && status !== 'bracket_ready')) {
+        if (!nextRoundStartTime || !isWaitingForAutoStart) {
             setAutoNextCountdown(null);
             if (autoNextTimerRef.current) {
                 clearInterval(autoNextTimerRef.current);
@@ -2699,11 +2712,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
         const updateCountdown = () => {
             const currentTournament = tournamentRef.current;
-            const currentStartTime = currentTournament?.nextRoundStartTime ?? autoStartTimeRef.current;
+            const currentStartTime = currentTournament?.nextRoundStartTime;
             const currentStatus = currentTournament?.status;
-            const isWaiting = (currentStatus === 'bracket_ready' || currentStatus === 'round_ready') && currentStartTime;
+            const isWaiting = currentStatus === 'bracket_ready' && currentStartTime;
             
-            if (!currentTournament || !currentStartTime || (!isWaiting && currentStatus !== 'bracket_ready')) {
+            if (!currentTournament || !currentStartTime || !isWaiting) {
                 setAutoNextCountdown(null);
                 countdownRef.current = 0;
                 if (autoNextTimerRef.current) {
@@ -2782,7 +2795,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         };
 
         // 즉시 한 번 실행하고 타이머 시작
-        const timeUntilStart = effectiveStartTime - Date.now();
+        const timeUntilStart = nextRoundStartTime - Date.now();
         console.log(`[TournamentBracket] nextRoundStartTime detected: ${nextRoundStartTime}, current time: ${Date.now()}, time until start: ${timeUntilStart}ms, status: ${status}`);
         
         // 이미 시간이 지나간 경우 즉시 시작

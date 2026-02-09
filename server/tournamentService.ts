@@ -324,11 +324,11 @@ const startNextMatchAutomatically = async (
         // 5초 카운트다운 후 경기 시작
         const now = Date.now();
         state.nextRoundStartTime = now + 5000; // 5초 후
-        state.status = 'round_ready'; // 자동 시작 대기 중 (컨디션 회복제 사용 불가)
+        state.status = 'bracket_ready'; // 자동 시작 대기 중
         
         // 경기 정보는 아직 설정하지 않음 (카운트다운 후 START_TOURNAMENT_MATCH에서 설정)
 
-        console.log(`[startNextMatchAutomatically] Set countdown for next match: roundIndex=${roundIndex}, matchIndex=${matchIndex}, startTime=${state.nextRoundStartTime}, status=round_ready`);
+        console.log(`[startNextMatchAutomatically] Set countdown for next match: roundIndex=${roundIndex}, matchIndex=${matchIndex}, startTime=${state.nextRoundStartTime}, status=bracket_ready`);
         return true;
     } catch (error: any) {
         console.error(`[startNextMatchAutomatically] Error auto-starting match:`, error);
@@ -410,10 +410,11 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
     const loser = completedMatch.players.find(p => p && p.id !== completedMatch.winner?.id) || null;
     const isUserEliminated = loser?.id === user.id;
 
-    // 유저 패배 시: 모든 경기 자동 시뮬레이션 후 종료 (전국/월드챔피언십만)
-    // 동네바둑리그는 패배해도 5회차까지 자동 진행됨
+    // 유저 패배 시: 경기 종료 → 순위에 따른 보상 수령 (전국/월드챔피언십만)
+    // 동네바둑리그는 패배해도 5회차까지 무조건 진행됨
     if (isUserEliminated && (state.type === 'national' || state.type === 'world')) {
-        // 유저가 패배했으므로 모든 경기를 자동으로 시뮬레이션하고 완료
+        // 유저가 패배했으므로 모든 경기를 자동으로 시뮬레이션하고 종료
+        // 순위 계산을 위해 모든 경기를 완료해야 함
         state.status = 'eliminated';
         
         // 현재 라운드의 모든 경기 완료
@@ -426,7 +427,7 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
             });
         }
         
-        // 모든 미완료 경기를 시뮬레이션하고 완료
+        // 모든 미완료 경기를 시뮬레이션하고 완료 (순위 계산을 위해)
         let safety = 0;
         while (safety < 50) {
             safety++;
@@ -531,7 +532,9 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
             }
         }
         
-        state.status = 'complete';
+        // 모든 경기 시뮬레이션 완료 후 eliminated 상태 유지 (순위에 따른 보상 수령을 위해)
+        // eliminated 상태에서도 보상 수령 가능 (rewardActions.ts에서 확인됨)
+        console.log(`[processMatchCompletion] User eliminated in ${state.type} tournament. All matches simulated. Status: eliminated`);
         return;
     }
     
@@ -566,7 +569,8 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
     }
 
     // 동네바둑리그 처리
-    // 동네바둑리그는 유저가 패배해도 5회차까지 자동으로 진행됨
+    // 동네바둑리그는 유저가 패배해도 1회차~5회차까지 무조건 진행됨
+    // 5회차 경기 종료 후 순위에 따른 보상 수령 순서로 진행
     if (state.type === 'neighborhood') {
         // currentRoundRobinRound가 없으면 roundIndex를 기반으로 회차 계산
         let currentRound: number;
@@ -603,11 +607,11 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
 
         if (allRoundMatchesFinished) {
             if (currentRound >= 5) {
-                // 5회차까지 모두 완료
+                // 5회차까지 모두 완료 → 순위에 따른 보상 수령 순서로 진행
                 console.log(`[processMatchCompletion] All 5 rounds completed for neighborhood tournament`);
                 state.status = 'complete';
             } else {
-                // 다음 회차로 진행 (유저가 패배했어도 계속 진행)
+                // 다음 회차로 진행 (유저가 패배했어도 5회차까지 무조건 진행)
                 const nextRound = currentRound + 1;
                 state.currentRoundRobinRound = nextRound;
                 console.log(`[processMatchCompletion] Moving to next round: ${nextRound}회차`);
@@ -676,7 +680,7 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                 .find(({ match }) => !match.isFinished && match.isUserMatch);
             
             if (nextUserMatch) {
-                // 다음 경기 자동 시작 (첫 경기 제외)
+                // 다음 경기 자동 시작: 5초 후 시작하도록 설정
                 const nextRound = state.rounds[nextUserMatch.roundIndex];
                 try {
                     const started = await startNextMatchAutomatically(state, user, nextRound, nextUserMatch.match);
@@ -690,12 +694,12 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                     state.status = 'bracket_ready';
                 }
             } else {
+                // 다음 경기가 없으면 완료
                 state.status = 'complete';
             }
-        }
-        // 자동 진행 활성화 상태인데 다음 경기 카운트다운이 없으면 설정
-        if (state.autoAdvanceEnabled && state.status === 'bracket_ready' && !state.nextRoundStartTime && !state.currentStageAttempt) {
-            state.nextRoundStartTime = Date.now() + 5000;
+        } else {
+            // 현재 라운드가 아직 끝나지 않았으면 대기 상태
+            state.status = 'bracket_ready';
         }
     }
 };
