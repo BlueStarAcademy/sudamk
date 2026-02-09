@@ -91,6 +91,13 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
+  // Service Worker는 같은 origin의 요청만 처리
+  // 외부 도메인(백엔드 API 등)의 요청은 Service Worker를 거치지 않음
+  if (url.origin !== self.location.origin) {
+    // 외부 도메인 요청은 Service Worker를 거치지 않고 네트워크로 직접 전달
+    return;
+  }
+  
   // POST, PUT, DELETE 등 비GET 요청은 네트워크로 직접 전달 (캐시 불가)
   if (request.method !== 'GET') {
     event.respondWith(fetch(request));
