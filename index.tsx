@@ -5,11 +5,15 @@ import App from './App.js';
 import './index.css';
 
 // Register Service Worker for PWA (프로덕션 환경에서만)
+// 일시적으로 Service Worker 비활성화 (백엔드 API 연결 문제 해결을 위해)
 if ('serviceWorker' in navigator) {
   // 개발 환경에서는 Service Worker 비활성화 (HMR과 충돌 방지)
   const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   
-  if (!isDevelopment) {
+  // Service Worker 일시 비활성화 (백엔드 API 연결 문제 해결을 위해)
+  const DISABLE_SERVICE_WORKER = true; // true로 설정하면 Service Worker 비활성화
+  
+  if (!isDevelopment && !DISABLE_SERVICE_WORKER) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')
         .then((registration) => {
@@ -40,11 +44,22 @@ if ('serviceWorker' in navigator) {
         });
     });
   } else {
-    // 개발 환경에서는 기존 Service Worker 제거
+    // 개발 환경 또는 Service Worker 비활성화 시 기존 Service Worker 제거
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       registrations.forEach((registration) => {
         registration.unregister().then(() => {
-          console.log('[Service Worker] Unregistered in development mode');
+          console.log('[Service Worker] Unregistered');
+        });
+      });
+    });
+  }
+  
+  // Service Worker 비활성화 시에도 기존 Service Worker 제거
+  if (typeof DISABLE_SERVICE_WORKER !== 'undefined' && DISABLE_SERVICE_WORKER) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        registration.unregister().then(() => {
+          console.log('[Service Worker] Disabled and unregistered');
         });
       });
     });
