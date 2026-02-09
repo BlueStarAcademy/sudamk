@@ -1,0 +1,73 @@
+# syntax=docker/dockerfile:1.6
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install build dependencies (including autoconf/automake for mozjpeg)
+RUN apk add --no-cache python3 make g++ autoconf automake libtool pkgconfig nasm
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install dependencies (including devDependencies for Vite build)
+RUN npm ci
+
+# Copy source code for Vite build
+COPY vite.config.ts tsconfig.json tsconfig.base.json tsconfig.node.json ./
+COPY postcss.config.js ./
+COPY vite-env.d.ts ./
+COPY index.html index.tsx index.css ./
+COPY App.tsx Game.tsx ./
+COPY constants.ts types.ts gameRules.ts ./
+COPY assets.ts profanity.ts ./
+COPY public ./public
+COPY components ./components
+COPY hooks ./hooks
+COPY utils ./utils
+COPY constants ./constants
+COPY types ./types
+COPY contexts ./contexts
+COPY client ./client
+COPY services ./services
+COPY shared ./shared
+
+# Accept build-time arguments for Vite environment variables
+# Google Cloud Build will pass these as build-time environment variables
+ARG VITE_API_URL
+ARG VITE_BACKEND_URL
+ARG VITE_WS_URL
+ARG VITE_BACKEND_WS_URL
+
+# Set as environment variables for Vite build
+# Vite will replace these in the bundle at build time
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+ENV VITE_BACKEND_WS_URL=$VITE_BACKEND_WS_URL
+
+# Build frontend (NODE_ENV를 명시적으로 production으로 설정)
+# Vite will use the VITE_* environment variables during build
+RUN NODE_ENV=production npm run build:client
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Install serve for static file serving
+RUN npm install -g serve
+
+# Copy built frontend files
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
+
+# Google Cloud Run은 PORT 환경 변수를 자동으로 설정합니다
+# 기본값은 8080이지만 Cloud Run이 설정한 PORT를 사용합니다
+ENV PORT=8080
+
+# Expose port (Cloud Run이 PORT 환경 변수로 설정)
+EXPOSE $PORT
+
+# Start static file server using Cloud Run's PORT environment variable
+# serve는 PORT 환경 변수를 자동으로 인식하지만, 명시적으로 전달
+# -s 옵션: SPA 모드 (모든 경로를 index.html로 리다이렉트)
+# -l 옵션: 리스닝 포트
+CMD sh -c "echo 'Starting frontend server on port ${PORT:-8080}' && serve -s dist -l ${PORT:-8080}"

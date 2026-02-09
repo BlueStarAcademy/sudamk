@@ -7,7 +7,7 @@
   "scripts": {
     "start": "concurrently \"npm:start-client\" \"npm:start-server\"",
     "start-client": "vite --host",
-    "start-server": "node node_modules/tsx/dist/cli.mjs --tsconfig server/tsconfig.json server/server.ts",
+    "start-server": "npx tsx --tsconfig server/tsconfig.json server/server.ts",
     "railway:start": "npm run start-server",
     "build": "npm run build:client",
     "build:client": "vite build",
@@ -39,7 +39,7 @@
     "compress-images:dry": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts --dry-run",
     "build:optimized": "npm run optimize-images && vite build",
     "start-frontend": "serve -s dist -l 3000",
-    "start-katago": "cross-env PORT=4001 node node_modules/tsx/dist/cli.mjs --tsconfig server/tsconfig.json server/katagoServer.ts"
+    "start-katago": "cross-env PORT=4001 npx tsx --tsconfig server/tsconfig.json server/katagoServer.ts"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.936.0",
