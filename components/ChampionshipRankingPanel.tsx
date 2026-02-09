@@ -9,13 +9,28 @@ interface RankItemProps {
     user: User;
     rank: number;
     isMyRankDisplay: boolean;
+    tournamentType: TournamentType;
 }
 
-const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
+const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay, tournamentType }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
     if (!currentUserWithStatus) return null;
 
-    const score = user.cumulativeTournamentScore || 0;
+    // 해당 경기장의 점수 계산 (각 경기장별로 합산)
+    const score = useMemo(() => {
+        const progress = user.dungeonProgress?.[tournamentType];
+        if (progress && progress.stageResults) {
+            let totalScore = 0;
+            for (const [stageStr, result] of Object.entries(progress.stageResults)) {
+                // cleared 조건 없이 dailyScore가 있으면 합산 (순위가 있으면 점수 지급)
+                if (result.dailyScore) {
+                    totalScore += result.dailyScore;
+                }
+            }
+            return totalScore;
+        }
+        return 0;
+    }, [user.dungeonProgress, tournamentType]);
 
     const rankDisplay = useMemo(() => {
         if (rank === 1) return <span className="text-3xl" role="img" aria-label="Gold Trophy">🥇</span>;
@@ -146,11 +161,12 @@ const ChampionshipRankingPanel: React.FC = () => {
         if (rankingData) {
             rank = rankingData.rank;
             maxStage = rankingData.maxStage;
-            // 점수 계산: 해당 던전 타입의 단계별 점수 합산
+            // 점수 계산: 해당 던전 타입의 단계별 점수 합산 (cleared 조건과 관계없이 dailyScore가 있으면 합산)
             const progress = currentUserWithStatus.dungeonProgress?.[selectedTab];
             if (progress && progress.stageResults) {
                 for (const [stageStr, result] of Object.entries(progress.stageResults)) {
-                    if (result.cleared && result.dailyScore) {
+                    // cleared 조건 없이 dailyScore가 있으면 합산 (순위가 있으면 점수 지급)
+                    if (result.dailyScore) {
                         score += result.dailyScore;
                     }
                 }
@@ -164,10 +180,11 @@ const ChampionshipRankingPanel: React.FC = () => {
                 const progress = user.dungeonProgress?.[selectedTab];
                 maxStage = progress?.currentStage || 0;
                 
-                // 점수 계산
+                // 점수 계산 (cleared 조건과 관계없이 dailyScore가 있으면 합산)
                 if (progress && progress.stageResults) {
                     for (const [stageStr, result] of Object.entries(progress.stageResults)) {
-                        if (result.cleared && result.dailyScore) {
+                        // cleared 조건 없이 dailyScore가 있으면 합산 (순위가 있으면 점수 지급)
+                        if (result.dailyScore) {
                             score += result.dailyScore;
                         }
                     }
@@ -177,10 +194,11 @@ const ChampionshipRankingPanel: React.FC = () => {
                 const progress = currentUserWithStatus.dungeonProgress?.[selectedTab];
                 maxStage = progress?.currentStage || 0;
                 
-                // 점수 계산
+                // 점수 계산 (cleared 조건과 관계없이 dailyScore가 있으면 합산)
                 if (progress && progress.stageResults) {
                     for (const [stageStr, result] of Object.entries(progress.stageResults)) {
-                        if (result.cleared && result.dailyScore) {
+                        // cleared 조건 없이 dailyScore가 있으면 합산 (순위가 있으면 점수 지급)
+                        if (result.dailyScore) {
                             score += result.dailyScore;
                         }
                     }
@@ -317,11 +335,12 @@ const ChampionshipRankingPanel: React.FC = () => {
                              
                              if (rankingData) {
                                  maxStage = rankingData.maxStage;
-                                 // 점수 계산
+                                 // 점수 계산 (cleared 조건과 관계없이 dailyScore가 있으면 합산)
                                  const progress = user.dungeonProgress?.[selectedTab];
                                  if (progress && progress.stageResults) {
                                      for (const [stageStr, result] of Object.entries(progress.stageResults)) {
-                                         if (result.cleared && result.dailyScore) {
+                                         // cleared 조건 없이 dailyScore가 있으면 합산 (순위가 있으면 점수 지급)
+                                         if (result.dailyScore) {
                                              score += result.dailyScore;
                                          }
                                      }

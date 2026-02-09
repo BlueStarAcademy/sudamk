@@ -1810,8 +1810,57 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 // members 배열이 없으면 배열로 초기화
                 if (!guild.members) {
                     guild.members = [];
-                    await db.setKV('guilds', guilds);
                 }
+                
+                // DB에서 최신 멤버 목록 가져와서 동기화
+                const dbMembers = await guildRepo.getGuildMembers(user.guildId);
+                const dbMemberUserIds = new Set(dbMembers.map(m => m.userId));
+                const kvMemberUserIds = new Set((guild.members || []).map(m => m.userId));
+                
+                // DB에는 있지만 KV store에는 없는 멤버 추가
+                for (const dbMember of dbMembers) {
+                    if (!kvMemberUserIds.has(dbMember.userId)) {
+                        // 사용자 정보에서 nickname 가져오기
+                        const memberUser = await db.getUser(dbMember.userId);
+                        guild.members.push({
+                            id: dbMember.id,
+                            guildId: dbMember.guildId,
+                            userId: dbMember.userId,
+                            nickname: memberUser?.nickname || '',
+                            role: dbMember.role as 'leader' | 'officer' | 'member',
+                            joinDate: dbMember.joinDate,
+                            contributionTotal: dbMember.contributionTotal,
+                            weeklyContribution: 0,
+                            createdAt: dbMember.createdAt,
+                            updatedAt: dbMember.updatedAt,
+                        });
+                    }
+                }
+                
+                // KV store에는 있지만 DB에는 없는 멤버 제거
+                guild.members = guild.members.filter(m => dbMemberUserIds.has(m.userId));
+                
+                // 모든 멤버의 nickname과 기여도 정보 업데이트
+                for (const member of guild.members) {
+                    const dbMember = dbMembers.find(m => m.userId === member.userId);
+                    if (dbMember) {
+                        // DB에서 최신 정보로 업데이트
+                        member.contributionTotal = dbMember.contributionTotal;
+                        member.joinDate = dbMember.joinDate;
+                        member.updatedAt = dbMember.updatedAt;
+                        
+                        // nickname이 없거나 빈 문자열이면 사용자 정보에서 가져오기
+                        if (!member.nickname || member.nickname.trim() === '') {
+                            const memberUser = await db.getUser(member.userId);
+                            if (memberUser) {
+                                member.nickname = memberUser.nickname || '';
+                            }
+                        }
+                    }
+                }
+                
+                // 업데이트된 길드 정보를 KV store에 저장
+                await db.setKV('guilds', guilds);
                 
                 // 아이콘 경로 수정 및 name 필드 보장
                 const guildWithFixedIcon = {
@@ -2049,15 +2098,19 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             
             // 실제 생성된 장비 정보를 result에 추가 (보상 모달에서 표시하기 위해)
+            // 전체 장비 객체를 전달하여 모달에서 실제 장비 정보를 표시할 수 있도록 함
             if (generatedEquipment) {
                 if (!result.rewards.equipment) {
                     result.rewards.equipment = {} as any;
                 }
+                // 기존 필드 유지 (하위 호환성)
                 (result.rewards.equipment as any).name = generatedEquipment.name;
                 (result.rewards.equipment as any).image = generatedEquipment.image;
                 (result.rewards.equipment as any).slot = generatedEquipment.slot;
                 (result.rewards.equipment as any).grade = generatedEquipment.grade;
-                console.log(`[START_GUILD_BOSS_BATTLE] Updated result.rewards.equipment with: name=${generatedEquipment.name}, image=${generatedEquipment.image}, slot=${generatedEquipment.slot}, grade=${generatedEquipment.grade}`);
+                // 전체 장비 객체 추가 (모달에서 실제 장비 정보 표시용)
+                (result.rewards.equipment as any).item = generatedEquipment;
+                console.log(`[START_GUILD_BOSS_BATTLE] Updated result.rewards.equipment with full item object: name=${generatedEquipment.name}, image=${generatedEquipment.image}, slot=${generatedEquipment.slot}, grade=${generatedEquipment.grade}`);
             } else {
                 console.warn(`[START_GUILD_BOSS_BATTLE] No generatedEquipment to add to result for user ${freshUser.id}`);
             }
@@ -2104,6 +2157,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 (result.rewards.equipment as any).image = generatedEquipment.image;
                 (result.rewards.equipment as any).slot = generatedEquipment.slot;
                 (result.rewards.equipment as any).grade = generatedEquipment.grade;
+                // 전체 장비 객체 추가
+                (result.rewards.equipment as any).item = generatedEquipment;
             }
             
             return { clientResponse: { updatedUser: freshUser, guildBossBattleResult: result, guilds } };

@@ -18,6 +18,29 @@ export const getItemTemplateByName = (itemName: string) => {
     let template = CONSUMABLE_TEMPLATE_MAP[trimmedName] || MATERIAL_TEMPLATE_MAP[trimmedName];
     if (template) return template;
     
+    // 숫자를 로마숫자로 변환하는 맵
+    const numToRoman: Record<string, string> = {
+        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+    };
+    
+    // 장비상자/재료상자 이름 변환: "장비상자1" -> "장비 상자 I"
+    const boxNamePatterns = [
+        { pattern: /장비상자(\d)/g, replacement: (num: string) => `장비 상자 ${numToRoman[num] || num}` },
+        { pattern: /재료상자(\d)/g, replacement: (num: string) => `재료 상자 ${numToRoman[num] || num}` },
+        { pattern: /장비 상자(\d)/g, replacement: (num: string) => `장비 상자 ${numToRoman[num] || num}` },
+        { pattern: /재료 상자(\d)/g, replacement: (num: string) => `재료 상자 ${numToRoman[num] || num}` },
+        { pattern: /장비 상자 (\d)/g, replacement: (num: string) => `장비 상자 ${numToRoman[num] || num}` },
+        { pattern: /재료 상자 (\d)/g, replacement: (num: string) => `재료 상자 ${numToRoman[num] || num}` },
+    ];
+    
+    for (const { pattern, replacement } of boxNamePatterns) {
+        const converted = trimmedName.replace(pattern, (match, num) => replacement(num));
+        if (converted !== trimmedName) {
+            template = CONSUMABLE_TEMPLATE_MAP[converted] || MATERIAL_TEMPLATE_MAP[converted];
+            if (template) return template;
+        }
+    }
+    
     // 이름 불일치 처리: '골드꾸러미1' <-> '골드 꾸러미1'
     // '골드꾸러미' -> '골드 꾸러미' 변환
     if (trimmedName.includes('골드꾸러미')) {
@@ -29,6 +52,19 @@ export const getItemTemplateByName = (itemName: string) => {
     // 반대 방향: '골드 꾸러미1' -> '골드꾸러미1'
     if (trimmedName.includes('골드 꾸러미')) {
         const withoutSpace = trimmedName.replace('골드 꾸러미', '골드꾸러미');
+        template = CONSUMABLE_TEMPLATE_MAP[withoutSpace] || MATERIAL_TEMPLATE_MAP[withoutSpace];
+        if (template) return template;
+    }
+    
+    // 다이아꾸러미 처리
+    if (trimmedName.includes('다이아꾸러미')) {
+        const withSpace = trimmedName.replace('다이아꾸러미', '다이아 꾸러미');
+        template = CONSUMABLE_TEMPLATE_MAP[withSpace] || MATERIAL_TEMPLATE_MAP[withSpace];
+        if (template) return template;
+    }
+    
+    if (trimmedName.includes('다이아 꾸러미')) {
+        const withoutSpace = trimmedName.replace('다이아 꾸러미', '다이아꾸러미');
         template = CONSUMABLE_TEMPLATE_MAP[withoutSpace] || MATERIAL_TEMPLATE_MAP[withoutSpace];
         if (template) return template;
     }

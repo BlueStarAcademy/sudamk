@@ -366,6 +366,8 @@ const TournamentCard: React.FC<{
     const hasPlayedToday = lastPlayedDate && isSameDayKST(lastPlayedDate, now);
     // 하루 1회 참여: 표시용 (N/1) = 오늘 참여 횟수/1
     const playedCountToday = hasPlayedToday ? 1 : 0;
+    // 오늘 경기 완료 여부 (경기를 시작했고 완료/탈락 상태인 경우)
+    const isCompletedToday = hasPlayedToday && hasResultToView;
 
     // 보상 미수령 여부 확인 (토너먼트가 완료되었지만 보상을 받지 않은 경우)
     const rewardClaimed = currentUser[rewardClaimedKey as keyof UserWithStatus] as boolean | undefined;
@@ -430,10 +432,19 @@ const TournamentCard: React.FC<{
                 <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full z-10 border-2 border-gray-800"></div>
             )}
             <div className="flex justify-between items-center mb-1.5 sm:mb-2">
-                <h2 className="text-xs sm:text-sm lg:text-lg font-bold">
-                    {definition.name}{' '}
-                    <span className="text-[10px] sm:text-xs text-gray-300 font-semibold">({playedCountToday}/1)</span>
-                </h2>
+                <div className="flex items-center gap-1.5">
+                    <h2 className="text-xs sm:text-sm lg:text-lg font-bold">
+                        {definition.name}
+                    </h2>
+                    {isCompletedToday ? (
+                        <span className="text-[10px] sm:text-xs text-green-400 font-semibold flex items-center gap-0.5">
+                            <span>✓</span>
+                            <span>완료</span>
+                        </span>
+                    ) : (
+                        <span className="text-[10px] sm:text-xs text-gray-300 font-semibold">({playedCountToday}/1)</span>
+                    )}
+                </div>
                 {dungeonProgress.currentStage > 0 && (
                     <span className="text-[10px] sm:text-xs text-yellow-400">최고 {dungeonProgress.currentStage}단계</span>
                 )}

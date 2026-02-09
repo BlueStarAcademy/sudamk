@@ -16,7 +16,7 @@ import UseQuantityModal from './UseQuantityModal.js';
 interface InventoryModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
-    onAction: (action: ServerAction) => void;
+    onAction: (action: ServerAction) => Promise<void> | void;
     onStartEnhance: (item: InventoryItem) => void;
     enhancementAnimationTarget: { itemId: string; stars: number } | null;
     onAnimationComplete: () => void;
@@ -144,11 +144,52 @@ const EquipmentSlotDisplay: React.FC<{
                 />
                 {(() => {
                     // 이미지 경로 찾기: item.image가 있으면 사용, 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
-                    const imagePath = item.image || 
-                        (CONSUMABLE_ITEMS.find(ci => ci.name === item.name || ci.name === item.name.replace('꾸러미', ' 꾸러미') || ci.name === item.name.replace(' 꾸러미', '꾸러미'))?.image) ||
-                        (MATERIAL_ITEMS[item.name]?.image) ||
-                        (MATERIAL_ITEMS[item.name.replace('꾸러미', ' 꾸러미')]?.image) ||
-                        (MATERIAL_ITEMS[item.name.replace(' 꾸러미', '꾸러미')]?.image);
+                    let imagePath = item.image;
+                    
+                    if (!imagePath && item.type === 'consumable') {
+                        const consumableItem = findConsumableItem(item.name);
+                        imagePath = consumableItem?.image;
+                    }
+                    
+                    // MATERIAL_ITEMS에서 찾기
+                    if (!imagePath) {
+                        // 숫자를 로마숫자로 변환하는 맵
+                        const numToRoman: Record<string, string> = {
+                            '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+                        };
+                        
+                        // 다양한 이름 변형으로 시도
+                        const nameVariations: string[] = [
+                            item.name,
+                            item.name.replace('꾸러미', ' 꾸러미'),
+                            item.name.replace(' 꾸러미', '꾸러미'),
+                            item.name.replace('상자', ' 상자'),
+                            item.name.replace(' 상자', '상자'),
+                        ];
+                        
+                        // 숫자를 로마숫자로 변환한 변형들 추가
+                        for (const [num, roman] of Object.entries(numToRoman)) {
+                            nameVariations.push(
+                                item.name.replace(new RegExp(`장비상자${num}`, 'g'), `장비 상자 ${roman}`),
+                                item.name.replace(new RegExp(`재료상자${num}`, 'g'), `재료 상자 ${roman}`),
+                                item.name.replace(new RegExp(`장비 상자${num}`, 'g'), `장비 상자 ${roman}`),
+                                item.name.replace(new RegExp(`재료 상자${num}`, 'g'), `재료 상자 ${roman}`),
+                                item.name.replace(new RegExp(`장비 상자 ${num}`, 'g'), `장비 상자 ${roman}`),
+                                item.name.replace(new RegExp(`재료 상자 ${num}`, 'g'), `재료 상자 ${roman}`)
+                            );
+                        }
+                        
+                        // 정규화된 이름도 추가
+                        nameVariations.push(normalizeConsumableName(item.name));
+                        
+                        // 각 변형으로 MATERIAL_ITEMS에서 찾기
+                        for (const nameVar of nameVariations) {
+                            if (MATERIAL_ITEMS[nameVar]?.image) {
+                                imagePath = MATERIAL_ITEMS[nameVar].image;
+                                break;
+                            }
+                        }
+                    }
                     
                     return imagePath ? (
                         <img 
@@ -385,11 +426,52 @@ const LocalItemDetailDisplay: React.FC<{
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                     {(() => {
                         // 이미지 경로 찾기: item.image가 있으면 사용, 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
-                        const imagePath = item.image || 
-                            (CONSUMABLE_ITEMS.find(ci => ci.name === item.name || ci.name === item.name.replace('꾸러미', ' 꾸러미') || ci.name === item.name.replace(' 꾸러미', '꾸러미'))?.image) ||
-                            (MATERIAL_ITEMS[item.name]?.image) ||
-                            (MATERIAL_ITEMS[item.name.replace('꾸러미', ' 꾸러미')]?.image) ||
-                            (MATERIAL_ITEMS[item.name.replace(' 꾸러미', '꾸러미')]?.image);
+                        let imagePath = item.image;
+                        
+                        if (!imagePath && item.type === 'consumable') {
+                            const consumableItem = findConsumableItem(item.name);
+                            imagePath = consumableItem?.image;
+                        }
+                        
+                        // MATERIAL_ITEMS에서 찾기
+                        if (!imagePath) {
+                            // 숫자를 로마숫자로 변환하는 맵
+                            const numToRoman: Record<string, string> = {
+                                '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+                            };
+                            
+                            // 다양한 이름 변형으로 시도
+                            const nameVariations: string[] = [
+                                item.name,
+                                item.name.replace('꾸러미', ' 꾸러미'),
+                                item.name.replace(' 꾸러미', '꾸러미'),
+                                item.name.replace('상자', ' 상자'),
+                                item.name.replace(' 상자', '상자'),
+                            ];
+                            
+                            // 숫자를 로마숫자로 변환한 변형들 추가
+                            for (const [num, roman] of Object.entries(numToRoman)) {
+                                nameVariations.push(
+                                    item.name.replace(new RegExp(`장비상자${num}`, 'g'), `장비 상자 ${roman}`),
+                                    item.name.replace(new RegExp(`재료상자${num}`, 'g'), `재료 상자 ${roman}`),
+                                    item.name.replace(new RegExp(`장비 상자${num}`, 'g'), `장비 상자 ${roman}`),
+                                    item.name.replace(new RegExp(`재료 상자${num}`, 'g'), `재료 상자 ${roman}`),
+                                    item.name.replace(new RegExp(`장비 상자 ${num}`, 'g'), `장비 상자 ${roman}`),
+                                    item.name.replace(new RegExp(`재료 상자 ${num}`, 'g'), `재료 상자 ${roman}`)
+                                );
+                            }
+                            
+                            // 정규화된 이름도 추가
+                            nameVariations.push(normalizeConsumableName(item.name));
+                            
+                            // 각 변형으로 MATERIAL_ITEMS에서 찾기
+                            for (const nameVar of nameVariations) {
+                                if (MATERIAL_ITEMS[nameVar]?.image) {
+                                    imagePath = MATERIAL_ITEMS[nameVar].image;
+                                    break;
+                                }
+                            }
+                        }
                         
                         return imagePath ? (
                             <img 
@@ -533,6 +615,70 @@ const LocalItemDetailDisplay: React.FC<{
 };
 
 const EQUIPMENT_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+
+// 소모품 이름 정규화 함수: 다양한 형식의 이름을 표준 형식으로 변환
+const normalizeConsumableName = (name: string): string => {
+    // 숫자를 로마숫자로 변환하는 맵
+    const numToRoman: Record<string, string> = {
+        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+    };
+    
+    // 띄어쓰기 제거/추가 변형 처리
+    let normalized = name
+        .replace(/장비상자/g, '장비 상자')
+        .replace(/재료상자/g, '재료 상자')
+        .replace(/골드꾸러미/g, '골드 꾸러미')
+        .replace(/다이아꾸러미/g, '다이아 꾸러미');
+    
+    // 숫자를 로마숫자로 변환 (예: '장비 상자1' -> '장비 상자 I', '장비 상자 1' -> '장비 상자 I')
+    for (const [num, roman] of Object.entries(numToRoman)) {
+        // 띄어쓰기 있는 경우와 없는 경우 모두 처리
+        normalized = normalized.replace(new RegExp(`(장비 상자|재료 상자)[\\s]*${num}`, 'g'), `$1 ${roman}`);
+    }
+    
+    return normalized.trim();
+};
+
+// CONSUMABLE_ITEMS에서 아이템 찾기 (이름 매칭 개선)
+const findConsumableItem = (itemName: string) => {
+    if (!itemName) return undefined;
+    
+    const normalizedItemName = normalizeConsumableName(itemName);
+    
+    // 숫자를 로마숫자로 변환하는 맵
+    const numToRoman: Record<string, string> = {
+        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+    };
+    
+    // 다양한 형식으로 변환하여 매칭 시도
+    const variations: string[] = [
+        itemName, // 원본
+        normalizedItemName, // 정규화된 이름
+        itemName.replace('꾸러미', ' 꾸러미'),
+        itemName.replace(' 꾸러미', '꾸러미'),
+        itemName.replace('상자', ' 상자'),
+        itemName.replace(' 상자', '상자'),
+    ];
+    
+    // 숫자를 로마숫자로 변환한 변형들 추가
+    for (const [num, roman] of Object.entries(numToRoman)) {
+        variations.push(
+            itemName.replace(new RegExp(`장비상자${num}`, 'g'), `장비 상자 ${roman}`),
+            itemName.replace(new RegExp(`재료상자${num}`, 'g'), `재료 상자 ${roman}`),
+            itemName.replace(new RegExp(`장비 상자${num}`, 'g'), `장비 상자 ${roman}`),
+            itemName.replace(new RegExp(`재료 상자${num}`, 'g'), `재료 상자 ${roman}`),
+            itemName.replace(new RegExp(`장비 상자 ${num}`, 'g'), `장비 상자 ${roman}`),
+            itemName.replace(new RegExp(`재료 상자 ${num}`, 'g'), `재료 상자 ${roman}`)
+        );
+    }
+    
+    // 중복 제거
+    const uniqueVariations = Array.from(new Set(variations));
+    
+    return CONSUMABLE_ITEMS.find(ci => 
+        uniqueVariations.some(variation => ci.name === variation)
+    );
+};
 
 const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, onStartEnhance, enhancementAnimationTarget, onAnimationComplete, isTopmost }) => {
     const { presets, handlers, currentUserWithStatus, updateTrigger } = useAppContext();
@@ -1032,7 +1178,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         </div>
                                         <div className={`absolute bottom-2 left-0 right-0 flex justify-center gap-2 px-4 flex-shrink-0`}>
                                             {selectedItem.type === 'consumable' && (() => {
-                                                const consumableItem = CONSUMABLE_ITEMS.find(ci => ci.name === selectedItem.name || ci.name === selectedItem.name.replace('꾸러미', ' 꾸러미') || ci.name === selectedItem.name.replace(' 꾸러미', '꾸러미'));
+                                                const consumableItem = findConsumableItem(selectedItem.name);
                                                 const isUsable = consumableItem?.usable !== false; // 기본값은 true
                                                 const isSellable = consumableItem?.sellable !== false; // 기본값은 true
                                                 
@@ -1184,8 +1330,19 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         setShowUseQuantityModal(false);
                         setItemToUseBulk(null);
                     }}
-                    onConfirm={(itemId, quantity, itemName) => {
-                        onAction({ type: 'USE_ITEM', payload: { itemId, quantity, itemName } });
+                    onConfirm={async (itemId, quantity, itemName) => {
+                        try {
+                            // 액션 실행 및 결과 대기
+                            await onAction({ type: 'USE_ITEM', payload: { itemId, quantity, itemName } });
+                            // 모달 닫기 (UseQuantityModal 내부에서도 닫지만, 여기서도 확실히 닫기)
+                            setShowUseQuantityModal(false);
+                            setItemToUseBulk(null);
+                        } catch (error) {
+                            console.error('[InventoryModal] Failed to use item:', error);
+                            // 에러가 발생해도 모달은 닫기
+                            setShowUseQuantityModal(false);
+                            setItemToUseBulk(null);
+                        }
                     }}
                     isTopmost={isTopmost && !isRenameModalOpen && !itemToSell && !itemToSellBulk && !isExpandModalOpen}
                 />
@@ -1378,11 +1535,52 @@ const InventoryItemCard: React.FC<{
             <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 object-cover rounded-md" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />
             {(() => {
                 // 이미지 경로 찾기: item.image가 있으면 사용, 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
-                const imagePath = item.image || 
-                    (CONSUMABLE_ITEMS.find(ci => ci.name === item.name || ci.name === item.name.replace('꾸러미', ' 꾸러미') || ci.name === item.name.replace(' 꾸러미', '꾸러미'))?.image) ||
-                    (MATERIAL_ITEMS[item.name]?.image) ||
-                    (MATERIAL_ITEMS[item.name.replace('꾸러미', ' 꾸러미')]?.image) ||
-                    (MATERIAL_ITEMS[item.name.replace(' 꾸러미', '꾸러미')]?.image);
+                let imagePath = item.image;
+                
+                if (!imagePath && item.type === 'consumable') {
+                    const consumableItem = findConsumableItem(item.name);
+                    imagePath = consumableItem?.image;
+                }
+                
+                // MATERIAL_ITEMS에서 찾기
+                if (!imagePath) {
+                    // 숫자를 로마숫자로 변환하는 맵
+                    const numToRoman: Record<string, string> = {
+                        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+                    };
+                    
+                    // 다양한 이름 변형으로 시도
+                    const nameVariations: string[] = [
+                        item.name,
+                        item.name.replace('꾸러미', ' 꾸러미'),
+                        item.name.replace(' 꾸러미', '꾸러미'),
+                        item.name.replace('상자', ' 상자'),
+                        item.name.replace(' 상자', '상자'),
+                    ];
+                    
+                    // 숫자를 로마숫자로 변환한 변형들 추가
+                    for (const [num, roman] of Object.entries(numToRoman)) {
+                        nameVariations.push(
+                            item.name.replace(new RegExp(`장비상자${num}`, 'g'), `장비 상자 ${roman}`),
+                            item.name.replace(new RegExp(`재료상자${num}`, 'g'), `재료 상자 ${roman}`),
+                            item.name.replace(new RegExp(`장비 상자${num}`, 'g'), `장비 상자 ${roman}`),
+                            item.name.replace(new RegExp(`재료 상자${num}`, 'g'), `재료 상자 ${roman}`),
+                            item.name.replace(new RegExp(`장비 상자 ${num}`, 'g'), `장비 상자 ${roman}`),
+                            item.name.replace(new RegExp(`재료 상자 ${num}`, 'g'), `재료 상자 ${roman}`)
+                        );
+                    }
+                    
+                    // 정규화된 이름도 추가
+                    nameVariations.push(normalizeConsumableName(item.name));
+                    
+                    // 각 변형으로 MATERIAL_ITEMS에서 찾기
+                    for (const nameVar of nameVariations) {
+                        if (MATERIAL_ITEMS[nameVar]?.image) {
+                            imagePath = MATERIAL_ITEMS[nameVar].image;
+                            break;
+                        }
+                    }
+                }
                 
                 return imagePath ? (
                     <img 

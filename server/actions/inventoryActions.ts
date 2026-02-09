@@ -409,21 +409,45 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             // itemId로 찾지 못한 경우, itemName으로 찾기 (골드 꾸러미 등 이름 변형 대응)
             if (itemIndex === -1 && itemName) {
-                const normalizedName = itemName.startsWith('골드꾸러미') 
-                    ? itemName.replace('골드꾸러미', '골드 꾸러미')
-                    : itemName.startsWith('다이아꾸러미')
-                    ? itemName.replace('다이아꾸러미', '다이아 꾸러미')
-                    : itemName;
+                // 아이템 이름 정규화 함수 (장비상자1 -> 장비 상자 I 등)
+                const normalizeItemNameForSearch = (name: string): string => {
+                    const numToRoman: Record<string, string> = {
+                        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+                    };
+                    
+                    let normalized = name;
+                    // 장비상자/재료상자 숫자를 로마숫자로 변환
+                    normalized = normalized.replace(/장비상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
+                    normalized = normalized.replace(/재료상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
+                    normalized = normalized.replace(/장비 상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
+                    normalized = normalized.replace(/재료 상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
+                    normalized = normalized.replace(/장비 상자 (\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
+                    normalized = normalized.replace(/재료 상자 (\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
+                    
+                    // 골드/다이아 꾸러미 처리
+                    if (normalized.startsWith('골드꾸러미')) {
+                        normalized = normalized.replace('골드꾸러미', '골드 꾸러미');
+                    } else if (normalized.startsWith('다이아꾸러미')) {
+                        normalized = normalized.replace('다이아꾸러미', '다이아 꾸러미');
+                    }
+                    
+                    return normalized.trim();
+                };
                 
-                // 정확한 이름으로 찾기
-                itemIndex = user.inventory.findIndex(i => 
-                    i && i.type === 'consumable' && (
+                const normalizedName = normalizeItemNameForSearch(itemName);
+                
+                // 정확한 이름으로 찾기 (다양한 변형 모두 시도)
+                itemIndex = user.inventory.findIndex(i => {
+                    if (!i || i.type !== 'consumable') return false;
+                    
+                    const itemNameNormalized = normalizeItemNameForSearch(i.name);
+                    return (
                         i.name === itemName || 
                         i.name === normalizedName ||
-                        (i.name.startsWith('골드꾸러미') && normalizedName.startsWith('골드 꾸러미') && i.name.replace('골드꾸러미', '골드 꾸러미') === normalizedName) ||
-                        (i.name.startsWith('골드 꾸러미') && itemName.startsWith('골드꾸러미') && i.name === normalizedName)
-                    )
-                );
+                        itemNameNormalized === normalizedName ||
+                        itemNameNormalized === normalizeItemNameForSearch(normalizedName)
+                    );
+                });
                 
                 if (itemIndex !== -1) {
                     console.log(`[USE_ITEM] Found item by name fallback: itemId=${itemId}, itemName=${itemName}, foundName=${user.inventory[itemIndex]?.name}`);
@@ -588,7 +612,29 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 return { clientResponse: { obtainedItemsBulk: obtainedItems, updatedUser } };
             }
             
-            const shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === item.name);
+            // 아이템 이름을 표준 형식으로 변환 (장비상자1 -> 장비 상자 I)
+            const normalizeItemNameForShop = (name: string): string => {
+                const numToRoman: Record<string, string> = {
+                    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+                };
+                
+                let normalized = name;
+                // 장비상자/재료상자 숫자를 로마숫자로 변환
+                normalized = normalized.replace(/장비상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/재료상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/장비 상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/재료 상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/장비 상자 (\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/재료 상자 (\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
+                
+                return normalized.trim();
+            };
+            
+            const normalizedItemName = normalizeItemNameForShop(item.name);
+            let shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === item.name);
+            if (!shopItemKey) {
+                shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === normalizedItemName);
+            }
             if (!shopItemKey) return { error: '알 수 없는 아이템입니다.' };
             
             const shopItem = SHOP_ITEMS[shopItemKey as keyof typeof SHOP_ITEMS];
@@ -629,7 +675,35 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
         
         case 'USE_ALL_ITEMS_OF_TYPE': {
             const { itemName } = payload;
-            const itemsToUse = user.inventory.filter(i => i.name === itemName && i.type === 'consumable');
+            
+            // 아이템 이름을 표준 형식으로 변환 (장비상자1 -> 장비 상자 I)
+            const normalizeItemNameForShop = (name: string): string => {
+                const numToRoman: Record<string, string> = {
+                    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+                };
+                
+                let normalized = name;
+                // 장비상자/재료상자 숫자를 로마숫자로 변환
+                normalized = normalized.replace(/장비상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/재료상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/장비 상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/재료 상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/장비 상자 (\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
+                normalized = normalized.replace(/재료 상자 (\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
+                
+                return normalized.trim();
+            };
+            
+            const normalizedItemName = normalizeItemNameForShop(itemName);
+            
+            // 인벤토리에서 아이템 찾기 (원본 이름과 정규화된 이름 모두 시도)
+            const itemsToUse = user.inventory.filter(i => 
+                i.type === 'consumable' && (
+                    i.name === itemName || 
+                    i.name === normalizedItemName ||
+                    normalizeItemNameForShop(i.name) === normalizedItemName
+                )
+            );
             if (itemsToUse.length === 0) return { error: '사용할 아이템이 없습니다.' };
 
             const totalQuantity = itemsToUse.reduce((sum, i) => sum + (i.quantity || 1), 0);
@@ -637,8 +711,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             let totalGoldGained = 0;
             let totalDiamondsGained = 0;
 
-            const shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === itemName);
-            const bundleInfo = currencyBundles[itemName];
+            let shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === itemName);
+            if (!shopItemKey) {
+                shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === normalizedItemName);
+            }
+            const bundleInfo = currencyBundles[itemName] || currencyBundles[normalizedItemName];
             
             // First, generate all potential rewards
             for (let i = 0; i < totalQuantity; i++) {
@@ -658,7 +735,12 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
 
             // Then, check for inventory space
-            const inventoryAfterRemoval = user.inventory.filter(i => i.name !== itemName);
+            // 인벤토리에서 아이템 제거 (원본 이름과 정규화된 이름 모두 제거)
+            const inventoryAfterRemoval = user.inventory.filter(i => 
+                i.name !== itemName && 
+                i.name !== normalizedItemName &&
+                normalizeItemNameForShop(i.name) !== normalizedItemName
+            );
             const { success: hasSpace, finalItemsToAdd, updatedInventory } = addItemsToInventoryUtil(inventoryAfterRemoval, user.inventorySlots, allObtainedItems);
             if (!hasSpace) {
                 return { error: '모든 아이템을 받기에 가방 공간이 부족합니다.' };

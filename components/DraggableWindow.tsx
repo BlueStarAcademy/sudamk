@@ -88,7 +88,20 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
     const handleClickOutside = useCallback((event: MouseEvent) => {
 
         if (onClose && closeOnOutsideClick && isTopmost && windowRef.current && !windowRef.current.contains(event.target as Node)) {
-
+            // 클릭된 요소가 다른 DraggableWindow 내부에 있는지 확인
+            const target = event.target as HTMLElement;
+            if (target) {
+                // 클릭된 요소의 부모 중에 다른 DraggableWindow가 있는지 확인
+                let parent = target.parentElement;
+                while (parent) {
+                    // 다른 DraggableWindow의 루트 요소를 찾음 (data-draggable-window 속성 확인)
+                    if (parent.getAttribute && parent.getAttribute('data-draggable-window')) {
+                        // 다른 창 내부를 클릭한 것이므로 이 창을 닫지 않음
+                        return;
+                    }
+                    parent = parent.parentElement;
+                }
+            }
             onClose();
 
         }
@@ -540,6 +553,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
             )}
             <div
                 ref={windowRef}
+                data-draggable-window={windowId}
                 className={`${containerBaseClass} ${containerVariantClass}`}
                 style={{
                     width: isMobile 

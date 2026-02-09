@@ -7,7 +7,7 @@ interface UseQuantityModalProps {
     item: InventoryItem;
     currentUser: UserWithStatus;
     onClose: () => void;
-    onConfirm: (itemId: string, quantity: number, itemName?: string) => void;
+    onConfirm: (itemId: string, quantity: number, itemName?: string) => Promise<void> | void;
     isTopmost?: boolean;
 }
 
@@ -21,21 +21,42 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
 
     const [quantity, setQuantity] = useState(1);
 
+    // totalQuantity가 변경되면 quantity를 조정 (초기 로드 시 또는 수량이 부족해진 경우)
     useEffect(() => {
-        setQuantity(Math.min(quantity, totalQuantity));
-    }, [totalQuantity]);
+        if (totalQuantity > 0 && quantity > totalQuantity) {
+            setQuantity(totalQuantity);
+        } else if (totalQuantity === 0) {
+            setQuantity(0);
+        }
+    }, [totalQuantity]); // quantity는 의존성에 포함하지 않음 (무한 루프 방지)
 
     const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value, 10);
-        if (!isNaN(value)) {
-            setQuantity(Math.max(1, Math.min(totalQuantity, value)));
+        const value = e.target.value;
+        // 빈 문자열이면 1로 설정하지 않고 그대로 둠 (사용자가 입력 중일 수 있음)
+        if (value === '') {
+            setQuantity(0);
+            return;
+        }
+        const numValue = parseInt(value, 10);
+        if (!isNaN(numValue)) {
+            setQuantity(Math.max(1, Math.min(totalQuantity, numValue)));
         } else {
             setQuantity(1);
         }
     };
 
     const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setQuantity(Number(e.target.value));
+        const value = Number(e.target.value);
+        setQuantity(value);
+    };
+    
+    // 입력 필드가 blur될 때 유효성 검사
+    const handleQuantityBlur = () => {
+        if (quantity < 1) {
+            setQuantity(1);
+        } else if (quantity > totalQuantity) {
+            setQuantity(totalQuantity);
+        }
     };
 
     return (
@@ -45,7 +66,11 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
             windowId="useQuantity" 
             isTopmost={isTopmost}
         >
-            <div className="p-4 text-on-panel flex flex-col items-center">
+            <div 
+                className="p-4 text-on-panel flex flex-col items-center"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="mb-4 text-center w-full">
                     <h3 className="text-lg font-bold mb-2">사용할 수량을 선택하세요</h3>
                     <div className="flex items-center justify-center gap-4 my-4">
@@ -73,6 +98,8 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                             max={totalQuantity}
                             value={quantity}
                             onChange={handleSliderChange}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
                             disabled={totalQuantity === 0}
                             className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
                         />
@@ -85,8 +112,12 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                                 type="number"
                                 min="1"
                                 max={totalQuantity}
-                                value={quantity}
+                                value={quantity || ''}
                                 onChange={handleQuantityChange}
+                                onBlur={handleQuantityBlur}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                                onFocus={(e) => e.stopPropagation()}
                                 className="w-full bg-secondary border border-color text-on-panel text-sm rounded-md p-2 text-center"
                             />
                         </div>
@@ -98,13 +129,22 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                         취소
                     </Button>
                     <Button 
-                        onClick={() => {
-                            onConfirm(item.id, quantity, item.name);
-                            onClose();
+                        onClick={async () => {
+                            // onConfirm을 먼저 호출하여 액션이 실행되도록 함
+                            if (quantity > 0 && quantity <= totalQuantity) {
+                                try {
+                                    await onConfirm(item.id, quantity, item.name);
+                                } catch (error) {
+                                    console.error('[UseQuantityModal] Failed to confirm:', error);
+                                }
+                                // 모달 닫기는 onConfirm이 완료된 후에 실행되도록 함
+                                // InventoryModal에서도 모달을 닫지만, 여기서도 닫아서 확실히 처리
+                                onClose();
+                            }
                         }} 
                         colorScheme="purple" 
                         className="flex-1"
-                        disabled={quantity === 0 || quantity > totalQuantity}
+                        disabled={quantity === 0 || quantity > totalQuantity || totalQuantity === 0}
                     >
                         {quantity.toLocaleString()}개 사용
                     </Button>

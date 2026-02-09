@@ -836,10 +836,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const tournamentState = (freshUser as any)[stateKey] as types.TournamentState | null;
             if (!tournamentState) return { error: '토너먼트 정보를 찾을 수 없습니다.' };
 
-            // 던전 모드가 아닌 일반 토너먼트는 첫 경기 시작 이후 자동 진행 활성화
-            if (!tournamentState.currentStageAttempt) {
-                tournamentState.autoAdvanceEnabled = true;
-            }
+            // 던전 모드와 일반 토너먼트 모두 첫 경기 시작 이후 자동 진행 활성화
+            tournamentState.autoAdvanceEnabled = true;
             
             // 유저의 다음 경기 찾기 (상태 확인 전에 먼저 찾기)
             let userMatch: types.Match | null = null;
@@ -1305,12 +1303,30 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const prevNextRoundStartTime = tournamentState.nextRoundStartTime;
             console.log(`[COMPLETE_TOURNAMENT_SIMULATION] About to call processMatchCompletion: type=${type}, roundIndex=${roundIndex}, matchIndex=${matchIndex}, status=${prevStatus}`);
             try {
+                const prevCurrentRoundRobinRound = tournamentState.currentRoundRobinRound;
                 await processMatchCompletion(tournamentState, freshUser, match, roundIndex);
-                console.log(`[COMPLETE_TOURNAMENT_SIMULATION] processMatchCompletion completed: status changed from ${prevStatus} to ${tournamentState.status}, nextRoundStartTime: ${prevNextRoundStartTime} -> ${tournamentState.nextRoundStartTime}`);
+                console.log(`[COMPLETE_TOURNAMENT_SIMULATION] processMatchCompletion completed: status changed from ${prevStatus} to ${tournamentState.status}, nextRoundStartTime: ${prevNextRoundStartTime} -> ${tournamentState.nextRoundStartTime}, currentRoundRobinRound: ${prevCurrentRoundRobinRound} -> ${tournamentState.currentRoundRobinRound}`);
                 
-                // nextRoundStartTime이 설정되었으면 즉시 브로드캐스트하여 클라이언트가 카운트다운을 시작할 수 있도록 함
-                if (tournamentState.nextRoundStartTime && tournamentState.nextRoundStartTime !== prevNextRoundStartTime) {
-                    console.log(`[COMPLETE_TOURNAMENT_SIMULATION] nextRoundStartTime changed, broadcasting update immediately`);
+                // 던전 모드에서 다음 경기가 자동 시작된 경우 즉시 브로드캐스트
+                const isDungeonMode = !!tournamentState.currentStageAttempt;
+                const nextMatchAutoStarted = isDungeonMode && 
+                    tournamentState.status === 'round_in_progress' && 
+                    tournamentState.currentSimulatingMatch !== null &&
+                    prevStatus !== 'round_in_progress';
+                
+                // 동네바둑리그에서 currentRoundRobinRound가 변경된 경우도 브로드캐스트 필요
+                const roundRobinRoundChanged = tournamentState.type === 'neighborhood' && 
+                    prevCurrentRoundRobinRound !== tournamentState.currentRoundRobinRound;
+                
+                // nextRoundStartTime이 설정되었거나 던전 모드에서 다음 경기가 자동 시작된 경우, 또는 회차가 변경된 경우 즉시 브로드캐스트
+                if ((tournamentState.nextRoundStartTime && tournamentState.nextRoundStartTime !== prevNextRoundStartTime) || nextMatchAutoStarted || roundRobinRoundChanged) {
+                    if (nextMatchAutoStarted) {
+                        console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Dungeon mode: Next match auto-started, broadcasting update immediately`);
+                    } else if (roundRobinRoundChanged) {
+                        console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Round-robin round changed: ${prevCurrentRoundRobinRound} -> ${tournamentState.currentRoundRobinRound}, broadcasting update immediately`);
+                    } else {
+                        console.log(`[COMPLETE_TOURNAMENT_SIMULATION] nextRoundStartTime changed, broadcasting update immediately`);
+                    }
                     // Keep volatile state reference updated
                     if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
                     volatileState.activeTournaments[freshUser.id] = tournamentState;
@@ -1333,15 +1349,28 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: errorMessage };
             }
 
+            // 동네바둑리그의 경우 유저의 모든 경기가 완료되었는지 확인 (6명이 각각 5경기)
+            const allUserMatchesFinished = tournamentState.type === 'neighborhood' 
+                ? tournamentState.rounds.every(round => 
+                    round.matches.every(match => !match.isUserMatch || match.isFinished)
+                )
+                : false;
+            
             // 모든 경기가 완료되었는지 확인
             const allMatchesFinished = tournamentState.rounds.every(r => r.matches.every(m => m.isFinished));
-            if (allMatchesFinished) {
+            
+            // 동네바둑리그에서 유저의 모든 경기가 완료되었거나, 모든 경기가 완료되었으면 complete 상태로 설정
+            if (allUserMatchesFinished || allMatchesFinished) {
                 // 모든 경기가 완료되었으면 complete 상태로 설정
                 tournamentState.status = 'complete';
                 // 경기 종료 시 모든 플레이어의 컨디션 초기화 (컨디션 회복제 낭비 방지)
                 tournamentState.players.forEach(p => {
                     p.condition = 1000;
                 });
+                
+                if (allUserMatchesFinished && !allMatchesFinished) {
+                    console.log(`[COMPLETE_TOURNAMENT_SIMULATION] All user matches completed for neighborhood tournament, setting status to complete`);
+                }
                 
                 // 토너먼트 완료 시점에 점수 자동 합산 (보상 수령 여부와 관계없이)
                 // 하루에 한번씩 각 경기장에서 모은 점수를 합산하여 주간 경쟁에 사용
@@ -1663,9 +1692,16 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return bWinRate - aWinRate;
             });
             
-            const userRank = rankedPlayers.findIndex(p => p.id === freshUser.id) + 1;
-            const cleared = userRank <= (dungeonType === 'neighborhood' ? 6 : dungeonType === 'national' ? 8 : 16); // 모든 순위가 클리어로 간주
+            const userRankIndex = rankedPlayers.findIndex(p => p.id === freshUser.id);
+            if (userRankIndex === -1) {
+                console.error(`[COMPLETE_DUNGEON_STAGE] User not found in ranked players: ${freshUser.id}`);
+                return { error: '플레이어 순위를 계산할 수 없습니다.' };
+            }
+            const userRank = userRankIndex + 1;
+            const cleared = userRank <= (dungeonType === 'neighborhood' ? 6 : dungeonType === 'national' ? 8 : 16); // 상위 순위만 클리어로 간주 (동네: 6위 이내, 전국: 8위 이내, 세계: 16위 이내)
             const clearTime = now;
+            
+            console.log(`[COMPLETE_DUNGEON_STAGE] User rank: ${userRank}, cleared: ${cleared}, stage: ${stage}, dungeonType: ${dungeonType}`);
             
             // 단계 결과 저장
             if (!dungeonProgress.stageResults[stage]) {
@@ -1680,8 +1716,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             let rewards: { gold?: number; materials?: Record<string, number>; equipmentBoxes?: Record<string, number>; changeTickets?: number } = {};
             
             // 기본 보상 지급 (각 경기마다 누적된 보상)
-            if (dungeonState.accumulatedGold) {
-                freshUser.gold = (freshUser.gold || 0) + dungeonState.accumulatedGold;
+            if (dungeonState.accumulatedGold && dungeonState.accumulatedGold > 0) {
+                const oldGold = freshUser.gold || 0;
+                freshUser.gold = oldGold + dungeonState.accumulatedGold;
+                console.log(`[COMPLETE_DUNGEON_STAGE] Added gold: ${oldGold} -> ${freshUser.gold} (added ${dungeonState.accumulatedGold})`);
             }
             
             // 보상 아이템 수집 (기본 보상 + 순위 보상)
@@ -1708,6 +1746,48 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 }
             }
             
+            // 다음 단계 언락 조건: 해당 단계에서 3등 이상 달성 시 (cleared 조건과 독립적으로 처리)
+            // 1위, 2위, 3위를 달성하면 다음 단계 언락
+            if (userRank >= 1 && userRank <= 3 && stage < 10) {
+                const nextStage = stage + 1;
+                if (!dungeonProgress.unlockedStages.includes(nextStage)) {
+                    dungeonProgress.unlockedStages.push(nextStage);
+                    dungeonProgress.unlockedStages.sort((a, b) => a - b);
+                    console.log(`[COMPLETE_DUNGEON_STAGE] ✓ Unlocked stage ${nextStage} for ${dungeonType} (userRank: ${userRank}, stage: ${stage})`);
+                } else {
+                    console.log(`[COMPLETE_DUNGEON_STAGE] Stage ${nextStage} already unlocked for ${dungeonType} (userRank: ${userRank})`);
+                }
+            } else {
+                console.log(`[COMPLETE_DUNGEON_STAGE] Stage unlock condition not met: userRank=${userRank}, stage=${stage}, need: userRank 1-3 and stage < 10`);
+            }
+            
+            // 일일 랭킹 점수 계산 및 누적 (cleared 여부와 관계없이 순위가 있으면 점수 지급)
+            const baseScore = DUNGEON_STAGE_BASE_SCORE[stage] || 0;
+            if (baseScore > 0 && userRank >= 1) {
+                // 순위 보너스 적용하여 최종 점수 계산 (일일 획득 가능 점수 패널과 동일한 계산)
+                const { DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS } = await import('../../constants/tournaments.js');
+                const rankBonus = DUNGEON_RANK_SCORE_BONUS[userRank] || DUNGEON_DEFAULT_SCORE_BONUS;
+                const finalScore = Math.floor(baseScore * (1 + rankBonus));
+                
+                // 순위가 있으면 점수 지급 (cleared 조건과 독립적)
+                dungeonProgress.stageResults[stage].dailyScore = finalScore; // 순위 보너스 포함한 최종 점수 저장
+                dungeonProgress.stageResults[stage].rank = userRank; // 순위 저장
+                
+                // 일일 던전 점수 누적
+                if (!freshUser.dailyDungeonScore) {
+                    freshUser.dailyDungeonScore = 0;
+                }
+                freshUser.dailyDungeonScore += finalScore;
+                console.log(`[COMPLETE_DUNGEON_STAGE] Added daily score: base=${baseScore}, bonus=${rankBonus}, final=${finalScore}, total: ${freshUser.dailyDungeonScore}`);
+                
+                // 누적 챔피언십 점수에 추가 (홈 화면 랭킹용)
+                if (!freshUser.cumulativeTournamentScore) {
+                    freshUser.cumulativeTournamentScore = 0;
+                }
+                freshUser.cumulativeTournamentScore += finalScore;
+                console.log(`[COMPLETE_DUNGEON_STAGE] Added cumulative score: ${finalScore}, total: ${freshUser.cumulativeTournamentScore}`);
+            }
+            
             if (cleared) {
                 dungeonProgress.stageResults[stage].cleared = true;
                 dungeonProgress.stageResults[stage].scoreDiff = 0; // 토너먼트에서는 점수차이 대신 순위 사용
@@ -1717,29 +1797,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 if (stage > dungeonProgress.currentStage) {
                     dungeonProgress.currentStage = stage;
                 }
-                
-                // 다음 단계 언락 조건: 해당 단계에서 3등 이상 달성 시
-                if (userRank <= 3 && !dungeonProgress.unlockedStages.includes(stage + 1) && stage < 10) {
-                    dungeonProgress.unlockedStages.push(stage + 1);
-                    dungeonProgress.unlockedStages.sort((a, b) => a - b);
-                }
-                
-                // 일일 랭킹 점수 계산 (기본 점수만 저장, 순위 보너스는 나중에 적용)
-                const baseScore = DUNGEON_STAGE_BASE_SCORE[stage] || 0;
-                dungeonProgress.stageResults[stage].dailyScore = baseScore;
-                dungeonProgress.stageResults[stage].rank = userRank; // 순위 저장
-                
-                // 일일 던전 점수 누적
-                if (!freshUser.dailyDungeonScore) {
-                    freshUser.dailyDungeonScore = 0;
-                }
-                freshUser.dailyDungeonScore += baseScore;
-                
-                // 누적 챔피언십 점수에 추가 (홈 화면 랭킹용)
-                if (!freshUser.cumulativeTournamentScore) {
-                    freshUser.cumulativeTournamentScore = 0;
-                }
-                freshUser.cumulativeTournamentScore += baseScore;
                 
                 // 순위별 보상 지급
                 const { DUNGEON_RANK_REWARDS } = await import('../../constants/tournaments.js');
@@ -1764,8 +1821,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 );
                 if (addResult.success) {
                     freshUser.inventory = addResult.updatedInventory;
+                    console.log(`[COMPLETE_DUNGEON_STAGE] Added ${itemsToCreate.length} item types to inventory for user ${freshUser.id}`);
                 } else {
                     console.warn(`[COMPLETE_DUNGEON_STAGE] Failed to add items to inventory for user ${freshUser.id}: inventory full`);
+                    return { error: '보상을 받기에 가방 공간이 부족합니다. 가방을 비우고 다시 시도해주세요.' };
                 }
             }
             
@@ -1774,18 +1833,81 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             freshUser.dungeonProgress[dungeonType] = dungeonProgress;
             (freshUser as any)[stateKey] = dungeonState;
             
+            // 보상 수령 플래그 설정
+            let statusKey: keyof User;
+            let playedDateKey: keyof User;
+            switch (dungeonType) {
+                case 'neighborhood':
+                    statusKey = 'neighborhoodRewardClaimed';
+                    playedDateKey = 'lastNeighborhoodPlayedDate';
+                    break;
+                case 'national':
+                    statusKey = 'nationalRewardClaimed';
+                    playedDateKey = 'lastNationalPlayedDate';
+                    break;
+                case 'world':
+                    statusKey = 'worldRewardClaimed';
+                    playedDateKey = 'lastWorldPlayedDate';
+                    break;
+                default:
+                    statusKey = 'neighborhoodRewardClaimed';
+                    playedDateKey = 'lastNeighborhoodPlayedDate';
+            }
+            (freshUser as any)[statusKey] = true;
+            
+            // 경기 참여 날짜 업데이트 (로비에서 완료 표시를 위해 필요)
+            const now = Date.now();
+            (freshUser as any)[playedDateKey] = now;
+            
+            // DB 저장 및 캐시 업데이트 (한 번만)
             await db.updateUser(freshUser);
             updateUserCache(freshUser);
             
             if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
             volatileState.activeTournaments[freshUser.id] = dungeonState;
             
+            // 유저 플레이어의 승/패 계산
+            const userPlayer = dungeonState.players.find(p => p.id === freshUser.id);
+            const userWins = userPlayer?.wins || 0;
+            const userLosses = userPlayer?.losses || 0;
+            
+            // 기본 보상 정보 수집
+            const baseRewards: {
+                gold?: number;
+                materials?: Record<string, number>;
+                equipmentBoxes?: Record<string, number>;
+                changeTickets?: number;
+            } = {};
+            
+            if (dungeonState.accumulatedGold) {
+                baseRewards.gold = dungeonState.accumulatedGold;
+            }
+            if (dungeonState.accumulatedMaterials) {
+                baseRewards.materials = dungeonState.accumulatedMaterials;
+            }
+            if (dungeonState.accumulatedEquipmentBoxes) {
+                baseRewards.equipmentBoxes = dungeonState.accumulatedEquipmentBoxes;
+            }
+            
+            // 변경권은 월드챔피언십의 장비상자 보상에 포함되어 있으므로 별도로 처리
+            const { DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT } = await import('../../constants/tournaments.js');
+            if (dungeonType === 'world' && DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage]?.changeTickets) {
+                baseRewards.changeTickets = DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage].changeTickets;
+            }
+            
+            // 다음 단계 언락 여부 확인 (서버에서 언락 처리 후 상태 확인)
+            const nextStageUnlocked = userRank <= 3 && dungeonProgress.unlockedStages.includes(stage + 1);
+            
             return { 
                 clientResponse: { 
                     dungeonState, 
                     cleared,
                     userRank,
+                    userWins,
+                    userLosses,
+                    baseRewards,
                     rankReward: cleared ? (await import('../../constants/tournaments.js')).DUNGEON_RANK_REWARDS[dungeonType]?.[stage]?.[userRank] : undefined,
+                    nextStageUnlocked,
                     updatedUser: freshUser 
                 } 
             };

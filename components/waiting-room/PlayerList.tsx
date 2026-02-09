@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { UserWithStatus, ServerAction, UserStatus, GameMode, Negotiation } from '../../types.js';
 import Avatar from '../Avatar.js';
-import { AVATAR_POOL, BORDER_POOL } from '../../constants';
+import { AVATAR_POOL, BORDER_POOL, aiUserId, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import Button from '../Button.js';
 import ChallengeSelectionModal from '../ChallengeSelectionModal';
 import GameRejectionSettingsModal from '../GameRejectionSettingsModal.tsx';
@@ -25,9 +25,10 @@ interface PlayerListProps {
     onViewUser: (userId: string) => void;
     lobbyType: 'strategic' | 'playful';
     userCount?: number;
+    onOpenAiModal?: () => void;
 }
 
-const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, mode, negotiations, onViewUser, lobbyType, userCount }) => {
+const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, mode, negotiations, onViewUser, lobbyType, userCount, onOpenAiModal }) => {
     const [isChallengeSelectionModalOpen, setIsChallengeSelectionModalOpen] = useState(false);
     const [challengeTargetUser, setChallengeTargetUser] = useState<UserWithStatus | null>(null);
     const [isRejectionSettingsModalOpen, setIsRejectionSettingsModalOpen] = useState(false);
@@ -145,6 +146,23 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
               <div className="flex-shrink-0 mb-2">
                   {renderUserItem(me, true)}
               </div>
+            )}
+            {/* AI와 대결하기 항목 - 현재 유저 아래에 표시 */}
+            {onOpenAiModal && (mode === 'strategic' || mode === 'playful' || SPECIAL_GAME_MODES.some(m => m.mode === mode) || PLAYFUL_GAME_MODES.includes(mode as GameMode)) && (
+                <div className="flex-shrink-0 mb-2">
+                    <li className="flex items-center justify-between p-1.5 rounded-lg bg-tertiary/50 border border-purple-500/30">
+                        <div className="flex items-center gap-2 lg:gap-3 overflow-hidden cursor-pointer" onClick={onOpenAiModal} title="AI와 대결하기">
+                            <Avatar userId={aiUserId} userName="AI" size={36} className="border-2 border-purple-500" />
+                            <div className="overflow-hidden">
+                                <h3 className="font-bold text-sm lg:text-base truncate text-purple-300">AI와 대결하기</h3>
+                                <span className="text-xs text-purple-400">● AI 대전</span>
+                            </div>
+                        </div>
+                        <Button onClick={(e) => { e.stopPropagation(); onOpenAiModal(); }} colorScheme="purple" className="!text-xs !py-1 !px-2">
+                            설정 및 시작
+                        </Button>
+                    </li>
+                </div>
             )}
             <ul className="space-y-2 overflow-y-auto pr-2 max-h-[calc(var(--vh,1vh)*25)] min-h-[96px]">
                 {otherUsers.length > 0 ? otherUsers.map(user => renderUserItem(user, false)) : (

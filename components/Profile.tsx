@@ -298,14 +298,59 @@ const Profile: React.FC<ProfileProps> = () => {
     
     // 길드 로딩 상태 및 타임아웃 관리
     const [guildLoadingFailed, setGuildLoadingFailed] = useState(false);
+    const [isGuildChecking, setIsGuildChecking] = useState(true); // 초기 로딩 상태
     const hasLoadedGuildRef = useRef<Set<string>>(new Set());
+    const hasCheckedGuildRef = useRef(false); // 길드 확인 여부 추적
     const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
+    // 길드 정보 확인 (초기 로딩 시 한 번만 실행)
+    useEffect(() => {
+        // 이미 확인했으면 다시 확인하지 않음
+        if (hasCheckedGuildRef.current) return;
+        
+        const checkGuild = async () => {
+            setIsGuildChecking(true);
+            setGuildLoadingFailed(false);
+            
+            try {
+                const result: any = await handlers.handleAction({ type: 'GET_GUILD_INFO' });
+                hasCheckedGuildRef.current = true;
+                
+                if (result?.error) {
+                    // "가입한 길드가 없습니다" 또는 "길드를 찾을 수 없습니다" 오류는 길드가 없는 것으로 간주
+                    if (result.error.includes('가입한 길드가 없습니다') || result.error.includes('길드를 찾을 수 없습니다')) {
+                        setGuildLoadingFailed(true);
+                    } else {
+                        // 다른 오류도 길드가 없는 것으로 간주
+                        setGuildLoadingFailed(true);
+                    }
+                } else if (result?.clientResponse?.guild) {
+                    // 길드 정보가 로드되었으면 로딩 실패 상태 해제
+                    setGuildLoadingFailed(false);
+                } else {
+                    // 길드 정보가 없으면 길드가 없는 것으로 간주
+                    setGuildLoadingFailed(true);
+                }
+            } catch (error) {
+                console.error('[Profile] Failed to check guild:', error);
+                hasCheckedGuildRef.current = true;
+                setGuildLoadingFailed(true);
+            } finally {
+                setIsGuildChecking(false);
+            }
+        };
+        
+        checkGuild();
+    }, [handlers]);
     
     // 길드에 소속되어 있는데 길드 정보가 없으면 즉시 가져오기 (한 번만 실행)
     useEffect(() => {
         const guildId = currentUserWithStatus?.guildId;
         if (!guildId) {
-            setGuildLoadingFailed(false);
+            // guildId가 없어도 이미 확인했으면 더 이상 처리하지 않음
+            if (hasCheckedGuildRef.current) {
+                return;
+            }
             return;
         }
         
@@ -625,49 +670,40 @@ const Profile: React.FC<ProfileProps> = () => {
 
             <div className="flex-grow flex flex-col min-h-0 border-t border-color mt-1 pt-1">
                 <div className="bg-tertiary/30 p-1.5 rounded-md mb-1">
-                    {currentUserWithStatus.guildId ? (
-                        guildInfo ? (
-                            <button
-                                onClick={() => window.location.hash = '#/guild'}
-                                className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
-                                title="길드 홈 보기"
-                            >
-                                <div className="flex-shrink-0 w-10 h-10 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
-                                    {guildInfo.icon ? (
-                                        <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <img src="/images/button/guild.png" alt="길드" className="w-8 h-8 object-contain" />
-                                    )}
+                    {isGuildChecking ? (
+                        // 길드 확인 중
+                        <div className="w-full flex items-center justify-center p-2 text-sm text-gray-400">
+                            길드 확인중..
+                        </div>
+                    ) : guildInfo ? (
+                        // 길드가 있으면 길드 바로가기 버튼
+                        <button
+                            onClick={() => window.location.hash = '#/guild'}
+                            className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
+                            title="길드 홈 보기"
+                        >
+                            <div className="flex-shrink-0 w-10 h-10 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
+                                {guildInfo.icon ? (
+                                    <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <img src="/images/button/guild.png" alt="길드" className="w-8 h-8 object-contain" />
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0 text-left">
+                                <div className="font-semibold text-white truncate" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }}>
+                                    {guildInfo.name}
                                 </div>
-                                <div className="flex-1 min-w-0 text-left">
-                                    <div className="font-semibold text-white truncate" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }}>
-                                        {guildInfo.name}
-                                    </div>
-                                    <div className="text-xs text-gray-400">
-                                        Lv.{guildInfo.level || 1}
-                                    </div>
-                                </div>
-                                <div className="flex-shrink-0 text-accent">
-                                    →
-                                </div>
-                            </button>
-                        ) : guildLoadingFailed ? (
-                            // 길드 로딩 실패 시 길드 창설/가입 버튼 표시
-                            <div className="flex items-center gap-2">
-                                <div className="flex-1 flex gap-2">
-                                    <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드창설</Button>
-                                    <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드가입</Button>
+                                <div className="text-xs text-gray-400">
+                                    Lv.{guildInfo.level || 1}
                                 </div>
                             </div>
-                        ) : (
-                            <div className="w-full flex items-center justify-center p-2 text-sm text-gray-400">
-                                길드 정보 로딩 중...
+                            <div className="flex-shrink-0 text-accent">
+                                →
                             </div>
-                        )
+                        </button>
                     ) : (
+                        // 길드가 없으면 가입/창설 버튼
                         <div className="flex items-center gap-2">
-                            {/* 길드 아이콘 버튼 */}
-                            {/* 나머지 공간에 버튼들 */}
                             <div className="flex-1 flex gap-2">
                                 <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드창설</Button>
                                 <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드가입</Button>
@@ -710,7 +746,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
             </div>
         </>
-    ), [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds]);
+    ), [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds, isGuildChecking]);
     
     const LobbyCards = (
         <div className="grid grid-cols-12 grid-rows-2 gap-2 lg:gap-4 h-full">
@@ -933,38 +969,39 @@ const Profile: React.FC<ProfileProps> = () => {
 
                             <div className="flex-grow flex flex-col min-h-0 border-t border-color mt-1 pt-1">
                                 <div className="bg-tertiary/30 p-1 rounded-md mb-1">
-                                    {currentUserWithStatus.guildId ? (
-                                        guildInfo ? (
-                                            <button
-                                                onClick={() => window.location.hash = '#/guild'}
-                                                className="w-full flex items-center gap-1 p-1 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
-                                                title="길드 홈 보기"
-                                            >
-                                                <div className="flex-shrink-0 w-6 h-6 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
-                                                    {guildInfo.icon ? (
-                                                        <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <img src="/images/button/guild.png" alt="길드" className="w-5 h-5 object-contain" />
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 min-w-0 text-left">
-                                                    <div className="font-semibold text-white text-[9px] truncate">
-                                                        {guildInfo.name}
-                                                    </div>
-                                                    <div className="text-[8px] text-gray-400">
-                                                        Lv.{guildInfo.level || 1}
-                                                    </div>
-                                                </div>
-                                                <div className="flex-shrink-0 text-accent text-xs">
-                                                    →
-                                                </div>
-                                            </button>
-                                        ) : (
-                                            <div className="w-full flex items-center justify-center p-1 text-[9px] text-gray-400">
-                                                길드 정보 로딩 중...
+                                    {isGuildChecking ? (
+                                        // 길드 확인 중
+                                        <div className="w-full flex items-center justify-center p-1 text-[9px] text-gray-400">
+                                            길드 확인중..
+                                        </div>
+                                    ) : guildInfo ? (
+                                        // 길드가 있으면 길드 바로가기 버튼
+                                        <button
+                                            onClick={() => window.location.hash = '#/guild'}
+                                            className="w-full flex items-center gap-1 p-1 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
+                                            title="길드 홈 보기"
+                                        >
+                                            <div className="flex-shrink-0 w-6 h-6 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
+                                                {guildInfo.icon ? (
+                                                    <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <img src="/images/button/guild.png" alt="길드" className="w-5 h-5 object-contain" />
+                                                )}
                                             </div>
-                                        )
+                                            <div className="flex-1 min-w-0 text-left">
+                                                <div className="font-semibold text-white text-[9px] truncate">
+                                                    {guildInfo.name}
+                                                </div>
+                                                <div className="text-[8px] text-gray-400">
+                                                    Lv.{guildInfo.level || 1}
+                                                </div>
+                                            </div>
+                                            <div className="flex-shrink-0 text-accent text-xs">
+                                                →
+                                            </div>
+                                        </button>
                                     ) : (
+                                        // 길드가 없으면 가입/창설 버튼
                                         <div className="flex items-center gap-1">
                                             <div className="flex-1 flex gap-1">
                                                 <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className="flex-1 !text-[7px] !py-0.5 !px-1 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드창설</Button>
