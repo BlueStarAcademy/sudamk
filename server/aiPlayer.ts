@@ -967,9 +967,10 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
         const center = { x: boardSizePx / 2, y: boardSizePx / 2 };
         const cellSize = boardSizePx / 19;
         
-        // 하우스 중심을 향해 던지기
-        const launchX = boardSizePx * 0.1 + Math.random() * boardSizePx * 0.1; // 하단에서 발사
-        const launchY = boardSizePx * 0.9;
+        // 플레이어 위치에 따라 발사 위치 결정
+        // Black은 하단에서, White는 상단에서 발사
+        const launchX = boardSizePx * 0.1 + Math.random() * boardSizePx * 0.1;
+        const launchY = aiPlayerEnum === types.Player.Black ? boardSizePx * 0.9 : boardSizePx * 0.1;
         
         const dx = center.x - launchX;
         const dy = center.y - launchY;

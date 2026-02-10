@@ -958,6 +958,17 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
 
             const isManuallyPaused = game.isAiGame && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
 
+            // 게임 상태 업데이트를 먼저 실행하여 애니메이션 완료 후 턴 전환을 처리
+            // 중요: 게임 상태 업데이트를 먼저 실행해야 애니메이션 완료 후 턴 전환이 제대로 처리됨
+            if (game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest' && game.gameStatus !== 'scoring') {
+                if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                    await updateStrategicGameState(game, now);
+                } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode }) => m.mode === game.mode)) {
+                    await updatePlayfulGameState(game, now);
+                }
+            }
+
+            // 게임 상태 업데이트 후 AI 턴 처리 (애니메이션 완료로 턴이 전환되었을 수 있음)
             const isAiTurn = game.isAiGame && !isManuallyPaused && game.currentPlayer !== types.Player.None &&
                 (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId) &&
                 // 클라이언트 전용 AI로 동작시킬 게임(도전의 탑)은 서버에서 AI 수를 처리하지 않음
@@ -966,28 +977,40 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             // 멀티플레이 AI 게임의 경우에만 메인 루프에서 AI 수 처리
             // 놀이바둑 모드의 경우 placement 상태에서도 AI가 동작해야 함
             const playfulPlacementStatuses = ['alkkagi_placement', 'alkkagi_simultaneous_placement', 'thief_rolling', 'thief_placing'];
+            const animatingStatuses = ['missile_animating', 'hidden_reveal_animating', 'alkkagi_animating', 'curling_animating', 'thief_rolling_animating'];
             const canProcessAiTurn = isAiTurn && game.gameStatus !== 'ended' && 
-                !['missile_animating', 'hidden_reveal_animating', 'alkkagi_animating', 'curling_animating', 'thief_rolling_animating'].includes(game.gameStatus) &&
-                (playfulPlacementStatuses.includes(game.gameStatus) || !playfulPlacementStatuses.some(s => game.gameStatus === s));
+                !animatingStatuses.includes(game.gameStatus) &&
+                (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || game.gameStatus === 'alkkagi_playing' || game.gameStatus === 'curling_playing');
             
             if (canProcessAiTurn) {
                 if (!game.aiTurnStartTime) {
                     game.aiTurnStartTime = now + (1000 + Math.random() * 1500);
+                    console.log(`[processGame] AI turn detected for game ${game.id}, mode: ${game.mode}, status: ${game.gameStatus}, currentPlayer: ${game.currentPlayer}, aiTurnStartTime set to: ${game.aiTurnStartTime}`);
                 }
                 if (now >= game.aiTurnStartTime) {
                     const initialMoveCount = game.moveHistory?.length ?? 0;
+                    const initialStonesCount = (game.mode === types.GameMode.Curling ? game.curlingStones?.length : 
+                                               game.mode === types.GameMode.Alkkagi ? game.alkkagiStones?.length : 0) ?? 0;
+                    const initialGameStatus = game.gameStatus;
                     try {
+                        console.log(`[processGame] Executing AI move for game ${game.id}, mode: ${game.mode}, status: ${game.gameStatus}, currentPlayer: ${game.currentPlayer}`);
                         await makeAiMove(game);
                         
                         const moveCountAfter = game.moveHistory?.length ?? initialMoveCount;
-                        const aiActuallyMoved = moveCountAfter > initialMoveCount;
+                        const stonesCountAfter = (game.mode === types.GameMode.Curling ? game.curlingStones?.length : 
+                                                 game.mode === types.GameMode.Alkkagi ? game.alkkagiStones?.length : 0) ?? 0;
+                        const aiActuallyMoved = moveCountAfter > initialMoveCount || stonesCountAfter > initialStonesCount || 
+                                               game.gameStatus === 'curling_animating' || game.gameStatus === 'alkkagi_animating' ||
+                                               (initialGameStatus !== game.gameStatus && animatingStatuses.includes(game.gameStatus));
 
                         if (aiActuallyMoved) {
+                            console.log(`[processGame] AI move executed successfully for game ${game.id}, new status: ${game.gameStatus}`);
                             game.aiTurnStartTime = undefined;
                             if (!game.turnStartTime) {
                                 game.turnStartTime = now;
                             }
                         } else {
+                            console.warn(`[processGame] AI move did not execute for game ${game.id}, retrying in 50ms`);
                             game.aiTurnStartTime = now + 50;
                         }
                     } catch (error) {
@@ -995,16 +1018,6 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                         // 에러 발생 시에도 다음 시도 시간 설정
                         game.aiTurnStartTime = now + 1000;
                     }
-                }
-            }
-
-            // 게임 상태 업데이트는 필요한 경우에만 수행 (성능 최적화)
-            // ended, no_contest, scoring 상태는 업데이트 불필요
-            if (game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest' && game.gameStatus !== 'scoring') {
-                if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                    await updateStrategicGameState(game, now);
-                } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode }) => m.mode === game.mode)) {
-                    await updatePlayfulGameState(game, now);
                 }
             }
 

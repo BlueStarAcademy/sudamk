@@ -328,15 +328,15 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           )}
         </div>
       </header>
-      <div className="flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6">
+      <div className="flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6 overflow-hidden">
         {isMobile ? (
           <>
-            <div className="flex flex-col h-full gap-2">
+            <div className="flex flex-col h-full gap-2 overflow-hidden">
                 <div className="flex-shrink-0"><AnnouncementBoard mode={mode} /></div>
-                <div className="h-[350px] min-h-0">
+                <div className="h-[350px] min-h-0 overflow-hidden">
                     <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
                 </div>
-                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg flex flex-col">
+                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg flex flex-col overflow-hidden">
                     <PlayerList 
                       users={usersInThisRoom} 
                       mode={mode} 
@@ -385,24 +385,24 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
           </>
         ) : (
-          <div ref={desktopContainerRef} className="grid grid-cols-1 lg:grid-cols-5 h-full gap-4">
+          <div ref={desktopContainerRef} className="grid grid-cols-1 lg:grid-cols-5 h-full gap-4 overflow-hidden">
               {/* Main Content Column */}
-                  <div className="lg:col-span-3 flex flex-col gap-4 min-h-0">
+                  <div className="lg:col-span-3 flex flex-col gap-4 min-h-0 overflow-hidden">
                       <div className="flex-shrink-0">
                           <AnnouncementBoard mode={mode} />
                       </div>
                       
                       {/* 진행중인 대국 패널을 위로 이동 */}
-                      <div className="h-[500px] min-h-0 flex-shrink-0">
+                      <div className="h-[400px] min-h-0 flex-shrink-0 overflow-hidden">
                           <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
                       </div>
                       
                       {/* 채팅창과 랭킹전 패널 - 랭킹 패널 하단과 맞추기 위해 flex-1 사용 */}
-                      <div className="flex-1 flex flex-row gap-4 min-h-0">
-                          <div className="flex-1 flex flex-col bg-panel border border-color rounded-lg shadow-lg min-h-0">
+                      <div className="flex-1 flex flex-row gap-4 min-h-0 overflow-hidden">
+                          <div className="flex-1 flex flex-col bg-panel border border-color rounded-lg shadow-lg min-h-0 overflow-hidden">
                               <ChatWindow messages={chatMessages} mode={chatChannel} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
                           </div>
-                          <div className="w-80 flex-shrink-0 bg-panel border border-color rounded-lg shadow-lg">
+                          <div className="w-80 flex-shrink-0 bg-panel border border-color rounded-lg shadow-lg min-h-0 flex flex-col overflow-hidden">
                               <RankedMatchPanel 
                                 lobbyType={isStrategic ? 'strategic' : 'playful'}
                                 currentUser={currentUserWithStatus}
@@ -423,9 +423,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   </div>
               
               {/* Right Sidebar Column */}
-              <div className="lg:col-span-2 flex flex-col gap-4">
-                <div className="flex-1 flex flex-row gap-4 items-stretch min-h-0">
-                  <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0">
+              <div className="lg:col-span-2 flex flex-col gap-4 min-h-0 overflow-hidden">
+                <div className="flex-1 flex flex-row gap-4 items-stretch min-h-0 overflow-hidden">
+                  <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0 min-h-0 overflow-hidden">
                     <PlayerList 
                       users={usersInThisRoom} 
                       mode={mode} 
@@ -443,7 +443,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   </div>
                 </div>
 
-                <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg">
+                <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-h-0 overflow-hidden">
                   <RankingList currentUser={currentUserWithStatus} mode={mode} onViewUser={handlers.openViewingUser} onShowTierInfo={() => setIsTierInfoModalOpen(true)} onShowPastRankings={handlers.openPastRankings} lobbyType={isStrategic ? 'strategic' : 'playful'} />
                 </div>
               </div>

@@ -636,7 +636,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 return normalized.trim();
             };
             
-            const normalizedItemName = normalizeItemNameForShop(item.name);
+            normalizedItemName = normalizeItemNameForShop(item.name);
             let shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === item.name);
             if (!shopItemKey) {
                 shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === normalizedItemName);

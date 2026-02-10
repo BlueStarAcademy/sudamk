@@ -10,7 +10,9 @@ import { getApiUrl, getWebSocketUrlFor } from '../utils/apiConfig.js';
 import { 
     DAILY_MILESTONE_THRESHOLDS,
     WEEKLY_MILESTONE_THRESHOLDS,
-    MONTHLY_MILESTONE_THRESHOLDS
+    MONTHLY_MILESTONE_THRESHOLDS,
+    SPECIAL_GAME_MODES,
+    PLAYFUL_GAME_MODES
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
@@ -2511,8 +2513,29 @@ export const useApp = () => {
                                                     }, 100);
                                                 } else {
                                                     const mode = currentUserStatus.mode;
+                                                    // mode가 없고 status가 Waiting이면 strategic/playful 대기실로 이동
+                                                    // (LEAVE_GAME_ROOM 후 서버에서 strategic/playful로 설정한 경우)
                                                     if (!mode && (currentUserStatus.status === UserStatus.Waiting || currentUserStatus.status === UserStatus.Resting)) {
-                                                        console.log('[WebSocket] Current user status updated to waiting without mode (likely in strategic/playful lobby)');
+                                                        console.log('[WebSocket] Current user status updated to waiting without mode, checking previous game mode');
+                                                        // 이전 게임의 모드를 확인하여 대기실로 이동
+                                                        // 게임 페이지에서 나온 경우, 게임 모드를 확인
+                                                        const gameIdFromHash = currentHash.replace('#/game/', '');
+                                                        const currentGame = liveGames[gameIdFromHash] || singlePlayerGames[gameIdFromHash] || towerGames[gameIdFromHash];
+                                                        if (currentGame && !currentGame.isSinglePlayer && currentGame.mode) {
+                                                        // 게임 모드를 strategic/playful로 변환
+                                                        let waitingRoomMode: 'strategic' | 'playful' | null = null;
+                                                        if (SPECIAL_GAME_MODES.some(m => m.mode === currentGame.mode)) {
+                                                            waitingRoomMode = 'strategic';
+                                                        } else if (PLAYFUL_GAME_MODES.some(m => m.mode === currentGame.mode)) {
+                                                            waitingRoomMode = 'playful';
+                                                        }
+                                                            if (waitingRoomMode) {
+                                                                console.log('[WebSocket] Routing to waiting room based on game mode:', waitingRoomMode);
+                                                                setTimeout(() => {
+                                                                    window.location.hash = `#/waiting/${waitingRoomMode}`;
+                                                                }, 100);
+                                                            }
+                                                        }
                                                     } else if (mode) {
                                                         console.warn('[WebSocket] Individual game mode detected, redirecting to profile:', mode);
                                                         setTimeout(() => {

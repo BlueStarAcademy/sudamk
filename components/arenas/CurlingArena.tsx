@@ -228,11 +228,17 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
 
         isDraggingRef.current = true;
         const stoneRadius = (840 / 19) * 0.47;
+        const boardSizePx = 840;
+        
+        // 회전된 보드에서는 발사 위치를 서버 좌표계로 변환
+        const serverX = shouldRotate ? boardSizePx - (area.x + stoneRadius) : (area.x + stoneRadius);
+        const serverY = shouldRotate ? boardSizePx - (area.y + stoneRadius) : (area.y + stoneRadius);
+        
         const newStone: AlkkagiStone = {
             id: Date.now(),
             player: myPlayer,
-            x: area.x + stoneRadius,
-            y: area.y + stoneRadius,
+            x: serverX,
+            y: serverY,
             vx: 0, vy: 0,
             radius: stoneRadius,
             onBoard: false 
@@ -246,7 +252,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         setDragEndPoint(point);
         setIsRenderingPreviewStone(true);
         startPowerGauge();
-    }, [startPowerGauge]);
+    }, [startPowerGauge, shouldRotate]);
     
     useEffect(() => {
         const handleInteractionMove = (e: MouseEvent | TouchEvent) => {
@@ -297,8 +303,9 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                     const dx = svgDragEnd.x - svgDragStart.x;
                     const dy = svgDragEnd.y - svgDragStart.y;
                     
-                    const velocityX = -dx;
-                    const velocityY = -dy;
+                    // 회전된 보드에서는 속도 벡터도 반전 (회전된 보드에서 드래그 방향이 반대이므로)
+                    const velocityX = shouldRotate ? dx : -dx;
+                    const velocityY = shouldRotate ? dy : -dy;
     
                     const launchStrength = finalPower / 100 * 25;
                     const mag = Math.hypot(velocityX, velocityY);
@@ -345,7 +352,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             stopPowerGauge();
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
-    }, [stopPowerGauge, cancelFlick]);
+    }, [stopPowerGauge, cancelFlick, shouldRotate]);
 
     useEffect(() => {
         const { session: currentSession } = latestProps.current;

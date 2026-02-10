@@ -613,6 +613,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             // 싱글플레이 게임인 경우 postGameRedirect 설정
             if (session.isSinglePlayer) {
                 sessionStorage.setItem('postGameRedirect', '#/singleplayer');
+            } else {
+                // 일반 게임인 경우 해당 모드의 대기실로 이동
+                // 게임 모드를 strategic/playful로 변환
+                let waitingRoomMode: 'strategic' | 'playful' | null = null;
+                if (SPECIAL_GAME_MODES.some(m => m.mode === session.mode)) {
+                    waitingRoomMode = 'strategic';
+                } else if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {
+                    waitingRoomMode = 'playful';
+                }
+                
+                if (waitingRoomMode) {
+                    sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
+                }
             }
             handlers.handleAction({ type: actionType, payload: { gameId } });
             return;
@@ -624,7 +637,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         } else {
             setConfirmModalType('resign');
         }
-    }, [isSpectator, handlers.handleAction, session.isAiGame, session.isSinglePlayer, gameId, gameStatus, isNoContestLeaveAvailable]);
+    }, [isSpectator, handlers.handleAction, session.isAiGame, session.isSinglePlayer, session.mode, gameId, gameStatus, isNoContestLeaveAvailable]);
 
     useEffect(() => {
         return () => {

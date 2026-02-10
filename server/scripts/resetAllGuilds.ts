@@ -170,7 +170,20 @@ async function resetAllGuilds() {
         }
         console.log(`  ✓ ${prismaUsersUpdated}명의 사용자에서 모든 길드 정보 제거됨 (Prisma)`);
         
-        // 14. KV store의 모든 사용자 데이터에서 길드 정보 제거
+        // 13-1. 모든 사용자의 KV store 데이터에서 guildId 필드 제거
+        console.log('[13-1/15] 모든 사용자의 KV store 데이터에서 guildId 필드 제거 중...');
+        const allKvUsers = await db.getAllUsers();
+        let kvGuildIdRemoved = 0;
+        for (const kvUser of allKvUsers) {
+            if (kvUser.guildId) {
+                kvUser.guildId = undefined;
+                await db.updateUser(kvUser);
+                kvGuildIdRemoved++;
+            }
+        }
+        console.log(`  ✓ ${kvGuildIdRemoved}명의 사용자에서 KV store의 guildId 필드 제거됨`);
+        
+        // 14. KV store의 모든 사용자 데이터에서 길드 정보 제거 (13-1에서 이미 guildId는 제거했으므로 status만 처리)
         console.log('[14/15] KV store의 모든 사용자 데이터에서 길드 정보 제거 중...');
         let kvUsersUpdated = 0;
         for (const user of allUsers) {
@@ -178,12 +191,6 @@ async function resetAllGuilds() {
                 const kvUser = await db.getUser(user.id);
                 if (kvUser) {
                     let needsKvUpdate = false;
-                    
-                    // KV store 사용자의 guildId 제거
-                    if (kvUser.guildId) {
-                        kvUser.guildId = undefined;
-                        needsKvUpdate = true;
-                    }
                     
                     // KV store 사용자의 status JSON에서 guildId 제거
                     if (kvUser.status && typeof kvUser.status === 'object') {

@@ -373,19 +373,42 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                 }
             }
             break;
-        case 'alkkagi_animating':
-            if (game.animation && now > game.animation.startTime + game.animation.duration) {
-                runServerSimulation(game);
-                game.animation = null;
-                const roundEnded = checkAndEndRound(game, now);
-                if (!roundEnded) {
-                    game.gameStatus = 'alkkagi_playing';
-                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                    game.alkkagiTurnDeadline = now + ALKKAGI_TURN_TIME_LIMIT * 1000;
-                    game.turnStartTime = now;
+        case 'alkkagi_animating': {
+            const animationStoppedTime = (game as any).alkkagiAnimationStoppedTime;
+            
+            // 애니메이션이 없거나 duration이 끝났을 때 시뮬레이션 실행 및 돌 멈춤 시점 기록
+            if (!game.animation || (game.animation && now > game.animation.startTime + game.animation.duration)) {
+                if (!animationStoppedTime) {
+                    // 시뮬레이션 실행 (돌이 멈춤)
+                    if (game.animation) {
+                        runServerSimulation(game);
+                    }
+                    
+                    // 돌이 멈춘 시점 기록
+                    (game as any).alkkagiAnimationStoppedTime = now;
+                    game.animation = null; // 애니메이션은 제거하지만 게임 상태는 유지
+                    console.log(`[updateAlkkagiState] Stones stopped at ${now}, will switch turn in 2 seconds`);
+                } else if (now > animationStoppedTime + 2000) {
+                    // 돌이 멈춘 후 2초가 지났으면 턴 전환
+                    (game as any).alkkagiAnimationStoppedTime = undefined;
+                    const roundEnded = checkAndEndRound(game, now);
+                    if (!roundEnded) {
+                        game.gameStatus = 'alkkagi_playing';
+                        game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+                        game.alkkagiTurnDeadline = now + ALKKAGI_TURN_TIME_LIMIT * 1000;
+                        game.turnStartTime = now;
+                        console.log(`[updateAlkkagiState] Turn switched to ${game.currentPlayer} after stones stopped`);
+                        // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                        if (game.isAiGame && game.currentPlayer !== types.Player.None &&
+                            (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId)) {
+                            game.aiTurnStartTime = now;
+                            console.log(`[updateAlkkagiState] AI turn after stones stopped, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        }
+                    }
                 }
             }
             break;
+        }
         case 'alkkagi_round_end':
             if ((game.roundEndConfirmations?.[p1Id] && game.roundEndConfirmations?.[p2Id]) || (game.revealEndTime && now > game.revealEndTime)) {
                 const totalRounds = game.settings.alkkagiRounds || 1;

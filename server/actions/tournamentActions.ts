@@ -1671,7 +1671,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             };
             
             // 토너먼트 순위 계산
-            const userPlayer = dungeonState.players.find(p => p.id === freshUser.id);
+            let userPlayer = dungeonState.players.find(p => p.id === freshUser.id);
             if (!userPlayer) {
                 return { error: '플레이어 정보를 찾을 수 없습니다.' };
             }
@@ -1867,7 +1867,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             volatileState.activeTournaments[freshUser.id] = dungeonState;
             
             // 유저 플레이어의 승/패 계산
-            const userPlayer = dungeonState.players.find(p => p.id === freshUser.id);
+            userPlayer = dungeonState.players.find(p => p.id === freshUser.id);
             const userWins = userPlayer?.wins || 0;
             const userLosses = userPlayer?.losses || 0;
             

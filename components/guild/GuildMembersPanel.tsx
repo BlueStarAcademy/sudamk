@@ -76,8 +76,14 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
             'officer': 1,
             'member': 2,
         };
-        return [...(guild.members || [])].sort((a, b) => (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3));
-    }, [guild.members]);
+        const members = guild.members || [];
+        console.log('[GuildMembersPanel] Members:', {
+            guildId: guild.id,
+            membersCount: members.length,
+            members: members.map(m => ({ userId: m.userId, nickname: m.nickname, role: m.role }))
+        });
+        return [...members].sort((a, b) => (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3));
+    }, [guild.members, guild.id]);
     
     const isMaster = myMemberInfo?.role === 'leader';
     const isVice = myMemberInfo?.role === 'officer';
@@ -192,9 +198,17 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                         {canManage && <div className="w-20 text-center">관리</div>}
                     </div>
                 </div>
-                <div className="overflow-y-auto pr-3 flex-grow">
-                    <ul className="space-y-4">
-                        {sortedMembers.map(member => {
+                <div className="overflow-y-auto pr-3 flex-grow min-h-0">
+                    {sortedMembers.length === 0 ? (
+                        <div className="flex items-center justify-center h-full py-12">
+                            <div className="text-center">
+                                <p className="text-xl text-tertiary font-semibold mb-2">길드원이 없습니다</p>
+                                <p className="text-sm text-gray-500">아직 가입한 길드원이 없습니다.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <ul className="space-y-4">
+                            {sortedMembers.map(member => {
                             const user = allUsers.find(u => u.id === member.userId);
                             const userStatus = onlineUsers.find(u => u.id === member.userId);
                             const avatarUrl = user ? AVATAR_POOL.find(a => a.id === user.avatarId)?.url : undefined;
@@ -276,9 +290,10 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                     )}
                                 </div>
                             </li>
-                        );
-                    })}
-                </ul>
+                            );
+                        })}
+                        </ul>
+                    )}
                 </div>
             </div>
         </div>

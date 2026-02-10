@@ -195,25 +195,46 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
 
                 {localStones.map(stone => {
                     if (!stone.onBoard) return null;
+                    // 회전된 보드에서는 돌 위치를 변환
+                    const displayX = isRotated ? boardSizePx - stone.x : stone.x;
+                    const displayY = isRotated ? boardSizePx - stone.y : stone.y;
                     return (
                         <g key={stone.id}>
-                            <circle cx={stone.x} cy={stone.y} r={stone.radius} fill={stone.player === Player.Black ? "#111827" : "#f9fafb"} />
-                            <circle cx={stone.x} cy={stone.y} r={stone.radius} fill={`url(#gloss-curling-${stone.player})`} />
+                            <circle cx={displayX} cy={displayY} r={stone.radius} fill={stone.player === Player.Black ? "#111827" : "#f9fafb"} />
+                            <circle cx={displayX} cy={displayY} r={stone.radius} fill={`url(#gloss-curling-${stone.player})`} />
                         </g>
                     );
                 })}
                 
                  {selectedStone && dragLine && (
                     <g opacity="0.7">
-                        <circle cx={selectedStone.x} cy={selectedStone.y} r={selectedStone.radius} fill={selectedStone.player === Player.Black ? "#111827" : "#f9fafb"} />
-                        <circle cx={selectedStone.x} cy={selectedStone.y} r={selectedStone.radius} fill={`url(#gloss-curling-${selectedStone.player})`} />
+                        {/* 회전된 보드에서는 선택된 돌 위치를 변환 */}
+                        {(() => {
+                            const displayX = isRotated ? boardSizePx - selectedStone.x : selectedStone.x;
+                            const displayY = isRotated ? boardSizePx - selectedStone.y : selectedStone.y;
+                            return (
+                                <>
+                                    <circle cx={displayX} cy={displayY} r={selectedStone.radius} fill={selectedStone.player === Player.Black ? "#111827" : "#f9fafb"} />
+                                    <circle cx={displayX} cy={displayY} r={selectedStone.radius} fill={`url(#gloss-curling-${selectedStone.player})`} />
+                                </>
+                            );
+                        })()}
                     </g>
                 )}
 
 
                 {dragLine && (
                      <g style={{ pointerEvents: 'none' }}>
-                        <line x1={dragLine.start.x} y1={dragLine.start.y} x2={dragLine.end.x} y2={dragLine.end.y} stroke="rgba(239, 68, 68, 0.7)" strokeWidth="4" strokeDasharray="8 4" markerEnd="url(#arrowhead-curling)" />
+                        {/* 회전된 보드에서는 드래그 라인 위치를 변환 */}
+                        {(() => {
+                            const startX = isRotated ? boardSizePx - dragLine.start.x : dragLine.start.x;
+                            const startY = isRotated ? boardSizePx - dragLine.start.y : dragLine.start.y;
+                            const endX = isRotated ? boardSizePx - dragLine.end.x : dragLine.end.x;
+                            const endY = isRotated ? boardSizePx - dragLine.end.y : dragLine.end.y;
+                            return (
+                                <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="rgba(239, 68, 68, 0.7)" strokeWidth="4" strokeDasharray="8 4" markerEnd="url(#arrowhead-curling)" />
+                            );
+                        })()}
                     </g>
                 )}
             </svg>

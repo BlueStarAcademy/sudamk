@@ -1750,6 +1750,25 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     const dbMembers = await guildRepo.getGuildMembers(user.guildId);
                     const dbSettings = (dbGuild.settings as any) || {};
                     
+                    // 모든 멤버의 nickname 가져오기
+                    const membersWithNicknames = await Promise.all(
+                        dbMembers.map(async (m) => {
+                            const memberUser = await db.getUser(m.userId);
+                            return {
+                                id: m.id,
+                                guildId: m.guildId,
+                                userId: m.userId,
+                                nickname: memberUser?.nickname || '',
+                                role: m.role as 'leader' | 'officer' | 'member',
+                                joinDate: m.joinDate,
+                                contributionTotal: m.contributionTotal,
+                                weeklyContribution: 0,
+                                createdAt: m.createdAt,
+                                updatedAt: m.updatedAt,
+                            };
+                        })
+                    );
+                    
                     // 기본 길드 객체 생성 (createDefaultGuild를 참고한 구조)
                     const now = Date.now();
                     const basicGuild: Guild = {
@@ -1763,18 +1782,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         experience: Number(dbGuild.experience),
                         xp: Number(dbGuild.experience),
                         researchPoints: 0,
-                        members: dbMembers.map(m => ({
-                            id: m.id,
-                            guildId: m.guildId,
-                            userId: m.userId,
-                            nickname: '',
-                            role: m.role as 'leader' | 'officer' | 'member',
-                            joinDate: m.joinDate,
-                            contributionTotal: m.contributionTotal,
-                            weeklyContribution: 0,
-                            createdAt: m.createdAt,
-                            updatedAt: m.updatedAt,
-                        })),
+                        members: membersWithNicknames,
                         memberLimit: 30,
                         isPublic: dbSettings.isPublic !== undefined ? dbSettings.isPublic : true,
                         joinType: dbSettings.joinType || 'free',
@@ -1814,10 +1822,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 
                 // DB에서 최신 멤버 목록 가져와서 동기화
                 const dbMembers = await guildRepo.getGuildMembers(user.guildId);
+                console.log(`[GET_GUILD_INFO] DB members count: ${dbMembers.length}, KV members count: ${guild.members.length}`);
+                
                 const dbMemberUserIds = new Set(dbMembers.map(m => m.userId));
                 const kvMemberUserIds = new Set((guild.members || []).map(m => m.userId));
                 
                 // DB에는 있지만 KV store에는 없는 멤버 추가
+                let addedCount = 0;
                 for (const dbMember of dbMembers) {
                     if (!kvMemberUserIds.has(dbMember.userId)) {
                         // 사용자 정보에서 nickname 가져오기
@@ -1834,11 +1845,20 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                             createdAt: dbMember.createdAt,
                             updatedAt: dbMember.updatedAt,
                         });
+                        addedCount++;
+                        console.log(`[GET_GUILD_INFO] Added member ${dbMember.userId} (${memberUser?.nickname || 'unknown'})`);
                     }
                 }
                 
                 // KV store에는 있지만 DB에는 없는 멤버 제거
+                const beforeFilterCount = guild.members.length;
                 guild.members = guild.members.filter(m => dbMemberUserIds.has(m.userId));
+                const removedCount = beforeFilterCount - guild.members.length;
+                if (removedCount > 0) {
+                    console.log(`[GET_GUILD_INFO] Removed ${removedCount} members that don't exist in DB`);
+                }
+                
+                console.log(`[GET_GUILD_INFO] Final members count: ${guild.members.length} (added: ${addedCount}, removed: ${removedCount})`);
                 
                 // 모든 멤버의 nickname과 기여도 정보 업데이트
                 for (const member of guild.members) {

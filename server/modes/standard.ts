@@ -810,6 +810,14 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
                     game.turnStartTime = now;
                 }
+                // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    const { aiUserId } = await import('../aiPlayer.js');
+                    if (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId) {
+                        game.aiTurnStartTime = now;
+                        console.log(`[handleStandardAction] AI turn after move, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    }
+                }
             }
             return {};
         }
