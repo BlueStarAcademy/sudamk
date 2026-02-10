@@ -400,54 +400,104 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             const uniqueStonesToReveal = Array.from(new Map(allStonesToReveal.map(item => [JSON.stringify(item.point), item])).values());
             
             if (uniqueStonesToReveal.length > 0) {
-                game.gameStatus = 'hidden_reveal_animating';
-                game.animation = {
-                    type: 'hidden_reveal',
-                    stones: uniqueStonesToReveal,
-                    startTime: now,
-                    duration: 2000
-                };
-                game.revealAnimationEndTime = now + 2000;
-                game.pendingCapture = { stones: result.capturedStones, move, hiddenContributors: contributingHiddenStones.map(c => c.point) };
-            
-                game.lastMove = { x, y };
-                game.lastTurnStones = null;
-                game.moveHistory.push(move);
-                if (isHidden) {
-                    if (!game.hiddenMoves) game.hiddenMoves = {};
-                    game.hiddenMoves[game.moveHistory.length - 1] = true;
-                }
-            
-                game.boardState = result.newBoardState;
-                for (const stone of result.capturedStones) {
-                    game.boardState[stone.y][stone.x] = opponentPlayerEnum;
-                }
-            
-                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                uniqueStonesToReveal.forEach(s => {
-                    if (!game.permanentlyRevealedStones!.some(p => p.x === s.point.x && p.y === s.point.y)) {
-                        game.permanentlyRevealedStones!.push(s.point);
+                // 싱글플레이에서 히든 착점인 경우 애니메이션 없이 바로 처리하고 턴 전환
+                if (game.isSinglePlayer && isHidden && game.gameStatus === 'hidden_placing') {
+                    // 히든 돌 공개 및 캡처 처리 (애니메이션 없이)
+                    game.lastMove = { x, y };
+                    game.lastTurnStones = null;
+                    game.moveHistory.push(move);
+                    if (isHidden) {
+                        if (!game.hiddenMoves) game.hiddenMoves = {};
+                        game.hiddenMoves[game.moveHistory.length - 1] = true;
                     }
-                });
-            
-                if (game.turnDeadline) {
-                    game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
-                    game.turnDeadline = undefined;
-                    game.turnStartTime = undefined;
-                }
                 
-                // 히든 아이템 사용 후 게임 상태 복원 (싱글플레이어)
-                if (game.isSinglePlayer && game.gameStatus === 'hidden_reveal_animating') {
-                    // 애니메이션 후 playing으로 변경되지만, itemUseDeadline은 지금 초기화
-                    game.itemUseDeadline = undefined;
-                    if (game.pausedTurnTimeLeft) {
-                        const currentPlayerTimeKey = myPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        game[currentPlayerTimeKey] = game.pausedTurnTimeLeft;
-                        game.pausedTurnTimeLeft = undefined;
+                    game.boardState = result.newBoardState;
+                    for (const stone of result.capturedStones) {
+                        game.boardState[stone.y][stone.x] = opponentPlayerEnum;
                     }
-                }
                 
-                return {};
+                    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                    uniqueStonesToReveal.forEach(s => {
+                        if (!game.permanentlyRevealedStones!.some(p => p.x === s.point.x && p.y === s.point.y)) {
+                            game.permanentlyRevealedStones!.push(s.point);
+                        }
+                    });
+                    
+                    // 캡처 처리
+                    if (result.capturedStones.length > 0) {
+                        if (!game.justCaptured) game.justCaptured = [];
+                        for (const stone of result.capturedStones) {
+                            const capturedPlayerEnum = opponentPlayerEnum;
+                            let points = 1;
+                            
+                            if (game.isSinglePlayer) {
+                                const patternStones = capturedPlayerEnum === types.Player.Black ? game.blackPatternStones : game.whitePatternStones;
+                                if (patternStones) {
+                                    const patternIndex = patternStones.findIndex(p => p.x === stone.x && p.y === stone.y);
+                                    if (patternIndex !== -1) {
+                                        points = 2;
+                                        patternStones.splice(patternIndex, 1);
+                                    }
+                                }
+                            }
+                            
+                            game.captures[myPlayerEnum] += points;
+                            game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: true });
+                        }
+                    }
+                    
+                    // 상태는 아래에서 처리되므로 여기서는 return하지 않음 (턴 전환을 위해 계속 진행)
+                } else {
+                    // 일반적인 경우: 애니메이션 사용
+                    game.gameStatus = 'hidden_reveal_animating';
+                    game.animation = {
+                        type: 'hidden_reveal',
+                        stones: uniqueStonesToReveal,
+                        startTime: now,
+                        duration: 2000
+                    };
+                    game.revealAnimationEndTime = now + 2000;
+                    game.pendingCapture = { stones: result.capturedStones, move, hiddenContributors: contributingHiddenStones.map(c => c.point) };
+                
+                    game.lastMove = { x, y };
+                    game.lastTurnStones = null;
+                    game.moveHistory.push(move);
+                    if (isHidden) {
+                        if (!game.hiddenMoves) game.hiddenMoves = {};
+                        game.hiddenMoves[game.moveHistory.length - 1] = true;
+                    }
+                
+                    game.boardState = result.newBoardState;
+                    for (const stone of result.capturedStones) {
+                        game.boardState[stone.y][stone.x] = opponentPlayerEnum;
+                    }
+                
+                    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                    uniqueStonesToReveal.forEach(s => {
+                        if (!game.permanentlyRevealedStones!.some(p => p.x === s.point.x && p.y === s.point.y)) {
+                            game.permanentlyRevealedStones!.push(s.point);
+                        }
+                    });
+            
+                    if (game.turnDeadline) {
+                        game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+                        game.turnDeadline = undefined;
+                        game.turnStartTime = undefined;
+                    }
+                    
+                    // 히든 아이템 사용 후 게임 상태 복원 (싱글플레이어)
+                    if (game.isSinglePlayer && game.gameStatus === 'hidden_reveal_animating') {
+                        // 애니메이션 후 playing으로 변경되지만, itemUseDeadline은 지금 초기화
+                        game.itemUseDeadline = undefined;
+                        if (game.pausedTurnTimeLeft) {
+                            const currentPlayerTimeKey = myPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                            game[currentPlayerTimeKey] = game.pausedTurnTimeLeft;
+                            game.pausedTurnTimeLeft = undefined;
+                        }
+                    }
+                    
+                    return {};
+                }
             }
 
 
@@ -525,12 +575,19 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 히든 아이템 사용 후 게임 상태 복원 (싱글플레이어)
             // 턴 전환 후에 상태 복원 (currentPlayer 변경 후)
             const wasHiddenPlacing = game.gameStatus === 'hidden_placing';
-            if (game.isSinglePlayer && wasHiddenPlacing) {
-                console.log(`[handleStandardAction] Restoring game state after hidden placement, gameId=${game.id}, isHidden=${isHidden}`);
+            if (game.isSinglePlayer && wasHiddenPlacing && isHidden) {
+                // 싱글플레이에서 히든 착점 시: 아이템 사용 시간 정리하고 바로 턴 전환
+                console.log(`[handleStandardAction] Single player hidden placement: restoring state and transitioning turn immediately, gameId=${game.id}`);
                 game.gameStatus = 'playing';
                 game.itemUseDeadline = undefined;
-                // pausedTurnTimeLeft는 이미 시간 계산에 사용되었으므로 undefined로 설정
                 game.pausedTurnTimeLeft = undefined;
+                // 히든 아이템 개수 감소
+                const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+                const currentHidden = game[hiddenKey] ?? 0;
+                if (currentHidden > 0) {
+                    game[hiddenKey] = currentHidden - 1;
+                    console.log(`[handleStandardAction] Hidden item consumed: ${hiddenKey} ${currentHidden} -> ${game[hiddenKey]}, gameId=${game.id}`);
+                }
             } else if (wasHiddenPlacing) {
                 game.gameStatus = 'playing';
                 game.itemUseDeadline = undefined;

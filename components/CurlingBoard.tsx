@@ -1,5 +1,6 @@
 import React, { forwardRef, useImperativeHandle, useState, useEffect, useRef, useMemo, ReactNode } from 'react';
 import { AlkkagiStone, GameStatus, Player, Point, LiveGameSession, UserWithStatus } from '../types.js';
+import { PLAYFUL_GAME_MODES } from '../constants/gameModes';
 
 export interface CurlingBoardHandle {
     updateLocalStones: (newStones: AlkkagiStone[]) => void;
@@ -19,11 +20,12 @@ interface CurlingBoardProps {
     activeCurlingItems: LiveGameSession['activeCurlingItems'];
     currentUser: UserWithStatus;
     session: LiveGameSession; // Added for active items
+    isRotated?: boolean; // Whether the board is rotated 180 degrees
 }
 
 
 const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, ref) => {
-    const { stones, gameStatus, myPlayer, currentPlayer, onLaunchAreaInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, currentUser, session } = props;
+    const { stones, gameStatus, myPlayer, currentPlayer, onLaunchAreaInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, currentUser, session, isRotated = false } = props;
     const [localStones, setLocalStones] = useState(stones);
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -116,12 +118,26 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
     const launchAreaCellSize = 1;
     const launchAreaPx = launchAreaCellSize * cellSize;
     
-    const launchAreas = [
-        { x: padding, y: padding, player: Player.White }, // Top-left
-        { x: boardSizePx - padding - launchAreaPx, y: padding, player: Player.White }, // Top-right
-        { x: padding, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-left
-        { x: boardSizePx - padding - launchAreaPx, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-right
-    ];
+    // 백 플레이어가 보드를 180도 회전해서 보면, 백 플레이어의 발사 영역이 화면 상단에 보이도록 함
+    const launchAreas = useMemo(() => {
+        if (isRotated && myPlayer === Player.White) {
+            // 백 플레이어가 회전된 보드를 볼 때: 백 플레이어의 발사 영역을 상단에 표시
+            return [
+                { x: padding, y: padding, player: Player.White }, // Top-left (화면 상단)
+                { x: boardSizePx - padding - launchAreaPx, y: padding, player: Player.White }, // Top-right (화면 상단)
+                { x: padding, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-left
+                { x: boardSizePx - padding - launchAreaPx, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-right
+            ];
+        } else {
+            // 기본 배치: 백 플레이어는 상단, 흑 플레이어는 하단
+            return [
+                { x: padding, y: padding, player: Player.White }, // Top-left
+                { x: boardSizePx - padding - launchAreaPx, y: padding, player: Player.White }, // Top-right
+                { x: padding, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-left
+                { x: boardSizePx - padding - launchAreaPx, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-right
+            ];
+        }
+    }, [isRotated, myPlayer, padding, launchAreaPx, boardSizePx]);
 
     return (
         <div
@@ -138,6 +154,7 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
                     <marker id="arrowhead-curling" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="rgba(239, 68, 68, 0.9)" /></marker>
                 </defs>
                 
+                 {/* 바둑판 배경은 항상 노란색으로 표시 */}
                  <rect width={boardSizePx} height={boardSizePx} fill="#DDAA77" />
 
                  {Array.from({ length: safeBoardSize }).map((_, i) => (

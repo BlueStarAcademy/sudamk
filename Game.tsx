@@ -75,6 +75,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [lastReceivedServerRevision, setLastReceivedServerRevision] = useState<number>(session.serverRevision ?? 0);
     const [isBoardLocked, setIsBoardLocked] = useState(false);
     
+    // isSpectator를 먼저 선언 (isBoardRotated 초기화에서 사용)
+    const isSpectator = useMemo(() => currentUserWithStatus?.status === 'spectating', [currentUserWithStatus]);
+    
+    // 바둑판 회전 상태 (백 유저/AI봇은 기본적으로 회전)
+    const [isBoardRotated, setIsBoardRotated] = useState(() => {
+        // 백 유저 또는 AI봇인 경우 기본적으로 회전
+        if (isSpectator) return false;
+        const isWhitePlayer = whitePlayerId === currentUser.id;
+        const isAiGame = session.isAiGame && (session.whitePlayerId === 'ai-player-01' || session.blackPlayerId === 'ai-player-01');
+        return isWhitePlayer || (isAiGame && session.currentPlayer === Player.White);
+    });
+    
     const prevGameStatus = usePrevious(gameStatus);
     const prevCurrentPlayer = usePrevious(currentPlayer);
     const prevCaptures = usePrevious(session.captures);
@@ -82,8 +94,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const warningSoundPlayedForTurn = useRef(false);
     const prevMoveCount = usePrevious(session.moveHistory?.length);
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
-
-    const isSpectator = useMemo(() => currentUserWithStatus?.status === 'spectating', [currentUserWithStatus]);
     const isSinglePlayer = session.isSinglePlayer;
     const isTower = session.gameCategory === 'tower';
     
@@ -1104,10 +1114,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         gameChat: gameChat, isSpectator, onlineUsers, activeNegotiation, negotiations: Object.values(negotiations), onViewUser: handlers.openViewingUser
     };
 
+    // AI 게임 일시 정지 관련 변수 (gameControlsProps보다 먼저 정의)
+    const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+
     const gameControlsProps = {
         session, isMyTurn, isSpectator, onAction: handlers.handleAction, setShowResultModal, setConfirmModalType, currentUser: currentUserWithStatus,
         onlineUsers, pendingMove, onConfirmMove: handleConfirmMove, onCancelMove: handleCancelMove, settings, isMobile,
         showResultModal,
+        // AI 게임 일시 정지 관련 props
+        isPaused: isPausableAiGame ? isPaused : undefined,
+        resumeCountdown: isPausableAiGame ? resumeCountdown : undefined,
+        pauseButtonCooldown: isPausableAiGame ? pauseButtonCooldown : undefined,
+        onPauseToggle: isPausableAiGame ? handlePauseToggle : undefined,
     };
 
     if (isSinglePlayer) {
@@ -1142,6 +1160,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isSinglePlayerPaused={isPaused}
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
+                                        isBoardRotated={isBoardRotated}
+                                        onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
                                     />
                                 </div>
                             </div>
@@ -1326,9 +1346,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return 'bg-tertiary';
     }, [mode]);
 
-    const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
-    const isServerManuallyPausedAi = isPausableAiGame && session.pausedTurnTimeLeft !== undefined && !session.turnDeadline && !session.itemUseDeadline;
-    const effectivePaused = (session.isSinglePlayer || isTower) ? isPaused : (isPausableAiGame ? (isPaused || isServerManuallyPausedAi) : false);
+    // AI 게임도 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
+    // isPausableAiGame은 위에서 이미 정의됨
+    const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame) ? isPaused : false;
 
     return (
         <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full ${pvpBackgroundClass}`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
@@ -1360,6 +1380,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isMobile={isMobile}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                         showLastMoveMarker={settings.features.lastMoveMarker}
+                                        isBoardRotated={isBoardRotated}
+                                        onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
                                     />
                                 </div>
                                 {effectivePaused && (

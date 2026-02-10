@@ -161,7 +161,7 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
     const rankingTitle = lobbyType === 'strategic' ? '전략바둑 랭킹' : lobbyType === 'playful' ? '놀이바둑 랭킹' : `${mode} 랭킹`;
 
     return (
-        <div className="p-4 flex flex-col text-on-panel">
+        <div className="p-4 flex flex-col h-full text-on-panel min-h-0">
             <div className="flex justify-between items-center mb-3 border-b border-color pb-2 flex-shrink-0 flex-wrap gap-2">
                 <h2 className="text-xl font-semibold">{rankingTitle} ({getCurrentSeasonName()})</h2>
                 <div className="flex items-center gap-2">
@@ -188,7 +188,7 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
                 </div>
             )}
 
-            <ul className="space-y-2 overflow-y-auto pr-2 h-72">
+            <ul className="space-y-2 overflow-y-auto pr-2 flex-1 min-h-0">
                  {loading ? (
                      <p className="text-center text-tertiary pt-8">랭킹을 불러오는 중...</p>
                  ) : error ? (

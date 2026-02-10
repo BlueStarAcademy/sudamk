@@ -21,13 +21,24 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
         ? 'border-red-400 shadow-red-500/40 focus:ring-red-400'
         : 'border-amber-400 shadow-amber-500/30 focus:ring-amber-300';
 
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!disabled && onClick) {
+            console.log('[ImageButton] Clicked', { alt, disabled, hasOnClick: !!onClick });
+            onClick();
+        } else {
+            console.log('[ImageButton] Click ignored', { alt, disabled, hasOnClick: !!onClick });
+        }
+    };
+
     return (
         <button
             type="button"
-            onClick={disabled ? undefined : onClick}
+            onClick={handleClick}
             disabled={disabled}
             title={title}
-            className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700 shadow-none' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
+            className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700 shadow-none' : 'hover:scale-105 active:scale-95 shadow-lg cursor-pointer'}`}
         >
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
             {count !== undefined && (
@@ -73,6 +84,11 @@ interface GameControlsProps {
     settings: AppSettings;
     isSinglePlayer?: boolean;
     isSinglePlayerPaused?: boolean;
+    // AI 게임 일시 정지 관련 props
+    isPaused?: boolean;
+    resumeCountdown?: number;
+    pauseButtonCooldown?: number;
+    onPauseToggle?: () => void;
 }
 
 const formatCooldown = (ms: number) => {
@@ -386,7 +402,7 @@ const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
 
 
 const GameControls: React.FC<GameControlsProps> = (props) => {
-    const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false } = props;
+    const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, onPauseToggle } = props;
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
     const isMixMode = mode === GameMode.Mix;
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
@@ -395,48 +411,87 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     // 일반 AI 대국(대기실 'AI와 대결하기')에서만 사용되는 수동 일시정지/재개 플래그
     const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
-    const isManuallyPausedAi = isPausableAiGame && session.pausedTurnTimeLeft !== undefined && !session.turnDeadline && !session.itemUseDeadline;
+    // 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
+    const isClientPaused = isPausableAiGame ? isPaused : false;
     const handlePass = () => { 
-        if (isMyTurn && !isSpectator && gameStatus === 'playing') {
-            // PVE(싱글/타워)만 클라이언트에서 처리, 그 외(일반/AI)는 서버로 전송
-            const isPVEGame = session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer';
-            if (isPVEGame) {
-                // PVE 게임: 클라이언트에서 패스 처리 및 계가 요청
-                const currentPassCount = (session.passCount || 0) + 1;
-                if (currentPassCount >= 2) {
-                    // 두 번 연속 패스 시 계가 요청
-                    onAction({ 
-                        type: 'REQUEST_SCORING', 
-                        payload: { 
-                            gameId, 
-                            boardState: session.boardState, 
-                            moveHistory: session.moveHistory || [], 
-                            settings: session.settings 
-                        } 
-                    } as any);
-                } else {
-                    // 첫 번째 패스: 클라이언트에서 처리
-                    onAction({ 
-                        type: session.gameCategory === 'tower' ? 'TOWER_CLIENT_MOVE' : 'SINGLE_PLAYER_CLIENT_MOVE',
-                        payload: {
-                            gameId,
-                            x: -1,
-                            y: -1,
-                            newBoardState: session.boardState,
-                            capturedStones: [],
-                            newKoInfo: session.koInfo,
-                            isPass: true
-                        }
-                    } as any);
-                }
+        console.log('[GameControls] handlePass called', { isMyTurn, isSpectator, gameStatus, gameId });
+        if (!isMyTurn) {
+            console.log('[GameControls] handlePass: Not my turn');
+            return;
+        }
+        if (isSpectator) {
+            console.log('[GameControls] handlePass: Is spectator');
+            return;
+        }
+        if (gameStatus !== 'playing') {
+            console.log('[GameControls] handlePass: Game status is not playing', gameStatus);
+            return;
+        }
+        
+        // PVE(싱글/타워)만 클라이언트에서 처리, 그 외(일반/AI)는 서버로 전송
+        const isPVEGame = session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer';
+        if (isPVEGame) {
+            // PVE 게임: 클라이언트에서 패스 처리 및 계가 요청
+            const currentPassCount = (session.passCount || 0) + 1;
+            if (currentPassCount >= 2) {
+                // 두 번 연속 패스 시 계가 요청
+                console.log('[GameControls] handlePass: Requesting scoring (2 passes)');
+                onAction({ 
+                    type: 'REQUEST_SCORING', 
+                    payload: { 
+                        gameId, 
+                        boardState: session.boardState, 
+                        moveHistory: session.moveHistory || [], 
+                        settings: session.settings 
+                    } 
+                } as any);
             } else {
-                // PVP 게임: 서버로 전송
-                onAction({ type: 'PASS_TURN', payload: { gameId } }); 
+                // 첫 번째 패스: 클라이언트에서 처리
+                console.log('[GameControls] handlePass: First pass (PVE)');
+                onAction({ 
+                    type: session.gameCategory === 'tower' ? 'TOWER_CLIENT_MOVE' : 'SINGLE_PLAYER_CLIENT_MOVE',
+                    payload: {
+                        gameId,
+                        x: -1,
+                        y: -1,
+                        newBoardState: session.boardState,
+                        capturedStones: [],
+                        newKoInfo: session.koInfo,
+                        isPass: true
+                    }
+                } as any);
             }
+        } else {
+            // PVP 게임: 서버로 전송
+            console.log('[GameControls] handlePass: Sending PASS_TURN to server');
+            onAction({ type: 'PASS_TURN', payload: { gameId } }); 
         }
     };
-    const handleResign = () => { if (!isSpectator && !session.isAiGame && isGameActive) setConfirmModalType('resign'); };
-    const handleUseItem = (item: 'hidden' | 'scan' | 'missile') => { if(gameStatus !== 'playing') return; const actionType = item === 'hidden' ? 'START_HIDDEN_PLACEMENT' : (item === 'scan' ? 'START_SCANNING' : 'START_MISSILE_SELECTION'); onAction({ type: actionType, payload: { gameId } }); };
+    const handleResign = () => { 
+        console.log('[GameControls] handleResign called', { isSpectator, isAiGame: session.isAiGame, isGameActive, gameStatus });
+        if (isSpectator) {
+            console.log('[GameControls] handleResign: Is spectator');
+            return;
+        }
+        // 기권은 본인의 차례가 아니더라도 사용 가능하도록 변경
+        // 게임이 종료되지 않았고, pending 상태가 아니면 기권 가능 (AI 게임 포함)
+        if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'pending') {
+            console.log('[GameControls] handleResign: Game is not in a resignable state', gameStatus);
+            return;
+        }
+        console.log('[GameControls] handleResign: Opening confirm modal');
+        setConfirmModalType('resign'); 
+    };
+    const handleUseItem = (item: 'hidden' | 'scan' | 'missile') => { 
+        console.log('[GameControls] handleUseItem called', { item, gameStatus, gameId });
+        if (gameStatus !== 'playing') {
+            console.log('[GameControls] handleUseItem: Game status is not playing', gameStatus);
+            return;
+        }
+        const actionType = item === 'hidden' ? 'START_HIDDEN_PLACEMENT' : (item === 'scan' ? 'START_SCANNING' : 'START_MISSILE_SELECTION');
+        console.log('[GameControls] handleUseItem: Sending action', actionType);
+        onAction({ type: actionType, payload: { gameId } }); 
+    };
 
     const myPlayerEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
     const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
@@ -803,15 +858,19 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <Button onClick={onConfirmMove} colorScheme="none" className={`${getLuxuryButtonClasses('success')} min-w-[96px] py-2 animate-pulse`}>착수</Button>
                 </div>
             )}
-            {/* Row 1: Manner Actions - 숨김 (싱글플레이에서는 AI봇과의 경기이므로) */}
-            {!isSinglePlayer && (
+            {/* Row 1: Manner Actions - PVP 모드에서만 표시 */}
+            {!isSinglePlayer && !session.isAiGame ? (
                 <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 w-full">
                     <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">매너 액션 {usesLeftText}</h3>
                     <div className="flex-grow flex items-center justify-center">
                         <ActionButtonsPanel session={session} isSpectator={isSpectator} onAction={onAction} currentUser={currentUser} />
                     </div>
                 </div>
-            )}
+            ) : !isSinglePlayer && session.isAiGame ? (
+                <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center justify-center gap-4 w-full">
+                    <p className="text-xs text-gray-400 italic">매너 액션 버튼은 PVP모드에서만 생성됩니다.</p>
+                </div>
+            ) : null}
 
             {/* Row 2: Game and Special/Playful Functions */}
             <div className="flex flex-row gap-1 w-full">
@@ -834,28 +893,17 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                         title="한 수 쉬기"
                                     />
                                 )}
-                                {isPausableAiGame ? (
-                                    <Button
-                                        onClick={() => onAction({ type: isManuallyPausedAi ? 'RESUME_AI_GAME' : 'PAUSE_AI_GAME', payload: { gameId } } as any)}
-                                        colorScheme={isManuallyPausedAi ? 'green' : 'yellow'}
-                                        className="whitespace-nowrap"
-                                        disabled={isSpectator || isPreGame}
-                                        title={isManuallyPausedAi ? '대국 재개' : '일시 정지'}
-                                    >
-                                        {isManuallyPausedAi ? '대국 재개' : '일시 정지'}
-                                    </Button>
-                                ) : (
-                                    <LabeledControlButton
-                                        key="resign"
-                                        src="/images/button/giveup.png"
-                                        alt="기권"
-                                        label="기권"
-                                        onClick={handleResign}
-                                        disabled={isSpectator || session.isAiGame || isPreGame}
-                                        title="기권하기"
-                                        variant="danger"
-                                    />
-                                )}
+                                {/* 기권 버튼 (AI 게임에서도 표시) */}
+                                <LabeledControlButton
+                                    key="resign"
+                                    src="/images/button/giveup.png"
+                                    alt="기권"
+                                    label="기권"
+                                    onClick={handleResign}
+                                    disabled={isSpectator || isGameEnded || gameStatus === 'pending'}
+                                    title="기권하기"
+                                    variant="danger"
+                                />
                             </>
                         )}
                     </div>

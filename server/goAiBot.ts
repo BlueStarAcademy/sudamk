@@ -394,6 +394,13 @@ export async function makeGoAiBotMove(
         return;
     }
     
+    // 일시정지 상태일 때는 AI 수를 두지 않음
+    const isManuallyPaused = game.isAiGame && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
+    if (isManuallyPaused) {
+        console.log(`[makeGoAiBotMove] Game ${game.id} is manually paused, skipping AI move`);
+        return;
+    }
+    
     const aiPlayerEnum = game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();

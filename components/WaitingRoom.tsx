@@ -145,7 +145,32 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   
   if (!currentUserWithStatus) return null;
 
-  const ongoingGames = (Object.values(liveGames) as LiveGameSession[]).filter(g => g.mode === mode);
+  const ongoingGames = useMemo(() => {
+    const allGames = Object.values(liveGames) as LiveGameSession[];
+    const filteredGames = allGames.filter(g => g.mode === mode);
+    
+    // 필터링: AI 게임 제외, 종료된 게임 중 대국실에 아무도 없는 경우 제외
+    return filteredGames.filter(g => {
+      // AI 게임은 제외
+      if (g.isAiGame && !g.isSinglePlayer && g.gameCategory !== 'tower' && g.gameCategory !== 'singleplayer') {
+        return false;
+      }
+      
+      // 종료된 게임인 경우 대국실에 참가자나 관전자가 있는지 확인
+      if (g.gameStatus === 'ended' || g.gameStatus === 'no_contest') {
+        // 게임에 참가 중이거나 관전 중인 사용자가 있는지 확인
+        const hasParticipants = onlineUsers.some(u => 
+          (u.gameId === g.id && (u.status === 'in-game' || u.status === 'spectating')) ||
+          (u.spectatingGameId === g.id && u.status === 'spectating')
+        );
+        // 참가자나 관전자가 없으면 목록에서 제외
+        return hasParticipants;
+      }
+      
+      // 진행 중인 게임은 표시
+      return true;
+    });
+  }, [liveGames, mode, onlineUsers]);
   
   const usersInThisRoom = useMemo(() => {
         const all = onlineUsers.filter(u => {

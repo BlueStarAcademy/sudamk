@@ -158,7 +158,12 @@ export const useApp = () => {
                 return prevUser;
             }
 
-            console.warn(`[applyUserUpdate] No diff detected for ${source}, but forcing refresh to avoid stale UI.`, { updateKeys });
+            // INITIAL_STATE의 경우 경고를 로그 레벨로 낮춤 (오류처럼 보이지 않도록)
+            if (source === 'INITIAL_STATE') {
+                console.log(`[applyUserUpdate] No diff detected for ${source}, but forcing refresh to avoid stale UI.`, { updateKeys });
+            } else {
+                console.warn(`[applyUserUpdate] No diff detected for ${source}, but forcing refresh to avoid stale UI.`, { updateKeys });
+            }
         }
         
         currentUserRef.current = mergedUser;
@@ -1418,15 +1423,20 @@ export const useApp = () => {
                      return trainingQuestLevelUp;
                  }
                  
-                 const obtainedItemsBulk = result.clientResponse?.obtainedItemsBulk || result.obtainedItemsBulk;
-                 if (obtainedItemsBulk) {
-                     const stampedItems = obtainedItemsBulk.map((item: any) => ({
-                         ...item,
-                         id: item.id || `reward-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                         quantity: item.quantity ?? 1,
-                     }));
-                     setLastUsedItemResult(stampedItems);
-                 }
+                const obtainedItemsBulk = result.clientResponse?.obtainedItemsBulk || result.obtainedItemsBulk;
+                if (obtainedItemsBulk) {
+                    const stampedItems = obtainedItemsBulk.map((item: any) => ({
+                        ...item,
+                        id: item.id || `reward-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        quantity: item.quantity ?? 1,
+                    }));
+                    setLastUsedItemResult(stampedItems);
+                    
+                    // USE_ITEM의 경우 obtainedItemsBulk가 있으면 result를 반환하여 모달에서 확인할 수 있도록 함
+                    if (action.type === 'USE_ITEM') {
+                        return result;
+                    }
+                }
                  const scoreChange = result.clientResponse?.tournamentScoreChange;
                  if (scoreChange) setTournamentScoreChange(scoreChange);
                 
@@ -2064,12 +2074,17 @@ export const useApp = () => {
                 if (currentUserSnapshot && users[currentUserSnapshot.id]) {
                     const initialUserData = users[currentUserSnapshot.id];
                     if (initialUserData) {
-                        const sanitizedUpdate: Partial<User> = {
-                            ...initialUserData,
-                            inventory: initialUserData.inventory ?? currentUserSnapshot.inventory,
-                            equipment: initialUserData.equipment ?? currentUserSnapshot.equipment,
-                        };
-                        applyUserUpdate(sanitizedUpdate, 'INITIAL_STATE');
+                        try {
+                            const sanitizedUpdate: Partial<User> = {
+                                ...initialUserData,
+                                inventory: Array.isArray(initialUserData.inventory) ? initialUserData.inventory : (currentUserSnapshot.inventory || []),
+                                equipment: initialUserData.equipment ?? currentUserSnapshot.equipment,
+                            };
+                            applyUserUpdate(sanitizedUpdate, 'INITIAL_STATE');
+                        } catch (error) {
+                            console.error('[WebSocket] Error applying initial state update:', error);
+                            // 오류가 발생해도 앱이 계속 실행되도록 함
+                        }
                     }
                 }
             } else {

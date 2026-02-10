@@ -286,9 +286,12 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     console.log(`[getGameResult] Game ${game.id} set to scoring state and broadcasted (isSinglePlayer: ${game.isSinglePlayer}, stageId: ${game.stageId}, moveHistoryLength: ${game.moveHistory.length})`);
     
     // 카타고 분석 시작
+    console.log(`[getGameResult] ========================================`);
     console.log(`[getGameResult] Starting KataGo analysis for game ${game.id}...`);
     console.log(`[getGameResult] Game details: isSinglePlayer=${game.isSinglePlayer}, stageId=${game.stageId}, moveHistoryLength=${game.moveHistory.length}, boardSize=${game.settings.boardSize}`);
     console.log(`[getGameResult] Board state validation: boardState exists=${!!game.boardState}, boardState size=${game.boardState?.length || 0}x${game.boardState?.[0]?.length || 0}, moveHistory length=${game.moveHistory?.length || 0}`);
+    console.log(`[getGameResult] KataGo config: KATAGO_API_URL=${process.env.KATAGO_API_URL || 'not set'}`);
+    console.log(`[getGameResult] ========================================`);
     
     // 게임 상태 검증 (KataGo 분석 전)
     if (!game.boardState || !Array.isArray(game.boardState) || game.boardState.length === 0) {
@@ -303,9 +306,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const savedPreservedGameState = preservedGameState;
     const savedPreservedTimeInfo = preservedTimeInfo;
     
+    const analysisStartTime = Date.now();
     analyzeGame(game)
         .then(async (baseAnalysis) => {
-            console.log(`[getGameResult] KataGo analysis completed for game ${game.id}, getting fresh game state...`);
+            const analysisDuration = Date.now() - analysisStartTime;
+            console.log(`[getGameResult] KataGo analysis completed for game ${game.id} in ${analysisDuration}ms, getting fresh game state...`);
             // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기 (DB에 저장되지 않을 수 있음)
             let freshGame = null;
             if (game.isSinglePlayer) {
@@ -475,17 +480,24 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             await endGame(freshGame, winner, 'score');
         })
         .catch(async (error) => {
-        console.error(`[getGameResult] KataGo analysis failed for game ${game.id}:`, error);
+        const analysisDuration = Date.now() - analysisStartTime;
+        console.error(`[getGameResult] ========================================`);
+        console.error(`[getGameResult] KataGo analysis FAILED for game ${game.id} after ${analysisDuration}ms`);
         console.error(`[getGameResult] Error message:`, error instanceof Error ? error.message : String(error));
         console.error(`[getGameResult] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
         console.error(`[getGameResult] Game details: isSinglePlayer=${game.isSinglePlayer}, stageId=${game.stageId}, mode=${game.mode}, boardSize=${game.settings.boardSize}`);
         console.error(`[getGameResult] KataGo config: USE_HTTP_API=${process.env.KATAGO_API_URL ? 'true' : 'false'}, KATAGO_API_URL=${process.env.KATAGO_API_URL || 'not set'}`);
+        console.error(`[getGameResult] ========================================`);
         
         // KataGo 실패 시 자체 계가 프로그램 사용
-        console.log(`[getGameResult] KataGo failed, attempting manual scoring for game ${game.id}`);
-            try {
-                const { calculateScoreManually } = await import('./scoringService.js');
-                const manualAnalysis = calculateScoreManually(game);
+        console.log(`[getGameResult] KataGo failed, attempting manual scoring for game ${game.id}...`);
+        const manualScoringStartTime = Date.now();
+        try {
+            const { calculateScoreManually } = await import('./scoringService.js');
+            console.log(`[getGameResult] Starting manual scoring calculation...`);
+            const manualAnalysis = calculateScoreManually(game);
+            const manualScoringDuration = Date.now() - manualScoringStartTime;
+            console.log(`[getGameResult] Manual scoring calculation completed in ${manualScoringDuration}ms`);
                 
                 // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기
                 let freshGame = null;
@@ -818,10 +830,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             // 각 배치에 타임아웃 추가 (3초로 단축 - 더 빠른 실패)
             const batchTimeout = new Promise<LiveGameSession[]>((resolve) => {
                 setTimeout(() => {
-                    // 로그 스팸 방지: 첫 타임아웃만 경고
-                    if (i === 0 || Math.random() < 0.1) { // 10% 확률로만 로그
-                        console.warn(`[updateGameStates] Batch timeout (3000ms) for ${batch.length} games, using original state`);
-                    }
+                    // 타임아웃은 정상적인 동작이므로 로그 제거 (스팸 방지)
                     resolve(batch); // 타임아웃 시 원본 게임들 반환
                 }, 3000); // 5초 -> 3초로 단축
             });
@@ -955,24 +964,36 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 game.gameCategory !== 'tower';
 
             // 멀티플레이 AI 게임의 경우에만 메인 루프에서 AI 수 처리
-            if (isAiTurn && game.gameStatus !== 'ended' && !['missile_animating', 'hidden_reveal_animating', 'alkkagi_animating', 'curling_animating'].includes(game.gameStatus)) {
+            // 놀이바둑 모드의 경우 placement 상태에서도 AI가 동작해야 함
+            const playfulPlacementStatuses = ['alkkagi_placement', 'alkkagi_simultaneous_placement', 'thief_rolling', 'thief_placing'];
+            const canProcessAiTurn = isAiTurn && game.gameStatus !== 'ended' && 
+                !['missile_animating', 'hidden_reveal_animating', 'alkkagi_animating', 'curling_animating', 'thief_rolling_animating'].includes(game.gameStatus) &&
+                (playfulPlacementStatuses.includes(game.gameStatus) || !playfulPlacementStatuses.some(s => game.gameStatus === s));
+            
+            if (canProcessAiTurn) {
                 if (!game.aiTurnStartTime) {
                     game.aiTurnStartTime = now + (1000 + Math.random() * 1500);
                 }
                 if (now >= game.aiTurnStartTime) {
                     const initialMoveCount = game.moveHistory?.length ?? 0;
-                    await makeAiMove(game);
+                    try {
+                        await makeAiMove(game);
+                        
+                        const moveCountAfter = game.moveHistory?.length ?? initialMoveCount;
+                        const aiActuallyMoved = moveCountAfter > initialMoveCount;
 
-                    const moveCountAfter = game.moveHistory?.length ?? initialMoveCount;
-                    const aiActuallyMoved = moveCountAfter > initialMoveCount;
-
-                    if (aiActuallyMoved) {
-                        game.aiTurnStartTime = undefined;
-                        if (!game.turnStartTime) {
-                            game.turnStartTime = now;
+                        if (aiActuallyMoved) {
+                            game.aiTurnStartTime = undefined;
+                            if (!game.turnStartTime) {
+                                game.turnStartTime = now;
+                            }
+                        } else {
+                            game.aiTurnStartTime = now + 50;
                         }
-                    } else {
-                        game.aiTurnStartTime = now + 50;
+                    } catch (error) {
+                        console.error(`[processGame] Error in makeAiMove for game ${game.id}:`, error);
+                        // 에러 발생 시에도 다음 시도 시간 설정
+                        game.aiTurnStartTime = now + 1000;
                     }
                 }
             }

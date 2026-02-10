@@ -278,6 +278,42 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 if (!guild && dbGuild) {
                     const dbMembers = await guildRepo.getGuildMembers(guildId);
                     const dbSettings = (dbGuild.settings as any) || {};
+                    
+                    // 멤버들의 nickname 가져오기
+                    const membersWithNicknames = await Promise.all(
+                        dbMembers.map(async (m) => {
+                            try {
+                                const memberUser = await db.getUser(m.userId);
+                                return {
+                                    id: m.id,
+                                    guildId: m.guildId,
+                                    userId: m.userId,
+                                    nickname: memberUser?.nickname || '',
+                                    role: m.role as 'leader' | 'officer' | 'member',
+                                    joinDate: m.joinDate,
+                                    contributionTotal: m.contributionTotal,
+                                    weeklyContribution: 0,
+                                    createdAt: m.createdAt,
+                                    updatedAt: m.updatedAt,
+                                };
+                            } catch (error) {
+                                console.error(`[JOIN_GUILD] Failed to get user ${m.userId} for nickname:`, error);
+                                return {
+                                    id: m.id,
+                                    guildId: m.guildId,
+                                    userId: m.userId,
+                                    nickname: '',
+                                    role: m.role as 'leader' | 'officer' | 'member',
+                                    joinDate: m.joinDate,
+                                    contributionTotal: m.contributionTotal,
+                                    weeklyContribution: 0,
+                                    createdAt: m.createdAt,
+                                    updatedAt: m.updatedAt,
+                                };
+                            }
+                        })
+                    );
+                    
                     guild = {
                         id: dbGuild.id,
                         name: dbGuild.name,
@@ -289,18 +325,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         experience: Number(dbGuild.experience),
                         xp: Number(dbGuild.experience),
                         researchPoints: 0,
-                        members: dbMembers.map(m => ({
-                            id: m.id,
-                            guildId: m.guildId,
-                            userId: m.userId,
-                            nickname: '',
-                            role: m.role as 'leader' | 'officer' | 'member',
-                            joinDate: m.joinDate,
-                            contributionTotal: m.contributionTotal,
-                            weeklyContribution: 0,
-                            createdAt: m.createdAt,
-                            updatedAt: m.updatedAt,
-                        })),
+                        members: membersWithNicknames,
                         memberLimit: 30,
                         isPublic: dbSettings.isPublic !== undefined ? dbSettings.isPublic : true,
                         joinType: dbSettings.joinType || 'free',
@@ -1750,6 +1775,41 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     const dbMembers = await guildRepo.getGuildMembers(user.guildId);
                     const dbSettings = (dbGuild.settings as any) || {};
                     
+                    // 멤버들의 nickname 가져오기
+                    const membersWithNicknames = await Promise.all(
+                        dbMembers.map(async (m) => {
+                            try {
+                                const memberUser = await db.getUser(m.userId);
+                                return {
+                                    id: m.id,
+                                    guildId: m.guildId,
+                                    userId: m.userId,
+                                    nickname: memberUser?.nickname || '',
+                                    role: m.role as 'leader' | 'officer' | 'member',
+                                    joinDate: m.joinDate,
+                                    contributionTotal: m.contributionTotal,
+                                    weeklyContribution: 0,
+                                    createdAt: m.createdAt,
+                                    updatedAt: m.updatedAt,
+                                };
+                            } catch (error) {
+                                console.error(`[GET_GUILD_INFO] Failed to get user ${m.userId} for nickname:`, error);
+                                return {
+                                    id: m.id,
+                                    guildId: m.guildId,
+                                    userId: m.userId,
+                                    nickname: '',
+                                    role: m.role as 'leader' | 'officer' | 'member',
+                                    joinDate: m.joinDate,
+                                    contributionTotal: m.contributionTotal,
+                                    weeklyContribution: 0,
+                                    createdAt: m.createdAt,
+                                    updatedAt: m.updatedAt,
+                                };
+                            }
+                        })
+                    );
+                    
                     // 기본 길드 객체 생성 (createDefaultGuild를 참고한 구조)
                     const now = Date.now();
                     const basicGuild: Guild = {
@@ -1763,18 +1823,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         experience: Number(dbGuild.experience),
                         xp: Number(dbGuild.experience),
                         researchPoints: 0,
-                        members: dbMembers.map(m => ({
-                            id: m.id,
-                            guildId: m.guildId,
-                            userId: m.userId,
-                            nickname: '',
-                            role: m.role as 'leader' | 'officer' | 'member',
-                            joinDate: m.joinDate,
-                            contributionTotal: m.contributionTotal,
-                            weeklyContribution: 0,
-                            createdAt: m.createdAt,
-                            updatedAt: m.updatedAt,
-                        })),
+                        members: membersWithNicknames,
                         memberLimit: 30,
                         isPublic: dbSettings.isPublic !== undefined ? dbSettings.isPublic : true,
                         joinType: dbSettings.joinType || 'free',
@@ -1813,11 +1862,39 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     await db.setKV('guilds', guilds);
                 }
                 
+                // 멤버들의 nickname이 비어있으면 채우기
+                const membersWithNicknames = await Promise.all(
+                    (guild.members || []).map(async (m) => {
+                        if (m.nickname && m.nickname.trim().length > 0) {
+                            return m; // 이미 nickname이 있으면 그대로 반환
+                        }
+                        try {
+                            const memberUser = await db.getUser(m.userId);
+                            return {
+                                ...m,
+                                nickname: memberUser?.nickname || '',
+                            };
+                        } catch (error) {
+                            console.error(`[GET_GUILD_INFO] Failed to get user ${m.userId} for nickname:`, error);
+                            return m; // 에러 발생 시 원본 반환
+                        }
+                    })
+                );
+                
+                // nickname이 업데이트된 경우 KV store에 저장
+                const hasNicknameUpdates = membersWithNicknames.some((m, i) => 
+                    m.nickname !== (guild.members?.[i]?.nickname || '')
+                );
+                if (hasNicknameUpdates) {
+                    guild.members = membersWithNicknames;
+                    await db.setKV('guilds', guilds);
+                }
+                
                 // 아이콘 경로 수정 및 name 필드 보장
                 const guildWithFixedIcon = {
                     ...guild,
                     name: guild.name || '이름 없는 길드', // name 필드 보장
-                    members: guild.members || [],
+                    members: membersWithNicknames,
                     icon: guild.icon?.startsWith('/images/guild/icon') 
                         ? guild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
                         : (guild.icon || '/images/guild/profile/icon1.png')

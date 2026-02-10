@@ -359,9 +359,10 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
 
     const displayedPower = flickPower !== null ? flickPower : power;
 
+    // 놀이바둑 모드에서는 배경을 투명하게
     const backgroundClass = useMemo(() => {
         if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {
-            return 'bg-playful-background';
+            return 'bg-transparent';
         }
         return 'bg-primary';
     }, [session.mode]);
@@ -397,6 +398,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                     activeCurlingItems={session.activeCurlingItems}
                     currentUser={currentUser}
                     session={session}
+                    isRotated={shouldRotate}
                 />
             </div>
         </div>

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { UserWithStatus, ServerAction, UserStatus, GameMode, Negotiation } from '../../types.js';
 import Avatar from '../Avatar.js';
-import { AVATAR_POOL, BORDER_POOL } from '../../constants';
+import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, aiUserId } from '../../constants';
 import Button from '../Button.js';
 import ChallengeSelectionModal from '../ChallengeSelectionModal';
 import GameRejectionSettingsModal from '../GameRejectionSettingsModal.tsx';
@@ -25,9 +25,10 @@ interface PlayerListProps {
     onViewUser: (userId: string) => void;
     lobbyType: 'strategic' | 'playful';
     userCount?: number;
+    onOpenAiChallengeModal?: () => void;
 }
 
-const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, mode, negotiations, onViewUser, lobbyType, userCount }) => {
+const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, mode, negotiations, onViewUser, lobbyType, userCount, onOpenAiChallengeModal }) => {
     const [isChallengeSelectionModalOpen, setIsChallengeSelectionModalOpen] = useState(false);
     const [challengeTargetUser, setChallengeTargetUser] = useState<UserWithStatus | null>(null);
     const [isRejectionSettingsModalOpen, setIsRejectionSettingsModalOpen] = useState(false);
@@ -126,7 +127,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
     };
 
     return (
-        <div className="p-3 flex flex-col min-h-0 text-on-panel">
+        <div className="p-3 flex flex-col h-full min-h-0 text-on-panel">
              <h2 className="text-xl font-semibold mb-2 border-b border-color pb-2 flex-shrink-0 flex justify-between items-center">
                 <span className="flex items-center gap-2">
                     유저 목록
@@ -146,7 +147,21 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
                   {renderUserItem(me, true)}
               </div>
             )}
-            <ul className="space-y-2 overflow-y-auto pr-2 max-h-[calc(var(--vh,1vh)*25)] min-h-[96px]">
+            {onOpenAiChallengeModal && (mode === 'strategic' || mode === 'playful' || SPECIAL_GAME_MODES.some(m => m.mode === mode) || PLAYFUL_GAME_MODES.some(m => m.mode === mode)) && (
+              <div className="flex-shrink-0 mb-2">
+                <div className="bg-panel rounded-lg shadow-lg p-3 flex items-center justify-between text-on-panel">
+                    <div className="flex items-center gap-3">
+                        <Avatar userId={aiUserId} userName="AI" size={40} className="border-2 border-purple-500" />
+                        <div>
+                            <h3 className="text-base font-bold text-purple-300">AI와 대결하기</h3>
+                            <p className="text-xs text-tertiary">AI와 즉시 대국을 시작합니다.</p>
+                        </div>
+                    </div>
+                    <Button onClick={onOpenAiChallengeModal} colorScheme="purple" className="!text-sm !py-1.5">설정 및 시작</Button>
+                </div>
+              </div>
+            )}
+            <ul className="space-y-2 overflow-y-auto pr-2 flex-1 min-h-0">
                 {otherUsers.length > 0 ? otherUsers.map(user => renderUserItem(user, false)) : (
                     <p className="text-center text-tertiary pt-8">다른 플레이어가 없습니다.</p>
                 )}

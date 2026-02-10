@@ -388,15 +388,33 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
         }
         case 'ADMIN_FORCE_DELETE_GAME': {
             const { gameId } = payload;
-            const game = await db.getLiveGame(gameId);
-            if (!game) return { error: 'Game not found.' };
+            
+            // 캐시에서 먼저 찾기 (싱글플레이어/타워 게임은 캐시에만 있을 수 있음)
+            const { getCachedGame, removeGameFromCache } = await import('../gameCache.js');
+            let game = await getCachedGame(gameId);
+            
+            // 캐시에 없으면 DB에서 찾기
+            if (!game) {
+                game = await db.getLiveGame(gameId);
+            }
+            
+            if (!game) {
+                return { error: 'Game not found.' };
+            }
 
             const backupData = JSON.parse(JSON.stringify(game));
+            const gameCategory = game.gameCategory || 'normal';
 
             // 게임을 강제 종료 (no_contest 상태로 설정)
             game.gameStatus = 'no_contest';
             game.winReason = 'disconnect';
-            await db.saveGame(game);
+            
+            // DB에 저장 (PVE 게임도 강제 종료 시에는 DB에 저장)
+            try {
+                await db.saveGame(game, true); // forceSave = true
+            } catch (saveError) {
+                console.warn(`[Admin] Failed to save game ${gameId} before deletion:`, saveError);
+            }
 
             // 사용자 상태 업데이트 및 로비 모드 결정
             const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
@@ -404,12 +422,12 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const lobbyMode: GameMode | undefined = isStrategic ? undefined : isPlayful ? undefined : game.mode;
 
             // 플레이어 상태 업데이트
-            if (volatileState.userStatuses[game.player1.id]) {
+            if (game.player1?.id && volatileState.userStatuses[game.player1.id]) {
                 volatileState.userStatuses[game.player1.id].status = UserStatus.Waiting;
                 volatileState.userStatuses[game.player1.id].mode = lobbyMode;
                 delete volatileState.userStatuses[game.player1.id].gameId;
             }
-            if (volatileState.userStatuses[game.player2.id]) {
+            if (game.player2?.id && volatileState.userStatuses[game.player2.id]) {
                 volatileState.userStatuses[game.player2.id].status = UserStatus.Waiting;
                 volatileState.userStatuses[game.player2.id].mode = lobbyMode;
                 delete volatileState.userStatuses[game.player2.id].gameId;
@@ -419,19 +437,36 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             Object.values(volatileState.userStatuses).forEach(status => {
                 if (status.spectatingGameId === gameId) {
                     delete status.spectatingGameId;
+                    if (status.status === UserStatus.Spectating) {
+                        status.status = UserStatus.Waiting;
+                    }
                 }
             });
 
-            // 게임 삭제 (DB에서 완전히 제거)
+            // AI 세션 정리
             clearAiSession(gameId);
-            await db.deleteGame(gameId);
+            
+            // 캐시에서 게임 제거
+            removeGameFromCache(gameId);
+            
+            // DB에서 게임 삭제 (에러가 발생해도 계속 진행)
+            try {
+                await db.deleteGame(gameId);
+            } catch (deleteError) {
+                console.warn(`[Admin] Failed to delete game ${gameId} from DB (may not exist):`, deleteError);
+                // DB에 없어도 캐시에서 삭제했으므로 계속 진행
+            }
 
             // 브로드캐스트
-            broadcast({ type: 'GAME_DELETED', payload: { gameId, gameCategory: game.gameCategory } });
+            broadcast({ type: 'GAME_DELETED', payload: { gameId, gameCategory } });
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
 
-            await createAdminLog(user, 'force_delete_game', game.player1, backupData);
-            return {};
+            // 관리자 로그 기록
+            if (game.player1) {
+                await createAdminLog(user, 'force_delete_game', game.player1, backupData);
+            }
+
+            return { clientResponse: { success: true, message: '게임이 강제 종료되었습니다.' } };
         }
         case 'ADMIN_FORCE_WIN': {
             const { gameId, winnerId } = payload as { gameId: string; winnerId: string };

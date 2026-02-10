@@ -23,10 +23,11 @@ interface AlkkagiBoardProps {
     maxStones: number;
     session: LiveGameSession;
     currentUser: UserWithStatus;
+    isRotated?: boolean; // Whether the board is rotated 180 degrees
 }
 
 const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, ref): ReactNode => {
-    const { stones, gameStatus, myPlayer, isMyTurn, settings, onPlacementClick, onStoneInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, myStonesCount, maxStones, session, currentUser } = props;
+    const { stones, gameStatus, myPlayer, isMyTurn, settings, onPlacementClick, onStoneInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, myStonesCount, maxStones, session, currentUser, isRotated = false } = props;
     const [localStones, setLocalStones] = useState(stones);
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);

@@ -464,9 +464,15 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 };
             }
 
-            const availableQuantity = item.quantity || 1;
-            const useQuantity = Math.min(quantity, availableQuantity);
+            // 일괄 사용의 경우: 같은 이름의 모든 아이템 수량 합산
+            const totalAvailableQuantity = user.inventory
+                .filter(i => i.name === item.name && i.type === 'consumable')
+                .reduce((sum, i) => sum + (i.quantity || 1), 0);
+            
+            const useQuantity = Math.min(quantity || 1, totalAvailableQuantity);
             if (useQuantity <= 0) return { error: '사용할 수량이 없습니다.' };
+            
+            console.log(`[USE_ITEM] Bulk use: itemName=${item.name}, requestedQuantity=${quantity}, totalAvailable=${totalAvailableQuantity}, useQuantity=${useQuantity}`);
 
             // 골드 꾸러미 이름 통일: 띄어쓰기 없는 경우도 처리
             let normalizedItemName = item.name;
@@ -601,10 +607,46 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 allObtainedItems.push(...itemsArray);
             }
 
-            const tempInventoryAfterUse = user.inventory.filter(i => i.id !== itemId);
-            if (item.quantity && item.quantity > useQuantity) {
-                tempInventoryAfterUse.push({ ...item, quantity: item.quantity - useQuantity });
+            // 여러 슬롯에 걸쳐 있을 경우 모든 슬롯에서 정확히 수량만큼 소모
+            // 골드 꾸러미와 동일한 로직 적용
+            let remainingToRemove = useQuantity;
+            const tempInventoryAfterUse: InventoryItem[] = [];
+            
+            console.log(`[USE_ITEM] Starting removal: itemName=${item.name}, useQuantity=${useQuantity}, inventoryLength=${user.inventory.length}`);
+            
+            // 모든 인벤토리 아이템을 순회
+            for (let i = 0; i < user.inventory.length; i++) {
+                const invItem = user.inventory[i];
+                
+                // 같은 이름의 소모품인지 확인하고, 아직 제거할 수량이 남아있는 경우
+                if (invItem.name === item.name && invItem.type === 'consumable' && remainingToRemove > 0) {
+                    const itemQuantity = invItem.quantity || 1;
+                    console.log(`[USE_ITEM] Found matching item: name=${invItem.name}, quantity=${itemQuantity}, remainingToRemove=${remainingToRemove}`);
+                    
+                    if (itemQuantity <= remainingToRemove) {
+                        // 이 슬롯의 아이템을 모두 사용
+                        remainingToRemove -= itemQuantity;
+                        console.log(`[USE_ITEM] Removed entire stack: quantity=${itemQuantity}, remainingToRemove=${remainingToRemove}`);
+                        // 이 아이템은 제거 (tempInventoryAfterUse에 추가하지 않음)
+                    } else {
+                        // 이 슬롯의 아이템 일부만 사용
+                        const remainingQuantity = itemQuantity - remainingToRemove;
+                        tempInventoryAfterUse.push({ ...invItem, quantity: remainingQuantity });
+                        console.log(`[USE_ITEM] Partially used stack: used=${remainingToRemove}, remaining=${remainingQuantity}`);
+                        remainingToRemove = 0;
+                    }
+                } else {
+                    // 다른 아이템이거나, 같은 이름이지만 이미 필요한 수량을 모두 제거한 경우
+                    tempInventoryAfterUse.push(invItem);
+                }
             }
+            
+            // remainingToRemove가 남아있으면 경고 로그
+            if (remainingToRemove > 0) {
+                console.error(`[USE_ITEM] Warning: Could not remove all requested items. remainingToRemove=${remainingToRemove}, useQuantity=${useQuantity}`);
+            }
+            
+            console.log(`[USE_ITEM] Removal complete: remainingToRemove=${remainingToRemove}, tempInventoryLength=${tempInventoryAfterUse.length}, originalLength=${user.inventory.length}`);
 
             const { success, finalItemsToAdd } = addItemsToInventoryUtil(tempInventoryAfterUse, user.inventorySlots, allObtainedItems);
             if (!success) return { error: '인벤토리 공간이 부족합니다.' };

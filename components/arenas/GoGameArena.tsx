@@ -26,6 +26,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         isMobile,
         myRevealedMoves,
         showLastMoveMarker,
+        isBoardRotated = false,
+        onToggleBoardRotation,
     } = props;
     
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode } = session;
@@ -56,17 +58,47 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     }, [session.revealedHiddenMoves, session.moveHistory]);
 
     const backgroundClass = useMemo(() => {
-        if (SPECIAL_GAME_MODES.some(m => m.mode === mode)) {
+        // AI 게임인 경우 배경을 투명하게 (전략바둑, 놀이바둑 대기실에서 생성된 게임)
+        const isAiGameFromLobby = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+        const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
+        const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+        
+        // 전략바둑 또는 놀이바둑 모드에서 AI 게임인 경우 투명 배경
+        if (isAiGameFromLobby && (isStrategicMode || isPlayfulMode)) {
+            return 'bg-transparent';
+        }
+        
+        // 놀이바둑 모드에서는 항상 투명 배경 (바둑판 패널의 뒷배경만 제거)
+        if (isPlayfulMode) {
+            return 'bg-transparent';
+        }
+        
+        if (isStrategicMode) {
             return 'bg-strategic-background';
         }
-        if (PLAYFUL_GAME_MODES.some(m => m.mode === mode)) {
-            return 'bg-playful-background';
-        }
         return 'bg-primary';
-    }, [mode]);
+    }, [mode, session.isAiGame, session.isSinglePlayer, session.gameCategory]);
 
     return (
-        <div className={`w-full h-full flex items-center justify-center ${backgroundClass}`}>
+        <div className={`w-full h-full flex items-center justify-center ${backgroundClass} relative`}>
+            {/* 회전 버튼 */}
+            {onToggleBoardRotation && (
+                <button
+                    onClick={onToggleBoardRotation}
+                    className="absolute top-2 right-2 z-10 bg-gray-800/80 hover:bg-gray-700/80 rounded-lg p-2 border border-gray-600 transition-all"
+                    title="바둑판 180도 회전"
+                >
+                    <svg 
+                        className="w-6 h-6 text-gray-300"
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        style={{ transform: isBoardRotated ? 'rotate(180deg)' : 'none' }}
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            )}
             <GoBoard
                 boardState={session.boardState}
                 boardSize={settings.boardSize}
@@ -118,6 +150,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 isItemModeActive={isItemModeActive}
                 animation={session.animation}
                 isMobile={isMobile}
+                isRotated={isBoardRotated}
             />
         </div>
     );

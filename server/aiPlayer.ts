@@ -769,6 +769,7 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                     }
                     
                     game.stonesToPlace = (game.stonesToPlace || 1) - 1;
+                    stonesToPlace = game.stonesToPlace;
                     
                     // 경찰이 모든 도둑 돌을 따낸 경우
                     const blackStonesLeft = game.boardState.flat().filter(s => s === types.Player.Black).length;
@@ -857,7 +858,14 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
         const targetPlacements = game.settings.alkkagiStoneCount || 5;
         const placedThisRound = game.alkkagiStonesPlacedThisRound?.[aiPlayerId] || 0;
         
-        if (placedThisRound >= targetPlacements) return;
+        if (placedThisRound >= targetPlacements) {
+            // 모든 돌을 배치했으면 턴 전환 (placement 모드인 경우)
+            if (game.gameStatus === 'alkkagi_placement') {
+                game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+                game.alkkagiPlacementDeadline = now + 30000;
+            }
+            return;
+        }
         
         const boardSizePx = 840;
         const cellSize = boardSizePx / 19;
@@ -1014,7 +1022,18 @@ export const makeAiMove = async (game: LiveGameSession) => {
                            (game.settings as any)?.useGoAiBot === true ||
                            (game.settings as any)?.goAiBotLevel !== undefined;
         
-        if (useGoAiBot) {
+        // 바둑 모드인 경우에만 새로운 AI 봇 시스템 사용
+        const goModes: GameMode[] = [
+            types.GameMode.Standard,
+            types.GameMode.Capture,
+            types.GameMode.Speed,
+            types.GameMode.Base,
+            types.GameMode.Hidden,
+            types.GameMode.Missile,
+            types.GameMode.Mix
+        ];
+
+        if (useGoAiBot && goModes.includes(game.mode)) {
             // AI 봇 단계 결정
             let aiLevel = 1; // 기본값
             
@@ -1027,21 +1046,8 @@ export const makeAiMove = async (game: LiveGameSession) => {
                 aiLevel = (game.settings.aiDifficulty || 1);
             }
 
-            // 바둑 모드인 경우에만 새로운 AI 봇 시스템 사용
-            const goModes: GameMode[] = [
-                types.GameMode.Standard,
-                types.GameMode.Capture,
-                types.GameMode.Speed,
-                types.GameMode.Base,
-                types.GameMode.Hidden,
-                types.GameMode.Missile,
-                types.GameMode.Mix
-            ];
-
-            if (goModes.includes(game.mode)) {
-                await makeGoAiBotMove(game, aiLevel);
-                moveExecuted = true;
-            }
+            await makeGoAiBotMove(game, aiLevel);
+            moveExecuted = true;
         }
 
         if (!moveExecuted) {
@@ -1094,6 +1100,7 @@ export const makeAiMove = async (game: LiveGameSession) => {
         const finalMoveCount = game.moveHistory?.length ?? initialMoveCount;
         finishAiProcessing(game.id, finalMoveCount);
     } catch (error) {
+        console.error(`[makeAiMove] Error processing AI move for game ${game.id}:`, error);
         cancelAiProcessing(game.id);
         throw error;
     }

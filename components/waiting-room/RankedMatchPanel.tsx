@@ -87,7 +87,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
 
     return (
         <>
-            <div className="p-3 flex flex-col gap-3 min-h-0 text-on-panel">
+            <div className="p-3 flex flex-col gap-3 h-full min-h-0 text-on-panel">
                 <h2 className="text-xl font-semibold mb-2 border-b border-color pb-2 flex-shrink-0">
                     랭킹전
                 </h2>

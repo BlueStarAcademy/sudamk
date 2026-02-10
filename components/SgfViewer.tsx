@@ -6,6 +6,7 @@ interface SgfViewerProps {
     fileIndex?: number | null;
     showLastMoveOnly?: boolean;
     sgfContent?: string | null;
+    isRotated?: boolean;
 }
 
 interface SgfData {
@@ -74,7 +75,7 @@ const findGroup = (startX: number, startY: number, playerColor: Player, board: P
     return { stones, liberties };
 };
 
-const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showLastMoveOnly, sgfContent }) => {
+const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showLastMoveOnly, sgfContent, isRotated = false }) => {
     const [sgfData, setSgfData] = useState<SgfData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -186,16 +187,29 @@ const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showL
     const padding = cellSize / 2;
     const stoneRadius = cellSize * 0.45;
 
-    const toSvgCoords = (p: Point) => ({
-      cx: padding + p.x * cellSize,
-      cy: padding + p.y * cellSize,
-    });
+    // 좌표 변환 함수 (회전 시 180도 회전)
+    const transformPoint = (p: Point): Point => {
+        if (!isRotated || !boardSize) return p;
+        return { x: boardSize - 1 - p.x, y: boardSize - 1 - p.y };
+    };
+    
+    const toSvgCoords = (p: Point) => {
+        const transformed = transformPoint(p);
+        return {
+            cx: padding + transformed.x * cellSize,
+            cy: padding + transformed.y * cellSize,
+        };
+    };
     
     const relevantMoves = moves.slice(0, currentMoveIndex);
     
     return (
         <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-700 relative">
-            <svg viewBox={`0 0 ${boardSizePx} ${boardSizePx}`} className="w-full h-full">
+            <svg 
+                viewBox={`0 0 ${boardSizePx} ${boardSizePx}`} 
+                className="w-full h-full"
+                transform={isRotated ? `rotate(180 ${boardSizePx / 2} ${boardSizePx / 2})` : undefined}
+            >
                 <rect width={boardSizePx} height={boardSizePx} fill="#DDAA77" />
                 {Array.from({ length: boardSize }).map((_, i) => (
                     <g key={i}>

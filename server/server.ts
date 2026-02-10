@@ -244,14 +244,19 @@ const startServer = async () => {
             }
         }
         
-        // 데이터베이스 연결 상태 주기적 확인 및 로깅
+        // 데이터베이스 연결 상태 주기적 확인 및 로깅 (변경이 있을 때만 출력)
+        let lastDbConnectionStatus: boolean | null = null;
         setInterval(async () => {
             const connected = await db.isDatabaseConnected();
-            if (!connected) {
-                console.warn(`[Server Startup] Database connection status: DISCONNECTED (will retry in background)`);
-            } else {
-                console.log(`[Server Startup] Database connection status: CONNECTED`);
+            // 연결 상태가 변경되었을 때만 로그 출력 (스팸 방지)
+            if (lastDbConnectionStatus !== null && lastDbConnectionStatus !== connected) {
+                if (!connected) {
+                    console.warn(`[Server Startup] Database connection status: DISCONNECTED (will retry in background)`);
+                } else {
+                    console.log(`[Server Startup] Database connection status: CONNECTED`);
+                }
             }
+            lastDbConnectionStatus = connected;
         }, 30000); // 30초마다 확인
         
         // --- Initialize Database on Start ---

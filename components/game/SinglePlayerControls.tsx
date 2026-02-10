@@ -77,7 +77,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     // 게임 모드별 아이템 로직 (hooks 규칙 준수를 위해 early return 전에 선언)
     const refreshesUsed = session.singlePlayerPlacementRefreshesUsed || 0;
     const remainingRefreshes = Math.max(0, 5 - refreshesUsed);
-    const canRefresh = session.moveHistory.length === 0 && refreshesUsed < 5;
+    const canRefresh = (session.moveHistory?.length || 0) === 0 && refreshesUsed < 5;
     const costs = [0, 50, 75, 100, 200]; // 서버와 일치
     const nextCost = costs[refreshesUsed] || 0;
     const canAfford = currentUser.gold >= nextCost;

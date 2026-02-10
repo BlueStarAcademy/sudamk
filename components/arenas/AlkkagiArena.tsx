@@ -408,6 +408,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
                     maxStones={maxStones}
                     session={session}
                     currentUser={currentUser}
+                    isRotated={shouldRotate}
                 />
             </div>
         </div>

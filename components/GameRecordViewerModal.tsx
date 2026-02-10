@@ -12,6 +12,7 @@ interface GameRecordViewerModalProps {
 
 const GameRecordViewerModal: React.FC<GameRecordViewerModalProps> = ({ record, onClose }) => {
     const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
+    const [isBoardRotated, setIsBoardRotated] = useState(false);
     
     // SGF에서 총 수순 계산 (간단한 추정)
     const totalMoves = (record.sgfContent.match(/;([BW])\[/g) || []).length;
@@ -94,13 +95,30 @@ const GameRecordViewerModal: React.FC<GameRecordViewerModalProps> = ({ record, o
                     )}
                 </div>
                 
-                <div className="mb-4">
+                <div className="mb-4 relative">
+                    {/* 회전 버튼 */}
+                    <button
+                        onClick={() => setIsBoardRotated(prev => !prev)}
+                        className="absolute top-2 right-2 z-10 bg-gray-800/80 hover:bg-gray-700/80 rounded-lg p-2 border border-gray-600 transition-all"
+                        title="바둑판 180도 회전"
+                    >
+                        <svg 
+                            className="w-6 h-6 text-gray-300"
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                            style={{ transform: isBoardRotated ? 'rotate(180deg)' : 'none' }}
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
                     <div className="bg-gray-900 rounded-lg p-4" style={{ minHeight: '400px' }}>
                         <SgfViewer 
                             timeElapsed={currentMoveIndex}
                             fileIndex={null}
                             showLastMoveOnly={false}
                             sgfContent={record.sgfContent}
+                            isRotated={isBoardRotated}
                         />
                     </div>
                 </div>

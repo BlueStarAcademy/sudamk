@@ -77,7 +77,7 @@ export async function getAllActiveGamesLight(): Promise<Array<{ id: string; stat
     // 타임아웃 보호: 5초 내에 완료되지 않으면 빈 배열 반환
     const timeoutPromise = new Promise<Array<{ id: string; status: string; category: string | null; updatedAt: Date }>>((resolve) => {
       setTimeout(() => {
-        console.warn('[gameService] getAllActiveGamesLight query timeout (5000ms)');
+        // 타임아웃은 정상적인 동작이므로 로그 제거 (스팸 방지)
         resolve([]);
       }, 5000);
     });
@@ -106,7 +106,7 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
     // 타임아웃 단축: 5초로 단축 (빠른 실패)
     const timeoutPromise = new Promise<LiveGameSession[]>((resolve) => {
       setTimeout(() => {
-        console.warn('[gameService] getAllActiveGames query timeout (5000ms)');
+        // 타임아웃은 정상적인 동작이므로 로그 제거 (스팸 방지)
         resolve([]);
       }, 5000);
     });
@@ -329,18 +329,36 @@ export async function saveGame(game: LiveGameSession): Promise<void> {
 
 export async function deleteGame(id: string): Promise<void> {
   try {
-    await prisma.liveGame.delete({
+    // deleteMany를 사용하여 레코드가 없어도 에러를 던지지 않음
+    const result = await prisma.liveGame.deleteMany({
       where: { id }
     });
+    // 삭제된 레코드가 없어도 정상 처리 (이미 삭제되었거나 캐시에만 있는 경우)
+    if (result.count === 0) {
+      console.log(`[gameService] Game ${id} not found in database (may be cache-only or already deleted)`);
+    }
   } catch (error: any) {
+    // P2025 에러는 레코드가 없다는 의미이므로 무시
+    if (error.code === 'P2025') {
+      console.log(`[gameService] Game ${id} not found in database (already deleted or cache-only)`);
+      return; // 정상 종료
+    }
     if (error.code === 'P1017' || error.message?.includes('closed the connection')) {
       console.warn('[gameService] Database connection lost, retrying deleteGame...');
       try {
         await prisma.$connect();
-        await prisma.liveGame.delete({
+        const retryResult = await prisma.liveGame.deleteMany({
           where: { id }
         });
-      } catch (retryError) {
+        if (retryResult.count === 0) {
+          console.log(`[gameService] Game ${id} not found in database after retry`);
+        }
+      } catch (retryError: any) {
+        // P2025 에러는 무시
+        if (retryError.code === 'P2025') {
+          console.log(`[gameService] Game ${id} not found in database after retry`);
+          return;
+        }
         console.error('[gameService] Retry deleteGame failed:', retryError);
         throw retryError;
       }

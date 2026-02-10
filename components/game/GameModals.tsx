@@ -109,7 +109,8 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         // 게임이 종료되었을 때만 결과 모달 표시
         // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지 (바둑판 초기화 방지)
         // 도전의 탑과 싱글플레이어는 이미 위에서 처리했으므로 제외
-        if ((showResultModal || gameStatus === 'ended' || gameStatus === 'no_contest') && 
+        // 확인 버튼을 눌렀을 때 모달이 닫히도록 하기 위해 showResultModal이 명시적으로 false일 때는 모달을 표시하지 않음
+        if ((showResultModal !== false && (showResultModal || gameStatus === 'ended' || gameStatus === 'no_contest')) && 
             !session.isSinglePlayer && session.gameCategory !== 'tower') {
             if (gameStatus === 'ended') return <GameSummaryModal session={session} currentUser={currentUser} onConfirm={onCloseResults} onAction={onAction} />;
             if (gameStatus === 'no_contest') return <NoContestModal session={session} currentUser={currentUser} onConfirm={onCloseResults} />;

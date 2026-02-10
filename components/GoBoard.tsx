@@ -453,6 +453,7 @@ interface GoBoardProps {
   sgf?: string;
   isMobile?: boolean;
   isSinglePlayer?: boolean;
+  isRotated?: boolean; // 180도 회전 여부
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
@@ -462,7 +463,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         myPlayerEnum, gameStatus, highlightedPoints, highlightStyle = 'circle', myRevealedStones, allRevealedStones, newlyRevealed, isSpectator,
         analysisResult, showTerritoryOverlay = false, showHintOverlay = false, currentUser, blackPlayerNickname, whitePlayerNickname,
         currentPlayer, isItemModeActive, animation, mode, mixedModes, justCaptured, permanentlyRevealedStones, onAction, gameId,
-        showLastMoveMarker, blackPatternStones, whitePatternStones, isSinglePlayer = false
+        showLastMoveMarker, blackPatternStones, whitePatternStones, isSinglePlayer = false, isRotated = false
     } = props;
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const [selectedMissileStone, setSelectedMissileStone] = useState<Point | null>(null);
@@ -684,9 +685,16 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         return [];
     }, [safeBoardSize]);
 
+    // 좌표 변환 함수 (회전 시 180도 회전)
+    const transformPoint = (p: Point): Point => {
+        if (!isRotated) return p;
+        return { x: safeBoardSize - 1 - p.x, y: safeBoardSize - 1 - p.y };
+    };
+    
+    // SVG 전체가 회전되므로 좌표 변환은 필요 없음 (SVG transform으로 처리)
     const toSvgCoords = (p: Point) => ({
-      cx: padding + p.x * cell_size,
-      cy: padding + p.y * cell_size,
+        cx: padding + p.x * cell_size,
+        cy: padding + p.y * cell_size,
     });
     
     const getBoardCoordinates = (e: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>): Point | null => {
@@ -704,7 +712,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             const y = Math.round((transformedPt.y - padding) / cell_size);
 
             if (x >= 0 && x < safeBoardSize && y >= 0 && y < safeBoardSize) {
-                return { x, y };
+                // 화면 좌표를 보드 좌표로 변환한 후, 회전이 적용되어 있다면 역변환하여 원본 좌표로 변환
+                const screenPoint = { x, y };
+                if (isRotated) {
+                    // 회전된 화면에서의 좌표를 원본 좌표로 변환
+                    return transformPoint(screenPoint);
+                }
+                return screenPoint;
             }
         }
         return null;
@@ -979,6 +993,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         );
     };
 
+    // 놀이바둑 모드 확인
+    const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+    
     return (
         <div 
             className={`relative w-full h-full shadow-2xl rounded-lg overflow-hidden p-0 border-4 bg-transparent go-board-panel ${isItemModeActive ? 'prism-border' : 'border-gray-800'}`}
@@ -991,6 +1008,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 ref={svgRef}
                 viewBox={`0 0 ${boardSizePx} ${boardSizePx}`}
                 className="w-full h-full touch-none"
+                transform={isRotated ? `rotate(180 ${boardSizePx / 2} ${boardSizePx / 2})` : undefined}
                 onPointerDown={handleBoardPointerDown}
                 onPointerMove={handleBoardPointerMove}
                 onPointerUp={handleBoardPointerUp}
@@ -1051,7 +1069,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     </filter>
                      <marker id="arrowhead-missile" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="rgba(239, 68, 68, 0.9)" /></marker>
                 </defs>
-                <rect width={boardSizePx} height={boardSizePx} fill="#e0b484" />
+                {!isPlayfulMode && <rect width={boardSizePx} height={boardSizePx} fill="#e0b484" />}
                 {Array.from({ length: safeBoardSize }).map((_, i) => (
                     <g key={i}>
                         <line x1={padding + i * cell_size} y1={padding} x2={padding + i * cell_size} y2={boardSizePx - padding} stroke="#54432a" strokeWidth="1.5" />

@@ -247,7 +247,22 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
             break;
         }
         case 'curling_animating': {
-            if (game.animation && now > game.animation.startTime + game.animation.duration) {
+            // 애니메이션이 없으면 이미 완료된 것으로 간주하고 턴 전환
+            if (!game.animation) {
+                // 애니메이션이 이미 완료되었지만 상태가 업데이트되지 않은 경우
+                const bothPlayersHaveThrownAllStones = 
+                    game.stonesThrownThisRound![p1Id] >= game.settings.curlingStoneCount! &&
+                    game.stonesThrownThisRound![p2Id] >= game.settings.curlingStoneCount!;
+                
+                if (bothPlayersHaveThrownAllStones) {
+                    endCurlingRound(game, now);
+                } else {
+                    game.gameStatus = 'curling_playing';
+                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+                    game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
+                    game.turnStartTime = now;
+                }
+            } else if (now > game.animation.startTime + game.animation.duration) {
                 const { stone, velocity } = game.animation as types.AnimationData & { type: 'curling_flick' };
                 const { finalStones, stonesFallen } = runServerSimulation(game.curlingStones!, stone, velocity);
                 game.curlingStones = finalStones;

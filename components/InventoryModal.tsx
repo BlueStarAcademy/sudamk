@@ -1184,8 +1184,30 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         setShowUseQuantityModal(false);
                         setItemToUseBulk(null);
                     }}
-                    onConfirm={(itemId, quantity, itemName) => {
-                        onAction({ type: 'USE_ITEM', payload: { itemId, quantity, itemName } });
+                    onConfirm={async (itemId, quantity, itemName) => {
+                        try {
+                            // onAction이 Promise를 반환하는지 확인하고 처리
+                            const result = await (onAction({ type: 'USE_ITEM', payload: { itemId, quantity, itemName } }) as any);
+                            // 서버 응답이 성공적으로 처리되면 모달 닫기
+                            // obtainedItemsBulk가 있으면 결과 모달이 표시되므로 일괄 사용 모달은 닫기
+                            if (result && result.clientResponse?.obtainedItemsBulk) {
+                                setItemToUseBulk(null);
+                                setShowUseQuantityModal(false);
+                            } else if (result && !result.error) {
+                                // 응답이 있고 에러가 없으면 모달 닫기 (일반 사용과 동일)
+                                setItemToUseBulk(null);
+                                setShowUseQuantityModal(false);
+                            } else if (result && result.error) {
+                                // 에러가 있으면 모달은 열어둠
+                                console.error('[InventoryModal] USE_ITEM error:', result.error);
+                            } else {
+                                // 응답이 없으면 모달은 열어둠 (재시도 가능)
+                                console.warn('[InventoryModal] USE_ITEM - No response received');
+                            }
+                        } catch (error) {
+                            console.error('[InventoryModal] Error using item:', error);
+                            // 에러가 발생해도 모달은 닫지 않음 (사용자가 다시 시도할 수 있도록)
+                        }
                     }}
                     isTopmost={isTopmost && !isRenameModalOpen && !itemToSell && !itemToSellBulk && !isExpandModalOpen}
                 />
