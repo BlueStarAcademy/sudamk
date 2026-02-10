@@ -1069,7 +1069,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     </filter>
                      <marker id="arrowhead-missile" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="rgba(239, 68, 68, 0.9)" /></marker>
                 </defs>
-                {!isPlayfulMode && <rect width={boardSizePx} height={boardSizePx} fill="#e0b484" />}
+                <rect width={boardSizePx} height={boardSizePx} fill="#e0b484" />
                 {Array.from({ length: safeBoardSize }).map((_, i) => (
                     <g key={i}>
                         <line x1={padding + i * cell_size} y1={padding} x2={padding + i * cell_size} y2={boardSizePx - padding} stroke="#54432a" strokeWidth="1.5" />

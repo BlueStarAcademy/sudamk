@@ -616,6 +616,20 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                  game.turnStartTime = undefined;
             }
 
+            // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+            if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                const { aiUserId } = await import('../aiPlayer.js');
+                const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                if (currentPlayerId === aiUserId) {
+                    game.aiTurnStartTime = now;
+                    console.log(`[handleStrategicAction] AI turn after PLACE_STONE, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                } else {
+                    // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
+                    game.aiTurnStartTime = undefined;
+                    console.log(`[handleStrategicAction] User turn after PLACE_STONE, game ${game.id}, clearing aiTurnStartTime`);
+                }
+            }
+
             // After move logic
             if (game.mode === types.GameMode.Capture || game.isSinglePlayer) {
                 const target = game.effectiveCaptureTargets![myPlayerEnum];
@@ -692,6 +706,20 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         game.turnDeadline = now + game[nextTimeKey] * 1000;
                     }
                     game.turnStartTime = now;
+                }
+                
+                // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    const { aiUserId } = await import('../aiPlayer.js');
+                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    if (currentPlayerId === aiUserId) {
+                        game.aiTurnStartTime = now;
+                        console.log(`[handleStrategicAction] AI turn after PASS_TURN, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    } else {
+                        // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
+                        game.aiTurnStartTime = undefined;
+                        console.log(`[handleStrategicAction] User turn after PASS_TURN, game ${game.id}, clearing aiTurnStartTime`);
+                    }
                 }
             }
             return {};

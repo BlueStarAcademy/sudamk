@@ -1042,6 +1042,21 @@ export async function makeGoAiBotMove(
             game.turnDeadline = undefined;
             game.turnStartTime = undefined;
         }
+        
+        // AI가 수를 두고 턴을 넘겼으므로, 다음 사용자 턴이 시작됨
+        // aiTurnStartTime은 undefined로 설정하여 다음 AI 턴까지 대기
+        // (사용자가 수를 두면 standard.ts의 PLACE_STONE에서 aiTurnStartTime이 설정됨)
+        const { aiUserId } = await import('./aiPlayer.js');
+        const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+        if (nextPlayerId === aiUserId) {
+            // 다음 턴도 AI인 경우 (히든 돌 공개 후 재턴 등)
+            game.aiTurnStartTime = now;
+            console.log(`[makeGoAiBotMove] Next turn is also AI, setting aiTurnStartTime to now: ${now}, game ${game.id}`);
+        } else {
+            // 다음 턴이 사용자인 경우
+            game.aiTurnStartTime = undefined;
+            console.log(`[makeGoAiBotMove] Turn switched to user after AI move, clearing aiTurnStartTime, game ${game.id}`);
+        }
     } else {
         // 히든 돌 공개 직후 AI 재턴: 플래그 제거 (다음 AI 수부터는 정상적으로 턴 넘김)
         (game as any).isAiReTurnAfterReveal = false;

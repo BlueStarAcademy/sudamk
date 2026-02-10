@@ -162,7 +162,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
                             설정 및 시작
                         </Button>
                     </li>
-                </div>
+              </div>
             )}
             <ul className="space-y-2 overflow-y-auto pr-2 max-h-[calc(var(--vh,1vh)*25)] min-h-[96px]">
                 {otherUsers.length > 0 ? otherUsers.map(user => renderUserItem(user, false)) : (

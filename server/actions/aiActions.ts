@@ -61,9 +61,27 @@ export async function handleAiAction(
   }
 
   // Ensure currentPlayer is set when transitioning to playing
-  if (game.gameStatus === 'playing' && (game as any).currentPlayer === 0) {
-    // Player.None === 0 in enum
-    (game as any).currentPlayer = Player.Black;
+  if (game.gameStatus === 'playing' && game.currentPlayer === Player.None) {
+    game.currentPlayer = Player.Black;
+    console.log(`[handleAiAction] Set currentPlayer to Black for game ${game.id}`);
+  }
+
+  // 게임 시작 시 첫 턴이 AI인 경우 aiTurnStartTime 설정
+  if (game.isAiGame && game.currentPlayer !== Player.None) {
+    const currentPlayerId = game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    if (currentPlayerId === aiUserId) {
+      game.aiTurnStartTime = now;
+      console.log(`[handleAiAction] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+    } else {
+      // 사용자 턴으로 시작하므로 aiTurnStartTime을 undefined로 설정
+      game.aiTurnStartTime = undefined;
+      console.log(`[handleAiAction] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
+    }
+  }
+
+  // 게임 시작 시간 설정
+  if (!game.gameStartTime) {
+    game.gameStartTime = now;
   }
 
   await db.saveGame(game);

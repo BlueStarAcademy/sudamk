@@ -861,8 +861,21 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
         if (placedThisRound >= targetPlacements) {
             // 모든 돌을 배치했으면 턴 전환 (placement 모드인 경우)
             if (game.gameStatus === 'alkkagi_placement') {
+                const previousPlayer = game.currentPlayer;
                 game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                 game.alkkagiPlacementDeadline = now + 30000;
+                
+                // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    if (currentPlayerId === aiUserId) {
+                        game.aiTurnStartTime = now;
+                        console.log(`[makeAlkkagiAiMove] AI turn after placement, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    } else {
+                        game.aiTurnStartTime = undefined;
+                        console.log(`[makeAlkkagiAiMove] User turn after placement, game ${game.id}, clearing aiTurnStartTime`);
+                    }
+                }
             }
             return;
         }

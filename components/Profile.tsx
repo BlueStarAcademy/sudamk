@@ -677,30 +677,30 @@ const Profile: React.FC<ProfileProps> = () => {
                         </div>
                     ) : guildInfo ? (
                         // 길드가 있으면 길드 바로가기 버튼
-                        <button
-                            onClick={() => window.location.hash = '#/guild'}
-                            className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
-                            title="길드 홈 보기"
-                        >
-                            <div className="flex-shrink-0 w-10 h-10 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
-                                {guildInfo.icon ? (
-                                    <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <img src="/images/button/guild.png" alt="길드" className="w-8 h-8 object-contain" />
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0 text-left">
-                                <div className="font-semibold text-white truncate" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }}>
-                                    {guildInfo.name}
+                            <button
+                                onClick={() => window.location.hash = '#/guild'}
+                                className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
+                                title="길드 홈 보기"
+                            >
+                                <div className="flex-shrink-0 w-10 h-10 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
+                                    {guildInfo.icon ? (
+                                        <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <img src="/images/button/guild.png" alt="길드" className="w-8 h-8 object-contain" />
+                                    )}
                                 </div>
-                                <div className="text-xs text-gray-400">
-                                    Lv.{guildInfo.level || 1}
+                                <div className="flex-1 min-w-0 text-left">
+                                    <div className="font-semibold text-white truncate" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }}>
+                                        {guildInfo.name}
+                                    </div>
+                                    <div className="text-xs text-gray-400">
+                                        Lv.{guildInfo.level || 1}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex-shrink-0 text-accent">
-                                →
-                            </div>
-                        </button>
+                                <div className="flex-shrink-0 text-accent">
+                                    →
+                                </div>
+                            </button>
                     ) : (
                         // 길드가 없으면 가입/창설 버튼
                         <div className="flex items-center gap-2">
@@ -976,31 +976,31 @@ const Profile: React.FC<ProfileProps> = () => {
                                         </div>
                                     ) : guildInfo ? (
                                         // 길드가 있으면 길드 바로가기 버튼
-                                        <button
-                                            onClick={() => window.location.hash = '#/guild'}
-                                            className="w-full flex items-center gap-1 p-1 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
-                                            title="길드 홈 보기"
-                                        >
-                                            <div className="flex-shrink-0 w-6 h-6 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
-                                                {guildInfo.icon ? (
-                                                    <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <img src="/images/button/guild.png" alt="길드" className="w-5 h-5 object-contain" />
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0 text-left">
-                                                <div className="font-semibold text-white text-[9px] truncate">
-                                                    {guildInfo.name}
+                                            <button
+                                                onClick={() => window.location.hash = '#/guild'}
+                                                className="w-full flex items-center gap-1 p-1 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
+                                                title="길드 홈 보기"
+                                            >
+                                                <div className="flex-shrink-0 w-6 h-6 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
+                                                    {guildInfo.icon ? (
+                                                        <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <img src="/images/button/guild.png" alt="길드" className="w-5 h-5 object-contain" />
+                                                    )}
                                                 </div>
-                                                <div className="text-[8px] text-gray-400">
-                                                    Lv.{guildInfo.level || 1}
+                                                <div className="flex-1 min-w-0 text-left">
+                                                    <div className="font-semibold text-white text-[9px] truncate">
+                                                        {guildInfo.name}
+                                                    </div>
+                                                    <div className="text-[8px] text-gray-400">
+                                                        Lv.{guildInfo.level || 1}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex-shrink-0 text-accent text-xs">
-                                                →
-                                            </div>
-                                        </button>
-                                    ) : (
+                                                <div className="flex-shrink-0 text-accent text-xs">
+                                                    →
+                                                </div>
+                                            </button>
+                                        ) : (
                                         // 길드가 없으면 가입/창설 버튼
                                         <div className="flex items-center gap-1">
                                             <div className="flex-1 flex gap-1">

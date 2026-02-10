@@ -304,8 +304,18 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                     const dy = svgDragEnd.y - svgDragStart.y;
                     
                     // 회전된 보드에서는 속도 벡터도 반전 (회전된 보드에서 드래그 방향이 반대이므로)
-                    const velocityX = shouldRotate ? dx : -dx;
-                    const velocityY = shouldRotate ? dy : -dy;
+                    // 화면 좌표계에서의 드래그 방향을 서버 좌표계로 변환:
+                    // - 회전된 보드에서 오른쪽으로 드래그 (dx > 0) = 서버 좌표계에서 왼쪽으로 발사 (vx < 0)
+                    // - 회전된 보드에서 왼쪽으로 드래그 (dx < 0) = 서버 좌표계에서 오른쪽으로 발사 (vx > 0)
+                    // - 회전된 보드에서 위로 드래그 (dy < 0) = 서버 좌표계에서 아래로 발사 (vy > 0)
+                    // - 회전된 보드에서 아래로 드래그 (dy > 0) = 서버 좌표계에서 위로 발사 (vy < 0)
+                    // 기본 보드에서는:
+                    // - 오른쪽으로 드래그 (dx > 0) = 서버 좌표계에서 왼쪽으로 발사 (vx < 0)
+                    // - 왼쪽으로 드래그 (dx < 0) = 서버 좌표계에서 오른쪽으로 발사 (vx > 0)
+                    // - 위로 드래그 (dy < 0) = 서버 좌표계에서 위로 발사 (vy < 0)
+                    // - 아래로 드래그 (dy > 0) = 서버 좌표계에서 아래로 발사 (vy > 0)
+                    const velocityX = shouldRotate ? -dx : -dx; // 회전 여부와 관계없이 dx는 항상 반대
+                    const velocityY = shouldRotate ? dy : -dy;   // 회전된 보드에서는 dy 그대로, 기본 보드에서는 반대
     
                     const launchStrength = finalPower / 100 * 25;
                     const mag = Math.hypot(velocityX, velocityY);

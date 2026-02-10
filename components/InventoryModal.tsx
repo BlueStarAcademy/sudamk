@@ -1334,9 +1334,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         try {
                             // 액션 실행 및 결과 대기
                             await onAction({ type: 'USE_ITEM', payload: { itemId, quantity, itemName } });
-                            // 모달 닫기 (UseQuantityModal 내부에서도 닫지만, 여기서도 확실히 닫기)
-                            setShowUseQuantityModal(false);
-                            setItemToUseBulk(null);
+                        // 모달 닫기 (UseQuantityModal 내부에서도 닫지만, 여기서도 확실히 닫기)
+                        setShowUseQuantityModal(false);
+                        setItemToUseBulk(null);
                         } catch (error) {
                             console.error('[InventoryModal] Failed to use item:', error);
                             // 에러가 발생해도 모달은 닫기

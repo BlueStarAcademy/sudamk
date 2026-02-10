@@ -38,6 +38,18 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
 
     game.revealEndTime = undefined;
     game.preGameConfirmations = {};
+    
+    // AI 게임인 경우 첫 턴이 AI면 aiTurnStartTime 설정
+    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+        if (currentPlayerId === aiUserId) {
+            game.aiTurnStartTime = now;
+            console.log(`[transitionToPlaying] AI turn at transition, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+        } else {
+            game.aiTurnStartTime = undefined;
+            console.log(`[transitionToPlaying] User turn at transition, game ${game.id}, clearing aiTurnStartTime`);
+        }
+    }
 };
 
 /**

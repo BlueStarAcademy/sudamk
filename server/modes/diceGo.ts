@@ -79,10 +79,23 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
         game.stonesPlacedThisTurn = [];
         game.lastMove = null;
 
+        const previousPlayer = game.currentPlayer;
         game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
         game.gameStatus = 'dice_rolling';
         game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
         game.turnStartTime = now;
+        
+        // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+        if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+            const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            if (currentPlayerId === aiUserId) {
+                game.aiTurnStartTime = now;
+                console.log(`[finishPlacingTurn] AI turn after placement, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+            } else {
+                game.aiTurnStartTime = undefined;
+                console.log(`[finishPlacingTurn] User turn after placement, game ${game.id}, clearing aiTurnStartTime`);
+            }
+        }
     }
     
     game.diceCapturesThisTurn = 0;
@@ -223,6 +236,16 @@ export const initializeDiceGo = (game: types.LiveGameSession, neg: types.Negotia
         game.gameStatus = 'dice_rolling';
         game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
         game.turnStartTime = now;
+        
+        // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+        if (currentPlayerId === aiUserId) {
+            game.aiTurnStartTime = now;
+            console.log(`[initializeDiceGo] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+        } else {
+            game.aiTurnStartTime = undefined;
+            console.log(`[initializeDiceGo] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
+        }
     } else {
         game.gameStatus = 'dice_turn_rolling';
         game.turnOrderRolls = { [p1.id]: null, [p2.id]: null };
@@ -328,11 +351,24 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     const overshotPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
                     const overshotPlayer = game.player1.id === overshotPlayerId ? game.player1 : game.player2;
                     game.foulInfo = { message: `${overshotPlayer.nickname}님의 오버샷! 턴이 넘어갑니다.`, expiry: now + 4000 };
+                    const previousPlayer = game.currentPlayer;
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                     game.gameStatus = 'dice_rolling';
                     game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                     game.turnStartTime = now;
                     game.stonesToPlace = 0;
+                    
+                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        if (currentPlayerId === aiUserId) {
+                            game.aiTurnStartTime = now;
+                            console.log(`[updateDiceGoState] AI turn after overshot, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        } else {
+                            game.aiTurnStartTime = undefined;
+                            console.log(`[updateDiceGoState] User turn after overshot, game ${game.id}, clearing aiTurnStartTime`);
+                        }
+                    }
                 } else {
                     game.gameStatus = 'dice_placing';
                     game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;

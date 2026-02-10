@@ -983,10 +983,14 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || game.gameStatus === 'alkkagi_playing' || game.gameStatus === 'curling_playing');
             
             if (canProcessAiTurn) {
-                if (!game.aiTurnStartTime) {
-                    game.aiTurnStartTime = now + (1000 + Math.random() * 1500);
-                    console.log(`[processGame] AI turn detected for game ${game.id}, mode: ${game.mode}, status: ${game.gameStatus}, currentPlayer: ${game.currentPlayer}, aiTurnStartTime set to: ${game.aiTurnStartTime}`);
+                // aiTurnStartTime이 설정되지 않았거나, 이전에 undefined로 설정된 경우 새로 설정
+                if (!game.aiTurnStartTime || game.aiTurnStartTime === undefined) {
+                    // 즉시 실행하도록 현재 시간으로 설정 (약간의 랜덤 딜레이 제거)
+                    game.aiTurnStartTime = now;
+                    console.log(`[processGame] AI turn detected for game ${game.id}, mode: ${game.mode}, status: ${game.gameStatus}, currentPlayer: ${game.currentPlayer}, aiTurnStartTime set to now: ${now}`);
                 }
+                
+                // aiTurnStartTime이 현재 시간보다 작거나 같으면 즉시 실행
                 if (now >= game.aiTurnStartTime) {
                     const initialMoveCount = game.moveHistory?.length ?? 0;
                     const initialStonesCount = (game.mode === types.GameMode.Curling ? game.curlingStones?.length : 
@@ -1005,6 +1009,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
 
                         if (aiActuallyMoved) {
                             console.log(`[processGame] AI move executed successfully for game ${game.id}, new status: ${game.gameStatus}`);
+                            // AI가 수를 두었으므로 aiTurnStartTime을 undefined로 설정하여 다음 AI 턴까지 대기
                             game.aiTurnStartTime = undefined;
                             if (!game.turnStartTime) {
                                 game.turnStartTime = now;
@@ -1018,6 +1023,13 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                         // 에러 발생 시에도 다음 시도 시간 설정
                         game.aiTurnStartTime = now + 1000;
                     }
+                }
+            } else if (isAiTurn && animatingStatuses.includes(game.gameStatus)) {
+                // 애니메이션 중인 경우에도 aiTurnStartTime을 유지하거나 설정
+                // (애니메이션이 끝나면 canProcessAiTurn이 true가 되어 AI 수가 실행됨)
+                if (!game.aiTurnStartTime) {
+                    game.aiTurnStartTime = now;
+                    console.log(`[processGame] AI turn detected during animation for game ${game.id}, aiTurnStartTime set to now: ${now}`);
                 }
             }
 

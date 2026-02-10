@@ -224,6 +224,18 @@ export const initializeAlkkagi = (game: types.LiveGameSession, neg: types.Negoti
             const targetStones = game.settings.alkkagiStoneCount || 5;
             placeRandomStonesForPlayer(game, aiPlayerEnum, aiUserId, targetStones);
         }
+        
+        // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+        if (game.currentPlayer !== types.Player.None) {
+            const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            if (currentPlayerId === aiUserId) {
+                game.aiTurnStartTime = now;
+                console.log(`[initializeAlkkagi] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+            } else {
+                game.aiTurnStartTime = undefined;
+                console.log(`[initializeAlkkagi] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
+            }
+        }
 
     } else {
         game.gameStatus = 'turn_preference_selection';
@@ -256,6 +268,18 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                 game.turnChoices = undefined;
                 game.rpsState = undefined;
                 game.rpsRound = undefined;
+                
+                // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    if (currentPlayerId === aiUserId) {
+                        game.aiTurnStartTime = now;
+                        console.log(`[updateAlkkagiState] AI turn at start confirmation, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    } else {
+                        game.aiTurnStartTime = undefined;
+                        console.log(`[updateAlkkagiState] User turn at start confirmation, game ${game.id}, clearing aiTurnStartTime`);
+                    }
+                }
             }
             break;
         }
@@ -347,6 +371,18 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                 game.currentPlayer = types.Player.Black;
                 game.alkkagiTurnDeadline = now + ALKKAGI_TURN_TIME_LIMIT * 1000;
                 game.turnStartTime = now;
+                
+                // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    if (currentPlayerId === aiUserId) {
+                        game.aiTurnStartTime = now;
+                        console.log(`[updateAlkkagiState] AI turn after placement phase, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    } else {
+                        game.aiTurnStartTime = undefined;
+                        console.log(`[updateAlkkagiState] User turn after placement phase, game ${game.id}, clearing aiTurnStartTime`);
+                    }
+                }
             }
             break;
         }

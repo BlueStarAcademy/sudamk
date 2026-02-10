@@ -103,7 +103,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             const equipmentGrade = equipmentItem?.grade 
                 ? (typeof equipmentItem.grade === 'string' ? equipmentItem.grade as ItemGrade : equipmentItem.grade)
                 : (typeof rewards.equipment.grade === 'string' 
-                    ? (rewards.equipment.grade as ItemGrade)
+                ? (rewards.equipment.grade as ItemGrade)
                     : rewards.equipment.grade);
             const isLegendaryOrMythic = equipmentGrade === ItemGrade.Legendary || equipmentGrade === ItemGrade.Mythic;
             

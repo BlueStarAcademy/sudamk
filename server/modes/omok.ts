@@ -150,6 +150,19 @@ export const handleOmokAction = async (volatileState: types.VolatileState, game:
                         }
                         game.turnStartTime = now;
                     }
+                    
+                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        if (currentPlayerId === aiUserId) {
+                            game.aiTurnStartTime = now;
+                            console.log(`[handleOmokAction] AI turn after OMOK_PLACE_STONE, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        } else {
+                            // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
+                            game.aiTurnStartTime = undefined;
+                            console.log(`[handleOmokAction] User turn after OMOK_PLACE_STONE, game ${game.id}, clearing aiTurnStartTime`);
+                        }
+                    }
                 }
             }
             return {};

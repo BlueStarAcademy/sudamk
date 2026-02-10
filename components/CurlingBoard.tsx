@@ -79,8 +79,15 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
         
         const currentStone = selectedStone;
         
+        // 회전된 보드에서는 화살표 방향도 반대로 표시해야 함
+        // 화면에서 위로 드래그 (dy < 0) = 서버 좌표계에서 아래로 발사 (vy > 0)
+        // 화면에서 아래로 드래그 (dy > 0) = 서버 좌표계에서 위로 발사 (vy < 0)
+        // 따라서 회전된 보드에서는 dx와 dy의 부호를 반대로 해야 함
+        const adjustedDx = isRotated ? -dx : dx;
+        const adjustedDy = isRotated ? -dy : dy;
+        
         const svgStart = { x: currentStone.x, y: currentStone.y };
-        let svgEnd = { x: svgStart.x - dx, y: svgStart.y - dy };
+        let svgEnd = { x: svgStart.x - adjustedDx, y: svgStart.y - adjustedDy };
         
         const myActiveItems = session.activeCurlingItems?.[currentUser.id] || [];
         const isAimingLineActive = myActiveItems.includes('aimingLine');
@@ -97,7 +104,7 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
         }
         
         return { start: svgStart, end: svgEnd };
-    }, [dragStartPoint, dragEndPoint, selectedStone, session.activeCurlingItems, currentUser.id]);
+    }, [dragStartPoint, dragEndPoint, selectedStone, session.activeCurlingItems, currentUser.id, isRotated]);
 
 
     const renderHouse = () => {

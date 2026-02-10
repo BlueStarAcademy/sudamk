@@ -180,6 +180,16 @@ export const initializeCurling = (game: types.LiveGameSession, neg: types.Negoti
         game.stonesThrownThisRound = { [game.player1.id]: 0, [game.player2.id]: 0 };
         game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
         game.turnStartTime = now;
+        
+        // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+        if (currentPlayerId === aiUserId) {
+            game.aiTurnStartTime = now;
+            console.log(`[initializeCurling] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+        } else {
+            game.aiTurnStartTime = undefined;
+            console.log(`[initializeCurling] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
+        }
 
     } else {
         game.gameStatus = 'turn_preference_selection';
@@ -214,6 +224,13 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                 game.turnChoices = undefined;
                 game.rpsState = undefined;
                 game.rpsRound = undefined;
+                
+                // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                if (game.isAiGame && game.currentPlayer !== types.Player.None &&
+                    (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId)) {
+                    game.aiTurnStartTime = now;
+                    console.log(`[updateCurlingState] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                }
             }
             break;
         }
@@ -283,15 +300,22 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                         endCurlingRound(game, now);
                     } else {
                         game.gameStatus = 'curling_playing';
+                        const previousPlayer = game.currentPlayer;
                         game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                         game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
                         game.turnStartTime = now;
-                        console.log(`[updateCurlingState] Turn switched to ${game.currentPlayer} after stones stopped`);
+                        console.log(`[updateCurlingState] Turn switched from ${previousPlayer} to ${game.currentPlayer} after stones stopped, game ${game.id}`);
                         // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                        if (game.isAiGame && game.currentPlayer !== types.Player.None &&
-                            (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId)) {
-                            game.aiTurnStartTime = now;
-                            console.log(`[updateCurlingState] AI turn after stones stopped, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                            const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                            if (currentPlayerId === aiUserId) {
+                                game.aiTurnStartTime = now;
+                                console.log(`[updateCurlingState] AI turn after stones stopped, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                            } else {
+                                // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
+                                game.aiTurnStartTime = undefined;
+                                console.log(`[updateCurlingState] User turn after stones stopped, game ${game.id}, clearing aiTurnStartTime`);
+                            }
                         }
                     }
                 }
@@ -333,6 +357,13 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                     game.gameStatus = 'curling_playing';
                     game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
                     game.turnStartTime = now;
+                    
+                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                    if (game.isAiGame && game.currentPlayer !== types.Player.None &&
+                        (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId)) {
+                        game.aiTurnStartTime = now;
+                        console.log(`[updateCurlingState] AI turn after round start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    }
                 }
             }
             break;

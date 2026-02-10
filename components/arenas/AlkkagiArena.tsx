@@ -368,7 +368,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
 
     const backgroundClass = useMemo(() => {
         if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {
-            return 'bg-playful-background';
+            return 'bg-transparent';
         }
         return 'bg-primary';
     }, [session.mode]);

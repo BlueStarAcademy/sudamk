@@ -36,6 +36,16 @@ export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiat
         game.round = 1; // Initialize round
         game.scores = { [p1.id]: 0, [p2.id]: 0 }; // Initialize scores
         game.turnInRound = 1; // Initialize turn in round
+        
+        // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+        if (currentPlayerId === aiUserId) {
+            game.aiTurnStartTime = now;
+            console.log(`[initializeThief] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+        } else {
+            game.aiTurnStartTime = undefined;
+            console.log(`[initializeThief] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
+        }
     } else {
         // Original logic for human players
         game.gameStatus = 'thief_role_selection';
@@ -143,6 +153,18 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             game.thiefCapturesThisRound = 0;
             game.preGameConfirmations = {};
             game.revealEndTime = undefined;
+            
+            // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+            if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                if (currentPlayerId === aiUserId) {
+                    game.aiTurnStartTime = now;
+                    console.log(`[updateThiefState] AI turn at role confirmed, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                } else {
+                    game.aiTurnStartTime = undefined;
+                    console.log(`[updateThiefState] User turn at role confirmed, game ${game.id}, clearing aiTurnStartTime`);
+                }
+            }
         }
     } else if (game.gameStatus === 'thief_rolling') {
         // turnDeadline이 없으면 설정 (게임 로드 시나 상태 불일치 시 대비)
@@ -344,10 +366,23 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                         if(game.isAiGame) game.roundEndConfirmations = { [aiUserId]: now };
                     }
                 } else {
+                    const previousPlayer = game.currentPlayer;
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                     game.gameStatus = 'thief_rolling';
                     game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                     game.turnStartTime = now;
+                    
+                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        if (currentPlayerId === aiUserId) {
+                            game.aiTurnStartTime = now;
+                            console.log(`[updateThiefState] AI turn after placement, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        } else {
+                            game.aiTurnStartTime = undefined;
+                            console.log(`[updateThiefState] User turn after placement, game ${game.id}, clearing aiTurnStartTime`);
+                        }
+                    }
                 }
             }
         }
@@ -394,6 +429,18 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                  game.gameStatus = 'thief_rolling';
                  game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                  game.turnStartTime = now;
+                 
+                 // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                 if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                     if (currentPlayerId === aiUserId) {
+                         game.aiTurnStartTime = now;
+                         console.log(`[updateThiefState] AI turn at round start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                     } else {
+                         game.aiTurnStartTime = undefined;
+                         console.log(`[updateThiefState] User turn at round start, game ${game.id}, clearing aiTurnStartTime`);
+                     }
+                 }
              }
          }
     }
@@ -589,10 +636,23 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
                     game.revealEndTime = now + 20000;
                     if(game.isAiGame) game.roundEndConfirmations = { [aiUserId]: now };
                 } else {
+                    const previousPlayer = game.currentPlayer;
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                     game.gameStatus = 'thief_rolling';
                     game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                     game.turnStartTime = now;
+                    
+                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        if (currentPlayerId === aiUserId) {
+                            game.aiTurnStartTime = now;
+                            console.log(`[handleThiefAction] AI turn after THIEF_PLACE_STONE, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        } else {
+                            game.aiTurnStartTime = undefined;
+                            console.log(`[handleThiefAction] User turn after THIEF_PLACE_STONE, game ${game.id}, clearing aiTurnStartTime`);
+                        }
+                    }
                 }
             }
             return {};
