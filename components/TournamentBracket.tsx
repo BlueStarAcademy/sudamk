@@ -12,6 +12,7 @@ import { audioService } from '../services/audioService.js';
 import ConditionPotionModal from './ConditionPotionModal.js';
 import { calculateTotalStats } from '../services/statService.js';
 import SimulationArenaHelpModal from './SimulationArenaHelpModal.js';
+import DungeonStageSummaryModal from './DungeonStageSummaryModal.js';
 
 // Error Boundary for PlayerProfilePanel
 class PlayerProfilePanelErrorBoundary extends Component<
@@ -1190,7 +1191,7 @@ const CommentaryPanel: React.FC<{ commentary: CommentaryLine[], isSimulating: bo
     );
 };
 
-const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser: UserWithStatus; onAction: (action: ServerAction) => void }> = ({ tournamentState, currentUser, onAction }) => {
+const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser: UserWithStatus; onAction: (action: ServerAction) => void; onCompleteDungeon?: () => void }> = ({ tournamentState, currentUser, onAction, onCompleteDungeon }) => {
     const { type, rounds } = tournamentState;
     
     // 모든 경기가 완료되었는지 확인
@@ -1309,17 +1310,32 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
     }
     
     const reward = rewardInfo?.rewards[rewardKey];
+    // 던전 모드에서는 currentStageAttempt가 있으면 던전 모드
+    const isDungeonMode = tournamentState.currentStageAttempt !== undefined && tournamentState.currentStageAttempt !== null && tournamentState.currentStageAttempt >= 1;
+    
     const rewardClaimedKey = `${type}RewardClaimed` as keyof User;
     const isClaimed = !!currentUser[rewardClaimedKey];
     const canClaimReward = (isTournamentFullyComplete || isUserEliminated) && !isClaimed;
+    
+    // 중복 클릭 방지를 위한 상태
+    const [isClaiming, setIsClaiming] = useState(false);
 
     const handleClaim = () => {
-        if (canClaimReward) {
-            audioService.claimReward();
-            // 던전 모드인지 확인 (currentStageAttempt가 1 이상이면 던전 모드)
-            const isDungeonMode = tournamentState.currentStageAttempt !== undefined && tournamentState.currentStageAttempt !== null && tournamentState.currentStageAttempt >= 1;
-            if (isDungeonMode && tournamentState.currentStageAttempt) {
-                // 던전 모드: COMPLETE_DUNGEON_STAGE 액션 호출
+        // 중복 클릭 방지: 이미 클릭 중이거나 이미 수령했으면 무시
+        if (isClaiming || !canClaimReward) {
+            return;
+        }
+        
+        setIsClaiming(true);
+        audioService.claimReward();
+        
+        // 던전 모드인지 확인 (currentStageAttempt가 1 이상이면 던전 모드)
+        const isDungeonMode = tournamentState.currentStageAttempt !== undefined && tournamentState.currentStageAttempt !== null && tournamentState.currentStageAttempt >= 1;
+        if (isDungeonMode && tournamentState.currentStageAttempt) {
+            // 던전 모드: 완료 핸들러가 있으면 사용, 없으면 직접 액션 호출
+            if (onCompleteDungeon) {
+                onCompleteDungeon();
+            } else {
                 onAction({ 
                     type: 'COMPLETE_DUNGEON_STAGE', 
                     payload: { 
@@ -1327,12 +1343,25 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                         stage: tournamentState.currentStageAttempt 
                     } 
                 });
-            } else {
-                // 일반 토너먼트 모드: CLAIM_TOURNAMENT_REWARD 액션 호출
-                onAction({ type: 'CLAIM_TOURNAMENT_REWARD', payload: { tournamentType: type } });
             }
+        } else {
+            // 일반 토너먼트 모드: CLAIM_TOURNAMENT_REWARD 액션 호출
+            onAction({ type: 'CLAIM_TOURNAMENT_REWARD', payload: { tournamentType: type } });
         }
+        
+        // 서버 응답 후 상태가 업데이트되면 isClaiming이 자동으로 false가 됨
+        // 하지만 안전을 위해 일정 시간 후에도 false로 설정
+        setTimeout(() => {
+            setIsClaiming(false);
+        }, 3000);
     };
+    
+    // isClaimed가 변경되면 isClaiming도 false로 설정
+    useEffect(() => {
+        if (isClaimed) {
+            setIsClaiming(false);
+        }
+    }, [isClaimed]);
     
     return (
         <div className="h-full flex flex-col min-h-0" style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
@@ -1345,6 +1374,18 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                 </div>
             )}
             
+            {/* 보상 완료 버튼 (던전 모드에서만) */}
+            {(isTournamentFullyComplete || isUserEliminated) && isClaimed && isDungeonMode && onCompleteDungeon && (
+                <div className="mb-1">
+                    <button
+                        onClick={onCompleteDungeon}
+                        className="w-full py-1.5 px-3 rounded-lg font-semibold text-xs bg-green-600 hover:bg-green-700 text-white cursor-pointer transition-colors"
+                    >
+                        보상 완료
+                    </button>
+                </div>
+            )}
+            
             {/* 경기 진행 중 안내 */}
             {isInProgress && (
                 <div className="mb-1 px-1.5 py-1 bg-blue-900/30 rounded-lg border border-blue-700/50">
@@ -1353,61 +1394,51 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
             )}
             
             
-            {/* 누적 골드 (동네바둑리그, 경기 진행 중에도 표시) */}
+            {/* 누적 골드 (동네바둑리그, 경기 진행 중에도 표시) - 아이콘 형태 */}
             {accumulatedGold > 0 && (
-                <div className={`mb-1 bg-yellow-900/30 px-1.5 py-1 rounded-lg border border-yellow-700/50 ${isClaimed ? 'opacity-75' : ''}`}>
-                    <div className="flex items-center gap-1.5">
-                        <img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
-                        <div className="flex-1 min-w-0">
-                            <div className="text-xs font-semibold text-yellow-300">경기 보상: {accumulatedGold.toLocaleString()} 골드</div>
-                        </div>
+                <div className={`mb-1 inline-flex items-center justify-center ${isClaimed ? 'opacity-75' : ''}`}>
+                    <div className="relative w-10 h-10 rounded-lg border-2 border-yellow-600/70 bg-yellow-900/40 flex items-center justify-center overflow-hidden">
+                        <img src="/images/icon/Gold.png" alt="골드" className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                        <span className="absolute -bottom-0.5 -right-0.5 text-[9px] font-bold text-yellow-200 bg-black/70 px-0.5 rounded-tl-md leading-tight">
+                            {accumulatedGold.toLocaleString()}
+                        </span>
                     </div>
                 </div>
             )}
             
-            {/* 누적 재료 (전국바둑대회, 경기 진행 중에도 표시) */}
+            {/* 누적 재료 (전국바둑대회, 경기 진행 중에도 표시) - 아이콘 형태 */}
             {Object.keys(accumulatedMaterials).length > 0 && (
-                <div className={`mb-1 ${isClaimed ? 'opacity-75' : ''}`}>
-                    <div className="text-xs font-semibold text-blue-300 mb-1">
-                        경기 보상 (재료):
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        {Object.entries(accumulatedMaterials).map(([materialName, quantity]) => {
-                            const materialTemplate = MATERIAL_ITEMS[materialName];
-                            const imageUrl = materialTemplate?.image || '';
-                            return (
-                                <div key={materialName} className="flex items-center gap-1.5 bg-blue-900/30 px-1.5 py-1 rounded-lg border border-blue-700/50">
-                                    <img src={imageUrl} alt={materialName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-semibold text-blue-300 break-words whitespace-normal">{materialName} x{quantity}</div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                    {Object.entries(accumulatedMaterials).map(([materialName, quantity]) => {
+                        const materialTemplate = MATERIAL_ITEMS[materialName];
+                        const imageUrl = materialTemplate?.image || '';
+                        return (
+                            <div key={materialName} className="relative w-10 h-10 rounded-lg border-2 border-blue-600/70 bg-blue-900/40 flex items-center justify-center overflow-hidden">
+                                <img src={imageUrl} alt={materialName} className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                <span className="absolute -bottom-0.5 -right-0.5 text-[9px] font-bold text-blue-200 bg-black/70 px-0.5 rounded-tl-md leading-tight">
+                                    {quantity}
+                                </span>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
             
-            {/* 누적 장비상자 (월드챔피언십, 경기 진행 중에도 표시) */}
+            {/* 누적 장비상자 (월드챔피언십, 경기 진행 중에도 표시) - 아이콘 형태 */}
             {Object.keys(accumulatedEquipmentBoxes).length > 0 && (
-                <div className={`mb-1 ${isClaimed ? 'opacity-75' : ''}`}>
-                    <div className="text-xs font-semibold text-purple-300 mb-1">
-                        경기 보상 (장비상자):
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        {Object.entries(accumulatedEquipmentBoxes).map(([boxName, quantity]) => {
-                            const boxTemplate = CONSUMABLE_ITEMS.find(i => i.name === boxName);
-                            const imageUrl = boxTemplate?.image || '';
-                            return (
-                                <div key={boxName} className="flex items-center gap-1.5 bg-purple-900/30 px-1.5 py-1 rounded-lg border border-purple-700/50">
-                                    <img src={imageUrl} alt={boxName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-semibold text-purple-300 break-words whitespace-normal">{boxName} x{quantity}</div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                    {Object.entries(accumulatedEquipmentBoxes).map(([boxName, quantity]) => {
+                        const boxTemplate = CONSUMABLE_ITEMS.find(i => i.name === boxName);
+                        const imageUrl = boxTemplate?.image || '';
+                        return (
+                            <div key={boxName} className="relative w-10 h-10 rounded-lg border-2 border-purple-600/70 bg-purple-900/40 flex items-center justify-center overflow-hidden">
+                                <img src={imageUrl} alt={boxName} className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                <span className="absolute -bottom-0.5 -right-0.5 text-[9px] font-bold text-purple-200 bg-black/70 px-0.5 rounded-tl-md leading-tight">
+                                    {quantity}
+                                </span>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
             
@@ -1462,67 +1493,55 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                     <>
                         {/* 단계별 기본 점수 보상 */}
                         
-                        {/* 단계별 기본 보상 (골드/재료/장비상자) */}
+                        {/* 단계별 기본 보상 (골드/재료/장비상자) - 아이콘 형태 */}
                         {type === 'neighborhood' && DUNGEON_STAGE_BASE_REWARDS_GOLD[stage] && (
-                            <div className={`mb-1 bg-yellow-900/30 px-1.5 py-1 rounded-lg border border-yellow-700/50 ${isClaimed ? 'opacity-75' : ''}`}>
-                                <div className="flex items-center gap-1.5">
-                                    <img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-semibold text-yellow-300">단계 보상: {DUNGEON_STAGE_BASE_REWARDS_GOLD[stage].toLocaleString()} 골드</div>
-                                    </div>
+                            <div className={`mb-1 inline-flex items-center justify-center ${isClaimed ? 'opacity-75' : ''}`}>
+                                <div className="relative w-10 h-10 rounded-lg border-2 border-yellow-600/70 bg-yellow-900/40 flex items-center justify-center overflow-hidden">
+                                    <img src="/images/icon/Gold.png" alt="골드" className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                    <span className="absolute -bottom-0.5 -right-0.5 text-[9px] font-bold text-yellow-200 bg-black/70 px-0.5 rounded-tl-md leading-tight">
+                                        {DUNGEON_STAGE_BASE_REWARDS_GOLD[stage].toLocaleString()}
+                                    </span>
                                 </div>
                             </div>
                         )}
                         
                         {type === 'national' && DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage] && (
-                            <div className={`mb-1 ${isClaimed ? 'opacity-75' : ''}`}>
-                                <div className="text-xs font-semibold text-blue-300 mb-1">
-                                    단계 보상 (재료):
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex items-center gap-1.5 bg-blue-900/30 px-1.5 py-1 rounded-lg border border-blue-700/50">
-                                        <img src={MATERIAL_ITEMS[DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].materialName]?.image || ''} alt={DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].materialName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-semibold text-blue-300 break-words whitespace-normal">
-                                                {DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].materialName} x{DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].quantity}
-                                            </div>
-                                        </div>
-                                    </div>
+                            <div className={`mb-1 inline-flex items-center justify-center ${isClaimed ? 'opacity-75' : ''}`}>
+                                <div className="relative w-10 h-10 rounded-lg border-2 border-blue-600/70 bg-blue-900/40 flex items-center justify-center overflow-hidden">
+                                    <img src={MATERIAL_ITEMS[DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].materialName]?.image || ''} alt={DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].materialName} className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                    <span className="absolute -bottom-0.5 -right-0.5 text-[9px] font-bold text-blue-200 bg-black/70 px-0.5 rounded-tl-md leading-tight">
+                                        {DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage].quantity}
+                                    </span>
                                 </div>
                             </div>
                         )}
                         
                         {type === 'world' && DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage] && (
-                            <div className={`mb-1 ${isClaimed ? 'opacity-75' : ''}`}>
-                                <div className="text-xs font-semibold text-purple-300 mb-1">
-                                    단계 보상 (장비상자):
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    {DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage].boxes.map((box: any, index: number) => {
-                                        const boxTemplate = CONSUMABLE_ITEMS.find(i => i.name === box.boxName);
-                                        const imageUrl = boxTemplate?.image || '';
-                                        return (
-                                            <div key={index} className="flex items-center gap-1.5 bg-purple-900/30 px-1.5 py-1 rounded-lg border border-purple-700/50">
-                                                <img src={imageUrl} alt={box.boxName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-xs font-semibold text-purple-300 break-words whitespace-normal">{box.boxName} x{box.quantity}</div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    {DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage].changeTickets > 0 && (
-                                        <div className="flex items-center gap-1.5 bg-purple-900/30 px-1.5 py-1 rounded-lg border border-purple-700/50">
-                                            <img src="/images/icon/ChangeTicket.png" alt="변경권" className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-xs font-semibold text-purple-300">변경권 x{DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage].changeTickets}</div>
-                                            </div>
+                            <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                                {DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage].boxes.map((box: any, index: number) => {
+                                    const boxTemplate = CONSUMABLE_ITEMS.find(i => i.name === box.boxName);
+                                    const imageUrl = boxTemplate?.image || '';
+                                    return (
+                                        <div key={index} className="relative w-10 h-10 rounded-lg border-2 border-purple-600/70 bg-purple-900/40 flex items-center justify-center overflow-hidden">
+                                            <img src={imageUrl} alt={box.boxName} className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                            <span className="absolute -bottom-0.5 -right-0.5 text-[9px] font-bold text-purple-200 bg-black/70 px-0.5 rounded-tl-md leading-tight">
+                                                {box.quantity}
+                                            </span>
                                         </div>
-                                    )}
-                                </div>
+                                    );
+                                })}
+                                {DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage].changeTickets > 0 && (
+                                    <div className="relative w-10 h-10 rounded-lg border-2 border-purple-600/70 bg-purple-900/40 flex items-center justify-center overflow-hidden">
+                                        <img src="/images/icon/ChangeTicket.png" alt="변경권" className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                        <span className="absolute -bottom-0.5 -right-0.5 text-[9px] font-bold text-purple-200 bg-black/70 px-0.5 rounded-tl-md leading-tight">
+                                            {DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage].changeTickets}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         )}
                         
-                        {/* 순위 보상 (경기 종료 후에만 표시) */}
+                        {/* 순위 보상 (경기 종료 후에만 표시) - 아이콘 형태 */}
                         {((isTournamentFullyComplete || isUserEliminated || isClaimed) && (() => {
                             const dungeonRankReward = DUNGEON_RANK_REWARDS?.[type]?.[stage];
                             const rankReward = dungeonRankReward?.[userRank];
@@ -1530,23 +1549,23 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                                 return (
                                     <div className="mt-2 pt-2 border-t border-gray-700">
                                         <div className="text-xs font-semibold text-gray-300 mb-1 text-center">순위 보상 ({userRank}위)</div>
-                                        <div className="flex flex-col gap-1">
+                                        <div className="flex flex-wrap gap-1">
                                             {rankReward.items.map((item: any, index: number) => {
                                                 const itemName = 'itemId' in item ? item.itemId : (item as any).name;
                                                 const itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === itemName);
                                                 const imageUrl = itemTemplate?.image || '';
                                                 const isGold = itemName.includes('골드');
                                                 const isDiamond = itemName.includes('다이아');
-                                                const bgColor = isGold ? 'bg-yellow-900/30' : isDiamond ? 'bg-blue-900/30' : 'bg-purple-900/30';
-                                                const borderColor = isGold ? 'border-yellow-700/50' : isDiamond ? 'border-blue-700/50' : 'border-purple-700/50';
-                                                const textColor = isGold ? 'text-yellow-300' : isDiamond ? 'text-blue-300' : 'text-purple-300';
+                                                const borderColor = isGold ? 'border-yellow-600/70' : isDiamond ? 'border-blue-600/70' : 'border-purple-600/70';
+                                                const bgColor = isGold ? 'bg-yellow-900/40' : isDiamond ? 'bg-blue-900/40' : 'bg-purple-900/40';
+                                                const textColor = isGold ? 'text-yellow-200' : isDiamond ? 'text-blue-200' : 'text-purple-200';
                                                 
                                                 return (
-                                                    <div key={index} className={`flex items-center gap-1.5 ${bgColor} px-1.5 py-1 rounded-lg border ${borderColor} ${isClaimed ? 'opacity-75' : ''}`}>
-                                                        <img src={imageUrl} alt={itemName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className={`text-xs font-semibold ${textColor} break-words whitespace-normal`}>{itemName} x{item.quantity}</div>
-                                                        </div>
+                                                    <div key={index} className={`relative w-10 h-10 rounded-lg border-2 ${borderColor} ${bgColor} flex items-center justify-center overflow-hidden ${isClaimed ? 'opacity-75' : ''}`}>
+                                                        <img src={imageUrl} alt={itemName} className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                                        <span className={`absolute -bottom-0.5 -right-0.5 text-[9px] font-bold ${textColor} bg-black/70 px-0.5 rounded-tl-md leading-tight`}>
+                                                            {item.quantity}
+                                                        </span>
                                                     </div>
                                                 );
                                             })}
@@ -1560,11 +1579,11 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                 );
             })()}
             
-            {/* 최종 순위 보상 (일반 토너먼트 모드, 경기 종료 후 또는 보상 수령 후에도 표시) - 가로 막대 형태 */}
+            {/* 최종 순위 보상 (일반 토너먼트 모드, 경기 종료 후 또는 보상 수령 후에도 표시) - 아이콘 형태 */}
             {((isTournamentFullyComplete || isUserEliminated || isClaimed) && reward && !tournamentState.currentStageAttempt) && (
                 <div className="mt-2 pt-2 border-t border-gray-700">
                     <div className="text-xs font-semibold text-gray-300 mb-1 text-center">최종 순위 보상</div>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-wrap gap-1">
                         {(reward.items || []).map((item, index) => {
                             const itemName = 'itemId' in item ? item.itemId : (item as any).name;
                             const itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === itemName);
@@ -1572,16 +1591,16 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                             // 골드 꾸러미인지 다이아 꾸러미인지에 따라 색상 결정
                             const isGold = itemName.includes('골드');
                             const isDiamond = itemName.includes('다이아');
-                            const bgColor = isGold ? 'bg-yellow-900/30' : isDiamond ? 'bg-blue-900/30' : 'bg-purple-900/30';
-                            const borderColor = isGold ? 'border-yellow-700/50' : isDiamond ? 'border-blue-700/50' : 'border-purple-700/50';
-                            const textColor = isGold ? 'text-yellow-300' : isDiamond ? 'text-blue-300' : 'text-purple-300';
+                            const borderColor = isGold ? 'border-yellow-600/70' : isDiamond ? 'border-blue-600/70' : 'border-purple-600/70';
+                            const bgColor = isGold ? 'bg-yellow-900/40' : isDiamond ? 'bg-blue-900/40' : 'bg-purple-900/40';
+                            const textColor = isGold ? 'text-yellow-200' : isDiamond ? 'text-blue-200' : 'text-purple-200';
                             
                             return (
-                                <div key={index} className={`flex items-center gap-1.5 ${bgColor} px-1.5 py-1 rounded-lg border ${borderColor} ${isClaimed ? 'opacity-75' : ''}`}>
-                                    <img src={imageUrl} alt={itemName} className="w-5 h-5 flex-shrink-0" loading="lazy" decoding="async" />
-                                    <div className="flex-1 min-w-0">
-                                        <div className={`text-xs font-semibold ${textColor} break-words whitespace-normal`}>{itemName} x{item.quantity}</div>
-                                    </div>
+                                <div key={index} className={`relative w-10 h-10 rounded-lg border-2 ${borderColor} ${bgColor} flex items-center justify-center overflow-hidden ${isClaimed ? 'opacity-75' : ''}`}>
+                                    <img src={imageUrl} alt={itemName} className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                    <span className={`absolute -bottom-0.5 -right-0.5 text-[9px] font-bold ${textColor} bg-black/70 px-0.5 rounded-tl-md leading-tight`}>
+                                        {item.quantity}
+                                    </span>
                                 </div>
                             );
                         })}
@@ -1604,41 +1623,32 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
             )}
             </div>
             
-            {/* 하단 보상받기 버튼 영역 */}
-            <div className="flex-shrink-0 pt-1.5 border-t border-gray-700 mt-1.5">
-                {/* 경기 종료 후 보상받기 버튼 (던전 모드 또는 일반 토너먼트 모드) */}
-                {(isTournamentFullyComplete || isUserEliminated) && (reward || tournamentState.currentStageAttempt) && (
-                    <>
-                        {isClaimed ? (
-                            <button
-                                disabled
-                                className="w-full bg-green-600/50 text-green-300 py-1.5 px-3 rounded-lg font-semibold text-xs cursor-not-allowed opacity-75"
-                            >
-                                ✓ 보상 수령 완료
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleClaim}
-                                disabled={!canClaimReward}
-                                className={`w-full py-1.5 px-3 rounded-lg font-semibold text-xs transition-colors ${
-                                    canClaimReward 
-                                        ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer' 
-                                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                }`}
-                            >
-                                {canClaimReward ? '보상받기' : '경기 종료 후 수령 가능'}
-                            </button>
-                        )}
-                    </>
-                )}
-                
-                {/* 경기 진행 중 또는 다음경기 버튼이 있을 때 안내 메시지 (보상 수령 전에만 표시) */}
-                {(isInProgress || isRoundComplete) && !isClaimed && !((isTournamentFullyComplete || isUserEliminated) && reward) && (
-                    <div className="w-full bg-blue-900/30 text-blue-300 py-1.5 px-3 rounded-lg font-semibold text-xs text-center border border-blue-700/50">
-                        모든 경기 완료 후 보상수령
-                    </div>
-                )}
-            </div>
+            {/* 하단 보상받기 버튼 영역 - 보상 수령 후에는 버튼 숨김 */}
+            {!isClaimed && (
+                <div className="flex-shrink-0 pt-1.5 border-t border-gray-700 mt-1.5">
+                    {/* 경기 종료 후 보상받기 버튼 (던전 모드 또는 일반 토너먼트 모드) */}
+                    {(isTournamentFullyComplete || isUserEliminated) && (reward || tournamentState.currentStageAttempt) && (
+                        <button
+                            onClick={handleClaim}
+                            disabled={!canClaimReward || isClaiming}
+                            className={`w-full py-1.5 px-3 rounded-lg font-semibold text-xs transition-colors ${
+                                canClaimReward && !isClaiming
+                                    ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer' 
+                                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            }`}
+                        >
+                            {isClaiming ? '수령 중...' : (canClaimReward ? '보상받기' : '경기 종료 후 수령 가능')}
+                        </button>
+                    )}
+                    
+                    {/* 경기 진행 중 또는 다음경기 버튼이 있을 때 안내 메시지 */}
+                    {(isInProgress || isRoundComplete) && !((isTournamentFullyComplete || isUserEliminated) && reward) && (
+                        <div className="w-full bg-blue-900/30 text-blue-300 py-1.5 px-3 rounded-lg font-semibold text-xs text-center border border-blue-700/50">
+                            모든 경기 완료 후 보상수령
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
@@ -1992,6 +2002,7 @@ const RoundRobinDisplay: React.FC<{
     // 동네바둑리그: 
     // - round_complete 상태일 때는 완료된 회차를 표시 (1회차 완료 후 1회차 표시) - 경기 종료 화면 유지
     // - bracket_ready 상태일 때는 현재 회차를 표시 (다음 경기 버튼을 눌러 2회차로 넘어간 후 2회차 표시) - 다음 회차 대진표로 이동
+    // - round_in_progress 상태일 때는 현재 진행 중인 회차를 표시 (던전 모드 자동진행 대응)
     // - complete 상태일 때는 마지막 회차(5회차)를 표시 (경기 종료 후 재입장 시) - 마지막 경기 종료 화면 유지
     const roundForDisplay = status === 'complete' ? 5 : (currentRoundRobinRound || 1);
     
@@ -2005,12 +2016,18 @@ const RoundRobinDisplay: React.FC<{
     // 현재 회차가 변경되고 사용자가 수동으로 선택하지 않은 경우에만 선택된 회차 업데이트
     // 사용자가 지난 회차 탭을 클릭한 경우에는 그대로 유지
     const isManualSelection = useRef(false);
+    const prevRoundForDisplay = useRef(roundForDisplay);
     useEffect(() => {
-        if (!isManualSelection.current && roundForDisplay && selectedRound !== roundForDisplay) {
+        // currentRoundRobinRound가 변경되었는지 확인
+        const roundChanged = prevRoundForDisplay.current !== roundForDisplay;
+        prevRoundForDisplay.current = roundForDisplay;
+        
+        if (!isManualSelection.current && roundForDisplay && (selectedRound !== roundForDisplay || roundChanged)) {
+            console.log(`[RoundRobinDisplay] Updating selectedRound: ${selectedRound} -> ${roundForDisplay}, status: ${status}, currentRoundRobinRound: ${currentRoundRobinRound}`);
             setSelectedRound(roundForDisplay);
         }
         isManualSelection.current = false;
-    }, [roundForDisplay, selectedRound]);
+    }, [roundForDisplay, selectedRound, status, currentRoundRobinRound]);
     
     const handleRoundSelect = (roundNum: number) => {
         isManualSelection.current = true;
@@ -2243,12 +2260,23 @@ const TournamentRoundViewer: React.FC<{
         }
     }, [nextRoundTrigger, activeTab, getRoundsForTabs, tournamentType]);
 
-    // nextRoundStartTime이 설정되면 다음 경기가 있는 탭으로 자동 이동
-    // 단, 경기가 실제로 시작된 후 (round_in_progress 상태)에만 탭 변경하여 시뮬레이션 중단 방지
+    // 경기 종료 시점에 다음 경기가 있는 탭으로 자동 이동
+    // round_in_progress에서 bracket_ready로 변경될 때 또는 nextRoundStartTime이 설정될 때 탭 변경
+    const prevStatus = useRef<string | undefined>(tournamentState?.status);
     const prevNextRoundStartTime = useRef<number | null | undefined>(nextRoundStartTime);
-    const pendingTabChange = useRef<number | null>(null);
+    
     useEffect(() => {
-        if (nextRoundStartTime && nextRoundStartTime !== prevNextRoundStartTime.current && getRoundsForTabs && tournamentState) {
+        if (!getRoundsForTabs || !tournamentState) return;
+        
+        const currentStatus = tournamentState.status;
+        const statusChanged = prevStatus.current !== currentStatus;
+        const nextRoundStartTimeChanged = nextRoundStartTime !== prevNextRoundStartTime.current;
+        
+        // 경기 종료 시점 (round_in_progress -> bracket_ready) 또는 카운트다운 시작 시 탭 변경
+        const shouldChangeTab = (statusChanged && currentStatus === 'bracket_ready' && prevStatus.current === 'round_in_progress') ||
+                                (nextRoundStartTimeChanged && nextRoundStartTime);
+        
+        if (shouldChangeTab) {
             // 다음 경기가 있는 탭 찾기
             const nextUserMatch = rounds
                 .flatMap((round, rIdx) => round.matches.map((match, mIdx) => ({ match, roundIndex: rIdx, matchIndex: mIdx })))
@@ -2270,35 +2298,17 @@ const TournamentRoundViewer: React.FC<{
                     });
                     
                     if (targetTabIndex !== -1 && targetTabIndex !== activeTab) {
-                        // 경기가 시작되기 전이면 탭 변경을 대기
-                        // 경기가 시작된 후 (round_in_progress)에 탭 변경
-                        pendingTabChange.current = targetTabIndex;
+                        // 경기 종료 시점 또는 카운트다운 시작 시 즉시 탭 변경하여 대진표 업데이트
+                        console.log(`[TournamentRoundViewer] 경기 종료/카운트다운 시작, 탭 변경: ${activeTab} -> ${targetTabIndex}, status: ${prevStatus.current} -> ${currentStatus}`);
+                        setActiveTab(targetTabIndex);
                     }
                 }
             }
-            
-            prevNextRoundStartTime.current = nextRoundStartTime;
-        } else if (nextRoundStartTime !== prevNextRoundStartTime.current) {
-            prevNextRoundStartTime.current = nextRoundStartTime;
         }
-    }, [nextRoundStartTime, getRoundsForTabs, tournamentState, rounds, activeTab]);
-
-    // 경기가 시작되면 (round_in_progress 상태) 대기 중인 탭 변경 실행
-    useEffect(() => {
-        if (tournamentState?.status === 'round_in_progress' && pendingTabChange.current !== null) {
-            const targetTabIndex = pendingTabChange.current;
-            if (targetTabIndex !== activeTab) {
-                console.log(`[TournamentRoundViewer] 경기 시작 후 탭 변경: ${activeTab} -> ${targetTabIndex}`);
-                // 약간의 지연을 두어 시뮬레이션이 완전히 시작된 후 탭 변경
-                setTimeout(() => {
-                    setActiveTab(targetTabIndex);
-                    pendingTabChange.current = null;
-                }, 100);
-            } else {
-                pendingTabChange.current = null;
-            }
-        }
-    }, [tournamentState?.status, activeTab]);
+        
+        prevStatus.current = currentStatus;
+        prevNextRoundStartTime.current = nextRoundStartTime;
+    }, [tournamentState?.status, nextRoundStartTime, getRoundsForTabs, tournamentState, rounds, activeTab]);
 
     if (!getRoundsForTabs) {
         const desiredOrder = ["16강", "8강", "4강", "3,4위전", "결승"];
@@ -2548,6 +2558,27 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const [initialMatchPlayers, setInitialMatchPlayers] = useState<{ p1: PlayerForTournament | null, p2: PlayerForTournament | null }>({ p1: null, p2: null });
     const [showConditionPotionModal, setShowConditionPotionModal] = useState(false);
     const [isSimulationHelpOpen, setIsSimulationHelpOpen] = useState(false);
+    const [dungeonStageSummaryData, setDungeonStageSummaryData] = useState<{
+        dungeonType: TournamentType;
+        stage: number;
+        tournamentState: TournamentState;
+        userRank: number;
+        wins: number;
+        losses: number;
+        baseRewards: {
+            gold?: number;
+            materials?: Record<string, number>;
+            equipmentBoxes?: Record<string, number>;
+            changeTickets?: number;
+        };
+        rankReward?: {
+            items?: Array<{ itemId: string; quantity: number }>;
+        };
+        nextStageUnlocked: boolean;
+        dailyScore?: number;
+        previousRank?: number;
+        currentRank?: number;
+    } | null>(null);
     const prevStatusRef = useRef(tournament?.status || 'bracket_ready');
     const initialMatchPlayersSetRef = useRef(false);
     const [nextRoundTrigger, setNextRoundTrigger] = useState(0);
@@ -2584,17 +2615,209 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const isDungeonMode = tournament.currentStageAttempt !== undefined && tournament.currentStageAttempt !== null;
     
     // 던전 완료 시 보상 받기 핸들러
-    const handleCompleteDungeon = () => {
-        if (tournament.currentStageAttempt) {
+    const handleCompleteDungeon = useCallback(() => {
+        if (tournament.currentStageAttempt && (tournament.status === 'complete' || tournament.status === 'eliminated')) {
+            const stage = tournament.currentStageAttempt;
+            const dungeonType = tournament.type;
+            
+            // 유저 플레이어 찾기
+            const userPlayer = tournament.players.find(p => p.id === currentUser.id);
+            if (!userPlayer) return;
+            
+            // 순위 계산 (wins/losses 기준, 모든 라운드의 경기 결과 확인)
+            const playerWins: Record<string, number> = {};
+            const playerLosses: Record<string, number> = {};
+            tournament.players.forEach(p => { 
+                playerWins[p.id] = 0; 
+                playerLosses[p.id] = 0;
+            });
+            
+            // 모든 라운드의 모든 경기 결과 확인
+            tournament.rounds.forEach(round => {
+                if (round.matches) {
+                    round.matches.forEach(m => {
+                        if (m.isFinished && m.winner) {
+                            playerWins[m.winner.id] = (playerWins[m.winner.id] || 0) + 1;
+                            const loser = m.players.find(p => p && p.id !== m.winner?.id);
+                            if (loser) {
+                                playerLosses[loser.id] = (playerLosses[loser.id] || 0) + 1;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // 순위 정렬: 승수 → 패수 → 승률
+            const rankedPlayers = [...tournament.players].sort((a, b) => {
+                if (playerWins[b.id] !== playerWins[a.id]) {
+                    return playerWins[b.id] - playerWins[a.id];
+                }
+                if (playerLosses[a.id] !== playerLosses[b.id]) {
+                    return playerLosses[a.id] - playerLosses[b.id];
+                }
+                const aWinRate = (playerWins[a.id] + playerLosses[a.id]) > 0 ? playerWins[a.id] / (playerWins[a.id] + playerLosses[a.id]) : 0;
+                const bWinRate = (playerWins[b.id] + playerLosses[b.id]) > 0 ? playerWins[b.id] / (playerWins[b.id] + playerLosses[b.id]) : 0;
+                return bWinRate - aWinRate;
+            });
+            const userRank = rankedPlayers.findIndex(p => p.id === currentUser.id) + 1;
+            
+            // 실제 승/패 수집
+            const userWins = playerWins[currentUser.id] || 0;
+            const userLosses = playerLosses[currentUser.id] || 0;
+            
+            // 기본 보상 수집
+            const baseRewards: {
+                gold?: number;
+                materials?: Record<string, number>;
+                equipmentBoxes?: Record<string, number>;
+                changeTickets?: number;
+            } = {};
+            
+            if (tournament.accumulatedGold) {
+                baseRewards.gold = tournament.accumulatedGold;
+            }
+            if (tournament.accumulatedMaterials) {
+                baseRewards.materials = tournament.accumulatedMaterials;
+            }
+            if (tournament.accumulatedEquipmentBoxes) {
+                baseRewards.equipmentBoxes = tournament.accumulatedEquipmentBoxes;
+            }
+            
+            // 변경권은 월드챔피언십의 장비상자 보상에 포함
+            if (dungeonType === 'world' && DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage]?.changeTickets) {
+                baseRewards.changeTickets = DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage].changeTickets;
+            }
+            
+            // 순위 보상
+            const cleared = userRank <= (dungeonType === 'neighborhood' ? 6 : dungeonType === 'national' ? 8 : 16);
+            const rankReward = cleared ? DUNGEON_RANK_REWARDS[dungeonType]?.[stage]?.[userRank] : undefined;
+            
+            // 다음 단계 언락 여부 확인
+            // 서버에서 userRank <= 3일 때 stage + 1을 언락하므로, userRank <= 3이면 언락됨
+            // 모달은 서버 응답 전에 표시되므로, userRank <= 3이면 언락될 것으로 예상
+            const dungeonProgress = currentUser.dungeonProgress?.[dungeonType];
+            // 서버 응답을 받기 전이므로, userRank가 1~3이면 언락될 것으로 예상
+            // 서버 응답 후 useEffect에서 실제 언락 상태로 업데이트됨
+            const nextStage = stage + 1;
+            // 1위, 2위, 3위를 달성했으면 다음 단계가 언락됨 (서버 응답 전이어도 예상값 사용)
+            const nextStageUnlocked = userRank >= 1 && userRank <= 3 && stage < 10 && (
+                dungeonProgress?.unlockedStages?.includes(nextStage) || userRank <= 3 // 서버 응답 전이어도 1~3위면 언락 예상
+            );
+            
+            // 일일 랭킹 점수 계산 (기본 점수 + 순위 보너스)
+            const baseScore = DUNGEON_STAGE_BASE_SCORE[stage] || 0;
+            const rankBonus = DUNGEON_RANK_SCORE_BONUS[userRank] || DUNGEON_DEFAULT_SCORE_BONUS;
+            const dailyScore = Math.round(baseScore * (1 + rankBonus));
+            
+            // 이전 순위 (일일 랭킹에서 가져오기)
+            const previousRank = currentUser.dailyRankings?.championship?.[dungeonType]?.rank;
+            
+            // 현재 순위 계산 (allUsersForRanking을 사용하여 실시간 계산)
+            let currentRank: number | undefined = undefined;
+            if (allUsersForRanking && allUsersForRanking.length > 0) {
+                // 챔피언십 랭킹 계산 (던전 시스템: 최고 클리어 단계 기준)
+                const usersWithProgress = allUsersForRanking
+                    .filter(u => {
+                        if (!u || !u.id) return false;
+                        if (!u.dungeonProgress || !u.dungeonProgress[dungeonType]) return false;
+                        const progress = u.dungeonProgress[dungeonType];
+                        return progress && progress.currentStage > 0;
+                    })
+                    .map(u => {
+                        const progress = u.dungeonProgress![dungeonType];
+                        let maxStage = progress.currentStage || 0;
+                        let maxScoreDiff = -Infinity;
+                        
+                        // 같은 단계면 점수차이 큰 순서
+                        for (const [stageStr, result] of Object.entries(progress.stageResults || {})) {
+                            const res = result as any;
+                            if (res.cleared && parseInt(stageStr) === maxStage) {
+                                if (res.scoreDiff > maxScoreDiff) {
+                                    maxScoreDiff = res.scoreDiff;
+                                }
+                            }
+                        }
+                        
+                        // 6가지 능력치 합계 계산
+                        let totalAbility = 0;
+                        if (u.baseStats) {
+                            totalAbility = Object.values(u.baseStats).reduce((sum: number, stat: any) => sum + (stat || 0), 0);
+                        }
+                        
+                        return {
+                            user: u,
+                            maxStage,
+                            maxScoreDiff: maxScoreDiff === -Infinity ? 0 : maxScoreDiff,
+                            totalAbility
+                        };
+                    })
+                    .sort((a, b) => {
+                        // 1순위: 최고 클리어 단계 (높은 순서)
+                        if (a.maxStage !== b.maxStage) {
+                            return b.maxStage - a.maxStage;
+                        }
+                        // 2순위: 점수차이 (큰 순서)
+                        if (a.maxScoreDiff !== b.maxScoreDiff) {
+                            return b.maxScoreDiff - a.maxScoreDiff;
+                        }
+                        // 3순위: 능력치 합계 (큰 순서)
+                        return b.totalAbility - a.totalAbility;
+                    });
+                
+                const userRankIndex = usersWithProgress.findIndex(entry => entry.user.id === currentUser.id);
+                if (userRankIndex !== -1) {
+                    currentRank = userRankIndex + 1;
+                }
+            }
+            
+            // 모달 데이터 설정
+            setDungeonStageSummaryData({
+                dungeonType,
+                stage,
+                tournamentState: tournament,
+                userRank,
+                wins: userWins,
+                losses: userLosses,
+                baseRewards,
+                rankReward,
+                nextStageUnlocked: !!nextStageUnlocked,
+                dailyScore,
+                previousRank,
+                currentRank
+            });
+            
+            // 서버 액션 호출 (모달은 서버 응답 후 업데이트됨)
             onAction({ 
                 type: 'COMPLETE_DUNGEON_STAGE', 
                 payload: { 
-                    dungeonType: tournament.type, 
-                    stage: tournament.currentStageAttempt 
+                    dungeonType, 
+                    stage 
                 } 
             });
         }
-    };
+    }, [tournament, currentUser.id, currentUser.dungeonProgress, currentUser.dailyRankings, allUsersForRanking, onAction]);
+    
+    // 서버 응답 후 모달 데이터 업데이트 (다음 단계 언락 상태 반영)
+    useEffect(() => {
+        if (dungeonStageSummaryData && currentUser.dungeonProgress) {
+            const dungeonProgress = currentUser.dungeonProgress[dungeonStageSummaryData.dungeonType];
+            if (dungeonProgress) {
+                // 서버에서 언락 처리 후 상태 확인
+                const nextStage = dungeonStageSummaryData.stage + 1;
+                const nextStageUnlocked = dungeonStageSummaryData.userRank <= 3 && 
+                    dungeonStageSummaryData.stage < 10 &&
+                    dungeonProgress.unlockedStages.includes(nextStage);
+                
+                // 언락 상태가 변경되었으면 모달 데이터 업데이트
+                if (nextStageUnlocked !== dungeonStageSummaryData.nextStageUnlocked) {
+                    setDungeonStageSummaryData(prev => prev ? {
+                        ...prev,
+                        nextStageUnlocked
+                    } : null);
+                }
+            }
+        }
+    }, [currentUser.dungeonProgress, dungeonStageSummaryData]);
     
     // 클라이언트에서 시뮬레이션 실행
     const simulatedTournament = useTournamentSimulation(tournament, currentUser);
@@ -3511,7 +3734,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     ) : autoNextCountdown !== null ? (
         <div className="flex items-center justify-center gap-2 text-yellow-400 font-bold text-lg">
-            <span>다음 경기 {autoNextCountdown}초 뒤 시작...</span>
+            <span>다음 경기 준비중... {autoNextCountdown}</span>
         </div>
     ) : null;
 
@@ -3734,7 +3957,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 className={`${isMobile ? 'w-2/5 min-w-[120px]' : 'flex-[1] min-w-0'} bg-gray-800/50 rounded-lg p-1 md:p-2 flex flex-col overflow-hidden`}
                                 style={{ display: 'flex', flexDirection: 'column' }}
                             >
-                                <FinalRewardPanel tournamentState={tournament} currentUser={currentUser} onAction={onAction} />
+                                <FinalRewardPanel tournamentState={tournament} currentUser={currentUser} onAction={onAction} onCompleteDungeon={handleCompleteDungeon} />
                             </div>
                         </div>
                     </div>
@@ -3820,6 +4043,24 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 />
             )}
             {isSimulationHelpOpen && <SimulationArenaHelpModal onClose={() => setIsSimulationHelpOpen(false)} />}
+            {dungeonStageSummaryData && (
+                <DungeonStageSummaryModal
+                    dungeonType={dungeonStageSummaryData.dungeonType}
+                    stage={dungeonStageSummaryData.stage}
+                    tournamentState={dungeonStageSummaryData.tournamentState}
+                    userRank={dungeonStageSummaryData.userRank}
+                    wins={dungeonStageSummaryData.wins}
+                    losses={dungeonStageSummaryData.losses}
+                    baseRewards={dungeonStageSummaryData.baseRewards}
+                    rankReward={dungeonStageSummaryData.rankReward}
+                    nextStageUnlocked={dungeonStageSummaryData.nextStageUnlocked}
+                    dailyScore={dungeonStageSummaryData.dailyScore}
+                    previousRank={dungeonStageSummaryData.previousRank}
+                    currentRank={dungeonStageSummaryData.currentRank}
+                    onClose={() => setDungeonStageSummaryData(null)}
+                    isTopmost={true}
+                />
+            )}
         </div>
     );
 };

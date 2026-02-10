@@ -499,7 +499,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             
             const dungeonProgress = freshUser.dungeonProgress[tournamentType];
             
-            // 토너먼트 완료 시 다음 단계 언락 조건: 3등 이상 달성 시
+            // 토너먼트 완료 시 다음 단계 언락 조건: 1~3등 달성 시 (cleared 조건과 독립적으로 처리)
             // currentStageAttempt가 없으므로 currentStage를 기준으로 함
             const currentStage = dungeonProgress.currentStage || 1;
             const cleared = userRank <= 6; // 6등 이내면 클리어로 간주
@@ -508,13 +508,20 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 if (currentStage > dungeonProgress.currentStage) {
                     dungeonProgress.currentStage = currentStage;
                 }
-                
-                // 다음 단계 언락: 3등 이상이면 다음 단계 언락
-                if (userRank <= 3 && !dungeonProgress.unlockedStages.includes(currentStage + 1) && currentStage < 10) {
-                    dungeonProgress.unlockedStages.push(currentStage + 1);
+            }
+            
+            // 다음 단계 언락: 1~3등이면 다음 단계 언락 (cleared 조건과 독립적으로 처리)
+            if (userRank >= 1 && userRank <= 3 && currentStage < 10) {
+                const nextStage = currentStage + 1;
+                if (!dungeonProgress.unlockedStages.includes(nextStage)) {
+                    dungeonProgress.unlockedStages.push(nextStage);
                     dungeonProgress.unlockedStages.sort((a, b) => a - b);
-                    console.log(`[CLAIM_TOURNAMENT_REWARD] Unlocked next stage ${currentStage + 1} for ${tournamentType}`);
+                    console.log(`[CLAIM_TOURNAMENT_REWARD] ✓ Unlocked next stage ${nextStage} for ${tournamentType} (userRank: ${userRank}, currentStage: ${currentStage})`);
+                } else {
+                    console.log(`[CLAIM_TOURNAMENT_REWARD] Stage ${nextStage} already unlocked for ${tournamentType} (userRank: ${userRank})`);
                 }
+            } else {
+                console.log(`[CLAIM_TOURNAMENT_REWARD] Stage unlock condition not met: userRank=${userRank}, currentStage=${currentStage}, need: userRank 1-3 and currentStage < 10`);
             }
             
             const itemReward = itemRewardInfo.rewards?.[itemRewardKey];

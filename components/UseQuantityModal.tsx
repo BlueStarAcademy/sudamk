@@ -7,7 +7,7 @@ interface UseQuantityModalProps {
     item: InventoryItem;
     currentUser: UserWithStatus;
     onClose: () => void;
-    onConfirm: (itemId: string, quantity: number, itemName?: string) => Promise<void>;
+    onConfirm: (itemId: string, quantity: number, itemName?: string) => Promise<void> | void;
     isTopmost?: boolean;
 }
 
@@ -20,23 +20,43 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
     }, [currentUser.inventory, item.name]);
 
     const [quantity, setQuantity] = useState(1);
-    const [isProcessing, setIsProcessing] = useState(false);
 
+    // totalQuantity가 변경되면 quantity를 조정 (초기 로드 시 또는 수량이 부족해진 경우)
     useEffect(() => {
-        setQuantity(Math.min(quantity, totalQuantity));
-    }, [totalQuantity]);
+        if (totalQuantity > 0 && quantity > totalQuantity) {
+            setQuantity(totalQuantity);
+        } else if (totalQuantity === 0) {
+            setQuantity(0);
+        }
+    }, [totalQuantity]); // quantity는 의존성에 포함하지 않음 (무한 루프 방지)
 
     const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value, 10);
-        if (!isNaN(value)) {
-            setQuantity(Math.max(1, Math.min(totalQuantity, value)));
+        const value = e.target.value;
+        // 빈 문자열이면 1로 설정하지 않고 그대로 둠 (사용자가 입력 중일 수 있음)
+        if (value === '') {
+            setQuantity(0);
+            return;
+        }
+        const numValue = parseInt(value, 10);
+        if (!isNaN(numValue)) {
+            setQuantity(Math.max(1, Math.min(totalQuantity, numValue)));
         } else {
             setQuantity(1);
         }
     };
 
     const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setQuantity(Number(e.target.value));
+        const value = Number(e.target.value);
+        setQuantity(value);
+    };
+    
+    // 입력 필드가 blur될 때 유효성 검사
+    const handleQuantityBlur = () => {
+        if (quantity < 1) {
+            setQuantity(1);
+        } else if (quantity > totalQuantity) {
+            setQuantity(totalQuantity);
+        }
     };
 
     return (
@@ -46,7 +66,11 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
             windowId="useQuantity" 
             isTopmost={isTopmost}
         >
-            <div className="p-4 text-on-panel flex flex-col items-center">
+            <div 
+                className="p-4 text-on-panel flex flex-col items-center"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="mb-4 text-center w-full">
                     <h3 className="text-lg font-bold mb-2">사용할 수량을 선택하세요</h3>
                     <div className="flex items-center justify-center gap-4 my-4">
@@ -63,10 +87,7 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                 </div>
 
                 <div className="w-full space-y-4 mb-4">
-                    <div
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                    >
+                    <div>
                         <label htmlFor="quantity-slider" className="block text-sm font-medium text-secondary text-center mb-2">
                             사용 수량: <span className="font-bold text-highlight">{quantity.toLocaleString()} / {totalQuantity.toLocaleString()}</span>개
                         </label>
@@ -91,8 +112,9 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                                 type="number"
                                 min="1"
                                 max={totalQuantity}
-                                value={quantity}
+                                value={quantity || ''}
                                 onChange={handleQuantityChange}
+                                onBlur={handleQuantityBlur}
                                 onMouseDown={(e) => e.stopPropagation()}
                                 onClick={(e) => e.stopPropagation()}
                                 onFocus={(e) => e.stopPropagation()}
@@ -108,34 +130,23 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                     </Button>
                     <Button 
                         onClick={async () => {
-                            if (isProcessing) return;
-                            setIsProcessing(true);
-                            try {
-                                const result = await onConfirm(item.id, quantity, item.name);
-                                // onConfirm이 성공적으로 완료되면 isProcessing을 false로 설정
-                                // InventoryModal에서 obtainedItemsBulk를 확인하여 모달을 닫을지 결정함
-                                // 여기서는 onConfirm이 완료되면 모달을 닫지 않고, InventoryModal에서 처리하도록 함
-                                if (result && result.clientResponse?.obtainedItemsBulk) {
-                                    // 성공적으로 처리되었고 결과가 있으면 모달 닫기 (InventoryModal에서도 처리하지만 여기서도 닫기)
-                                    setIsProcessing(false);
-                                } else if (result && !result.error) {
-                                    // 응답이 있고 에러가 없으면 성공으로 간주
-                                    setIsProcessing(false);
-                                } else {
-                                    // 에러가 있거나 응답이 없으면 isProcessing을 false로 설정하여 재시도 가능하도록 함
-                                    setIsProcessing(false);
+                            // onConfirm을 먼저 호출하여 액션이 실행되도록 함
+                            if (quantity > 0 && quantity <= totalQuantity) {
+                                try {
+                                    await onConfirm(item.id, quantity, item.name);
+                                } catch (error) {
+                                    console.error('[UseQuantityModal] Failed to confirm:', error);
                                 }
-                            } catch (error) {
-                                console.error('[UseQuantityModal] Error confirming:', error);
-                                setIsProcessing(false);
-                                // 에러 발생 시 모달은 열어둠
+                                // 모달 닫기는 onConfirm이 완료된 후에 실행되도록 함
+                                // InventoryModal에서도 모달을 닫지만, 여기서도 닫아서 확실히 처리
+                                onClose();
                             }
                         }} 
                         colorScheme="purple" 
                         className="flex-1"
-                        disabled={quantity === 0 || quantity > totalQuantity || isProcessing}
+                        disabled={quantity === 0 || quantity > totalQuantity || totalQuantity === 0}
                     >
-                        {isProcessing ? '처리 중...' : `${quantity.toLocaleString()}개 사용`}
+                        {quantity.toLocaleString()}개 사용
                     </Button>
                 </div>
             </div>

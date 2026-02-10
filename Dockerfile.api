@@ -32,7 +32,11 @@ FROM base AS runner
 WORKDIR /app
 ENV PORT=4000
 
+# Copy all node_modules including tsx
 COPY --from=deps /app/node_modules ./node_modules
+
+# Verify tsx is available (for debugging)
+RUN test -d node_modules/tsx || (echo "WARNING: tsx not found in node_modules" && ls -la node_modules/ | grep tsx || echo "tsx directory not found")
 
 # Copy generated Prisma artifacts + backend sources
 COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma

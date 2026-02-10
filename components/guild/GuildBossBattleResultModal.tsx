@@ -96,20 +96,29 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         
         // 장비
         if (rewards.equipment) {
+            // 서버에서 전달된 전체 장비 객체 사용 (item 필드)
+            const equipmentItem = (rewards.equipment as any).item;
+            
             // grade가 문자열일 수 있으므로 정규화
-            const equipmentGrade = typeof rewards.equipment.grade === 'string' 
-                ? (rewards.equipment.grade as ItemGrade)
-                : rewards.equipment.grade;
+            const equipmentGrade = equipmentItem?.grade 
+                ? (typeof equipmentItem.grade === 'string' ? equipmentItem.grade as ItemGrade : equipmentItem.grade)
+                : (typeof rewards.equipment.grade === 'string' 
+                    ? (rewards.equipment.grade as ItemGrade)
+                    : rewards.equipment.grade);
             const isLegendaryOrMythic = equipmentGrade === ItemGrade.Legendary || equipmentGrade === ItemGrade.Mythic;
             
-            // 장비 이름 확인 및 디버깅
-            const equipmentName = rewards.equipment.name;
+            // 실제 장비 객체가 있으면 그 정보 사용, 없으면 기존 정보 사용
+            const equipmentName = equipmentItem?.name || rewards.equipment.name;
+            const equipmentImage = equipmentItem?.image || rewards.equipment.image;
+            const equipmentSlot = equipmentItem?.slot || rewards.equipment.slot;
+            
             if (!equipmentName) {
                 console.warn('[GuildBossBattleResultModal] Equipment name is missing:', {
                     equipment: rewards.equipment,
-                    hasName: !!rewards.equipment.name,
-                    hasImage: !!rewards.equipment.image,
-                    hasSlot: !!rewards.equipment.slot,
+                    hasItem: !!equipmentItem,
+                    hasName: !!equipmentName,
+                    hasImage: !!equipmentImage,
+                    hasSlot: !!equipmentSlot,
                     grade: equipmentGrade,
                     equipmentKeys: Object.keys(rewards.equipment)
                 });
@@ -121,12 +130,14 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             cards.push({
                 type: 'equipment',
                 name: displayName,
-                image: rewards.equipment.image || gradeBackgrounds[equipmentGrade] || '/images/equipments/normalbgi.png',
+                image: equipmentImage || gradeBackgrounds[equipmentGrade] || '/images/equipments/normalbgi.png',
                 grade: equipmentGrade,
                 isSpecial: isLegendaryOrMythic,
                 equipment: {
-                    slot: rewards.equipment.slot ? slotNames[rewards.equipment.slot] : undefined,
+                    slot: equipmentSlot ? slotNames[equipmentSlot] : undefined,
                     fullName: equipmentName || displayName, // fullName도 실제 이름 사용
+                    // 실제 장비 객체 저장 (모달에서 상세 정보 표시용)
+                    item: equipmentItem,
                 },
             });
         }

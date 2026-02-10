@@ -32,27 +32,6 @@ function usePrevious<T>(value: T): T | undefined {
   return ref.current;
 }
 
-const AiChallengePanel: React.FC<{ mode: GameMode | 'strategic' | 'playful'; onOpenModal: () => void }> = ({ mode, onOpenModal }) => {
-    const isStrategic = mode === 'strategic' || SPECIAL_GAME_MODES.some(m => m.mode === mode);
-    const isPlayful = mode === 'playful' || PLAYFUL_AI_MODES.includes(mode as GameMode);
-
-    if (!isStrategic && !isPlayful) {
-        return null;
-    }
-
-    return (
-        <div className="bg-panel rounded-lg shadow-lg p-3 flex items-center justify-between flex-shrink-0 text-on-panel">
-            <div className="flex items-center gap-3">
-                <Avatar userId={aiUserId} userName="AI" size={40} className="border-2 border-purple-500" />
-                <div>
-                    <h3 className="text-base font-bold text-purple-300">AI와 대결하기</h3>
-                    <p className="text-xs text-tertiary">AI와 즉시 대국을 시작합니다.</p>
-                </div>
-            </div>
-            <Button onClick={onOpenModal} colorScheme="purple" className="!text-sm !py-1.5">설정 및 시작</Button>
-        </div>
-    );
-};
 
 const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }> = ({ mode }) => {
     const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
@@ -240,41 +219,17 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   // 전략/놀이바둑 대기실에서는 해당 카테고리의 게임만 표시
   const ongoingGames = useMemo(() => {
     const allGames = Object.values(liveGames) as LiveGameSession[];
-    let filteredGames: LiveGameSession[];
-    
     if (mode === 'strategic') {
       // 전략바둑 대기실: 전략바둑 게임만 표시
-      filteredGames = allGames.filter(g => SPECIAL_GAME_MODES.some(m => m.mode === g.mode));
+      return allGames.filter(g => SPECIAL_GAME_MODES.some(m => m.mode === g.mode));
     } else if (mode === 'playful') {
       // 놀이바둑 대기실: 놀이바둑 게임만 표시
-      filteredGames = allGames.filter(g => PLAYFUL_GAME_MODES.some(m => m.mode === g.mode));
+      return allGames.filter(g => PLAYFUL_GAME_MODES.some(m => m.mode === g.mode));
     } else {
       // 단일 게임 모드 대기실: 해당 모드 게임만 표시
-      filteredGames = allGames.filter(g => g.mode === mode);
+      return allGames.filter(g => g.mode === mode);
     }
-
-    // 필터링: AI 게임 제외, 종료된 게임 중 대국실에 아무도 없는 경우 제외
-    return filteredGames.filter(g => {
-      // AI 게임은 제외 (대기실에서 AI와 대결하기로 생성된 게임)
-      if (g.isAiGame && !g.isSinglePlayer && g.gameCategory !== 'tower' && g.gameCategory !== 'singleplayer') {
-        return false;
-      }
-      
-      // 종료된 게임인 경우 대국실에 참가자나 관전자가 있는지 확인
-      if (g.gameStatus === 'ended' || g.gameStatus === 'no_contest') {
-        // 게임에 참가 중이거나 관전 중인 사용자가 있는지 확인
-        const hasParticipants = onlineUsers.some(u => 
-          (u.gameId === g.id && (u.status === UserStatus.InGame || u.status === UserStatus.Spectating)) ||
-          (u.spectatingGameId === g.id && u.status === UserStatus.Spectating)
-        );
-        // 참가자나 관전자가 없으면 목록에서 제외
-        return hasParticipants;
-      }
-      
-      // 진행 중인 게임은 표시
-      return true;
-    });
-  }, [liveGames, mode, onlineUsers]);
+  }, [liveGames, mode]);
   
   const usersInThisRoom = useMemo(() => {
         const isStrategicLobby = mode === 'strategic';
@@ -321,7 +276,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   }
     
   return (
-    <div className="bg-primary text-primary flex flex-col h-screen max-w-full overflow-hidden">
+    <div className="bg-primary text-primary flex flex-col h-full max-w-full">
       <header className="flex justify-between items-center mb-4 flex-shrink-0 px-2 sm:px-4 lg:px-6 pt-2 sm:pt-4 lg:pt-6">
         <div className="flex-1">
           <button onClick={onBackToLobby} className="p-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
@@ -373,17 +328,26 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           )}
         </div>
       </header>
-      <div className="flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6 overflow-hidden">
+      <div className="flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6">
         {isMobile ? (
           <>
             <div className="flex flex-col h-full gap-2">
                 <div className="flex-shrink-0"><AnnouncementBoard mode={mode} /></div>
-                <div className="flex-shrink-0"><AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} /></div>
-                <div className="h-[280px] min-h-0 flex-shrink-0">
+                <div className="h-[350px] min-h-0">
                     <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
                 </div>
-                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg flex flex-col" style={{ minHeight: '300px' }}>
-                    <PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} negotiations={Object.values(negotiations)} onViewUser={handlers.openViewingUser} lobbyType={isStrategic ? 'strategic' : 'playful'} userCount={usersInThisRoom.length} />
+                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg flex flex-col">
+                    <PlayerList 
+                      users={usersInThisRoom} 
+                      mode={mode} 
+                      onAction={handlers.handleAction} 
+                      currentUser={currentUserWithStatus} 
+                      negotiations={Object.values(negotiations)} 
+                      onViewUser={handlers.openViewingUser} 
+                      lobbyType={isStrategic ? 'strategic' : 'playful'} 
+                      userCount={usersInThisRoom.length}
+                      onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
+                    />
                 </div>
             </div>
 
@@ -427,16 +391,18 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       <div className="flex-shrink-0">
                           <AnnouncementBoard mode={mode} />
                       </div>
-
-                      <div className="h-[350px] min-h-0 flex-shrink-0">
+                      
+                      {/* 진행중인 대국 패널을 위로 이동 */}
+                      <div className="h-[500px] min-h-0 flex-shrink-0">
                           <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
                       </div>
-                      {/* 채팅창과 랭킹전 패널을 나란히 배치 */}
+                      
+                      {/* 채팅창과 랭킹전 패널 - 랭킹 패널 하단과 맞추기 위해 flex-1 사용 */}
                       <div className="flex-1 flex flex-row gap-4 min-h-0">
                           <div className="flex-1 flex flex-col bg-panel border border-color rounded-lg shadow-lg min-h-0">
                               <ChatWindow messages={chatMessages} mode={chatChannel} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
                           </div>
-                          <div className="w-80 flex-shrink-0 bg-panel border border-color rounded-lg shadow-lg min-h-0">
+                          <div className="w-80 flex-shrink-0 bg-panel border border-color rounded-lg shadow-lg">
                               <RankedMatchPanel 
                                 lobbyType={isStrategic ? 'strategic' : 'playful'}
                                 currentUser={currentUserWithStatus}
@@ -457,17 +423,27 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   </div>
               
               {/* Right Sidebar Column */}
-              <div className="lg:col-span-2 flex flex-col gap-4 min-h-0 h-full">
+              <div className="lg:col-span-2 flex flex-col gap-4">
                 <div className="flex-1 flex flex-row gap-4 items-stretch min-h-0">
-                  <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0 flex flex-col min-h-0">
-                    <PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} negotiations={Object.values(negotiations)} onViewUser={handlers.openViewingUser} lobbyType={isStrategic ? 'strategic' : 'playful'} userCount={usersInThisRoom.length} onOpenAiChallengeModal={() => setIsAiChallengeModalOpen(true)} />
+                  <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0">
+                    <PlayerList 
+                      users={usersInThisRoom} 
+                      mode={mode} 
+                      onAction={handlers.handleAction} 
+                      currentUser={currentUserWithStatus} 
+                      negotiations={Object.values(negotiations)} 
+                      onViewUser={handlers.openViewingUser} 
+                      lobbyType={isStrategic ? 'strategic' : 'playful'} 
+                      userCount={usersInThisRoom.length}
+                      onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
+                    />
                   </div>
                   <div className="w-24 flex-shrink-0">
                     <QuickAccessSidebar />
                   </div>
                 </div>
 
-                <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-h-0 flex flex-col">
+                <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg">
                   <RankingList currentUser={currentUserWithStatus} mode={mode} onViewUser={handlers.openViewingUser} onShowTierInfo={() => setIsTierInfoModalOpen(true)} onShowPastRankings={handlers.openPastRankings} lobbyType={isStrategic ? 'strategic' : 'playful'} />
                 </div>
               </div>
