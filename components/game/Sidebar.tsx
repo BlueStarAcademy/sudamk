@@ -169,6 +169,7 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
         if (mode === GameMode.Curling) {
             const speedLabel = CURLING_GAUGE_SPEEDS.find(s => s.value === settings.curlingGaugeSpeed)?.label || '보통';
             details.push(renderSetting("스톤 개수", `${settings.curlingStoneCount}개`));
+            details.push(renderSetting("라운드", `${settings.curlingRounds}R`));
             details.push(renderSetting("게이지 속도", speedLabel));
             details.push(renderSetting("슬로우 아이템", `${settings.curlingSlowItemCount}개`));
             details.push(renderSetting("조준선 아이템", `${settings.curlingAimingLineItemCount}개`));

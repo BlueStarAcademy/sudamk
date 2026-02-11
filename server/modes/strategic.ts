@@ -616,6 +616,46 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                  game.turnStartTime = undefined;
             }
 
+            // 싱글플레이/도전의 탑 자동 계가: 사용자가 돌을 놓은 후 totalTurns 업데이트 및 계가 트리거
+            const isAutoScoringMode = (game.isSinglePlayer || game.gameCategory === 'tower') && game.stageId;
+            if (isAutoScoringMode) {
+                let autoScoringTurns: number | undefined;
+                if (game.gameCategory === 'tower') {
+                    autoScoringTurns = (game.settings as any)?.autoScoringTurns;
+                } else {
+                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
+                    const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+                    autoScoringTurns = stage?.autoScoringTurns;
+                }
+                
+                if (autoScoringTurns !== undefined) {
+                    const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
+                    const newTotalTurns = validMoves.length;
+                    game.totalTurns = newTotalTurns;
+                    
+                    if (newTotalTurns >= autoScoringTurns) {
+                        const gameType = game.gameCategory === 'tower' ? 'Tower' : 'SinglePlayer';
+                        console.log(`[handleStrategicAction] Auto-scoring triggered (user placed last stone): totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, ${gameType}`);
+                        game.gameStatus = 'scoring';
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('../socket.js');
+                        const gameToBroadcast = { ...game };
+                        delete (gameToBroadcast as any).boardState;
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                        try {
+                            await getGameResult(game);
+                        } catch (scoringError: any) {
+                            console.error(`[handleStrategicAction] Error during auto-scoring for game ${game.id}:`, scoringError?.message);
+                        }
+                        return {};
+                    }
+                    
+                    if (newTotalTurns === autoScoringTurns - 1) {
+                        console.log(`[handleStrategicAction] Last turn reached: totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, next turn will trigger auto-scoring after AI move`);
+                    }
+                }
+            }
+
             // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
             if (game.isAiGame && game.currentPlayer !== types.Player.None) {
                 const { aiUserId } = await import('../aiPlayer.js');

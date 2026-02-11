@@ -1,7 +1,13 @@
 import React, { useMemo } from 'react';
 import Button from './Button.js';
 import { LiveGameSession, GameMode, Player, ServerAction } from '../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants.js';
+import {
+  SPECIAL_GAME_MODES,
+  PLAYFUL_GAME_MODES,
+  DEFAULT_KOMI,
+  ALKKAGI_GAUGE_SPEEDS,
+  CURLING_GAUGE_SPEEDS,
+} from '../constants.js';
 
 interface Props {
   session: LiveGameSession;
@@ -70,9 +76,91 @@ const formatColor = (color?: Player.Black | Player.White) => {
   return '랜덤';
 };
 
+/** 모드별로 대기실에서 설정한 내용과 동일한 설정 항목을 표시 */
+const getSettingsRows = (session: LiveGameSession): { label: string; value: React.ReactNode }[] => {
+  const { mode, settings } = session;
+  const modesWithKomi = [GameMode.Standard, GameMode.Speed, GameMode.Base, GameMode.Hidden, GameMode.Missile, GameMode.Mix];
+  const modesWithoutBoardSize = [GameMode.Alkkagi, GameMode.Curling, GameMode.Dice];
+  const modesWithoutTime = [GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief];
+  const rows: { label: string; value: React.ReactNode }[] = [];
+
+  if (!modesWithoutBoardSize.includes(mode)) {
+    rows.push({ label: '판 크기', value: `${settings.boardSize}x${settings.boardSize}` });
+  }
+  if (modesWithKomi.includes(mode) && !settings.mixedModes?.includes(GameMode.Base)) {
+    rows.push({ label: '덤', value: `${session.finalKomi ?? settings.komi ?? DEFAULT_KOMI}집` });
+  }
+  if (!modesWithoutTime.includes(mode)) {
+    if (settings.timeLimit && settings.timeLimit > 0) {
+      rows.push({
+        label: '시간',
+        value: mode === GameMode.Speed
+          ? `${settings.timeLimit}분 · ${settings.timeIncrement}초 피셔`
+          : `${settings.timeLimit}분 · 초읽기 ${settings.byoyomiTime}초 × ${settings.byoyomiCount}회`,
+      });
+    } else {
+      rows.push({ label: '시간', value: '없음' });
+    }
+  }
+  if ([GameMode.Dice, GameMode.Alkkagi, GameMode.Curling].includes(mode)) {
+    rows.push({ label: '내 색', value: formatColor(settings.player1Color) });
+  }
+
+  // 모드별 전용 설정
+  if (mode === GameMode.Omok || mode === GameMode.Ttamok) {
+    rows.push({ label: '쌍삼 금지', value: settings.has33Forbidden ? '금지' : '가능' });
+    rows.push({ label: '장목 금지', value: settings.hasOverlineForbidden ? '금지' : '가능' });
+  }
+  if (mode === GameMode.Ttamok) {
+    rows.push({ label: '따내기 목표', value: `${settings.captureTarget}개` });
+  }
+  if (mode === GameMode.Capture || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Capture))) {
+    rows.push({ label: '따내기 목표', value: `${settings.captureTarget}개` });
+  }
+  if (mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base))) {
+    rows.push({ label: '베이스돌', value: `${settings.baseStones}개` });
+  }
+  if (mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden))) {
+    rows.push({ label: '히든돌', value: `${settings.hiddenStoneCount}개` });
+    rows.push({ label: '스캔', value: `${settings.scanCount}개` });
+  }
+  if (mode === GameMode.Missile || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Missile))) {
+    rows.push({ label: '미사일', value: `${settings.missileCount}개` });
+  }
+  if (mode === GameMode.Mix) {
+    rows.push({ label: '조합 규칙', value: settings.mixedModes?.join(', ') ?? '-' });
+  }
+  if (mode === GameMode.Dice) {
+    rows.push({ label: '라운드', value: `${settings.diceGoRounds}R` });
+    rows.push({ label: '홀수 아이템', value: `${settings.oddDiceCount}개` });
+    rows.push({ label: '짝수 아이템', value: `${settings.evenDiceCount}개` });
+  }
+  if (mode === GameMode.Alkkagi) {
+    const speedLabel = ALKKAGI_GAUGE_SPEEDS.find(s => s.value === settings.alkkagiGaugeSpeed)?.label || '보통';
+    rows.push({ label: '라운드', value: `${settings.alkkagiRounds}R` });
+    rows.push({ label: '돌 개수', value: `${settings.alkkagiStoneCount}개` });
+    rows.push({ label: '배치 방식', value: String(settings.alkkagiPlacementType ?? '-') });
+    rows.push({ label: '배치 전장', value: String(settings.alkkagiLayout ?? '-') });
+    rows.push({ label: '게이지 속도', value: speedLabel });
+    rows.push({ label: '슬로우 아이템', value: `${settings.alkkagiSlowItemCount}개` });
+    rows.push({ label: '조준선 아이템', value: `${settings.alkkagiAimingLineItemCount}개` });
+  }
+  if (mode === GameMode.Curling) {
+    const speedLabel = CURLING_GAUGE_SPEEDS.find(s => s.value === settings.curlingGaugeSpeed)?.label || '보통';
+    rows.push({ label: '스톤 개수', value: `${settings.curlingStoneCount}개` });
+    rows.push({ label: '라운드', value: `${settings.curlingRounds}R` });
+    rows.push({ label: '게이지 속도', value: speedLabel });
+    rows.push({ label: '슬로우 아이템', value: `${settings.curlingSlowItemCount}개` });
+    rows.push({ label: '조준선 아이템', value: `${settings.curlingAimingLineItemCount}개` });
+  }
+
+  return rows;
+};
+
 const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
   const meta = useMemo(() => getModeMeta(session.mode), [session.mode]);
   const winConditions = useMemo(() => getWinConditions(session), [session]);
+  const settingsRows = useMemo(() => getSettingsRows(session), [session]);
 
   const handleStart = () => {
     onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
@@ -119,25 +207,12 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
             <div className="overflow-hidden rounded-lg border border-color">
               <table className="w-full text-sm">
                 <tbody className="[&>tr:nth-child(odd)]:bg-secondary/30">
-                  <tr className="border-b border-color">
-                    <td className="px-3 py-2 text-tertiary w-32">판 크기</td>
-                    <td className="px-3 py-2 font-semibold">{session.settings.boardSize}줄</td>
-                  </tr>
-                  <tr className="border-b border-color">
-                    <td className="px-3 py-2 text-tertiary">덤</td>
-                    <td className="px-3 py-2 font-semibold">{session.settings.komi}집</td>
-                  </tr>
-                  <tr className="border-b border-color">
-                    <td className="px-3 py-2 text-tertiary">시간</td>
-                    <td className="px-3 py-2 font-semibold">
-                      {session.settings.timeLimit}분
-                      <span className="text-tertiary font-normal"> · 초읽기 {session.settings.byoyomiTime}초 × {session.settings.byoyomiCount}회</span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2 text-tertiary">내 색</td>
-                    <td className="px-3 py-2 font-semibold">{formatColor(session.settings.player1Color)}</td>
-                  </tr>
+                  {settingsRows.map((row) => (
+                    <tr key={row.label} className="border-b border-color last:border-b-0">
+                      <td className="px-3 py-2 text-tertiary w-32">{row.label}</td>
+                      <td className="px-3 py-2 font-semibold">{row.value}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

@@ -713,11 +713,17 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                  game.turnStartTime = undefined;
             }
 
-            // 싱글플레이 자동 계가 체크: 사용자가 돌을 놓은 후 totalTurns 업데이트
-            if (game.isSinglePlayer && game.stageId) {
-                const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-                const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
-                const autoScoringTurns = stage?.autoScoringTurns;
+            // 싱글플레이/도전의 탑 자동 계가: 사용자가 돌을 놓은 후 totalTurns 업데이트 및 계가 트리거
+            const isAutoScoringMode = (game.isSinglePlayer || game.gameCategory === 'tower') && game.stageId;
+            if (isAutoScoringMode) {
+                let autoScoringTurns: number | undefined;
+                if (game.gameCategory === 'tower') {
+                    autoScoringTurns = (game.settings as any)?.autoScoringTurns;
+                } else {
+                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
+                    const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+                    autoScoringTurns = stage?.autoScoringTurns;
+                }
                 
                 if (autoScoringTurns !== undefined) {
                     // 유효한 수만 카운팅 (패스 제외)
@@ -725,8 +731,25 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     const newTotalTurns = validMoves.length;
                     game.totalTurns = newTotalTurns;
                     
-                    // 마지막 턴에 사용자가 돌을 놓은 경우 체크
-                    // totalTurns가 autoScoringTurns-1이면 다음 AI 턴이 마지막 턴이므로 AI가 반드시 돌을 놓아야 함
+                    // totalTurns가 autoScoringTurns 이상이면 계가 트리거 (사용자가 마지막 수를 둔 경우)
+                    if (newTotalTurns >= autoScoringTurns) {
+                        const gameType = game.gameCategory === 'tower' ? 'Tower' : 'SinglePlayer';
+                        console.log(`[handleStandardAction] Auto-scoring triggered (user placed last stone): totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, ${gameType}`);
+                        game.gameStatus = 'scoring';
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('../socket.js');
+                        const gameToBroadcast = { ...game };
+                        delete (gameToBroadcast as any).boardState;
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                        try {
+                            await getGameResult(game);
+                        } catch (scoringError: any) {
+                            console.error(`[handleStandardAction] Error during auto-scoring for game ${game.id}:`, scoringError?.message);
+                        }
+                        return {};
+                    }
+                    
+                    // totalTurns가 autoScoringTurns-1이면 다음 AI 턴이 마지막 턴
                     if (newTotalTurns === autoScoringTurns - 1) {
                         console.log(`[handleStandardAction] Last turn reached: totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, next turn will trigger auto-scoring after AI move`);
                     }

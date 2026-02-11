@@ -154,11 +154,34 @@ const generateTowerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, 
     return { board, blackPattern, whitePattern };
 };
 
-// AI 레벨 결정 (도전의 탑은 층수에 따라 AI 레벨 설정)
+// 1-19층: goAiBot (내장 AI), 20층+: 그누고 사용
+const TOWER_GNUGO_LEVEL_RANGES: { floorMin: number; floorMax: number; gnugoLevel: number }[] = [
+    { floorMin: 20, floorMax: 29, gnugoLevel: 1 },  // 그누고 1단계
+    { floorMin: 30, floorMax: 39, gnugoLevel: 2 },  // 그누고 2단계
+    { floorMin: 40, floorMax: 49, gnugoLevel: 3 },  // 그누고 3단계
+    { floorMin: 50, floorMax: 59, gnugoLevel: 4 },  // 그누고 4단계
+    { floorMin: 60, floorMax: 69, gnugoLevel: 5 },  // 그누고 5단계
+    { floorMin: 70, floorMax: 79, gnugoLevel: 6 },  // 그누고 6단계
+    { floorMin: 80, floorMax: 84, gnugoLevel: 7 },  // 그누고 7단계
+    { floorMin: 85, floorMax: 89, gnugoLevel: 8 },  // 그누고 8단계
+    { floorMin: 90, floorMax: 94, gnugoLevel: 9 },  // 그누고 9단계
+    { floorMin: 95, floorMax: 100, gnugoLevel: 10 }, // 그누고 10단계
+];
+
+/** 1-19층: goAiBot 레벨 반환. 20층+: 그누고 사용 구간이므로 fallback용 goAiBot 레벨 반환 */
 const getAiLevelFromFloor = (floor: number): number => {
-    if (floor <= 20) return 8; // 1-20층: 8단계
-    if (floor <= 60) return 9; // 21-60층: 9단계
-    return 10; // 61-100층: 10단계
+    if (floor <= 19) {
+        // 1-19층: goAiBot만 사용, 층에 따라 난이도 조절 (1~5)
+        return Math.min(5, Math.max(1, Math.floor(floor / 4) + 1));
+    }
+    return 8; // 20층+ fallback용
+};
+
+/** 20층 이상에서 사용할 그누고 레벨 (1-10). 1-19층이면 null (그누고 미사용) */
+export const getGnuGoLevelFromTowerFloor = (floor: number): number | null => {
+    if (floor <= 19) return null;
+    const range = TOWER_GNUGO_LEVEL_RANGES.find(r => floor >= r.floorMin && floor <= r.floorMax);
+    return range ? range.gnugoLevel : 10; // 기본 최강
 };
 
 export const handleTowerAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {

@@ -83,22 +83,22 @@ app.get('/api/health', async (req, res) => {
 // GnuGo move generation endpoint
 app.post('/api/gnugo/move', async (req, res) => {
     try {
-        const { boardState, boardSize, player, moveHistory } = req.body;
+        const { boardState, boardSize, player, moveHistory, level } = req.body;
         
         if (!boardState || !boardSize) {
             return res.status(400).json({ error: 'Invalid request: boardState and boardSize are required' });
         }
 
-        console.log(`[GnuGo Server] Received move request: boardSize=${boardSize}, player=${player}`);
+        const levelNum = level !== undefined ? parseInt(String(level), 10) : undefined;
+        console.log(`[GnuGo Server] Received move request: boardSize=${boardSize}, player=${player}, level=${levelNum ?? 'default'}`);
         
-        // Get GnuGo manager and generate move
-        const { getGnuGoManager } = await import('./gnugoService.js');
-        const manager = getGnuGoManager();
-        const move = await manager.generateMove({
+        const { generateGnuGoMove } = await import('./gnugoService.js');
+        const move = await generateGnuGoMove({
             boardState,
             boardSize,
             player: player || 'black',
-            moveHistory: moveHistory || []
+            moveHistory: moveHistory || [],
+            level: (levelNum >= 1 && levelNum <= 10) ? levelNum : undefined
         });
         
         console.log(`[GnuGo Server] Move generated: (${move.x}, ${move.y})`);

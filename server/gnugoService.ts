@@ -46,6 +46,8 @@ interface GenerateMoveRequest {
     boardSize: number;
     player: 'black' | 'white' | string;
     moveHistory: Array<{ x: number; y: number; player: number }>;
+    /** GnuGo level 1-10 (optional, per-request override) */
+    level?: number;
 }
 
 // Singleton manager instance
@@ -273,12 +275,16 @@ async function generateGnuGoMoveViaHttp(request: GenerateMoveRequest, apiUrl?: s
     const httpModule = url.protocol === 'https:' ? https : http;
     
     return new Promise((resolve, reject) => {
-        const requestData = JSON.stringify({
+        const body: Record<string, unknown> = {
             boardState: request.boardState,
             boardSize: request.boardSize,
             player: request.player,
             moveHistory: request.moveHistory
-        });
+        };
+        if (request.level !== undefined && request.level >= 1 && request.level <= 10) {
+            body.level = request.level;
+        }
+        const requestData = JSON.stringify(body);
         
         const options = {
             hostname: url.hostname,
@@ -376,6 +382,12 @@ export async function generateGnuGoMove(request: GenerateMoveRequest): Promise<P
             await sendGtpCommand(process, cmd, 2000);
         }
         
+        // Per-request level override (GnuGo GTP "level" command: 1-10)
+        const levelToUse = (request as GenerateMoveRequest).level;
+        if (levelToUse !== undefined && levelToUse >= 1 && levelToUse <= 10) {
+            await sendGtpCommand(process, `level ${levelToUse}`, 2000);
+        }
+        
         // Generate move
         const genMoveResponse = await sendGtpCommand(process, `genmove ${color}`, 10000);
         
@@ -405,9 +417,12 @@ export function getGnuGoManager(): GnuGoManager {
 }
 
 /**
- * Check if GnuGo is available
+ * Check if GnuGo is available (HTTP API or local process)
  */
 export function isGnuGoAvailable(): boolean {
+    // HTTP API 사용 가능하면 true (로컬 프로세스 없이 Railway 서버 사용)
+    if (USE_HTTP_API && GNUGO_API_URL) return true;
+    // 로컬 프로세스 사용
     return gnuGoManager.isReady && gnuGoManager.process !== null && !gnuGoManager.process.killed;
 }
 

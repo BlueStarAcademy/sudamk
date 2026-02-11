@@ -2,6 +2,7 @@ import type { ServerAction, User, VolatileState } from '../../shared/types/index
 import { Player } from '../../shared/types/enums.js';
 import * as db from '../db.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
+import { aiUserId } from '../aiPlayer.js';
 
 export async function handleAiAction(
   volatileState: VolatileState,

@@ -405,25 +405,35 @@ export async function makeGoAiBotMove(
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
     
-    // GnuGo를 메인으로 사용, 실패 시 goAiBot으로 fallback
+    // 도전의 탑: 1-19층은 goAiBot만 사용, 20층+는 그누고 사용 (Railway 배포 서버)
+    const isTower = game.gameCategory === 'tower';
+    const towerFloor = game.towerFloor ?? 0;
+    const gnuGoLevelForTower = isTower ? (await import('./actions/towerActions.js')).getGnuGoLevelFromTowerFloor(towerFloor) : null;
+    const shouldUseGnuGo = !isTower || gnuGoLevelForTower !== null; // 1-19층이면 false
+    
     let selectedMove: Point;
     let useGnuGoMove = false;
     
     try {
-        if (isGnuGoAvailable()) {
+        if (shouldUseGnuGo && isGnuGoAvailable()) {
             // AI가 볼 수 있는 보드 상태 (유저의 히든 돌 제거)
             const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
             
             // GnuGo에 필요한 플레이어 문자열 변환 (Player.Black = 1, Player.White = 2)
             const playerString = aiPlayerEnum === types.Player.Black ? 'black' : 'white';
             
-            // GnuGo로 수 생성 시도
-            const gnuGoMove = await generateGnuGoMove({
+            const moveRequest: Parameters<typeof generateGnuGoMove>[0] = {
                 boardState: aiBoardState,
                 boardSize: game.settings.boardSize,
                 player: playerString,
                 moveHistory: game.moveHistory || []
-            });
+            };
+            if (gnuGoLevelForTower !== null) {
+                moveRequest.level = gnuGoLevelForTower;
+            }
+            
+            // GnuGo로 수 생성 시도 (20층+ 시 Railway GNUGO_API_URL 사용)
+            const gnuGoMove = await generateGnuGoMove(moveRequest);
             
             // GnuGo가 생성한 수가 유효한지 확인
             const { processMove } = await import('./goLogic.js');

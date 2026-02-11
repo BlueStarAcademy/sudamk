@@ -198,6 +198,8 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
 
 export async function getAllEndedGames(): Promise<LiveGameSession[]> {
   try {
+    // Prisma Engine 연결 보장 (getAllEndedGames가 메인루프에서 호출되므로 연결 전 호출 시 무한 에러 방지)
+    await prisma.$connect();
     // 성능 최적화: 필요한 필드만 선택
     const rows = await prisma.liveGame.findMany({
       where: { isEnded: true },
@@ -214,8 +216,16 @@ export async function getAllEndedGames(): Promise<LiveGameSession[]> {
     });
     return rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
   } catch (error: any) {
-    if (error.code === 'P1017' || error.message?.includes('closed the connection')) {
-      console.warn('[gameService] Database connection lost, retrying...');
+    const isConnectionError =
+      error.code === 'P1017' ||
+      error.message?.includes('closed the connection') ||
+      error.message?.includes('Engine is not yet connected');
+    if (isConnectionError) {
+      if (error.message?.includes('Engine is not yet connected')) {
+        console.warn('[gameService] Prisma engine not ready, connecting and retrying...');
+      } else {
+        console.warn('[gameService] Database connection lost, retrying...');
+      }
       try {
         await prisma.$connect();
         const rows = await prisma.liveGame.findMany({
