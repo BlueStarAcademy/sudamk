@@ -182,9 +182,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             guilds[guildId] = newGuild;
             
-            // Also create guild in Prisma database for consistency
+            // Also create guild in Prisma database for consistency (동일한 guildId 사용하여 GET_GUILD_INFO 시 members 동기화 오류 방지)
             try {
                 await guildRepo.createGuild({
+                    id: guildId,
                     name: trimmedName,
                     leaderId: user.id,
                     description: trimmedDescription || undefined,
@@ -1333,9 +1334,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const guild = guilds[user.guildId];
             if (!guild) return { error: '길드를 찾을 수 없습니다.' };
             
-            // 길드장 또는 부길드장 권한 확인
+            // 길드장 또는 부길드장 권한 확인 (길드장은 leaderId로도 허용 - 방금 창설한 경우 members 동기화 전일 수 있음)
             const myMemberInfo = guild.members?.find(m => m.userId === user.id);
-            const canStartWar = myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
+            const isLeaderById = guild.leaderId === user.id;
+            const canStartWar = isLeaderById || myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
             if (!canStartWar) {
                 return { error: '길드장 또는 부길드장만 전쟁을 시작할 수 있습니다.' };
             }
@@ -1420,9 +1422,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const guild = guilds[user.guildId];
             if (!guild) return { error: '길드를 찾을 수 없습니다.' };
             
-            // 길드장 또는 부길드장 권한 확인
+            // 길드장 또는 부길드장 권한 확인 (길드장은 leaderId로도 허용)
             const myMemberInfo = guild.members?.find(m => m.userId === user.id);
-            const canStartWar = myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
+            const isLeaderById = guild.leaderId === user.id;
+            const canStartWar = isLeaderById || myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
             if (!canStartWar) {
                 return { error: '길드장 또는 부길드장만 전쟁을 취소할 수 있습니다.' };
             }

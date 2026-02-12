@@ -2,6 +2,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { GameMode, ServerAction, UserWithStatus } from '../../types.js';
 import Button from '../Button.js';
 import RankedMatchSelectionModal from './RankedMatchSelectionModal.js';
+import { RANKING_TIERS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
+import { useRanking } from '../../hooks/useRanking.js';
+import { getCurrentSeason, getPreviousSeason } from '../../utils/timeUtils.js';
+
+/** 티어 안내 모달(TierInfoModal)과 동일한 기준: 시즌 랭킹 점수·순위·대국 수로 결정 */
+const getTier = (score: number, rank: number, totalGames: number) => {
+    for (const tier of RANKING_TIERS) {
+        if (tier.threshold(score, rank, totalGames)) return tier;
+    }
+    return RANKING_TIERS[RANKING_TIERS.length - 1];
+};
 
 interface RankedMatchPanelProps {
     lobbyType: 'strategic' | 'playful';
@@ -24,6 +35,55 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
 }) => {
     const [elapsedTime, setElapsedTime] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const rankingType = lobbyType === 'strategic' ? 'strategic' : 'playful';
+    const { rankings } = useRanking(rankingType, undefined, undefined, true);
+
+    const currentSeasonTierAndScore = useMemo(() => {
+        const eligible = rankings.filter((r) => (r.totalGames ?? 0) >= 10);
+        const myEntry = rankings.find((r) => r.id === currentUser.id);
+        if (!myEntry) return null;
+        const rankAmongEligible = eligible.findIndex((r) => r.id === currentUser.id) + 1;
+        const rank = rankAmongEligible > 0 ? rankAmongEligible : eligible.length + 1;
+        const score = myEntry.score ?? 0;
+        const totalGames = myEntry.totalGames ?? 0;
+        const wins = myEntry.wins ?? 0;
+        const losses = myEntry.losses ?? 0;
+        const tier = getTier(score, rank, totalGames);
+        return { tier, score, rank, totalGames, wins, losses };
+    }, [rankings, currentUser.id]);
+
+    const isFirstSeason = useMemo(() => {
+        const prevSeason = getPreviousSeason();
+        const history = currentUser.seasonHistory?.[prevSeason.name];
+        const hasPrevData = history && typeof history === 'object' && Object.keys(history).length > 0;
+        return !hasPrevData && !currentUser.previousSeasonTier;
+    }, [currentUser.seasonHistory, currentUser.previousSeasonTier]);
+
+    const previousBestTier = useMemo(() => {
+        const prevSeason = getPreviousSeason();
+        const history = currentUser.seasonHistory?.[prevSeason.name];
+        if (!history || typeof history !== 'object') {
+            return currentUser.previousSeasonTier ?? null;
+        }
+        const lobbyModes = lobbyType === 'strategic'
+            ? SPECIAL_GAME_MODES.map((m) => m.mode)
+            : PLAYFUL_GAME_MODES.map((m) => m.mode);
+        const tierOrder = RANKING_TIERS.map((t) => t.name);
+        let bestTier: string | null = null;
+        let bestIndex = tierOrder.length;
+        for (const mode of lobbyModes) {
+            const t = (history as Record<string, string>)[mode];
+            if (t && tierOrder.includes(t)) {
+                const idx = tierOrder.indexOf(t);
+                if (idx < bestIndex) {
+                    bestIndex = idx;
+                    bestTier = t;
+                }
+            }
+        }
+        return bestTier ?? currentUser.previousSeasonTier ?? null;
+    }, [currentUser.seasonHistory, currentUser.previousSeasonTier, lobbyType]);
 
     // 매칭 중일 때 경과 시간 업데이트
     useEffect(() => {
@@ -85,29 +145,83 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         }
     };
 
+    const currentSeasonName = getCurrentSeason().name;
+
     return (
         <>
-            <div className="p-3 flex flex-col gap-3 h-full min-h-0 text-on-panel">
-                <h2 className="text-xl font-semibold mb-2 border-b border-color pb-2 flex-shrink-0">
+            <div className="p-2.5 flex flex-col h-full min-h-0 text-on-panel">
+                <h2 className="text-lg font-semibold border-b border-color pb-1.5 flex-shrink-0 mb-2">
                     랭킹전
                 </h2>
                 
                 {!isMatching ? (
                     <>
-                        <p className="text-sm text-tertiary mb-2">
-                            자동 매칭으로 랭킹 점수가 변동되는 경기를 진행합니다.
-                        </p>
+                        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 pr-0.5">
+                            {/* 현재 시즌 / 최고 시즌 2단 구성 */}
+                            <div className="grid grid-cols-2 gap-2 flex-shrink-0">
+                                {/* 현재 시즌 */}
+                                <div className="rounded-lg bg-panel/60 border border-color p-2 flex flex-col gap-1.5">
+                                    <p className="text-[10px] font-bold text-tertiary uppercase tracking-wide border-b border-color/50 pb-1">현재 시즌</p>
+                                    {currentSeasonTierAndScore ? (
+                                        <>
+                                            <div className="flex items-center gap-1.5">
+                                                <img src={currentSeasonTierAndScore.tier.icon} alt="" className="w-7 h-7 flex-shrink-0 object-contain" />
+                                                <div className="min-w-0">
+                                                    <p className={`text-xs font-semibold truncate ${currentSeasonTierAndScore.tier.color}`}>{currentSeasonTierAndScore.tier.name}</p>
+                                                    <p className="text-[10px] text-tertiary truncate">{currentSeasonName}{isFirstSeason ? ' (첫 시즌)' : ''}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-between items-baseline text-[10px]">
+                                                <span className="text-tertiary">현재점수</span>
+                                                <span className="font-mono font-bold text-on-panel">{(currentSeasonTierAndScore.score ?? 0).toLocaleString()}</span>
+                                            </div>
+                                            {(currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses) > 0 && (
+                                                <div className="text-[10px] text-tertiary pt-0.5 border-t border-color/50">
+                                                    {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률 {((currentSeasonTierAndScore.wins / (currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses)) * 100).toFixed(0)}%
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center text-[10px] pt-0.5">
+                                                <span className="text-tertiary">시즌 최고</span>
+                                                <span className="font-mono font-semibold">{currentSeasonTierAndScore.score.toLocaleString()}점{isFirstSeason ? ' (동일)' : ''}</span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center gap-1.5">
+                                                <img src={RANKING_TIERS[RANKING_TIERS.length - 1].icon} alt="" className="w-7 h-7 flex-shrink-0 object-contain" />
+                                                <p className="text-xs text-tertiary">미집계</p>
+                                            </div>
+                                            <p className="text-[10px] text-tertiary">{currentSeasonName}</p>
+                                        </>
+                                    )}
+                                </div>
+                                {/* 최고 시즌 (역대) */}
+                                <div className="rounded-lg bg-panel/60 border border-color p-2 flex flex-col gap-1.5">
+                                    <p className="text-[10px] font-bold text-tertiary uppercase tracking-wide border-b border-color/50 pb-1">최고 시즌</p>
+                                    <div className="flex-1 flex flex-col justify-center">
+                                        {previousBestTier ? (
+                                            <p className={`text-sm font-bold text-highlight`}>{previousBestTier}</p>
+                                        ) : isFirstSeason ? (
+                                            <p className="text-xs text-tertiary">첫 시즌 (없음)</p>
+                                        ) : (
+                                            <p className="text-xs text-tertiary">-</p>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-tertiary">역대 최고 등급</p>
+                                </div>
+                            </div>
+                        </div>
                         <Button
                             onClick={() => setIsModalOpen(true)}
                             colorScheme="green"
-                            className="w-full !py-2 !text-sm font-bold"
+                            className="w-full !py-2 !text-sm font-bold flex-shrink-0 mt-2"
                         >
                             랭킹전 시작
                         </Button>
                     </>
                 ) : (
-                    <div className="flex flex-col gap-3">
-                        <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-lg p-4">
+                    <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-hidden">
+                        <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-lg p-3 flex-shrink-0">
                             <div className="flex items-center justify-center mb-3">
                                 <div className="relative w-12 h-12">
                                     <div className="absolute inset-0 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
@@ -122,7 +236,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                         <Button
                             onClick={handleCancelMatching}
                             colorScheme="red"
-                            className="w-full !py-2 !text-sm font-bold"
+                            className="w-full !py-2 !text-sm font-bold flex-shrink-0"
                         >
                             매칭 취소
                         </Button>

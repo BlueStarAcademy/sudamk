@@ -2591,7 +2591,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const countdownRef = useRef<number>(0); // 카운트다운 값을 저장하는 ref
     const hasAutoStartedRef = useRef(false); // 오늘 처음 입장했는지 확인
     const tournamentRef = useRef<TournamentState | undefined>(tournament); // 최신 tournament 상태를 ref로 저장
-    const autoStartTimeRef = useRef<number | null>(null);
+    const autoStartTimeRef = useRef<number | null>(null); // 카운트다운 시작 시간을 저장하는 ref
+    const savedStartTimeRef = useRef<number | null>(null); // nextRoundStartTime을 저장하는 ref
     
     // 안전성 검사: tournament가 없으면 로딩 메시지 표시
     if (!tournament) {
@@ -2804,7 +2805,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             if (dungeonProgress) {
                 // 서버에서 언락 처리 후 상태 확인
                 const nextStage = dungeonStageSummaryData.stage + 1;
-                const nextStageUnlocked = dungeonStageSummaryData.userRank <= 3 && 
+                // userRank가 1~3이면 다음 단계가 언락됨
+                const nextStageUnlocked = dungeonStageSummaryData.userRank >= 1 && 
+                    dungeonStageSummaryData.userRank <= 3 && 
                     dungeonStageSummaryData.stage < 10 &&
                     dungeonProgress.unlockedStages.includes(nextStage);
                 
@@ -2817,7 +2820,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 }
             }
         }
-    }, [currentUser.dungeonProgress, dungeonStageSummaryData]);
+    }, [currentUser.dungeonProgress, currentUser.neighborhoodRewardClaimed, currentUser.nationalRewardClaimed, currentUser.worldRewardClaimed, dungeonStageSummaryData]);
     
     // 클라이언트에서 시뮬레이션 실행
     const simulatedTournament = useTournamentSimulation(tournament, currentUser);
@@ -2893,12 +2896,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         };
     }, [tournament?.status, tournament?.type, tournament?.currentRoundRobinRound, safeRounds, onStartNextRound, onAction, currentUser?.id]);
     
-    // tournament ref 업데이트
+    // tournament ref 업데이트 - 항상 최신 상태 유지
     useEffect(() => {
         tournamentRef.current = tournament;
         // nextRoundStartTime이 변경되었을 때 로그 출력
         if (tournament?.nextRoundStartTime) {
-            console.log(`[TournamentBracket] Tournament ref updated, nextRoundStartTime: ${tournament.nextRoundStartTime}, status: ${tournament.status}`);
+            console.log(`[TournamentBracket] Tournament ref updated, nextRoundStartTime: ${tournament.nextRoundStartTime}, status: ${tournament.status}, currentRound: ${tournament.currentRoundRobinRound}`);
         }
     }, [tournament]);
 
@@ -2910,13 +2913,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     // nextRoundStartTime 체크: 5초 카운트다운 후 자동으로 경기 시작
     useEffect(() => {
-        const status = tournament?.status;
         const nextRoundStartTime = tournament?.nextRoundStartTime;
-        // bracket_ready 상태이고 nextRoundStartTime이 설정되어 있으면 자동 시작 대기 중
-        const isWaitingForAutoStart = status === 'bracket_ready' && nextRoundStartTime;
-
-        // start time이 없거나 대기 상태가 아니면 타이머 정리하고 종료
-        if (!nextRoundStartTime || !isWaitingForAutoStart) {
+        const status = tournament?.status;
+        
+        // nextRoundStartTime이 없으면 타이머 정리하고 종료
+        if (!nextRoundStartTime) {
             setAutoNextCountdown(null);
             if (autoNextTimerRef.current) {
                 clearInterval(autoNextTimerRef.current);
@@ -2924,6 +2925,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             }
             countdownRef.current = 0;
             autoStartTimeRef.current = null;
+            savedStartTimeRef.current = null;
+            return;
+        }
+
+        // 기존 타이머가 있고 같은 startTime이면 재설정하지 않음 (중복 실행 방지)
+        if (autoNextTimerRef.current && savedStartTimeRef.current === nextRoundStartTime) {
             return;
         }
 
@@ -2933,13 +2940,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             autoNextTimerRef.current = null;
         }
 
+        // nextRoundStartTime을 ref에 저장하여 타이머가 중단되지 않도록 함
+        savedStartTimeRef.current = nextRoundStartTime;
+        autoStartTimeRef.current = nextRoundStartTime;
+        const savedTournamentType = tournament?.type;
+        const savedCurrentRound = tournament?.currentRoundRobinRound;
+
         const updateCountdown = () => {
-            const currentTournament = tournamentRef.current;
-            const currentStartTime = currentTournament?.nextRoundStartTime;
-            const currentStatus = currentTournament?.status;
-            const isWaiting = currentStatus === 'bracket_ready' && currentStartTime;
-            
-            if (!currentTournament || !currentStartTime || !isWaiting) {
+            // savedStartTimeRef를 사용하여 타이머가 중단되지 않도록 함
+            const startTime = savedStartTimeRef.current;
+            if (!startTime) {
+                // startTime이 없으면 타이머 정리
                 setAutoNextCountdown(null);
                 countdownRef.current = 0;
                 if (autoNextTimerRef.current) {
@@ -2949,12 +2960,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 return;
             }
 
-            const startTime = currentStartTime;
             const now = Date.now();
             const timeUntilStart = startTime - now;
             const secondsLeft = Math.max(0, Math.ceil(timeUntilStart / 1000));
 
-            // 항상 카운트다운 업데이트
+            // 항상 카운트다운 업데이트 (0까지 표시)
             setAutoNextCountdown(secondsLeft);
 
             // 디버깅: 매 초마다 로그 출력 (초가 변경될 때만)
@@ -2967,6 +2977,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 }
             }
 
+            // 시간이 지났거나 0에 도달했을 때 경기 시작
             if (timeUntilStart <= 0) {
                 // 카운트다운이 끝났으면 바로 경기 시작
                 setAutoNextCountdown(null);
@@ -2976,15 +2987,32 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     autoNextTimerRef.current = null;
                 }
                 autoStartTimeRef.current = null;
+                savedStartTimeRef.current = null;
                 
-                // 다음 경기 찾기
-                const rounds = currentTournament.rounds || [];
+                // 다음 경기 찾기 - tournamentRef.current를 사용하여 최신 상태 확인
+                const currentTournament = tournamentRef.current;
+                const rounds = currentTournament?.rounds || [];
                 let nextMatch: Match | undefined = undefined;
-                if (currentTournament.type === 'neighborhood') {
-                    const currentRound = currentTournament.currentRoundRobinRound || 1;
-                    const currentRoundObj = rounds.find(r => r.name === `${currentRound}회차`);
-                    if (currentRoundObj) {
-                        nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
+                const tournamentType = currentTournament?.type || savedTournamentType;
+                const currentRound = currentTournament?.currentRoundRobinRound || savedCurrentRound;
+                
+                if (tournamentType === 'neighborhood') {
+                    // currentRoundRobinRound가 있으면 사용
+                    if (currentRound) {
+                        const currentRoundObj = rounds.find(r => r.name === `${currentRound}회차`);
+                        if (currentRoundObj) {
+                            nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
+                        }
+                    }
+                    // currentRoundRobinRound가 없거나 경기를 찾지 못한 경우 모든 라운드에서 찾기
+                    if (!nextMatch) {
+                        for (const round of rounds) {
+                            const match = round.matches.find(m => m.isUserMatch && !m.isFinished);
+                            if (match) {
+                                nextMatch = match;
+                                break;
+                            }
+                        }
                     }
                 } else {
                     // 전국/월드챔피언십: 다음 경기 찾기
@@ -2993,24 +3021,24 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         .find(m => m.isUserMatch && !m.isFinished);
                 }
 
-                if (nextMatch && currentTournament.status === 'bracket_ready') {
+                // 경기를 찾았으면 무조건 시작 (상태와 관계없이)
+                if (nextMatch) {
                     console.log('[TournamentBracket] Auto-starting match after countdown', {
                         nextMatch: nextMatch.id,
-                        status: currentTournament.status,
-                        type: currentTournament.type,
-                        currentRound: currentTournament.currentRoundRobinRound
+                        status: currentTournament?.status,
+                        type: tournamentType,
+                        currentRound: currentRound
                     });
                     // START_TOURNAMENT_MATCH 액션 호출 (ref 사용)
                     onActionRef.current({
                         type: 'START_TOURNAMENT_MATCH',
-                        payload: { type: currentTournament.type }
+                        payload: { type: tournamentType || 'neighborhood' }
                     });
                 } else {
-                    console.warn('[TournamentBracket] Cannot auto-start match:', {
-                        hasNextMatch: !!nextMatch,
-                        status: currentTournament.status,
-                        type: currentTournament.type,
-                        currentRound: currentTournament.currentRoundRobinRound,
+                    console.warn('[TournamentBracket] Cannot auto-start match: no next match found', {
+                        status: currentTournament?.status,
+                        type: tournamentType,
+                        currentRound: currentRound,
                         roundsCount: rounds.length
                     });
                 }
@@ -3018,8 +3046,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         };
 
         // 즉시 한 번 실행하고 타이머 시작
-        const timeUntilStart = nextRoundStartTime - Date.now();
-        console.log(`[TournamentBracket] nextRoundStartTime detected: ${nextRoundStartTime}, current time: ${Date.now()}, time until start: ${timeUntilStart}ms, status: ${status}`);
+        const timeUntilStart = savedStartTimeRef.current - Date.now();
+        console.log(`[TournamentBracket] nextRoundStartTime detected: ${savedStartTimeRef.current}, current time: ${Date.now()}, time until start: ${timeUntilStart}ms, status: ${status}`);
         
         // 이미 시간이 지나간 경우 즉시 시작
         if (timeUntilStart <= 0) {
@@ -3027,17 +3055,15 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             updateCountdown(); // 이 함수 내에서 자동 시작 처리
         } else {
             updateCountdown();
-            // 100ms마다 업데이트
+            // 100ms마다 업데이트하여 정확한 카운트다운 유지
             autoNextTimerRef.current = setInterval(updateCountdown, 100);
         }
 
         return () => {
-            if (autoNextTimerRef.current) {
-                clearInterval(autoNextTimerRef.current);
-                autoNextTimerRef.current = null;
-            }
+            // cleanup: nextRoundStartTime이 변경될 때만 타이머 정리
+            // 하지만 savedStartTimeRef를 사용하므로 타이머는 계속 실행됨
         };
-    }, [tournament?.nextRoundStartTime, tournament?.status]); // nextRoundStartTime과 status를 의존성으로 사용
+    }, [tournament?.nextRoundStartTime]); // nextRoundStartTime만 의존성으로 사용하여 타이머가 중단되지 않도록 함
     
     useEffect(() => {
         // 안전성 검사

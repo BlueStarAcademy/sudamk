@@ -22,9 +22,13 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
             const pricePerUnit = MATERIAL_SELL_PRICES[item.name] || 1;
             return pricePerUnit;
         } else if (item.type === 'consumable') {
-            // 소비 아이템 판매 가격
-            const pricePerUnit = CONSUMABLE_SELL_PRICES[item.name] ?? (CONSUMABLE_SELL_PRICES[item.name?.replace('골드꾸러미', '골드 꾸러미')] ?? 0);
-            return pricePerUnit;
+            // 소비 아이템 판매 가격 (수량 고려)
+            const pricePerUnit = CONSUMABLE_SELL_PRICES[item.name] ?? 
+                (CONSUMABLE_SELL_PRICES[item.name?.replace('골드꾸러미', '골드 꾸러미')] ?? 
+                 CONSUMABLE_SELL_PRICES[item.name?.replace('골드 꾸러미', '골드꾸러미')] ?? 
+                 0);
+            const quantity = item.quantity || 1;
+            return pricePerUnit * quantity;
         }
         return 0;
     };
@@ -52,8 +56,11 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
                             {item.type === 'equipment' && item.stars > 0 && (
                                 <p className="text-sm text-gray-400">강화: {item.stars}성</p>
                             )}
-                            {item.type === 'material' && item.quantity && (
-                                <p className="text-sm text-gray-400">보유: {item.quantity.toLocaleString()}개 (1개 판매)</p>
+                            {(item.type === 'material' || item.type === 'consumable') && item.quantity && (
+                                <p className="text-sm text-gray-400">
+                                    보유: {item.quantity.toLocaleString()}개 
+                                    {item.type === 'material' ? ' (1개 판매)' : ` (${item.quantity.toLocaleString()}개 판매)`}
+                                </p>
                             )}
                         </div>
                     </div>
@@ -61,11 +68,16 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
 
                 <div className="w-full bg-gray-800/50 p-4 rounded-lg mb-4">
                     <div className="flex justify-between items-center">
-                        <span className="text-lg font-semibold">판매 가격:</span>
-                        <span className="text-2xl font-bold text-yellow-400">
-                            {sellPrice.toLocaleString()} 골드
+                        <span className="text-lg font-semibold">{sellPrice === 0 ? '삭제 가격:' : '판매 가격:'}</span>
+                        <span className={`text-2xl font-bold ${sellPrice === 0 ? 'text-gray-400' : 'text-yellow-400'}`}>
+                            {sellPrice === 0 ? '0 골드 (삭제)' : `${sellPrice.toLocaleString()} 골드`}
                         </span>
                     </div>
+                    {sellPrice === 0 && (
+                        <p className="text-sm text-gray-400 mt-2 text-center">
+                            이 아이템은 0골드로 삭제됩니다.
+                        </p>
+                    )}
                 </div>
 
                 <div className="flex gap-4 w-full">

@@ -2,6 +2,7 @@ import prismaClient from '../prismaClient.js';
 import { Guild, GuildMember, GuildMessage, GuildMission, GuildShop, GuildDonation, GuildWar, GuildWarMatch } from '../../types/entities.js';
 
 export const createGuild = async (guildData: {
+    id?: string;
     name: string;
     leaderId: string;
     description?: string;
@@ -10,6 +11,7 @@ export const createGuild = async (guildData: {
 }): Promise<Guild> => {
     const guild = await prismaClient.guild.create({
         data: {
+            ...(guildData.id != null && guildData.id !== '' ? { id: guildData.id } : {}),
             name: guildData.name,
             leaderId: guildData.leaderId,
             description: guildData.description,

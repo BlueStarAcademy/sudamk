@@ -23,7 +23,7 @@ const renderStarDisplay = (stars: number) => {
     else if (stars >= 1) starImage = '/images/equipments/Star1.png';
 
     return (
-        <div className="absolute top-0.5 left-0.5 flex items-center gap-0.5 bg-black/40 rounded-br-md px-1 py-0.5 z-10" style={{ textShadow: '1px 1px 2px black' }}>
+        <div className="absolute top-0.5 left-1.5 flex items-center gap-0.5 bg-black/40 rounded-br-md px-1 py-0.5 z-10" style={{ textShadow: '1px 1px 2px black' }}>
             <img src={starImage} alt="star" className="w-3 h-3" />
             <span className={`font-bold text-xs leading-none`}>{stars}</span>
         </div>

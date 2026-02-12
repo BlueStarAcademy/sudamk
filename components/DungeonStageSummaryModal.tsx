@@ -327,7 +327,13 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 )}
                 
                 {/* 확인 버튼 */}
-                <Button onClick={onClose} className="w-full py-2.5">
+                <Button 
+                    onClick={() => {
+                        // 모달 닫기 (서버 응답은 이미 처리되었으므로 추가 처리 불필요)
+                        onClose();
+                    }} 
+                    className="w-full py-2.5"
+                >
                     확인
                 </Button>
             </div>

@@ -108,7 +108,7 @@ const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem
                 style={{ border: isDivineMythic ? undefined : undefined }}
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
-                <div className="absolute top-1 right-1 text-sm font-bold z-10">
+                <div className="absolute top-1 right-2.5 text-sm font-bold z-10">
                     {getStarDisplay(item.stars)}
                 </div>
                 {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-3" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}

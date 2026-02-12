@@ -912,20 +912,17 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 // 소비 아이템 판매 처리
                 const itemName = item.name || '';
                 
-                // 판매 가능 여부 확인
+                // 판매 가능 여부 확인 (sellable === false인 경우만 판매 불가)
                 const consumableItem = CONSUMABLE_ITEMS.find(ci => ci.name === itemName || ci.name === itemName.replace('꾸러미', ' 꾸러미') || ci.name === itemName.replace(' 꾸러미', '꾸러미'));
                 if (consumableItem?.sellable === false) {
                     return { error: '판매할 수 없는 아이템입니다.' };
                 }
                 
+                // 가격이 0이어도 판매 가능 (삭제 목적)
                 const pricePerUnit = CONSUMABLE_SELL_PRICES[itemName] ?? 
                     CONSUMABLE_SELL_PRICES[itemName.replace('골드꾸러미', '골드 꾸러미')] ?? 
                     CONSUMABLE_SELL_PRICES[itemName.replace('골드 꾸러미', '골드꾸러미')] ?? 
-                    0;
-                
-                if (pricePerUnit === 0) {
-                    return { error: '판매할 수 없는 아이템입니다.' };
-                }
+                    0; // 기본값 0 (0골드로 판매 가능)
                 
                 const currentQuantity = item.quantity || 1;
                 

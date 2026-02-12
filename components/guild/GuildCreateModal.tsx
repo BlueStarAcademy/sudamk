@@ -123,197 +123,159 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
         }
     };
 
+    const userDiamonds = currentUserWithStatus
+        ? (typeof currentUserWithStatus.diamonds === 'bigint'
+            ? Number(currentUserWithStatus.diamonds)
+            : (typeof currentUserWithStatus.diamonds === 'number'
+                ? currentUserWithStatus.diamonds
+                : (parseInt(String(currentUserWithStatus.diamonds || 0), 10) || 0)))
+        : 0;
+    const canAfford = userDiamonds >= GUILD_CREATION_COST;
+
     return (
         <DraggableWindow
             title="길드 창설"
             windowId="guild-create"
             onClose={onClose}
-            initialWidth={500}
+            initialWidth={720}
             isTopmost
         >
-            <div className="p-6">
-                <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
-                        길드 이름 *
-                    </label>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="길드 이름을 입력하세요"
-                        maxLength={6}
-                        className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-blue-500 focus:outline-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">2-6자</p>
-                </div>
-
-                <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
-                        길드 설명
-                    </label>
-                    <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="길드 설명을 입력하세요 (선택사항)"
-                        maxLength={200}
-                        rows={4}
-                        className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-blue-500 focus:outline-none resize-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">{description.length}/200자</p>
-                </div>
-
-                {/* 가입방식 설정 */}
-                <div className="mb-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <label className="block text-sm font-semibold text-gray-300 mb-3">
-                        가입 방식
-                    </label>
-                    <div className="space-y-2">
-                        <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                            joinType === 'free' 
-                                ? 'border-green-500/60 bg-green-500/10' 
-                                : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
-                        }`}>
+            <div className="p-5">
+                {/* 가로 배치: 왼쪽 = 이름/설명, 오른쪽 = 설정/비용/버튼 */}
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-6">
+                    {/* 왼쪽: 기본 정보 */}
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-300 mb-1.5">
+                                길드 이름 <span className="text-gray-500 font-normal">(2~6자)</span>
+                            </label>
                             <input
-                                type="radio"
-                                name="joinType"
-                                value="free"
-                                checked={joinType === 'free'}
-                                onChange={(e) => setJoinType(e.target.value as 'free')}
-                                className="w-4 h-4 text-green-500 focus:ring-green-500"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="길드 이름을 입력하세요"
+                                maxLength={6}
+                                className="w-full px-3 py-2.5 bg-gray-800/80 text-white rounded-lg border border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 focus:outline-none transition-colors"
                             />
-                            <div className="flex-1">
-                                <div className="font-semibold text-white">자유가입</div>
-                                <div className="text-xs text-gray-400">누구나 자동으로 가입할 수 있습니다</div>
-                            </div>
-                        </label>
-                        <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                            joinType === 'application' 
-                                ? 'border-yellow-500/60 bg-yellow-500/10' 
-                                : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
-                        }`}>
-                            <input
-                                type="radio"
-                                name="joinType"
-                                value="application"
-                                checked={joinType === 'application'}
-                                onChange={(e) => setJoinType(e.target.value as 'application')}
-                                className="w-4 h-4 text-yellow-500 focus:ring-yellow-500"
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-300 mb-1.5">
+                                길드 설명 <span className="text-gray-500 font-normal">(선택, 200자)</span>
+                            </label>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="길드 소개를 입력하세요"
+                                maxLength={200}
+                                rows={4}
+                                className="w-full px-3 py-2.5 bg-gray-800/80 text-white rounded-lg border border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 focus:outline-none resize-none transition-colors"
                             />
-                            <div className="flex-1">
-                                <div className="font-semibold text-white">신청가입</div>
-                                <div className="text-xs text-gray-400">길드장의 승인이 필요합니다</div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                {/* 공개 설정 */}
-                <div className="mb-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-semibold text-gray-300">
-                            공개 설정
-                        </label>
-                        <ToggleSwitch checked={isPublic} onChange={setIsPublic} />
-                    </div>
-                    <p className="text-xs text-gray-400">
-                        {isPublic ? (
-                            <span className="text-green-400">● 길드 목록에 표시되어 누구나 찾을 수 있습니다.</span>
-                        ) : (
-                            <span className="text-yellow-400">● 길드 목록에 표시되지 않으며, 초대를 통해서만 가입할 수 있습니다.</span>
-                        )}
-                    </p>
-                </div>
-
-                <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-700/50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                        <p className="text-sm text-yellow-200">
-                            길드 생성 비용:
-                        </p>
-                        <div className="flex items-center gap-1">
-                            <img src={resourceIcons.diamonds} alt="다이아" className="w-5 h-5 object-contain" />
-                            <span className="font-bold text-yellow-200">{GUILD_CREATION_COST.toLocaleString()}</span>
+                            <p className="text-xs text-gray-500 mt-1 text-right">{description.length}/200</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <p className="text-xs text-yellow-300">
-                            현재 보유:
-                        </p>
-                        <div className="flex items-center gap-1">
-                            <img src={resourceIcons.diamonds} alt="다이아" className="w-4 h-4 object-contain" />
-                            <span className="text-xs text-yellow-300 font-semibold">
-                                {/* 다이아몬드 타입 변환 (BigInt일 수 있음) */}
-                                {(() => {
-                                    const diamonds = currentUserWithStatus?.diamonds;
-                                    if (!diamonds) return 0;
-                                    const numDiamonds = typeof diamonds === 'bigint' 
-                                        ? Number(diamonds) 
-                                        : (typeof diamonds === 'number' 
-                                            ? diamonds 
-                                            : (parseInt(String(diamonds || 0), 10) || 0));
-                                    return numDiamonds.toLocaleString();
-                                })()}
-                            </span>
+
+                    {/* 오른쪽: 설정 & 비용 & 버튼 */}
+                    <div className="flex flex-col gap-4">
+                        {/* 가입 방식 */}
+                        <div className="p-3.5 bg-gray-800/50 rounded-xl border border-gray-700">
+                            <label className="block text-sm font-semibold text-gray-300 mb-2.5">
+                                가입 방식
+                            </label>
+                            <div className="space-y-1.5">
+                                <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                    joinType === 'free'
+                                        ? 'border-emerald-500/60 bg-emerald-500/10'
+                                        : 'border-gray-600 bg-transparent hover:border-gray-500'
+                                }`}>
+                                    <input
+                                        type="radio"
+                                        name="joinType"
+                                        value="free"
+                                        checked={joinType === 'free'}
+                                        onChange={() => setJoinType('free')}
+                                        className="w-3.5 h-3.5 text-emerald-500"
+                                    />
+                                    <span className="text-sm font-medium text-white">자유가입</span>
+                                </label>
+                                <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                    joinType === 'application'
+                                        ? 'border-amber-500/60 bg-amber-500/10'
+                                        : 'border-gray-600 bg-transparent hover:border-gray-500'
+                                }`}>
+                                    <input
+                                        type="radio"
+                                        name="joinType"
+                                        value="application"
+                                        checked={joinType === 'application'}
+                                        onChange={() => setJoinType('application')}
+                                        className="w-3.5 h-3.5 text-amber-500"
+                                    />
+                                    <span className="text-sm font-medium text-white">신청가입</span>
+                                </label>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1.5">
+                                {joinType === 'free' ? '누구나 즉시 가입' : '길드장 승인 후 가입'}
+                            </p>
                         </div>
-                    </div>
-                    {/* 다이아몬드 부족 경고 */}
-                    {(() => {
-                        const diamonds = currentUserWithStatus?.diamonds;
-                        if (!diamonds) return null;
-                        const numDiamonds = typeof diamonds === 'bigint' 
-                            ? Number(diamonds) 
-                            : (typeof diamonds === 'number' 
-                                ? diamonds 
-                                : (parseInt(String(diamonds || 0), 10) || 0));
-                        const canAfford = numDiamonds >= GUILD_CREATION_COST;
-                        if (!canAfford) {
-                            return (
-                                <div className="mt-2 pt-2 border-t border-yellow-700/30">
-                                    <p className="text-xs text-red-400">
-                                        다이아가 부족합니다. (필요: {GUILD_CREATION_COST.toLocaleString()}개, 보유: {numDiamonds.toLocaleString()}개)
-                                    </p>
+
+                        {/* 공개 설정 */}
+                        <div className="p-3.5 bg-gray-800/50 rounded-xl border border-gray-700">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-semibold text-gray-300">공개 설정</span>
+                                <ToggleSwitch checked={isPublic} onChange={setIsPublic} />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                                {isPublic ? '길드 목록에 표시' : '초대로만 가입 가능'}
+                            </p>
+                        </div>
+
+                        {/* 비용 */}
+                        <div className="p-3.5 rounded-xl border bg-amber-950/30 border-amber-700/40">
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-sm font-semibold text-amber-200">창설 비용</span>
+                                <div className="flex items-center gap-1">
+                                    <img src={resourceIcons.diamonds} alt="" className="w-4 h-4 object-contain" />
+                                    <span className="font-bold text-amber-200">{GUILD_CREATION_COST.toLocaleString()}</span>
                                 </div>
-                            );
-                        }
-                        return null;
-                    })()}
-                </div>
+                            </div>
+                            <div className="flex items-center justify-between mt-1.5 text-xs text-amber-200/80">
+                                <span>보유</span>
+                                <span className={canAfford ? 'text-emerald-400' : 'text-red-400'}>
+                                    {userDiamonds.toLocaleString()}
+                                </span>
+                            </div>
+                            {!canAfford && (
+                                <p className="text-xs text-red-400 mt-1.5">
+                                    부족: {(GUILD_CREATION_COST - userDiamonds).toLocaleString()}개
+                                </p>
+                            )}
+                        </div>
 
-                {error && (
-                    <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg">
-                        <p className="text-sm text-red-200">{error}</p>
+                        {error && (
+                            <div className="p-2.5 bg-red-900/30 border border-red-700/50 rounded-lg">
+                                <p className="text-xs text-red-200">{error}</p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2 mt-auto pt-2">
+                            <Button
+                                onClick={onClose}
+                                colorScheme="gray"
+                                className="flex-1 py-2 text-sm font-medium"
+                                disabled={loading}
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                onClick={handleCreate}
+                                colorScheme="green"
+                                className="flex-1 py-2 text-sm font-medium"
+                                disabled={loading || !name.trim() || (!currentUserWithStatus?.isAdmin && !canAfford)}
+                            >
+                                {loading ? '생성 중...' : '길드 생성'}
+                            </Button>
+                        </div>
                     </div>
-                )}
-
-                <div className="flex gap-3">
-                    <Button
-                        onClick={onClose}
-                        colorScheme="gray"
-                        className="flex-1"
-                        disabled={loading}
-                    >
-                        취소
-                    </Button>
-                    <Button
-                        onClick={handleCreate}
-                        colorScheme="green"
-                        className="flex-1"
-                        disabled={(() => {
-                            if (loading || !name.trim()) return true;
-                            // 다이아몬드 체크
-                            const diamonds = currentUserWithStatus?.diamonds;
-                            if (diamonds !== undefined && diamonds !== null && !currentUserWithStatus?.isAdmin) {
-                                const numDiamonds = typeof diamonds === 'bigint' 
-                                    ? Number(diamonds) 
-                                    : (typeof diamonds === 'number' 
-                                        ? diamonds 
-                                        : (parseInt(String(diamonds || 0), 10) || 0));
-                                return numDiamonds < GUILD_CREATION_COST;
-                            }
-                            return false;
-                        })()}
-                    >
-                        {loading ? '생성 중...' : '길드 생성'}
-                    </Button>
                 </div>
             </div>
         </DraggableWindow>

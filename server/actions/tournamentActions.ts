@@ -1746,9 +1746,9 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 }
             }
             
-            // 다음 단계 언락 조건: 해당 단계에서 3등 이상 달성 시 (cleared 조건과 독립적으로 처리)
+            // 다음 단계 언락 조건: 해당 단계에서 3등 이하 달성 시 (cleared 조건과 독립적으로 처리)
             // 1위, 2위, 3위를 달성하면 다음 단계 언락
-            if (userRank >= 1 && userRank <= 3 && stage < 10) {
+            if (userRank <= 3 && stage < 10) {
                 const nextStage = stage + 1;
                 if (!dungeonProgress.unlockedStages.includes(nextStage)) {
                     dungeonProgress.unlockedStages.push(nextStage);
@@ -1758,7 +1758,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     console.log(`[COMPLETE_DUNGEON_STAGE] Stage ${nextStage} already unlocked for ${dungeonType} (userRank: ${userRank})`);
                 }
             } else {
-                console.log(`[COMPLETE_DUNGEON_STAGE] Stage unlock condition not met: userRank=${userRank}, stage=${stage}, need: userRank 1-3 and stage < 10`);
+                console.log(`[COMPLETE_DUNGEON_STAGE] Stage unlock condition not met: userRank=${userRank}, stage=${stage}, need: userRank <= 3 and stage < 10`);
             }
             
             // 일일 랭킹 점수 계산 및 누적 (cleared 여부와 관계없이 순위가 있으면 점수 지급)
@@ -1769,23 +1769,35 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 const rankBonus = DUNGEON_RANK_SCORE_BONUS[userRank] || DUNGEON_DEFAULT_SCORE_BONUS;
                 const finalScore = Math.floor(baseScore * (1 + rankBonus));
                 
+                // 이전에 해당 단계에서 받은 점수가 있는지 확인
+                const previousScore = dungeonProgress.stageResults[stage]?.dailyScore || 0;
+                const scoreDifference = finalScore - previousScore;
+                
                 // 순위가 있으면 점수 지급 (cleared 조건과 독립적)
                 dungeonProgress.stageResults[stage].dailyScore = finalScore; // 순위 보너스 포함한 최종 점수 저장
                 dungeonProgress.stageResults[stage].rank = userRank; // 순위 저장
                 
-                // 일일 던전 점수 누적
+                // 일일 던전 점수 누적 (이전 점수가 있으면 차이만 추가하여 중복 누적 방지)
                 if (!freshUser.dailyDungeonScore) {
                     freshUser.dailyDungeonScore = 0;
                 }
-                freshUser.dailyDungeonScore += finalScore;
-                console.log(`[COMPLETE_DUNGEON_STAGE] Added daily score: base=${baseScore}, bonus=${rankBonus}, final=${finalScore}, total: ${freshUser.dailyDungeonScore}`);
+                if (scoreDifference !== 0) {
+                    freshUser.dailyDungeonScore += scoreDifference;
+                    console.log(`[COMPLETE_DUNGEON_STAGE] Updated daily score: previous=${previousScore}, new=${finalScore}, difference=${scoreDifference}, total: ${freshUser.dailyDungeonScore}`);
+                } else {
+                    console.log(`[COMPLETE_DUNGEON_STAGE] Daily score unchanged: ${finalScore} (already recorded)`);
+                }
                 
-                // 누적 챔피언십 점수에 추가 (홈 화면 랭킹용)
+                // 누적 챔피언십 점수에 추가 (홈 화면 랭킹용, 중복 누적 방지)
                 if (!freshUser.cumulativeTournamentScore) {
                     freshUser.cumulativeTournamentScore = 0;
                 }
-                freshUser.cumulativeTournamentScore += finalScore;
-                console.log(`[COMPLETE_DUNGEON_STAGE] Added cumulative score: ${finalScore}, total: ${freshUser.cumulativeTournamentScore}`);
+                if (scoreDifference !== 0) {
+                    freshUser.cumulativeTournamentScore += scoreDifference;
+                    console.log(`[COMPLETE_DUNGEON_STAGE] Updated cumulative score: previous=${previousScore}, new=${finalScore}, difference=${scoreDifference}, total: ${freshUser.cumulativeTournamentScore}`);
+                } else {
+                    console.log(`[COMPLETE_DUNGEON_STAGE] Cumulative score unchanged: ${finalScore} (already recorded)`);
+                }
             }
             
             if (cleared) {

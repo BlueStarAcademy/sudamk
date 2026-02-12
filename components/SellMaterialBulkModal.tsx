@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { InventoryItem, UserWithStatus } from '../types.js';
-import { MATERIAL_SELL_PRICES } from '../constants/items.js';
+import { MATERIAL_SELL_PRICES, CONSUMABLE_SELL_PRICES } from '../constants/items.js';
 
 interface SellMaterialBulkModalProps {
     item: InventoryItem;
@@ -13,14 +13,20 @@ interface SellMaterialBulkModalProps {
 }
 
 const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, currentUser, onClose, onConfirm, isTopmost }) => {
-    // 같은 이름의 재료 전체 수량 계산
+    // 같은 이름의 아이템 전체 수량 계산 (재료 또는 소모품)
     const totalQuantity = useMemo(() => {
         return currentUser.inventory
-            .filter(i => i.type === 'material' && i.name === item.name)
+            .filter(i => i.type === item.type && i.name === item.name)
             .reduce((sum, i) => sum + (i.quantity || 0), 0);
-    }, [currentUser.inventory, item.name]);
+    }, [currentUser.inventory, item.name, item.type]);
 
-    const pricePerUnit = MATERIAL_SELL_PRICES[item.name] || 1;
+    // 재료 또는 소모품에 따라 가격 결정
+    const pricePerUnit = item.type === 'consumable' 
+        ? (CONSUMABLE_SELL_PRICES[item.name] ?? 
+           CONSUMABLE_SELL_PRICES[item.name?.replace('골드꾸러미', '골드 꾸러미')] ?? 
+           CONSUMABLE_SELL_PRICES[item.name?.replace('골드 꾸러미', '골드꾸러미')] ?? 
+           0) // 소모품은 0골드도 가능
+        : (MATERIAL_SELL_PRICES[item.name] || 1); // 재료는 최소 1골드
     const [quantity, setQuantity] = useState(1);
 
     useEffect(() => {
@@ -40,14 +46,14 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
 
     return (
         <DraggableWindow 
-            title="재료 일괄 판매" 
+            title={item.type === 'consumable' ? '소모품 일괄 판매' : '재료 일괄 판매'} 
             onClose={onClose} 
             windowId="sellMaterialBulk" 
             isTopmost={isTopmost}
         >
             <div className="p-4 text-on-panel flex flex-col items-center">
                 <div className="mb-4 text-center w-full">
-                    <h3 className="text-lg font-bold mb-2">판매할 재료 수량을 선택하세요</h3>
+                    <h3 className="text-lg font-bold mb-2">판매할 {item.type === 'consumable' ? '소모품' : '재료'} 수량을 선택하세요</h3>
                     <div className="flex items-center justify-center gap-4 my-4">
                         {item.image && (
                             <div className="relative w-20 h-20 rounded-lg flex-shrink-0">
@@ -95,14 +101,21 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
                     <div className="bg-gray-800/50 p-4 rounded-lg">
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-sm">단가:</span>
-                            <span className="font-semibold">{pricePerUnit.toLocaleString()} 골드</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-lg font-semibold">총 판매 가격:</span>
-                            <span className="text-2xl font-bold text-yellow-400">
-                                {totalPrice.toLocaleString()} 골드
+                            <span className={`font-semibold ${pricePerUnit === 0 ? 'text-gray-400' : ''}`}>
+                                {pricePerUnit === 0 ? '0 골드 (삭제)' : `${pricePerUnit.toLocaleString()} 골드`}
                             </span>
                         </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-lg font-semibold">{pricePerUnit === 0 ? '총 삭제 가격:' : '총 판매 가격:'}</span>
+                            <span className={`text-2xl font-bold ${pricePerUnit === 0 ? 'text-gray-400' : 'text-yellow-400'}`}>
+                                {pricePerUnit === 0 ? '0 골드 (삭제)' : `${totalPrice.toLocaleString()} 골드`}
+                            </span>
+                        </div>
+                        {pricePerUnit === 0 && (
+                            <p className="text-sm text-gray-400 mt-2 text-center">
+                                이 아이템은 0골드로 삭제됩니다.
+                            </p>
+                        )}
                     </div>
                 </div>
 

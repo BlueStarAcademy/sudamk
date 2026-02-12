@@ -1,9 +1,8 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { LeagueTier, User, TournamentType } from '../types.js';
-import { LEAGUE_DATA, RANKING_TIERS, AVATAR_POOL, BORDER_POOL, TOURNAMENT_DEFINITIONS } from '../constants';
+import { User, TournamentType } from '../types.js';
+import { AVATAR_POOL, BORDER_POOL, TOURNAMENT_DEFINITIONS } from '../constants';
 import Avatar from './Avatar.js';
-import LeagueTierInfoModal from './LeagueTierInfoModal.js';
 
 interface RankItemProps {
     user: User;

@@ -1,5 +1,6 @@
 import { LeagueTier, QuestReward, LeagueRewardTier } from '../types/index.js';
 
+/** 랭킹전(전략바둑/놀이바둑 PVP) 전용 티어·점수 기준. 챔피언십(던전)과 무관함. */
 export const LEAGUE_DATA: { tier: LeagueTier, name: string, scoreThreshold: number, icon: string }[] = [
     { tier: LeagueTier.Sprout, name: '새싹 리그', scoreThreshold: 0, icon: '/images/tire/auto1.png' },
     { tier: LeagueTier.Rookie, name: '루키 리그', scoreThreshold: 1300, icon: '/images/tire/auto2.png' },

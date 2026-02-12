@@ -604,31 +604,47 @@ const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: bool
     );
 };
 
-const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem; onClick?: () => void; }> = ({ slot, item, onClick }) => {
+const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem; onClick?: () => void; compact?: boolean }> = ({ slot, item, onClick, compact = false }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
         const titleText = `${item.name} (착용 레벨 합: ${requiredLevel}) - 클릭하여 상세보기`;
         const starInfo = getStarDisplayInfo(item.stars);
+        const isDivineMythic = (item as InventoryItem & { isDivineMythic?: boolean }).isDivineMythic === true;
         return (
             <div
-                className={`relative w-full aspect-square rounded-lg border-2 border-gray-600/50 bg-gray-700/50 ${clickableClass}`}
+                className={`relative w-full aspect-square rounded-lg border-2 border-color/50 bg-tertiary/50 ${clickableClass} ${isDivineMythic ? 'divine-mythic-border' : ''}`}
                 title={titleText}
                 onClick={onClick}
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
                 {item.stars > 0 && (
-                    <div className={`absolute top-1 right-1.5 text-sm font-bold z-10 ${starInfo.colorClass}`} style={{ textShadow: '1px 1px 2px black' }}>
+                    <div className={`absolute top-1 right-2.5 text-sm font-bold z-10 ${starInfo.colorClass}`} style={{ textShadow: '1px 1px 2px black', fontSize: compact ? '10px' : '14px' }}>
                         ★{item.stars}
                     </div>
                 )}
-                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-2" style={{ width: '70%', height: '70%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                {item.image && (
+                    <img
+                        src={item.image}
+                        alt={item.name}
+                        className="absolute object-contain p-1.5"
+                        style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                    />
+                )}
+                {isDivineMythic && (
+                    <div
+                        className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10"
+                        style={{ textShadow: '1px 1px 2px black', padding: '2px 4px', fontSize: '10px', fontWeight: 'bold', color: '#FFD700' }}
+                    >
+                        D
+                    </div>
+                )}
             </div>
         );
     } else {
          return (
-             <img src={emptySlotImages[slot]} alt={`${slot} empty slot`} className="w-full aspect-square rounded-lg bg-gray-700/50 border-2 border-gray-600/50" />
+             <img src={emptySlotImages[slot]} alt={`${slot} empty slot`} className="w-full aspect-square rounded-lg bg-tertiary/50 border-2 border-color/50" />
         );
     }
 };
@@ -759,16 +775,17 @@ const TournamentLobby: React.FC = () => {
                     
                     {/* 모바일: 장착 장비 + 능력치 + 일일 획득 가능점수 패널 */}
                     <div className="lg:hidden grid grid-cols-2 gap-3 sm:gap-4 flex-shrink-0">
-                        {/* 장착 장비 + 능력치 패널 (모바일) */}
-                        <div className="bg-gray-800/50 rounded-lg p-2 sm:p-3 shadow-lg min-h-0 flex flex-col overflow-hidden">
+                        {/* 장착 장비 + 능력치 패널 (모바일) - 홈화면과 동일 레이아웃 */}
+                        <div className="bg-panel border border-color rounded-lg p-2 sm:p-3 shadow-lg min-h-0 flex flex-col overflow-hidden text-on-panel">
                             <div className="flex flex-col gap-2 h-full min-h-0">
                                 {/* 장착 장비 섹션 */}
-                                <div className="flex flex-col gap-2 flex-shrink-0">
-                                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                                <div className="flex flex-col gap-1.5 flex-shrink-0">
+                                    <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0">장착 장비</h3>
+                                    <div className="grid grid-cols-3 gap-1.5">
                                         {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                             const item = getItemForSlot(slot);
                                             return (
-                                                <div key={slot} className="w-full">
+                                                <div key={slot} className="w-full aspect-square">
                                                     <EquipmentSlotDisplay
                                                         slot={slot}
                                                         item={item}
@@ -778,30 +795,28 @@ const TournamentLobby: React.FC = () => {
                                             );
                                         })}
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                        <Button 
-                                            onClick={handlers.openEquipmentEffectsModal} 
-                                            colorScheme="blue" 
-                                            className={`${isMobile ? '!text-[9px]' : '!text-[10px] sm:!text-xs'} w-full ${isMobile ? '!py-0.5 !px-1.5' : '!py-1 !px-2'}`}
+                                    <div className="mt-1 flex gap-1.5 items-center">
+                                        <select
+                                            value={selectedPreset}
+                                            onChange={handlePresetChange}
+                                            className="bg-secondary border border-color text-[9px] sm:text-xs rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
                                         >
-                                            장비 효과 보기
+                                            {presets && presets.map((preset, index) => (
+                                                <option key={index} value={index}>{preset.name}</option>
+                                            ))}
+                                        </select>
+                                        <Button
+                                            onClick={handlers.openEquipmentEffectsModal}
+                                            colorScheme="none"
+                                            className="!text-[9px] sm:!text-[10px] !py-0.5 !px-2 flex-shrink-0 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
+                                        >
+                                            장비 효과
                                         </Button>
-                                        <div>
-                                            <select
-                                                value={selectedPreset}
-                                                onChange={handlePresetChange}
-                                                className={`bg-gray-700 border border-gray-600 ${isMobile ? 'text-[9px] p-0.5' : 'text-[10px] sm:text-xs p-1 sm:p-1.5'} rounded-md focus:ring-purple-500 focus:border-purple-500 w-full text-gray-200`}
-                                            >
-                                                {presets && presets.map((preset, index) => (
-                                                    <option key={index} value={index}>{preset.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
                                     </div>
                                 </div>
-                                
-                                {/* 능력치 섹션 */}
-                                <div className="flex flex-col gap-2 flex-1 min-h-0">
+                                {/* 능력치 섹션 - 그 아래에 표시 */}
+                                <div className="flex flex-col gap-1 flex-1 min-h-0 border-t border-color pt-1.5 mt-0.5">
+                                    <h3 className="text-[10px] sm:text-xs font-semibold text-secondary flex-shrink-0">능력치</h3>
                                     <div className="flex-1 min-h-0">
                                         <StatsDisplayPanel currentUser={currentUserWithStatus} isMobile={isMobile} />
                                     </div>
@@ -845,63 +860,57 @@ const TournamentLobby: React.FC = () => {
                         </div>
                     </div>
                 </main>
-                 <aside className="hidden lg:flex flex-col lg:w-[500px] flex-shrink-0 gap-4 min-h-0 overflow-hidden">
-                    {/* 상단: 장비+능력치 패널 + 퀵메뉴 */}
-                    <div className="flex-shrink-0 flex flex-row gap-3 items-stretch">
-                        {/* 장비 + 능력치 패널 */}
-                        <div className="flex-1 min-w-0 bg-gray-800/50 rounded-lg p-4 shadow-lg">
-                            <div className="flex flex-col gap-3">
-                                {/* 장착 장비 섹션 */}
-                                <div className="flex flex-col gap-2.5">
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                            const item = getItemForSlot(slot);
-                                            return (
-                                                <div key={slot} className="w-full">
-                                                    <EquipmentSlotDisplay
-                                                        slot={slot}
-                                                        item={item}
-                                                        onClick={() => item && handlers.openViewingItem(item, true)}
-                                                    />
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        <Button 
-                                            onClick={handlers.openEquipmentEffectsModal} 
-                                            colorScheme="blue" 
-                                            className="!text-xs w-full !py-1.5"
-                                        >
-                                            장비 효과 보기
-                                        </Button>
-                                        <div>
-                                            <select
-                                                value={selectedPreset}
-                                                onChange={handlePresetChange}
-                                                className="bg-gray-700 border border-gray-600 text-xs rounded-md p-2 focus:ring-purple-500 focus:border-purple-500 w-full text-gray-200"
-                                            >
-                                                {presets && presets.map((preset, index) => (
-                                                    <option key={index} value={index}>{preset.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
+                 <aside className="hidden lg:flex flex-col lg:w-[460px] flex-shrink-0 gap-3 min-h-0 overflow-hidden">
+                    {/* 상단: 장비+능력치 패널(홈화면과 동일) + 퀵메뉴 */}
+                    <div className="flex-shrink-0 flex flex-row gap-2 items-stretch">
+                        {/* 장비 + 능력치 패널 - 홈화면과 동일한 내용 크기, 내부 패딩으로 중앙 배치 */}
+                        <div className="flex-1 bg-panel border border-color text-on-panel rounded-lg flex flex-col overflow-hidden min-w-0">
+                            <div className="w-[280px] max-w-full mx-auto flex flex-col flex-1 p-1.5">
+                                <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0 mb-1">장착 장비</h3>
+                                <div className="grid grid-cols-3 gap-1.5">
+                                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
+                                        const item = getItemForSlot(slot);
+                                        return (
+                                            <div key={slot} className="w-full aspect-square">
+                                                <EquipmentSlotDisplay
+                                                    slot={slot}
+                                                    item={item}
+                                                    onClick={() => item && handlers.openViewingItem(item, true)}
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                                
-                                {/* 능력치 섹션 */}
-                                <div className="flex flex-col gap-2">
+                                <div className="mt-1 flex gap-1.5 items-center">
+                                    <select
+                                        value={selectedPreset}
+                                        onChange={handlePresetChange}
+                                        className="bg-secondary border border-color text-xs rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
+                                    >
+                                        {presets && presets.map((preset, index) => (
+                                            <option key={index} value={index}>{preset.name}</option>
+                                        ))}
+                                    </select>
+                                    <Button
+                                        onClick={handlers.openEquipmentEffectsModal}
+                                        colorScheme="none"
+                                        className="!text-[9px] !py-0.5 !px-2 flex-shrink-0 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
+                                    >
+                                        장비 효과
+                                    </Button>
+                                </div>
+                                <div className="border-t border-color mt-1.5 pt-1.5 flex flex-col gap-1 flex-shrink-0">
+                                    <h3 className="text-xs font-semibold text-secondary">능력치</h3>
                                     <StatsDisplayPanel currentUser={currentUserWithStatus} />
                                 </div>
                             </div>
                         </div>
-                        {/* 퀵메뉴 - 장비 패널과 높이 맞춤 */}
-                        <div className="w-24 flex-shrink-0">
+                        <div className="w-24 min-w-[96px] flex-shrink-0 ml-auto overflow-hidden">
                             <QuickAccessSidebar fillHeight={true} compact={true} />
                         </div>
                     </div>
                     
-                    {/* 하단: 챔피언십 랭킹 */}
+                    {/* 챔피언십 랭킹 - 더 위로 끌어올려져 세로 공간 확보 */}
                     <div className="flex-1 min-h-0 overflow-hidden">
                         <ChampionshipRankingPanel />
                     </div>

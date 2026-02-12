@@ -99,7 +99,7 @@ const EquipmentSlotDisplay: React.FC<{
                 style={{ 
                     textShadow: '1px 1px 2px black',
                     top: `${innerPadding}px`,
-                    right: `${innerPadding}px`,
+                    right: `${innerPadding + 6}px`,
                     gap: `${gap}px`,
                     padding: `${padding}px`
                 }}
@@ -358,7 +358,7 @@ const LocalItemDetailDisplay: React.FC<{
                 style={{ 
                     textShadow: '1px 1px 2px black',
                     top: `${innerPadding}px`,
-                    right: `${innerPadding}px`,
+                    right: `${innerPadding + 6}px`,
                     gap: `${gap}px`,
                     padding: `${padding}px`
                 }}
@@ -1356,6 +1356,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         if (itemToSell.type === 'material') {
                             // 재료는 선택된 슬롯의 수량만 판매 (1개 판매)
                             await onAction({ type: 'SELL_ITEM', payload: { itemId: itemToSell.id, quantity: 1 } });
+                        } else if (itemToSell.type === 'consumable') {
+                            // 소모품은 전체 판매 (수량이 있으면 전체 수량 판매)
+                            await onAction({ type: 'SELL_ITEM', payload: { itemId: itemToSell.id, quantity: itemToSell.quantity || 1 } });
                         } else {
                             // 장비는 전체 판매
                             await onAction({ type: 'SELL_ITEM', payload: { itemId: itemToSell.id } });
@@ -1373,18 +1376,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     currentUser={currentUser}
                     onClose={() => setItemToSellBulk(null)}
                     onConfirm={async (quantity) => {
-                        // 같은 이름의 재료를 모두 찾아서 순차적으로 판매
-                        const materialsToSell = currentUser.inventory
-                            .filter(i => i.type === 'material' && i.name === itemToSellBulk.name)
+                        // 같은 이름의 아이템을 모두 찾아서 순차적으로 판매 (재료 또는 소모품)
+                        const itemsToSell = currentUser.inventory
+                            .filter(i => i.type === itemToSellBulk.type && i.name === itemToSellBulk.name)
                             .sort((a, b) => (a.quantity || 0) - (b.quantity || 0)); // 수량이 적은 것부터 정렬
                         
                         let remainingQuantity = quantity;
                         
                         // 순차적으로 처리하여 인벤토리 상태가 올바르게 업데이트되도록 함
-                        for (const material of materialsToSell) {
+                        for (const item of itemsToSell) {
                             if (remainingQuantity <= 0) break;
-                            const sellQty = Math.min(remainingQuantity, material.quantity || 0);
-                            await onAction({ type: 'SELL_ITEM', payload: { itemId: material.id, quantity: sellQty } });
+                            const sellQty = Math.min(remainingQuantity, item.quantity || 0);
+                            await onAction({ type: 'SELL_ITEM', payload: { itemId: item.id, quantity: sellQty } });
                             remainingQuantity -= sellQty;
                         }
                         

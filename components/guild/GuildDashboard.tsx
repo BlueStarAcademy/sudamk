@@ -573,13 +573,13 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     const [cooldownRemaining, setCooldownRemaining] = React.useState<string>('');
     const GUILD_WAR_MAX_ATTEMPTS = 3; // 하루 최대 공격권
     
-    // 길드장/부길드장 권한 확인
+    // 길드장/부길드장 권한 확인 (길드장은 leaderId로도 허용 - 방금 창설한 경우 members 동기화 전일 수 있음)
     const myMemberInfo = React.useMemo(() => {
         if (!currentUserWithStatus?.id) return undefined;
         return guild.members?.find(m => m.userId === currentUserWithStatus.id);
     }, [guild.members, currentUserWithStatus?.id]);
     
-    const canStartWar = myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
+    const canStartWar = guild.leaderId === currentUserWithStatus?.id || myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
 
     // handlers.handleAction을 ref로 저장하여 무한 루프 방지
     const handleActionRef = React.useRef(handlers.handleAction);
@@ -1532,39 +1532,17 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                         )}
                     </div>
                     <div className="flex flex-col items-start flex-1 min-w-0 gap-1">
-                        <div className="flex items-center gap-3 w-full">
-                            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-highlight to-accent bg-clip-text text-transparent drop-shadow-lg break-words">
+                        {/* 길드마크 옆, 레벨 위: 길드명 표시 */}
+                        <div className="w-full">
+                            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-highlight drop-shadow-md break-words truncate max-w-full" title={(() => {
+                                if (!currentGuild) return '';
+                                const guildsGuild = guilds[currentGuild.id || guild.id];
+                                return guildsGuild?.name || currentGuild?.name || guild?.name || '';
+                            })()}>
                                 {(() => {
-                                    // currentGuild 객체가 없으면 로딩 중 표시
-                                    if (!currentGuild) {
-                                        return '로딩 중...';
-                                    }
-                                    
-                                    // 길드명 우선순위: 
-                                    // 1. guilds 상태의 최신 길드명 (guilds[guild.id]?.name)
-                                    // 2. currentGuild.name
-                                    // 3. guild prop의 name
-                                    // 4. currentGuild.id (fallback)
+                                    if (!currentGuild) return '로딩 중...';
                                     const guildsGuild = guilds[currentGuild.id || guild.id];
-                                    const guildName = guildsGuild?.name || currentGuild?.name || guild?.name || currentGuild?.id || guild?.id || '길드명 없음';
-                                    
-                                    // 디버깅: 길드명이 없을 때 상세 로그
-                                    if (!guildName || guildName === '길드명 없음' || guildName === currentGuild?.id || guildName === guild?.id) {
-                                        console.warn('[GuildDashboard] Guild name is missing or invalid:', { 
-                                            guildId: currentGuild?.id || guild?.id,
-                                            guildName: guildName,
-                                            guildsGuildName: guildsGuild?.name,
-                                            currentGuildName: currentGuild?.name,
-                                            guildPropName: guild?.name,
-                                            currentGuild: currentGuild,
-                                            originalGuild: guild,
-                                            guildsGuild: guildsGuild,
-                                            guildsState: Object.keys(guilds),
-                                            guildsStateHasGuild: currentGuild?.id ? !!guilds[currentGuild.id] : false
-                                        });
-                                    }
-                                    
-                                    return guildName;
+                                    return guildsGuild?.name || currentGuild?.name || guild?.name || '길드';
                                 })()}
                             </h1>
                         </div>
