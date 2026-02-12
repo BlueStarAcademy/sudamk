@@ -116,10 +116,10 @@ export const createUserCredential = async (
 ): Promise<void> => {
   const normalizedUsername = username.toLowerCase();
   try {
-    // 먼저 새 컬럼이 있는지 확인하고 시도
+    // 먼저 새 컬럼이 있는지 확인하고 시도 (createdAt/updatedAt 필수)
     await prisma.$executeRawUnsafe(`
-      INSERT INTO "UserCredential" (username, "passwordHash", "userId", "kakaoId", "emailVerified")
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO "UserCredential" (username, "passwordHash", "userId", "kakaoId", "emailVerified", "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
     `, normalizedUsername, passwordHash, userId, kakaoId || null, false);
   } catch (error: any) {
     // kakaoId나 emailVerified 컬럼이 아직 없는 경우 기본 필드만 사용
@@ -129,8 +129,8 @@ export const createUserCredential = async (
         errorMessage.includes('kakaoId') || errorMessage.includes('emailVerified') || 
         errorMessage.includes('column') || errorMessage.includes('does not exist')) {
       await prisma.$executeRawUnsafe(`
-        INSERT INTO "UserCredential" (username, "passwordHash", "userId")
-        VALUES ($1, $2, $3)
+        INSERT INTO "UserCredential" (username, "passwordHash", "userId", "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, NOW(), NOW())
       `, normalizedUsername, passwordHash, userId);
     } else {
       throw error;
