@@ -221,51 +221,15 @@ export async function buildRankingCache(): Promise<RankingCache> {
     return buildingPromise;
 }
 
-// 챔피언십 랭킹 계산 (던전 시스템: 최고 클리어 단계 기준)
+// 챔피언십 랭킹 계산: 동네바둑리그 + 전국바둑대회 + 월드챔피언십 점수 합산(cumulativeTournamentScore) 기준, Top 100
 function calculateChampionshipRankings(allUsers: any[]): RankingEntry[] {
     const rankings: RankingEntry[] = [];
     const allGameModes = [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES];
-    
+
     for (const user of allUsers) {
         if (!user || !user.id) continue;
-        
-        // 던전 진행 상태가 있는 유저만 필터링
-        if (!user.dungeonProgress) continue;
-        
-        // 최소 하나의 던전에서 클리어한 단계가 있어야 함
-        const hasProgress = Object.values(user.dungeonProgress).some((progress: any) => progress.currentStage > 0);
-        if (!hasProgress) continue;
-        
-        // 최고 클리어 단계 계산
-        let maxStage = 0;
-        let maxScoreDiff = -Infinity;
-        let totalAbility = 0;
-        
-        for (const progress of Object.values(user.dungeonProgress)) {
-            const prog = progress as any;
-            if (prog.currentStage > maxStage) {
-                maxStage = prog.currentStage;
-            }
-            // 같은 단계면 점수차이 큰 순서
-            for (const [stage, result] of Object.entries(prog.stageResults || {})) {
-                const res = result as any;
-                if (res.cleared && parseInt(stage) === maxStage) {
-                    if (res.scoreDiff > maxScoreDiff) {
-                        maxScoreDiff = res.scoreDiff;
-                    }
-                }
-            }
-        }
-        
-        // 6가지 능력치 합계 계산
-        if (user.baseStats) {
-            totalAbility = Object.values(user.baseStats).reduce((sum: number, stat: any) => sum + (stat || 0), 0);
-        }
-        
-        // 랭킹 점수 계산: 최고 단계를 우선으로, 같은 단계면 점수차이, 그 다음 능력치 합계
-        // 점수 = (최고 단계 * 1000000) + (점수차이 * 1000) + (능력치 합계)
-        const rankingScore = (maxStage * 1000000) + (Math.max(0, maxScoreDiff) * 1000) + totalAbility;
-        
+
+        const score = typeof user.cumulativeTournamentScore === 'number' ? user.cumulativeTournamentScore : 0;
         const totalGames = calculateTotalGames(user, allGameModes);
         let wins = 0;
         let losses = 0;
@@ -276,24 +240,23 @@ function calculateChampionshipRankings(allUsers: any[]): RankingEntry[] {
                 losses += gameStats.losses || 0;
             }
         }
-        
+
         rankings.push({
             id: user.id,
             nickname: user.nickname || user.username,
             avatarId: user.avatarId,
             borderId: user.borderId,
-            rank: 0, // 정렬 후 설정
-            score: rankingScore, // 랭킹 정렬용 점수
+            rank: 0,
+            score,
             totalGames,
             wins,
             losses,
             league: user.league
         });
     }
-    
-    // 정렬 후 rank 설정
+
     rankings.sort((a, b) => b.score - a.score);
-    return rankings.map((entry, index) => ({ ...entry, rank: index + 1 }));
+    return rankings.slice(0, 100).map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
 // 매너 랭킹 계산 (별도 함수로 분리)

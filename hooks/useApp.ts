@@ -1302,6 +1302,7 @@ export const useApp = () => {
                         'CLAIM_SINGLE_PLAYER_MISSION_REWARD',
                         'CLAIM_ALL_TRAINING_QUEST_REWARDS',
                         'SINGLE_PLAYER_REFRESH_PLACEMENT',
+                        'COMPLETE_DUNGEON_STAGE',
                         'BUY_SHOP_ITEM',
                         'BUY_MATERIAL_BOX',
                         'BUY_CONSUMABLE',

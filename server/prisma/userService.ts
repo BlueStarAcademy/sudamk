@@ -17,6 +17,7 @@ const buildPersistentFields = (user: User) => {
   return {
     nickname: user.nickname,
     username: user.username,
+    email: (user as any).email ?? null,
     isAdmin: user.isAdmin ?? false,
     strategyLevel: user.strategyLevel,
     strategyXp: user.strategyXp,

@@ -14,6 +14,7 @@ import QuickAccessSidebar from './QuickAccessSidebar.js';
 import ChatWindow from './waiting-room/ChatWindow.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
+import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
 import MannerRankModal from './MannerRankModal.js';
 import HomeBoardPanel from './HomeBoardPanel.js';
 import GuildCreateModal from './guild/GuildCreateModal.js';
@@ -882,6 +883,9 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <div className="flex-1 min-w-0 overflow-hidden">
                                     <BadukRankingBoard />
                                 </div>
+                                <div className="flex-1 min-w-0 overflow-hidden min-w-[200px]">
+                                    <ChampionshipRankingPanel compact />
+                                </div>
                             </div>
                             <div className="w-24 min-w-[96px] flex-shrink-0 overflow-hidden">
                                 <QuickAccessSidebar />
@@ -1119,6 +1123,11 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg overflow-hidden">
                                     <div className="h-full">
                                         <BadukRankingBoard />
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg overflow-hidden">
+                                    <div className="h-full">
+                                        <ChampionshipRankingPanel compact />
                                     </div>
                                 </div>
                                 <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg flex flex-col overflow-hidden">

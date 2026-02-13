@@ -611,11 +611,12 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 // 선택적 필드만 반환 (메시지 크기 최적화)
                 const updatedUser = getSelectiveUserUpdate(freshUser, 'CLAIM_TOURNAMENT_REWARD', { includeAll: true });
                 
-                // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화: 변경된 필드만 전송)
+                // WebSocket으로 사용자 업데이트 브로드캐스트 (보상·다음 단계 언락 반영)
                 const fullUserForBroadcast = JSON.parse(JSON.stringify(freshUser));
                 const { broadcastUserUpdate } = await import('../socket.js');
-                broadcastUserUpdate(fullUserForBroadcast, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints', 'mail']);
-                
+                broadcastUserUpdate(fullUserForBroadcast, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints', 'mail', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress']);
+                const { invalidateRankingCache } = await import('../rankingCache.js');
+                invalidateRankingCache();
                 const allObtainedItems: any[] = [...accumulatedMaterials, ...accumulatedEquipmentBoxes];
                 if (accumulatedGold > 0) {
                     allObtainedItems.unshift({ name: `${accumulatedGold} 골드 (경기 보상)`, image: '/images/icon/Gold.png' });
@@ -728,9 +729,9 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(freshUser, 'CLAIM_TOURNAMENT_REWARD', { includeAll: true });
 
-            // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
+            // WebSocket으로 사용자 업데이트 브로드캐스트 (다음 단계 언락 등 반영)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(freshUser, ['inventory', 'gold', 'diamonds', 'tournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament']);
+            broadcastUserUpdate(freshUser, ['inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress']);
 
             const allObtainedItems: InventoryItem[] = itemsToCreate.map(item => ({
                 ...item,

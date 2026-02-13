@@ -87,7 +87,15 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     React.useEffect(() => {
         return () => {
             const latestState = latestTournamentStateRef.current;
-            if (!latestState || latestState.status === 'round_in_progress') return;
+            if (!latestState) return;
+            // 경기 진행 중 나간 경우: 상태 유지(이어보기용)
+            if (latestState.status === 'round_in_progress') return;
+            // 경기 시작 전(bracket_ready) 나간 경우: 세션 초기화하여 로비에서 최초 상태로
+            if (latestState.status === 'bracket_ready') {
+                handlers.handleAction({ type: 'CLEAR_TOURNAMENT_SESSION', payload: { type } })
+                    .catch(error => console.error('[TournamentArena] Failed to clear tournament session on unmount:', error));
+                return;
+            }
             handlers.handleAction({ type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type } })
                 .catch(error => console.error('[TournamentArena] Failed to save tournament progress on unmount:', error));
         };

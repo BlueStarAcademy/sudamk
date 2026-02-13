@@ -411,17 +411,20 @@ const TournamentCard: React.FC<{
     
     let buttonText = getEntryText();
     
-    // 던전 모드인지 확인 (currentStageAttempt가 있으면 던전 모드)
-    const isDungeonMode = inProgress && inProgress.currentStageAttempt !== undefined && inProgress.currentStageAttempt !== null;
+    // 경기를 실제로 시작한 경우에만 이어보기/결과 보기 표시 (bracket_ready는 입장만 한 상태)
+    const hasStartedMatch = inProgress && (inProgress.status === 'round_in_progress' || inProgress.status === 'complete' || inProgress.status === 'eliminated');
+    const isDungeonMode = hasStartedMatch && inProgress.currentStageAttempt !== undefined && inProgress.currentStageAttempt !== null;
     
-    // 던전 진행 중인 경우
-    if (isDungeonMode) {
+    if (isDungeonMode && inProgress) {
         if (inProgress.status === 'complete' || inProgress.status === 'eliminated') {
             buttonText = '결과 보기';
         } else {
             buttonText = '이어서 보기';
         }
     }
+    
+    // 경기 진행 중(일시정지 가능) 상태 표시용
+    const isPausedInProgress = inProgress && inProgress.status === 'round_in_progress';
     
     return (
         <div 
@@ -441,6 +444,8 @@ const TournamentCard: React.FC<{
                             <span>✓</span>
                             <span>완료</span>
                         </span>
+                    ) : isPausedInProgress ? (
+                        <span className="text-[10px] sm:text-xs text-amber-400 font-semibold">진행중..</span>
                     ) : (
                         <span className="text-[10px] sm:text-xs text-gray-300 font-semibold">({playedCountToday}/1)</span>
                     )}

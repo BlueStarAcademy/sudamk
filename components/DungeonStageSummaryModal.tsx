@@ -1,7 +1,7 @@
 import React from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
-import { TournamentType, TournamentState, UserWithStatus } from '../types.js';
+import { TournamentType, TournamentState } from '../types.js';
 import { TOURNAMENT_DEFINITIONS, DUNGEON_STAGE_BASE_SCORE, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS } from '../constants/tournaments.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 
@@ -47,20 +47,16 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
 }) => {
     const tournamentName = TOURNAMENT_DEFINITIONS[dungeonType].name;
     const nextStage = stage < 10 ? stage + 1 : null;
-    
-    // 보상 아이템 수집 (중복 제거를 위해 Map 사용)
+
     const rewardItemsMap = new Map<string, { name: string; image: string; quantity: number }>();
-    
-    // 기본 보상 (골드)
+
     if (baseRewards.gold && baseRewards.gold > 0) {
         rewardItemsMap.set('gold', {
             name: `${baseRewards.gold.toLocaleString()} 골드`,
             image: '/images/icon/Gold.png',
-            quantity: 1 // 골드는 이름에 이미 개수가 포함되어 있으므로 quantity는 1로 설정하여 중복 표시 방지
+            quantity: 1
         });
     }
-    
-    // 기본 보상 (재료)
     if (baseRewards.materials) {
         for (const [materialName, quantity] of Object.entries(baseRewards.materials)) {
             const materialTemplate = MATERIAL_ITEMS[materialName];
@@ -76,8 +72,6 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             }
         }
     }
-    
-    // 기본 보상 (장비상자)
     if (baseRewards.equipmentBoxes) {
         for (const [boxName, quantity] of Object.entries(baseRewards.equipmentBoxes)) {
             const boxTemplate = CONSUMABLE_ITEMS.find(i => i.name === boxName);
@@ -93,8 +87,6 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             }
         }
     }
-    
-    // 기본 보상 (변경권)
     if (baseRewards.changeTickets && baseRewards.changeTickets > 0) {
         rewardItemsMap.set('changeTickets', {
             name: `변경권 x${baseRewards.changeTickets}`,
@@ -102,240 +94,153 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             quantity: baseRewards.changeTickets
         });
     }
-    
-    // 순위 보상 (골드 꾸러미 등 아이템)
     if (rankReward?.items) {
         for (const item of rankReward.items) {
-            // 재료 상자1 -> 재료 상자 I 변환 등 이름 매핑
             let itemName = item.itemId;
             let itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === itemName);
-            
-            // 이름 변환 시도 (재료 상자1 -> 재료 상자 I 등)
             if (!itemTemplate) {
                 const nameMappings: Record<string, string> = {
-                    '재료 상자1': '재료 상자 I',
-                    '재료 상자2': '재료 상자 II',
-                    '재료 상자3': '재료 상자 III',
-                    '재료 상자4': '재료 상자 IV',
-                    '재료 상자5': '재료 상자 V',
-                    '재료 상자6': '재료 상자 VI',
-                    '재료상자1': '재료 상자 I',
-                    '재료상자2': '재료 상자 II',
-                    '재료상자3': '재료 상자 III',
-                    '재료상자4': '재료 상자 IV',
-                    '재료상자5': '재료 상자 V',
-                    '재료상자6': '재료 상자 VI',
+                    '재료 상자1': '재료 상자 I', '재료 상자2': '재료 상자 II', '재료 상자3': '재료 상자 III',
+                    '재료 상자4': '재료 상자 IV', '재료 상자5': '재료 상자 V', '재료 상자6': '재료 상자 VI',
+                    '재료상자1': '재료 상자 I', '재료상자2': '재료 상자 II', '재료상자3': '재료 상자 III',
+                    '재료상자4': '재료 상자 IV', '재료상자5': '재료 상자 V', '재료상자6': '재료 상자 VI',
                 };
                 const mappedName = nameMappings[itemName];
                 if (mappedName) {
                     itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === mappedName);
-                    if (itemTemplate) {
-                        itemName = mappedName; // 표시 이름도 매핑된 이름으로 변경
-                    }
+                    if (itemTemplate) itemName = mappedName;
                 }
             }
-            
             const existing = rewardItemsMap.get(itemName);
             if (existing) {
                 existing.quantity += item.quantity;
             } else {
                 rewardItemsMap.set(itemName, {
                     name: itemName,
-                    image: itemTemplate?.image || '/images/Box/ResourceBox1.png', // 기본 이미지
+                    image: itemTemplate?.image || '/images/Box/ResourceBox1.png',
                     quantity: item.quantity
                 });
             }
         }
     }
-    
     const rewardItems = Array.from(rewardItemsMap.values());
-    
+
+    const baseScore = DUNGEON_STAGE_BASE_SCORE[stage] || 0;
+    const rankBonus = DUNGEON_RANK_SCORE_BONUS[userRank] || DUNGEON_DEFAULT_SCORE_BONUS;
+    const bonusScore = Math.round(baseScore * rankBonus);
+
     return (
-        <DraggableWindow 
-            title={`${tournamentName} ${stage}단계 결과`} 
-            onClose={onClose} 
-            windowId="dungeon-stage-summary" 
-            initialWidth={500} 
-            closeOnOutsideClick={false} 
+        <DraggableWindow
+            title={`${tournamentName} ${stage}단계 결과`}
+            onClose={onClose}
+            windowId="dungeon-stage-summary"
+            initialWidth={700}
+            initialHeight={620}
+            closeOnOutsideClick={false}
             isTopmost={isTopmost}
             zIndex={70}
         >
-            <div className="space-y-4">
-                {/* 단계 정보 */}
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-2 text-yellow-300">{tournamentName} {stage}단계</h2>
+            <div className="flex flex-col h-full min-h-0">
+                <div className="flex-shrink-0 text-center py-1.5 border-b border-gray-600/70">
+                    <h2 className="text-base font-bold text-amber-200">{tournamentName} {stage}단계</h2>
                 </div>
-                
-                {/* 전적 및 순위 (한 줄에 표시) */}
-                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                    <div className="grid grid-cols-3 gap-4 items-center">
-                        {/* 전적 */}
-                        <div className="text-center">
-                            <div className="text-xs text-gray-400 mb-1">전적</div>
-                            <div className="flex items-center justify-center gap-2">
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-green-400">{wins}</div>
-                                    <div className="text-xs text-gray-400">승</div>
-                                </div>
-                                <div className="text-gray-500">-</div>
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-red-400">{losses}</div>
-                                    <div className="text-xs text-gray-400">패</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* 구분선 */}
-                        <div className="h-16 w-px bg-gray-600 mx-auto"></div>
-                        
-                        {/* 순위 */}
-                        <div className="text-center">
-                            <div className="text-xs text-gray-400 mb-1">최종 순위</div>
-                            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full text-2xl font-bold ${
-                                userRank === 1 
-                                    ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-lg'
-                                    : userRank === 2
-                                        ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800 shadow-md'
-                                        : userRank === 3
-                                            ? 'bg-gradient-to-br from-amber-600 to-orange-600 text-white shadow-md'
-                                            : 'bg-gray-600 text-gray-200'
-                            }`}>
-                                {userRank}
-                            </div>
-                            <div className="mt-1 text-xs text-gray-400">위</div>
-                        </div>
-                    </div>
-                </div>
-                
-                {/* 일일 랭킹 점수 및 순위 변화 */}
-                {(dailyScore !== undefined || previousRank !== undefined || currentRank !== undefined) && (
-                    <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-lg p-4 border-2 border-blue-600/50">
-                        <h3 className="text-lg font-semibold mb-3 text-center text-blue-300">일일 랭킹</h3>
-                        <div className="space-y-3">
-                            {dailyScore !== undefined && (
-                                <div className="bg-gray-900/50 rounded-lg p-3 border border-yellow-600/30">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-gray-300 font-medium">획득 점수</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-yellow-400 font-bold text-lg">+{dailyScore.toLocaleString()}</span>
-                                            <span className="text-gray-400 text-sm">점</span>
-                                        </div>
-                                    </div>
-                                    {(() => {
-                                        const baseScore = DUNGEON_STAGE_BASE_SCORE[stage] || 0;
-                                        const rankBonus = DUNGEON_RANK_SCORE_BONUS[userRank] || DUNGEON_DEFAULT_SCORE_BONUS;
-                                        const bonusScore = Math.round(baseScore * rankBonus);
-                                        return bonusScore > 0 ? (
-                                            <div className="text-xs text-gray-500 text-right">
-                                                (기본 {baseScore}점 + 보너스 {bonusScore}점)
-                                            </div>
-                                        ) : null;
-                                    })()}
-                                </div>
-                            )}
-                            {(previousRank !== undefined || currentRank !== undefined) && (
-                                <div className="bg-gray-900/50 rounded-lg p-3 border border-blue-600/30">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-gray-300 font-medium">챔피언십 순위</span>
-                                        <div className="flex items-center gap-2">
-                                            {previousRank !== undefined ? (
-                                                <span className="text-gray-400 font-semibold">{previousRank}위</span>
-                                            ) : (
-                                                <span className="text-gray-500">-</span>
-                                            )}
-                                            <span className="text-gray-500">→</span>
-                                            {currentRank !== undefined ? (
-                                                <span className={`font-bold text-lg ${
-                                                    previousRank !== undefined && currentRank < previousRank
-                                                        ? 'text-green-400'
-                                                        : previousRank !== undefined && currentRank > previousRank
-                                                            ? 'text-red-400'
-                                                            : 'text-blue-300'
-                                                }`}>
-                                                    {currentRank}위
-                                                </span>
-                                            ) : (
-                                                <span className="text-gray-500">-</span>
-                                            )}
-                                            {previousRank !== undefined && currentRank !== undefined && currentRank !== previousRank && (
-                                                <span className={`text-sm font-semibold px-2 py-0.5 rounded ${
-                                                    currentRank < previousRank
-                                                        ? 'text-green-300 bg-green-900/30'
-                                                        : 'text-red-300 bg-red-900/30'
-                                                }`}>
-                                                    {currentRank < previousRank ? '▲' : '▼'} {Math.abs(previousRank - currentRank)}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-                
-                {/* 보상 내역 */}
-                {rewardItems.length > 0 && (
-                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                        <h3 className="text-lg font-semibold mb-3 text-center text-gray-200">보상 내역</h3>
-                        <div className="grid grid-cols-4 gap-2">
-                            {rewardItems.map((item, index) => (
-                                <div key={index} className="relative flex flex-col items-center justify-center p-2 bg-gray-900/50 rounded-lg border border-gray-700 hover:border-yellow-500/50 transition-colors">
-                                    <img 
-                                        src={item.image} 
-                                        alt={item.name} 
-                                        className="w-12 h-12 object-contain mb-1" 
-                                    />
-                                    <span className="text-xs text-gray-300 text-center break-words">
-                                        {item.name}
-                                    </span>
-                                    {item.quantity > 1 && item.name !== 'gold' && !item.name.includes('골드') && (
-                                        <span className="absolute -bottom-0.5 -right-0.5 text-[10px] font-bold text-yellow-200 bg-black/70 px-1 rounded-tl-md">
-                                            {item.quantity}
-                                        </span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                
-                {/* 다음 단계 언락 여부 */}
-                {nextStage && (
-                    <div className={`rounded-lg p-4 border-2 ${
-                        nextStageUnlocked 
-                            ? 'bg-green-900/30 border-green-600/50' 
-                            : 'bg-gray-800/50 border-gray-700'
-                    }`}>
-                        <div className="text-center">
-                            <h3 className={`text-lg font-semibold mb-2 ${
-                                nextStageUnlocked ? 'text-green-300' : 'text-gray-400'
-                            }`}>
-                                {nextStage}단계 {nextStageUnlocked ? '열림' : '잠김'}
+
+                {/* 3개 박스: 1행에 박스1·2, 2행에 박스3. 내부 스크롤 없이 모두 표시 */}
+                <div className="flex-1 flex flex-col gap-3 p-3 min-h-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-shrink-0">
+                        {/* 박스 1: 이번 대회 전적 + 순위 + 획득 점수 */}
+                        <div className="rounded-xl bg-gray-800/95 border border-gray-600/60 p-3 flex flex-col gap-2">
+                            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-600/50 pb-1.5">
+                                이번 대회 결과
                             </h3>
-                            <p className={`text-sm ${
-                                nextStageUnlocked 
-                                    ? 'text-green-200' 
-                                    : 'text-gray-500'
-                            }`}>
-                                {nextStageUnlocked 
-                                    ? `다음 단계가 열렸습니다.`
-                                    : '3위 이상 달성 시 다음 단계가 열립니다.'}
-                            </p>
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-500 text-xs">전적</span>
+                                    <span className="text-emerald-400 font-bold tabular-nums">{wins}</span>
+                                    <span className="text-gray-500">승</span>
+                                    <span className="text-gray-600">-</span>
+                                    <span className="text-rose-400 font-bold tabular-nums">{losses}</span>
+                                    <span className="text-gray-500">패</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-500 text-xs">순위</span>
+                                    <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                                        userRank === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-600 text-black' :
+                                        userRank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-gray-800' :
+                                        userRank === 3 ? 'bg-gradient-to-br from-amber-700 to-amber-900 text-amber-100' :
+                                        'bg-gray-600 text-gray-200'
+                                    }`}>
+                                        {userRank}
+                                    </div>
+                                    <span className="text-gray-400 text-xs">위</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-500 text-xs">획득 점수</span>
+                                <span className="text-amber-300 font-bold tabular-nums">
+                                    {dailyScore !== undefined ? `+${dailyScore.toLocaleString()}점` : '-'}
+                                </span>
+                            </div>
+                            {nextStage !== null && (
+                                <div className={`rounded-lg px-2 py-1 text-xs flex items-center justify-between ${
+                                    nextStageUnlocked ? 'bg-emerald-900/30 text-emerald-200' : 'bg-gray-700/50 text-gray-500'
+                                }`}>
+                                    <span>{nextStage}단계</span>
+                                    <span>{nextStageUnlocked ? '열림' : '잠김 (3위 이상 시 열림)'}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 박스 2: 현재 단계 누적 전적 */}
+                        <div className="rounded-xl bg-gray-800/95 border border-gray-600/60 p-3 flex flex-col justify-center">
+                            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-600/50 pb-1.5 mb-2">
+                                현재 단계 누적 전적
+                            </h3>
+                            <div className="flex items-center justify-center gap-6 py-1">
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-emerald-400 tabular-nums">{wins}</div>
+                                    <div className="text-[10px] text-gray-500">승</div>
+                                </div>
+                                <div className="w-px h-10 bg-gray-600" />
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-rose-400 tabular-nums">{losses}</div>
+                                    <div className="text-[10px] text-gray-500">패</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                )}
-                
-                {/* 확인 버튼 */}
-                <Button 
-                    onClick={() => {
-                        // 모달 닫기 (서버 응답은 이미 처리되었으므로 추가 처리 불필요)
-                        onClose();
-                    }} 
-                    className="w-full py-2.5"
-                >
-                    확인
-                </Button>
+
+                    {/* 박스 3: 보상 내역 */}
+                    <div className="rounded-xl bg-gray-800/95 border border-gray-600/60 p-3 flex flex-col flex-1 min-h-[160px]">
+                        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-600/50 pb-1.5 mb-2 flex-shrink-0">
+                            보상 내역
+                        </h3>
+                        {rewardItems.length > 0 ? (
+                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 content-start">
+                                {rewardItems.map((item, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-900/60 border border-gray-700/80"
+                                    >
+                                        <img src={item.image} alt={item.name} className="w-8 h-8 object-contain" />
+                                        <span className="text-[10px] text-gray-300 text-center truncate w-full mt-1">{item.name}</span>
+                                        {item.quantity > 1 && (
+                                            <span className="text-[10px] font-bold text-amber-200">x{item.quantity}</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500 text-sm py-2">보상 없음</p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex-shrink-0 p-2 border-t border-gray-600/70">
+                    <Button onClick={onClose} className="w-full py-2 text-sm font-medium">
+                        확인
+                    </Button>
+                </div>
             </div>
         </DraggableWindow>
     );

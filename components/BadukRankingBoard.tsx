@@ -37,9 +37,9 @@ const RankingRow = ({ user, rank, value, isCurrentUser, onViewUser }: { user: Us
 
 const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
-    const [activeTab, setActiveTab] = useState<'strategic' | 'playful' | 'championship'>('strategic');
+    const [activeTab, setActiveTab] = useState<'strategic' | 'playful'>('strategic');
 
-    const rankingType = activeTab === 'championship' ? 'championship' : (activeTab === 'strategic' ? 'strategic' : 'playful');
+    const rankingType = activeTab === 'strategic' ? 'strategic' : 'playful';
     const { rankings: rankingEntries, loading, error } = useRanking(rankingType);
 
     const rankings = useMemo(() => {
@@ -50,10 +50,10 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost }) => {
                 avatarId: entry.avatarId,
                 borderId: entry.borderId
             } as any,
-            value: activeTab === 'championship' ? entry.score : entry.score, // championship은 누적 점수, strategic/playful은 랭킹 점수
+            value: entry.score,
             rank: entry.rank
         }));
-    }, [rankingEntries, activeTab]);
+    }, [rankingEntries]);
 
     // 페이지네이션: 초기 10명, 스크롤 시 10명씩 추가
     const [displayCount, setDisplayCount] = useState(10);
@@ -101,46 +101,30 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost }) => {
         }
         
         // rankings에 없으면 값만 계산 (10판 이상이어야 표시)
-        if (activeTab === 'championship') {
-            // 누적랭킹점수 사용
-            const cumulativeScore = currentUserWithStatus.cumulativeTournamentScore || 0;
-            // rankings에서 순위 찾기
-            const rank = rankings.findIndex(r => r.value <= cumulativeScore) + 1;
-            return { user: currentUserWithStatus, value: cumulativeScore, rank: rank || 'N/A' };
-        } else {
-            const mode = activeTab === 'strategic' ? 'strategic' : 'playful';
-            const scoreMode = mode === 'strategic' ? 'standard' : 'playful';
-            const gameModes = mode === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
-            
-            // 총 게임 수 계산
-            let totalGames = 0;
-            if (currentUserWithStatus.stats) {
-                for (const gameMode of gameModes) {
-                    const gameStats = currentUserWithStatus.stats[gameMode.mode];
-                    if (gameStats) {
-                        totalGames += (gameStats.wins || 0) + (gameStats.losses || 0);
-                    }
+        const mode = activeTab === 'strategic' ? 'strategic' : 'playful';
+        const scoreMode = mode === 'strategic' ? 'standard' : 'playful';
+        const gameModes = mode === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
+
+        let totalGames = 0;
+        if (currentUserWithStatus.stats) {
+            for (const gameMode of gameModes) {
+                const gameStats = currentUserWithStatus.stats[gameMode.mode];
+                if (gameStats) {
+                    totalGames += (gameStats.wins || 0) + (gameStats.losses || 0);
                 }
             }
-            
-            // 10판 미만이면 null 반환 (표시하지 않음)
-            if (totalGames < 10) {
-                return null;
-            }
-            
-            // cumulativeRankingScore는 이미 1200에서의 차이값 (기본점수 제외)
-            const score = currentUserWithStatus.cumulativeRankingScore?.[scoreMode] || 0;
-            const dailyRanking = currentUserWithStatus.dailyRankings?.[mode];
-            
-            // rankings에서 순위 찾기
-            const rankInList = rankings.findIndex(r => r.user && r.user.id === currentUserWithStatus.id);
-            if (rankInList !== -1) {
-                return { user: currentUserWithStatus, value: score, rank: rankings[rankInList].rank };
-            }
-            
-            // rankings에 없으면 rank만 'N/A'로 표시
-            return { user: currentUserWithStatus, value: score, rank: 'N/A' };
         }
+
+        if (totalGames < 10) {
+            return null;
+        }
+
+        const score = currentUserWithStatus.cumulativeRankingScore?.[scoreMode] || 0;
+        const rankInList = rankings.findIndex(r => r.user && r.user.id === currentUserWithStatus.id);
+        if (rankInList !== -1) {
+            return { user: currentUserWithStatus, value: score, rank: rankings[rankInList].rank };
+        }
+        return { user: currentUserWithStatus, value: score, rank: 'N/A' };
     }, [currentUserWithStatus, activeTab, rankings]);
 
     return (
@@ -158,12 +142,6 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost }) => {
                     className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all ${activeTab === 'playful' ? 'bg-yellow-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
                 >
                     놀이바둑
-                </button>
-                <button 
-                    onClick={() => setActiveTab('championship')}
-                    className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all ${activeTab === 'championship' ? 'bg-purple-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
-                >
-                    챔피언십
                 </button>
             </div>
             <div className="flex-grow overflow-y-auto pr-1 text-xs flex flex-col gap-0.5 min-h-0">

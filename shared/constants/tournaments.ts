@@ -167,7 +167,7 @@ export const DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT: Record<number, { boxes: { box
     10: { boxes: [{ boxName: '장비 상자 IV', quantity: 3 }], changeTickets: 3 },
 };
 
-// 일일 랭킹 점수: 단계별 기본 점수
+// 일일 랭킹 점수: 단계별 기본 점수 (레거시, DUNGEON_STAGE_1_SCORE_BY_TYPE + 배율 사용 권장)
 export const DUNGEON_STAGE_BASE_SCORE: Record<number, number> = {
     1: 10,
     2: 15,
@@ -181,7 +181,7 @@ export const DUNGEON_STAGE_BASE_SCORE: Record<number, number> = {
     10: 100,
 };
 
-// 일일 랭킹 점수: 순위별 보너스 배율
+// 일일 랭킹 점수: 순위별 보너스 배율 (레거시)
 export const DUNGEON_RANK_SCORE_BONUS: Record<number, number> = {
     1: 0.5,   // 1위: +50%
     2: 0.3,   // 2위: +30%
@@ -197,6 +197,35 @@ export const DUNGEON_RANK_SCORE_BONUS: Record<number, number> = {
 
 // 기본 보너스 (11위 이하)
 export const DUNGEON_DEFAULT_SCORE_BONUS = 0.0;
+
+// --- 던전 타입·단계별 챔피언십 점수 (일일 획득 가능 점수) ---
+// 1단계 기준 순위별 점수: 동네(6인), 전국(8인), 월드(15인)
+export const DUNGEON_STAGE_1_SCORE_BY_TYPE: Record<TournamentType, Record<number, number>> = {
+    neighborhood: { 1: 15, 2: 10, 3: 6, 4: 3, 5: 2, 6: 1 },
+    national:     { 1: 21, 2: 14, 3: 7, 4: 3, 5: 3, 6: 3, 7: 3, 8: 2 },
+    world:        { 1: 24, 2: 16, 3: 10, 4: 7, 5: 5, 6: 5, 7: 5, 8: 5, 9: 3, 10: 3, 11: 3, 12: 3, 13: 3, 14: 3, 15: 3 },
+};
+
+// 2~10단계 배율 (1단계 점수 × 이 배율 = 해당 단계 점수, 소수점 반올림)
+export const DUNGEON_STAGE_SCORE_MULTIPLIER: Record<number, number> = {
+    1: 1.0,
+    2: 1.2,
+    3: 1.4,
+    4: 1.6,
+    5: 1.8,
+    6: 2.0,
+    7: 2.2,
+    8: 2.4,
+    9: 2.6,
+    10: 2.8,
+};
+
+/** 던전 타입·단계·순위에 따른 챔피언십 점수 (일일 획득 가능 점수 및 실제 지급 점수) */
+export function getDungeonStageScore(type: TournamentType, stage: number, rank: number): number {
+    const base = DUNGEON_STAGE_1_SCORE_BY_TYPE[type]?.[rank] ?? 0;
+    const mult = DUNGEON_STAGE_SCORE_MULTIPLIER[stage] ?? 1;
+    return Math.round(base * mult);
+}
 
 // 던전 단계별 순위 보상 (각 던전 타입별, 단계별, 순위별)
 // 10단계 1위 기준: 동네바둑리그=골드꾸러미4×5, 전국바둑대회=재료상자6×2, 월드챔피언십=다이아꾸러미4×3

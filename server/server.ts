@@ -2421,32 +2421,19 @@ const startServer = async () => {
                 });
             }
             
-            console.log('[/api/auth/register] Received request body:', JSON.stringify(req.body));
-            const { username, password, email } = req.body;
+            // 테스트 단계: 이메일 선택 사항 (미입력 가능). 추후 이메일 인증, 카카오 로그인 예정
+            const { username, password, email } = req.body ?? {};
+            const trimmedUsername = username && typeof username === 'string' ? username.trim() : '';
+            const trimmedPassword = password && typeof password === 'string' ? password.trim() : '';
+            const trimmedEmail = (email && typeof email === 'string' ? email.trim() : '') || '';
             
-            console.log('[/api/auth/register] Parsed values:', { 
-                username: username ? `${username.substring(0, 3)}...` : 'null',
-                password: password ? '***' : 'null',
-                email: email || 'null'
-            });
-            
-            // 필수 필드 검증 (trim 포함)
-            if (!username || typeof username !== 'string' || !username.trim()) {
-                console.log('[/api/auth/register] Validation failed: username');
+            // 필수 필드: 아이디, 비밀번호만. 이메일은 선택 사항
+            if (!trimmedUsername) {
                 return res.status(400).json({ message: '아이디를 입력해주세요.' });
             }
-            if (!password || typeof password !== 'string' || !password.trim()) {
-                console.log('[/api/auth/register] Validation failed: password');
+            if (!trimmedPassword) {
                 return res.status(400).json({ message: '비밀번호를 입력해주세요.' });
             }
-            if (!email || typeof email !== 'string' || !email.trim()) {
-                console.log('[/api/auth/register] Validation failed: email');
-                return res.status(400).json({ message: '이메일을 입력해주세요.' });
-            }
-            
-            const trimmedUsername = username.trim();
-            const trimmedPassword = password.trim();
-            const trimmedEmail = email.trim();
             
             if (trimmedUsername.length < 2 || trimmedPassword.length < 4) {
                 return res.status(400).json({ message: '아이디는 2자 이상, 비밀번호는 4자 이상이어야 합니다.' });
@@ -2455,10 +2442,12 @@ const startServer = async () => {
                 return res.status(400).json({ message: '아이디에 부적절한 단어가 포함되어 있습니다.' });
             }
             
-            // 이메일 형식 검증
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(trimmedEmail)) {
-                return res.status(400).json({ message: '올바른 이메일 형식이 아닙니다.' });
+            // 이메일 입력된 경우에만 형식 검증
+            if (trimmedEmail) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(trimmedEmail)) {
+                    return res.status(400).json({ message: '올바른 이메일 형식이 아닙니다.' });
+                }
             }
     
             // UserCredential 테이블에서 username 중복 확인
@@ -2481,21 +2470,21 @@ const startServer = async () => {
                 console.warn('[/api/auth/register] Failed to check username in User table:', checkError?.message);
             }
     
-            // 회원탈퇴한 이메일인지 확인 (1주일 제한)
-            const kvRepository = await import('./repositories/kvRepository.js');
-            const withdrawnEmails = await kvRepository.getKV<Record<string, number>>('withdrawnEmails') || {};
-            const withdrawnEmailExpiry = withdrawnEmails[trimmedEmail.toLowerCase()];
-            if (withdrawnEmailExpiry && withdrawnEmailExpiry > Date.now()) {
-                const daysLeft = Math.ceil((withdrawnEmailExpiry - Date.now()) / (24 * 60 * 60 * 1000));
-                return res.status(403).json({ 
-                    message: `회원탈퇴한 이메일은 ${daysLeft}일 후에 다시 가입할 수 있습니다.` 
-                });
-            }
-            
-            // 만료된 제한 삭제
-            if (withdrawnEmailExpiry && withdrawnEmailExpiry <= Date.now()) {
-                delete withdrawnEmails[trimmedEmail.toLowerCase()];
-                await kvRepository.setKV('withdrawnEmails', withdrawnEmails);
+            // 이메일이 입력된 경우에만 회원탈퇴 이메일 확인 (1주일 제한)
+            if (trimmedEmail) {
+                const kvRepository = await import('./repositories/kvRepository.js');
+                const withdrawnEmails = await kvRepository.getKV<Record<string, number>>('withdrawnEmails') || {};
+                const withdrawnEmailExpiry = withdrawnEmails[trimmedEmail.toLowerCase()];
+                if (withdrawnEmailExpiry && withdrawnEmailExpiry > Date.now()) {
+                    const daysLeft = Math.ceil((withdrawnEmailExpiry - Date.now()) / (24 * 60 * 60 * 1000));
+                    return res.status(403).json({ 
+                        message: `회원탈퇴한 이메일은 ${daysLeft}일 후에 다시 가입할 수 있습니다.` 
+                    });
+                }
+                if (withdrawnEmailExpiry && withdrawnEmailExpiry <= Date.now()) {
+                    delete withdrawnEmails[trimmedEmail.toLowerCase()];
+                    await kvRepository.setKV('withdrawnEmails', withdrawnEmails);
+                }
             }
             
             // Railway 최적화: equipment/inventory 없이 사용자 목록만 로드
@@ -2571,45 +2560,8 @@ const startServer = async () => {
                 throw createCredsError;
             }
     
-            // 이메일 인증 코드 전송
-            try {
-                const { token, code } = await sendEmailVerification(newUser.id, trimmedEmail);
-                res.status(201).json({ 
-                    user: newUser,
-                    requiresEmailVerification: true,
-                    verificationToken: token,
-                    verificationCode: process.env.NODE_ENV === 'development' ? code : undefined, // 개발 환경에서만 코드 전송
-                    message: process.env.NODE_ENV === 'development' 
-                        ? `회원가입이 완료되었습니다. 서버 콘솔에서 인증 코드를 확인하세요: ${code}`
-                        : '회원가입이 완료되었습니다. 이메일 인증을 완료해주세요.'
-                });
-            } catch (emailError: any) {
-                console.error('[Register] Failed to send verification email:', emailError);
-                // 이메일 전송 실패해도 회원가입은 성공 (나중에 재전송 가능)
-                // 개발 환경에서는 인증 코드를 직접 조회해서 전송
-                if (process.env.NODE_ENV === 'development') {
-                    try {
-                        const token = await db.getEmailVerificationTokenByUserId(newUser.id);
-                        if (token) {
-                            res.status(201).json({ 
-                                user: newUser,
-                                requiresEmailVerification: true,
-                                verificationToken: token.token,
-                                verificationCode: token.code,
-                                message: `회원가입이 완료되었습니다. 인증 코드: ${token.code} (서버 콘솔에서도 확인 가능)`
-                            });
-                            return;
-                        }
-                    } catch (e) {
-                        console.error('[Register] Failed to get verification code:', e);
-                    }
-                }
-                res.status(201).json({ 
-                    user: newUser,
-                    requiresEmailVerification: true,
-                    message: '회원가입이 완료되었습니다. 이메일 인증을 완료해주세요.'
-                });
-            }
+            // 테스트 단계: 이메일 인증 스킵. 추후 서비스 출시 시 이메일 인증 활성화 예정
+            res.status(201).json({ user: newUser });
         } catch (e: any) {
             console.error('[/api/auth/register] Registration error:', e);
             console.error('[/api/auth/register] Error message:', e?.message);

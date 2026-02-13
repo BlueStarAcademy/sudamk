@@ -1546,19 +1546,8 @@ export async function processDailyRankings(): Promise<void> {
         // 던전 시스템에서는 cumulativeTournamentScore를 사용 (누적 점수)
         const currentScore = user.cumulativeTournamentScore || 0;
         
-        // 일일 던전 점수에 순위별 보너스 적용
-        let finalDailyScore = user.dailyDungeonScore || 0;
-        if (finalDailyScore > 0 && championshipRank !== -1) {
-            const { DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS } = await import('../constants/tournaments.js');
-            const rank = championshipRank + 1;
-            const bonusMultiplier = DUNGEON_RANK_SCORE_BONUS[rank] || DUNGEON_DEFAULT_SCORE_BONUS;
-            const bonusScore = Math.floor(finalDailyScore * bonusMultiplier);
-            finalDailyScore += bonusScore;
-            
-            // 보너스 점수를 cumulativeTournamentScore에도 추가
-            updatedUser.cumulativeTournamentScore = (updatedUser.cumulativeTournamentScore || 0) + bonusScore;
-        }
-        
+        // 던전 점수는 경기 완료 시점에 타입·단계·순위별 점수표로 이미 지급되므로 0시에 추가 보너스 없음
+
         // 월요일 0시인 경우: yesterdayTournamentScore를 현재 누적 점수로 설정하여 변화없음으로 시작
         // 월요일이 아닌 경우: 어제 점수를 저장 (0시 직전의 점수)
         if (isMondayMidnight) {

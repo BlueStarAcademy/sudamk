@@ -92,7 +92,8 @@ const SetNickname: React.FC = () => {
             <div className="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-lg shadow-2xl border border-color">
                 <div>
                     <h2 className="text-3xl font-bold text-center text-white">닉네임 설정</h2>
-                    <p className="mt-2 text-center text-gray-400">게임에서 사용할 닉네임을 설정해주세요.</p>
+                    <p className="mt-2 text-center text-gray-400">게임에서 사용할 닉네임을 설정해주세요. (2~6자, 비속어 불가, 중복 불가)</p>
+                    <p className="mt-1 text-xs text-center text-gray-500">닉네임을 설정해야 홈화면에 입장할 수 있습니다.</p>
                 </div>
                 <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
                     <div>

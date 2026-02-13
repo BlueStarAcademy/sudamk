@@ -677,7 +677,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             db.updateUser(user).catch(err => {
                 console.error(`[TournamentActions] Failed to save user ${user.id}:`, err);
             });
-            return {};
+            return { clientResponse: { updatedUser: JSON.parse(JSON.stringify(user)) } };
         }
 
         case 'CLAIM_TOURNAMENT_REWARD': {
@@ -1629,20 +1629,33 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
             
             let stateKey: keyof User;
+            let statusKey: keyof User;
+            let playedDateKey: keyof User;
             switch (dungeonType) {
                 case 'neighborhood':
                     stateKey = 'lastNeighborhoodTournament';
+                    statusKey = 'neighborhoodRewardClaimed';
+                    playedDateKey = 'lastNeighborhoodPlayedDate';
                     break;
                 case 'national':
                     stateKey = 'lastNationalTournament';
+                    statusKey = 'nationalRewardClaimed';
+                    playedDateKey = 'lastNationalPlayedDate';
                     break;
                 case 'world':
                     stateKey = 'lastWorldTournament';
+                    statusKey = 'worldRewardClaimed';
+                    playedDateKey = 'lastWorldPlayedDate';
                     break;
                 default:
                     return { error: 'Invalid dungeon type.' };
             }
+            if ((freshUser as any)[statusKey]) {
+                console.log(`[COMPLETE_DUNGEON_STAGE] User ${user.id} already claimed reward for ${dungeonType}, skipping duplicate.`);
+                return { error: '이미 보상을 수령했습니다.' };
+            }
             
+            const now = Date.now();
             const dungeonState = (freshUser as any)[stateKey] as TournamentState | null;
             if (!dungeonState || dungeonState.currentStageAttempt !== stage) {
                 return { error: '진행 중인 던전이 없습니다.' };
@@ -1761,20 +1774,17 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 console.log(`[COMPLETE_DUNGEON_STAGE] Stage unlock condition not met: userRank=${userRank}, stage=${stage}, need: userRank <= 3 and stage < 10`);
             }
             
-            // 일일 랭킹 점수 계산 및 누적 (cleared 여부와 관계없이 순위가 있으면 점수 지급)
-            const baseScore = DUNGEON_STAGE_BASE_SCORE[stage] || 0;
-            if (baseScore > 0 && userRank >= 1) {
-                // 순위 보너스 적용하여 최종 점수 계산 (일일 획득 가능 점수 패널과 동일한 계산)
-                const { DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS } = await import('../../constants/tournaments.js');
-                const rankBonus = DUNGEON_RANK_SCORE_BONUS[userRank] || DUNGEON_DEFAULT_SCORE_BONUS;
-                const finalScore = Math.floor(baseScore * (1 + rankBonus));
+            // 일일 랭킹 점수 계산 및 누적 (타입·단계·순위별 점수표 사용, 일일 획득 가능 점수 패널과 동일)
+            const { getDungeonStageScore } = await import('../../shared/constants/tournaments.js');
+            const finalScore = getDungeonStageScore(dungeonType, stage, userRank);
+            if (finalScore > 0 && userRank >= 1) {
                 
                 // 이전에 해당 단계에서 받은 점수가 있는지 확인
                 const previousScore = dungeonProgress.stageResults[stage]?.dailyScore || 0;
                 const scoreDifference = finalScore - previousScore;
                 
                 // 순위가 있으면 점수 지급 (cleared 조건과 독립적)
-                dungeonProgress.stageResults[stage].dailyScore = finalScore; // 순위 보너스 포함한 최종 점수 저장
+                dungeonProgress.stageResults[stage].dailyScore = finalScore;
                 dungeonProgress.stageResults[stage].rank = userRank; // 순위 저장
                 
                 // 일일 던전 점수 누적 (이전 점수가 있으면 차이만 추가하여 중복 누적 방지)
@@ -1845,36 +1855,17 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             freshUser.dungeonProgress[dungeonType] = dungeonProgress;
             (freshUser as any)[stateKey] = dungeonState;
             
-            // 보상 수령 플래그 설정
-            let statusKey: keyof User;
-            let playedDateKey: keyof User;
-            switch (dungeonType) {
-                case 'neighborhood':
-                    statusKey = 'neighborhoodRewardClaimed';
-                    playedDateKey = 'lastNeighborhoodPlayedDate';
-                    break;
-                case 'national':
-                    statusKey = 'nationalRewardClaimed';
-                    playedDateKey = 'lastNationalPlayedDate';
-                    break;
-                case 'world':
-                    statusKey = 'worldRewardClaimed';
-                    playedDateKey = 'lastWorldPlayedDate';
-                    break;
-                default:
-                    statusKey = 'neighborhoodRewardClaimed';
-                    playedDateKey = 'lastNeighborhoodPlayedDate';
-            }
+            // 보상 수령 플래그 설정 (statusKey, playedDateKey는 위 switch에서 설정됨)
             (freshUser as any)[statusKey] = true;
             
             // 경기 참여 날짜 업데이트 (로비에서 완료 표시를 위해 필요)
-            const now = Date.now();
             (freshUser as any)[playedDateKey] = now;
             
             // DB 저장 및 캐시 업데이트 (한 번만)
             await db.updateUser(freshUser);
             updateUserCache(freshUser);
-            
+            const { invalidateRankingCache } = await import('../rankingCache.js');
+            invalidateRankingCache();
             if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
             volatileState.activeTournaments[freshUser.id] = dungeonState;
             

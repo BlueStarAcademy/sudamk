@@ -30,6 +30,7 @@
     "reset-all-guilds": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllGuilds.ts",
     "fix-orphaned-guild-refs": "npx tsx --tsconfig server/tsconfig.json server/scripts/fixOrphanedGuildReferences.ts",
     "reset-championship-data": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipData.ts",
+    "reset-championship-scores": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipScores.ts",
     "clean-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanAdminGuild.ts",
     "check-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/checkAdminGuild.ts",
     "test-db-performance": "npx tsx --tsconfig server/tsconfig.json server/scripts/testDbPerformance.ts",
