@@ -1966,7 +1966,9 @@ const RoundRobinDisplay: React.FC<{
     currentUser: UserWithStatus;
     /** 다음 경기 자동 시작까지 남은 시간(ms). 있으면 현재 회차에서 카운트다운 후 탭 전환하므로, 카운트다운 중에는 탭을 다음 회차로 넘기지 않음 */
     nextRoundStartTime?: number | null;
-}> = ({ tournamentState, currentUser, nextRoundStartTime }) => {
+    /** 카운트다운 0 시 부모에서 설정. 이 값이 오면 먼저 이 회차로 탭 전환 후 시합 시작 */
+    pendingRoundSwitchTo?: number | null;
+}> = ({ tournamentState, currentUser, nextRoundStartTime, pendingRoundSwitchTo }) => {
     const [activeTab, setActiveTab] = useState<'round' | 'ranking'>('round');
     const { players, rounds, status, currentRoundRobinRound, type: tournamentType } = tournamentState;
     
@@ -2020,11 +2022,19 @@ const RoundRobinDisplay: React.FC<{
     
     const currentRoundMatches = currentRoundObj?.matches || [];
 
+    // 부모에서 카운트다운 0 시 다음 회차로 먼저 전환 요청한 경우 즉시 탭 전환
+    useLayoutEffect(() => {
+        if (pendingRoundSwitchTo != null && pendingRoundSwitchTo >= 1) {
+            setSelectedRound(pendingRoundSwitchTo);
+        }
+    }, [pendingRoundSwitchTo]);
+
     // 현재 회차가 변경되고 사용자가 수동으로 선택하지 않은 경우에만 선택된 회차 업데이트
     // 1회차 종료 후: 같은 자리에서 카운트다운만 보여 주고, 카운트다운 완료(round_in_progress) 후에만 다음 회차 탭으로 이동
     const isManualSelection = useRef(false);
     const prevRoundForDisplay = useRef(roundForDisplay);
     useLayoutEffect(() => {
+        if (pendingRoundSwitchTo != null) return; // 부모가 탭 전환 제어 중
         const roundChanged = prevRoundForDisplay.current !== roundForDisplay;
         prevRoundForDisplay.current = roundForDisplay;
         // bracket_ready + nextRoundStartTime + 2회차 이상: 카운트다운 중이므로 탭을 넘기지 않고 현재(이전) 회차 유지
@@ -2038,7 +2048,7 @@ const RoundRobinDisplay: React.FC<{
             setSelectedRound(roundForDisplay);
         }
         isManualSelection.current = false;
-    }, [roundForDisplay, selectedRound, status, currentRoundRobinRound, nextRoundStartTime]);
+    }, [roundForDisplay, selectedRound, status, currentRoundRobinRound, nextRoundStartTime, pendingRoundSwitchTo]);
     
     const handleRoundSelect = (roundNum: number) => {
         isManualSelection.current = true;
@@ -2605,6 +2615,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const tournamentRef = useRef<TournamentState | undefined>(tournament); // 최신 tournament 상태를 ref로 저장
     const autoStartTimeRef = useRef<number | null>(null); // 카운트다운 시작 시간을 저장하는 ref
     const savedStartTimeRef = useRef<number | null>(null); // nextRoundStartTime을 저장하는 ref
+    /** 카운트다운 0 시 먼저 다음 회차 탭으로 전환한 뒤 시합 시작 (순서: 대진표 탭 이동 → 대국자 표시 → 시합 시작) */
+    const [pendingRoundSwitchTo, setPendingRoundSwitchTo] = useState<number | null>(null);
+    const pendingMatchStartRef = useRef<{ type: string } | null>(null);
     
     // 안전성 검사: tournament가 없으면 로딩 메시지 표시
     if (!tournament) {
@@ -3031,7 +3044,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         .find(m => m.isUserMatch && !m.isFinished);
                 }
 
-                // 경기를 찾았으면 무조건 시작 (상태와 관계없이)
+                // 경기를 찾았으면: 동네는 먼저 다음 회차 탭 전환 후 시합 시작, 그 외는 즉시 시합 시작
                 if (nextMatch) {
                     console.log('[TournamentBracket] Auto-starting match after countdown', {
                         nextMatch: nextMatch.id,
@@ -3039,11 +3052,32 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         type: tournamentType,
                         currentRound: currentRound
                     });
-                    // START_TOURNAMENT_MATCH 액션 호출 (ref 사용)
-                    onActionRef.current({
-                        type: 'START_TOURNAMENT_MATCH',
-                        payload: { type: tournamentType || 'neighborhood' }
-                    });
+                    if (tournamentType === 'neighborhood' && currentRound != null) {
+                        // 순서: 바둑판 초기화 → 다음 회차 대국자로 갱신 → 다음 대진표 탭 이동 → 자동 시합 시작
+                        setLastUserMatchSgfIndex(null);
+                        const players = currentTournament?.players;
+                        if (nextMatch && Array.isArray(players)) {
+                            const p1 = players.find((p: PlayerForTournament) => p.id === nextMatch.players[0]?.id) || null;
+                            const p2 = players.find((p: PlayerForTournament) => p.id === nextMatch.players[1]?.id) || null;
+                            const createPlayerCopy = (player: PlayerForTournament): PlayerForTournament => ({
+                                ...player,
+                                stats: (player.originalStats || player.stats) ? { ...(player.originalStats || player.stats)! } : player.stats,
+                                originalStats: player.originalStats ? { ...player.originalStats } : (player.stats ? { ...player.stats } : undefined)
+                            });
+                            setInitialMatchPlayers({
+                                p1: p1 ? createPlayerCopy(p1) : null,
+                                p2: p2 ? createPlayerCopy(p2) : null,
+                            });
+                            initialMatchPlayersSetRef.current = true;
+                        }
+                        setPendingRoundSwitchTo(currentRound);
+                        pendingMatchStartRef.current = { type: 'neighborhood' };
+                    } else {
+                        onActionRef.current({
+                            type: 'START_TOURNAMENT_MATCH',
+                            payload: { type: tournamentType || 'neighborhood' }
+                        });
+                    }
                 } else {
                     console.warn('[TournamentBracket] Cannot auto-start match: no next match found', {
                         status: currentTournament?.status,
@@ -3074,6 +3108,29 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             // 하지만 savedStartTimeRef를 사용하므로 타이머는 계속 실행됨
         };
     }, [tournament?.nextRoundStartTime]); // nextRoundStartTime만 의존성으로 사용하여 타이머가 중단되지 않도록 함
+    
+    // 다음 회차 탭 전환 후 시합 자동 시작 (동네 챔피언십 순서 보장)
+    useEffect(() => {
+        if (pendingRoundSwitchTo == null || !pendingMatchStartRef.current) return;
+        const payload = pendingMatchStartRef.current;
+        const t = setTimeout(() => {
+            onActionRef.current({
+                type: 'START_TOURNAMENT_MATCH',
+                payload: { type: payload.type }
+            });
+            pendingMatchStartRef.current = null;
+            // pendingRoundSwitchTo는 서버가 round_in_progress로 바꿀 때만 초기화 (아래 useEffect).
+            // 그 전에 null로 만들면 3회차→ 등에서 다시 lastFinishedUserMatch(2회차)가 보이는 문제 방지.
+        }, 150);
+        return () => clearTimeout(t);
+    }, [pendingRoundSwitchTo]);
+
+    // round_in_progress로 전환되면 pending 회차 표시 해제 (이후 회차도 순차 표시 유지)
+    useEffect(() => {
+        if (tournament?.status === 'round_in_progress' && pendingRoundSwitchTo != null) {
+            setPendingRoundSwitchTo(null);
+        }
+    }, [tournament?.status, pendingRoundSwitchTo]);
     
     useEffect(() => {
         // 안전성 검사
@@ -3140,8 +3197,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     setLastUserMatchSgfIndex(lastFinishedUserMatch.sgfFileIndex);
                 }
             } else {
-                // 다음 경기가 있으면 SGF 인덱스 초기화
-                setLastUserMatchSgfIndex(null);
+                // 다음 경기가 있으면: 카운트다운 중에는 마지막 수순 유지, 카운트다운 끝난 뒤에만 바둑판 초기화
+                const countdownInProgress = tournament.nextRoundStartTime != null;
+                if (!countdownInProgress) {
+                    setLastUserMatchSgfIndex(null);
+                }
             }
         } else if (status === 'round_in_progress' && tournament) {
             // 경기가 시작되면 초기 플레이어 상태 저장
@@ -3455,6 +3515,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         
         // bracket_ready 상태: 카운트다운 중이면 이전 경기 결과 화면 유지, 카운트다운 끝나면 새 경기로 전환
         if (tournament.status === 'bracket_ready') {
+            // 카운트다운 0 직후: 다음 회차 탭으로 전환된 상태 → 다음 회차 대국자 정보 + 빈 바둑판
+            if (pendingRoundSwitchTo != null) {
+                const nextRoundObj = safeRounds.find(r => r.name === `${pendingRoundSwitchTo}회차`);
+                const nextMatch = nextRoundObj?.matches.find(m => m.isUserMatch && !m.isFinished);
+                if (nextMatch) return nextMatch;
+            }
             const countdownInProgress = tournament.nextRoundStartTime != null;
             if (countdownInProgress && lastFinishedUserMatch) {
                 return lastFinishedUserMatch;
@@ -3494,7 +3560,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             return anyUserMatch;
         }
         return safeRounds[0]?.matches[0] || null;
-    }, [isSimulating, currentSimMatch, tournament.status, tournament.nextRoundStartTime, safeRounds, lastFinishedUserMatch]);
+    }, [isSimulating, currentSimMatch, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo]);
     
     // 유저의 다음 경기 찾기 (경기 시작 전 상태 확인용)
     const upcomingUserMatch = useMemo(() => {
@@ -3786,7 +3852,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 }}
             >
             {tournament.type === 'neighborhood' ? (
-                <RoundRobinDisplay tournamentState={tournament} currentUser={currentUser} nextRoundStartTime={tournament.nextRoundStartTime} />
+                <RoundRobinDisplay tournamentState={tournament} currentUser={currentUser} nextRoundStartTime={tournament.nextRoundStartTime} pendingRoundSwitchTo={pendingRoundSwitchTo} />
             ) : (
                 <TournamentRoundViewer 
                     rounds={safeRounds} 
@@ -3929,16 +3995,18 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                     isSimulating 
                                         ? currentSimMatch?.sgfFileIndex 
                                         : (() => {
+                                            // 카운트다운 0 직후: 다음 회차 탭 전환 후 바둑판 초기화 상태 → 빈 바둑판
+                                            if (pendingRoundSwitchTo != null) return null;
                                             // round_complete 상태일 때는 마지막 완료된 경기의 SGF 표시 (경기 종료 화면 유지)
                                             if (tournament.status === 'round_complete') {
                                                 return lastUserMatchSgfIndex !== null ? lastUserMatchSgfIndex : (matchForDisplay?.sgfFileIndex !== undefined ? matchForDisplay.sgfFileIndex : null);
                                             }
-                                            // bracket_ready 상태일 때는 다음 경기가 있으면 그 경기의 SGF, 없으면 빈 바둑판 또는 마지막 완료된 경기
+                                            // bracket_ready 상태일 때: 카운트다운 중에는 마지막 수순 유지, 그 외 다음 경기 SGF 또는 빈 바둑판
                                             if (tournament.status === 'bracket_ready') {
                                                 if (upcomingUserMatch?.sgfFileIndex !== undefined) {
                                                     return upcomingUserMatch.sgfFileIndex;
                                                 }
-                                                // 다음 경기가 없으면 (마지막 경기였으면) 마지막 완료된 경기의 SGF 표시
+                                                // 카운트다운 중에는 마지막 완료된 경기 SGF 유지(마지막 수순 표시)
                                                 if (lastUserMatchSgfIndex !== null) {
                                                     return lastUserMatchSgfIndex;
                                                 }

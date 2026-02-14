@@ -311,7 +311,9 @@ const applyDefaults = (
     dailyRankings: user.dailyRankings ?? {},
     towerFloor: user.towerFloor ?? prismaUser.towerFloor ?? 0,
     lastTowerClearTime: user.lastTowerClearTime ?? (prismaUser.lastTowerClearTime != null ? Number(prismaUser.lastTowerClearTime) : undefined),
-    monthlyTowerFloor: user.monthlyTowerFloor ?? (prismaUser as any).monthlyTowerFloor ?? 0
+    monthlyTowerFloor: user.monthlyTowerFloor ?? (prismaUser as any).monthlyTowerFloor ?? 0,
+    dungeonProgress: user.dungeonProgress ?? (status?.serializedUser as User | undefined)?.dungeonProgress ?? undefined,
+    dungeonConditionSnapshot: user.dungeonConditionSnapshot ?? (status?.serializedUser as User | undefined)?.dungeonConditionSnapshot ?? undefined
   };
 };
 

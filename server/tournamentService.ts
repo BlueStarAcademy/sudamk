@@ -659,9 +659,16 @@ export const createTournament = (type: TournamentType, user: User, players: Play
                d1.getUTCDate() === d2.getUTCDate();
     };
     const isToday = isSameDayKST(lastPlayedDate, now);
-    const userCondition = (isToday && existingTournament) 
-        ? existingTournament.players.find(p => p.id === user.id)?.condition 
+    let userCondition: number | undefined = (isToday && existingTournament)
+        ? existingTournament.players.find(p => p.id === user.id)?.condition
         : undefined;
+    // 뒤로 나갔다 재입장 시: 세션은 없지만 오늘자 스냅샷이 있으면 그 컨디션 유지 (편법 방지)
+    if (userCondition === undefined) {
+        const snapshot = (user as any).dungeonConditionSnapshot?.[type];
+        if (snapshot && isSameDayKST(snapshot.dateStartOfDayKST, now) && snapshot.condition >= 40 && snapshot.condition <= 100) {
+            userCondition = snapshot.condition;
+        }
+    }
 
     players.forEach(p => {
         if (p.id === user.id && userCondition !== undefined) {

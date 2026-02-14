@@ -146,6 +146,8 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     };
 
     const currentSeasonName = getCurrentSeason().name;
+    /** 최고 시즌이 현재 시즌과 같을 때(첫 시즌이거나 역대 최고가 없을 때) 현재 시즌과 동일한 내용 표시 */
+    const bestSeasonSameAsCurrent = isFirstSeason || !previousBestTier;
 
     return (
         <>
@@ -160,54 +162,78 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             {/* 현재 시즌 / 최고 시즌 2단 구성 */}
                             <div className="grid grid-cols-2 gap-2 flex-shrink-0">
                                 {/* 현재 시즌 */}
-                                <div className="rounded-lg bg-panel/60 border border-color p-2 flex flex-col gap-1.5">
-                                    <p className="text-[10px] font-bold text-tertiary uppercase tracking-wide border-b border-color/50 pb-1">현재 시즌</p>
+                                <div className="rounded-lg bg-panel border border-color p-2.5 flex flex-col gap-2 shadow-inner">
+                                    <p className="text-xs font-bold text-gray-300 uppercase tracking-wide border-b border-color pb-1.5">현재 시즌</p>
                                     {currentSeasonTierAndScore ? (
                                         <>
-                                            <div className="flex items-center gap-1.5">
-                                                <img src={currentSeasonTierAndScore.tier.icon} alt="" className="w-7 h-7 flex-shrink-0 object-contain" />
+                                            <div className="flex items-center gap-2">
+                                                <img src={currentSeasonTierAndScore.tier.icon} alt="" className="w-8 h-8 flex-shrink-0 object-contain" />
                                                 <div className="min-w-0">
-                                                    <p className={`text-xs font-semibold truncate ${currentSeasonTierAndScore.tier.color}`}>{currentSeasonTierAndScore.tier.name}</p>
-                                                    <p className="text-[10px] text-tertiary truncate">{currentSeasonName}{isFirstSeason ? ' (첫 시즌)' : ''}</p>
+                                                    <p className={`text-sm font-bold truncate ${currentSeasonTierAndScore.tier.color}`}>{currentSeasonTierAndScore.tier.name}</p>
+                                                    <p className="text-xs text-gray-400 truncate">{currentSeasonName}{isFirstSeason ? ' (첫 시즌)' : ''}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex justify-between items-baseline text-[10px]">
-                                                <span className="text-tertiary">현재점수</span>
-                                                <span className="font-mono font-bold text-on-panel">{(currentSeasonTierAndScore.score ?? 0).toLocaleString()}</span>
+                                            <div className="flex justify-between items-baseline text-xs">
+                                                <span className="text-gray-400">현재점수</span>
+                                                <span className="font-mono font-bold text-white">{(currentSeasonTierAndScore.score ?? 0).toLocaleString()}</span>
                                             </div>
                                             {(currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses) > 0 && (
-                                                <div className="text-[10px] text-tertiary pt-0.5 border-t border-color/50">
+                                                <div className="text-xs text-gray-400 pt-1 border-t border-color/60">
                                                     {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률 {((currentSeasonTierAndScore.wins / (currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses)) * 100).toFixed(0)}%
                                                 </div>
                                             )}
-                                            <div className="flex justify-between items-center text-[10px] pt-0.5">
-                                                <span className="text-tertiary">시즌 최고</span>
-                                                <span className="font-mono font-semibold">{currentSeasonTierAndScore.score.toLocaleString()}점{isFirstSeason ? ' (동일)' : ''}</span>
+                                            <div className="flex justify-between items-center text-xs pt-0.5">
+                                                <span className="text-gray-400">시즌 최고</span>
+                                                <span className="font-mono font-semibold text-gray-200">{currentSeasonTierAndScore.score.toLocaleString()}점{isFirstSeason ? ' (동일)' : ''}</span>
                                             </div>
                                         </>
                                     ) : (
                                         <>
-                                            <div className="flex items-center gap-1.5">
-                                                <img src={RANKING_TIERS[RANKING_TIERS.length - 1].icon} alt="" className="w-7 h-7 flex-shrink-0 object-contain" />
-                                                <p className="text-xs text-tertiary">미집계</p>
+                                            <div className="flex items-center gap-2">
+                                                <img src={RANKING_TIERS[RANKING_TIERS.length - 1].icon} alt="" className="w-8 h-8 flex-shrink-0 object-contain opacity-70" />
+                                                <p className="text-sm text-gray-400">미집계</p>
                                             </div>
-                                            <p className="text-[10px] text-tertiary">{currentSeasonName}</p>
+                                            <p className="text-xs text-gray-500">{currentSeasonName}</p>
                                         </>
                                     )}
                                 </div>
-                                {/* 최고 시즌 (역대) */}
-                                <div className="rounded-lg bg-panel/60 border border-color p-2 flex flex-col gap-1.5">
-                                    <p className="text-[10px] font-bold text-tertiary uppercase tracking-wide border-b border-color/50 pb-1">최고 시즌</p>
-                                    <div className="flex-1 flex flex-col justify-center">
-                                        {previousBestTier ? (
-                                            <p className={`text-sm font-bold text-highlight`}>{previousBestTier}</p>
-                                        ) : isFirstSeason ? (
-                                            <p className="text-xs text-tertiary">첫 시즌 (없음)</p>
-                                        ) : (
-                                            <p className="text-xs text-tertiary">-</p>
-                                        )}
-                                    </div>
-                                    <p className="text-[10px] text-tertiary">역대 최고 등급</p>
+                                {/* 최고 시즌: 현재 시즌과 같으면 등급·점수·승패만, 아니면 역대 최고 등급만 */}
+                                <div className="rounded-lg bg-panel border border-color p-2.5 flex flex-col gap-2 shadow-inner">
+                                    <p className="text-xs font-bold text-gray-300 uppercase tracking-wide border-b border-color pb-1.5">최고 시즌</p>
+                                    {bestSeasonSameAsCurrent && currentSeasonTierAndScore ? (
+                                        <>
+                                            <div className="flex items-center gap-2">
+                                                <img src={currentSeasonTierAndScore.tier.icon} alt="" className="w-8 h-8 flex-shrink-0 object-contain" />
+                                                <div className="min-w-0">
+                                                    <p className={`text-sm font-bold truncate ${currentSeasonTierAndScore.tier.color}`}>{currentSeasonTierAndScore.tier.name}</p>
+                                                    <p className="text-xs text-gray-400 truncate">{currentSeasonName}{isFirstSeason ? ' (첫 시즌)' : ''}</p>
+                                                </div>
+                                            </div>
+                                            <p className="font-mono font-bold text-white text-sm text-center">{(currentSeasonTierAndScore.score ?? 0).toLocaleString()}점</p>
+                                            {(currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses) > 0 && (
+                                                <p className="text-xs text-gray-400 pt-1 border-t border-color/60">
+                                                    {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률 {((currentSeasonTierAndScore.wins / (currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses)) * 100).toFixed(0)}%
+                                                </p>
+                                            )}
+                                        </>
+                                    ) : bestSeasonSameAsCurrent ? (
+                                        <div className="flex-1 flex flex-col justify-center">
+                                            <p className="text-sm text-gray-500">첫 시즌 (없음)</p>
+                                            <p className="text-xs text-gray-500 mt-1">{currentSeasonName}</p>
+                                        </div>
+                                    ) : previousBestTier ? (
+                                        <>
+                                            <div className="flex-1 flex flex-col justify-center">
+                                                <p className={`text-sm font-bold ${RANKING_TIERS.find(t => t.name === previousBestTier)?.color ?? 'text-highlight'}`}>{previousBestTier}</p>
+                                            </div>
+                                            <p className="text-xs text-gray-400 pt-1 border-t border-color/60">역대 최고 등급</p>
+                                        </>
+                                    ) : (
+                                        <div className="flex-1 flex flex-col justify-center">
+                                            <p className="text-sm text-gray-500">-</p>
+                                            <p className="text-xs text-gray-500 mt-1">역대 최고 등급</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

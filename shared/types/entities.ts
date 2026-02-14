@@ -326,6 +326,8 @@ export type User = {
     }>;
     dailyStageAttempts: Record<number, number>; // 일일 단계별 시도 횟수
   }>;
+  /** 경기장별·오늘자 컨디션 스냅샷. 뒤로 나갔다 재입장해도 같은 컨디션 유지, 회복제 반영 유지. 완료/포기 시 삭제 */
+  dungeonConditionSnapshot?: Partial<Record<TournamentType, { condition: number; dateStartOfDayKST: number }>>;
   dailyDungeonScore?: number; // 일일 획득 점수 (리셋용)
   mbti?: string | null;
   rejectedGameModes?: GameMode[];

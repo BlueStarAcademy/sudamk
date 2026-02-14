@@ -117,7 +117,11 @@ export const useApp = () => {
                 prevUser.inventory?.length !== mergedUser.inventory?.length ||
                 JSON.stringify(prevUser.inventory) !== JSON.stringify(mergedUser.inventory);
             
-            // 주요 필드 직접 비교
+            // 주요 필드 직접 비교 (챔피언십 던전 입장 시 토너먼트 상태 변경 감지 포함)
+            const tournamentStateChanged =
+                JSON.stringify(prevUser.lastNeighborhoodTournament) !== JSON.stringify(mergedUser.lastNeighborhoodTournament) ||
+                JSON.stringify(prevUser.lastNationalTournament) !== JSON.stringify(mergedUser.lastNationalTournament) ||
+                JSON.stringify(prevUser.lastWorldTournament) !== JSON.stringify(mergedUser.lastWorldTournament);
             const keyFieldsChanged = 
                 prevUser.gold !== mergedUser.gold ||
                 prevUser.diamonds !== mergedUser.diamonds ||
@@ -131,6 +135,7 @@ export const useApp = () => {
                 prevUser.mannerScore !== mergedUser.mannerScore ||
                 prevUser.mannerMasteryApplied !== mergedUser.mannerMasteryApplied ||
                 inventoryChanged ||
+                tournamentStateChanged ||
                 JSON.stringify(prevUser.equipment) !== JSON.stringify(mergedUser.equipment) ||
                 JSON.stringify(prevUser.singlePlayerMissions) !== JSON.stringify(mergedUser.singlePlayerMissions) ||
                 JSON.stringify(prevUser.actionPoints) !== JSON.stringify(mergedUser.actionPoints);
@@ -149,6 +154,10 @@ export const useApp = () => {
                         newLength: mergedUser.inventory?.length
                     });
                 }
+            }
+            // 챔피언십 던전 입장 시 토너먼트 상태 변경 강제 감지 (경기장 입장 실패 방지)
+            if (source.includes('START_DUNGEON_STAGE') && tournamentStateChanged) {
+                hasActualChanges = true;
             }
         }
         
@@ -1339,6 +1348,17 @@ export const useApp = () => {
                     // applyUserUpdate는 이미 내부에서 flushSync를 사용하므로 모든 액션에서 즉시 UI 업데이트됨
                     // HTTP 응답의 updatedUser를 우선적으로 적용하고, WebSocket 업데이트는 일정 시간 동안 무시됨
                     const mergedUser = applyUserUpdate(updatedUserFromResponse, `${action.type}-http`);
+                    // 챔피언십 던전 입장: 경기장에서 컨텍스트 반영 전에도 표시할 수 있도록 dungeonState를 sessionStorage에 보관
+                    if (action.type === 'START_DUNGEON_STAGE') {
+                        const dungeonState = (result as any).dungeonState || result.clientResponse?.dungeonState;
+                        if (dungeonState && dungeonState.type) {
+                            try {
+                                sessionStorage.setItem(`pendingDungeon_${dungeonState.type}`, JSON.stringify(dungeonState));
+                            } catch (e) {
+                                console.warn('[handleAction] Failed to store pending dungeon state', e);
+                            }
+                        }
+                    }
                     // HTTP 응답에 updatedUser가 있었음을 기록하고 타임스탬프 업데이트
                     lastHttpUpdateTime.current = Date.now();
                     lastHttpActionType.current = action.type;

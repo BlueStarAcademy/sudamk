@@ -488,7 +488,7 @@ const TournamentCard: React.FC<{
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onClick(selectedStage);
+                                onClick(Number(selectedStage));
                             }}
                             className="font-bold text-[10px] sm:text-xs lg:text-sm px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors whitespace-nowrap flex-shrink-0"
                         >
@@ -683,12 +683,16 @@ const TournamentLobby: React.FC = () => {
     const nationalState = filterInProgress(currentUserWithStatus.lastNationalTournament);
     const worldState = filterInProgress(currentUserWithStatus.lastWorldTournament);
 
-    const handleEnterArena = useCallback(async (type: TournamentType, stage?: number) => {
-        console.log('[TournamentLobby] handleEnterArena called:', { type, stage, stageType: typeof stage });
+    const handleEnterArena = useCallback(async (type: TournamentType, stage?: number | string) => {
+        // select value 등에서 문자열("1")로 올 수 있으므로 숫자로 통일
+        const stageNum = stage !== undefined && stage !== null
+            ? (typeof stage === 'number' && !isNaN(stage) ? stage : Number(stage))
+            : undefined;
+        console.log('[TournamentLobby] handleEnterArena called:', { type, stage, stageNum, stageType: typeof stage });
         
-        if (stage !== undefined && stage !== null && typeof stage === 'number' && stage >= 1 && stage <= 10) {
-            // 던전 단계 시작
-            const actionPayload = { dungeonType: type, stage };
+        if (stageNum !== undefined && !isNaN(stageNum) && stageNum >= 1 && stageNum <= 10) {
+            // 던전 단계 시작 (서버에 항상 숫자로 전달)
+            const actionPayload = { dungeonType: type, stage: stageNum };
             console.log('[TournamentLobby] Starting dungeon stage with payload:', actionPayload);
             try {
                 const result = await handlers.handleAction({ type: 'START_DUNGEON_STAGE', payload: actionPayload });
@@ -697,7 +701,12 @@ const TournamentLobby: React.FC = () => {
                     console.error('[TournamentLobby] START_DUNGEON_STAGE returned error:', result.error);
                     return;
                 }
-                window.location.hash = `#/tournament/${type}`;
+                // 상태(updatedUser)가 컨텍스트에 반영된 뒤 이동 (즉시 이동 시 경기장에서 상태를 못 읽어 "단계 선택 후 입장" 안내가 나오는 현상 방지)
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        window.location.hash = `#/tournament/${type}`;
+                    });
+                });
             } catch (error) {
                 console.error('[TournamentLobby] Failed to start dungeon stage:', error);
                 throw error;

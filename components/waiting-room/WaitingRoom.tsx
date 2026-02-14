@@ -397,12 +397,12 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                           <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
                       </div>
                       
-                      {/* 채팅창과 랭킹전 패널 - 랭킹 패널 폭 확대(채팅 축소) */}
+                      {/* 채팅창과 랭킹전 패널 - 채팅 폭 축소, 랭킹전 패널 폭 확대(내부 스크롤 없이 표시) */}
                       <div className="flex-1 flex flex-row gap-3 min-h-0 overflow-hidden">
                           <div className="flex-1 min-w-0 flex flex-col bg-panel border border-color rounded-lg shadow-lg min-h-0 overflow-hidden">
                               <ChatWindow messages={chatMessages} mode={chatChannel} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
                           </div>
-                          <div className="w-[340px] flex-shrink-0 bg-panel border border-color rounded-lg shadow-lg min-h-0 flex flex-col overflow-hidden">
+                          <div className="w-[400px] flex-shrink-0 bg-panel border border-color rounded-lg shadow-lg min-h-0 flex flex-col overflow-hidden">
                               <RankedMatchPanel 
                                 lobbyType={isStrategic ? 'strategic' : 'playful'}
                                 currentUser={currentUserWithStatus}

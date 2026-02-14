@@ -77,12 +77,47 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         default: return <div>Invalid tournament type</div>;
     }
 
-    const tournamentState = currentUserWithStatus?.[stateKey] as any;
+    /** 챔피언십(동네/전국/월드)은 던전 전용. 입장은 로비에서 START_DUNGEON_STAGE로만 가능. */
+    const isChampionshipDungeon = type === 'neighborhood' || type === 'national' || type === 'world';
+
+    const tournamentStateFromContext = currentUserWithStatus?.[stateKey] as any;
+    /** 챔피언십 입장 직후 컨텍스트 반영 전에도 표시: sessionStorage에 저장된 dungeonState 사용 */
+    const pendingDungeonState = React.useMemo(() => {
+        if (tournamentStateFromContext || !isChampionshipDungeon) return null;
+        try {
+            const raw = sessionStorage.getItem(`pendingDungeon_${type}`);
+            if (!raw) return null;
+            return JSON.parse(raw) as any;
+        } catch {
+            return null;
+        }
+    }, [type, tournamentStateFromContext, isChampionshipDungeon]);
+    const tournamentState = tournamentStateFromContext ?? pendingDungeonState ?? null;
     const latestTournamentStateRef = React.useRef<typeof tournamentState | null>(tournamentState ?? null);
+
+    /** 상태가 아직 안 왔을 때 HTTP 응답 반영을 위해 잠시 대기 (최대 1.2초) */
+    const [waitingForState, setWaitingForState] = useState(true);
+    useEffect(() => {
+        if (tournamentState) {
+            setWaitingForState(false);
+            return;
+        }
+        const t = setTimeout(() => setWaitingForState(false), 1200);
+        return () => clearTimeout(t);
+    }, [tournamentState]);
 
     React.useEffect(() => {
         latestTournamentStateRef.current = tournamentState ?? null;
     }, [tournamentState]);
+
+    // 컨텍스트에 반영되면 sessionStorage의 pending 던전 상태 제거 (다음 입장 시 혼선 방지)
+    React.useEffect(() => {
+        if (tournamentStateFromContext) {
+            try {
+                sessionStorage.removeItem(`pendingDungeon_${type}`);
+            } catch { /* ignore */ }
+        }
+    }, [type, tournamentStateFromContext]);
 
     React.useEffect(() => {
         return () => {
@@ -90,20 +125,32 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
             if (!latestState) return;
             // 경기 진행 중 나간 경우: 상태 유지(이어보기용)
             if (latestState.status === 'round_in_progress') return;
-            // 경기 시작 전(bracket_ready) 나간 경우: 세션 초기화하여 로비에서 최초 상태로
-            if (latestState.status === 'bracket_ready') {
-                handlers.handleAction({ type: 'CLEAR_TOURNAMENT_SESSION', payload: { type } })
-                    .catch(error => console.error('[TournamentArena] Failed to clear tournament session on unmount:', error));
-                return;
-            }
+            // bracket_ready에서 unmount 시 CLEAR 하지 않음 (Strict Mode/이중 마운트 시 방금 입장한 세션이 지워지는 버그 방지).
+            // 사용자가 로비에서 '나가기' 등으로 초기화하려면 CLEAR는 로비/별도 액션에서만 호출.
+            if (latestState.status === 'bracket_ready') return;
             handlers.handleAction({ type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type } })
                 .catch(error => console.error('[TournamentArena] Failed to save tournament progress on unmount:', error));
         };
     }, [handlers, type]);
     const tournamentDefinition = TOURNAMENT_DEFINITIONS[type];
 
-    // 토너먼트 상태가 있으면 최신 상태로 업데이트 (자동 시작하지 않음 - 사용자가 직접 경기 시작 버튼을 눌러야 함)
-    // 각 경기장은 독립적으로 작동하므로 자동으로 START_TOURNAMENT_ROUND를 호출하지 않습니다.
+    const handlersRef = React.useRef(handlers);
+    useEffect(() => {
+        handlersRef.current = handlers;
+    }, [handlers]);
+
+    // 챔피언십 던전: 토너먼트 상태가 있을 때만 bracket_ready 처리 (컨디션 부여). START_TOURNAMENT_SESSION은 호출하지 않음.
+    useEffect(() => {
+        if (!tournamentState || !isChampionshipDungeon) return;
+        if (!tournamentState.autoAdvanceEnabled && tournamentState.status === 'bracket_ready' && 
+            tournamentState.players?.some((p: PlayerForTournament) => {
+                const hasValidCondition = p.condition !== undefined && p.condition !== null && 
+                    p.condition !== 1000 && p.condition >= 40 && p.condition <= 100;
+                return !hasValidCondition;
+            })) {
+            handlersRef.current.handleAction({ type: 'START_TOURNAMENT_ROUND', payload: { type } });
+        }
+    }, [type, tournamentState, isChampionshipDungeon]);
 
     if (!currentUserWithStatus) {
         return (
@@ -114,92 +161,27 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         );
     }
 
-    // 토너먼트 상태가 없을 때 자동으로 시작 시도
-    const startAttemptedRef = React.useRef<Set<string>>(new Set());
-    const startTimeoutRef = React.useRef<Map<string, NodeJS.Timeout>>(new Map());
-    const handlersRef = React.useRef(handlers);
-    const prevTournamentStateRef = React.useRef<any>(tournamentState);
-    
-    // handlers 참조 업데이트 (의존성 배열에서 제거하기 위해)
-    useEffect(() => {
-        handlersRef.current = handlers;
-    }, [handlers]);
+    // 챔피언십 던전인데 상태 없음: 로비로 이동만 안내 (START_TOURNAMENT_SESSION 호출 금지)
+    const noStateAndChampionship = isChampionshipDungeon && !tournamentState && !waitingForState;
+    if (noStateAndChampionship) {
+        return (
+            <div className="p-4 sm:p-6 lg:p-8 w-full flex flex-col h-full items-center justify-center gap-4">
+                <Button onClick={() => { window.location.hash = '#/tournament'; }} className="!py-2 !px-4">
+                    로비로 돌아가기
+                </Button>
+            </div>
+        );
+    }
 
-    useEffect(() => {
-        // 토너먼트 상태가 없고, 이 타입에 대해 아직 시작 시도를 하지 않았을 때만 시작
-        const tournamentKey = `${type}-${currentUserWithStatus?.id || 'unknown'}`;
-        const prevTournamentState = prevTournamentStateRef.current;
-        
-        // 이전 상태 저장
-        prevTournamentStateRef.current = tournamentState;
-        
-        // 토너먼트 상태가 있으면 해당 키를 제거하고 타이머 정리 (다음에 다시 시작할 수 있도록)
-        if (tournamentState) {
-            // bracket_ready 상태에서 컨디션이 부여되지 않은 경우에만 컨디션 부여를 위해 START_TOURNAMENT_ROUND 호출
-            // 이미 유효한 컨디션이 있으면(40-100 사이) 다시 호출하지 않음 (뒤로가기 후 다시 들어온 경우 컨디션 유지)
-            if (!tournamentState.autoAdvanceEnabled && tournamentState.status === 'bracket_ready' && 
-                tournamentState.players.some((p: PlayerForTournament) => {
-                    const hasValidCondition = p.condition !== undefined && 
-                                              p.condition !== null && 
-                                              p.condition !== 1000 && 
-                                              p.condition >= 40 && 
-                                              p.condition <= 100;
-                    return !hasValidCondition;
-                })) {
-                handlersRef.current.handleAction({ 
-                    type: 'START_TOURNAMENT_ROUND', 
-                    payload: { type: type } 
-                });
-            }
-            
-            // 토너먼트가 새로 생성된 경우 (undefined -> 값)에만 제거
-            if (!prevTournamentState && startAttemptedRef.current.has(tournamentKey)) {
-                // 타이머 정리
-                const timeout = startTimeoutRef.current.get(tournamentKey);
-                if (timeout) {
-                    clearTimeout(timeout);
-                    startTimeoutRef.current.delete(tournamentKey);
-                }
-                // 약간의 지연 후 제거 (WebSocket 업데이트 대기)
-                const timeoutId = setTimeout(() => {
-                    startAttemptedRef.current.delete(tournamentKey);
-                }, 5000);
-                return () => clearTimeout(timeoutId);
-            }
-            return; // 토너먼트 상태가 있으면 더 이상 처리하지 않음
-        }
-        
-        // 토너먼트 상태가 없고, 아직 시작 시도를 하지 않았을 때만 시작
-        // 리다이렉트로 인한 무한 루프 방지: 현재 해시가 이미 해당 토너먼트 페이지인 경우에도 재시도 가능하도록 수정
-        if (!startAttemptedRef.current.has(tournamentKey) && currentUserWithStatus?.id) {
-            startAttemptedRef.current.add(tournamentKey);
-            console.log(`[TournamentArena] Starting tournament session for ${type}`);
-            // 자동으로 토너먼트 세션 시작
-            handlersRef.current.handleAction({ 
-                type: 'START_TOURNAMENT_SESSION', 
-                payload: { type: type } 
-            });
-            
-            // 3초 후에도 토너먼트 상태가 없으면 재시도 (WebSocket 업데이트가 늦을 수 있음)
-            const timeoutId = setTimeout(() => {
-                if (!currentUserWithStatus?.[stateKey]) {
-                    console.log(`[TournamentArena] Tournament state not updated after 3s, clearing attempt flag for retry`);
-                    startAttemptedRef.current.delete(tournamentKey);
-                    startTimeoutRef.current.delete(tournamentKey);
-                }
-            }, 3000);
-            startTimeoutRef.current.set(tournamentKey, timeoutId);
-        }
-        
-        // cleanup: 컴포넌트 언마운트 시 타이머 정리
-        return () => {
-            const timeout = startTimeoutRef.current.get(tournamentKey);
-            if (timeout) {
-                clearTimeout(timeout);
-                startTimeoutRef.current.delete(tournamentKey);
-            }
-        };
-    }, [type, tournamentState, currentUserWithStatus?.id, currentUserWithStatus, stateKey]);
+    // 상태 로딩 대기 중 (방금 입장한 직후 HTTP 응답 반영 대기)
+    if (isChampionshipDungeon && !tournamentState && waitingForState) {
+        return (
+            <div className="p-4 sm:p-6 lg:p-8 w-full flex flex-col h-full items-center justify-center gap-4 text-center">
+                <p className="text-gray-400">경기 정보를 불러오는 중...</p>
+                <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 w-full flex flex-col h-full relative overflow-hidden min-h-0">

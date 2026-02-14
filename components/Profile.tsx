@@ -15,6 +15,7 @@ import ChatWindow from './waiting-room/ChatWindow.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
 import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
+import { useRanking } from '../hooks/useRanking.js';
 import MannerRankModal from './MannerRankModal.js';
 import HomeBoardPanel from './HomeBoardPanel.js';
 import GuildCreateModal from './guild/GuildCreateModal.js';
@@ -265,6 +266,13 @@ const StatSummaryPanel: React.FC<{ title: string; color: string; children: React
 
 const Profile: React.FC<ProfileProps> = () => {
     const { currentUserWithStatus, allUsers, handlers, waitingRoomChats, hasClaimableQuest, presets, homeBoardPosts, guilds } = useAppContext();
+    const { rankings: championshipRankings } = useRanking('championship', 100, 0);
+    const championshipMyEntry = useMemo(() => {
+        if (!currentUserWithStatus) return null;
+        return championshipRankings.find(e => e.id === currentUserWithStatus.id) ?? null;
+    }, [championshipRankings, currentUserWithStatus]);
+    const championshipScore = championshipMyEntry?.score ?? currentUserWithStatus?.cumulativeTournamentScore ?? 0;
+    const championshipRank = championshipMyEntry?.rank ?? null;
     const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | null>(null);
     const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
     const [hasNewMessage, setHasNewMessage] = useState(false);
@@ -775,12 +783,12 @@ const Profile: React.FC<ProfileProps> = () => {
                         <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="w-full h-full object-cover object-center" />
                     </div>
                     <div className="w-full bg-tertiary/50 rounded-md p-0.5 lg:p-1 text-[10px] lg:text-xs flex justify-between items-center cursor-pointer hover:bg-tertiary transition-colors mt-1 lg:mt-2" title="챔피언십 (던전)">
-                        <span>단계별 자동대국 · 골드·재료 수급</span>
+                        <span>현재 시즌 {championshipScore.toLocaleString()}점 · {championshipRank != null ? `${championshipRank}위` : '100+위'}</span>
                         <span className="text-accent font-semibold">&rarr;</span>
                     </div>
                 </div>
             </div>
-                
+
             <div className="col-span-4 row-span-1">
                 <div onClick={onSelectSinglePlayerLobby} className="bg-panel border border-color rounded-lg p-1 lg:p-2 flex flex-col text-center transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-green-500/30 cursor-pointer h-full text-on-panel relative">
                     {hasFullTrainingQuestReward && (

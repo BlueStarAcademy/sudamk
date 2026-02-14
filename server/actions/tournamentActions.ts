@@ -571,6 +571,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 tournamentService.forfeitTournament(tournamentState, user.id);
             
                 (user as any)[stateKey] = tournamentState;
+                // 해당 경기장 컨디션 스냅샷 삭제 (다음 참가 시 새 컨디션 부여)
+                if (user.dungeonConditionSnapshot?.[type]) {
+                    delete user.dungeonConditionSnapshot[type];
+                }
                 // 사용자 캐시 업데이트
                 updateUserCache(user);
                 // DB 저장은 비동기로 처리하여 응답 지연 최소화
@@ -778,6 +782,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const recoveryAmount = getRandomInt(potionInfo.minRecovery, potionInfo.maxRecovery);
             const newCondition = Math.min(100, userPlayer.condition + recoveryAmount);
             userPlayer.condition = newCondition;
+            // 재입장 시에도 회복된 컨디션이 유지되도록 스냅샷 갱신
+            const todayStart = getStartOfDayKST(Date.now());
+            if (!user.dungeonConditionSnapshot) (user as any).dungeonConditionSnapshot = {};
+            (user as any).dungeonConditionSnapshot[tournamentType] = { condition: newCondition, dateStartOfDayKST: todayStart };
 
             // Save tournament state and user
             try {
@@ -803,9 +811,9 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '데이터 저장 중 오류가 발생했습니다.' };
             }
 
-            // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
+            // WebSocket으로 사용자 업데이트 브로드캐스트 (컨디션 스냅샷 포함해 재입장 시 유지 반영)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['actionPoints']);
+            broadcastUserUpdate(user, ['actionPoints', 'dungeonConditionSnapshot', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament']);
 
             return { 
                 clientResponse: { 
@@ -1480,7 +1488,11 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '잘못된 요청 형식입니다.' };
             }
             
-            const { dungeonType, stage } = payload as { dungeonType?: TournamentType; stage?: number };
+            const { dungeonType, stage: stageRaw } = payload as { dungeonType?: TournamentType; stage?: number | string };
+            // 클라이언트/JSON에서 문자열("1")로 올 수 있으므로 숫자로 통일
+            const stage = stageRaw !== undefined && stageRaw !== null
+                ? (typeof stageRaw === 'number' ? stageRaw : Number(stageRaw))
+                : undefined;
             
             console.log('[START_DUNGEON_STAGE] Extracted values:', { dungeonType, stage, stageType: typeof stage });
             
@@ -1492,18 +1504,13 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             
             // stage 검증
             if (stage === undefined || stage === null) {
-                console.error('[START_DUNGEON_STAGE] Stage is undefined or null:', stage);
+                console.error('[START_DUNGEON_STAGE] Stage is undefined or null:', stageRaw);
                 return { error: '단계 정보가 전달되지 않았습니다.' };
             }
             
-            if (typeof stage !== 'number') {
-                console.error('[START_DUNGEON_STAGE] Stage is not a number:', stage, 'Type:', typeof stage);
-                return { error: `단계 정보가 숫자가 아닙니다. (받은 값: ${stage}, 타입: ${typeof stage})` };
-            }
-            
-            if (isNaN(stage)) {
-                console.error('[START_DUNGEON_STAGE] Stage is NaN:', stage);
-                return { error: '단계 정보가 올바르지 않습니다. (NaN)' };
+            if (typeof stage !== 'number' || isNaN(stage)) {
+                console.error('[START_DUNGEON_STAGE] Stage is not a valid number:', stageRaw, 'Type:', typeof stageRaw);
+                return { error: `단계 정보가 올바르지 않습니다. (받은 값: ${stageRaw})` };
             }
             
             if (stage < 1 || stage > 10) {
@@ -1540,7 +1547,9 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 일일 시도 횟수 확인 (필요시 제한)
             const today = getStartOfDayKST(now);
             const todayAttempts = dungeonProgress.dailyStageAttempts[stage] || 0;
-            // 일일 시도 횟수 제한은 나중에 추가 가능
+            // 오늘 이미 이 경기장에 입장한 적 있으면 컨디션 스냅샷이 있음 → 재입장 시 시도 횟수 중복 차감 방지
+            const snapshot = freshUser.dungeonConditionSnapshot?.[dungeonType];
+            const hasSnapshotToday = snapshot && isSameDayKST(snapshot.dateStartOfDayKST, now);
             
             // 전체 토너먼트 생성 (유저 + 봇들)
             const definition = TOURNAMENT_DEFINITIONS[dungeonType];
@@ -1609,8 +1618,15 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             
             (freshUser as any)[stateKey] = dungeonState;
             
-            // 일일 시도 횟수 증가
-            dungeonProgress.dailyStageAttempts[stage] = todayAttempts + 1;
+            // 오늘 최초 입장 시에만 컨디션 스냅샷 저장 + 시도 횟수 증가 (재입장 시 같은 컨디션 유지, 시도 횟수 중복 차감 방지)
+            if (!hasSnapshotToday) {
+                const userCondition = dungeonState.players.find(p => p.id === freshUser.id)?.condition;
+                if (userCondition !== undefined && userCondition >= 40 && userCondition <= 100) {
+                    if (!freshUser.dungeonConditionSnapshot) freshUser.dungeonConditionSnapshot = {};
+                    freshUser.dungeonConditionSnapshot[dungeonType] = { condition: userCondition, dateStartOfDayKST: today };
+                }
+                dungeonProgress.dailyStageAttempts[stage] = todayAttempts + 1;
+            }
             freshUser.dungeonProgress[dungeonType] = dungeonProgress;
             
             await db.updateUser(freshUser);
@@ -1854,6 +1870,11 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             
             freshUser.dungeonProgress[dungeonType] = dungeonProgress;
             (freshUser as any)[stateKey] = dungeonState;
+            
+            // 해당 경기장 오늘자 컨디션 스냅샷 삭제 (다음 참가 시 새 컨디션 부여)
+            if (freshUser.dungeonConditionSnapshot?.[dungeonType]) {
+                delete freshUser.dungeonConditionSnapshot[dungeonType];
+            }
             
             // 보상 수령 플래그 설정 (statusKey, playedDateKey는 위 switch에서 설정됨)
             (freshUser as any)[statusKey] = true;
