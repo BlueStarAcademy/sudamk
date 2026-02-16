@@ -3,6 +3,10 @@ import type { LiveGameSession, GameStatus } from "../../types/index.js";
 
 const ENDED_STATUSES: GameStatus[] = ["ended", "no_contest"];
 
+// Railway 등 배포 환경에서는 DB 지연이 클 수 있어 타임아웃 완화
+const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
+const DB_QUERY_TIMEOUT_MS = isRailwayOrProd ? 10000 : 5000; // Railway: 10초, 로컬: 5초
+
 const mapRowToGame = (row: { id: string; data: unknown; status: string; category: string | null }): LiveGameSession | null => {
   if (!row || !row.data) return null;
   try {
@@ -74,12 +78,8 @@ export async function getLiveGame(id: string): Promise<LiveGameSession | null> {
  */
 export async function getAllActiveGamesLight(): Promise<Array<{ id: string; status: string; category: string | null; updatedAt: Date }>> {
   try {
-    // 타임아웃 보호: 5초 내에 완료되지 않으면 빈 배열 반환
     const timeoutPromise = new Promise<Array<{ id: string; status: string; category: string | null; updatedAt: Date }>>((resolve) => {
-      setTimeout(() => {
-        // 타임아웃은 정상적인 동작이므로 로그 제거 (스팸 방지)
-        resolve([]);
-      }, 5000);
+      setTimeout(() => resolve([]), DB_QUERY_TIMEOUT_MS);
     });
 
     const queryPromise = prisma.liveGame.findMany({
@@ -103,12 +103,8 @@ export async function getAllActiveGamesLight(): Promise<Array<{ id: string; stat
 
 export async function getAllActiveGames(): Promise<LiveGameSession[]> {
   try {
-    // 타임아웃 단축: 5초로 단축 (빠른 실패)
     const timeoutPromise = new Promise<LiveGameSession[]>((resolve) => {
-      setTimeout(() => {
-        // 타임아웃은 정상적인 동작이므로 로그 제거 (스팸 방지)
-        resolve([]);
-      }, 5000);
+      setTimeout(() => resolve([]), DB_QUERY_TIMEOUT_MS);
     });
 
     // 성능 최적화: 최대 20개만 조회 (더 적은 데이터로 빠른 응답)

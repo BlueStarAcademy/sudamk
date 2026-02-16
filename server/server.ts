@@ -71,9 +71,13 @@ let lastBotScoreUpdateAt = 0;
 
 // getAllActiveGames 타임아웃 백오프 추적
 let lastGetAllActiveGamesTimeout = 0;
-const GET_ALL_ACTIVE_GAMES_BACKOFF_MS = 120000; // 타임아웃 발생 시 120초 동안 스킵 (더 보수적으로)
+const GET_ALL_ACTIVE_GAMES_BACKOFF_MS = 120000; // 타임아웃 발생 시 120초 동안 DB 조회 스킵 (캐시 사용)
 let lastGetAllActiveGamesSuccess = 0; // 마지막 성공한 게임 로드 시간
 const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = 30000; // 게임 목록을 30초마다 한 번만 로드 (DB 쿼리 최소화)
+// Railway 등 배포 환경에서는 DB 지연이 클 수 있어 타임아웃 완화
+const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
+const MAINLOOP_DB_TIMEOUT_MS = isRailwayOrProd ? 10000 : 5000; // Railway: 10초, 로컬: 5초
+const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 10000 : 5000; // Railway: 10초, 로컬: 5초
 
 // 만료된 negotiation 정리 함수
 const cleanupExpiredNegotiations = (volatileState: types.VolatileState, now: number): void => {
@@ -1276,22 +1280,22 @@ const startServer = async () => {
             const shouldSkipDueToInterval = !isFirstRun && timeSinceLastSuccess < GET_ALL_ACTIVE_GAMES_INTERVAL_MS;
             
             if (shouldSkipDueToBackoff) {
-                // 백오프 중: 조용히 스킵 (로그 스팸 방지)
-                activeGames = [];
+                // 백오프 중: DB 조회는 스킵하되 캐시된 게임으로 updateGameStates 계속 수행 (진행 중인 게임 유지)
+                const { getAllCachedGames } = await import('./gameCache.js');
+                activeGames = getAllCachedGames();
             } else if (shouldSkipDueToInterval) {
                 // 간격 제한: 캐시에서 게임 로드 시도
                 const { getAllCachedGames } = await import('./gameCache.js');
                 activeGames = getAllCachedGames();
                 if (activeGames.length === 0) {
                     // 캐시가 비어있으면 강제로 로드 (첫 실행 후)
-                    // 하지만 타임아웃이 발생하지 않도록 짧은 타임아웃 사용
-                    console.log('[MainLoop] Cache empty, forcing game load with short timeout...');
+                    console.log('[MainLoop] Cache empty, forcing game load with timeout...');
                     try {
                         const shortTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                             setTimeout(() => {
-                                console.warn('[MainLoop] Forced game load timeout (5000ms), using empty array');
+                                console.warn(`[MainLoop] Forced game load timeout (${MAINLOOP_DB_TIMEOUT_MS}ms), using empty array`);
                                 resolve([]);
-                            }, 5000);
+                            }, MAINLOOP_DB_TIMEOUT_MS);
                         });
                         activeGames = await Promise.race([
                             db.getAllActiveGames().catch((err: any) => {
@@ -1326,18 +1330,15 @@ const startServer = async () => {
                 } else {
                     let timeoutOccurred = false;
                     try {
-                        const timeoutDuration = 5000; // 5초로 단축 (빠른 실패)
                         const gamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                             setTimeout(() => {
-                                // 타임아웃 발생 시 백오프 시작
                                 timeoutOccurred = true;
                                 lastGetAllActiveGamesTimeout = Date.now();
-                                // 첫 타임아웃만 경고 로그 출력 (로그 스팸 방지)
                                 if (timeSinceLastTimeout >= GET_ALL_ACTIVE_GAMES_BACKOFF_MS) {
-                                    console.warn(`[MainLoop] getAllActiveGames timeout after ${timeoutDuration}ms. Skipping for ${GET_ALL_ACTIVE_GAMES_BACKOFF_MS / 1000}s`);
+                                    console.warn(`[MainLoop] getAllActiveGames timeout after ${MAINLOOP_DB_TIMEOUT_MS}ms. Skipping DB for ${GET_ALL_ACTIVE_GAMES_BACKOFF_MS / 1000}s (using cache)`);
                                 }
                                 resolve([]);
-                            }, timeoutDuration);
+                            }, MAINLOOP_DB_TIMEOUT_MS);
                         });
                         activeGames = await Promise.race([
                             db.getAllActiveGames().catch((err: any) => {
@@ -1771,14 +1772,13 @@ const startServer = async () => {
                 try {
                     const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                         setTimeout(() => {
-                            // 로그 스팸 방지: 첫 타임아웃만 경고
                             const shouldLog = !(global as any).lastUpdateGamesTimeout || (Date.now() - (global as any).lastUpdateGamesTimeout > 30000);
                             if (shouldLog) {
-                                console.warn(`[MainLoop] updateGameStates timeout (5000ms) for ${activeGames.length} games, using original state`);
+                                console.warn(`[MainLoop] updateGameStates timeout (${MAINLOOP_UPDATE_GAMES_TIMEOUT_MS}ms) for ${activeGames.length} games, using original state`);
                                 (global as any).lastUpdateGamesTimeout = Date.now();
                             }
                             resolve(activeGames); // 타임아웃 시 원본 상태 유지
-                        }, 5000); // 8초 -> 5초로 단축
+                        }, MAINLOOP_UPDATE_GAMES_TIMEOUT_MS);
                     });
                     updatedGames = await Promise.race([
                         updateGameStates(activeGames, now).catch((err: any) => {
@@ -3031,6 +3031,9 @@ const startServer = async () => {
                 }
             }
 
+            // 로그인 시 최근 접속 시각 갱신 (길드원 목록 등에서 사용)
+            updatedUser.lastLoginAt = Date.now();
+
             // 사용자 업데이트에 타임아웃 추가 (3초 - Railway 환경 최적화)
             if (userBeforeUpdate !== JSON.stringify(updatedUser) || statsMigrated || itemsUnequipped || presetsMigrated) {
                 try {
@@ -3338,6 +3341,10 @@ const startServer = async () => {
                 }
             }
 
+            // 로그인 시 최근 접속 시각 갱신 (길드원 목록 등에서 사용)
+            user.lastLoginAt = Date.now();
+            await db.updateUser(user).catch(err => console.warn('[Kakao] Failed to update lastLoginAt:', err?.message));
+
             // 로그인 처리
             volatileState.userConnections[user.id] = Date.now();
             volatileState.userStatuses[user.id] = { status: types.UserStatus.Online };
@@ -3443,14 +3450,14 @@ const startServer = async () => {
                 return res.status(400).json({ error: 'User ID is required' });
             }
             
-            // 공개 정보 반환 (장비 정보 포함, 인벤토리는 제외하여 빠르게)
-            // 장비 정보는 작은 데이터(약 1-2KB)이므로 포함해도 데이터 사용량 증가가 미미함
-            const user = await db.getUser(userId, { includeEquipment: true, includeInventory: false });
+            // 공개 정보 반환: 장비 슬롯 + 장착 중인 아이템만 포함 (타인 프로필에서 장비/능력치 표시용)
+            const user = await db.getUser(userId, { includeEquipment: true, includeInventory: true });
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
             }
-            
-            // 공개 정보 반환 (장비 정보 포함)
+            const equipIds = new Set(Object.values(user.equipment || {}).filter(Boolean));
+            const equippedItems = Array.isArray(user.inventory) ? user.inventory.filter((item: any) => item && equipIds.has(item.id)) : [];
+
             const publicUser = {
                 id: user.id,
                 username: user.username,
@@ -3467,7 +3474,6 @@ const startServer = async () => {
                 mannerScore: user.mannerScore,
                 tournamentScore: user.tournamentScore,
                 cumulativeTournamentScore: user.cumulativeTournamentScore,
-                league: user.league,
                 mbti: user.mbti,
                 isMbtiPublic: user.isMbtiPublic,
                 cumulativeRankingScore: user.cumulativeRankingScore,
@@ -3475,7 +3481,10 @@ const startServer = async () => {
                 towerFloor: (user as any).towerFloor,
                 monthlyTowerFloor: (user as any).monthlyTowerFloor,
                 isAdmin: user.isAdmin,
-                equipment: user.equipment || {}, // 장비 정보 포함
+                equipment: user.equipment || {},
+                inventory: equippedItems,
+                baseStats: user.baseStats || {},
+                spentStatPoints: user.spentStatPoints || {},
             };
             
             res.json(publicUser);
@@ -3551,7 +3560,9 @@ const startServer = async () => {
             if (isDev) console.log('[/api/state] Finished migration logic');
 
             // Re-establish connection if user is valid but not in volatile memory (e.g., after server restart)
+            let didReconnect = false;
             if (!volatileState.userConnections[userId]) {
+                didReconnect = true;
                 if (isDev) console.log(`[API/State] User ${user.nickname}: Re-establishing connection.`);
                 volatileState.userConnections[userId] = Date.now();
                 // If user status is not present (e.g., server restart), set to online.
@@ -3599,6 +3610,11 @@ const startServer = async () => {
                 presetsMigrated = true;
             }
             // --- End Equipment Presets Migration Logic ---
+
+            // 접속 시 최근 접속 시각 갱신 (길드원 목록 등에서 사용)
+            if (didReconnect) {
+                updatedUser.lastLoginAt = Date.now();
+            }
 
             // equipment와 inventory의 isEquipped 플래그 동기화 (전투력 계산을 위해 필수)
             if (updatedUser.equipment && typeof updatedUser.equipment === 'object' && Object.keys(updatedUser.equipment).length > 0) {
@@ -3777,6 +3793,8 @@ const startServer = async () => {
                 console.log(`[Auth] Re-establishing connection on action for user: ${user.nickname} (${userId})`);
                 volatileState.userConnections[userId] = Date.now();
                 volatileState.userStatuses[userId] = { status: types.UserStatus.Online };
+                user.lastLoginAt = Date.now();
+                db.updateUser(user).catch(err => console.warn(`[API] Failed to update lastLoginAt for user ${userId}:`, err?.message));
             }
             
             volatileState.userConnections[userId] = Date.now();
