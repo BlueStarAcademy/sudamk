@@ -110,6 +110,30 @@ export async function getUserById(id: string, options?: { includeEquipment?: boo
   }
 }
 
+/** 경량 조회: 목록 표시용 (id, nickname, avatarId, borderId만) - 온디맨드 로딩 최적화 */
+export async function getUsersBrief(ids: string[]): Promise<Array<{ id: string; nickname: string; avatarId?: string | null; borderId?: string | null }>> {
+  if (!ids.length) return [];
+  const uniqueIds = [...new Set(ids)].slice(0, 200); // 최대 200명
+  try {
+    const rows = await prisma.user.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, nickname: true, status: true }
+    });
+    return rows.map((r) => {
+      const status = r.status as Record<string, unknown> | null;
+      return {
+        id: r.id,
+        nickname: r.nickname,
+        avatarId: (status?.avatarId as string | null) ?? null,
+        borderId: (status?.borderId as string | null) ?? null
+      };
+    });
+  } catch (error: any) {
+    console.warn('[userService] getUsersBrief error:', error?.message);
+    return [];
+  }
+}
+
 export async function getUserByNickname(nickname: string): Promise<User | null> {
   try {
     const row = await prisma.user.findUnique({ 

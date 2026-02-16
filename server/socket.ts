@@ -142,93 +142,17 @@ export const createWebSocketServer = (server: Server) => {
                     console.log(`[WebSocket] Starting initial state load (timeout: ${timeoutDuration}ms)`);
                 }
                 
-                // 성능 최적화: 온라인 사용자만 로드 (1000명 동시 사용자 대응)
-                const onlineUserIds = Object.keys(volatileState.userStatuses);
-                const onlineUsersData: Record<string, any> = {};
+                // 점진적 로딩: 유저 정보는 DB에서 미리 로드하지 않음 (온디맨드)
+                // id, status, mode만 전송 → 클라이언트가 /api/users/brief로 필요 시 요청
+                const onlineUsers = Object.entries(volatileState.userStatuses).map(([id, status]) => ({
+                    id,
+                    ...status
+                }));
                 
-                // 1000명 동시 사용자 대응: 온라인 사용자만 개별 조회 (전체 조회 대신)
-                // 최대 1000명까지 처리 가능하도록 증가
-                const maxOnlineUsers = 1000;
-                const limitedOnlineUserIds = onlineUserIds.slice(0, maxOnlineUsers);
-                
-                // 배치 처리로 최적화: 한 번에 50명씩 처리하여 데이터베이스 부하 분산
-                const batchSize = 50;
-                const batches: string[][] = [];
-                for (let i = 0; i < limitedOnlineUserIds.length; i += batchSize) {
-                    batches.push(limitedOnlineUserIds.slice(i, i + batchSize));
-                }
-                
-                // 배치별로 순차 처리 (데이터베이스 연결 풀 부하 방지)
-                for (const batch of batches) {
-                    if (!checkConnection()) {
-                        clearTimeout(initTimeout);
-                        break; // 연결이 끊어지면 중단
-                    }
-                    
-                    // 각 배치 내에서는 병렬 처리
-                    const userLoadPromises = batch.map(async (userId) => {
-                        try {
-                            const userTimeout = new Promise((resolve, reject) => {
-                                setTimeout(() => reject(new Error('getUser timeout')), 2000); // 2초로 증가
-                            });
-                            const user = await Promise.race([
-                                db.getUser(userId, { includeEquipment: false, includeInventory: false }),
-                                userTimeout
-                            ]) as any;
-                            
-                            if (user) {
-                                const nickname = user.nickname && user.nickname.trim().length > 0 ? user.nickname : user.username;
-                                onlineUsersData[user.id] = {
-                                    id: user.id,
-                                    username: user.username,
-                                    nickname,
-                                    isAdmin: user.isAdmin,
-                                    strategyLevel: user.strategyLevel,
-                                    strategyXp: user.strategyXp,
-                                    playfulLevel: user.playfulLevel,
-                                    playfulXp: user.playfulXp,
-                                    gold: user.gold,
-                                    diamonds: user.diamonds,
-                                    stats: user.stats,
-                                    mannerScore: user.mannerScore,
-                                    avatarId: user.avatarId,
-                                    borderId: user.borderId,
-                                    tournamentScore: user.tournamentScore,
-                                    league: user.league,
-                                    mbti: user.mbti,
-                                    towerFloor: user.towerFloor,
-                                    monthlyTowerFloor: (user as any).monthlyTowerFloor ?? 0
-                                };
-                            }
-                        } catch (error) {
-                            // 개별 사용자 조회 실패는 조용히 처리 (다음 사용자 계속 처리)
-                            // 타임아웃이나 에러는 로깅하지 않음 (너무 많은 로그 방지)
-                        }
-                    });
-                    
-                    // 배치 내 병렬 처리
-                    await Promise.allSettled(userLoadPromises);
-                }
-                
-                // 데이터 로드 후 연결 상태 재확인
-                if (!checkConnection()) {
-                    // 연결이 끊어진 것은 정상적인 재연결 흐름의 일부이므로 조용히 처리
-                    clearTimeout(initTimeout);
-                    return;
-                }
-                
-                const onlineUsers = onlineUserIds.map(userId => {
-                    const user = onlineUsersData[userId];
-                    const status = volatileState.userStatuses[userId];
-                    return user ? { ...user, ...status } : undefined;
-                }).filter(Boolean);
-                
-                // 게임 데이터만 로드 (1000명 동시 사용자 대응: 최대 200개 게임까지 로드)
-                // 타임아웃 추가 (10초로 증가)
+                // 게임 데이터 로드: 캐시 우선 (DB 부하 최소화 → 로그인 응답 지연 방지)
+                // 캐시 없을 때만 DB 조회, 타임아웃 5초로 단축하여 빠르게 응답
                 let allGames: any[] = [];
                 try {
-                    // DB가 느리거나 타임아웃이 자주 나는 환경에서는 캐시를 우선 사용해 초기 로딩을 단축
-                    // (캐시가 비어있을 때만 DB 조회)
                     try {
                         const { getAllCachedGames } = await import('./gameCache.js');
                         const cachedGames = getAllCachedGames();
@@ -240,7 +164,7 @@ export const createWebSocketServer = (server: Server) => {
                     }
 
                     const gamesTimeout = new Promise<any[]>((resolve) => {
-                        setTimeout(() => resolve([]), 10000); // 10초로 증가
+                        setTimeout(() => resolve([]), 5000); // 5초: DB 지연 시 빈 배열로 빠르게 응답
                     });
 
                     if (allGames.length === 0) {
@@ -339,7 +263,7 @@ export const createWebSocketServer = (server: Server) => {
                 }
                 
                 const allData = {
-                    users: onlineUsersData, // 온라인 사용자만 포함 (랭킹은 /api/ranking 엔드포인트 사용)
+                    users: {}, // 점진적 로딩: 빈 객체 (클라이언트가 /api/users/brief로 요청 시 로드)
                     liveGames,
                     singlePlayerGames,
                     towerGames,
@@ -472,11 +396,21 @@ export const broadcastToGameParticipants = (gameId: string, message: any, game: 
         }
     });
     
-    // 최적화: 메시지 직렬화를 한 번만 수행
-    const messageString = JSON.stringify(message);
+    // 최적화: 메시지 직렬화를 한 번만 수행 (직렬화 실패 시 크래시 방지)
+    let messageString: string;
+    try {
+        messageString = JSON.stringify(message);
+    } catch (serializeError: any) {
+        console.error('[WebSocket] broadcastToGameParticipants: JSON serialization failed', {
+            gameId,
+            error: serializeError?.message,
+            stack: serializeError?.stack,
+        });
+        return; // 직렬화 실패 시 조용히 반환 (서버 크래시 방지)
+    }
     let sentCount = 0;
     let errorCount = 0;
-    
+
     // 최적화: Array.from 대신 직접 순회 (메모리 효율)
     for (const client of wss.clients) {
         if (client.readyState === WebSocket.OPEN) {
@@ -506,8 +440,16 @@ export const broadcastToGameParticipants = (gameId: string, message: any, game: 
 
 export const broadcast = (message: any) => {
     if (!wss) return;
-    // 최적화: 메시지 직렬화를 한 번만 수행
-    const messageString = JSON.stringify(message);
+    // 최적화: 메시지 직렬화를 한 번만 수행 (직렬화 실패 시 크래시 방지)
+    let messageString: string;
+    try {
+        messageString = JSON.stringify(message);
+    } catch (serializeError: any) {
+        console.error('[WebSocket] broadcast: JSON serialization failed', {
+            error: serializeError?.message,
+        });
+        return;
+    }
     let errorCount = 0;
     
     // 최적화: Array.from 대신 직접 순회 (메모리 효율)
@@ -593,8 +535,14 @@ export const broadcastUserUpdate = (user: any, changedFields?: string[]) => {
     }
     
     const message = { type: 'USER_UPDATE', payload: { [user.id]: optimizedUser } };
-    // 최적화: 메시지 직렬화를 한 번만 수행
-    const messageString = JSON.stringify(message);
+    // 최적화: 메시지 직렬화를 한 번만 수행 (직렬화 실패 시 크래시 방지)
+    let messageString: string;
+    try {
+        messageString = JSON.stringify(message);
+    } catch (serializeError: any) {
+        console.error('[WebSocket] broadcastUserUpdate: JSON serialization failed', serializeError?.message);
+        return;
+    }
     let sentCount = 0;
     let errorCount = 0;
     

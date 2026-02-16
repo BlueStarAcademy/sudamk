@@ -341,56 +341,67 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             };
         }
         case 'START_AI_GAME': {
-            const { mode, settings } = payload;
-            const cost = getActionPointCost(mode);
-            if (user.actionPoints.current < cost && !user.isAdmin) {
-                return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
-            }
-            if (!user.isAdmin) {
-                user.actionPoints.current -= cost;
-                user.lastActionPointUpdate = now;
-            }
-        
-            const negotiation: Negotiation = {
-                id: `neg-ai-${randomUUID()}`,
-                challenger: user,
-                opponent: getAiUser(mode),
-                mode, settings,
-                proposerId: user.id,
-                status: 'pending', deadline: 0,
-            };
-        
-            const game = await initializeGame(negotiation);
-            await db.saveGame(game);
-            
-            volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-            volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-            
-            const draftNegId = Object.keys(volatileState.negotiations).find(id => {
-                const neg = volatileState.negotiations[id];
-                return neg.challenger.id === user.id && neg.opponent.id === aiUserId && neg.status === 'draft';
-            });
-            if (draftNegId) delete volatileState.negotiations[draftNegId];
-            
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-            db.updateUser(user).catch(err => {
-                console.error(`[ACCEPT_NEGOTIATION] Failed to save user ${user.id}:`, err);
-            });
-            
-            // 게임 생성 후 게임 정보를 먼저 브로드캐스트 (게임 참가자에게만 전송)
-            const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
-            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-            // 그 다음 사용자 업데이트 브로드캐스트 (actionPoints 변경 반영)
-            broadcastUserUpdate(user, ['actionPoints']);
-            // 사용자 상태 브로드캐스트
-            broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
-            broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
-            
-            return {
-                clientResponse: {
-                    gameId: game.id
+            try {
+                const { mode, settings } = payload;
+                const cost = getActionPointCost(mode);
+                if (user.actionPoints.current < cost && !user.isAdmin) {
+                    return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
                 }
-            };
+                if (!user.isAdmin) {
+                    user.actionPoints.current -= cost;
+                    user.lastActionPointUpdate = now;
+                }
+            
+                const negotiation: Negotiation = {
+                    id: `neg-ai-${randomUUID()}`,
+                    challenger: user,
+                    opponent: getAiUser(mode),
+                    mode, settings,
+                    proposerId: user.id,
+                    status: 'pending', deadline: 0,
+                };
+            
+                const game = await initializeGame(negotiation);
+                await db.saveGame(game);
+                
+                volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+                volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+                
+                const draftNegId = Object.keys(volatileState.negotiations).find(id => {
+                    const neg = volatileState.negotiations[id];
+                    return neg.challenger.id === user.id && neg.opponent.id === aiUserId && neg.status === 'draft';
+                });
+                if (draftNegId) delete volatileState.negotiations[draftNegId];
+                
+                // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
+                db.updateUser(user).catch(err => {
+                    console.error(`[ACCEPT_NEGOTIATION] Failed to save user ${user.id}:`, err);
+                });
+                
+                // 게임 생성 후 게임 정보를 먼저 브로드캐스트 (게임 참가자에게만 전송)
+                const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                // 그 다음 사용자 업데이트 브로드캐스트 (actionPoints 변경 반영)
+                broadcastUserUpdate(user, ['actionPoints']);
+                // 사용자 상태 브로드캐스트
+                broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
+                
+                return {
+                    clientResponse: {
+                        gameId: game.id
+                    }
+                };
+            } catch (err: any) {
+                // 실패 시 액션 포인트 복구
+                if (!user.isAdmin && payload?.mode) {
+                    const cost = getActionPointCost(payload.mode);
+                    user.actionPoints.current += cost;
+                    user.lastActionPointUpdate = now;
+                }
+                console.error('[START_AI_GAME] Error:', err?.message || err, err?.stack);
+                return { error: err?.message || 'AI 게임 생성 중 오류가 발생했습니다.' };
+            }
         }
         case 'REQUEST_REMATCH': {
             const { opponentId, originalGameId } = payload;

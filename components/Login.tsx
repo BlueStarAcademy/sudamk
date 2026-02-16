@@ -90,18 +90,22 @@ const Login: React.FC = () => {
     } catch (err: any) {
       console.error('[Login] Login error:', err);
       
-      if (err.name === 'AbortError') {
+      if (err?.name === 'AbortError') {
         setError('서버 응답이 30초 내에 없습니다. 잠시 후 다시 시도해주세요.');
         return;
       }
-      // 네트워크 에러인 경우 (CORS, 연결 거부, DNS 실패 등)
-      if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        setError('백엔드 서버에 연결할 수 없습니다. (CORS/네트워크) Railway 대시보드에서 SUDAM-API 서비스의 FRONTEND_URL=https://sudam.up.railway.app 설정을 확인해주세요.');
-      } else if (err.message && err.message.includes('JSON')) {
-        setError('서버 응답 오류: JSON 파싱 실패. 백엔드 서버가 정상적으로 실행 중인지 확인해주세요.');
-      } else {
-        setError(err.message || '로그인 중 오류가 발생했습니다.');
+      // 네트워크 에러 (Failed to fetch, CORS, 연결 거부 등)
+      const msg = err?.message || '';
+      const isNetworkError = err?.name === 'TypeError' && (msg.includes('fetch') || msg.includes('Failed to'));
+      if (isNetworkError) {
+        setError('서버에 연결할 수 없습니다. SUDAM-API가 실행 중인지 Railway 대시보드에서 확인하고, FRONTEND_URL을 설정한 뒤 재배포해주세요.');
+        return;
       }
+      if (msg.includes('JSON')) {
+        setError('서버 응답 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      setError(err?.message || '로그인 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -206,8 +210,9 @@ const Login: React.FC = () => {
                         }
                     } catch (err: any) {
                         console.error('[Login] Kakao login error:', err);
-                        if (err.name === 'TypeError' && err.message.includes('fetch')) {
-                            setError('백엔드 서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.');
+                        const msg = err?.message || '';
+                        if (err?.name === 'TypeError' && (msg.includes('fetch') || msg.includes('Failed to'))) {
+                            setError('서버에 연결할 수 없습니다. SUDAM-API가 실행 중인지 Railway 대시보드에서 확인해주세요.');
                         } else {
                             setError('카카오 로그인에 실패했습니다.');
                         }

@@ -63,7 +63,14 @@ let hasCompletedFirstRun = false; // 첫 실행 완료 플래그 (전역)
 let mainLoopConsecutiveFailures = 0; // 연속 실패 횟수 추적
 const MAX_CONSECUTIVE_FAILURES = 10; // 최대 연속 실패 횟수
 
-const OFFLINE_REGEN_INTERVAL_MS = 60_000; // 1 minute
+// Railway 32GB 환경: 5분 주기로 DB 부하·메모리 피크 감소 (1분→5분)
+const OFFLINE_REGEN_INTERVAL_MS = 300_000; // 5분
+const OFFLINE_REGEN_BATCH_SIZE = 25; // 배치당 25명 (메모리 피크 감소)
+const OFFLINE_REGEN_MAX_USERS_PER_CYCLE = 200; // 주기당 최대 200명 처리
+// 메모리 가드: RSS가 이 값을 넘으면 해당 회차 스킵
+// RAILWAY_REPLICA_MEMORY_LIMIT_MB=32768 설정 시 8GB, 미설정 시 Railway 2GB·로컬 250MB
+const _replicaLimitMb = parseInt(process.env.RAILWAY_REPLICA_MEMORY_LIMIT_MB || '0', 10);
+const OFFLINE_REGEN_SKIP_RSS_MB = _replicaLimitMb > 4000 ? 8000 : (process.env.RAILWAY_ENVIRONMENT ? 2000 : 250);
 let lastOfflineRegenAt = 0;
 const DAILY_TASK_CHECK_INTERVAL_MS = 60_000; // 1 minute
 let lastDailyTaskCheckAt = 0;
@@ -77,7 +84,8 @@ const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = 30000; // 게임 목록을 30초마다 
 // Railway 등 배포 환경에서는 DB 지연이 클 수 있어 타임아웃 완화
 const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
 const MAINLOOP_DB_TIMEOUT_MS = isRailwayOrProd ? 10000 : 5000; // Railway: 10초, 로컬: 5초
-const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 10000 : 5000; // Railway: 10초, 로컬: 5초
+// Railway: 20게임×7배치×3초≈21초 → 25초로 여유
+const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 25000 : 5000; // Railway: 25초, 로컬: 5초
 
 // 만료된 negotiation 정리 함수
 const cleanupExpiredNegotiations = (volatileState: types.VolatileState, now: number): void => {
@@ -1095,6 +1103,15 @@ const startServer = async () => {
             // --- START NEW OFFLINE AP REGEN LOGIC ---
             if (now - lastOfflineRegenAt >= OFFLINE_REGEN_INTERVAL_MS) {
                 try {
+                    // 메모리 가드: RSS가 임계치를 넘으면 해당 회차 스킵 (메모리 스파이크 방지)
+                    const memMB = Math.round(process.memoryUsage().rss / 1024 / 1024);
+                    if (memMB > OFFLINE_REGEN_SKIP_RSS_MB) {
+                        if (memMB % 100 < 10) { // 로그 스팸 방지
+                            console.warn(`[MainLoop] Offline regen skipped: RSS ${memMB}MB > ${OFFLINE_REGEN_SKIP_RSS_MB}MB`);
+                        }
+                        lastOfflineRegenAt = now;
+                        // fall through - skip to next MainLoop section
+                    } else {
                     // Railway 최적화: equipment/inventory 없이 사용자 목록만 로드 (타임아웃 추가)
                     const { listUsers } = await import('./prisma/userService.js');
                     const usersTimeout = new Promise<types.User[]>((resolve) => {
@@ -1108,8 +1125,10 @@ const startServer = async () => {
                     if (allUsers.length === 0) {
                         console.warn('[MainLoop] No users loaded for offline regen, skipping...');
                         lastOfflineRegenAt = now;
-                        return;
-                    }
+                        // fall through
+                    } else {
+                    // 주기당 최대 N명만 처리 (메모리·DB 부하 분산)
+                    const usersToProcess = allUsers.slice(0, OFFLINE_REGEN_MAX_USERS_PER_CYCLE);
                     
                     // 매일 0시에 토너먼트 상태 자동 리셋 확인 (processDailyQuestReset에서 처리되지만, 
                     // 메인 루프에서도 날짜 변경 시 체크하여 오프라인 사용자도 리셋되도록 보장)
@@ -1118,10 +1137,8 @@ const startServer = async () => {
                     const kstMinutesForReset = getKSTMinutes(now);
                     const isMidnightForReset = kstHoursForReset === 0 && kstMinutesForReset < 5;
                     
-                    // 배치 처리로 최적화 (한 번에 50명씩 처리)
-                    const batchSize = 50;
-                    for (let i = 0; i < allUsers.length; i += batchSize) {
-                        const batch = allUsers.slice(i, i + batchSize);
+                    for (let i = 0; i < usersToProcess.length; i += OFFLINE_REGEN_BATCH_SIZE) {
+                        const batch = usersToProcess.slice(i, i + OFFLINE_REGEN_BATCH_SIZE);
                         await Promise.allSettled(batch.map(async (user) => {
                             try {
                                 let updatedUser = user;
@@ -1154,6 +1171,8 @@ const startServer = async () => {
                     }
 
                     lastOfflineRegenAt = now;
+                    } // end else (allUsers.length > 0)
+                    } // end else (mem check)
                 } catch (regenError: any) {
                     console.error('[MainLoop] Error in offline regen logic:', regenError?.message || regenError);
                     // 오프라인 리젠 실패해도 서버는 계속 실행
@@ -1205,13 +1224,18 @@ const startServer = async () => {
                     };
                     console.log(`[Memory] RSS: ${memUsageMB.rss}MB, Heap: ${memUsageMB.heapUsed}/${memUsageMB.heapTotal}MB, External: ${memUsageMB.external}MB`);
                     
-                    // Railway 환경에서 메모리 제한을 더 엄격하게 관리
-                    // Railway의 무료 플랜은 보통 512MB 메모리 제한이 있으므로, 200MB 이상이면 경고
-                    if (memUsageMB.rss > 200) {
+                    // Railway 메모리 관리: 32GB 플랜은 스케일된 임계치 (RAILWAY_REPLICA_MEMORY_LIMIT_MB=32768 권장)
+                    const memLimitMb = _replicaLimitMb > 0 ? _replicaLimitMb : 512;
+                    const MEM_WARN = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.10) : 200;
+                    const MEM_CLEANUP = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.12) : 250;
+                    const MEM_AGGRESSIVE = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.15) : 300;
+                    const MEM_CLEAR_ALL = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.20) : 350;
+                    const MEM_EXIT = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.25) : 400;
+                    if (memUsageMB.rss > MEM_WARN) {
                         console.warn(`[Memory] High memory usage detected: ${memUsageMB.rss}MB RSS`);
                         
                         // 메모리 사용량이 250MB를 초과하면 강제 캐시 정리
-                        if (memUsageMB.rss > 250) {
+                        if (memUsageMB.rss > MEM_CLEANUP) {
                             console.warn(`[Memory] Forcing aggressive cache cleanup due to high memory usage (${memUsageMB.rss}MB)`);
                             try {
                                 const { cleanupExpiredCache, clearAllCache } = await import('./gameCache.js');
@@ -1219,12 +1243,12 @@ const startServer = async () => {
                                 cleanupExpiredCache();
                                 
                                 // 메모리가 여전히 높으면 더 적극적으로 정리
-                                if (memUsageMB.rss > 300) {
+                                if (memUsageMB.rss > MEM_AGGRESSIVE) {
                                     console.warn(`[Memory] Very high memory usage (${memUsageMB.rss}MB). Performing aggressive cache cleanup.`);
                                     try {
                                         const { aggressiveCacheCleanup, clearAllCache } = await import('./gameCache.js');
                                         // 350MB 이상이면 모든 캐시 클리어
-                                        if (memUsageMB.rss > 350) {
+                                        if (memUsageMB.rss > MEM_CLEAR_ALL) {
                                             clearAllCache();
                                         } else {
                                             // 300-350MB 사이면 적극적인 정리만 수행
@@ -1251,7 +1275,7 @@ const startServer = async () => {
                         }
                         
                         // 메모리 사용량이 400MB를 초과하면 프로세스 종료 (Railway가 재시작)
-                        if (memUsageMB.rss > 400) {
+                        if (memUsageMB.rss > MEM_EXIT) {
                             console.error(`[Memory] CRITICAL: Memory usage too high (${memUsageMB.rss}MB). Exiting for Railway restart.`);
                             process.stderr.write(`[CRITICAL] Memory too high (${memUsageMB.rss}MB) - exiting\n`);
                             // 메모리 정리 시도
@@ -3440,6 +3464,25 @@ const startServer = async () => {
         } catch (e: any) {
             console.error('[/api/auth/set-nickname] Error:', e);
             res.status(500).json({ message: '닉네임 설정 중 오류가 발생했습니다.', error: process.env.NODE_ENV === 'development' ? e?.message : undefined });
+        }
+    });
+
+    // 유저 경량 정보 (목록 표시용) - 온디맨드 로딩, ids 쿼리: id1,id2,id3
+    app.get('/api/users/brief', async (req, res) => {
+        try {
+            const idsParam = req.query.ids;
+            if (!idsParam || typeof idsParam !== 'string') {
+                return res.status(400).json({ error: 'ids query parameter is required' });
+            }
+            const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean);
+            if (ids.length === 0) {
+                return res.json([]);
+            }
+            const brief = await db.getUsersBrief(ids);
+            res.json(brief);
+        } catch (error: any) {
+            console.error('[/api/users/brief] Error:', error);
+            res.status(500).json({ error: 'Failed to fetch user brief data' });
         }
     });
 

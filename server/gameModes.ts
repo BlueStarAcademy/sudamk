@@ -820,12 +820,25 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             return games; // PVE 게임만 있으면 원본 반환
         }
 
+        // 주기당 처리 게임 수 제한 (updateGameStates 타임아웃 방지)
+        const MAX_GAMES_PER_CYCLE = 12;
+        let roundRobinOffset = (global as any).__updateGameStatesRoundRobin ?? 0;
+        const toProcess: LiveGameSession[] = multiPlayerGames.length <= MAX_GAMES_PER_CYCLE
+            ? multiPlayerGames
+            : (() => {
+                const start = roundRobinOffset % multiPlayerGames.length;
+                const a = multiPlayerGames.slice(start, start + MAX_GAMES_PER_CYCLE);
+                const b = multiPlayerGames.slice(0, Math.max(0, MAX_GAMES_PER_CYCLE - a.length));
+                (global as any).__updateGameStatesRoundRobin = (roundRobinOffset + a.length + b.length) % multiPlayerGames.length;
+                return [...a, ...b];
+            })();
+
         // 배치 처리: 3개씩 병렬 처리하여 메모리 및 CPU 부하 분산 (성능 개선)
         const BATCH_SIZE = 3;
         const results: LiveGameSession[] = [];
         
-        for (let i = 0; i < multiPlayerGames.length; i += BATCH_SIZE) {
-            const batch = multiPlayerGames.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
+            const batch = toProcess.slice(i, i + BATCH_SIZE);
             
             // 각 배치에 타임아웃 추가 (3초로 단축 - 더 빠른 실패)
             const batchTimeout = new Promise<LiveGameSession[]>((resolve) => {
@@ -863,13 +876,18 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             results.push(...batchResults);
         }
 
+        // 라운드로빈 사용 시: 처리된 게임만 results에 있음 → 멀티플레이 전체에 병합
+        const processedMap = new Map<string, LiveGameSession>();
+        for (const g of results) processedMap.set(g.id, g);
+        const mergedMultiPlayer = multiPlayerGames.map(g => processedMap.get(g.id) ?? g);
+
         // PVE 게임은 원본 그대로 반환 (처리하지 않음)
         const pveGames = games.filter(game => {
             if (!game || !game.id) return false;
             return game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
         });
 
-        return [...results, ...pveGames];
+        return [...mergedMultiPlayer, ...pveGames];
     } catch (error: any) {
         console.error('[updateGameStates] Fatal error:', error?.message || error);
         return games; // 치명적 에러 발생 시 원본 게임들 반환
@@ -985,9 +1003,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             if (canProcessAiTurn) {
                 // aiTurnStartTime이 설정되지 않았거나, 이전에 undefined로 설정된 경우 새로 설정
                 if (!game.aiTurnStartTime || game.aiTurnStartTime === undefined) {
-                    // 즉시 실행하도록 현재 시간으로 설정 (약간의 랜덤 딜레이 제거)
                     game.aiTurnStartTime = now;
-                    console.log(`[processGame] AI turn detected for game ${game.id}, mode: ${game.mode}, status: ${game.gameStatus}, currentPlayer: ${game.currentPlayer}, aiTurnStartTime set to now: ${now}`);
                 }
                 
                 // aiTurnStartTime이 현재 시간보다 작거나 같으면 즉시 실행
@@ -997,7 +1013,6 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                                                game.mode === types.GameMode.Alkkagi ? game.alkkagiStones?.length : 0) ?? 0;
                     const initialGameStatus = game.gameStatus;
                     try {
-                        console.log(`[processGame] Executing AI move for game ${game.id}, mode: ${game.mode}, status: ${game.gameStatus}, currentPlayer: ${game.currentPlayer}`);
                         await makeAiMove(game);
                         
                         const moveCountAfter = game.moveHistory?.length ?? initialMoveCount;
@@ -1008,7 +1023,6 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                                                (initialGameStatus !== game.gameStatus && animatingStatuses.includes(game.gameStatus));
 
                         if (aiActuallyMoved) {
-                            console.log(`[processGame] AI move executed successfully for game ${game.id}, new status: ${game.gameStatus}`);
                             // AI가 수를 두었으므로 aiTurnStartTime을 undefined로 설정하여 다음 AI 턴까지 대기
                             game.aiTurnStartTime = undefined;
                             if (!game.turnStartTime) {
@@ -1029,7 +1043,6 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 // (애니메이션이 끝나면 canProcessAiTurn이 true가 되어 AI 수가 실행됨)
                 if (!game.aiTurnStartTime) {
                     game.aiTurnStartTime = now;
-                    console.log(`[processGame] AI turn detected during animation for game ${game.id}, aiTurnStartTime set to now: ${now}`);
                 }
             }
 

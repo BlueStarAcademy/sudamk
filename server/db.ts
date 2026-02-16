@@ -3,6 +3,7 @@ import { deepClone } from './utils/cloneHelper.js';
 import { getInitialState } from './initialData.ts';
 import {
     listUsers,
+    getUsersBrief as prismaGetUsersBrief,
     getUserById as prismaGetUserById,
     getUserByNickname as prismaGetUserByNickname,
     getUserByEmail as prismaGetUserByEmail,
@@ -370,6 +371,9 @@ export const invalidateUserCache = (userId: string) => {
     userCache.delete(userId);
     // getAllUsers 캐시도 무효화 (사용자 정보 변경 시)
     allUsersCache = null;
+};
+export const getUsersBrief = async (ids: string[]): Promise<Array<{ id: string; nickname: string; avatarId?: string | null; borderId?: string | null }>> => {
+    return prismaGetUsersBrief(ids);
 };
 export const getUserByNickname = async (nickname: string): Promise<User | null> => {
     return prismaGetUserByNickname(nickname);

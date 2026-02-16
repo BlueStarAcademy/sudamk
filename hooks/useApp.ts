@@ -247,6 +247,8 @@ export const useApp = () => {
     // --- Server State ---
     const [usersMap, setUsersMap] = useState<Record<string, User>>({});
     const [onlineUsers, setOnlineUsers] = useState<UserWithStatus[]>([]);
+    // 온디맨드: 프로필 보기/목록 표시 시에만 로드한 유저 brief 캐시 (nickname, avatarId, borderId)
+    const [userBriefCache, setUserBriefCache] = useState<Record<string, { nickname: string; avatarId?: string | null; borderId?: string | null }>>({});
     const [liveGames, setLiveGames] = useState<Record<string, LiveGameSession>>({});  // 일반 게임만
     const [singlePlayerGames, setSinglePlayerGames] = useState<Record<string, LiveGameSession>>({});  // 싱글플레이 게임
     const [towerGames, setTowerGames] = useState<Record<string, LiveGameSession>>({});  // 도전의 탑 게임
@@ -390,6 +392,56 @@ export const useApp = () => {
         if (!usersMap || typeof usersMap !== 'object') return [];
         return Object.values(usersMap);
     }, [usersMap]);
+
+    // 온디맨드: onlineUsers의 id에 대해 brief가 없으면 /api/users/brief 요청
+    const userBriefCacheRef = useRef(userBriefCache);
+    userBriefCacheRef.current = userBriefCache;
+    useEffect(() => {
+        const ids = (onlineUsers || []).map(u => u?.id).filter(Boolean) as string[];
+        const cache = userBriefCacheRef.current;
+        const toFetch = ids.filter(id => !cache[id]);
+        if (toFetch.length === 0) return;
+        const controller = new AbortController();
+        (async () => {
+            try {
+                const res = await fetch(getApiUrl(`/api/users/brief?ids=${encodeURIComponent(toFetch.join(','))}`), { signal: controller.signal });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    setUserBriefCache(prev => {
+                        const next = { ...prev };
+                        data.forEach((b: { id: string; nickname: string; avatarId?: string | null; borderId?: string | null }) => {
+                            if (b?.id) next[b.id] = { nickname: b.nickname || b.id, avatarId: b.avatarId, borderId: b.borderId };
+                        });
+                        return next;
+                    });
+                }
+            } catch (e) {
+                if ((e as Error)?.name !== 'AbortError') console.warn('[useApp] Fetch users brief failed:', e);
+            }
+        })();
+        return () => controller.abort();
+    }, [onlineUsers]); // onlineUsers 변경 시에만 실행
+
+    // 현재 사용자 brief를 캐시에 추가 (목록에서 "나" 표시)
+    useEffect(() => {
+        if (currentUser?.id && !userBriefCache[currentUser.id]) {
+            setUserBriefCache(prev => ({ ...prev, [currentUser.id]: { nickname: currentUser.nickname || currentUser.username || currentUser.id, avatarId: currentUser.avatarId, borderId: currentUser.borderId } }));
+        }
+    }, [currentUser?.id, currentUser?.nickname, currentUser?.username]);
+
+    // brief 캐시와 병합한 온라인 유저 (목록 표시용)
+    const enrichedOnlineUsers = useMemo(() => {
+        return (onlineUsers || []).map(u => {
+            const brief = u?.id ? userBriefCache[u.id] : null;
+            return {
+                ...u,
+                nickname: brief?.nickname ?? (u as any).nickname ?? '...',
+                avatarId: brief?.avatarId ?? (u as any).avatarId,
+                borderId: brief?.borderId ?? (u as any).borderId,
+            };
+        });
+    }, [onlineUsers, userBriefCache]);
 
     // 행동력 실시간 업데이트를 위한 상태
     const [actionPointUpdateTrigger, setActionPointUpdateTrigger] = useState(0);
@@ -1780,7 +1832,8 @@ export const useApp = () => {
                     if (window.location.hash !== targetHash) {
                         console.log('[handleAction] Setting immediate route to new game:', targetHash, 'hasGame:', !!game);
                         // AI 게임: state 반영 전 리다이렉트 방지를 위해 유예 시간 설정
-                        if (action.type === 'CONFIRM_AI_GAME_START') {
+                        // START_AI_GAME(대기실→규칙설명), CONFIRM_AI_GAME_START(경기시작→경기장) 모두 적용
+                        if (action.type === 'START_AI_GAME' || action.type === 'CONFIRM_AI_GAME_START') {
                             pendingAiGameEntryRef.current = { gameId: effectiveGameId, until: Date.now() + 3000 };
                         }
                         // 즉시 라우팅 (지연 제거)
@@ -3493,17 +3546,16 @@ export const useApp = () => {
     };
     
     const handleViewUser = useCallback(async (userId: string) => {
-        // 먼저 onlineUsers와 allUsers에서 찾기
-        if (Array.isArray(onlineUsers) && Array.isArray(allUsers)) {
-            const userToView = onlineUsers.find(u => u && u.id === userId) || allUsers.find(u => u && u.id === userId);
+        // allUsers(usersMap)에 전체 프로필이 있으면 사용 (협상 상대 등)
+        if (Array.isArray(allUsers)) {
+            const userToView = allUsers.find(u => u && u.id === userId);
             if (userToView) {
-                const statusInfo = onlineUsers.find(u => u && u.id === userId);
+                const statusInfo = Array.isArray(onlineUsers) ? onlineUsers.find(u => u && u.id === userId) : null;
                 setViewingUser({ ...userToView, ...(statusInfo || { status: UserStatus.Online }) });
                 return;
             }
         }
-        
-        // 로컬에 없으면 서버에서 가져오기
+        // 온디맨드: 프로필 보기 요청 시 서버에서 가져오기
         try {
             const response = await fetch(getApiUrl(`/api/user/${userId}`));
             if (!response.ok) {
@@ -3512,12 +3564,10 @@ export const useApp = () => {
             }
             const userData = await response.json();
             const statusInfo = Array.isArray(onlineUsers) ? onlineUsers.find(u => u && u.id === userId) : null;
-            setViewingUser({ 
-                ...userData, 
-                status: statusInfo?.status || UserStatus.Offline,
-                equipment: userData.equipment || {},
-                inventory: userData.inventory || [],
-            } as UserWithStatus);
+            const merged = { ...userData, status: statusInfo?.status || UserStatus.Offline, equipment: userData.equipment || {}, inventory: userData.inventory || [], } as UserWithStatus;
+            setViewingUser(merged);
+            setUsersMap(prev => ({ ...prev, [userId]: userData }));
+            setUserBriefCache(prev => ({ ...prev, [userId]: { nickname: userData.nickname || userData.username || userId, avatarId: userData.avatarId, borderId: userData.borderId } }));
         } catch (error) {
             console.error(`[handleViewUser] Error fetching user ${userId}:`, error);
         }
@@ -3705,7 +3755,7 @@ export const useApp = () => {
         currentRoute,
         error,
         allUsers,
-        onlineUsers,
+        onlineUsers: enrichedOnlineUsers,
         liveGames,
         singlePlayerGames,
         towerGames,

@@ -51,47 +51,57 @@ export async function handleAiAction(
   const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
   const isPlayful = PLAYFUL_GAME_MODES.some(m => m.mode === game.mode);
 
-  if (isStrategic) {
-    const { initializeStrategicGame } = await import('../modes/standard.js');
-    initializeStrategicGame(game as any, neg, now);
-  } else if (isPlayful) {
-    const { initializePlayfulGame } = await import('../modes/playful.js');
-    await initializePlayfulGame(game as any, neg, now);
-  } else {
-    return { error: 'Unsupported game mode.' };
-  }
-
-  // Ensure currentPlayer is set when transitioning to playing
-  if (game.gameStatus === 'playing' && game.currentPlayer === Player.None) {
-    game.currentPlayer = Player.Black;
-    console.log(`[handleAiAction] Set currentPlayer to Black for game ${game.id}`);
-  }
-
-  // 게임 시작 시 첫 턴이 AI인 경우 aiTurnStartTime 설정
-  if (game.isAiGame && game.currentPlayer !== Player.None) {
-    const currentPlayerId = game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId;
-    if (currentPlayerId === aiUserId) {
-      game.aiTurnStartTime = now;
-      console.log(`[handleAiAction] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+  try {
+    if (isStrategic) {
+      const { initializeStrategicGame } = await import('../modes/standard.js');
+      initializeStrategicGame(game as any, neg, now);
+    } else if (isPlayful) {
+      const { initializePlayfulGame } = await import('../modes/playful.js');
+      await initializePlayfulGame(game as any, neg, now);
     } else {
-      // 사용자 턴으로 시작하므로 aiTurnStartTime을 undefined로 설정
-      game.aiTurnStartTime = undefined;
-      console.log(`[handleAiAction] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
+      return { error: 'Unsupported game mode.' };
     }
+
+    // Ensure currentPlayer is set when transitioning to playing
+    if (game.gameStatus === 'playing' && game.currentPlayer === Player.None) {
+      game.currentPlayer = Player.Black;
+      console.log(`[handleAiAction] Set currentPlayer to Black for game ${game.id}`);
+    }
+
+    // 게임 시작 시 첫 턴이 AI인 경우 aiTurnStartTime 설정
+    if (game.isAiGame && game.currentPlayer !== Player.None) {
+      const currentPlayerId = game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId;
+      if (currentPlayerId === aiUserId) {
+        game.aiTurnStartTime = now;
+        console.log(`[handleAiAction] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+      } else {
+        // 사용자 턴으로 시작하므로 aiTurnStartTime을 undefined로 설정
+        game.aiTurnStartTime = undefined;
+        console.log(`[handleAiAction] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
+      }
+    }
+
+    // 게임 시작 시간 설정
+    if (!game.gameStartTime) {
+      game.gameStartTime = now;
+    }
+
+    await db.saveGame(game);
+    updateGameCache(game);
+
+    const { broadcastToGameParticipants } = await import('../socket.js');
+    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+
+    let gameCopy: any;
+    try {
+      gameCopy = JSON.parse(JSON.stringify(game));
+    } catch {
+      gameCopy = game; // 직렬화 실패 시 원본 반환 (순환 참조 등)
+    }
+    return { clientResponse: { success: true, gameId: game.id, game: gameCopy } };
+  } catch (err: any) {
+    console.error('[CONFIRM_AI_GAME_START] Error:', err?.message || err, err?.stack);
+    return { error: err?.message || '경기 시작 처리 중 오류가 발생했습니다.' };
   }
-
-  // 게임 시작 시간 설정
-  if (!game.gameStartTime) {
-    game.gameStartTime = now;
-  }
-
-  await db.saveGame(game);
-  updateGameCache(game);
-
-  const { broadcastToGameParticipants } = await import('../socket.js');
-  broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-
-  const gameCopy = JSON.parse(JSON.stringify(game));
-  return { clientResponse: { success: true, gameId: game.id, game: gameCopy } };
 }
 
