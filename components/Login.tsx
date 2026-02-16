@@ -23,11 +23,17 @@ const Login: React.FC = () => {
       const apiUrl = getApiUrl('/api/auth/login');
       console.log('[Login] Attempting login to:', apiUrl);
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
+        credentials: 'omit',
+        mode: 'cors',
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       
       // 응답 Content-Type 확인
       const contentType = response.headers.get('content-type');
@@ -84,9 +90,13 @@ const Login: React.FC = () => {
     } catch (err: any) {
       console.error('[Login] Login error:', err);
       
-      // 네트워크 에러인 경우
+      if (err.name === 'AbortError') {
+        setError('서버 응답이 30초 내에 없습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      // 네트워크 에러인 경우 (CORS, 연결 거부, DNS 실패 등)
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        setError('백엔드 서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.');
+        setError('백엔드 서버에 연결할 수 없습니다. (CORS/네트워크) Railway 대시보드에서 SUDAM-API 서비스의 FRONTEND_URL=https://sudam.up.railway.app 설정을 확인해주세요.');
       } else if (err.message && err.message.includes('JSON')) {
         setError('서버 응답 오류: JSON 파싱 실패. 백엔드 서버가 정상적으로 실행 중인지 확인해주세요.');
       } else {

@@ -500,12 +500,13 @@ const startServer = async () => {
                 return;
             }
             
-            // 허용할 origin 목록
-            const allowedOrigins = [
+            // 허용할 origin 목록 (Railway 배포 시 FRONTEND_URL 미설정 대비)
+            const allowedOrigins: (string | RegExp)[] = [
                 process.env.FRONTEND_URL,
+                'https://sudam.up.railway.app',  // SUDAM 프론트엔드 (FRONTEND_URL 미설정 시 fallback)
                 /\.railway\.app$/,
                 /\.up\.railway\.app$/
-            ].filter((o): o is string | RegExp => o !== undefined && o !== null);
+            ].filter((o): o is string | RegExp => o !== undefined && o !== null && o !== '');
             
             // 로깅은 개발 환경에서만 (프로덕션에서는 로그 스팸 방지)
             const isDevelopment = process.env.NODE_ENV === 'development';

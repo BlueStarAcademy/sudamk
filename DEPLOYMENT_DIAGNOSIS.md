@@ -54,7 +54,20 @@ getAllActiveGames 타임아웃
 - [x] 백오프 중에도 캐시된 게임으로 updateGameStates 수행 (게임 진행 유지)
 - [x] 연결 풀 설정 검토 (connection_limit 등)
 
-## 모니터링 체크리스트
+## "Failed to fetch" / 로그인 연결 실패 시
+
+프론트(https://sudam.up.railway.app) → 백엔드(https://sudam-api-production.up.railway.app) 요청이 실패할 때:
+
+1. **Railway SUDAM-API Variables** 에 다음 추가/확인:
+   - `FRONTEND_URL=https://sudam.up.railway.app`
+
+2. **브라우저 개발자도구 → Network** 에서:
+   - 로그인 시도 시 `login` 또는 `auth/login` 요청 확인
+   - Status가 `(failed)` 또는 CORS 관련 에러 메시지인지 확인
+   - OPTIONS(preflight) 요청이 200인지 확인
+
+3. **SUDAM-API 서비스 재배포** 후 재시도
+
 
 배포 후 다음을 확인하세요:
 

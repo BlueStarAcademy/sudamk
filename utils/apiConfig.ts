@@ -25,8 +25,12 @@ const getApiBaseUrl = (): string => {
     console.log('[API Config] - VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL || 'NOT SET');
     
     if (apiUrl) {
-        // Remove trailing slash
-        const cleanUrl = apiUrl.replace(/\/$/, '');
+        let cleanUrl = apiUrl.replace(/\/$/, '');
+        // Mixed Content fix: HTTPS 페이지에서 HTTP API URL 요청 시 브라우저가 차단함 → 자동 보정
+        if (typeof window !== 'undefined' && window.location.protocol === 'https:' && cleanUrl.startsWith('http://')) {
+            cleanUrl = 'https://' + cleanUrl.substring(7);
+            console.warn('[API Config] Mixed Content fix: upgraded API URL to HTTPS');
+        }
         console.log('[API Config] Using API URL:', cleanUrl);
         return cleanUrl;
     }
@@ -54,8 +58,14 @@ const getWebSocketUrl = (): string => {
     console.log('[API Config] - VITE_BACKEND_WS_URL:', import.meta.env.VITE_BACKEND_WS_URL || 'NOT SET');
     
     if (wsUrl) {
-        console.log('[API Config] Using WebSocket URL:', wsUrl);
-        return wsUrl;
+        // Mixed Content fix: HTTPS 페이지에서 ws:// 사용 시 문제 → wss://로 보정
+        let cleanWsUrl = wsUrl;
+        if (typeof window !== 'undefined' && window.location.protocol === 'https:' && wsUrl.startsWith('ws://')) {
+            cleanWsUrl = 'wss://' + wsUrl.substring(5);
+            console.warn('[API Config] Mixed Content fix: upgraded WebSocket URL to WSS');
+        }
+        console.log('[API Config] Using WebSocket URL:', cleanWsUrl);
+        return cleanWsUrl;
     }
     
     // Fallback: derive from API URL or use same origin
