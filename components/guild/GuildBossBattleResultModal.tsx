@@ -4,7 +4,7 @@ import type { GuildBossBattleResult as GuildBossBattleResultType } from '../../t
 import { ItemGrade } from '../../types/enums.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import { gradeBackgrounds, slotNames } from '../../constants/items.js';
+import { gradeBackgrounds, slotNames, EQUIPMENT_POOL } from '../../constants/items.js';
 
 interface GuildBossBattleResultModalProps {
     result: GuildBossBattleResultType & { bossName: string; previousRank?: number; currentRank?: number };
@@ -22,6 +22,7 @@ interface RewardCard {
     equipment?: {
         slot?: string;
         fullName?: string;
+        item?: { name?: string; image?: string; slot?: string; grade?: ItemGrade };
     };
 }
 
@@ -94,49 +95,44 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             });
         });
         
-        // 장비
+        // 장비: 서버에서 지급된 실제 장비(item/name/image/slot)를 표시. 없으면 등급에 맞는 표시용 장비 사용
         if (rewards.equipment) {
-            // 서버에서 전달된 전체 장비 객체 사용 (item 필드)
             const equipmentItem = (rewards.equipment as any).item;
-            
-            // grade가 문자열일 수 있으므로 정규화
-            const equipmentGrade = equipmentItem?.grade 
+            const equipmentGrade = equipmentItem?.grade != null
                 ? (typeof equipmentItem.grade === 'string' ? equipmentItem.grade as ItemGrade : equipmentItem.grade)
-                : (typeof rewards.equipment.grade === 'string' 
-                ? (rewards.equipment.grade as ItemGrade)
-                    : rewards.equipment.grade);
+                : (typeof rewards.equipment.grade === 'string' ? (rewards.equipment.grade as ItemGrade) : rewards.equipment.grade);
             const isLegendaryOrMythic = equipmentGrade === ItemGrade.Legendary || equipmentGrade === ItemGrade.Mythic;
-            
-            // 실제 장비 객체가 있으면 그 정보 사용, 없으면 기존 정보 사용
-            const equipmentName = equipmentItem?.name || rewards.equipment.name;
-            const equipmentImage = equipmentItem?.image || rewards.equipment.image;
-            const equipmentSlot = equipmentItem?.slot || rewards.equipment.slot;
-            
-            if (!equipmentName) {
-                console.warn('[GuildBossBattleResultModal] Equipment name is missing:', {
-                    equipment: rewards.equipment,
-                    hasItem: !!equipmentItem,
-                    hasName: !!equipmentName,
-                    hasImage: !!equipmentImage,
-                    hasSlot: !!equipmentSlot,
-                    grade: equipmentGrade,
-                    equipmentKeys: Object.keys(rewards.equipment)
-                });
+
+            let equipmentName = equipmentItem?.name ?? (rewards.equipment as any).name;
+            let equipmentImage = equipmentItem?.image ?? (rewards.equipment as any).image;
+            let equipmentSlot = equipmentItem?.slot ?? (rewards.equipment as any).slot;
+
+            // 서버에서 실제 장비 정보가 없으면(등급만 있는 경우) 해당 등급의 표시용 장비 1개 선택
+            if (!equipmentName || !equipmentImage) {
+                const byGrade = EQUIPMENT_POOL.filter((e: { grade: ItemGrade }) => e.grade === equipmentGrade);
+                const template = byGrade.length > 0 ? byGrade[Math.floor(Math.random() * byGrade.length)] : null;
+                if (template) {
+                    equipmentName = equipmentName || template.name;
+                    equipmentImage = equipmentImage || template.image;
+                    equipmentSlot = equipmentSlot ?? template.slot;
+                }
             }
-            
-            // 장비 이름이 없으면 fallback 사용 (하지만 서버에서 항상 제공해야 함)
+
             const displayName = equipmentName || `${equipmentGrade} 등급 장비`;
-            
+            const gradeKey = equipmentGrade as ItemGrade;
+            const imagePath = equipmentImage
+                ? (equipmentImage.startsWith('/') ? equipmentImage : `/${equipmentImage}`)
+                : (gradeBackgrounds[gradeKey] || '/images/equipments/normalbgi.png');
+
             cards.push({
                 type: 'equipment',
                 name: displayName,
-                image: equipmentImage || gradeBackgrounds[equipmentGrade] || '/images/equipments/normalbgi.png',
+                image: imagePath,
                 grade: equipmentGrade,
                 isSpecial: isLegendaryOrMythic,
                 equipment: {
-                    slot: equipmentSlot ? slotNames[equipmentSlot] : undefined,
-                    fullName: equipmentName || displayName, // fullName도 실제 이름 사용
-                    // 실제 장비 객체 저장 (모달에서 상세 정보 표시용)
+                    slot: equipmentSlot ? slotNames[equipmentSlot as keyof typeof slotNames] : undefined,
+                    fullName: displayName,
                     item: equipmentItem,
                 },
             });

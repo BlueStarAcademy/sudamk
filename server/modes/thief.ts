@@ -155,7 +155,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             game.revealEndTime = undefined;
             
             // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-            if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+            if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                 const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 if (currentPlayerId === aiUserId) {
                     game.aiTurnStartTime = now;
@@ -175,7 +175,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
         }
         
         // AI 턴일 때는 타임아웃 체크를 건너뛰기
-        const isAiTurn = game.isAiGame && game.currentPlayer !== types.Player.None && 
+        const isAiTurn = game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) && 
                         (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
         
         // 타임아웃 체크 및 자동 주사위 굴리기
@@ -234,7 +234,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
         }
         
         // AI 턴일 때는 타임아웃 체크를 건너뛰기
-        const isAiTurnPlacing = game.isAiGame && game.currentPlayer !== types.Player.None && 
+        const isAiTurnPlacing = game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) && 
                                (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
         
         // 타임아웃 체크 및 자동 착점
@@ -373,7 +373,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                     game.turnStartTime = now;
                     
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                         if (currentPlayerId === aiUserId) {
                             game.aiTurnStartTime = now;
@@ -431,7 +431,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                  game.turnStartTime = now;
                  
                  // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                 if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                 if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                      const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                      if (currentPlayerId === aiUserId) {
                          game.aiTurnStartTime = now;
@@ -643,7 +643,7 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
                     game.turnStartTime = now;
                     
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                         if (currentPlayerId === aiUserId) {
                             game.aiTurnStartTime = now;

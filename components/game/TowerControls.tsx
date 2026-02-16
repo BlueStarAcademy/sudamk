@@ -50,8 +50,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     if (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') {
         const isWinner = session.winner === Player.Black;
         const nextFloor = floor < 100 ? floor + 1 : null;
-        const userTowerFloor = (currentUser as any).towerFloor ?? 0;
-        const canTryNext = isWinner && nextFloor !== null && userTowerFloor >= floor;
+        // 클리어 직후 towerFloor가 아직 반영되지 않았을 수 있으므로, 이번 게임에서 이겼으면 다음 층 허용
+        const canTryNext = isWinner && nextFloor !== null;
         
         const retryActionPointCost = stage?.actionPointCost ?? 0;
         const nextFloorActionPointCost = nextFloor ? TOWER_STAGES.find(s => {

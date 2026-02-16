@@ -211,7 +211,8 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
 };
 
 const processTowerGameSummary = async (game: LiveGameSession) => {
-    // DB에서 최신 사용자 데이터를 가져와서 towerFloor가 정확한지 확인
+    // 경험치 누적을 위해 캐시 무효화 후 DB에서 최신 사용자 데이터 조회 (캐시에 0이 들어가 있던 버그 방지)
+    db.invalidateUserCache(game.player1.id);
     const freshUser = await db.getUser(game.player1.id);
     if (!freshUser) {
         console.error(`[Tower Summary] Could not find user ${game.player1.id} in database`);
@@ -236,9 +237,10 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         return;
     }
 
-    // Initialize with a base structure
+    // Initialize with a base structure (경험치 숫자 보장)
+    const initialStrategyXp = Math.max(0, Number(user.strategyXp) || 0);
     const summary: GameSummary = {
-        xp: { initial: user.strategyXp, change: 0, final: user.strategyXp },
+        xp: { initial: initialStrategyXp, change: 0, final: initialStrategyXp },
         rating: { initial: 1200, change: 0, final: 1200 }, // Not applicable
         manner: { initial: user.mannerScore, change: 0, final: user.mannerScore },
         gold: 0,
@@ -267,15 +269,15 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
             // 클리어한 층 재도전 시 보상 없음
             console.log(`[Tower Summary] Floor ${floor} - Already cleared, no reward on retry`);
         } else {
-            // 최초 클리어 시에만 보상 지급
+            // 최초 클리어 시에만 보상 지급 (경험치는 반드시 누적: 기존값 + 보상)
             const rewards = stage.rewards.firstClear;
-            
+            const initialXp = Number(user.strategyXp) || 0;
+            const addedXp = Number(rewards.exp) || 0;
+            user.strategyXp = initialXp + addedXp;
+
             user.gold += rewards.gold;
-            const initialXp = user.strategyXp;
-            user.strategyXp += rewards.exp;
-            
             summary.gold = rewards.gold;
-            summary.xp = { initial: initialXp, change: rewards.exp, final: user.strategyXp };
+            summary.xp = { initial: initialXp, change: addedXp, final: user.strategyXp };
             
             // 아이템 보상 처리
             if (rewards.items && rewards.items.length > 0) {
@@ -359,12 +361,12 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     // summary를 즉시 DB에 저장하여 클라이언트가 0.5초 안에 보상을 확인할 수 있도록 함
     await db.saveGame(game);
     
-    // Handle level up logic after potentially adding XP (승리 시에만)
+    // Handle level up logic after potentially adding XP (승리 시에만, 숫자로 확실히 누적값 사용)
     if (isWinner) {
-        let currentLevel = user.strategyLevel;
-        let currentXp = user.strategyXp;
+        let currentLevel = Math.max(1, Number(user.strategyLevel) || 1);
+        let currentXp = Math.max(0, Number(user.strategyXp) || 0);
         let requiredXp = getXpForLevel(currentLevel);
-        while (currentXp >= requiredXp) {
+        while (requiredXp > 0 && currentXp >= requiredXp) {
             currentXp -= requiredXp;
             currentLevel++;
             requiredXp = getXpForLevel(currentLevel);

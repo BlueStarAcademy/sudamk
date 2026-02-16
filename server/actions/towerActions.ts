@@ -621,7 +621,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             const { broadcastToGameParticipants } = await import('../socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             
-            return { clientResponse: { gameId: game.id, game } };
+            // 경험치/골드/층수 등이 반영된 최신 유저를 응답에 포함해 클라이언트가 즉시 반영하도록 함
+            const updatedUser = await db.getUser(game.player1.id);
+            return { clientResponse: { gameId: game.id, game, updatedUser: updatedUser ?? undefined } };
         }
         default:
             return { error: 'Unknown action type.' };

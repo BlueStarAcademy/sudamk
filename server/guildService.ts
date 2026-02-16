@@ -23,7 +23,7 @@ export const checkGuildLevelUp = (guild: Guild): boolean => {
 export const addContribution = (guild: Guild, userId: string, amount: number) => {
     const member = guild.members?.find(m => m.userId === userId);
     if (member) {
-        (member as any).contribution = ((member as any).contribution || 0) + amount;
+        member.contributionTotal = (member.contributionTotal || 0) + amount;
         member.weeklyContribution = (member.weeklyContribution || 0) + amount;
     }
 };

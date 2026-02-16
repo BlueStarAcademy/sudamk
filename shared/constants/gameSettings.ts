@@ -80,6 +80,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   komi: DEFAULT_KOMI,
   player1Color: Player.Black,
   aiDifficulty: 1,
+  goAiBotLevel: 5,
 };
 
 // --- Dice Go Settings ---

@@ -430,9 +430,13 @@ export async function makeGoAiBotMove(
             };
             if (gnuGoLevelForTower !== null) {
                 moveRequest.level = gnuGoLevelForTower;
+            } else if (game.isAiGame) {
+                // 전략바둑 대기실 AI 대국: 설정된 난이도(1~10)를 Gnugo 레벨로 전달 (Railway Gnugo 서비스 사용)
+                const level = (game.settings as any)?.goAiBotLevel ?? (game.settings as any)?.aiDifficulty ?? 5;
+                moveRequest.level = Math.min(10, Math.max(1, level));
             }
             
-            // GnuGo로 수 생성 시도 (20층+ 시 Railway GNUGO_API_URL 사용)
+            // GnuGo로 수 생성 시도 (전략바둑/20층+ 시 Railway GNUGO_API_URL 사용)
             const gnuGoMove = await generateGnuGoMove(moveRequest);
             
             // GnuGo가 생성한 수가 유효한지 확인

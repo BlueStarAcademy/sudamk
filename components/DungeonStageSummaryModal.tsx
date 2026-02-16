@@ -2,10 +2,10 @@ import React from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { TournamentType, TournamentState } from '../types.js';
-import { TOURNAMENT_DEFINITIONS, DUNGEON_STAGE_BASE_SCORE, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS } from '../constants/tournaments.js';
+import { TOURNAMENT_DEFINITIONS } from '../constants/tournaments.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 
-interface DungeonStageSummaryModalProps {
+export interface DungeonStageSummaryModalProps {
     dungeonType: TournamentType;
     stage: number;
     tournamentState: TournamentState;
@@ -19,9 +19,13 @@ interface DungeonStageSummaryModalProps {
         changeTickets?: number;
     };
     rankReward?: {
-        items?: Array<{ itemId: string; quantity: number }>;
+        items?: Array<{ itemId: string; quantity?: number; min?: number; max?: number }>;
     };
+    /** 월드챔피언십: 실제 지급된 장비 목록(보상 수령 후 표시) */
+    grantedEquipmentDrops?: Array<{ name: string; image: string }>;
     nextStageUnlocked: boolean;
+    /** 이미 클리어한 단계를 다시 클리어한 경우 true (다음 단계가 이미 열려있습니다 표시) */
+    nextStageWasAlreadyUnlocked?: boolean;
     dailyScore?: number;
     previousRank?: number;
     currentRank?: number;
@@ -38,7 +42,9 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     losses,
     baseRewards,
     rankReward,
+    grantedEquipmentDrops,
     nextStageUnlocked,
+    nextStageWasAlreadyUnlocked,
     dailyScore,
     previousRank,
     currentRank,
@@ -50,14 +56,43 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
 
     const rewardItemsMap = new Map<string, { name: string; image: string; quantity: number }>();
 
-    if (baseRewards.gold && baseRewards.gold > 0) {
+    // 동네바둑리그: 골드 합계만 표시 (출처 없이 수량만)
+    if (dungeonType === 'neighborhood' && baseRewards.gold && baseRewards.gold > 0) {
+        const totalGold = tournamentState.matchGoldRewards && tournamentState.matchGoldRewards.length > 0
+            ? tournamentState.matchGoldRewards.reduce((sum: number, a: number) => sum + a, 0)
+            : baseRewards.gold;
+        rewardItemsMap.set('gold', {
+            name: `${totalGold.toLocaleString()} 골드`,
+            image: '/images/icon/Gold.png',
+            quantity: 1
+        });
+    } else if (baseRewards.gold && baseRewards.gold > 0) {
         rewardItemsMap.set('gold', {
             name: `${baseRewards.gold.toLocaleString()} 골드`,
             image: '/images/icon/Gold.png',
             quantity: 1
         });
     }
-    if (baseRewards.materials) {
+    // 전국바둑대회: 각 경기(라운드)당 보상 더미 하나씩 표시 (8강/4강/결승 등 경기별 구분)
+    if (dungeonType === 'national' && tournamentState.matchMaterialRewards && tournamentState.matchMaterialRewards.length > 0) {
+        tournamentState.matchMaterialRewards.forEach((roundMaterials: Record<string, number>, roundIndex: number) => {
+            const parts: string[] = [];
+            let firstImage = '';
+            for (const [materialName, quantity] of Object.entries(roundMaterials)) {
+                if (quantity <= 0) continue;
+                parts.push(`${materialName} ${quantity}개`);
+                const materialTemplate = MATERIAL_ITEMS[materialName];
+                if (!firstImage && materialTemplate?.image) firstImage = materialTemplate.image;
+            }
+            if (parts.length > 0) {
+                rewardItemsMap.set(`national_match_${roundIndex}`, {
+                    name: parts.join(', '),
+                    image: firstImage || '',
+                    quantity: 1
+                });
+            }
+        });
+    } else if (baseRewards.materials) {
         for (const [materialName, quantity] of Object.entries(baseRewards.materials)) {
             const materialTemplate = MATERIAL_ITEMS[materialName];
             const existing = rewardItemsMap.get(materialName);
@@ -72,7 +107,52 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             }
         }
     }
-    if (baseRewards.equipmentBoxes) {
+    // 월드챔피언십: 장비 등급별 수량만 표시 (출처 없이)
+    if (dungeonType === 'world') {
+        if (grantedEquipmentDrops && grantedEquipmentDrops.length > 0) {
+            const nameCounts: Record<string, { image: string; count: number }> = {};
+            grantedEquipmentDrops.forEach((eq) => {
+                if (!nameCounts[eq.name]) {
+                    nameCounts[eq.name] = { image: eq.image || '/images/equipments/normalbgi.png', count: 0 };
+                }
+                nameCounts[eq.name].count++;
+            });
+            Object.entries(nameCounts).forEach(([name, { image, count }], idx) => {
+                rewardItemsMap.set(`world_equip_${idx}_${name}`, {
+                    name: count > 1 ? `${name} x${count}` : name,
+                    image,
+                    quantity: 1
+                });
+            });
+        } else if (tournamentState.accumulatedEquipmentDrops && tournamentState.accumulatedEquipmentDrops.length > 0) {
+            const EQUIP_GRADE_IMAGE: Record<string, string> = {
+                normal: '/images/equipments/normalbgi.png',
+                uncommon: '/images/equipments/uncommonbgi.png',
+                rare: '/images/equipments/rarebgi.png',
+                epic: '/images/equipments/epicbgi.png',
+                legendary: '/images/equipments/legendarybgi.png',
+                mythic: '/images/equipments/mythicbgi.png',
+            };
+            const EQUIP_GRADE_LABEL: Record<string, string> = {
+                normal: '일반', uncommon: '희귀', rare: '레어', epic: '에픽', legendary: '전설', mythic: '신화',
+            };
+            const gradeCounts: Record<string, number> = {};
+            (tournamentState.accumulatedEquipmentDrops as string[]).forEach((gradeKey: string) => {
+                const label = EQUIP_GRADE_LABEL[gradeKey] ?? gradeKey;
+                gradeCounts[label] = (gradeCounts[label] || 0) + 1;
+            });
+            Object.entries(gradeCounts).forEach(([label], idx) => {
+                const gradeKey = Object.entries(EQUIP_GRADE_LABEL).find(([, v]) => v === label)?.[0] ?? 'normal';
+                const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.png';
+                const count = gradeCounts[label]!;
+                rewardItemsMap.set(`world_equip_${idx}`, {
+                    name: count > 1 ? `${label} 장비 x${count}` : `${label} 장비`,
+                    image: img,
+                    quantity: 1
+                });
+            });
+        }
+    } else if (baseRewards.equipmentBoxes) {
         for (const [boxName, quantity] of Object.entries(baseRewards.equipmentBoxes)) {
             const boxTemplate = CONSUMABLE_ITEMS.find(i => i.name === boxName);
             const existing = rewardItemsMap.get(boxName);
@@ -97,7 +177,13 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     if (rankReward?.items) {
         for (const item of rankReward.items) {
             let itemName = item.itemId;
+            const hasRange = item.min != null && item.max != null;
+            const qtyText = hasRange ? (item.min === item.max ? `${item.min}` : `${item.min}~${item.max}`) : (item.quantity != null ? `${item.quantity}` : '');
+            const displayName = qtyText ? `${itemName} ${qtyText}` : itemName;
             let itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === itemName);
+            if (!itemTemplate && (MATERIAL_ITEMS as any)[itemName]) {
+                itemTemplate = { name: itemName, image: (MATERIAL_ITEMS as any)[itemName].image } as any;
+            }
             if (!itemTemplate) {
                 const nameMappings: Record<string, string> = {
                     '재료 상자1': '재료 상자 I', '재료 상자2': '재료 상자 II', '재료 상자3': '재료 상자 III',
@@ -111,23 +197,15 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                     if (itemTemplate) itemName = mappedName;
                 }
             }
-            const existing = rewardItemsMap.get(itemName);
-            if (existing) {
-                existing.quantity += item.quantity;
-            } else {
-                rewardItemsMap.set(itemName, {
-                    name: itemName,
-                    image: itemTemplate?.image || '/images/Box/ResourceBox1.png',
-                    quantity: item.quantity
-                });
-            }
+            const image = itemTemplate?.image || (itemName.includes('골드') ? '/images/icon/Gold.png' : itemName.includes('다이아') ? '/images/icon/Zem.png' : (MATERIAL_ITEMS as any)[item.itemId]?.image || '/images/Box/ResourceBox1.png');
+            rewardItemsMap.set(`rank_${itemName}_${qtyText}`, {
+                name: displayName,
+                image,
+                quantity: 1
+            });
         }
     }
     const rewardItems = Array.from(rewardItemsMap.values());
-
-    const baseScore = DUNGEON_STAGE_BASE_SCORE[stage] || 0;
-    const rankBonus = DUNGEON_RANK_SCORE_BONUS[userRank] || DUNGEON_DEFAULT_SCORE_BONUS;
-    const bonusScore = Math.round(baseScore * rankBonus);
 
     return (
         <DraggableWindow
@@ -186,7 +264,13 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                     nextStageUnlocked ? 'bg-emerald-900/30 text-emerald-200' : 'bg-gray-700/50 text-gray-500'
                                 }`}>
                                     <span>{nextStage}단계</span>
-                                    <span>{nextStageUnlocked ? '열림' : '잠김 (3위 이상 시 열림)'}</span>
+                                    <span>
+                                        {!nextStageUnlocked
+                                            ? '잠김 (3위 이상 시 열림)'
+                                            : nextStageWasAlreadyUnlocked
+                                                ? '다음 단계가 이미 열려있습니다.'
+                                                : '열림'}
+                                    </span>
                                 </div>
                             )}
                         </div>

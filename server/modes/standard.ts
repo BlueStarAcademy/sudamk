@@ -314,13 +314,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : (myPlayerEnum === types.Player.White ? types.Player.Black : types.Player.None);
             
-            // 싱글플레이 모드에서는 서버의 실제 boardState를 기준으로 체크 (클라이언트 boardState를 신뢰하지 않음)
-            // DB에서 최신 게임 상태를 가져와서 확인
+            // 싱글플레이/도전의탑/AI 게임에서는 서버의 실제 boardState를 기준으로 체크 (클라이언트 boardState를 신뢰하지 않음)
+            // 전략바둑 AI 대국에서 돌이 사라지는 버그 방지: 서버가 단일 소스로 유지
             let serverBoardState = game.boardState;
             let serverMoveHistory = game.moveHistory;
             
-            if (game.isSinglePlayer || game.gameCategory === 'tower') {
-                // 싱글플레이 또는 도전의 탑에서는 서버의 실제 boardState를 사용
+            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
+                // 싱글플레이, 도전의 탑, 전략바둑 AI 대국에서는 서버의 실제 boardState를 사용
                 const { getLiveGame } = await import('../db.js');
                 const freshGame = await getLiveGame(game.id);
                 if (freshGame) {
@@ -332,8 +332,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 범위 체크 후에만 boardState에 접근
             const stoneAtTarget = serverBoardState[y][x];
             
-            // 싱글플레이 모드에서 AI가 둔 자리 체크 (서버 boardState 기준) - 반드시 먼저 체크
-            if (game.isSinglePlayer) {
+            // 싱글플레이/AI 게임에서 AI가 둔 자리 체크 (서버 boardState 기준) - 반드시 먼저 체크
+            if (game.isSinglePlayer || game.isAiGame) {
                 // boardState에 상대방(AI) 돌이 있으면 무조건 차단
                 if (stoneAtTarget === opponentPlayerEnum) {
                     console.error(`[handleStandardAction] PLACE_STONE BLOCKED: AI stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}`);
@@ -354,7 +354,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.boardState = serverBoardState;
                 game.moveHistory = serverMoveHistory;
             } else {
-                // 싱글플레이가 아닌 경우에만 클라이언트 boardState 사용
+                // PVP만 클라이언트 boardState 사용 (AI/싱글/탑은 위에서 이미 서버 기준 적용)
                 if (clientBoardState && Array.isArray(clientBoardState) && clientBoardState.length > 0) {
                     console.log(`[handleStandardAction] PLACE_STONE: using client boardState, gameId=${game.id}`);
                     game.boardState = clientBoardState;
@@ -463,13 +463,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.moveHistory.length,
                 { 
                     ignoreSuicide: false,
-                    isSinglePlayer: game.isSinglePlayer,
-                    opponentPlayer: game.isSinglePlayer ? opponentPlayerEnum : undefined
+                    isSinglePlayer: game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame,
+                    opponentPlayer: (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) ? opponentPlayerEnum : undefined
                 }
             );
             
-            // processMove 결과 검증 (싱글플레이)
-            if (game.isSinglePlayer && result.isValid) {
+            // processMove 결과 검증 (싱글플레이/도전의탑/AI 대국)
+            if ((game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) && result.isValid) {
                 // processMove 후에도 해당 위치에 상대방 돌이 있는지 확인
                 const afterMoveCheck = result.newBoardState[y][x];
                 if (afterMoveCheck !== myPlayerEnum) {
@@ -765,7 +765,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
             
             // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-            if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+            if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                 const { aiUserId } = await import('../aiPlayer.js');
                 const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 if (currentPlayerId === aiUserId) {
@@ -848,7 +848,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.turnStartTime = now;
                 }
                 // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                     const { aiUserId } = await import('../aiPlayer.js');
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {

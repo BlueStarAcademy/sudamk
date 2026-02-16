@@ -202,8 +202,11 @@ export type TournamentState = {
         rewards?: { gold: number; diamonds: number; };
     } | null;
     accumulatedGold?: number; // 동네바둑리그 경기별 누적 골드
+    matchGoldRewards?: number[]; // 동네바둑리그 경기마다 받은 골드 (표시용, 1회차당 1개씩)
     accumulatedMaterials?: Record<string, number>; // 전국바둑대회 경기별 누적 재료 (재료명: 개수)
+    matchMaterialRewards?: Record<string, number>[]; // 전국바둑대회 8강/4강/결승(또는 3·4위전) 각 경기별 재료 (표시용 더미)
     accumulatedEquipmentBoxes?: Record<string, number>; // 월드챔피언십 경기별 누적 장비상자 (상자명: 개수)
+    accumulatedEquipmentDrops?: string[]; // 월드챔피언십 경기별 누적 장비 드롭 등급 (normal/rare/epic 등)
     // 던전 시스템 필드
     currentStage?: number; // 현재 클리어한 최고 단계 (1~10)
     unlockedStages?: number[]; // 클리어하여 언락된 단계 배열
@@ -533,7 +536,9 @@ export type GameSettings = {
 
   // AI Game settings
   player1Color?: Player.Black | Player.White; // For AI games, P1 is always the human
-  aiDifficulty?: number; // 1-5
+  aiDifficulty?: number; // 1-5 (싱글/탑)
+  /** Gnugo AI 레벨 1~10 (전략바둑 AI 대국) */
+  goAiBotLevel?: number;
 };
 
 // --- Round Summaries ---
@@ -906,6 +911,7 @@ export type Guild = {
   chatHistory?: GuildMessage[];
   checkIns?: Record<string, number>;
   dailyCheckInRewardsClaimed?: Array<{ userId: string; milestoneIndex: number }>;
+  donationLog?: Array<{ userId: string; nickname: string; type: 'gold' | 'diamond'; count: number; coins: number; research: number; timestamp: number }>;
   guildBossState?: {
     bossId: string;
     hp: number;

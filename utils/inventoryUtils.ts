@@ -10,13 +10,35 @@ const CONSUMABLE_TEMPLATE_MAP: Record<string, Omit<InventoryItem, 'id'|'createdA
 
 const MATERIAL_TEMPLATE_MAP: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = { ...MATERIAL_ITEMS };
 
+// 장비/재료 상자 이름을 CONSUMABLE_ITEMS 표준 형식으로 정규화 (공백·숫자/로마자 통일)
+export const normalizeBoxItemName = (name: string): string => {
+    if (!name || typeof name !== 'string') return name;
+    const numToRoman: Record<string, string> = {
+        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
+    };
+    let normalized = name.replace(/\s+/g, ' ').trim(); // 모든 공백을 일반 공백 하나로
+    normalized = normalized.replace(/장비상자(\d)/g, (_, num) => `장비 상자 ${numToRoman[num] || num}`);
+    normalized = normalized.replace(/재료상자(\d)/g, (_, num) => `재료 상자 ${numToRoman[num] || num}`);
+    normalized = normalized.replace(/장비 상자(\d)/g, (_, num) => `장비 상자 ${numToRoman[num] || num}`);
+    normalized = normalized.replace(/재료 상자(\d)/g, (_, num) => `재료 상자 ${numToRoman[num] || num}`);
+    normalized = normalized.replace(/장비 상자 (\d)/g, (_, num) => `장비 상자 ${numToRoman[num] || num}`);
+    normalized = normalized.replace(/재료 상자 (\d)/g, (_, num) => `재료 상자 ${numToRoman[num] || num}`);
+    return normalized.trim();
+};
+
 export const getItemTemplateByName = (itemName: string) => {
-    const trimmedName = itemName?.trim();
+    const trimmedName = itemName?.trim()?.replace(/\s+/g, ' ').trim();
     if (!trimmedName) return null;
     
     // 먼저 정확한 이름으로 찾기
     let template = CONSUMABLE_TEMPLATE_MAP[trimmedName] || MATERIAL_TEMPLATE_MAP[trimmedName];
     if (template) return template;
+    // 장비/재료 상자 이름 정규화 후 재시도 (공백·숫자 변형 대응)
+    const normalizedForBox = normalizeBoxItemName(trimmedName);
+    if (normalizedForBox !== trimmedName) {
+        template = CONSUMABLE_TEMPLATE_MAP[normalizedForBox] || MATERIAL_TEMPLATE_MAP[normalizedForBox];
+        if (template) return template;
+    }
     
     // 숫자를 로마숫자로 변환하는 맵
     const numToRoman: Record<string, string> = {
@@ -214,10 +236,9 @@ export const createItemInstancesFromReward = (itemRefs: (InventoryItem | { itemI
         }
 
         const { itemId, quantity } = itemRef;
-        
-        // This logic finds the item template and creates an instance, which is correct for granting a reward item.
-        // It avoids the previous issue of "opening" the item via shop logic.
-        const template = getItemTemplateByName(itemId);
+        // 장비/재료 상자 등은 이름 정규화 후 템플릿 조회 (월드챔피언십 보상 등에서 이름 변형 시 이미지·사용 정상화)
+        const lookupName = normalizeBoxItemName(itemId);
+        const template = getItemTemplateByName(lookupName) || getItemTemplateByName(itemId);
 
         if (template) {
             const newItem: InventoryItem = {
@@ -234,7 +255,7 @@ export const createItemInstancesFromReward = (itemRefs: (InventoryItem | { itemI
         } else {
             console.error(`[Reward] Could not find consumable/material item template for: ${itemId}`);
             createdItems.push({
-                name: itemId,
+                name: lookupName || itemId,
                 description: '보상 아이템',
                 type: 'consumable',
                 slot: null,

@@ -104,11 +104,13 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
 
             if (result?.error) {
                 setError(result.error);
-            } else if (result?.clientResponse?.guild) {
-                // 모달 닫기
-                onClose();
-                // 길드 홈으로 이동
-                onSuccess(result.clientResponse.guild);
+            } else {
+                // 자유 가입 성공: API는 { success, guild, updatedUser } 형태로 보냄. clientResponse.guild도 호환.
+                const guild = result?.guild ?? result?.clientResponse?.guild;
+                if (guild) {
+                    onClose();
+                    onSuccess(guild);
+                }
             }
         } catch (err: any) {
             setError(err.message || '길드 가입에 실패했습니다.');

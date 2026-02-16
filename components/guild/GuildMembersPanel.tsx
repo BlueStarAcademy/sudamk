@@ -1,18 +1,20 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Guild as GuildType, GuildMember, GuildMemberRole } from '../../types/index.js';
 import Button from '../Button.js';
+import DraggableWindow from '../DraggableWindow.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Avatar from '../Avatar.js';
-import { AVATAR_POOL, BORDER_POOL, GUILD_INITIAL_MEMBER_LIMIT } from '../../constants/index.js';
-import { formatLastLogin } from '../../utils/timeUtils.js';
+import { AVATAR_POOL, BORDER_POOL, GUILD_INITIAL_MEMBER_LIMIT, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
+import { formatLastSeenGuild } from '../../utils/timeUtils.js';
 
 interface GuildMembersPanelProps {
     guild: GuildType;
     myMemberInfo: GuildMember | undefined;
 }
 
-const MemberManagementPopover: React.FC<{
+const MemberManagementModal: React.FC<{
     member: GuildMember;
+    memberDisplayName: string;
     isMaster: boolean;
     isVice: boolean;
     onPromote: () => void;
@@ -20,48 +22,56 @@ const MemberManagementPopover: React.FC<{
     onKick: () => void;
     onTransfer: () => void;
     onClose: () => void;
-    buttonElement: HTMLElement | null;
-}> = ({ member, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose, buttonElement }) => {
+}> = ({ member, memberDisplayName, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose }) => {
     const canPromoteToVice = isMaster && member.role === GuildMemberRole.Member;
     const canDemote = isMaster && member.role === GuildMemberRole.Vice;
     const canKick = (isMaster && member.role !== GuildMemberRole.Master) || (isVice && member.role === GuildMemberRole.Member);
     const canTransfer = isMaster && member.role !== GuildMemberRole.Master;
 
-    const [position, setPosition] = React.useState<{ top: number; left: number } | null>(null);
-
-    React.useEffect(() => {
-        if (buttonElement) {
-            const rect = buttonElement.getBoundingClientRect();
-            setPosition({
-                top: rect.bottom + 8,
-                left: rect.left - 144 - 8, // 144px is w-36 (144px), 8px is margin
-            });
-        }
-    }, [buttonElement]);
-
-    if (!position) return null;
-
     return (
-        <div 
-            className="fixed z-[9999] w-36 bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 border-2 border-stone-600/60 rounded-xl shadow-2xl p-2 space-y-1.5 backdrop-blur-md" 
-            style={{ 
-                top: `${position.top}px`,
-                left: `${position.left}px`
-            }}
+        <DraggableWindow
+            title={`${memberDisplayName} 관리`}
+            windowId="guild-member-management-modal"
+            onClose={onClose}
+            initialWidth={340}
+            initialHeight={320}
+            modal={true}
+            closeOnOutsideClick={true}
         >
-            {canPromoteToVice && <Button onClick={onPromote} className="w-full !text-xs !py-2 border border-blue-500/50 bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg hover:shadow-xl transition-all">부길드장 임명</Button>}
-            {canDemote && <Button onClick={onDemote} className="w-full !text-xs !py-2 border border-yellow-500/50 bg-gradient-to-r from-yellow-600/90 to-amber-600/90 text-white shadow-lg hover:shadow-xl transition-all">부길드장 해임</Button>}
-            {canTransfer && <Button onClick={onTransfer} className="w-full !text-xs !py-2 border border-orange-500/50 bg-gradient-to-r from-orange-600/90 to-red-600/90 text-white shadow-lg hover:shadow-xl transition-all">길드장 위임</Button>}
-            {canKick && <Button onClick={onKick} className="w-full !text-xs !py-2 border border-red-500/50 bg-gradient-to-r from-red-600/90 to-rose-600/90 text-white shadow-lg hover:shadow-xl transition-all">추방</Button>}
-            <Button onClick={onClose} className="w-full !text-xs !py-2 border border-stone-500/50 bg-gradient-to-r from-stone-700/90 to-neutral-700/90 text-white shadow-lg hover:shadow-xl transition-all">닫기</Button>
-        </div>
+            <div className="flex flex-col p-4 gap-3">
+                <p className="text-center text-stone-300 text-sm mb-2">이 길드원에 대해 수행할 작업을 선택하세요.</p>
+                {canPromoteToVice && (
+                    <Button onClick={onPromote} className="w-full !text-sm !py-2.5 border border-blue-500/50 bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg hover:shadow-xl transition-all">
+                        부길드장 임명
+                    </Button>
+                )}
+                {canDemote && (
+                    <Button onClick={onDemote} className="w-full !text-sm !py-2.5 border border-yellow-500/50 bg-gradient-to-r from-yellow-600/90 to-amber-600/90 text-white shadow-lg hover:shadow-xl transition-all">
+                        부길드장 해임
+                    </Button>
+                )}
+                {canTransfer && (
+                    <Button onClick={onTransfer} className="w-full !text-sm !py-2.5 border border-orange-500/50 bg-gradient-to-r from-orange-600/90 to-red-600/90 text-white shadow-lg hover:shadow-xl transition-all">
+                        길드장 위임
+                    </Button>
+                )}
+                {canKick && (
+                    <Button onClick={onKick} className="w-full !text-sm !py-2.5 border border-red-500/50 bg-gradient-to-r from-red-600/90 to-rose-600/90 text-white shadow-lg hover:shadow-xl transition-all">
+                        추방
+                    </Button>
+                )}
+                <Button onClick={onClose} className="w-full !text-sm !py-2.5 border border-stone-500/50 bg-gradient-to-r from-stone-700/90 to-neutral-700/90 text-white shadow-lg hover:shadow-xl transition-all mt-2">
+                    닫기
+                </Button>
+            </div>
+        </DraggableWindow>
     );
 };
 
 const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberInfo }) => {
     const { handlers, allUsers, onlineUsers, currentUserWithStatus } = useAppContext();
+    const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
     const [managingMember, setManagingMember] = useState<GuildMember | null>(null);
-    const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
     const memberLimit = useMemo(() => {
         const baseLimit = GUILD_INITIAL_MEMBER_LIMIT;
@@ -76,14 +86,23 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
             'officer': 1,
             'member': 2,
         };
-        const members = guild.members || [];
-        console.log('[GuildMembersPanel] Members:', {
-            guildId: guild.id,
-            membersCount: members.length,
-            members: members.map(m => ({ userId: m.userId, nickname: m.nickname, role: m.role }))
-        });
+        let members = guild.members || [];
+        // members가 비어있는데 현재 사용자가 이 길드에 속해있으면 폴백으로 자신 표시
+        if (members.length === 0 && currentUserWithStatus?.guildId === guild.id) {
+            const effectiveUserId = currentUserWithStatus.isAdmin ? ADMIN_USER_ID : currentUserWithStatus.id;
+            members = [{
+                id: `${guild.id}-member-${effectiveUserId}`,
+                guildId: guild.id,
+                userId: effectiveUserId,
+                nickname: currentUserWithStatus.nickname || (currentUserWithStatus.isAdmin ? ADMIN_NICKNAME : ''),
+                role: guild.leaderId === effectiveUserId ? 'leader' : 'member',
+                joinDate: Date.now(),
+                contributionTotal: 0,
+                weeklyContribution: 0,
+            }];
+        }
         return [...members].sort((a, b) => (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3));
-    }, [guild.members, guild.id]);
+    }, [guild.members, guild.id, guild.leaderId, currentUserWithStatus?.guildId, currentUserWithStatus?.id, currentUserWithStatus?.isAdmin, currentUserWithStatus?.nickname]);
     
     const isMaster = myMemberInfo?.role === 'leader';
     const isVice = myMemberInfo?.role === 'officer';
@@ -180,25 +199,17 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                 <div className="flex justify-between items-center mb-6 flex-shrink-0">
                     <h3 className="text-2xl font-bold text-highlight drop-shadow-lg flex items-center gap-2">
                         <span className="text-2xl">👥</span>
-                        <span>길드원 목록 <span className="text-lg text-primary">({(guild.members?.length || 0)} / {memberLimit})</span></span>
+                        <span>길드원 목록 <span className="text-lg text-primary">({sortedMembers.length} / {memberLimit})</span></span>
                     </h3>
                     {myMemberInfo && myMemberInfo.role !== 'leader' && (
                         <Button onClick={handleLeaveGuild} colorScheme="red" className="!text-xs !py-2 !px-4 border-2 border-red-500/50 shadow-lg hover:shadow-xl transition-all">길드 탈퇴</Button>
                     )}
-                    {myMemberInfo && myMemberInfo.role === 'leader' && (guild.members?.length || 0) === 1 && (
+                    {myMemberInfo && myMemberInfo.role === 'leader' && sortedMembers.length === 1 && (
                         <Button onClick={handleLeaveGuild} colorScheme="red" className="!text-xs !py-2 !px-4 border-2 border-red-500/50 shadow-lg hover:shadow-xl transition-all">길드 해체</Button>
                     )}
                 </div>
-                <div className="flex text-sm text-highlight px-5 py-4 mb-4 font-bold bg-gradient-to-r from-stone-800/95 via-neutral-700/85 to-stone-800/95 rounded-xl border-2 border-stone-600/50 shadow-lg backdrop-blur-md">
-                    <div className="flex-1 text-base">길드원</div>
-                    <div className="flex items-center gap-4 flex-shrink-0">
-                        <div className="w-24 text-center">주간 기여도</div>
-                        <div className="w-24 text-center">누적 기여도</div>
-                        <div className="w-28 text-center">최근 접속</div>
-                        {canManage && <div className="w-20 text-center">관리</div>}
-                    </div>
-                </div>
-                <div className="overflow-y-auto pr-3 flex-grow min-h-0">
+                <div className="flex flex-col flex-grow min-h-0 overflow-hidden">
+                <div className="overflow-y-auto pr-3 flex-grow min-h-0 min-w-0">
                     {sortedMembers.length === 0 ? (
                         <div className="flex items-center justify-center h-full py-12">
                             <div className="text-center">
@@ -207,95 +218,109 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                             </div>
                         </div>
                     ) : (
-                        <ul className="space-y-4">
+                        <table className="w-full border-collapse">
+                        <thead className="sticky top-0 z-10">
+                            <tr className="text-sm text-highlight font-bold bg-gradient-to-r from-stone-800/95 via-neutral-700/85 to-stone-800/95 border-b-2 border-stone-600/50">
+                                <th className="text-left px-5 py-4 text-base">길드원</th>
+                                <th className="text-center w-24 py-4">주간 기여도</th>
+                                <th className="text-center w-24 py-4">누적 기여도</th>
+                                <th className="text-center w-28 py-4">최근 접속</th>
+                                {canManage && <th className="text-center w-20 py-4">관리</th>}
+                            </tr>
+                        </thead>
+                        <tbody>
                             {sortedMembers.map(member => {
-                            const user = allUsers.find(u => u.id === member.userId);
-                            const userStatus = onlineUsers.find(u => u.id === member.userId);
+                            const user = allUsers.find(u => u.id === member.userId || (member.userId === ADMIN_USER_ID && u.isAdmin));
+                            const memberDisplayName = member.nickname
+                                || (member.userId === ADMIN_USER_ID ? ADMIN_NICKNAME : (user?.isAdmin ? ADMIN_NICKNAME : (user?.nickname || 'Unknown')));
+                            const userStatus = onlineUsers.find(u => u.id === member.userId || (member.userId === ADMIN_USER_ID && u.isAdmin));
                             const avatarUrl = user ? AVATAR_POOL.find(a => a.id === user.avatarId)?.url : undefined;
                             const borderUrl = user ? BORDER_POOL.find(b => b.id === user.borderId)?.url : undefined;
-                            const isOnline = !!userStatus;
+                            const isSelf = effectiveUserId && (member.userId === effectiveUserId || member.userId === currentUserWithStatus?.id);
+                            const isOnline = !!userStatus || !!isSelf;
                             const isClickable = user && user.id !== currentUserWithStatus?.id;
 
                             return (
-                                <li
+                                <tr
                                     key={member.userId}
                                     onClick={isClickable ? (e) => { e?.stopPropagation(); handlers.openViewingUser(member.userId); } : undefined}
-                                    title={isClickable ? `${member.nickname || 'Unknown'} 프로필 보기` : ''}
-                                    className={`bg-gradient-to-r from-stone-800/95 via-neutral-700/90 to-stone-800/95 p-5 rounded-xl flex items-center gap-5 border-2 border-stone-600/50 shadow-xl backdrop-blur-md transition-all duration-200 ${
+                                    title={isClickable ? `${memberDisplayName} 프로필 보기` : ''}
+                                    className={`border-b-2 border-stone-600/50 transition-all duration-200 ${
                                         isClickable 
-                                            ? 'cursor-pointer hover:from-stone-700/98 hover:via-neutral-600/95 hover:to-stone-700/98 hover:border-stone-500/70 hover:shadow-2xl hover:-translate-y-1 hover:scale-[1.02]' 
+                                            ? 'cursor-pointer hover:bg-stone-700/50' 
                                             : ''
                                     } ${
                                         member.role === 'leader' 
-                                            ? 'border-yellow-500/70 bg-gradient-to-r from-yellow-900/40 via-amber-900/30 to-yellow-900/40 shadow-[0_6px_20px_rgba(251,191,36,0.4)] ring-2 ring-yellow-400/20' 
+                                            ? 'bg-gradient-to-r from-yellow-900/20 via-amber-900/15 to-yellow-900/20 border-yellow-500/30' 
                                             : member.role === 'officer'
-                                            ? 'border-blue-500/70 bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-blue-900/40 shadow-[0_6px_20px_rgba(59,130,246,0.4)] ring-2 ring-blue-400/20'
-                                            : ''
+                                            ? 'bg-gradient-to-r from-blue-900/20 via-indigo-900/15 to-blue-900/20 border-blue-500/30'
+                                            : 'bg-gradient-to-r from-stone-800/95 via-neutral-700/90 to-stone-800/95'
                                     }`}
                                 >
-                                <div className="flex items-center gap-5 flex-1 min-w-0">
-                                    <div className="relative flex-shrink-0">
-                                         <Avatar userId={member.userId} userName={member.nickname || 'Unknown'} size={56} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                                         {isOnline && <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-stone-800 shadow-xl animate-pulse ring-2 ring-green-400/50"></div>}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="font-bold text-xl truncate drop-shadow-lg mb-1">{member.nickname || 'Unknown'}</p>
-                                        <p className={`text-sm font-bold ${getRoleColor(member.role)} drop-shadow-md`}>{getRoleName(member.role)}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-6 flex-shrink-0">
-                                    <div className="text-center w-24">
-                                        <p className="font-bold text-lg text-primary drop-shadow-lg">{member.weeklyContribution || 0}</p>
-                                    </div>
-                                    <div className="text-center w-24">
-                                        <p className="font-bold text-lg text-accent drop-shadow-lg">{member.contributionTotal || 0}</p>
-                                    </div>
-                                    <div className="text-center w-28">
-                                        <p className="truncate text-sm font-semibold">{isOnline ? <span className="text-green-400 drop-shadow-lg">온라인</span> : (user?.lastLoginAt ? <span className="text-tertiary">{formatLastLogin(user.lastLoginAt)}</span> : <span className="text-tertiary">알 수 없음</span>)}</p>
-                                    </div>
-                                    {(isMaster || isVice) && (
-                                        <div className="relative w-20 text-center">
-                                            {member.userId !== myMemberInfo?.userId && (
-                                                <>
-                                                    <Button 
-                                                        ref={(el) => {
-                                                            if (el) {
-                                                                buttonRefs.current[member.userId] = el;
-                                                            }
-                                                        }}
-                                                        onClick={(e) => { 
-                                                            e?.stopPropagation(); 
-                                                            setManagingMember(member); 
-                                                        }} 
-                                                        className="!text-xs !py-2.5 !px-4 border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
-                                                    >
-                                                        관리
-                                                    </Button>
-                                                    {managingMember?.userId === member.userId && (
-                                                        <MemberManagementPopover
-                                                            member={member}
-                                                            isMaster={isMaster}
-                                                            isVice={isVice}
-                                                            onPromote={() => handleAction('PROMOTE', member.userId)}
-                                                            onDemote={() => handleAction('DEMOTE', member.userId)}
-                                                            onKick={() => handleAction('KICK', member.userId)}
-                                                            onTransfer={() => handleAction('TRANSFER', member.userId)}
-                                                            onClose={() => setManagingMember(null)}
-                                                            buttonElement={buttonRefs.current[member.userId] || null}
-                                                        />
-                                                    )}
-                                                </>
-                                            )}
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center gap-5 min-w-0">
+                                            <div className="relative flex-shrink-0">
+                                                 <Avatar userId={member.userId} userName={memberDisplayName} size={56} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-xl truncate drop-shadow-lg mb-1 flex items-center gap-2">
+                                                    <span className={`flex-shrink-0 w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} title={isOnline ? '온라인' : '오프라인'} />
+                                                    {memberDisplayName}
+                                                </p>
+                                                <p className={`text-sm font-bold ${getRoleColor(member.role)} drop-shadow-md`}>{getRoleName(member.role)}</p>
+                                            </div>
                                         </div>
+                                    </td>
+                                    <td className="text-center w-24 align-middle">
+                                        <p className="font-bold text-lg text-primary drop-shadow-lg">{member.weeklyContribution || 0}</p>
+                                    </td>
+                                    <td className="text-center w-24 align-middle">
+                                        <p className="font-bold text-lg text-accent drop-shadow-lg">{member.contributionTotal || 0}</p>
+                                    </td>
+                                    <td className="text-center w-28 align-middle min-w-0">
+                                        <p className="truncate text-sm font-semibold">{isOnline ? <span className="text-green-400 drop-shadow-lg">온라인</span> : <span className="text-tertiary">{formatLastSeenGuild(user?.lastLoginAt)}</span>}</p>
+                                    </td>
+                                    {canManage && (
+                                        <td className="text-center w-20 align-middle" onClick={(e) => e.stopPropagation()}>
+                                            {member.userId !== myMemberInfo?.userId && (
+                                                <Button
+                                                    onClick={() => setManagingMember(member)}
+                                                    className="!text-xs !py-2.5 !px-4 border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+                                                >
+                                                    관리
+                                                </Button>
+                                            )}
+                                        </td>
                                     )}
-                                </div>
-                            </li>
+                                </tr>
                             );
                         })}
-                        </ul>
+                        </tbody>
+                        </table>
                     )}
                 </div>
+                </div>
             </div>
+
+            {managingMember && (
+                <MemberManagementModal
+                    member={managingMember}
+                    memberDisplayName={
+                        (() => {
+                            const u = allUsers.find(x => x.id === managingMember.userId || (managingMember.userId === ADMIN_USER_ID && x.isAdmin));
+                            return managingMember.nickname
+                                || (managingMember.userId === ADMIN_USER_ID ? ADMIN_NICKNAME : (u?.isAdmin ? ADMIN_NICKNAME : (u?.nickname || 'Unknown')));
+                        })()
+                    }
+                    isMaster={isMaster}
+                    isVice={isVice}
+                    onPromote={() => handleAction('PROMOTE', managingMember.userId)}
+                    onDemote={() => handleAction('DEMOTE', managingMember.userId)}
+                    onKick={() => handleAction('KICK', managingMember.userId)}
+                    onTransfer={() => handleAction('TRANSFER', managingMember.userId)}
+                    onClose={() => setManagingMember(null)}
+                />
+            )}
         </div>
     );
 };

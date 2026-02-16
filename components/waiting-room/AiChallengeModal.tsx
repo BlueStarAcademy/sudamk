@@ -158,8 +158,26 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         const showOmokForbiddenRules = selectedGameMode === GameMode.Omok;
         const showTtamokForbiddenRules = selectedGameMode === GameMode.Ttamok;
 
+        const showGoAiLevel = lobbyType === 'strategic';
+
         return (
             <div className="h-full flex flex-col gap-2 overflow-y-auto pr-2">
+                {showGoAiLevel && (
+                    <div className="grid grid-cols-2 gap-2 items-center">
+                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>AI 난이도 (Gnugo)</label>
+                        <select 
+                            value={settings.goAiBotLevel ?? 5} 
+                            onChange={e => handleSettingChange('goAiBotLevel', parseInt(e.target.value, 10) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)}
+                            className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                            style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                        >
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => (
+                                <option key={level} value={level}>{level}단계</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
                 {showBoardSize && (
                     <div className="grid grid-cols-2 gap-2 items-center">
                         <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>판 크기</label>

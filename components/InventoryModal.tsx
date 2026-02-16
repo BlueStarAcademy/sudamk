@@ -618,13 +618,11 @@ const EQUIPMENT_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl
 
 // 소모품 이름 정규화 함수: 다양한 형식의 이름을 표준 형식으로 변환
 const normalizeConsumableName = (name: string): string => {
-    // 숫자를 로마숫자로 변환하는 맵
     const numToRoman: Record<string, string> = {
         '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
     };
-    
-    // 띄어쓰기 제거/추가 변형 처리
-    let normalized = name
+    let normalized = (name || '').replace(/\s+/g, ' ').trim();
+    normalized = normalized
         .replace(/장비상자/g, '장비 상자')
         .replace(/재료상자/g, '재료 상자')
         .replace(/골드꾸러미/g, '골드 꾸러미')

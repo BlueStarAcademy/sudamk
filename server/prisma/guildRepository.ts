@@ -1,5 +1,6 @@
 import prismaClient from '../prismaClient.js';
 import { Guild, GuildMember, GuildMessage, GuildMission, GuildShop, GuildDonation, GuildWar, GuildWarMatch } from '../../types/entities.js';
+import { GUILD_WAR_BOT_USER_ID, GUILD_WAR_BOT_GUILD_ID } from '../../shared/constants/auth.js';
 
 export const createGuild = async (guildData: {
     id?: string;
@@ -228,6 +229,13 @@ export const getGuildMembers = async (guildId: string): Promise<GuildMember[]> =
         createdAt: m.createdAt.getTime(),
         updatedAt: m.updatedAt.getTime(),
     }));
+};
+
+export const incrementGuildMemberContribution = async (guildId: string, userId: string, amount: number): Promise<void> => {
+    await prismaClient.guildMember.updateMany({
+        where: { guildId, userId },
+        data: { contributionTotal: { increment: amount } },
+    });
 };
 
 export const updateGuildMember = async (memberId: string, updates: Partial<{
@@ -475,6 +483,54 @@ export const getGuildDonations = async (guildId: string, limit: number = 50): Pr
         itemId: d.itemId || undefined,
         createdAt: d.createdAt.getTime(),
     }));
+};
+
+/** 길드전 홀수 매칭용 AI 봇 길드 ID 반환 (DB에 없으면 생성) */
+export const getOrCreateBotGuildForWar = async (): Promise<string> => {
+    const existing = await prismaClient.guild.findUnique({
+        where: { id: GUILD_WAR_BOT_GUILD_ID },
+    });
+    if (existing) return GUILD_WAR_BOT_GUILD_ID;
+
+    try {
+        await prismaClient.$transaction(async (tx) => {
+            const botUser = await tx.user.findUnique({ where: { id: GUILD_WAR_BOT_USER_ID } });
+            if (!botUser) {
+                await tx.user.create({
+                    data: {
+                        id: GUILD_WAR_BOT_USER_ID,
+                        nickname: 'guild-war-bot',
+                        strategyLevel: 1,
+                        strategyXp: 0,
+                        playfulLevel: 1,
+                        playfulXp: 0,
+                        actionPointCurr: 0,
+                        actionPointMax: 0,
+                        gold: 0n,
+                        diamonds: 0n,
+                        tournamentScore: 0,
+                        towerFloor: 0,
+                        monthlyTowerFloor: 0,
+                    },
+                });
+            }
+            await tx.guild.create({
+                data: {
+                    id: GUILD_WAR_BOT_GUILD_ID,
+                    name: '[시스템]길드전AI',
+                    leaderId: GUILD_WAR_BOT_USER_ID,
+                    gold: 0n,
+                    level: 1,
+                    experience: 0n,
+                },
+            });
+        });
+        console.log('[GuildWar] Created bot guild and user for guild war matching');
+        return GUILD_WAR_BOT_GUILD_ID;
+    } catch (err: any) {
+        console.error('[GuildWar] Failed to create bot guild:', err?.message);
+        throw err;
+    }
 };
 
 export const createGuildWar = async (guild1Id: string, guild2Id: string): Promise<GuildWar> => {

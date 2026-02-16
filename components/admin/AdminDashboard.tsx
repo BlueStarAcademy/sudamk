@@ -19,19 +19,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToPro
         }
     }
 
+    const tournamentNames: Record<TournamentType, string> = {
+        neighborhood: '동네바둑리그',
+        national: '전국바둑대회',
+        world: '월드챔피언십'
+    };
+
     const handleResetTournament = (tournamentType: TournamentType) => {
-        const tournamentNames = {
-            neighborhood: '동네바둑리그',
-            national: '전국바둑대회',
-            world: '월드챔피언십'
-        };
         const tournamentName = tournamentNames[tournamentType];
-        
         if (window.confirm(`${tournamentName} 토너먼트를 초기화하고 새로 매칭하시겠습니까?`)) {
             onAction({ 
                 type: 'ADMIN_RESET_TOURNAMENT_SESSION', 
                 payload: { targetUserId: currentUser.id, tournamentType } 
             });
+        }
+    };
+
+    const handleResetAllVenues = () => {
+        if (window.confirm('동네바둑리그, 전국바둑대회, 월드챔피언십 모든 경기장을 한 번에 초기화하고 재매칭하시겠습니까?')) {
+            onAction({ type: 'ADMIN_RESET_ALL_TOURNAMENT_SESSIONS', payload: { targetUserId: currentUser.id } });
+        }
+    };
+
+    const handleResetAllUsersChampionship = () => {
+        if (window.confirm('모든 유저의 동네바둑리그/전국바둑대회/월드챔피언십 단계와 챔피언십 랭킹 점수를 0으로 초기화합니다. 계속하시겠습니까?')) {
+            onAction({ type: 'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP' });
         }
     }
 
@@ -88,6 +100,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToPro
                         월드챔피언십 재매칭
                     </Button>
                 </div>
+                <div className="mt-4">
+                    <Button 
+                        onClick={handleResetAllVenues} 
+                        colorScheme="purple" 
+                        variant="outline"
+                        className="w-full"
+                    >
+                        한번에 모든 경기장 초기화 (동네+전국+월드)
+                    </Button>
+                </div>
+            </div>
+
+            <div className="mt-8 bg-panel border border-color p-6 rounded-lg shadow-lg">
+                <h2 className="text-xl font-semibold mb-4 border-b border-color pb-2 text-on-panel">전체 유저 챔피언십 초기화</h2>
+                <p className="text-sm text-gray-400 mb-4">모든 유저의 동네바둑리그·전국바둑대회·월드챔피언십 단계와 챔피언십 랭킹 점수를 0으로 초기화합니다.</p>
+                <Button 
+                    onClick={handleResetAllUsersChampionship} 
+                    colorScheme="red" 
+                    variant="outline"
+                    className="w-full"
+                >
+                    전체 유저 챔피언십 초기화
+                </Button>
             </div>
 
             <div className="mt-8 bg-panel border border-color p-6 rounded-lg shadow-lg">

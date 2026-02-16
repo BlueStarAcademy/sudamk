@@ -125,35 +125,111 @@ export const DUNGEON_RANK_REWARD_MULTIPLIER: Record<number, number> = {
 // 기본 보상 배율 (11위 이하)
 export const DUNGEON_DEFAULT_REWARD_MULTIPLIER = 1.0;
 
-// 단계별 기본 보상 (동네바둑리그 - 골드)
-export const DUNGEON_STAGE_BASE_REWARDS_GOLD: Record<number, number> = {
-    1: 100,
-    2: 150,
-    3: 200,
-    4: 300,
-    5: 500,
-    6: 750,
-    7: 1000,
-    8: 1500,
-    9: 1800,
-    10: 2000,
+// --- 던전 경기당 범위 보상 (한 판 끝날 때마다 지급) ---
+
+/** 1~10 단계 선형 보간: t=(stage-1)/9 */
+function lerp(stage: number, a1: number, b1: number, a10: number, b10: number): { min: number; max: number } {
+    const t = (stage - 1) / 9;
+    return { min: Math.round(a1 + (a10 - a1) * t), max: Math.round(b1 + (b10 - b1) * t) };
+}
+
+// 동네바둑리그: 1단계 승 80~150/패 40~75, 10단계 승 1000~3000/패 500~1500
+/** 단계별 경기당 골드 기본 보상 범위 (표시용) */
+export function getDungeonBasicRewardRangeGold(stage: number): { win: { min: number; max: number }; loss: { min: number; max: number } } {
+    const winRange = lerp(stage, 80, 150, 1000, 3000);
+    const lossRange = lerp(stage, 40, 75, 500, 1500);
+    return { win: winRange, loss: lossRange };
+}
+
+export function getDungeonMatchGoldReward(stage: number, isWin: boolean): number {
+    const { win: winRange, loss: lossRange } = getDungeonBasicRewardRangeGold(stage);
+    const r = isWin ? winRange : lossRange;
+    return r.min + Math.floor(Math.random() * (r.max - r.min + 1));
+}
+
+// 전국바둑대회: 1단계 하급 6~14개, 10단계 35% 고급 10~15 / 55% 최고급 3~6 / 10% 신비의 1개 (승리 기준, 패배 시 수량 절반)
+export type DungeonMaterialRoll = { chance: number; materialName: string; min: number; max: number };
+export const DUNGEON_STAGE_MATERIAL_ROLLS: Record<number, { win: DungeonMaterialRoll[]; loss?: DungeonMaterialRoll[] }> = {
+    1: { win: [{ chance: 100, materialName: '하급 강화석', min: 6, max: 14 }], loss: [{ chance: 100, materialName: '하급 강화석', min: 3, max: 7 }] },
+    2: { win: [{ chance: 100, materialName: '하급 강화석', min: 8, max: 18 }], loss: [{ chance: 100, materialName: '하급 강화석', min: 4, max: 9 }] },
+    3: { win: [{ chance: 100, materialName: '중급 강화석', min: 5, max: 12 }], loss: [{ chance: 100, materialName: '중급 강화석', min: 2, max: 6 }] },
+    4: { win: [{ chance: 100, materialName: '중급 강화석', min: 8, max: 16 }], loss: [{ chance: 100, materialName: '중급 강화석', min: 4, max: 8 }] },
+    5: { win: [{ chance: 100, materialName: '중급 강화석', min: 10, max: 20 }], loss: [{ chance: 100, materialName: '중급 강화석', min: 5, max: 10 }] },
+    6: { win: [{ chance: 100, materialName: '상급 강화석', min: 6, max: 14 }], loss: [{ chance: 100, materialName: '상급 강화석', min: 3, max: 7 }] },
+    7: { win: [{ chance: 100, materialName: '상급 강화석', min: 8, max: 18 }], loss: [{ chance: 100, materialName: '상급 강화석', min: 4, max: 9 }] },
+    8: { win: [{ chance: 100, materialName: '최상급 강화석', min: 4, max: 10 }], loss: [{ chance: 100, materialName: '최상급 강화석', min: 2, max: 5 }] },
+    9: { win: [{ chance: 100, materialName: '최상급 강화석', min: 6, max: 14 }], loss: [{ chance: 100, materialName: '최상급 강화석', min: 3, max: 7 }] },
+    10: {
+        win: [
+            { chance: 35, materialName: '상급 강화석', min: 10, max: 15 },
+            { chance: 55, materialName: '최상급 강화석', min: 3, max: 6 },
+            { chance: 10, materialName: '신비의 강화석', min: 1, max: 1 },
+        ],
+        loss: [
+            { chance: 35, materialName: '상급 강화석', min: 5, max: 8 },
+            { chance: 55, materialName: '최상급 강화석', min: 1, max: 3 },
+            { chance: 10, materialName: '신비의 강화석', min: 0, max: 1 },
+        ],
+    },
 };
 
-// 단계별 기본 보상 (전국바둑대회 - 강화석)
+export function getDungeonMatchMaterialReward(stage: number, isWin: boolean): Record<string, number> {
+    const config = DUNGEON_STAGE_MATERIAL_ROLLS[stage] || DUNGEON_STAGE_MATERIAL_ROLLS[1];
+    const rolls = isWin ? config.win : (config.loss ?? config.win);
+    const out: Record<string, number> = {};
+    for (const roll of rolls) {
+        if (Math.random() * 100 < roll.chance) {
+            const qty = roll.min + Math.floor(Math.random() * (roll.max - roll.min + 1));
+            if (qty > 0) out[roll.materialName] = (out[roll.materialName] || 0) + qty;
+        }
+    }
+    return out;
+}
+
+// 월드챔피언십: 1단계 승 일반(75%)/희귀(25%) 1개, 패 일반(100%) 1개; 10단계 승 희귀(30%)/에픽(45%)/전설(20%)/신화(5%)
+export type EquipmentGradeKey = 'normal' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+export const DUNGEON_STAGE_EQUIPMENT_DROP: Record<number, { win: { grade: EquipmentGradeKey; chance: number }[]; loss: { grade: EquipmentGradeKey; chance: number }[] }> = {
+    1: { win: [{ grade: 'normal', chance: 75 }, { grade: 'uncommon', chance: 25 }], loss: [{ grade: 'normal', chance: 100 }] },
+    2: { win: [{ grade: 'normal', chance: 60 }, { grade: 'uncommon', chance: 40 }], loss: [{ grade: 'normal', chance: 100 }] },
+    3: { win: [{ grade: 'normal', chance: 45 }, { grade: 'uncommon', chance: 55 }], loss: [{ grade: 'normal', chance: 85 }, { grade: 'uncommon', chance: 15 }] },
+    4: { win: [{ grade: 'uncommon', chance: 70 }, { grade: 'rare', chance: 30 }], loss: [{ grade: 'normal', chance: 70 }, { grade: 'uncommon', chance: 30 }] },
+    5: { win: [{ grade: 'uncommon', chance: 50 }, { grade: 'rare', chance: 50 }], loss: [{ grade: 'uncommon', chance: 80 }, { grade: 'rare', chance: 20 }] },
+    6: { win: [{ grade: 'rare', chance: 65 }, { grade: 'epic', chance: 35 }], loss: [{ grade: 'uncommon', chance: 50 }, { grade: 'rare', chance: 50 }] },
+    7: { win: [{ grade: 'rare', chance: 45 }, { grade: 'epic', chance: 55 }], loss: [{ grade: 'rare', chance: 70 }, { grade: 'epic', chance: 30 }] },
+    8: { win: [{ grade: 'epic', chance: 60 }, { grade: 'legendary', chance: 40 }], loss: [{ grade: 'rare', chance: 40 }, { grade: 'epic', chance: 60 }] },
+    9: { win: [{ grade: 'epic', chance: 40 }, { grade: 'legendary', chance: 50 }, { grade: 'mythic', chance: 10 }], loss: [{ grade: 'epic', chance: 70 }, { grade: 'legendary', chance: 30 }] },
+    10: { win: [{ grade: 'rare', chance: 30 }, { grade: 'epic', chance: 45 }, { grade: 'legendary', chance: 20 }, { grade: 'mythic', chance: 5 }], loss: [{ grade: 'rare', chance: 50 }, { grade: 'epic', chance: 40 }, { grade: 'legendary', chance: 10 }] },
+};
+
+export function getDungeonMatchEquipmentGrade(stage: number, isWin: boolean): EquipmentGradeKey {
+    const config = DUNGEON_STAGE_EQUIPMENT_DROP[stage] || DUNGEON_STAGE_EQUIPMENT_DROP[1];
+    const list = isWin ? config.win : config.loss;
+    let r = Math.random() * 100;
+    for (const e of list) {
+        r -= e.chance;
+        if (r < 0) return e.grade;
+    }
+    return list[list.length - 1].grade;
+}
+
+// 레거시 호환: 단일 고정값이 필요한 곳 (평균값 사용)
+export const DUNGEON_STAGE_BASE_REWARDS_GOLD: Record<number, number> = Object.fromEntries(
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => [s, Math.round((lerp(s, 80, 150, 1000, 3000).min + lerp(s, 80, 150, 1000, 3000).max) / 2)])
+) as Record<number, number>;
+
 export const DUNGEON_STAGE_BASE_REWARDS_MATERIAL: Record<number, { materialName: string; quantity: number }> = {
     1: { materialName: '하급 강화석', quantity: 10 },
-    2: { materialName: '하급 강화석', quantity: 15 },
-    3: { materialName: '중급 강화석', quantity: 10 },
-    4: { materialName: '중급 강화석', quantity: 15 },
-    5: { materialName: '중급 강화석', quantity: 20 },
-    6: { materialName: '상급 강화석', quantity: 15 },
-    7: { materialName: '상급 강화석', quantity: 20 },
-    8: { materialName: '최상급 강화석', quantity: 15 },
-    9: { materialName: '최상급 강화석', quantity: 25 },
-    10: { materialName: '최상급 강화석', quantity: 30 },
+    2: { materialName: '하급 강화석', quantity: 13 },
+    3: { materialName: '중급 강화석', quantity: 8 },
+    4: { materialName: '중급 강화석', quantity: 12 },
+    5: { materialName: '중급 강화석', quantity: 15 },
+    6: { materialName: '상급 강화석', quantity: 10 },
+    7: { materialName: '상급 강화석', quantity: 13 },
+    8: { materialName: '최상급 강화석', quantity: 7 },
+    9: { materialName: '최상급 강화석', quantity: 10 },
+    10: { materialName: '고급 강화석', quantity: 12 },
 };
 
-// 단계별 기본 보상 (월드챔피언십 - 장비상자 및 변경권)
 export const DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT: Record<number, { boxes: { boxName: string; quantity: number }[]; changeTickets: number }> = {
     1: { boxes: [{ boxName: '장비 상자 I', quantity: 1 }], changeTickets: 0 },
     2: { boxes: [{ boxName: '장비 상자 I', quantity: 1 }], changeTickets: 0 },
@@ -227,100 +303,224 @@ export function getDungeonStageScore(type: TournamentType, stage: number, rank: 
     return Math.round(base * mult);
 }
 
-// 던전 단계별 순위 보상 (각 던전 타입별, 단계별, 순위별)
-// 10단계 1위 기준: 동네바둑리그=골드꾸러미4×5, 전국바둑대회=재료상자6×2, 월드챔피언십=다이아꾸러미4×3
+// 던전 순위 보상: 직접 지급 (골드/재료/다이아). 1단계 1위 = 200골드, 10단계 1위 = 5000골드 등 비율로 2~9단계 보정
+export type DungeonRankRewardResult = { gold?: number; materials?: Record<string, number>; diamonds?: number; items?: Array<{ itemId: string; quantity: number }> };
+
+/** 골드 보상을 50골드 단위로 반올림 (최소 50, 0은 0 유지) */
+function roundGoldToFifty(raw: number): number {
+    if (raw <= 0) return 0;
+    const rounded = Math.round(raw / 50) * 50;
+    return Math.max(50, rounded);
+}
+
+function rankGoldNeighborhood(stage: number, rank: number): number {
+    const s1: Record<number, number> = { 1: 200, 2: 120, 3: 80, 4: 50, 5: 30, 6: 20 };
+    const s10: Record<number, number> = { 1: 5000, 2: 3000, 3: 2000, 4: 1250, 5: 750, 6: 500 };
+    const t = (stage - 1) / 9;
+    const a = s1[rank] ?? 10, b = s10[rank] ?? 300;
+    const raw = Math.round(a + (b - a) * t);
+    return roundGoldToFifty(raw);
+}
+
+export function getDungeonRankRewardNeighborhood(stage: number, rank: number): DungeonRankRewardResult {
+    if (rank < 1 || rank > 6) return {};
+    return { gold: rankGoldNeighborhood(stage, rank) };
+}
+
+// 전국: 1단계 1위 하급 30개, 10단계 1위 신비의 1~3개; 2~9 및 2~8위 비율
+function rankMaterialNational(stage: number, rank: number): Record<string, number> {
+    const stage1: Record<number, { name: string; qty: number }> = {
+        1: { name: '하급 강화석', qty: 30 }, 2: { name: '하급 강화석', qty: 22 }, 3: { name: '하급 강화석', qty: 16 },
+        4: { name: '하급 강화석', qty: 12 }, 5: { name: '하급 강화석', qty: 9 }, 6: { name: '하급 강화석', qty: 6 },
+        7: { name: '하급 강화석', qty: 4 }, 8: { name: '하급 강화석', qty: 2 },
+    };
+    const stage10: Record<number, { name: string; min: number; max: number }> = {
+        1: { name: '신비의 강화석', min: 1, max: 3 }, 2: { name: '신비의 강화석', min: 1, max: 2 }, 3: { name: '최상급 강화석', min: 4, max: 6 },
+        4: { name: '최상급 강화석', min: 3, max: 5 }, 5: { name: '상급 강화석', min: 6, max: 10 }, 6: { name: '상급 강화석', min: 4, max: 6 },
+        7: { name: '상급 강화석', min: 5, max: 8 }, 8: { name: '상급 강화석', min: 3, max: 5 },
+    };
+    if (rank < 1 || rank > 8) return {};
+    const r1 = stage1[rank], r10 = stage10[rank];
+    if (!r1 || !r10) return {};
+    const t = (stage - 1) / 9;
+    const qty10 = r10.min + Math.floor(Math.random() * (r10.max - r10.min + 1));
+    const qty = Math.round(r1.qty + (qty10 - r1.qty) * t);
+    const name = t < 0.5 ? r1.name : r10.name;
+    const finalQty = stage >= 10 ? qty10 : Math.max(1, qty);
+    return { [name]: finalQty };
+}
+
+export function getDungeonRankRewardNational(stage: number, rank: number): DungeonRankRewardResult {
+    if (rank < 1 || rank > 8) return {};
+    return { materials: rankMaterialNational(stage, rank) };
+}
+
+// 월드: 다이아 직접. 1단계 1위 3~5, 2위 2~3, 3위 1~2, 4~8위 1, 9+ 없음; 10단계 비율 상향
+function rankDiamondsWorld(stage: number, rank: number): number {
+    const s1: Record<number, { min: number; max: number }> = {
+        1: { min: 3, max: 5 }, 2: { min: 2, max: 3 }, 3: { min: 1, max: 2 }, 4: { min: 1, max: 1 }, 5: { min: 1, max: 1 },
+        6: { min: 1, max: 1 }, 7: { min: 1, max: 1 }, 8: { min: 1, max: 1 },
+    };
+    const s10: Record<number, { min: number; max: number }> = {
+        1: { min: 15, max: 25 }, 2: { min: 10, max: 15 }, 3: { min: 5, max: 10 }, 4: { min: 3, max: 5 }, 5: { min: 2, max: 3 },
+        6: { min: 1, max: 2 }, 7: { min: 1, max: 1 }, 8: { min: 1, max: 1 },
+    };
+    if (rank >= 9) return 0;
+    const r = s1[rank] || { min: 0, max: 0 };
+    const r10 = s10[rank] || { min: 0, max: 0 };
+    const t = (stage - 1) / 9;
+    const min = Math.round(r.min + (r10.min - r.min) * t);
+    const max = Math.round(r.max + (r10.max - r.max) * t);
+    return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+export function getDungeonRankRewardWorld(stage: number, rank: number): DungeonRankRewardResult {
+    if (rank >= 9) return {};
+    const d = rankDiamondsWorld(stage, rank);
+    return d > 0 ? { diamonds: d } : {};
+}
+
+// 전국 순위 보상 표시용 (랜덤 없이 구간 중간값 사용)
+function rankMaterialNationalDisplay(stage: number, rank: number): Record<string, number> {
+    const stage1: Record<number, { name: string; qty: number }> = {
+        1: { name: '하급 강화석', qty: 30 }, 2: { name: '하급 강화석', qty: 22 }, 3: { name: '하급 강화석', qty: 16 },
+        4: { name: '하급 강화석', qty: 12 }, 5: { name: '하급 강화석', qty: 9 }, 6: { name: '하급 강화석', qty: 6 },
+        7: { name: '하급 강화석', qty: 4 }, 8: { name: '하급 강화석', qty: 2 },
+    };
+    const stage10: Record<number, { name: string; min: number; max: number }> = {
+        1: { name: '신비의 강화석', min: 1, max: 3 }, 2: { name: '신비의 강화석', min: 1, max: 2 }, 3: { name: '최상급 강화석', min: 4, max: 6 },
+        4: { name: '최상급 강화석', min: 3, max: 5 }, 5: { name: '상급 강화석', min: 6, max: 10 }, 6: { name: '상급 강화석', min: 4, max: 6 },
+        7: { name: '상급 강화석', min: 5, max: 8 }, 8: { name: '상급 강화석', min: 3, max: 5 },
+    };
+    if (rank < 1 || rank > 8) return {};
+    const r1 = stage1[rank], r10 = stage10[rank];
+    if (!r1 || !r10) return {};
+    const t = (stage - 1) / 9;
+    const mid10 = Math.round((r10.min + r10.max) / 2);
+    const qty = Math.round(r1.qty + (mid10 - r1.qty) * t);
+    const name = t < 0.5 ? r1.name : r10.name;
+    const finalQty = stage >= 10 ? mid10 : Math.max(1, qty);
+    return { [name]: finalQty };
+}
+
+// 월드 다이아 표시용 (구간 중간값)
+function rankDiamondsWorldMidpoint(stage: number, rank: number): number {
+    const s1: Record<number, { min: number; max: number }> = {
+        1: { min: 3, max: 5 }, 2: { min: 2, max: 3 }, 3: { min: 1, max: 2 }, 4: { min: 1, max: 1 }, 5: { min: 1, max: 1 },
+        6: { min: 1, max: 1 }, 7: { min: 1, max: 1 }, 8: { min: 1, max: 1 },
+    };
+    const s10: Record<number, { min: number; max: number }> = {
+        1: { min: 15, max: 25 }, 2: { min: 10, max: 15 }, 3: { min: 5, max: 10 }, 4: { min: 3, max: 5 }, 5: { min: 2, max: 3 },
+        6: { min: 1, max: 2 }, 7: { min: 1, max: 1 }, 8: { min: 1, max: 1 },
+    };
+    if (rank >= 9) return 0;
+    const r = s1[rank] || { min: 0, max: 0 };
+    const r10 = s10[rank] || { min: 0, max: 0 };
+    const t = (stage - 1) / 9;
+    const min = Math.round(r.min + (r10.min - r.min) * t);
+    const max = Math.round(r.max + (r10.max - r.max) * t);
+    return Math.round((min + max) / 2);
+}
+
+/** 실제 지급 로직과 동일한 순위 보상을 UI 표시용 아이템 형태로 반환 (동네=골드, 전국=강화석, 월드=다이아) */
+export function getDungeonRankRewardForDisplay(type: TournamentType, stage: number, rank: number): QuestReward | null {
+    if (type === 'neighborhood') {
+        if (rank < 1 || rank > 6) return null;
+        const gold = rankGoldNeighborhood(stage, rank);
+        return { items: [{ itemId: '골드', quantity: gold }] };
+    }
+    if (type === 'national') {
+        if (rank < 1 || rank > 8) return null;
+        const mat = rankMaterialNationalDisplay(stage, rank);
+        const entries = Object.entries(mat);
+        if (!entries.length) return null;
+        return { items: entries.map(([name, qty]) => ({ itemId: name, quantity: qty })) };
+    }
+    if (type === 'world') {
+        if (rank >= 9) return { items: [] }; // 9~16위 표시용
+        const d = rankDiamondsWorldMidpoint(stage, rank);
+        if (d <= 0) return null;
+        return { items: [{ itemId: '다이아', quantity: d }] };
+    }
+    return null;
+}
+
+/** 표시할 순위 키 목록 (동네 1~6, 전국 1~8, 월드 1·2·3·4~8·9) */
+export function getDungeonRankKeysForDisplay(type: TournamentType): number[] {
+    if (type === 'neighborhood') return [1, 2, 3, 4, 5, 6];
+    if (type === 'national') return [1, 2, 3, 4, 5, 6, 7, 8];
+    return [1, 2, 3, 4, 9]; // 4 = 4~8위 묶음, 9 = 9~16위
+}
+
+/** 순위 보상 범위 표시용 (min~max 또는 단일값). UI에서 "3~5 다이아" 형태로 표시할 때 사용 */
+export type DungeonRankRewardRangeItem = { itemId: string; min: number; max: number };
+export function getDungeonRankRewardRangeForDisplay(type: TournamentType, stage: number, rank: number): { items: DungeonRankRewardRangeItem[] } | null {
+    if (type === 'neighborhood') {
+        if (rank < 1 || rank > 6) return null;
+        const gold = rankGoldNeighborhood(stage, rank);
+        return { items: [{ itemId: '골드', min: gold, max: gold }] };
+    }
+    if (type === 'national') {
+        if (rank < 1 || rank > 8) return null;
+        const stage1: Record<number, { name: string; qty: number }> = {
+            1: { name: '하급 강화석', qty: 30 }, 2: { name: '하급 강화석', qty: 22 }, 3: { name: '하급 강화석', qty: 16 },
+            4: { name: '하급 강화석', qty: 12 }, 5: { name: '하급 강화석', qty: 9 }, 6: { name: '하급 강화석', qty: 6 },
+            7: { name: '하급 강화석', qty: 4 }, 8: { name: '하급 강화석', qty: 2 },
+        };
+        const stage10: Record<number, { name: string; min: number; max: number }> = {
+            1: { name: '신비의 강화석', min: 1, max: 3 }, 2: { name: '신비의 강화석', min: 1, max: 2 }, 3: { name: '최상급 강화석', min: 4, max: 6 },
+            4: { name: '최상급 강화석', min: 3, max: 5 }, 5: { name: '상급 강화석', min: 6, max: 10 }, 6: { name: '상급 강화석', min: 4, max: 6 },
+            7: { name: '상급 강화석', min: 5, max: 8 }, 8: { name: '상급 강화석', min: 3, max: 5 },
+        };
+        const r1 = stage1[rank], r10 = stage10[rank];
+        if (!r1 || !r10) return null;
+        const t = (stage - 1) / 9;
+        const name = t < 0.5 ? r1.name : r10.name;
+        const min = stage <= 1 ? r1.qty : (stage >= 10 ? r10.min : Math.max(1, Math.round(r1.qty + (r10.min - r1.qty) * t)));
+        const max = stage <= 1 ? r1.qty : (stage >= 10 ? r10.max : Math.max(1, Math.round(r1.qty + (r10.max - r1.qty) * t)));
+        return { items: [{ itemId: name, min, max }] };
+    }
+    if (type === 'world') {
+        if (rank >= 9) return rank === 9 ? { items: [] } : null;
+        const s1: Record<number, { min: number; max: number }> = {
+            1: { min: 3, max: 5 }, 2: { min: 2, max: 3 }, 3: { min: 1, max: 2 }, 4: { min: 1, max: 1 }, 5: { min: 1, max: 1 },
+            6: { min: 1, max: 1 }, 7: { min: 1, max: 1 }, 8: { min: 1, max: 1 },
+        };
+        const s10: Record<number, { min: number; max: number }> = {
+            1: { min: 15, max: 25 }, 2: { min: 10, max: 15 }, 3: { min: 5, max: 10 }, 4: { min: 3, max: 5 }, 5: { min: 2, max: 3 },
+            6: { min: 1, max: 2 }, 7: { min: 1, max: 1 }, 8: { min: 1, max: 1 },
+        };
+        // rank 4 = 4~8위 묶음: 구간 min/max를 4~8위 전체에서 취함
+        const ranksToAggregate = rank === 4 ? [4, 5, 6, 7, 8] : [rank];
+        let minV = Infinity, maxV = -Infinity;
+        for (const rk of ranksToAggregate) {
+            const r = s1[rk] || { min: 0, max: 0 };
+            const r10 = s10[rk] || { min: 0, max: 0 };
+            const t = (stage - 1) / 9;
+            const m = Math.round(r.min + (r10.min - r.min) * t);
+            const M = Math.round(r.max + (r10.max - r.max) * t);
+            if (m < minV) minV = m;
+            if (M > maxV) maxV = M;
+        }
+        if (maxV <= 0) return null;
+        return { items: [{ itemId: '다이아', min: minV, max: maxV }] };
+    }
+    return null;
+}
+
+// 레거시 DUNGEON_RANK_REWARDS (아이템 형태): 실제 지급은 getDungeonRankReward* 사용, UI는 getDungeonRankRewardForDisplay 사용 권장
 export const DUNGEON_RANK_REWARDS: Record<TournamentType, Record<number, Record<number, QuestReward>>> = {
     neighborhood: {
-        // 10단계 기준: 1위 = 골드 꾸러미4 × 5개
-        10: {
-            1: { items: [{ itemId: '골드 꾸러미4', quantity: 5 }] },
-            2: { items: [{ itemId: '골드 꾸러미4', quantity: 3 }] },
-            3: { items: [{ itemId: '골드 꾸러미3', quantity: 3 }] },
-            4: { items: [{ itemId: '골드 꾸러미3', quantity: 2 }] },
-            5: { items: [{ itemId: '골드 꾸러미2', quantity: 2 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 2 }] },
-        },
-        // 9단계: 1위 = 골드 꾸러미4 × 4개
-        9: {
-            1: { items: [{ itemId: '골드 꾸러미4', quantity: 4 }] },
-            2: { items: [{ itemId: '골드 꾸러미4', quantity: 2 }] },
-            3: { items: [{ itemId: '골드 꾸러미3', quantity: 2 }] },
-            4: { items: [{ itemId: '골드 꾸러미3', quantity: 1 }] },
-            5: { items: [{ itemId: '골드 꾸러미2', quantity: 1 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-        },
-        // 8단계: 1위 = 골드 꾸러미3 × 4개
-        8: {
-            1: { items: [{ itemId: '골드 꾸러미3', quantity: 4 }] },
-            2: { items: [{ itemId: '골드 꾸러미3', quantity: 2 }] },
-            3: { items: [{ itemId: '골드 꾸러미2', quantity: 2 }] },
-            4: { items: [{ itemId: '골드 꾸러미2', quantity: 1 }] },
-            5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-        },
-        // 7단계: 1위 = 골드 꾸러미3 × 3개
-        7: {
-            1: { items: [{ itemId: '골드 꾸러미3', quantity: 3 }] },
-            2: { items: [{ itemId: '골드 꾸러미3', quantity: 2 }] },
-            3: { items: [{ itemId: '골드 꾸러미2', quantity: 2 }] },
-            4: { items: [{ itemId: '골드 꾸러미2', quantity: 1 }] },
-            5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-        },
-        // 6단계: 1위 = 골드 꾸러미3 × 2개
-        6: {
-            1: { items: [{ itemId: '골드 꾸러미3', quantity: 2 }] },
-            2: { items: [{ itemId: '골드 꾸러미2', quantity: 2 }] },
-            3: { items: [{ itemId: '골드 꾸러미2', quantity: 1 }] },
-            4: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-        },
-        // 5단계: 1위 = 골드 꾸러미2 × 3개
-        5: {
-            1: { items: [{ itemId: '골드 꾸러미2', quantity: 3 }] },
-            2: { items: [{ itemId: '골드 꾸러미2', quantity: 2 }] },
-            3: { items: [{ itemId: '골드 꾸러미1', quantity: 2 }] },
-            4: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-        },
-        // 4단계: 1위 = 골드 꾸러미2 × 2개
-        4: {
-            1: { items: [{ itemId: '골드 꾸러미2', quantity: 2 }] },
-            2: { items: [{ itemId: '골드 꾸러미2', quantity: 1 }] },
-            3: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            4: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-        },
-        // 3단계: 1위 = 골드 꾸러미1 × 3개
-        3: {
-            1: { items: [{ itemId: '골드 꾸러미1', quantity: 3 }] },
-            2: { items: [{ itemId: '골드 꾸러미1', quantity: 2 }] },
-            3: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            4: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-        },
-        // 2단계: 1위 = 골드 꾸러미1 × 2개
-        2: {
-            1: { items: [{ itemId: '골드 꾸러미1', quantity: 2 }] },
-            2: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            3: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            4: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-        },
-        // 1단계 기준: 1위 = 골드 꾸러미1 × 2개
-        1: {
-            1: { items: [{ itemId: '골드 꾸러미1', quantity: 2 }] },
-            2: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            3: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            4: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-            6: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
-        },
+        10: { 1: { items: [{ itemId: '골드', quantity: 5000 }] }, 2: { items: [{ itemId: '골드', quantity: 3000 }] }, 3: { items: [{ itemId: '골드', quantity: 2000 }] }, 4: { items: [{ itemId: '골드', quantity: 1250 }] }, 5: { items: [{ itemId: '골드', quantity: 750 }] }, 6: { items: [{ itemId: '골드', quantity: 500 }] } },
+        9: { 1: { items: [{ itemId: '골드', quantity: 4333 }] }, 2: { items: [{ itemId: '골드', quantity: 2600 }] }, 3: { items: [{ itemId: '골드', quantity: 1733 }] }, 4: { items: [{ itemId: '골드', quantity: 1083 }] }, 5: { items: [{ itemId: '골드', quantity: 650 }] }, 6: { items: [{ itemId: '골드', quantity: 433 }] } },
+        8: { 1: { items: [{ itemId: '골드', quantity: 3667 }] }, 2: { items: [{ itemId: '골드', quantity: 2200 }] }, 3: { items: [{ itemId: '골드', quantity: 1467 }] }, 4: { items: [{ itemId: '골드', quantity: 917 }] }, 5: { items: [{ itemId: '골드', quantity: 550 }] }, 6: { items: [{ itemId: '골드', quantity: 367 }] } },
+        7: { 1: { items: [{ itemId: '골드', quantity: 3000 }] }, 2: { items: [{ itemId: '골드', quantity: 1800 }] }, 3: { items: [{ itemId: '골드', quantity: 1200 }] }, 4: { items: [{ itemId: '골드', quantity: 750 }] }, 5: { items: [{ itemId: '골드', quantity: 450 }] }, 6: { items: [{ itemId: '골드', quantity: 300 }] } },
+        6: { 1: { items: [{ itemId: '골드', quantity: 2333 }] }, 2: { items: [{ itemId: '골드', quantity: 1400 }] }, 3: { items: [{ itemId: '골드', quantity: 933 }] }, 4: { items: [{ itemId: '골드', quantity: 583 }] }, 5: { items: [{ itemId: '골드', quantity: 350 }] }, 6: { items: [{ itemId: '골드', quantity: 233 }] } },
+        5: { 1: { items: [{ itemId: '골드', quantity: 1667 }] }, 2: { items: [{ itemId: '골드', quantity: 1000 }] }, 3: { items: [{ itemId: '골드', quantity: 667 }] }, 4: { items: [{ itemId: '골드', quantity: 417 }] }, 5: { items: [{ itemId: '골드', quantity: 250 }] }, 6: { items: [{ itemId: '골드', quantity: 167 }] } },
+        4: { 1: { items: [{ itemId: '골드', quantity: 1200 }] }, 2: { items: [{ itemId: '골드', quantity: 720 }] }, 3: { items: [{ itemId: '골드', quantity: 480 }] }, 4: { items: [{ itemId: '골드', quantity: 300 }] }, 5: { items: [{ itemId: '골드', quantity: 180 }] }, 6: { items: [{ itemId: '골드', quantity: 120 }] } },
+        3: { 1: { items: [{ itemId: '골드', quantity: 733 }] }, 2: { items: [{ itemId: '골드', quantity: 440 }] }, 3: { items: [{ itemId: '골드', quantity: 293 }] }, 4: { items: [{ itemId: '골드', quantity: 183 }] }, 5: { items: [{ itemId: '골드', quantity: 110 }] }, 6: { items: [{ itemId: '골드', quantity: 73 }] } },
+        2: { 1: { items: [{ itemId: '골드', quantity: 467 }] }, 2: { items: [{ itemId: '골드', quantity: 280 }] }, 3: { items: [{ itemId: '골드', quantity: 187 }] }, 4: { items: [{ itemId: '골드', quantity: 117 }] }, 5: { items: [{ itemId: '골드', quantity: 70 }] }, 6: { items: [{ itemId: '골드', quantity: 47 }] } },
+        1: { 1: { items: [{ itemId: '골드', quantity: 200 }] }, 2: { items: [{ itemId: '골드', quantity: 120 }] }, 3: { items: [{ itemId: '골드', quantity: 80 }] }, 4: { items: [{ itemId: '골드', quantity: 50 }] }, 5: { items: [{ itemId: '골드', quantity: 30 }] }, 6: { items: [{ itemId: '골드', quantity: 20 }] } },
     },
     national: {
         // 10단계 기준: 1위 = 재료 상자6 × 2개

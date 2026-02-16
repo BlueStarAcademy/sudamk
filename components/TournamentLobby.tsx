@@ -30,13 +30,52 @@ const seededRandom = (seed: number): number => {
 };
 
 // WeeklyCompetitorsPanel 제거됨 - 던전 시스템으로 변경
-const DungeonStageSelector: React.FC<{ dungeonType: TournamentType; currentUser: UserWithStatus; onSelectStage: (stage: number) => void }> = ({ dungeonType, currentUser, onSelectStage }) => {
-    const dungeonProgress = currentUser?.dungeonProgress?.[dungeonType] || {
-        currentStage: 0,
-        unlockedStages: [1],
-        stageResults: {},
-        dailyStageAttempts: {},
+/** stageResults 키가 JSON 직렬화로 문자열일 수 있으므로 숫자/문자 모두로 확인. currentStage >= stage면 해당 단계를 클리어한 것으로 간주(보정). maxUnlockedStage가 있으면 그 미만 단계는 모두 클리어로 간주(5단계 열림 → 1~4단계 클리어). */
+function isStageCleared(
+    stageResults: Record<number, { cleared?: boolean }> | undefined,
+    stage: number,
+    currentStage?: number,
+    maxUnlockedStage?: number
+): boolean {
+    const cs = currentStage != null ? Number(currentStage) : undefined;
+    if (cs != null && !Number.isNaN(cs) && cs >= stage) return true;
+    if (maxUnlockedStage != null && stage < maxUnlockedStage) return true; // N단계가 열려 있으면 1~N-1은 클리어로 표시
+    if (!stageResults) return false;
+    const entry = stageResults[stage] ?? (stageResults as Record<string, { cleared?: boolean }>)[String(stage)];
+    return !!entry?.cleared;
+}
+
+/** API/저장소에서 온 dungeonProgress 정규화: currentStage 숫자화, stageResults에서 역산, unlockedStages를 currentStage 기준으로 보정 */
+function normalizeDungeonProgress(
+    raw: { currentStage?: number; unlockedStages?: number[]; stageResults?: Record<number | string, { cleared?: boolean }>; dailyStageAttempts?: Record<number, number> } | null | undefined
+): { currentStage: number; unlockedStages: number[]; stageResults: Record<number, { cleared?: boolean }>; dailyStageAttempts: Record<number, number> } {
+    const empty = { currentStage: 0, unlockedStages: [1], stageResults: {} as Record<number, { cleared?: boolean }>, dailyStageAttempts: {} as Record<number, number> };
+    if (!raw) return empty;
+    const currentStageNum = Number(raw.currentStage);
+    const fromNumber = !Number.isNaN(currentStageNum) && currentStageNum >= 0 ? currentStageNum : 0;
+    let derivedCurrent = fromNumber;
+    const sr = raw.stageResults;
+    if (sr && typeof sr === 'object') {
+        for (let s = 1; s <= 10; s++) {
+            const entry = sr[s] ?? (sr as Record<string, { cleared?: boolean }>)[String(s)];
+            if (entry?.cleared) derivedCurrent = Math.max(derivedCurrent, s);
+        }
+    }
+    const currentStage = Math.min(10, Math.max(0, derivedCurrent));
+    const list = Array.isArray(raw.unlockedStages) ? raw.unlockedStages.map(Number).filter(n => !Number.isNaN(n) && n >= 1 && n <= 10) : [1];
+    const upToNext = Array.from({ length: Math.min(currentStage + 1, 10) }, (_, i) => i + 1);
+    const unlockedStages = [...new Set([...list, ...upToNext])].sort((a, b) => a - b);
+    return {
+        currentStage,
+        unlockedStages,
+        stageResults: (raw.stageResults as Record<number, { cleared?: boolean }>) ?? {},
+        dailyStageAttempts: (raw.dailyStageAttempts as Record<number, number>) ?? {},
     };
+}
+
+const DungeonStageSelector: React.FC<{ dungeonType: TournamentType; currentUser: UserWithStatus; onSelectStage: (stage: number) => void }> = ({ dungeonType, currentUser, onSelectStage }) => {
+    const raw = currentUser?.dungeonProgress?.[dungeonType];
+    const dungeonProgress = normalizeDungeonProgress(raw || { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} });
     
     return (
         <div className="bg-gray-800 rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0">
@@ -46,7 +85,8 @@ const DungeonStageSelector: React.FC<{ dungeonType: TournamentType; currentUser:
             <div className="grid grid-cols-5 gap-2 overflow-y-auto flex-grow min-h-0">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
                     const isUnlocked = dungeonProgress.unlockedStages.includes(stage);
-                    const isCleared = dungeonProgress.stageResults[stage]?.cleared || false;
+                    const maxUnlocked = dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1;
+                    const isCleared = isStageCleared(dungeonProgress.stageResults, stage, dungeonProgress.currentStage, maxUnlocked);
                     const isCurrentMax = stage === dungeonProgress.currentStage + 1;
                     
                     return (
@@ -65,7 +105,7 @@ const DungeonStageSelector: React.FC<{ dungeonType: TournamentType; currentUser:
                             }`}
                         >
                             <div className="font-bold text-lg">{stage}단계</div>
-                            {isCleared && <div className="text-xs text-green-400">✓</div>}
+                            {isCleared && <div className="text-xs text-green-400">✓ 클리어</div>}
                         </button>
                     );
                 })}
@@ -373,13 +413,13 @@ const TournamentCard: React.FC<{
     const rewardClaimed = currentUser[rewardClaimedKey as keyof UserWithStatus] as boolean | undefined;
     const hasUnclaimedReward = hasResultToView && !rewardClaimed;
 
-    // 던전 진행 상태 확인
-    const dungeonProgress = currentUser?.dungeonProgress?.[type] || {
+    // 던전 진행 상태 확인 (정규화: 이전에 깬 단계 클리어 표시, currentStage 기준 언락 보정)
+    const dungeonProgress = normalizeDungeonProgress(currentUser?.dungeonProgress?.[type] || {
         currentStage: 0,
         unlockedStages: [1],
         stageResults: {},
         dailyStageAttempts: {},
-    };
+    });
     
     // 도전 가능한 최고 단계 계산 (언락된 단계 중 가장 높은 단계)
     const maxUnlockedStage = useMemo(() => {
@@ -409,19 +449,31 @@ const TournamentCard: React.FC<{
         }
     };
     
-    let buttonText = getEntryText();
-    
     // 경기를 실제로 시작한 경우에만 이어보기/결과 보기 표시 (bracket_ready는 입장만 한 상태)
     const hasStartedMatch = inProgress && (inProgress.status === 'round_in_progress' || inProgress.status === 'complete' || inProgress.status === 'eliminated');
     const isDungeonMode = hasStartedMatch && inProgress.currentStageAttempt !== undefined && inProgress.currentStageAttempt !== null;
     
-    if (isDungeonMode && inProgress) {
+    // 버튼 문구: 오늘 이용 완료 시 "결과보기", 던전 진행 중이면 "이어서 보기", 그 외 "입장"
+    let buttonText = getEntryText();
+    if (isCompletedToday) {
+        buttonText = '결과보기';
+    } else if (isDungeonMode && inProgress) {
         if (inProgress.status === 'complete' || inProgress.status === 'eliminated') {
-            buttonText = '결과 보기';
+            buttonText = '결과보기';
         } else {
             buttonText = '이어서 보기';
         }
     }
+    
+    // 버튼 클릭 시: 오늘 완료 또는 던전 진행 중이면 onContinue(경기장 진입), 아니면 단계 선택 입장
+    const handleMainButtonClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isCompletedToday || (isDungeonMode && inProgress)) {
+            onContinue();
+        } else {
+            onClick(Number(selectedStage));
+        }
+    };
     
     // 경기 진행 중(일시정지 가능) 상태 표시용
     const isPausedInProgress = inProgress && inProgress.status === 'round_in_progress';
@@ -458,55 +510,40 @@ const TournamentCard: React.FC<{
                 <img src={definition.image} alt={definition.name} className="w-full h-full object-cover" />
             </div>
             
-            {/* 단계 선택 드롭다운 - 던전 모드가 아닐 때만 표시 */}
-            {!isDungeonMode && (
-                <div className="mt-1.5 sm:mt-2 relative">
-                    <div className="flex flex-row gap-1 items-center">
-                        <select
-                            value={selectedStage}
-                            onChange={(e) => {
-                                setSelectedStage(Number(e.target.value));
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex-1 text-[10px] sm:text-xs bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-purple-500 min-w-0"
-                        >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
-                                const isUnlocked = dungeonProgress.unlockedStages.includes(stage);
-                                const isCleared = dungeonProgress.stageResults[stage]?.cleared || false;
-                                return (
-                                    <option 
-                                        key={stage} 
-                                        value={stage}
-                                        disabled={!isUnlocked}
-                                        className={!isUnlocked ? 'text-gray-500' : isCleared ? 'text-green-400' : ''}
-                                    >
-                                        {stage}단계 {isCleared ? '✓' : ''} {!isUnlocked ? '(잠김)' : ''}
-                                    </option>
-                                );
-                            })}
-                        </select>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onClick(Number(selectedStage));
-                            }}
-                            className="font-bold text-[10px] sm:text-xs lg:text-sm px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors whitespace-nowrap flex-shrink-0"
-                        >
-                            <span className="break-words">{buttonText}</span> <span>&rarr;</span>
-                        </button>
-                    </div>
+            {/* 단계 설정: 입장 카드에서 선택 가능 (1~3위 시 다음 단계 열림 안내는 도움말 참고) */}
+            <div className="mt-1.5 sm:mt-2 relative">
+                <div className="flex flex-row gap-1 items-center">
+                    <select
+                        value={selectedStage}
+                        onChange={(e) => setSelectedStage(Number(e.target.value))}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 text-[10px] sm:text-xs bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-purple-500 min-w-0"
+                        title="진행 가능 단계 선택"
+                    >
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
+                            const isUnlocked = dungeonProgress.unlockedStages.includes(stage);
+                            const maxUnlocked = dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1;
+                            const isCleared = isStageCleared(dungeonProgress.stageResults, stage, dungeonProgress.currentStage, maxUnlocked);
+                            return (
+                                <option
+                                    key={stage}
+                                    value={stage}
+                                    disabled={!isUnlocked}
+                                    className={!isUnlocked ? 'text-gray-500' : isCleared ? 'text-green-400' : ''}
+                                >
+                                    {stage}단계{isCleared ? ' ✓ 클리어' : ''}{!isUnlocked ? ' (잠김)' : ''}
+                                </option>
+                            );
+                        })}
+                    </select>
+                    <button
+                        onClick={handleMainButtonClick}
+                        className="font-bold text-[10px] sm:text-xs lg:text-sm px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors whitespace-nowrap flex-shrink-0"
+                    >
+                        <span className="break-words">{buttonText}</span> <span>&rarr;</span>
+                    </button>
                 </div>
-            )}
-            
-            {/* 던전 진행 중인 경우 기존 버튼 */}
-            {isDungeonMode && (
-                <span 
-                    className="font-bold text-[10px] sm:text-xs lg:text-sm mt-1.5 sm:mt-2 text-yellow-300 cursor-pointer"
-                    onClick={onContinue}
-                >
-                    {buttonText} &rarr;
-                </span>
-            )}
+            </div>
         </div>
     );
 };

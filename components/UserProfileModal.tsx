@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { UserWithStatus, EquipmentSlot, InventoryItem, ItemGrade, GameMode, CoreStat } from '../types.js';
 import Avatar from './Avatar.js';
 import DraggableWindow from './DraggableWindow.js';
-import { AVATAR_POOL, BORDER_POOL, emptySlotImages, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, LEAGUE_DATA, CORE_STATS_DATA } from '../constants';
+import { AVATAR_POOL, BORDER_POOL, emptySlotImages, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, RANKING_TIERS, CORE_STATS_DATA } from '../constants';
 import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manner.js';
 import { calculateTotalStats } from '../services/statService.js';
 import MbtiInfoModal from './MbtiInfoModal.js';
@@ -183,44 +183,87 @@ const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful' }
     );
 }
 
+/** 대기실과 동일: 현재 시즌 점수 = 1200 + (저장된 차이값). dailyRankings에는 1200에서의 차이가 저장됨 */
+const SEASON_BASE_SCORE = 1200;
+
+/** 랭킹전 티어: 시즌 점수·순위·대국 수 기준 (RankedMatchPanel과 동일) */
+const getTier = (score: number, rank: number, totalGames: number) => {
+    for (const tier of RANKING_TIERS) {
+        if (tier.threshold(score, rank, totalGames)) return tier;
+    }
+    return RANKING_TIERS[RANKING_TIERS.length - 1];
+};
+
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onViewItem, isTopmost }) => {
     const { inventory, stats, nickname, avatarId, borderId, equipment } = user;
     const [showMbtiHelp, setShowMbtiHelp] = useState(false);
     const [showMbtiComparison, setShowMbtiComparison] = useState(false);
-    const { allUsers, currentUserWithStatus } = useAppContext();
+    const { currentUserWithStatus } = useAppContext();
     
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
-    const leagueData = useMemo(() => LEAGUE_DATA.find(l => l.tier === user.league), [user.league]);
-    
-    // 챔피언십 전체 순위 계산 (누적 점수 합계 기준)
-    const championshipRank = useMemo(() => {
-        if (!allUsers || allUsers.length === 0) return null;
-        const sortedUsers = [...allUsers]
-            .filter(u => u && u.id && typeof u.cumulativeTournamentScore === 'number')
-            .sort((a, b) => {
-                const scoreA = a.cumulativeTournamentScore || 0;
-                const scoreB = b.cumulativeTournamentScore || 0;
-                if (scoreB !== scoreA) return scoreB - scoreA;
-                // 동점일 경우 ID로 정렬 (일관성 유지)
-                return a.id.localeCompare(b.id);
-            });
-        
-        // 동점자 처리: 같은 점수면 같은 순위
-        let currentRank = 1;
-        let prevScore = sortedUsers[0]?.cumulativeTournamentScore ?? 0;
-        for (let i = 0; i < sortedUsers.length; i++) {
-            const currentScore = sortedUsers[i].cumulativeTournamentScore || 0;
-            if (currentScore < prevScore) {
-                currentRank = i + 1;
-            }
-            if (sortedUsers[i].id === user.id) {
-                return currentRank;
-            }
-            prevScore = currentScore;
+
+    // 전략 바둑 / 놀이 바둑 티어+점수. 표시 점수 = 대기실과 동일한 현재 시즌점수(1200 + 차이)
+    const strategicTierInfo = useMemo(() => {
+        const dr = user.dailyRankings?.strategic;
+        let seasonScore: number; // 1200 기준 현재 시즌 점수 (대기실 표시와 동일)
+        let rank: number;
+        let totalGames = 0;
+        for (const m of SPECIAL_GAME_MODES) {
+            const s = user.stats?.[m.mode];
+            if (s) totalGames += (s.wins || 0) + (s.losses || 0);
         }
-        return null;
-    }, [allUsers, user.id]);
+        if (dr && typeof dr.rank === 'number') {
+            // dailyRankings.score는 1200에서의 차이(델타)로 저장됨 → 시즌점수 = 1200 + delta
+            const delta = typeof dr.score === 'number' ? dr.score : 0;
+            seasonScore = SEASON_BASE_SCORE + delta;
+            rank = dr.rank;
+        } else {
+            let sum = 0;
+            let count = 0;
+            for (const m of SPECIAL_GAME_MODES) {
+                const s = user.stats?.[m.mode];
+                if (s && typeof s.rankingScore === 'number') {
+                    sum += s.rankingScore;
+                    count++;
+                }
+            }
+            seasonScore = count > 0 ? sum / count : SEASON_BASE_SCORE;
+            rank = 9999;
+        }
+        const tier = getTier(seasonScore, rank, totalGames);
+        return { tier, score: Math.round(seasonScore) };
+    }, [user.dailyRankings?.strategic, user.stats]);
+
+    const playfulTierInfo = useMemo(() => {
+        const dr = user.dailyRankings?.playful;
+        let seasonScore: number;
+        let rank: number;
+        let totalGames = 0;
+        for (const m of PLAYFUL_GAME_MODES) {
+            const s = user.stats?.[m.mode];
+            if (s) totalGames += (s.wins || 0) + (s.losses || 0);
+        }
+        if (dr && typeof dr.rank === 'number') {
+            const delta = typeof dr.score === 'number' ? dr.score : 0;
+            seasonScore = SEASON_BASE_SCORE + delta;
+            rank = dr.rank;
+        } else {
+            let sum = 0;
+            let count = 0;
+            for (const m of PLAYFUL_GAME_MODES) {
+                const s = user.stats?.[m.mode];
+                if (s && typeof s.rankingScore === 'number') {
+                    sum += s.rankingScore;
+                    count++;
+                }
+            }
+            seasonScore = count > 0 ? sum / count : SEASON_BASE_SCORE;
+            rank = 9999;
+        }
+        const tier = getTier(seasonScore, rank, totalGames);
+        return { tier, score: Math.round(seasonScore) };
+    }, [user.dailyRankings?.playful, user.stats]);
 
     // equipment 필드와 inventory를 매칭하여 장착된 아이템 찾기
     const equippedItems = useMemo(() => {
@@ -308,16 +351,18 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                             </div>
                         </div>
 
-                        {leagueData && (
-                            <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col items-center text-center">
-                                <img src={leagueData.icon} alt={leagueData.name} className="w-12 h-12" />
-                                <h3 className="font-bold text-purple-300 mt-0.5 text-sm">{leagueData.name}</h3>
-                                <p className="text-xs text-gray-300 mt-0.5">누적 점수: {(user.cumulativeTournamentScore || 0).toLocaleString()} 점</p>
-                                {championshipRank !== null && (
-                                    <p className="text-xs text-yellow-300 mt-0.5">전체 순위: {championshipRank}위</p>
-                                )}
+                        <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col gap-2">
+                            <div className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-blue-900/30 border border-blue-700/50">
+                                <img src={strategicTierInfo.tier.icon} alt={strategicTierInfo.tier.name} className="w-8 h-8 flex-shrink-0" />
+                                <span className="text-xs text-blue-300 font-medium">전략 바둑</span>
+                                <span className={`text-sm font-semibold ml-auto ${strategicTierInfo.tier.color}`}>{strategicTierInfo.tier.name} {strategicTierInfo.score}점</span>
                             </div>
-                        )}
+                            <div className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-amber-900/30 border border-amber-700/50">
+                                <img src={playfulTierInfo.tier.icon} alt={playfulTierInfo.tier.name} className="w-8 h-8 flex-shrink-0" />
+                                <span className="text-xs text-amber-300 font-medium">놀이 바둑</span>
+                                <span className={`text-sm font-semibold ml-auto ${playfulTierInfo.tier.color}`}>{playfulTierInfo.tier.name} {playfulTierInfo.score}점</span>
+                            </div>
+                        </div>
 
                         <div className="bg-gray-800/50 rounded-lg p-3">
                             <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto mb-3">

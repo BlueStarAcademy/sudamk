@@ -86,6 +86,10 @@ export const useApp = () => {
             clearedSinglePlayerStages: patch.clearedSinglePlayerStages !== undefined ? patch.clearedSinglePlayerStages : base.clearedSinglePlayerStages,
             // singlePlayerMissions는 객체이므로 병합
             singlePlayerMissions: patch.singlePlayerMissions !== undefined ? { ...base.singlePlayerMissions, ...patch.singlePlayerMissions } : base.singlePlayerMissions,
+            // 챔피언십 토너먼트 상태(누적 보상 등)는 서버 응답으로 완전히 교체
+            lastNeighborhoodTournament: patch.lastNeighborhoodTournament !== undefined ? patch.lastNeighborhoodTournament : base.lastNeighborhoodTournament,
+            lastNationalTournament: patch.lastNationalTournament !== undefined ? patch.lastNationalTournament : base.lastNationalTournament,
+            lastWorldTournament: patch.lastWorldTournament !== undefined ? patch.lastWorldTournament : base.lastWorldTournament,
         };
         
         return merged;
@@ -1179,6 +1183,14 @@ export const useApp = () => {
                     showError(errorMessage);
                     return;
                 }
+                // COMPLETE_DUNGEON_STAGE: 서버가 { success, ...clientResponse } 형태로 보내므로 clientResponse 없이 flat하게 옴. updatedUser를 먼저 적용해 dungeonProgress(unlockedStages, stageResults 등) 반영 후 반환.
+                if (action.type === 'COMPLETE_DUNGEON_STAGE' && result && result.userRank != null) {
+                    const updatedUser = result.updatedUser || (result as any).clientResponse?.updatedUser;
+                    if (updatedUser) {
+                        applyUserUpdate(updatedUser, 'COMPLETE_DUNGEON_STAGE-http');
+                    }
+                    return result as HandleActionResult;
+                }
                 // 계가 요청 응답 처리
                 if (action.type === 'REQUEST_SCORING' && result.clientResponse?.scoringAnalysis) {
                     const { scoringAnalysis } = result.clientResponse;
@@ -1324,7 +1336,8 @@ export const useApp = () => {
                         'CRAFT_MATERIAL',
                         'EXPAND_INVENTORY',
                         'TOGGLE_EQUIP_ITEM',
-                        'MANNER_ACTION'
+                        'MANNER_ACTION',
+                        'START_GUILD_BOSS_BATTLE'
                     ];
                     const isInventoryCriticalAction = inventoryCriticalActions.includes(action.type);
                     
@@ -1399,7 +1412,8 @@ export const useApp = () => {
                         'CLAIM_QUEST_REWARD', 'CLAIM_ACTIVITY_MILESTONE',
                         'CLAIM_SINGLE_PLAYER_MISSION_REWARD', 'CLAIM_ALL_TRAINING_QUEST_REWARDS', 'LEVEL_UP_TRAINING_QUEST',
                         'SINGLE_PLAYER_REFRESH_PLACEMENT',
-                        'MANNER_ACTION'
+                        'MANNER_ACTION',
+                        'START_GUILD_BOSS_BATTLE'
                     ];
                     if (actionsThatShouldHaveUpdatedUser.includes(action.type)) {
                         console.warn(`[handleAction] ${action.type} - No updatedUser in response! Waiting for WebSocket update...`, {
@@ -1628,21 +1642,31 @@ export const useApp = () => {
                     console.log(`[handleAction] ${action.type} - gameId not in response, using payload gameId:`, effectiveGameId);
                 }
                 
-                // END_TOWER_GAME 액션 처리
-                if (action.type === 'END_TOWER_GAME') {
+                // END_TOWER_GAME / END_SINGLE_PLAYER_GAME 액션 처리 (서버 응답 병합 시 클라이언트 바둑판 상태 유지)
+                if (action.type === 'END_TOWER_GAME' || action.type === 'END_SINGLE_PLAYER_GAME') {
                     const endGameId = (action.payload as any)?.gameId || gameId;
                     const endGame = game || (result.clientResponse?.game);
                     
                     if (endGameId && endGame) {
                         console.log(`[handleAction] ${action.type} - Updating game with winner:`, { gameId: endGameId, winner: endGame.winner, gameStatus: endGame.gameStatus });
                         
+                        const preserveBoardFromExisting = (existing: typeof endGame, next: typeof endGame) => {
+                            const merged = { ...existing, ...next };
+                            const hasValidBoard = existing?.boardState && Array.isArray(existing.boardState) && existing.boardState.length > 0;
+                            if (hasValidBoard) {
+                                merged.boardState = existing.boardState;
+                                if (existing.moveHistory?.length) merged.moveHistory = existing.moveHistory;
+                                if (existing.blackPatternStones?.length) merged.blackPatternStones = existing.blackPatternStones;
+                                if (existing.whitePatternStones?.length) merged.whitePatternStones = existing.whitePatternStones;
+                            }
+                            return merged;
+                        };
+
                         if (endGame.gameCategory === 'tower') {
                             setTowerGames(currentGames => {
                                 const existingGame = currentGames[endGameId];
-                                // winner가 설정된 경우 항상 업데이트 (서버에서 설정한 정확한 winner 정보 사용)
                                 if (endGame.winner !== null && endGame.winner !== undefined) {
-                                    console.log(`[handleAction] ${action.type} - Updating tower game winner:`, { gameId: endGameId, winner: endGame.winner, existingWinner: existingGame?.winner });
-                                    return { ...currentGames, [endGameId]: { ...existingGame, ...endGame } };
+                                    return { ...currentGames, [endGameId]: preserveBoardFromExisting(existingGame ?? endGame, endGame) };
                                 }
                                 return currentGames;
                             });
@@ -1650,8 +1674,7 @@ export const useApp = () => {
                             setSinglePlayerGames(currentGames => {
                                 const existingGame = currentGames[endGameId];
                                 if (endGame.winner !== null && endGame.winner !== undefined) {
-                                    console.log(`[handleAction] ${action.type} - Updating single player game winner:`, { gameId: endGameId, winner: endGame.winner, existingWinner: existingGame?.winner });
-                                    return { ...currentGames, [endGameId]: { ...existingGame, ...endGame } };
+                                    return { ...currentGames, [endGameId]: preserveBoardFromExisting(existingGame ?? endGame, endGame) };
                                 }
                                 return currentGames;
                             });
@@ -1868,15 +1891,18 @@ export const useApp = () => {
                     return responseToReturn;
                 }
                 
-                // Handle JOIN_GUILD response
+                // Handle JOIN_GUILD response (자유가입 성공 시 즉시 상태 반영 - 모달 닫고 길드 홈 이동 전)
                 if (action.type === 'JOIN_GUILD' && result?.clientResponse?.guild) {
                     const guild = result.clientResponse.guild;
-                    if (guild && guild.id) {
-                        setGuilds(prev => ({ ...prev, [guild.id]: guild }));
-                    }
-                    if (result.clientResponse.updatedUser) {
-                        applyUserUpdate(result.clientResponse.updatedUser, 'JOIN_GUILD');
-                    }
+                    const updatedUser = result.clientResponse.updatedUser;
+                    flushSync(() => {
+                        if (guild?.id) {
+                            setGuilds(prev => ({ ...prev, [guild.id]: guild }));
+                        }
+                        if (updatedUser) {
+                            applyUserUpdate(updatedUser, 'JOIN_GUILD');
+                        }
+                    });
                 }
                 
                 // Handle LEAVE_GUILD / GUILD_LEAVE response
@@ -1911,13 +1937,12 @@ export const useApp = () => {
                 if (action.type === 'GET_GUILD_INFO' && result?.clientResponse?.guild) {
                     const guild = result.clientResponse.guild;
                     if (guild && guild.id) {
-                        console.log('[useApp] GET_GUILD_INFO - Updating guilds state:', {
-                            guildId: guild.id,
-                            guildName: guild.name,
-                            hasName: !!guild.name,
-                            guildKeys: Object.keys(guild)
-                        });
-                        setGuilds(prev => ({ ...prev, [guild.id]: guild }));
+                        const members = Array.isArray(guild.members) ? guild.members : [];
+                        const guildToStore = { ...guild, members };
+                        if (process.env.NODE_ENV === 'development' && members.length === 0) {
+                            console.warn('[useApp] GET_GUILD_INFO - Guild has no members:', { guildId: guild.id, guildName: guild.name });
+                        }
+                        setGuilds(prev => ({ ...prev, [guild.id]: guildToStore }));
                     } else {
                         console.warn('[useApp] GET_GUILD_INFO - Guild data invalid:', {
                             hasGuild: !!result?.clientResponse?.guild,
@@ -1928,15 +1953,13 @@ export const useApp = () => {
                 }
                 
                 // Handle other guild responses that might include guilds
-                // GET_GUILD_WAR_DATA는 무한루프 방지를 위해 guilds 업데이트 제외
-                if (action.type !== 'GET_GUILD_WAR_DATA') {
-                    if (result?.clientResponse?.guilds && typeof result.clientResponse.guilds === 'object') {
-                        setGuilds(prev => ({ ...prev, ...result.clientResponse.guilds }));
-                    }
-                    
-                    if (result?.guilds && typeof result.guilds === 'object') {
-                        setGuilds(prev => ({ ...prev, ...result.guilds }));
-                    }
+                // GET_GUILD_WAR_DATA도 guilds 병합 (guildWarMatching 등 매칭 상태 동기화 - broadcast 누락 시 대비)
+                if (result?.clientResponse?.guilds && typeof result.clientResponse.guilds === 'object') {
+                    setGuilds(prev => ({ ...prev, ...result.clientResponse.guilds }));
+                }
+                
+                if (result?.guilds && typeof result.guilds === 'object') {
+                    setGuilds(prev => ({ ...prev, ...result.guilds }));
                 }
                 
                 // Return result for actions that need it (preserve original structure)
@@ -2128,7 +2151,10 @@ export const useApp = () => {
                 if (otherData.gameModeAvailability !== undefined) setGameModeAvailability(otherData.gameModeAvailability || {});
                 if (otherData.announcementInterval !== undefined) setAnnouncementInterval(otherData.announcementInterval || 3);
                 if (otherData.homeBoardPosts !== undefined) setHomeBoardPosts(otherData.homeBoardPosts || []);
-                if (otherData.guilds !== undefined) setGuilds(otherData.guilds || {});
+                // 길드: INITIAL_STATE와 기존 상태 병합 (GET_GUILD_INFO 등으로 이미 가져온 데이터 우선)
+                if (otherData.guilds !== undefined) {
+                    setGuilds(prev => ({ ...(otherData.guilds || {}), ...prev }));
+                }
             }
         };
 
@@ -2994,13 +3020,21 @@ export const useApp = () => {
                                             towerGameSignaturesRef.current[gameId] = stableStringify(game);
                                         }
                                         
-                                        // 서명 비교는 이미 위에서 수행했으므로 여기서는 바로 업데이트
                                         const updatedGames = { ...currentGames };
-                                        updatedGames[gameId] = game;
+                                        let mergedGame = game;
+                                        // 종료된 게임의 GAME_UPDATE 시 클라이언트 바둑판 유지 (서버는 보드 미저장 가능)
+                                        if ((game.gameStatus === 'ended' || game.gameStatus === 'no_contest') && existingGame?.boardState &&
+                                            Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0) {
+                                            mergedGame = { ...game, boardState: existingGame.boardState };
+                                            if (existingGame.moveHistory?.length) mergedGame.moveHistory = existingGame.moveHistory;
+                                            if (existingGame.blackPatternStones?.length) mergedGame.blackPatternStones = existingGame.blackPatternStones;
+                                            if (existingGame.whitePatternStones?.length) mergedGame.whitePatternStones = existingGame.whitePatternStones;
+                                        }
+                                        updatedGames[gameId] = mergedGame;
 
-                                        if (currentUser && game.player1 && game.player2) {
-                                            const isPlayer1 = game.player1.id === currentUser.id;
-                                            const isPlayer2 = game.player2.id === currentUser.id;
+                                        if (currentUser && mergedGame.player1 && mergedGame.player2) {
+                                            const isPlayer1 = mergedGame.player1.id === currentUser.id;
+                                            const isPlayer2 = mergedGame.player2.id === currentUser.id;
                                             const currentStatus = currentUserStatusRef.current;
                                             const isActiveForGame = !!currentStatus &&
                                                 (currentStatus.gameId === gameId || currentStatus.spectatingGameId === gameId) &&
@@ -3032,7 +3066,19 @@ export const useApp = () => {
                                         }
                                         liveGameSignaturesRef.current[gameId] = signature;
                                         const updatedGames = { ...currentGames };
-                                        updatedGames[gameId] = game;
+                                        const existingGame = currentGames[gameId];
+                                        // 서버가 boardState를 생략했거나 비어 있으면 기존 보드 유지 (돌 사라짐 버그 방지)
+                                        let mergedGame: typeof game = game;
+                                        const hasExistingBoard = existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
+                                        const hasServerBoard = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 &&
+                                            game.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((c: any) => c !== 0 && c != null));
+                                        if (hasExistingBoard && !hasServerBoard) {
+                                            mergedGame = { ...game, boardState: existingGame.boardState };
+                                            if (existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0) {
+                                                mergedGame.moveHistory = existingGame.moveHistory;
+                                            }
+                                        }
+                                        updatedGames[gameId] = mergedGame;
 
                                         if (currentUser && game.player1 && game.player2) {
                                             const isPlayer1 = game.player1.id === currentUser.id;
@@ -3400,6 +3446,8 @@ export const useApp = () => {
                 window.location.hash = '#/profile';
                 return;
             }
+            // 길드 관련 페이지(#/guild, #/guildboss, #/guildwar)에서는 새로고침 시 해당 화면 유지
+            // (리다이렉트하지 않음 - GuildHome/GuildBoss/GuildWar에서 로딩 처리)
         }
         
         const isGamePage = currentHash.startsWith('#/game/');
@@ -3465,13 +3513,12 @@ export const useApp = () => {
                 return;
             }
             const userData = await response.json();
-            // 온라인 상태 확인
             const statusInfo = Array.isArray(onlineUsers) ? onlineUsers.find(u => u && u.id === userId) : null;
             setViewingUser({ 
                 ...userData, 
                 status: statusInfo?.status || UserStatus.Offline,
-                equipment: userData.equipment || {}, // 서버에서 받은 장비 정보 사용
-                inventory: [] // 인벤토리는 제외 (데이터 사용량 절약)
+                equipment: userData.equipment || {},
+                inventory: userData.inventory || [],
             } as UserWithStatus);
         } catch (error) {
             console.error(`[handleViewUser] Error fetching user ${userId}:`, error);

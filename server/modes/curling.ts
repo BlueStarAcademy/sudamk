@@ -226,7 +226,7 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                 game.rpsRound = undefined;
                 
                 // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                if (game.isAiGame && game.currentPlayer !== types.Player.None &&
+                if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) &&
                     (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId)) {
                     game.aiTurnStartTime = now;
                     console.log(`[updateCurlingState] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
@@ -306,7 +306,7 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                         game.turnStartTime = now;
                         console.log(`[updateCurlingState] Turn switched from ${previousPlayer} to ${game.currentPlayer} after stones stopped, game ${game.id}`);
                         // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                        if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                        if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                             const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                             if (currentPlayerId === aiUserId) {
                                 game.aiTurnStartTime = now;
@@ -359,7 +359,7 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                     game.turnStartTime = now;
                     
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                    if (game.isAiGame && game.currentPlayer !== types.Player.None &&
+                    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) &&
                         (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId)) {
                         game.aiTurnStartTime = now;
                         console.log(`[updateCurlingState] AI turn after round start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);

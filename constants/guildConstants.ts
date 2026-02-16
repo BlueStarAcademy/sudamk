@@ -191,6 +191,15 @@ export const GUILD_BOSS_DAMAGE_TIERS = {
     5: { min: 200000, max: Infinity },
 } as const;
 
+// 등급별 기여도 (딜량에 따라 차등)
+export const GUILD_BOSS_CONTRIBUTION_BY_TIER: Record<1 | 2 | 3 | 4 | 5, number> = {
+    1: 5,
+    2: 10,
+    3: 15,
+    4: 25,
+    5: 40,
+};
+
 // 등급별 보상 (100% 확률)
 export const GUILD_BOSS_REWARDS_BY_TIER = {
     1: {

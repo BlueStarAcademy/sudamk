@@ -80,6 +80,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   komi: DEFAULT_KOMI,
   player1Color: Player.Black,
   aiDifficulty: 1,
+  goAiBotLevel: 5, // Gnugo 레벨 1~10 (전략바둑 AI)
 };
 
 // --- Dice Go Settings ---

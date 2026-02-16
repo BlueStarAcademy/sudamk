@@ -21,7 +21,7 @@ const ChampionshipHelpModal: React.FC<ChampionshipHelpModalProps> = ({ onClose, 
                                 각 단계에서 봇들과 리그/토너먼트를 진행하여 순위를 결정합니다.
                             </p>
                             <p className="text-sm mb-2">
-                                <strong className="text-yellow-400">다음 단계 언락 조건:</strong> 해당 단계에서 3등 이상 달성 시 다음 단계가 열립니다.
+                                <strong className="text-yellow-400">다음 단계 언락 조건:</strong> 동네바둑리그, 전국바둑대회, 월드챔피언십 모두 <strong>1~3위</strong>를 달성하면 해당 단계 클리어로 인정되며 다음 단계가 열립니다.
                             </p>
                         </div>
                     </div>

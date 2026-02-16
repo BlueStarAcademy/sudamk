@@ -30,7 +30,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
             onClick={disabled ? undefined : onClick}
             disabled={disabled}
             title={title}
-            className={`relative w-12 h-12 rounded-lg border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
+            className={`relative w-14 h-14 rounded-lg border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
         >
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1" />
             {/* 개수 표시 우측 하단 (옵션) */}
@@ -59,7 +59,7 @@ const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, di
             onClick={disabled ? undefined : onClick}
             disabled={disabled}
             title={title}
-            className={`relative w-16 h-16 rounded-lg border-2 border-amber-400 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
+            className={`relative w-[72px] h-[72px] rounded-lg border-2 border-amber-400 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
         >
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1.5" />
             {/* 개수 표시 우측 하단 */}
@@ -182,7 +182,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         const currentStageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === session.stageId);
         const currentStage = SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
         const nextStage = SINGLE_PLAYER_STAGES[currentStageIndex + 1];
-        const canTryNext = isWinner && nextStage && (currentUser.singlePlayerProgress ?? 0) > currentStageIndex;
+        // 클리어 직후에는 singlePlayerProgress가 아직 서버/웹소켓으로 반영되지 않았을 수 있으므로,
+        // 이번 게임에서 이겼으면(isWinner) 다음 단계 버튼을 활성화
+        const canTryNext = isWinner && !!nextStage;
         
         const retryActionPointCost = currentStage?.actionPointCost ?? 0;
         const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;
@@ -269,7 +271,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     }
 
     return (
-        <div className="bg-stone-800/70 backdrop-blur-sm rounded-xl p-3 flex items-stretch justify-between gap-4 w-full h-full border border-stone-700/50">
+        <div className="bg-stone-800/70 backdrop-blur-sm rounded-xl p-3 flex items-stretch justify-between gap-4 w-full h-[148px] border border-stone-700/50">
             {/* Left group: 기권, 배치 새로고침 (대국 기능) - 가운데 정렬 */}
             <div className="flex-1 flex items-center justify-center gap-6">
                 <div className="flex flex-col items-center gap-1">

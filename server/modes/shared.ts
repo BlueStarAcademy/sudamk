@@ -40,7 +40,7 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
     game.preGameConfirmations = {};
     
     // AI 게임인 경우 첫 턴이 AI면 aiTurnStartTime 설정
-    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
         if (currentPlayerId === aiUserId) {
             game.aiTurnStartTime = now;

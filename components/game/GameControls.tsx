@@ -630,9 +630,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const currentStageIndex = stageId ? SINGLE_PLAYER_STAGES.findIndex(s => s.id === stageId) : -1;
         const currentStage = stageId ? SINGLE_PLAYER_STAGES.find(s => s.id === stageId) : undefined;
         const nextStage = currentStageIndex >= 0 ? SINGLE_PLAYER_STAGES[currentStageIndex + 1] : undefined;
-        const highestClearedStageIndex = currentUser.singlePlayerProgress ?? -1;
         const isWinner = session.winner === Player.Black;
-        const canTryNextStage = !!nextStage && isWinner && highestClearedStageIndex >= currentStageIndex;
+        // 클리어 직후에는 singlePlayerProgress가 아직 반영되지 않았을 수 있으므로, 이번 게임에서 이겼으면 다음 단계 허용
+        const canTryNextStage = !!nextStage && isWinner;
         
         const retryActionPointCost = currentStage?.actionPointCost ?? 0;
         const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;

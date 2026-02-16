@@ -623,19 +623,16 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 const numToRoman: Record<string, string> = {
                     '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
                 };
-                
-                let normalized = name;
-                // 장비상자/재료상자 숫자를 로마숫자로 변환
+                let normalized = (name || '').replace(/\s+/g, ' ').trim();
                 normalized = normalized.replace(/장비상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/재료상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/장비 상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/재료 상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/장비 상자 (\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/재료 상자 (\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                
                 return normalized.trim();
             };
-            
+
             normalizedItemName = normalizeItemNameForShop(item.name);
             let shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === item.name);
             if (!shopItemKey) {
@@ -723,19 +720,16 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 const numToRoman: Record<string, string> = {
                     '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
                 };
-                
-                let normalized = name;
-                // 장비상자/재료상자 숫자를 로마숫자로 변환
+                let normalized = (name || '').replace(/\s+/g, ' ').trim();
                 normalized = normalized.replace(/장비상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/재료상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/장비 상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/재료 상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/장비 상자 (\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
                 normalized = normalized.replace(/재료 상자 (\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                
                 return normalized.trim();
             };
-            
+
             const normalizedItemName = normalizeItemNameForShop(itemName);
             
             // 인벤토리에서 아이템 찾기 (원본 이름과 정규화된 이름 모두 시도)

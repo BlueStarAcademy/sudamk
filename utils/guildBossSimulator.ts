@@ -45,7 +45,7 @@ const calculateBossRewards = (damage: number): {
     const damageRatio = Math.min(1, damage / (GUILD_BOSS_DAMAGE_TIERS[5].min || 200000));
     const guildXp = Math.floor(guildXpRange[0] + (guildXpRange[1] - guildXpRange[0]) * damageRatio);
     
-    // 랜덤 보상 계산
+    // 랜덤 보상 계산 (개인 추가 길드 코인은 서버에서 추가하여 모달에 반영)
     const guildCoins = getRandom(tierRewards.guildCoins[0], tierRewards.guildCoins[1]);
     const researchPoints = getRandom(tierRewards.researchPoints[0], tierRewards.researchPoints[1]);
     const gold = getRandom(tierRewards.gold[0], tierRewards.gold[1]);

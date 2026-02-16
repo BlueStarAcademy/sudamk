@@ -790,6 +790,101 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 };
             }
         }
+
+        case 'ADMIN_RESET_ALL_TOURNAMENT_SESSIONS': {
+            const { targetUserId } = payload as { targetUserId: string };
+            const tournamentTypes: TournamentType[] = ['neighborhood', 'national', 'world'];
+            for (const tournamentType of tournamentTypes) {
+                const targetUser = await getCachedUser(targetUserId) || await db.getUser(targetUserId);
+                if (!targetUser) return { error: '대상 사용자를 찾을 수 없습니다.' };
+
+                let stateKey: keyof types.User;
+                let playedDateKey: keyof types.User;
+                switch (tournamentType) {
+                    case 'neighborhood': stateKey = 'lastNeighborhoodTournament'; playedDateKey = 'lastNeighborhoodPlayedDate'; break;
+                    case 'national': stateKey = 'lastNationalTournament'; playedDateKey = 'lastNationalPlayedDate'; break;
+                    case 'world': stateKey = 'lastWorldTournament'; playedDateKey = 'lastWorldPlayedDate'; break;
+                    default: continue;
+                }
+                (targetUser as any)[stateKey] = null;
+                (targetUser as any)[playedDateKey] = 0;
+                if (volatileState.activeTournaments?.[targetUserId]?.type === tournamentType) {
+                    delete volatileState.activeTournaments[targetUserId];
+                }
+                invalidateUserCache(targetUserId);
+                removeUserFromCache(targetUserId);
+                await db.updateUser(targetUser);
+
+                const definition = TOURNAMENT_DEFINITIONS[tournamentType];
+                if (!definition) continue;
+                const freshUser = await getCachedUser(targetUserId) || await db.getUser(targetUserId);
+                if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
+                const allUsers = await db.getAllUsers();
+                const myLeague = freshUser.league;
+                const myId = freshUser.id;
+                const potentialOpponents = allUsers.filter(u => u.id !== myId && u.league === myLeague).sort(() => 0.5 - Math.random());
+                const neededOpponents = definition.players - 1;
+                const selectedOpponents = potentialOpponents.slice(0, neededOpponents);
+                const botsToCreate = neededOpponents - selectedOpponents.length;
+                const botNames = [...BOT_NAMES].sort(() => 0.5 - Math.random());
+                const { createBotUser } = await import('./tournamentActions.js');
+                const botUsers: types.User[] = [];
+                for (let i = 0; i < botsToCreate; i++) {
+                    const botName = botNames[i % botNames.length];
+                    const botAvatar = AVATAR_POOL[Math.floor(Math.random() * AVATAR_POOL.length)];
+                    const botBorder = BORDER_POOL[Math.floor(Math.random() * BORDER_POOL.length)];
+                    const botId = `bot-${botName}-${i}`;
+                    const botUser = createBotUser(myLeague, tournamentType, botId, botName, botAvatar, botBorder);
+                    botUsers.push(botUser);
+                    selectedOpponents.push({ id: botId, nickname: botName, avatarId: botAvatar.id, borderId: botBorder.id, league: myLeague } as any);
+                }
+                const now = Date.now();
+                const todayStartKST = getStartOfDayKST(now);
+                const participants: types.PlayerForTournament[] = [freshUser, ...selectedOpponents].map(p => {
+                    let initialStats: Record<CoreStat, number>;
+                    if (p.id.startsWith('bot-')) {
+                        const botUser = botUsers.find(b => b.id === p.id);
+                        if (botUser) initialStats = calculateTotalStats(botUser);
+                        else {
+                            const baseStatValue = 100;
+                            const stats: Partial<Record<CoreStat, number>> = {};
+                            for (const key of Object.values(CoreStat)) { stats[key] = baseStatValue; }
+                            initialStats = stats as Record<CoreStat, number>;
+                        }
+                    } else {
+                        const realUser = allUsers.find((u: any) => u.id === p.id);
+                        if (realUser) initialStats = calculateTotalStats(realUser);
+                        else {
+                            const baseStatValue = 100;
+                            const stats: Partial<Record<CoreStat, number>> = {};
+                            for (const key of Object.values(CoreStat)) { stats[key] = baseStatValue; }
+                            initialStats = stats as Record<CoreStat, number>;
+                        }
+                    }
+                    return { id: p.id, nickname: p.nickname, avatarId: p.avatarId, borderId: p.borderId, league: p.league, stats: JSON.parse(JSON.stringify(initialStats)), originalStats: initialStats, wins: 0, losses: 0, condition: 1000, statsTimestamp: todayStartKST };
+                });
+                const allParticipantsShuffled = [...participants].sort(() => 0.5 - Math.random());
+                if (!allParticipantsShuffled.find(p => p.id === freshUser.id)) {
+                    allParticipantsShuffled.unshift(participants.find(p => p.id === freshUser.id)!);
+                }
+                const newState = tournamentService.createTournament(tournamentType, freshUser, allParticipantsShuffled);
+                (freshUser as any)[stateKey] = newState;
+                (freshUser as any)[playedDateKey] = now;
+                await db.updateUser(freshUser);
+                updateUserCache(freshUser);
+                if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+                volatileState.activeTournaments[targetUserId] = newState;
+                await createAdminLog(user, 'reset_tournament_session', targetUser, { tournamentType });
+            }
+            const latestUser = await getCachedUser(targetUserId) || await db.getUser(targetUserId);
+            if (latestUser) {
+                const updatedUserCopy = JSON.parse(JSON.stringify(latestUser));
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(updatedUserCopy, ['lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress']);
+                return { clientResponse: { message: '동네바둑리그, 전국바둑대회, 월드챔피언십 모든 경기장이 초기화 및 재매칭되었습니다.', updatedUser: updatedUserCopy } };
+            }
+            return { error: '사용자를 찾을 수 없습니다.' };
+        }
         
         case 'ADMIN_RESET_DUNGEON_PROGRESS': {
             const { targetUserId, dungeonType } = payload as { targetUserId: string; dungeonType?: TournamentType };
@@ -903,6 +998,74 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 clientResponse: {
                     message: '챔피언십 관련 모든 데이터가 초기화되었습니다.',
                     updatedUser: updatedUserCopy
+                }
+            };
+        }
+
+        case 'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP': {
+            db.invalidateUserCache('');
+            const { invalidateRankingCache } = await import('../rankingCache.js');
+            invalidateRankingCache();
+            const prisma = (await import('../prismaClient.js')).default;
+            const rows = await prisma.user.findMany({ select: { id: true, status: true } });
+            const now = Date.now();
+            const initialDungeonProgress = {
+                neighborhood: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
+                national: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
+                world: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
+            };
+            if (volatileState.activeTournaments) {
+                volatileState.activeTournaments = {};
+            }
+            let updatedCount = 0;
+            for (const row of rows) {
+                const status = row.status as Record<string, unknown> | null;
+                const updatedStatus = status ? JSON.parse(JSON.stringify(status)) : {};
+                if (updatedStatus.leagueMetadata && typeof updatedStatus.leagueMetadata === 'object') {
+                    (updatedStatus.leagueMetadata as Record<string, unknown>).cumulativeTournamentScore = 0;
+                }
+                if (updatedStatus.serializedUser && typeof updatedStatus.serializedUser === 'object') {
+                    (updatedStatus.serializedUser as Record<string, unknown>).cumulativeTournamentScore = 0;
+                }
+                await prisma.user.update({
+                    where: { id: row.id },
+                    data: { tournamentScore: 0, status: updatedStatus as object }
+                });
+                invalidateUserCache(row.id);
+                removeUserFromCache(row.id);
+                updatedCount++;
+            }
+            const allUsers = await db.getAllUsers();
+            for (const targetUser of allUsers) {
+                targetUser.dungeonProgress = JSON.parse(JSON.stringify(initialDungeonProgress));
+                targetUser.lastNeighborhoodTournament = null;
+                targetUser.lastNationalTournament = null;
+                targetUser.lastWorldTournament = null;
+                targetUser.lastNeighborhoodPlayedDate = 0;
+                targetUser.lastNationalPlayedDate = 0;
+                targetUser.lastWorldPlayedDate = 0;
+                targetUser.neighborhoodRewardClaimed = false;
+                targetUser.nationalRewardClaimed = false;
+                targetUser.worldRewardClaimed = false;
+                targetUser.cumulativeTournamentScore = 0;
+                targetUser.tournamentScore = 0;
+                targetUser.yesterdayTournamentScore = 0;
+                if (targetUser.dailyRankings) {
+                    (targetUser.dailyRankings as any).championship = { rank: 0, score: 0, lastUpdated: now };
+                } else {
+                    (targetUser as any).dailyRankings = { championship: { rank: 0, score: 0, lastUpdated: now } };
+                }
+                if ((targetUser as any).dailyDungeonScore !== undefined) (targetUser as any).dailyDungeonScore = 0;
+                await db.updateUser(targetUser);
+                updateUserCache(targetUser);
+            }
+            invalidateRankingCache();
+            await createAdminLog(user, 'reset_championship_all', { id: 'all', nickname: '전체 유저' }, { updatedCount, totalUsers: rows.length });
+            return {
+                clientResponse: {
+                    message: `전체 유저 챔피언십이 초기화되었습니다. (${updatedCount}명). 챔피언십 랭킹 보드는 새로고침 시 반영됩니다.`,
+                    updatedCount,
+                    totalUsers: rows.length
                 }
             };
         }

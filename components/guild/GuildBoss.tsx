@@ -6,7 +6,7 @@ import Button from '../Button.js';
 import GuildHomePanel from './GuildHomePanel.js';
 import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
-import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS } from '../../constants/index.js';
+import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import GuildResearchPanel from './GuildResearchPanel.js';
 import GuildMissionsPanel from './GuildMissionsPanel.js';
@@ -589,7 +589,7 @@ const GuildBoss: React.FC = () => {
                 }
                 
                 // 보스전 후 순위 계산
-                const updatedGuild = (actionResult as any)?.clientResponse?.guilds?.[myGuild.id] || myGuild;
+                const updatedGuild = (actionResult as any)?.clientResponse?.guilds?.[myGuild?.id ?? ''] || myGuild;
                 const updatedRanking = Object.entries(updatedGuild?.guildBossState?.totalDamageLog || {})
                     .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
                     .sort((a, b) => b.damage - a.damage);
@@ -707,13 +707,11 @@ const GuildBoss: React.FC = () => {
         const fullRanking = Object.entries(damageLog)
             .map(([userId, damage]: [string, any]) => {
                 let member = myGuild.members?.find((m: GuildMember) => m.userId === userId);
-                
-                // Workaround for admin user ID mismatch
-                if (!member && currentUserWithStatus?.id === 'user-admin-static-id' && userId === 'user-admin-static-id') {
-                    member = myGuild.members?.find((m: GuildMember) => m.nickname === '관리자');
+                if (!member && userId === ADMIN_USER_ID) {
+                    member = myGuild.members?.find((m: GuildMember) => m.nickname === ADMIN_NICKNAME);
                 }
-
-                return { userId, nickname: member?.nickname || '알 수 없음', damage: typeof damage === 'number' ? damage : 0 };
+                const nickname = member?.nickname || (userId === ADMIN_USER_ID ? ADMIN_NICKNAME : '알 수 없음');
+                return { userId, nickname, damage: typeof damage === 'number' ? damage : 0 };
             })
             .sort((a, b) => b.damage - a.damage);
             

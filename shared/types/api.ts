@@ -246,8 +246,10 @@ export type ServerAction =
     | { type: 'ADMIN_APPLY_GUILD_SANCTION', payload: { guildId: string; sanctionType: 'recruitment'; durationHours: number } }
     | { type: 'ADMIN_DELETE_GUILD', payload: { guildId: string } }
     | { type: 'ADMIN_RESET_TOURNAMENT_SESSION', payload: { targetUserId: string; tournamentType: TournamentType } }
+    | { type: 'ADMIN_RESET_ALL_TOURNAMENT_SESSIONS', payload: { targetUserId: string } }
     | { type: 'ADMIN_RESET_DUNGEON_PROGRESS', payload: { targetUserId: string; dungeonType?: TournamentType } }
     | { type: 'ADMIN_RESET_CHAMPIONSHIP_ALL', payload: { targetUserId: string } }
+    | { type: 'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP', payload?: Record<string, never> }
     | { type: 'ADMIN_CLEAR_USER_GUILD', payload: { targetUserId: string } }
     | { type: 'ADMIN_CREATE_HOME_BOARD_POST', payload: { title: string; content: string; isPinned: boolean } }
     | { type: 'ADMIN_UPDATE_HOME_BOARD_POST', payload: { postId: string; title: string; content: string; isPinned: boolean } }
@@ -314,8 +316,8 @@ export type ServerAction =
     | { type: 'GET_GUILD_WAR_DATA', payload?: never }
     | { type: 'START_GUILD_WAR_GAME', payload: { boardId: string } }
     | { type: 'DONATE_TO_GUILD', payload: { amount?: number; itemId?: string } }
-    | { type: 'GUILD_DONATE_GOLD', payload?: never }
-    | { type: 'GUILD_DONATE_DIAMOND', payload?: never }
+    | { type: 'GUILD_DONATE_GOLD', payload?: { count?: number } }
+    | { type: 'GUILD_DONATE_DIAMOND', payload?: { count?: number } }
     | { type: 'PURCHASE_GUILD_SHOP_ITEM', payload: { shopItemId: string } }
     | { type: 'GUILD_BUY_SHOP_ITEM', payload: { shopItemId: string; itemId?: string; quantity?: number } }
     | { type: 'GUILD_CHECK_IN', payload?: never }

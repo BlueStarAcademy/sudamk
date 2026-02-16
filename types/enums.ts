@@ -181,6 +181,7 @@ export type TournamentSimulationStatus =
   | 'idle'
   | 'enrolled'
   | 'bracket_ready'
+  | 'round_ready' // 자동 시작 대기 중 (컨디션 회복제 사용 불가)
   | 'round_in_progress'
   | 'round_complete'
   | 'eliminated'

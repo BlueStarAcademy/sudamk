@@ -111,6 +111,8 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
     const [viewportWidth, setViewportWidth] = useState<number | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    // 게이지 애니메이션: 처음엔 이전 퍼센트로 고정 후, 다음 프레임에 최종 퍼센트로 전환해 CSS transition으로 차오르게 함
+    const [xpGaugePercent, setXpGaugePercent] = useState<number | null>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -313,8 +315,21 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const xpChange = displaySummary?.xp?.change ?? summary?.xp?.change ?? 0;
     const previousXp = Math.max(0, clampedXp - xpChange);
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
-    const xpChangePercent = Math.min(100 - previousXpPercent, (xpChange / (xpRequirement || 1)) * 100);
     const xpPercent = Math.min(100, (clampedXp / (xpRequirement || 1)) * 100);
+
+    // 게이지 애니메이션: XP 섹션이 보일 때 처음엔 이전 값으로 세팅 후 다음 프레임에 최종 값으로 전환
+    const showXpSection = !!(displaySummary?.xp || summary?.xp);
+    useEffect(() => {
+        if (!showXpSection) {
+            setXpGaugePercent(null);
+            return;
+        }
+        setXpGaugePercent(previousXpPercent);
+        const t = requestAnimationFrame(() => {
+            requestAnimationFrame(() => setXpGaugePercent(xpPercent));
+        });
+        return () => cancelAnimationFrame(t);
+    }, [showXpSection, previousXpPercent, xpPercent]);
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
     const modalTitle = (!analysisResult && isScoring)
@@ -326,6 +341,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const isMobile = isMobileView;
     const mobileTextScale = isMobileView ? 1.2 : 1.15;
 
+    // 좌/우 패널 균등 분할, 오른쪽 불필요한 여백 제거
+    const panelSizing = isMobile ? 'min-w-0 flex-1' : 'min-w-0 flex-1 basis-0';
+
     return (
         <DraggableWindow 
             title={modalTitle}
@@ -333,7 +351,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             windowId="tower-summary-redesigned"
             initialWidth={900}
         >
-            <div className={`text-white ${isMobile ? 'text-sm' : 'text-[clamp(0.875rem,2.5vw,1.125rem)]'} flex flex-col ${isMobile ? 'max-h-[85vh]' : 'h-full'} overflow-y-auto`}>
+            <div className={`text-white ${isMobile ? 'text-sm' : 'text-[clamp(0.875rem,2.5vw,1.125rem)]'} flex flex-col ${isMobile ? 'max-h-[85vh]' : 'h-full'} overflow-y-auto w-full`}>
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
                     <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
@@ -351,9 +369,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </h1>
                 )}
                 
-                <div className={`flex flex-row gap-1.5 sm:gap-2 overflow-hidden flex-1 min-h-0`}>
+                <div className={`flex flex-row gap-1.5 sm:gap-2 overflow-hidden flex-1 min-h-0 min-w-0`}>
                     {/* Left Panel: 경기 결과 */}
-                    <div className={`w-1/2 bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg overflow-y-auto flex flex-col sp-summary-left-panel`}>
+                    <div className={`${panelSizing} bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg overflow-y-auto flex flex-col sp-summary-left-panel`}>
                         <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-1 sm:mb-2 border-b border-gray-700 pb-0.5 sm:pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>경기 결과</h2>
                         <div className="flex-1 min-h-0 flex flex-col gap-1.5">
                             {/* 경기 정보 */}
@@ -394,9 +412,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </div>
                     
                     {/* Right Panel: 획득 보상 */}
-                    <div className={`w-1/2 bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg overflow-y-auto flex flex-col`}>
+                    <div className={`${panelSizing} bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg overflow-y-auto flex flex-col min-w-0`}>
                         <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-1 sm:mb-2 border-b border-gray-700 pb-0.5 sm:pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>획득 보상</h2>
-                        <div className="flex-1 min-h-0 flex flex-col gap-1.5">
+                        <div className="flex-1 min-h-0 min-w-0 flex flex-col gap-1.5">
                             {/* 유저 프로필 */}
                             <div className={`${isMobile ? 'p-1' : 'p-1.5'} bg-gray-800/50 rounded-lg flex items-center gap-1.5 flex-shrink-0`}>
                                 <Avatar
@@ -414,25 +432,15 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 </div>
                             </div>
                             
-                            {/* 경험치 표시 */}
+                            {/* 경험치 표시: 막대는 항상 고정, 안쪽 게이지만 차오르는 애니메이션 */}
                             {(displaySummary?.xp || summary?.xp) && (
                                 <div className={`${isMobile ? 'p-1' : 'p-1.5'} bg-gray-800/50 rounded-lg space-y-0.5 flex-shrink-0`}>
-                                    <div className="w-full bg-gray-800/70 border border-gray-700/70 rounded-full h-2.5 overflow-hidden relative">
-                                        {/* 이전 경험치 */}
+                                    <div className="w-full bg-gray-700/80 border border-gray-600 rounded-full h-2.5 overflow-hidden relative">
+                                        {/* 단일 게이지: width만 transition으로 변경되어 차오름 */}
                                         <div
-                                            className="h-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-all duration-700 ease-out absolute left-0 top-0"
-                                            style={{ width: `${previousXpPercent}%` }}
+                                            className="h-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 rounded-full transition-[width] duration-700 ease-out"
+                                            style={{ width: `${xpGaugePercent !== null ? xpGaugePercent : xpPercent}%` }}
                                         />
-                                        {/* 증가한 경험치 */}
-                                        {xpChange > 0 && (
-                                            <div
-                                                className="h-full bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 transition-all duration-700 ease-out absolute left-0 top-0"
-                                                style={{ 
-                                                    width: `${xpChangePercent}%`,
-                                                    left: `${previousXpPercent}%`
-                                                }}
-                                            />
-                                        )}
                                     </div>
                                     <div className="flex items-center justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
                                         <span className="font-mono text-gray-300">
@@ -451,7 +459,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             {displaySummary ? (
                                 <>
                                     {((displaySummary.gold ?? 0) > 0 || (displaySummary.xp?.change ?? 0) > 0 || (displaySummary.items && displaySummary.items.length > 0)) ? (
-                                        <div className="flex gap-1.5 justify-center items-stretch flex-wrap">
+                                        <div className="flex gap-1.5 justify-start items-stretch flex-wrap w-full">
                                             {/* Gold Reward */}
                                             {(displaySummary.gold ?? 0) > 0 && (
                                                 <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>

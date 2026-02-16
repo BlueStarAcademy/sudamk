@@ -499,14 +499,25 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             
             const dungeonProgress = freshUser.dungeonProgress[tournamentType];
             
-            // 토너먼트 완료 시 다음 단계 언락 조건: 1~3등 달성 시 (cleared 조건과 독립적으로 처리)
-            // currentStageAttempt가 없으므로 currentStage를 기준으로 함
-            const currentStage = dungeonProgress.currentStage || 1;
-            const cleared = userRank <= 6; // 6등 이내면 클리어로 간주
+            // 토너먼트 완료 시 클리어/다음 단계: 1~3등 달성 시 클리어로 간주 (모든 챔피언십 공통)
+            const stageJustCompleted = (tournamentState as any).currentStageAttempt as number | undefined;
+            const currentStage = typeof stageJustCompleted === 'number' && stageJustCompleted >= 1 ? stageJustCompleted : dungeonProgress.currentStage || 1;
+            const cleared = userRank <= 3;
             
             if (cleared) {
-                if (currentStage > dungeonProgress.currentStage) {
+                if (currentStage > (dungeonProgress.currentStage ?? 0)) {
                     dungeonProgress.currentStage = currentStage;
+                }
+                // 클리어 표시(드롭다운 등)를 위해 stageResults에 반영 (방금 완료한 단계 번호가 있을 때만)
+                if (typeof stageJustCompleted === 'number' && stageJustCompleted >= 1) {
+                    if (!dungeonProgress.stageResults) dungeonProgress.stageResults = {};
+                    const entry = dungeonProgress.stageResults[stageJustCompleted] ?? (dungeonProgress.stageResults as Record<string, { cleared?: boolean; scoreDiff?: number; clearTime?: number }>)[String(stageJustCompleted)];
+                    if (!entry) {
+                        (dungeonProgress.stageResults as Record<number, { cleared: boolean; scoreDiff: number; clearTime: number }>)[stageJustCompleted] = { cleared: true, scoreDiff: 0, clearTime: Date.now() };
+                    } else {
+                        (entry as { cleared?: boolean }).cleared = true;
+                        if ('clearTime' in entry) (entry as { clearTime?: number }).clearTime = Date.now();
+                    }
                 }
             }
             
@@ -523,6 +534,10 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             } else {
                 console.log(`[CLAIM_TOURNAMENT_REWARD] Stage unlock condition not met: userRank=${userRank}, currentStage=${currentStage}, need: userRank 1-3 and currentStage < 10`);
             }
+            // unlockedStages 보정: currentStage까지 클리어했으면 1..currentStage+1 모두 열려 있어야 함
+            const cs = Math.min(10, Math.max(0, Number(dungeonProgress.currentStage) ?? 0));
+            const upToNext = Array.from({ length: Math.min(cs + 1, 10) }, (_, i) => i + 1);
+            dungeonProgress.unlockedStages = [...new Set([...(dungeonProgress.unlockedStages || []), ...upToNext])].filter((s: number) => s >= 1 && s <= 10).sort((a: number, b: number) => a - b);
             
             const itemReward = itemRewardInfo.rewards?.[itemRewardKey];
 

@@ -1179,7 +1179,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 <GuildJoinModal
                     onClose={() => setIsGuildJoinModalOpen(false)}
                     onSuccess={async (guild: Guild) => {
-                        // 길드 가입 성공 시 길드 홈 페이지로 이동 (모달은 GuildJoinModal에서 닫음)
+                        setIsGuildJoinModalOpen(false);
                         window.location.hash = '#/guild';
                     }}
                 />

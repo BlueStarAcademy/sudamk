@@ -1,7 +1,7 @@
 import { TournamentState, PlayerForTournament, CoreStat, CommentaryLine, Match, User, Round, TournamentType, TournamentSimulationStatus } from '../shared/types/index.js';
 import { calculateTotalStats } from './statService.js';
 import { randomUUID } from 'crypto';
-import { TOURNAMENT_DEFINITIONS, NEIGHBORHOOD_MATCH_REWARDS, NATIONAL_MATCH_REWARDS, WORLD_MATCH_REWARDS, DUNGEON_STAGE_BOT_STATS, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT } from '../shared/constants';
+import { TOURNAMENT_DEFINITIONS, NEIGHBORHOOD_MATCH_REWARDS, NATIONAL_MATCH_REWARDS, WORLD_MATCH_REWARDS, DUNGEON_STAGE_BOT_STATS, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, getDungeonMatchGoldReward, getDungeonMatchMaterialReward, getDungeonMatchEquipmentGrade } from '../shared/constants';
 
 const EARLY_GAME_DURATION = 15;
 const MID_GAME_DURATION = 20;
@@ -365,43 +365,35 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
     // 던전 모드: 모든 경기를 자동진행
     console.log(`[processMatchCompletion] Championship dungeon mode, processing auto-advance logic`);
         
-        // 단계별 기본 보상 누적
+        // 단계별 범위 보상 누적 (승리/패배 구분, 랜덤)
         if (completedMatch.isUserMatch && completedMatch.winner) {
             const stage = state.currentStageAttempt || 1;
+            const isWin = completedMatch.winner.id === user.id;
             
-            // 골드 보상 누적
-            const goldReward = DUNGEON_STAGE_BASE_REWARDS_GOLD[stage] || 0;
-            if (goldReward > 0) {
-                if (!state.accumulatedGold) {
-                    state.accumulatedGold = 0;
-                }
-                state.accumulatedGold += goldReward;
+            // 동네바둑리그: 골드 범위 (승 80~150/패 40~75 @1단계 → 승 1000~3000/패 500~1500 @10단계)
+            if (state.type === 'neighborhood') {
+                if (!state.accumulatedGold) state.accumulatedGold = 0;
+                if (!state.matchGoldRewards) state.matchGoldRewards = [];
+                const gold = getDungeonMatchGoldReward(stage, isWin);
+                state.accumulatedGold += gold;
+                state.matchGoldRewards.push(gold);
             }
             
-            // 재료 보상 누적 (전국바둑대회, 월드챔피언십)
-            if (state.type === 'national' || state.type === 'world') {
-                const materialReward = DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage];
-                if (materialReward) {
-                    if (!state.accumulatedMaterials) {
-                        state.accumulatedMaterials = {};
-                    }
-                    const currentQuantity = state.accumulatedMaterials[materialReward.materialName] || 0;
-                    state.accumulatedMaterials[materialReward.materialName] = currentQuantity + materialReward.quantity;
+            // 전국바둑대회: 재료 범위 (1단계 하급 6~14 등), 8강/4강/결승(또는 3·4위전) 각각 더미로 표시
+            if (state.type === 'national') {
+                if (!state.accumulatedMaterials) state.accumulatedMaterials = {};
+                if (!state.matchMaterialRewards) state.matchMaterialRewards = [];
+                const added = getDungeonMatchMaterialReward(stage, isWin);
+                for (const [name, qty] of Object.entries(added)) {
+                    state.accumulatedMaterials[name] = (state.accumulatedMaterials[name] || 0) + qty;
                 }
+                state.matchMaterialRewards.push({ ...added });
             }
             
-            // 장비상자 보상 누적 (월드챔피언십)
+            // 월드챔피언십: 장비 드롭 등급 누적 (1단계 승 일반75/희귀25, 패 일반100; 10단계 승 희귀/에픽/전설/신화)
             if (state.type === 'world') {
-                const equipmentReward = DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage];
-                if (equipmentReward) {
-                    if (!state.accumulatedEquipmentBoxes) {
-                        state.accumulatedEquipmentBoxes = {};
-                    }
-                    for (const box of equipmentReward.boxes) {
-                        const currentQuantity = state.accumulatedEquipmentBoxes[box.boxName] || 0;
-                        state.accumulatedEquipmentBoxes[box.boxName] = currentQuantity + box.quantity;
-                    }
-                }
+                if (!state.accumulatedEquipmentDrops) state.accumulatedEquipmentDrops = [];
+                state.accumulatedEquipmentDrops.push(getDungeonMatchEquipmentGrade(stage, isWin));
             }
         }
         
@@ -419,9 +411,11 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
             });
         }
         
-        // 유저가 패배한 경우: 남은 모든 경기를 시뮬레이션하고 완료
-        if (isUserEliminated) {
-            console.log(`[processMatchCompletion] User eliminated in dungeon mode, simulating all remaining matches`);
+        // 동네바둑리그: 유저가 져도 5회차까지 모두 진행 후 기본보상 5개+순위보상 지급 (조기 종료 안 함)
+        // 전국/월드: 16강·8강 탈락 시 남은 경기 스킵 후 보상. 단, 4강(준결승) 패배 시 3/4위전 진행하므로 스킵하지 않음
+        const isSemifinalLoss = (state.type === 'national' || state.type === 'world') && currentRound.name === '4강';
+        if (isUserEliminated && state.type !== 'neighborhood' && !isSemifinalLoss) {
+            console.log(`[processMatchCompletion] User eliminated in dungeon mode (not semifinal), simulating all remaining matches`);
             state.status = 'eliminated';
             
             // 모든 미완료 경기 시뮬레이션
@@ -552,25 +546,31 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                     return;
                 }
                 
-                // 현재 회차 확인
-                const currentRoundNum = state.currentRoundRobinRound || parseInt(currentRound.name.replace('회차', '')) || 1;
+                // 현재 회차 확인 (1~5, name은 "1회차"~"5회차")
+                const currentRoundNum = state.currentRoundRobinRound ?? (() => {
+                    const parsed = parseInt(currentRound.name.replace('회차', ''), 10);
+                    return Number.isNaN(parsed) ? 1 : parsed;
+                })();
                 
-                // 5회차까지 모두 완료되었는지 확인
+                // 5회차를 넘어가면 완료
                 if (currentRoundNum >= 5) {
-                    // 5회차까지 모두 완료되었는데도 유저 경기가 남아있으면 완료 처리
                     state.status = 'complete';
                     console.log(`[processMatchCompletion] Dungeon mode: All 5 rounds completed for neighborhood tournament`);
                     return;
                 }
                 
-                // 다음 회차로 이동
+                // 다음 회차로 이동 (2~5)
                 const nextRoundNum = currentRoundNum + 1;
                 state.currentRoundRobinRound = nextRoundNum;
                 
-                // 다음 회차 라운드 찾기
-                const nextRoundObj = state.rounds.find(r => r.name === `${nextRoundNum}회차`);
-                if (!nextRoundObj) {
-                    console.error(`[processMatchCompletion] Next round object not found: ${nextRoundNum}회차`);
+                // 다음 회차 라운드 찾기: rounds는 [1회차, 2회차, ..., 5회차] 순서이므로 인덱스 nextRoundNum - 1 사용
+                const nextRoundIndex = nextRoundNum - 1;
+                const nextRoundObj = state.rounds[nextRoundIndex]?.name === `${nextRoundNum}회차`
+                    ? state.rounds[nextRoundIndex]
+                    : state.rounds.find(r => r.name === `${nextRoundNum}회차`);
+                
+                if (!nextRoundObj || nextRoundObj.matches.length === 0) {
+                    console.error(`[processMatchCompletion] Next round not found or empty: ${nextRoundNum}회차, rounds.length=${state.rounds.length}`);
                     state.status = 'complete';
                     return;
                 }
@@ -578,18 +578,16 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                 // 다음 회차의 유저 경기 찾기
                 const nextUserMatch = nextRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
                 if (nextUserMatch) {
-                    // 5초 카운트다운 후 경기 시작
                     const started = await startNextMatchAutomatically(state, user, nextRoundObj, nextUserMatch);
                     if (!started) {
-                        console.error(`[processMatchCompletion] Failed to start next match automatically for round ${nextRoundNum}`);
+                        console.error(`[processMatchCompletion] Failed to start next match automatically for round ${nextRoundNum}회차`);
                         state.status = 'complete';
                     } else {
                         console.log(`[processMatchCompletion] Dungeon mode: Set countdown for next round (${nextRoundNum}회차) match`);
                     }
                 } else {
-                    // 다음 회차에 유저 경기가 없으면 완료
                     state.status = 'complete';
-                    console.log(`[processMatchCompletion] Dungeon mode: No more user matches in round ${nextRoundNum}`);
+                    console.log(`[processMatchCompletion] Dungeon mode: No more user matches in round ${nextRoundNum}회차`);
                 }
             } else {
                 // 전국/월드챔피언십 (tournament 형식)
@@ -742,8 +740,11 @@ export const createTournament = (type: TournamentType, user: User, players: Play
         nextRoundStartTime: null, // 첫 경기는 수동 시작 (유저가 경기 시작 버튼을 눌러야 함)
         timeElapsed: 0,
         accumulatedGold: type === 'neighborhood' ? 0 : undefined, // 동네바둑리그만 골드 누적
+        matchGoldRewards: type === 'neighborhood' ? [] : undefined, // 동네 경기별 골드 표시용
         accumulatedMaterials: type === 'national' ? {} : undefined, // 전국바둑대회만 재료 누적
-        accumulatedEquipmentBoxes: type === 'world' ? {} : undefined, // 월드챔피언십만 장비상자 누적
+        matchMaterialRewards: type === 'national' ? [] : undefined, // 전국 8강/4강/결승(또는 3·4위전) 경기별 재료 표시용
+        accumulatedEquipmentBoxes: type === 'world' ? {} : undefined, // 월드챔피언십 (레거시)
+        accumulatedEquipmentDrops: type === 'world' ? [] : undefined, // 월드챔피언십 경기당 장비 등급 드롭 누적
         currentRoundRobinRound: type === 'neighborhood' ? 1 : undefined, // 동네바둑리그는 1회차부터 시작
     };
 };
@@ -1165,19 +1166,21 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
     const p1PowerWithRandom = p1BasePower * p1RandomFactor;
     const p2PowerWithRandom = p2BasePower * p2RandomFactor;
 
-    // 크리티컬 확률 계산: 기본 15% + (판단력 x (0.03~0.1사이랜덤))%
+    // 크리티컬 확률 계산: 기본 15% + (판단력 x (0.03~0.1사이랜덤))%, 최대 60%
+    const MAX_CRIT_CHANCE_PERCENT = 60;
     const p1Judgment = p1.stats[CoreStat.Judgment] || 0;
     const p2Judgment = p2.stats[CoreStat.Judgment] || 0;
     const p1CritMultiplier = 0.03 + Math.random() * 0.07; // 0.03 ~ 0.1
     const p2CritMultiplier = 0.03 + Math.random() * 0.07; // 0.03 ~ 0.1
-    const p1CritChance = 15 + (p1Judgment * p1CritMultiplier);
-    const p2CritChance = 15 + (p2Judgment * p2CritMultiplier);
+    const p1CritChance = Math.min(MAX_CRIT_CHANCE_PERCENT, 15 + (p1Judgment * p1CritMultiplier));
+    const p2CritChance = Math.min(MAX_CRIT_CHANCE_PERCENT, 15 + (p2Judgment * p2CritMultiplier));
 
     // 크리티컬 발생 여부 확인
     const p1IsCritical = Math.random() * 100 < p1CritChance;
     const p2IsCritical = Math.random() * 100 < p2CritChance;
 
-    // 크리티컬 점수 계산: 더해지는 점수 + 더해지는 점수의 (((전투력 x 0.1)+(계산력 x 0.5)%)+랜덤(±50)%)
+    // 크리티컬 추가 점수: 기본 점수의 최대 300%까지 (추가분 상한)
+    const MAX_CRIT_BONUS_MULTIPLIER = 3; // 기본 최대점수의 300% = 3배
     let p1FinalPower = p1PowerWithRandom;
     let p2FinalPower = p2PowerWithRandom;
 
@@ -1185,14 +1188,18 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
         const p1CombatPower = p1.stats[CoreStat.CombatPower] || 0;
         const p1Calculation = p1.stats[CoreStat.Calculation] || 0;
         const p1CritBonusPercent = (p1CombatPower * 0.1) + (p1Calculation * 0.5) + (Math.random() * 100 - 50); // ±50% 랜덤
-        p1FinalPower = p1PowerWithRandom + (p1PowerWithRandom * p1CritBonusPercent / 100);
+        const p1CritBonusRaw = p1PowerWithRandom * p1CritBonusPercent / 100;
+        const p1CritBonusCapped = Math.min(p1CritBonusRaw, p1PowerWithRandom * MAX_CRIT_BONUS_MULTIPLIER);
+        p1FinalPower = p1PowerWithRandom + p1CritBonusCapped;
     }
 
     if (p2IsCritical) {
         const p2CombatPower = p2.stats[CoreStat.CombatPower] || 0;
         const p2Calculation = p2.stats[CoreStat.Calculation] || 0;
         const p2CritBonusPercent = (p2CombatPower * 0.1) + (p2Calculation * 0.5) + (Math.random() * 100 - 50); // ±50% 랜덤
-        p2FinalPower = p2PowerWithRandom + (p2PowerWithRandom * p2CritBonusPercent / 100);
+        const p2CritBonusRaw = p2PowerWithRandom * p2CritBonusPercent / 100;
+        const p2CritBonusCapped = Math.min(p2CritBonusRaw, p2PowerWithRandom * MAX_CRIT_BONUS_MULTIPLIER);
+        p2FinalPower = p2PowerWithRandom + p2CritBonusCapped;
     }
 
     // 매초 각 단계별 능력치 점수를 누적하여 그래프 점수 계산
@@ -1409,6 +1416,11 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
         match.commentary = [...state.currentMatchCommentary];
         match.finalScore = { player1: finalP1ScorePercent, player2: 100 - finalP1ScorePercent };
         
+        // 시뮬레이션 종료 시 승/패 반영 (순위 계산·보상에 사용)
+        const loser = winner.id === p1.id ? p2 : p1;
+        winner.wins = (winner.wins || 0) + 1;
+        loser.losses = (loser.losses || 0) + 1;
+        
         await processMatchCompletion(state, user, match, roundIndex);
     }
 
@@ -1493,20 +1505,19 @@ export const calculateRanks = (tournament: TournamentState): { id: string, nickn
                     const loser = match.winner.id === match.players[0].id ? match.players[1] : match.players[0];
                     if (loser && !rankedPlayerIds.has(loser.id)) {
                         let rank = 0;
-                        if(round.name.includes("강")) {
-                            const roundNum = parseInt(round.name.replace("강",""));
-                            if (!isNaN(roundNum)) {
-                                rank = roundNum;
+                        // 4강 패자는 3·4위전으로 가므로 여기서 순위 부여하지 않음
+                        if (round.name === '4강') {
+                            rank = 0;
+                        } else if (round.name.includes('강')) {
+                            const roundNum = parseInt(round.name.replace('강', ''), 10);
+                            if (!isNaN(roundNum) && roundNum >= 8) {
+                                // 8강·16강 탈락 = 5~8위(또는 9~16위). 동일하게 5위로 묶음
+                                rank = Math.min(5, roundNum);
                             }
-                        } else if(round.name.includes("결승")) {
+                        } else if (round.name.includes('결승')) {
                             rank = 2;
-                        } else if(round.name.includes("3,4위전") || round.name.includes("3/4위전")) {
-                            // 3/4위전에서 패배한 경우 4위, 승리한 경우 3위
-                            if (match.winner.id === loser.id) {
-                                rank = 3; // 이 경우는 발생하지 않아야 하지만 안전을 위해
-                            } else {
-                                rank = 4;
-                            }
+                        } else if (round.name.includes('3,4위전') || round.name.includes('3/4위전')) {
+                            rank = 4; // 3·4위전 패자 = 4위
                         }
                         if (rank > 0) {
                             playerRanks.set(loser.id, rank);
@@ -1527,7 +1538,7 @@ export const calculateRanks = (tournament: TournamentState): { id: string, nickn
             }
         }
         
-        // 3/4위전 승자 찾기
+        // 3/4위전 승자 = 3위, 패자 = 4위
         const thirdPlaceRound = tournament.rounds.find(r => r.name === '3,4위전' || r.name === '3/4위전');
         if (thirdPlaceRound && thirdPlaceRound.matches && thirdPlaceRound.matches.length > 0) {
             thirdPlaceRound.matches.forEach(match => {

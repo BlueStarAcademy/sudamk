@@ -1,5 +1,6 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
+import { resumeGameTimer, pauseGameTimer } from './shared.js';
 
 type HandleActionResult = types.HandleActionResult;
 

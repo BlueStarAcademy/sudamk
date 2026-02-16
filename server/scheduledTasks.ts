@@ -5,7 +5,7 @@ import * as types from '../shared/types/index.js';
 import type { WeeklyCompetitor, InventoryItem } from '../shared/types/index.js';
 import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, SEASONAL_TIER_BORDERS, DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL } from '../shared/constants';
 import { randomUUID } from 'crypto';
-import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC } from '../shared/utils/timeUtils.js';
+import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate, getGuildWarTypeFromMatchTime } from '../shared/utils/timeUtils.js';
 import { resetAndGenerateQuests } from './gameActions.js';
 import * as tournamentService from './tournamentService.js';
 import { calculateTotalStats } from './statService.js';
@@ -21,6 +21,13 @@ let lastDailyRankingUpdateTimestamp: number | null = null;
 let lastDailyQuestResetTimestamp: number | null = null;
 let lastTowerRankingRewardTimestamp: number | null = null;
 let lastGuildWarMatchTimestamp: number | null = null;
+
+/** @deprecated 경쟁상대 시스템 - 던전으로 대체됨. 호환용 확장 타입 */
+type UserWithWeeklyCompetitors = types.User & {
+    weeklyCompetitors?: types.WeeklyCompetitor[];
+    weeklyCompetitorsBotScores?: Record<string, { score: number; lastUpdate: number; yesterdayScore: number }>;
+    lastWeeklyCompetitorsUpdate?: number;
+};
 
 export function setLastWeeklyLeagueUpdateTimestamp(timestamp: number): void {
     lastWeeklyLeagueUpdateTimestamp = timestamp;
@@ -201,6 +208,7 @@ export async function processWeeklyResetAndRematch(force: boolean = false): Prom
     // 던전 시스템으로 변경되어 더 이상 사용되지 않음
     console.log('[WeeklyReset] processWeeklyResetAndRematch is deprecated - dungeon system replaced weekly competitors');
     return;
+    const now = Date.now();
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
@@ -213,12 +221,12 @@ export async function processWeeklyResetAndRematch(force: boolean = false): Prom
     
     // Check if we've already processed this Monday (force가 true면 체크 건너뜀)
     if (!force && lastWeeklyResetTimestamp !== null) {
-        const lastResetDayStart = getStartOfDayKST(lastWeeklyResetTimestamp);
+        const lastResetDayStart = getStartOfDayKST(lastWeeklyResetTimestamp as number);
         const currentDayStart = getStartOfDayKST(now);
         
         // 같은 날이면 이미 처리한 것으로 간주
         if (lastResetDayStart === currentDayStart) {
-            console.log(`[WeeklyReset] Already processed this Monday (${new Date(lastWeeklyResetTimestamp).toISOString()})`);
+            console.log(`[WeeklyReset] Already processed this Monday (${new Date(lastWeeklyResetTimestamp as number).toISOString()})`);
             return;
         }
     }
@@ -303,12 +311,12 @@ export async function processWeeklyResetAndRematch(force: boolean = false): Prom
         }
         
         // 기존 봇 점수 중 새로운 경쟁상대에 포함되지 않은 봇은 삭제
-        const existingBotIds = Object.keys(updatedUser.weeklyCompetitorsBotScores);
+        const existingBotIds = Object.keys(updatedUser.weeklyCompetitorsBotScores ?? {});
         for (const botId of existingBotIds) {
-            const competitorExists = updatedUser.weeklyCompetitors?.some((c: types.WeeklyCompetitor) => c.id === botId);
+            const competitorExists = (updatedUser as any).weeklyCompetitors?.some((c: types.WeeklyCompetitor) => c.id === botId);
             if (!competitorExists) {
                 // 새로운 경쟁상대에 포함되지 않은 봇은 삭제
-                delete updatedUser.weeklyCompetitorsBotScores[botId];
+                if (updatedUser.weeklyCompetitorsBotScores) delete updatedUser.weeklyCompetitorsBotScores[botId];
             }
         }
         
@@ -427,9 +435,9 @@ export async function resetAllChampionshipScoresToZero(): Promise<void> {
             hasChanges = true;
         }
 
-        const currentChampionship = user.dailyRankings.championship;
-        if (!currentChampionship || currentChampionship.score !== 0 || currentChampionship.rank !== 0) {
-            user.dailyRankings.championship = {
+        const currentChampionship = user.dailyRankings.championship as { score?: number; rank?: number } | undefined;
+        if (!currentChampionship || (currentChampionship as any).score !== 0 || (currentChampionship as any).rank !== 0) {
+            (user.dailyRankings as any).championship = {
                 rank: 0,
                 score: 0,
                 lastUpdated: now
@@ -458,34 +466,35 @@ export async function processWeeklyLeagueUpdates(user: types.User): Promise<type
     const competitorMap = new Map(allUsers.map(u => [u.id, u]));
 
     // 봇 점수가 없거나 0인 경우 즉시 계산
-    if (!user.weeklyCompetitorsBotScores || Object.keys(user.weeklyCompetitorsBotScores).length === 0) {
-        const updatedUserWithBotScores = await updateBotLeagueScores(user, true);
+    const u = user as types.User & { weeklyCompetitors?: types.WeeklyCompetitor[]; weeklyCompetitorsBotScores?: Record<string, { score: number; lastUpdate: number; yesterdayScore: number }>; lastWeeklyCompetitorsUpdate?: number };
+    if (!u.weeklyCompetitorsBotScores || Object.keys(u.weeklyCompetitorsBotScores ?? {}).length === 0) {
+        const updatedUserWithBotScores = await updateBotLeagueScores(user, true) as typeof u;
         if (updatedUserWithBotScores.weeklyCompetitorsBotScores) {
-            user.weeklyCompetitorsBotScores = updatedUserWithBotScores.weeklyCompetitorsBotScores;
+            u.weeklyCompetitorsBotScores = updatedUserWithBotScores.weeklyCompetitorsBotScores;
         }
     } else {
         // 일부 봇 점수가 없는 경우 보완
         let needsUpdate = false;
-        for (const competitor of user.weeklyCompetitors) {
-            if (competitor.id.startsWith('bot-') && (!user.weeklyCompetitorsBotScores[competitor.id] || user.weeklyCompetitorsBotScores[competitor.id].score === 0)) {
+        for (const competitor of u.weeklyCompetitors ?? []) {
+            if (competitor.id.startsWith('bot-') && (!u.weeklyCompetitorsBotScores?.[competitor.id] || (u.weeklyCompetitorsBotScores?.[competitor.id]?.score ?? 0) === 0)) {
                 needsUpdate = true;
                 break;
             }
         }
         if (needsUpdate) {
-            const updatedUserWithBotScores = await updateBotLeagueScores(user, true);
+            const updatedUserWithBotScores = await updateBotLeagueScores(user, true) as typeof u;
             if (updatedUserWithBotScores.weeklyCompetitorsBotScores) {
-                user.weeklyCompetitorsBotScores = updatedUserWithBotScores.weeklyCompetitorsBotScores;
+                u.weeklyCompetitorsBotScores = updatedUserWithBotScores.weeklyCompetitorsBotScores;
             }
         }
     }
     
     // weeklyCompetitors 전체(16명)를 기준으로 랭킹 계산
     // 모든 경쟁 상대(봇 포함)의 점수를 수집
-    const finalRankings = user.weeklyCompetitors.map(c => {
+    const finalRankings = (u.weeklyCompetitors ?? []).map((c: types.WeeklyCompetitor) => {
         if (c.id.startsWith('bot-')) {
             // 봇의 경우 weeklyCompetitorsBotScores에서 점수 가져오기
-            const botScore = user.weeklyCompetitorsBotScores?.[c.id]?.score || 0;
+            const botScore = u.weeklyCompetitorsBotScores?.[c.id]?.score || 0;
             return {
                 id: c.id,
                 nickname: c.nickname,
@@ -499,7 +508,7 @@ export async function processWeeklyLeagueUpdates(user: types.User): Promise<type
                 finalScore: liveData ? liveData.tournamentScore : c.initialScore
             };
         }
-    }).sort((a, b) => b.finalScore - a.finalScore);
+    }).sort((a: { finalScore: number }, b: { finalScore: number }) => b.finalScore - a.finalScore);
     
     // 사용자의 순위 계산 (weeklyCompetitors 내에서의 순위)
     const myRank = finalRankings.findIndex(c => c.id === user.id) + 1;
@@ -529,6 +538,7 @@ export async function processWeeklyLeagueUpdates(user: types.User): Promise<type
         user.lastLeagueUpdate = Date.now();
         return user;
     }
+    const tier = myRewardTier;
 
     const currentLeagueIndex = LEAGUE_DATA.findIndex(l => l.tier === currentLeague);
     if (currentLeagueIndex === -1) {
@@ -541,7 +551,7 @@ export async function processWeeklyLeagueUpdates(user: types.User): Promise<type
     
     // Challenger 리그는 최상위 티어이므로 promote를 maintain으로 처리
     const isChallenger = currentLeague === types.LeagueTier.Challenger;
-    const effectiveOutcome = (isChallenger && myRewardTier.outcome === 'promote') ? 'maintain' : myRewardTier.outcome;
+    const effectiveOutcome = (isChallenger && tier!.outcome === 'promote') ? 'maintain' : tier!.outcome;
     
     if (effectiveOutcome === 'promote') {
         newLeagueIndex = Math.min(LEAGUE_DATA.length - 1, currentLeagueIndex + 1);
@@ -577,7 +587,7 @@ export async function processWeeklyLeagueUpdates(user: types.User): Promise<type
 
     const mailTitle = `${year}년 ${month}월 ${week}주차 리그 정산 보상`;
     // weeklyCompetitors 전체 수를 표시 (항상 16명이어야 함)
-    const totalCompetitors = user.weeklyCompetitors?.length || finalRankings.length;
+    const totalCompetitors = u.weeklyCompetitors?.length ?? finalRankings.length;
     const mailMessage = `
 ${year}년 ${month}월 ${week}주차 주간 경쟁 결과, 이번주 경쟁 상대 ${totalCompetitors}명 중 ${myRank}위를 기록하셨습니다.
         
@@ -601,7 +611,7 @@ ${year}년 ${month}월 ${week}주차 주간 경쟁 결과, 이번주 경쟁 상�
         from: 'System',
         title: mailTitle,
         message: mailMessage,
-        attachments: { diamonds: myRewardTier.diamonds },
+        attachments: { diamonds: tier!.diamonds },
         receivedAt: now,
         expiresAt: now + 5 * 24 * 60 * 60 * 1000, // 5 days
         isRead: false,
@@ -623,10 +633,11 @@ export async function updateWeeklyCompetitorsIfNeeded(user: types.User, allUsers
     return user;
 
     // Find 15 other users in the same league (DB 쿼리로 최적화)
+    const now = Date.now();
     let potentialCompetitors: types.User[];
-    if (allUsers) {
+    if (allUsers?.length) {
         // 기존 방식 (호환성 유지)
-        potentialCompetitors = allUsers.filter(
+        potentialCompetitors = (allUsers ?? []).filter(
             u => u.id !== user.id && u.league === user.league
         );
     } else {
@@ -661,7 +672,7 @@ export async function updateWeeklyCompetitorsIfNeeded(user: types.User, allUsers
     // 새로운 경쟁상대에 포함되지 않은 봇 점수 삭제
     const existingBotIds = Object.keys(updatedUser.weeklyCompetitorsBotScores);
     for (const botId of existingBotIds) {
-        const competitorExists = competitorList.some(c => c.id === botId);
+        const competitorExists = competitorList.some((c: types.WeeklyCompetitor) => c.id === botId);
         if (!competitorExists) {
             delete updatedUser.weeklyCompetitorsBotScores[botId];
         }
@@ -723,11 +734,12 @@ export async function grantThreeDaysBotScores(): Promise<void> {
     let totalBotsGranted = 0;
     
     for (const user of allUsers) {
-        if (!user.weeklyCompetitors || user.weeklyCompetitors.length === 0) {
+        const u = user as UserWithWeeklyCompetitors;
+        if (!u.weeklyCompetitors || u.weeklyCompetitors.length === 0) {
             continue;
         }
         
-        const updatedUser = JSON.parse(JSON.stringify(user));
+        const updatedUser = JSON.parse(JSON.stringify(user)) as UserWithWeeklyCompetitors;
         if (!updatedUser.weeklyCompetitorsBotScores) {
             updatedUser.weeklyCompetitorsBotScores = {};
         }
@@ -736,8 +748,8 @@ export async function grantThreeDaysBotScores(): Promise<void> {
         const todayStart = getStartOfDayKST(now);
         
         // 주간 경쟁상대가 업데이트된 날짜 계산
-        const competitorsUpdateDay = user.lastWeeklyCompetitorsUpdate 
-            ? getStartOfDayKST(user.lastWeeklyCompetitorsUpdate)
+        const competitorsUpdateDay = u.lastWeeklyCompetitorsUpdate 
+            ? getStartOfDayKST(u.lastWeeklyCompetitorsUpdate)
             : todayStart;
         
         // 클라이언트에서 생성되는 봇 ID 형식: bot-${currentKstDayStart}-${i}
@@ -747,7 +759,7 @@ export async function grantThreeDaysBotScores(): Promise<void> {
         
         // 모든 가능한 봇 ID에 대해 점수 부여 (최대 16명의 경쟁상대이므로 0~15까지)
         const NUM_COMPETITORS = 16;
-        const actualUserCount = updatedUser.weeklyCompetitors.filter((c: WeeklyCompetitor) => !c.id.startsWith('bot-')).length;
+        const actualUserCount = (updatedUser.weeklyCompetitors ?? []).filter((c: WeeklyCompetitor) => !c.id.startsWith('bot-')).length;
         const botsNeeded = Math.max(0, NUM_COMPETITORS - actualUserCount);
         
         // 주간 경쟁상대가 업데이트된 주의 모든 날짜에 대해 봇 점수 부여
@@ -763,7 +775,7 @@ export async function grantThreeDaysBotScores(): Promise<void> {
             // 각 날짜마다 필요한 만큼의 봇 ID 생성 (최대 16명이므로 0~15)
             for (let i = 0; i < NUM_COMPETITORS; i++) {
                 const botId = `bot-${targetDayStartKST}-${i}`;
-                const botScoreData = user.weeklyCompetitorsBotScores?.[botId];
+                const botScoreData = u.weeklyCompetitorsBotScores?.[botId];
                 const currentScore = botScoreData?.score || 0;
                 
                 // 이미 점수가 있으면 스킵 (중복 부여 방지)
@@ -806,9 +818,9 @@ export async function grantThreeDaysBotScores(): Promise<void> {
         }
         
         // weeklyCompetitors에 이미 있는 봇들도 처리 (혹시 모를 경우를 대비)
-        for (const competitor of updatedUser.weeklyCompetitors) {
+        for (const competitor of updatedUser.weeklyCompetitors ?? []) {
             if (competitor.id.startsWith('bot-')) {
-                const botScoreData = user.weeklyCompetitorsBotScores?.[competitor.id];
+                const botScoreData = u.weeklyCompetitorsBotScores?.[competitor.id];
                 const currentScore = botScoreData?.score || 0;
                 
                 // 이미 점수가 있으면 스킵 (중복 부여 방지)
@@ -884,30 +896,31 @@ export async function updateBotLeagueScores(user: types.User, forceUpdate: boole
     // 호환성을 위해 user를 그대로 반환
     return user;
     
+    const u = user as UserWithWeeklyCompetitors;
     const now = Date.now();
     const todayStart = getStartOfDayKST(now);
     
-    if (!user.weeklyCompetitorsBotScores) {
-        user.weeklyCompetitorsBotScores = {};
+    if (!u.weeklyCompetitorsBotScores) {
+        u.weeklyCompetitorsBotScores = {};
     }
     
-    const updatedUser = JSON.parse(JSON.stringify(user));
+    const updatedUser = JSON.parse(JSON.stringify(user)) as UserWithWeeklyCompetitors;
     if (!updatedUser.weeklyCompetitorsBotScores) {
         updatedUser.weeklyCompetitorsBotScores = {};
     }
     
     let hasChanges = false;
-    const competitorsUpdateDay = user.lastWeeklyCompetitorsUpdate 
-        ? getStartOfDayKST(user.lastWeeklyCompetitorsUpdate)
+    const competitorsUpdateDay = u.lastWeeklyCompetitorsUpdate 
+        ? getStartOfDayKST(u.lastWeeklyCompetitorsUpdate)
         : todayStart;
     
-    for (const competitor of updatedUser.weeklyCompetitors) {
+    for (const competitor of updatedUser.weeklyCompetitors ?? []) {
         if (!competitor.id.startsWith('bot-')) {
             continue;
         }
         
         const botId = competitor.id;
-        const botScoreData = user.weeklyCompetitorsBotScores[botId];
+        const botScoreData = u.weeklyCompetitorsBotScores?.[botId];
         const lastUpdate = botScoreData?.lastUpdate || 0;
         const lastUpdateDay = getStartOfDayKST(lastUpdate);
         const currentScore = botScoreData?.score || 0;
@@ -984,12 +997,9 @@ export async function updateBotLeagueScores(user: types.User, forceUpdate: boole
         }
         
         const newScore = baseScore + totalGain;
-        
-        updatedUser.weeklyCompetitorsBotScores[botId] = {
-            score: newScore,
-            lastUpdate: now,
-            yesterdayScore: yesterdayScore
-        };
+        const scores = updatedUser.weeklyCompetitorsBotScores ?? {};
+        scores[botId] = { score: newScore, lastUpdate: now, yesterdayScore: yesterdayScore };
+        updatedUser.weeklyCompetitorsBotScores = scores;
         
         hasChanges = true;
         
@@ -1009,27 +1019,28 @@ export async function recoverAllBotScores(forceDays?: number): Promise<void> {
     let totalBotsRecovered = 0;
     
     for (const user of allUsers) {
-        if (!user.weeklyCompetitors || user.weeklyCompetitors.length === 0) {
+        const u = user as UserWithWeeklyCompetitors;
+        if (!u.weeklyCompetitors || u.weeklyCompetitors.length === 0) {
             continue;
         }
         
-        const updatedUser = JSON.parse(JSON.stringify(user));
+        const updatedUser = JSON.parse(JSON.stringify(user)) as UserWithWeeklyCompetitors;
         if (!updatedUser.weeklyCompetitorsBotScores) {
             updatedUser.weeklyCompetitorsBotScores = {};
         }
         
         let hasChanges = false;
-        const competitorsUpdateDay = user.lastWeeklyCompetitorsUpdate 
-            ? getStartOfDayKST(user.lastWeeklyCompetitorsUpdate)
+        const competitorsUpdateDay = u.lastWeeklyCompetitorsUpdate 
+            ? getStartOfDayKST(u.lastWeeklyCompetitorsUpdate)
             : todayStart;
         
-        for (const competitor of updatedUser.weeklyCompetitors) {
+        for (const competitor of updatedUser.weeklyCompetitors ?? []) {
             if (!competitor.id.startsWith('bot-')) {
                 continue;
             }
             
             const botId = competitor.id;
-            const botScoreData = user.weeklyCompetitorsBotScores?.[botId];
+            const botScoreData = u.weeklyCompetitorsBotScores?.[botId];
             const currentScore = botScoreData?.score || 0;
             
             // forceDays가 지정되면 무조건 복구, 아니면 점수가 0이거나 없으면 복구
@@ -1118,24 +1129,25 @@ export async function fixBotYesterdayScores(): Promise<void> {
             // 배치 처리
             await Promise.allSettled(batch.map(async (user) => {
                 try {
-                    if (!user.weeklyCompetitors || user.weeklyCompetitors.length === 0) {
+                    const u = user as UserWithWeeklyCompetitors;
+                    if (!u.weeklyCompetitors || u.weeklyCompetitors.length === 0) {
                         return;
                     }
                     
-                    if (!user.weeklyCompetitorsBotScores) {
+                    if (!u.weeklyCompetitorsBotScores) {
                         return;
                     }
                     
-                    const updatedUser = JSON.parse(JSON.stringify(user));
+                    const updatedUser = JSON.parse(JSON.stringify(user)) as UserWithWeeklyCompetitors;
                     let hasChanges = false;
                     
-                    for (const competitor of updatedUser.weeklyCompetitors) {
+                    for (const competitor of updatedUser.weeklyCompetitors ?? []) {
                         if (!competitor.id.startsWith('bot-')) {
                             continue;
                         }
                         
                         const botId = competitor.id;
-                        const botScoreData = updatedUser.weeklyCompetitorsBotScores[botId];
+                        const botScoreData = updatedUser.weeklyCompetitorsBotScores?.[botId];
                         
                         if (!botScoreData) {
                             continue;
@@ -1150,8 +1162,8 @@ export async function fixBotYesterdayScores(): Promise<void> {
                         // 또는 어제 점수가 없고 현재 점수가 있으면 수정 필요
                         if (currentScore > 0 && (yesterdayScore === 0 || yesterdayScore === undefined)) {
                             // 경쟁상대 업데이트일부터 어제까지의 점수를 계산하여 어제 점수로 설정
-                            const competitorsUpdateDay = user.lastWeeklyCompetitorsUpdate 
-                                ? getStartOfDayKST(user.lastWeeklyCompetitorsUpdate)
+                            const competitorsUpdateDay = u.lastWeeklyCompetitorsUpdate 
+                                ? getStartOfDayKST(u.lastWeeklyCompetitorsUpdate)
                                 : todayStart;
                             
                             // 어제 날짜 시작 타임스탬프
@@ -1179,7 +1191,7 @@ export async function fixBotYesterdayScores(): Promise<void> {
                             // (현재 점수가 정확하다면 currentScore - todayGain이 더 정확할 수 있음)
                             const fixedYesterdayScore = Math.max(yesterdayTotal, calculatedYesterdayScore);
                             
-                            updatedUser.weeklyCompetitorsBotScores[botId] = {
+                            (updatedUser.weeklyCompetitorsBotScores ??= {})[botId] = {
                                 score: currentScore,
                                 lastUpdate: lastUpdate || now,
                                 yesterdayScore: fixedYesterdayScore
@@ -1383,7 +1395,7 @@ export async function processDailyRankings(): Promise<void> {
             let maxScoreDiff = -Infinity;
             let totalAbility = 0;
             
-            for (const progress of Object.values(user.dungeonProgress)) {
+            for (const progress of Object.values(user.dungeonProgress ?? {})) {
                 const prog = progress as any;
                 if (prog.currentStage > maxStage) {
                     maxStage = prog.currentStage;
@@ -2027,70 +2039,32 @@ export async function processTowerRankingRewards(): Promise<void> {
     console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
 }
 
-// 다음 길드전 매칭 날짜 계산 (월요일 또는 금요일 0시)
-function getNextGuildWarMatchDate(now: number): number {
+// 화요일 0:00 / 금요일 0:00 KST에만 길드전 매칭 (신청 마감: 월/목 23:00, 매칭 1시간 후 집계)
+export async function processGuildWarMatching(force: boolean = false): Promise<void> {
+    const now = Date.now();
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
-    const todayStart = getStartOfDayKST(now);
-    
-    // 오늘이 월요일(1) 또는 금요일(5)이고 0시 이전이면 오늘, 아니면 다음 매칭일
-    let daysUntilNext = 0;
-    
-    if (kstDay === 1 && kstHours === 0 && kstMinutes < 5) {
-        // 월요일 0시 - 금요일까지 기다림 (4일 후)
-        daysUntilNext = 4;
-    } else if (kstDay === 5 && kstHours === 0 && kstMinutes < 5) {
-        // 금요일 0시 - 다음 월요일까지 기다림 (3일 후)
-        daysUntilNext = 3;
-    } else {
-        // 다른 날짜 - 다음 매칭일까지 계산
-        if (kstDay === 1) {
-            // 월요일 (0시 이후) - 금요일까지 (4일 후)
-            daysUntilNext = 4;
-        } else if (kstDay === 2 || kstDay === 3) {
-            // 화요일, 수요일 - 금요일까지
-            daysUntilNext = 5 - kstDay;
-        } else if (kstDay === 4) {
-            // 목요일 - 다음 월요일까지 (3일 후)
-            daysUntilNext = 3;
-        } else if (kstDay === 5) {
-            // 금요일 (0시 이후) - 다음 월요일까지 (3일 후)
-            daysUntilNext = 3;
-        } else {
-            // 토요일, 일요일 - 다음 월요일까지
-            daysUntilNext = (8 - kstDay) % 7;
-        }
-    }
-    
-    return todayStart + (daysUntilNext * 24 * 60 * 60 * 1000);
-}
+    const isMatchTimeWindow = kstHours === 0 && kstMinutes < 30;
+    const isMatchDay = kstDay === 2 || kstDay === 5; // 화요일(2), 금요일(5)
 
-// 월요일 또는 금요일 0시에 길드전 매칭 처리
-export async function processGuildWarMatching(force: boolean = false): Promise<void> {
-    const now = Date.now();
-    const kstHours = getKSTHours(now);
-    const kstMinutes = getKSTMinutes(now);
-    const isMidnight = kstHours === 0 && kstMinutes < 5;
-    
-    // force가 false이고 0시가 아니면 실행하지 않음
-    if (!force && !isMidnight) {
+    if (!force && (!isMatchDay || !isMatchTimeWindow)) {
         return;
     }
-    
-    // 이미 처리했는지 확인
+
     if (!force && lastGuildWarMatchTimestamp !== null) {
         const lastMatchDayStart = getStartOfDayKST(lastGuildWarMatchTimestamp);
         const currentDayStart = getStartOfDayKST(now);
-        
-        // 같은 날이면 이미 처리한 것으로 간주
         if (lastMatchDayStart === currentDayStart) {
             console.log(`[GuildWarMatch] Already processed today (${new Date(lastGuildWarMatchTimestamp).toISOString()})`);
             return;
         }
     }
-    
-    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ' at 0:00 KST'}`);
+
+    const warType = getGuildWarTypeFromMatchTime(now);
+    const durationMs = warType === 'tue_wed' ? 47 * 60 * 60 * 1000 : 71 * 60 * 60 * 1000;
+    const maxAttemptsPerGuild = warType === 'tue_wed' ? 2 : 3;
+    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} at 0:00 KST (${kstDay === 2 ? 'Tuesday' : 'Friday'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets)`);
     
     const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
     const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
@@ -2141,40 +2115,40 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             };
         }
         
-        // activeWars에 추가
         const war: any = {
             id: dbWar.id,
             guild1Id: guild1Id,
             guild2Id: guild2Id,
             status: 'active',
             startTime: now,
-            endTime: now + (48 * 60 * 60 * 1000), // 48시간 후 종료
+            endTime: now + durationMs,
+            warType,
+            maxAttemptsPerGuild,
+            guild1TotalAttempts: 0,
+            guild2TotalAttempts: 0,
             result: undefined,
             boards: boards,
             createdAt: now,
             updatedAt: now,
         };
-        
         activeWars.push(war);
         matchedGuildIds.push(guild1Id, guild2Id);
-        
-        // 길드의 매칭 상태 제거
         delete (guild1 as any).guildWarMatching;
         delete (guild2 as any).guildWarMatching;
-        
         console.log(`[GuildWarMatch] Matched guild ${guild1.name} (${guild1Id}) vs ${guild2.name} (${guild2Id})`);
     }
     
-    // 홀수 길드가 남으면 봇 길드와 매칭
+    // 홀수 길드가 남으면 봇 길드와 매칭 (상대 길드가 없어도 봇과 매칭되어 전쟁 참여 가능)
     if (matchingQueue.length % 2 === 1) {
         const remainingGuildId = matchingQueue[matchingQueue.length - 1];
         const remainingGuild = guilds[remainingGuildId];
-        
+
         if (remainingGuild) {
-            const botGuildId = 'bot-guild-' + randomUUID();
+            // DB FK용 봇 길드 (없으면 생성)
+            const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
+            const botGuildId = await getOrCreateBotGuildForWar();
             
             // DB에 GuildWar 생성
-            const { createGuildWar } = await import('./prisma/guildRepository.js');
             const dbWar = await createGuildWar(remainingGuildId, botGuildId);
             
             // 9개 바둑판 초기화 및 봇 길드 초기 상태 설정
@@ -2184,9 +2158,8 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             
             for (const boardId of boardIds) {
                 const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
-                const botStars = Math.floor(Math.random() * 2) + 2; // 2-3개
-                const botScoreDiff = Math.floor(Math.random() * 11) + 5; // 5-15집
-                
+                const botStars = Math.floor(Math.random() * 2) + 2; // 2~3개
+                const botScoreDiff = Math.floor(Math.random() * 11) + 5; // 5~15집 차
                 boards[boardId] = {
                     boardSize: 13,
                     gameMode: gameMode,
@@ -2201,20 +2174,24 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                         scoreDiff: botScoreDiff,
                     },
                     guild1Attempts: 0,
-                    guild2Attempts: 3, // 각 바둑판당 3번 공격
+                    guild2Attempts: maxAttemptsPerGuild, // 봇은 참여권 전부 사용한 것처럼 표시
                 };
             }
-            
+
             const war: any = {
                 id: dbWar.id,
                 guild1Id: remainingGuildId,
                 guild2Id: botGuildId,
                 status: 'active',
                 startTime: now,
-                endTime: now + (48 * 60 * 60 * 1000), // 48시간 후 종료
+                endTime: now + durationMs,
+                warType,
+                maxAttemptsPerGuild,
+                guild1TotalAttempts: 0,
+                guild2TotalAttempts: maxAttemptsPerGuild, // 봇은 전부 사용한 것처럼
                 result: undefined,
                 boards: boards,
-                isBotGuild: true, // 봇 길드 플래그
+                isBotGuild: true,
                 createdAt: now,
                 updatedAt: now,
             };
@@ -2224,11 +2201,24 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             
             // 길드의 매칭 상태 제거
             delete (remainingGuild as any).guildWarMatching;
+
+            // KV에 봇 길드 추가 (UI 표시용)
+            (guilds as Record<string, any>)[botGuildId] = {
+                id: botGuildId,
+                name: '[시스템]길드전AI',
+                level: 1,
+                members: [],
+                leaderId: botGuildId,
+            };
             
-            console.log(`[GuildWarMatch] Matched guild ${remainingGuild.name} (${remainingGuildId}) vs bot guild`);
+            if (matchingQueue.length === 1) {
+                console.log(`[GuildWarMatch] Single guild in queue - matched ${remainingGuild.name} (${remainingGuildId}) vs bot guild`);
+            } else {
+                console.log(`[GuildWarMatch] Matched guild ${remainingGuild.name} (${remainingGuildId}) vs bot guild`);
+            }
         }
     }
-    
+
     // 매칭 큐에서 매칭된 길드 제거
     const newQueue = matchingQueue.filter(id => !matchedGuildIds.includes(id));
     
@@ -2307,6 +2297,7 @@ export async function processGuildWarEnd(): Promise<void> {
         
         war.status = 'completed';
         war.endTime = now;
+        war.rewardAvailableAt = now + 60 * 60 * 1000; // 전쟁 종료 1시간 후(목/월 0시)부터 보상 수령 가능
         war.result = {
             winnerId: winnerId,
             guild1Score: guild1Score,
@@ -2314,6 +2305,18 @@ export async function processGuildWarEnd(): Promise<void> {
             guild1Stars: guild1Stars,
             guild2Stars: guild2Stars,
         };
+        
+        // DB GuildWar에 결과 반영 (영구 저장)
+        try {
+            const { updateGuildWar } = await import('./prisma/guildRepository.js');
+            await updateGuildWar(war.id, {
+                status: 'completed',
+                endTime: now,
+                result: war.result,
+            });
+        } catch (err: any) {
+            console.error(`[GuildWarEnd] Failed to update DB for war ${war.id}:`, err?.message);
+        }
         
         updated = true;
         console.log(`[GuildWarEnd] War ${war.id} ended. Winner: ${winnerId} (Stars: ${guild1Stars} vs ${guild2Stars}, Score: ${guild1Score} vs ${guild2Score})`);

@@ -6,6 +6,7 @@ import DraggableWindow from '../DraggableWindow.js';
 import { calculateGuildMissionXp } from '../../utils/guildUtils.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { isDifferentWeekKST } from '../../utils/timeUtils.js';
+import { ADMIN_USER_ID } from '../../constants/index.js';
 
 interface GuildMissionsPanelProps {
     guild: GuildType;
@@ -20,7 +21,8 @@ const MissionItem: React.FC<{ mission: GuildMission; guildLevel: number; guild: 
     const isComplete = progress >= target;
     const percentage = target > 0 ? Math.min((progress / target) * 100, 100) : 100;
     
-    const isClaimed = mission.claimedBy?.includes(currentUserWithStatus!.id) ?? false;
+    const effectiveUserId = currentUserWithStatus!.isAdmin ? ADMIN_USER_ID : currentUserWithStatus!.id;
+    const isClaimed = mission.claimedBy?.includes(effectiveUserId) ?? false;
     
     // 초기화 후 지난 보상은 받을 수 없도록 체크
     const now = Date.now();
@@ -94,9 +96,10 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
         if (!currentUserWithStatus || !guild.weeklyMissions) return false;
         if (isExpired) return false; // 초기화된 경우 보상 받을 수 없음
         
+        const effectiveUserId = currentUserWithStatus.isAdmin ? ADMIN_USER_ID : currentUserWithStatus.id;
         return guild.weeklyMissions.some(mission => {
             const isComplete = (mission.progress ?? 0) >= (mission.target ?? 0);
-            const isClaimed = mission.claimedBy?.includes(currentUserWithStatus.id) ?? false;
+            const isClaimed = mission.claimedBy?.includes(effectiveUserId) ?? false;
             return isComplete && !isClaimed;
         });
     }, [guild.weeklyMissions, currentUserWithStatus, isExpired]);

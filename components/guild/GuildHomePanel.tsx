@@ -6,7 +6,7 @@ import { GUILD_CHECK_IN_MILESTONE_REWARDS } from '../../constants/index.js';
 import { isSameDayKST, formatDateTimeKST } from '../../utils/timeUtils.js';
 import Avatar from '../Avatar.js';
 import { AVATAR_POOL, BORDER_POOL } from '../../constants/index.js';
-import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS } from '../../constants/index.js';
+import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 
 // 고급 버튼 스타일 함수
 const luxuryButtonBase = "relative overflow-hidden whitespace-normal break-keep text-sm px-4 py-2 rounded-xl backdrop-blur-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-1";
@@ -26,9 +26,10 @@ const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral' | 'acc
 
 export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
+    const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
 
     const now = Date.now();
-    const myCheckInTimestamp = guild.checkIns?.[currentUserWithStatus!.id];
+    const myCheckInTimestamp = guild.checkIns?.[effectiveUserId ?? currentUserWithStatus!.id];
     const hasCheckedInToday = myCheckInTimestamp ? isSameDayKST(myCheckInTimestamp, now) : false;
 
     const todaysCheckIns = Object.values(guild.checkIns || {}).filter(ts => isSameDayKST(ts, now)).length;
@@ -99,14 +100,14 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
                         })}
                     </div>
                 </div>
-                <div className="mt-2 flex gap-1 sm:gap-3 flex-grow relative z-10 overflow-x-auto overflow-y-hidden min-h-0 justify-between sm:justify-start">
+                <div className="mt-2 grid grid-cols-4 gap-1 sm:gap-3 flex-grow relative z-10 min-h-0 min-w-0">
                     {GUILD_CHECK_IN_MILESTONE_REWARDS.map((milestone, index) => {
                         const isAchieved = todaysCheckIns >= milestone.count;
                         const isClaimed = guild.dailyCheckInRewardsClaimed?.some(c => c.userId === currentUserWithStatus!.id && c.milestoneIndex === index);
                         const canClaim = isAchieved && !isClaimed && hasCheckedInToday;
                         
                         return (
-                            <div key={index} className={`bg-gradient-to-br ${isAchieved ? 'from-yellow-900/40 via-amber-900/30 to-yellow-800/40' : 'from-tertiary/60 via-tertiary/50 to-tertiary/40'} p-1.5 sm:p-3 rounded-xl text-center flex flex-col items-center justify-between border-2 ${isAchieved ? 'border-yellow-500/60 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-transparent'} flex-shrink-0 flex-1 sm:flex-none sm:w-auto sm:aspect-square backdrop-blur-sm transition-all hover:scale-105`}>
+                            <div key={index} className={`bg-gradient-to-br ${isAchieved ? 'from-yellow-900/40 via-amber-900/30 to-yellow-800/40' : 'from-tertiary/60 via-tertiary/50 to-tertiary/40'} p-1.5 sm:p-3 rounded-xl text-center flex flex-col items-center justify-between border-2 ${isAchieved ? 'border-yellow-500/60 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-transparent'} min-w-0 aspect-square backdrop-blur-sm transition-all hover:scale-105`}>
                                 <div className="flex flex-col items-center">
                                     <img src="/images/guild/tokken.png" alt="길드 코인" className="w-4 h-4 sm:w-8 sm:h-8 drop-shadow-lg mb-0.5 sm:mb-1"/>
                                     <span className="text-[10px] sm:text-base font-bold text-primary drop-shadow">+{milestone.reward.guildCoins}</span>
@@ -256,6 +257,8 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                     guild.chatHistory.map(msg => {
                         const senderId = msg.user?.id || msg.authorId;
                         const sender = senderId ? userMap.get(senderId) : undefined;
+                        const guildMemberSender = senderId ? guild.members?.find(m => m.userId === senderId) : undefined;
+                        const displayName = senderId === 'system' ? '시스템' : (msg.user?.nickname || sender?.nickname || guildMemberSender?.nickname || (senderId === ADMIN_USER_ID ? ADMIN_NICKNAME : 'Unknown'));
                         const avatarUrl = sender ? AVATAR_POOL.find(a => a.id === sender.avatarId)?.url : undefined;
                         const borderUrl = sender ? BORDER_POOL.find(b => b.id === sender.borderId)?.url : undefined;
                         const isMyMessage = senderId === currentUserWithStatus?.id;
@@ -264,7 +267,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                         return (
                             <div key={msg.id || msg.timestamp || msg.createdAt} className="flex items-start gap-3 group p-2 rounded-lg hover:bg-black/10 transition-colors">
                                 <div className="flex-shrink-0 mt-1">
-                                    {sender && <Avatar userId={sender.id} userName={sender.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={36} />}
+                                    {(sender || displayName !== 'Unknown') && <Avatar userId={sender?.id ?? senderId ?? ''} userName={displayName} avatarUrl={avatarUrl} borderUrl={borderUrl} size={36} />}
                                 </div>
                                 <div className="flex-grow">
                                     <div className="flex items-center justify-between mb-1">
@@ -274,7 +277,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                                                     ? 'text-blue-400' 
                                                     : 'text-blue-300'
                                             }`}>
-                                                {senderId === 'system' ? '시스템' : (msg.user?.nickname || sender?.nickname || 'Unknown')}
+                                                {displayName}
                                             </span>
                                             <span className="text-xs text-tertiary">{formatDateTimeKST(msg.timestamp || msg.createdAt)}</span>
                                         </div>
@@ -358,9 +361,11 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
 interface GuildHomePanelProps {
     guild: GuildType;
     myMemberInfo: GuildMember | undefined;
+    /** 데스크톱에서 채팅 우측에 배치할 패널 (채팅 50% + 이 패널 50%) */
+    rightOfChat?: React.ReactNode;
 }
 
-const GuildHomePanel: React.FC<GuildHomePanelProps> = ({ guild, myMemberInfo }) => {
+const GuildHomePanel: React.FC<GuildHomePanelProps> = ({ guild, myMemberInfo, rightOfChat }) => {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     useEffect(() => {
@@ -395,8 +400,11 @@ const GuildHomePanel: React.FC<GuildHomePanelProps> = ({ guild, myMemberInfo }) 
                         <GuildCheckInPanel guild={guild} />
                         <GuildAnnouncementPanel guild={guild} />
                     </div>
-                    <div className="flex-grow min-h-0" data-guild-chat>
-                        <GuildChat guild={guild} myMemberInfo={myMemberInfo} />
+                    <div className="flex-grow min-h-0 flex gap-4" data-guild-chat>
+                        <div className={rightOfChat ? 'flex-1 min-w-0' : 'w-full'}>
+                            <GuildChat guild={guild} myMemberInfo={myMemberInfo} />
+                        </div>
+                        {rightOfChat && <div className="flex-1 min-w-0 flex flex-col">{rightOfChat}</div>}
                     </div>
                 </>
             )}

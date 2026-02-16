@@ -100,19 +100,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // 클라이언트에서 게임 상태 저장/복원 (새로고침 시 바둑판 복원)
     const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
     
-    // 게임 상태를 sessionStorage에서 복원
+    // 게임 상태를 sessionStorage에서 복원 (종료 후에도 결과 모달 동안 종료된 화면 유지를 위해 ended/scoring에서도 복원 허용)
     const restoredBoardState = useMemo(() => {
-        // 먼저 sessionStorage에서 복원 시도
         try {
             const storedState = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
             if (storedState) {
                 const parsed = JSON.parse(storedState);
-                // 게임이 종료되지 않았고, 같은 게임 ID인 경우에만 복원
-                if (parsed.gameId === gameId && !['ended', 'no_contest', 'scoring'].includes(gameStatus)) {
-                    if (parsed.boardState && Array.isArray(parsed.boardState) && parsed.boardState.length > 0) {
-                        console.log(`[Game] Restored boardState from sessionStorage for game ${gameId}`);
-                        return parsed.boardState;
-                    }
+                if (parsed.gameId === gameId && parsed.boardState && Array.isArray(parsed.boardState) && parsed.boardState.length > 0) {
+                    // 진행 중이거나 종료/계가 중일 때 모두 sessionStorage 보드 사용 → 결과 모달 시에도 바둑판 유지
+                    console.log(`[Game] Restored boardState from sessionStorage for game ${gameId} (gameStatus: ${gameStatus})`);
+                    return parsed.boardState;
                 }
             }
         } catch (e) {
@@ -162,20 +159,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return session.boardState;
     }, [isSinglePlayer, isTower, session.boardState, session.blackPatternStones, session.whitePatternStones, session.moveHistory?.length, session.settings.boardSize, gameId, gameStatus]);
     
-    // 게임 상태를 sessionStorage에 저장 (매 수마다)
+    // 게임 상태를 sessionStorage에 저장 (매 수마다). 종료 후에는 삭제/덮어쓰지 않아 결과 모달에서 바둑판 유지
     useEffect(() => {
-        // 게임이 종료되면 저장된 상태 삭제
-        if (['ended', 'no_contest', 'scoring'].includes(gameStatus)) {
-            try {
-                sessionStorage.removeItem(GAME_STATE_STORAGE_KEY);
-                console.log(`[Game] Removed game state from sessionStorage for ended game ${gameId}`);
-            } catch (e) {
-                console.error(`[Game] Failed to remove game state from sessionStorage:`, e);
-            }
-            return;
-        }
-        
-        // 게임이 진행 중이면 상태 저장
+        if (['ended', 'no_contest', 'scoring'].includes(gameStatus)) return;
         if (restoredBoardState && Array.isArray(restoredBoardState) && restoredBoardState.length > 0) {
             try {
                 const gameStateToSave = {

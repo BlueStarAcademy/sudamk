@@ -152,7 +152,7 @@ export const handleOmokAction = async (volatileState: types.VolatileState, game:
                     }
                     
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                         if (currentPlayerId === aiUserId) {
                             game.aiTurnStartTime = now;

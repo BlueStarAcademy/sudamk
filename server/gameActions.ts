@@ -397,6 +397,20 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     settings: { ...game.settings, ...settings }
                 };
                 const analysis = await analyzeGame(analysisGame);
+                // 싱글플레이어: 계가 완료 시 서버에서 endGame 호출하여 클리어/보상 저장 (다음 스테이지 잠금 해제, 골드/경험치 지급)
+                if (game.isSinglePlayer && game.stageId) {
+                    const blackTotal = analysis?.scoreDetails?.black?.total ?? 0;
+                    const whiteTotal = analysis?.scoreDetails?.white?.total ?? 0;
+                    const winner = blackTotal > whiteTotal ? types.Player.Black : types.Player.White; // 인간 = Black
+                    const { getCachedGame } = await import('./gameCache.js');
+                    let freshGame = await getCachedGame(game.id);
+                    if (!freshGame) freshGame = await db.getLiveGame(game.id);
+                    if (freshGame && freshGame.gameStatus !== 'ended') {
+                        freshGame.finalScores = { black: blackTotal, white: whiteTotal };
+                        const { endGame } = await import('./summaryService.js');
+                        await endGame(freshGame, winner, 'score');
+                    }
+                }
                 return {
                     clientResponse: {
                         scoringAnalysis: analysis
@@ -407,6 +421,25 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (type === 'CONFIRM_SINGLE_PLAYER_GAME_START') {
                 const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
                 return handleSinglePlayerAction(volatileState, action, userData);
+            }
+            // 싱글플레이 게임 종료 (클라이언트가 승리 조건 감지 후 전송 - 따내기 바둑 등)
+            if (type === 'END_SINGLE_PLAYER_GAME' && game.isSinglePlayer && game.stageId) {
+                const { winner, winReason } = payload;
+                if (winner !== types.Player.Black && winner !== types.Player.White) {
+                    return { error: 'Invalid winner in payload.' };
+                }
+                if (game.gameStatus === 'ended') {
+                    return { clientResponse: { gameId: game.id, game } };
+                }
+                const { getCachedGame } = await import('./gameCache.js');
+                let freshGame = await getCachedGame(game.id);
+                if (!freshGame) freshGame = await db.getLiveGame(game.id);
+                if (!freshGame) return { error: 'Game not found.' };
+                const { endGame } = await import('./summaryService.js');
+                await endGame(freshGame, winner, winReason || 'capture_limit');
+                const savedGame = await db.getLiveGame(game.id);
+                const updatedUser = await db.getUser(freshGame.player1.id);
+                return { clientResponse: { gameId: game.id, game: savedGame || freshGame, updatedUser: updatedUser ?? undefined } };
             }
             // 미사일 액션은 서버에서 처리해야 함 (게임 상태 변경)
             if (type === 'START_MISSILE_SELECTION' || type === 'LAUNCH_MISSILE' || type === 'CANCEL_MISSILE_SELECTION' || type === 'MISSILE_INVALID_SELECTION' || type === 'MISSILE_ANIMATION_COMPLETE') {

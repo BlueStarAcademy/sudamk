@@ -68,6 +68,7 @@ type SerializedUserStatus = {
     dailyWorldWins?: number | null;
     worldRewardClaimed?: boolean | null;
     lastWorldTournament?: unknown;
+    lastLoginAt?: number | null;
   };
   personalProgress?: {
     singlePlayerProgress?: number | null;
@@ -313,7 +314,8 @@ const applyDefaults = (
     lastTowerClearTime: user.lastTowerClearTime ?? (prismaUser.lastTowerClearTime != null ? Number(prismaUser.lastTowerClearTime) : undefined),
     monthlyTowerFloor: user.monthlyTowerFloor ?? (prismaUser as any).monthlyTowerFloor ?? 0,
     dungeonProgress: user.dungeonProgress ?? (status?.serializedUser as User | undefined)?.dungeonProgress ?? undefined,
-    dungeonConditionSnapshot: user.dungeonConditionSnapshot ?? (status?.serializedUser as User | undefined)?.dungeonConditionSnapshot ?? undefined
+    dungeonConditionSnapshot: user.dungeonConditionSnapshot ?? (status?.serializedUser as User | undefined)?.dungeonConditionSnapshot ?? undefined,
+    lastLoginAt: user.lastLoginAt ?? (status?.leagueMetadata?.lastLoginAt != null ? safeNumber(status.leagueMetadata.lastLoginAt, 0) : undefined) ?? (status?.serializedUser as User | undefined)?.lastLoginAt ?? undefined
   };
 };
 
@@ -612,6 +614,10 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
       (status.leagueMetadata?.cumulativeTournamentScore != null 
         ? safeNumber(status.leagueMetadata.cumulativeTournamentScore, 0)
         : safeNumber(legacy.cumulativeTournamentScore, 0)),
+    lastLoginAt:
+      status.leagueMetadata?.lastLoginAt != null
+        ? safeNumber(status.leagueMetadata.lastLoginAt, 0)
+        : (legacy.lastLoginAt != null ? safeNumber(legacy.lastLoginAt, 0) : undefined),
     inventorySlotsMigrated:
       status.store?.inventorySlotsMigrated ??
       safeBoolean(legacy.inventorySlotsMigrated, false),
@@ -626,9 +632,9 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
       ? Number(prismaUser.lastTowerClearTime) 
       : safeNumber(legacy.lastTowerClearTime, undefined),
     monthlyTowerFloor: safeNumber((prismaUser as any).monthlyTowerFloor, safeNumber((legacy as any)?.monthlyTowerFloor, 0)),
-    guildId: user.guildId ?? (prismaUser.guildMember?.guildId ?? undefined),
-    guildCoins: user.guildCoins ?? (status.serializedUser?.guildCoins ?? safeNumber(legacy.guildCoins, 0)),
-    dailyDonations: user.dailyDonations ?? (status.serializedUser?.dailyDonations ?? parseJson(legacy.dailyDonations, undefined))
+    guildId: (legacy.guildId as string | undefined) ?? (prismaUser.guildMember?.guildId ?? undefined),
+    guildCoins: safeNumber(status.serializedUser?.guildCoins ?? legacy.guildCoins, 0),
+    dailyDonations: (status.serializedUser as User | undefined)?.dailyDonations ?? parseJson(legacy.dailyDonations, undefined)
   };
 
   const applied = applyDefaults(partial, prismaUser, status);
@@ -687,11 +693,12 @@ export function serializeUser(user: User): SerializedUserStatus {
       dailyNationalWins: user.dailyNationalWins ?? 0,
       nationalRewardClaimed: user.nationalRewardClaimed ?? false,
       lastNationalTournament: user.lastNationalTournament ?? null,
-      lastWorldPlayedDate: user.lastWorldPlayedDate ?? null,
-      dailyWorldWins: user.dailyWorldWins ?? 0,
-      worldRewardClaimed: user.worldRewardClaimed ?? false,
-      lastWorldTournament: user.lastWorldTournament ?? null
-    },
+    lastWorldPlayedDate: user.lastWorldPlayedDate ?? null,
+    dailyWorldWins: user.dailyWorldWins ?? 0,
+    worldRewardClaimed: user.worldRewardClaimed ?? false,
+    lastWorldTournament: user.lastWorldTournament ?? null,
+    lastLoginAt: user.lastLoginAt ?? null
+  },
     personalProgress: {
       singlePlayerProgress: user.singlePlayerProgress ?? 0,
       clearedSinglePlayerStages: user.clearedSinglePlayerStages ?? [],

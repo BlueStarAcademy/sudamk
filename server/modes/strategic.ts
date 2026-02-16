@@ -197,12 +197,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : (myPlayerEnum === types.Player.White ? types.Player.Black : types.Player.None);
             
-            // 싱글플레이 모드에서는 서버의 실제 boardState를 기준으로 체크 (클라이언트 boardState를 신뢰하지 않음)
+            // 싱글플레이/도전의탑/AI 게임에서는 서버의 실제 boardState를 기준으로 체크 (돌 사라짐 버그 방지)
             let serverBoardState = game.boardState;
             let serverMoveHistory = game.moveHistory;
             
-            if (game.isSinglePlayer || game.gameCategory === 'tower') {
-                // 싱글플레이 또는 도전의 탑에서는 서버의 실제 boardState를 사용
+            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
+                // 싱글플레이, 도전의 탑, 전략바둑 AI 대국에서는 서버의 실제 boardState를 사용
                 const { getLiveGame } = await import('../db.js');
                 const freshGame = await getLiveGame(game.id);
                 if (freshGame) {
@@ -214,8 +214,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 범위 체크 후에만 boardState에 접근
             const stoneAtTarget = serverBoardState[y][x];
 
-            // 싱글플레이 모드에서 AI가 둔 자리 체크 (서버 boardState 기준) - 최우선 체크 (치명적 버그 방지)
-            if (game.isSinglePlayer || game.gameCategory === 'tower') {
+            // 싱글플레이/AI 게임에서 AI가 둔 자리 체크 (서버 boardState 기준) - 최우선 체크 (치명적 버그 방지)
+            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
                 // boardState에 상대방(AI) 돌이 있으면 무조건 차단
                 if (stoneAtTarget === opponentPlayerEnum) {
                     console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
@@ -232,7 +232,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
                 }
                 
-                // 서버 boardState를 게임 객체에 반영
+                // 서버 boardState를 게임 객체에 반영 (클라이언트 무시, 돌 사라짐 방지)
                 game.boardState = serverBoardState;
                 game.moveHistory = serverMoveHistory;
             }
@@ -291,8 +291,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 return { error: '이미 자신의 돌이 놓인 자리입니다.' };
             }
             
-            // 싱글플레이/도전의 탑 모드에서 AI 돌 위에 착점 시도 차단
-            if (game.isSinglePlayer || game.gameCategory === 'tower') {
+            // 싱글플레이/도전의 탑/AI 대국에서 AI 돌 위에 착점 시도 차단
+            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
                 if (finalStoneCheck === opponentPlayerEnum) {
                     console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI stone detected at (${x}, ${y}) before processMove, gameId=${game.id}, finalStoneCheck=${finalStoneCheck}, opponentPlayerEnum=${opponentPlayerEnum}`);
                     return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
@@ -320,13 +320,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.moveHistory.length,
                 { 
                     ignoreSuicide: false,
-                    isSinglePlayer: game.isSinglePlayer || game.gameCategory === 'tower',
-                    opponentPlayer: (game.isSinglePlayer || game.gameCategory === 'tower') ? opponentPlayerEnum : undefined
+                    isSinglePlayer: game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame,
+                    opponentPlayer: (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) ? opponentPlayerEnum : undefined
                 }
             );
             
-            // processMove 결과 검증 (싱글플레이/도전의 탑) - 치명적 버그 방지
-            if ((game.isSinglePlayer || game.gameCategory === 'tower') && result.isValid) {
+            // processMove 결과 검증 (싱글플레이/도전의 탑/AI 대국) - 치명적 버그 방지
+            if ((game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) && result.isValid) {
                 // processMove 후에도 해당 위치에 플레이어 돌이 있는지 확인
                 const afterMoveCheck = result.newBoardState[y][x];
                 if (afterMoveCheck !== myPlayerEnum) {
@@ -657,7 +657,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-            if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+            if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                 const { aiUserId } = await import('../aiPlayer.js');
                 const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 if (currentPlayerId === aiUserId) {
@@ -749,7 +749,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
                 
                 // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                     const { aiUserId } = await import('../aiPlayer.js');
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {

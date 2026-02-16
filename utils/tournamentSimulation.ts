@@ -169,17 +169,20 @@ export const runClientSimulationStep = (
     const p1PowerWithRandom = p1BasePower * p1RandomFactor;
     const p2PowerWithRandom = p2BasePower * p2RandomFactor;
     
-    // 크리티컬 계산
+    // 크리티컬 확률: 기본 15% + (판단력×랜덤), 최대 60% — 서버와 동일
+    const MAX_CRIT_CHANCE_PERCENT = 60;
     const p1Judgment = player1.stats[CoreStat.Judgment] || 0;
     const p2Judgment = player2.stats[CoreStat.Judgment] || 0;
     const p1CritMultiplier = 0.03 + rng.random() * 0.07;
     const p2CritMultiplier = 0.03 + rng.random() * 0.07;
-    const p1CritChance = 15 + (p1Judgment * p1CritMultiplier);
-    const p2CritChance = 15 + (p2Judgment * p2CritMultiplier);
+    const p1CritChance = Math.min(MAX_CRIT_CHANCE_PERCENT, 15 + (p1Judgment * p1CritMultiplier));
+    const p2CritChance = Math.min(MAX_CRIT_CHANCE_PERCENT, 15 + (p2Judgment * p2CritMultiplier));
     
     const p1IsCritical = rng.random() * 100 < p1CritChance;
     const p2IsCritical = rng.random() * 100 < p2CritChance;
     
+    // 치명타 추가 점수 상한: 기본 점수의 최대 300%까지 (추가분 상한) — 서버 tournamentService와 동일
+    const MAX_CRIT_BONUS_MULTIPLIER = 3;
     let p1FinalPower = p1PowerWithRandom;
     let p2FinalPower = p2PowerWithRandom;
     
@@ -187,14 +190,18 @@ export const runClientSimulationStep = (
         const p1CombatPower = player1.stats[CoreStat.CombatPower] || 0;
         const p1Calculation = player1.stats[CoreStat.Calculation] || 0;
         const p1CritBonusPercent = (p1CombatPower * 0.1) + (p1Calculation * 0.5) + (rng.random() * 100 - 50);
-        p1FinalPower = p1PowerWithRandom + (p1PowerWithRandom * p1CritBonusPercent / 100);
+        const p1CritBonusRaw = p1PowerWithRandom * p1CritBonusPercent / 100;
+        const p1CritBonusCapped = Math.min(p1CritBonusRaw, p1PowerWithRandom * MAX_CRIT_BONUS_MULTIPLIER);
+        p1FinalPower = p1PowerWithRandom + p1CritBonusCapped;
     }
     
     if (p2IsCritical) {
         const p2CombatPower = player2.stats[CoreStat.CombatPower] || 0;
         const p2Calculation = player2.stats[CoreStat.Calculation] || 0;
         const p2CritBonusPercent = (p2CombatPower * 0.1) + (p2Calculation * 0.5) + (rng.random() * 100 - 50);
-        p2FinalPower = p2PowerWithRandom + (p2PowerWithRandom * p2CritBonusPercent / 100);
+        const p2CritBonusRaw = p2PowerWithRandom * p2CritBonusPercent / 100;
+        const p2CritBonusCapped = Math.min(p2CritBonusRaw, p2PowerWithRandom * MAX_CRIT_BONUS_MULTIPLIER);
+        p2FinalPower = p2PowerWithRandom + p2CritBonusCapped;
     }
     
     const newPlayer1Score = player1Score + p1FinalPower;
@@ -406,17 +413,20 @@ export const runClientSimulation = (
         const p1PowerWithRandom = p1BasePower * p1RandomFactor;
         const p2PowerWithRandom = p2BasePower * p2RandomFactor;
         
-        // 크리티컬 계산
+        // 크리티컬 확률: 기본 15% + (판단력×랜덤), 최대 60% — 서버와 동일
+        const MAX_CRIT_CHANCE_PERCENT = 60;
         const p1Judgment = player1.stats[CoreStat.Judgment] || 0;
         const p2Judgment = player2.stats[CoreStat.Judgment] || 0;
         const p1CritMultiplier = 0.03 + rng.random() * 0.07;
         const p2CritMultiplier = 0.03 + rng.random() * 0.07;
-        const p1CritChance = 15 + (p1Judgment * p1CritMultiplier);
-        const p2CritChance = 15 + (p2Judgment * p2CritMultiplier);
+        const p1CritChance = Math.min(MAX_CRIT_CHANCE_PERCENT, 15 + (p1Judgment * p1CritMultiplier));
+        const p2CritChance = Math.min(MAX_CRIT_CHANCE_PERCENT, 15 + (p2Judgment * p2CritMultiplier));
         
         const p1IsCritical = rng.random() * 100 < p1CritChance;
         const p2IsCritical = rng.random() * 100 < p2CritChance;
         
+        // 치명타 추가 점수 상한: 기본 점수의 최대 300%까지 (추가분 상한) — 서버와 동일
+        const MAX_CRIT_BONUS_MULTIPLIER = 3;
         let p1FinalPower = p1PowerWithRandom;
         let p2FinalPower = p2PowerWithRandom;
         
@@ -424,14 +434,18 @@ export const runClientSimulation = (
             const p1CombatPower = player1.stats[CoreStat.CombatPower] || 0;
             const p1Calculation = player1.stats[CoreStat.Calculation] || 0;
             const p1CritBonusPercent = (p1CombatPower * 0.1) + (p1Calculation * 0.5) + (rng.random() * 100 - 50);
-            p1FinalPower = p1PowerWithRandom + (p1PowerWithRandom * p1CritBonusPercent / 100);
+            const p1CritBonusRaw = p1PowerWithRandom * p1CritBonusPercent / 100;
+            const p1CritBonusCapped = Math.min(p1CritBonusRaw, p1PowerWithRandom * MAX_CRIT_BONUS_MULTIPLIER);
+            p1FinalPower = p1PowerWithRandom + p1CritBonusCapped;
         }
         
         if (p2IsCritical) {
             const p2CombatPower = player2.stats[CoreStat.CombatPower] || 0;
             const p2Calculation = player2.stats[CoreStat.Calculation] || 0;
             const p2CritBonusPercent = (p2CombatPower * 0.1) + (p2Calculation * 0.5) + (rng.random() * 100 - 50);
-            p2FinalPower = p2PowerWithRandom + (p2PowerWithRandom * p2CritBonusPercent / 100);
+            const p2CritBonusRaw = p2PowerWithRandom * p2CritBonusPercent / 100;
+            const p2CritBonusCapped = Math.min(p2CritBonusRaw, p2PowerWithRandom * MAX_CRIT_BONUS_MULTIPLIER);
+            p2FinalPower = p2PowerWithRandom + p2CritBonusCapped;
         }
         
         player1Score += p1FinalPower;

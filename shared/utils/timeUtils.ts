@@ -164,6 +164,63 @@ export const formatLastLogin = (timestamp: number | undefined): string => {
     return `${Math.floor(days / 365)}년 전`;
 };
 
+/** 길드원 목록용: N시간전 / N일전 / N주전 / 장기미접속 4가지 형식 */
+export const formatLastSeenGuild = (timestamp: number | undefined): string => {
+    if (!timestamp) return '장기미접속';
+    const now = Date.now();
+    const diff = now - timestamp;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const weeks = Math.floor(days / 7);
+    if (hours < 24) return hours < 1 ? '1시간전' : `${hours}시간전`;
+    if (days < 7) return `${days}일전`;
+    if (weeks < 4) return `${weeks}주전`;
+    return '장기미접속';
+};
+
+/** 길드전 매칭일: 화요일 0:00, 금요일 0:00 KST. 신청 마감: 월요일 23:00, 목요일 23:00 */
+
+/** 다음 길드전 매칭 시각 (화요일 0:00 또는 금요일 0:00 KST, 가까운 쪽) */
+export const getNextGuildWarMatchDate = (now: number = Date.now()): number => {
+    const kstDay = getKSTDay(now);
+    const kstHours = getKSTHours(now);
+    const kstMinutes = getKSTMinutes(now);
+    const todayStart = getStartOfDayKST(now);
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    // 매칭 실행 창(화/금 0:00~0:30) 안이면 "이번 매칭"은 이미 진행 중 → 다음 매칭일 반환
+    const inTueMatchWindow = kstDay === 2 && kstHours === 0 && kstMinutes < 30;
+    const inFriMatchWindow = kstDay === 5 && kstHours === 0 && kstMinutes < 30;
+    const pastMatchWindow = (kstDay === 2 || kstDay === 5) && (kstHours > 0 || kstMinutes >= 30);
+
+    if (inTueMatchWindow) return todayStart + 3 * oneDay; // 다음 금요일 0:00
+    if (inFriMatchWindow) return todayStart + 4 * oneDay;   // 다음 화요일 0:00
+
+    // 오늘 0시가 매칭일이면 (아직 0:30 전이 아닐 때만) 오늘 0시가 다음 매칭
+    if (kstDay === 2 && !pastMatchWindow) return todayStart;
+    if (kstDay === 5 && !pastMatchWindow) return todayStart;
+
+    // 그 외: 다음 화요일 0:00 vs 다음 금요일 0:00 중 더 가까운 날
+    let daysUntilTue = (2 - kstDay + 7) % 7;
+    if (daysUntilTue === 0) daysUntilTue = 7;
+    let daysUntilFri = (5 - kstDay + 7) % 7;
+    if (daysUntilFri === 0) daysUntilFri = 7;
+    const nextTue = todayStart + daysUntilTue * oneDay;
+    const nextFri = todayStart + daysUntilFri * oneDay;
+    return Math.min(nextTue, nextFri);
+};
+
+/** 다음 길드전 신청 마감 시각 (월요일 23:00 또는 목요일 23:00 KST = 매칭 1시간 전) */
+export const getNextGuildWarApplicationDeadline = (now: number = Date.now()): number => {
+    return getNextGuildWarMatchDate(now) - 60 * 60 * 1000;
+};
+
+/** 매칭 시각이 화요일 0시면 'tue_wed'(47h), 금요일 0시면 'fri_sun'(71h) */
+export const getGuildWarTypeFromMatchTime = (matchTimeMs: number): 'tue_wed' | 'fri_sun' => {
+    const kstDay = getKSTDay(matchTimeMs);
+    return kstDay === 2 ? 'tue_wed' : 'fri_sun';
+};
+
 export const getTimeUntilNextMondayKST = (): number => {
     const now = Date.now();
     const kstNow = getKSTDate(now);

@@ -38,12 +38,12 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
             return;
         }
         
-        // guilds 상태에 길드가 없으면 로드 (guilds 객체는 의존성에서 제거하여 무한 루프 방지)
-        const hasGuild = guilds[guildId] !== undefined;
-        if (!hasGuild && !initialGuild) {
+        // guilds에 길드가 없거나, 멤버 목록이 비어있으면 GET_GUILD_INFO로 최신 데이터 동기화
+        const existingGuild = guilds[guildId] || initialGuild;
+        const needsLoad = !existingGuild || !existingGuild.members || existingGuild.members.length === 0;
+        if (needsLoad) {
             const loadGuildInfo = async () => {
                 setIsLoading(true);
-                hasLoadedRef.current = true; // 시도 시작 시 true로 설정하여 중복 호출 방지
                 try {
                     const result: any = await handlers.handleAction({ type: 'GET_GUILD_INFO' });
                     if (result?.error) {
@@ -60,15 +60,16 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
                             hasLoadedRef.current = true;
                         }
                     } else if (result?.clientResponse?.guild) {
-                        // 길드 정보가 로드되었으면 hasLoadedRef를 true로 유지
+                        hasLoadedRef.current = true;
                         console.log('[GuildHome] GET_GUILD_INFO success:', {
                             guildId: result.clientResponse.guild.id,
                             guildName: result.clientResponse.guild.name,
                             hasName: !!result.clientResponse.guild.name,
                             guildKeys: Object.keys(result.clientResponse.guild)
                         });
-                        hasLoadedRef.current = true;
                         // guilds 상태는 useApp.ts에서 자동으로 업데이트됨
+                    } else {
+                        hasLoadedRef.current = true; // 성공 응답이지만 guild 없음
                     }
                 } catch (error) {
                     console.error('[GuildHome] Error loading guild info:', error);
@@ -82,7 +83,7 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
                 }
             };
             loadGuildInfo();
-        } else if (hasGuild || initialGuild) {
+        } else {
             hasLoadedRef.current = true;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,15 +107,24 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
         };
     }, [guildDonationAnimation]);
 
-    // 사용자가 길드에 속해있지 않으면 즉시 프로필로 리다이렉트
+    // 사용자가 길드에 속해있지 않으면 프로필로 리다이렉트 (currentUserWithStatus가 로드된 후에만, 길드 ID가 확실히 없을 때만)
     useEffect(() => {
-        if (!currentUserWithStatus?.guildId) {
-            window.location.hash = '#/profile';
+        if (!currentUserWithStatus) return; // 사용자 정보가 아직 로드 중이면 대기
+        if (!currentUserWithStatus.guildId) {
+            const t = setTimeout(() => {
+                window.location.hash = '#/profile';
+            }, 2000);
+            return () => clearTimeout(t);
         }
-    }, [currentUserWithStatus?.guildId]);
+    }, [currentUserWithStatus]);
     
     if (!currentUserWithStatus?.guildId) {
-        return null; // 리다이렉트 중이므로 아무것도 표시하지 않음
+        return (
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+                <BackButton onClick={() => window.location.hash = '#/profile'} />
+                <p className="text-gray-400">로그인 정보를 확인하는 중...</p>
+            </div>
+        );
     }
 
     // 로딩 중이면 로딩 표시
@@ -126,9 +136,11 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
         );
     }
 
-    // 길드가 없거나 사용자가 길드에 속해있지 않으면 프로필로 리다이렉트
+    // 길드가 없거나 사용자가 길드에 속해있지 않으면 프로필로 리다이렉트 (로드 완료 후 myGuild가 없을 때만)
     useEffect(() => {
-        if (!currentUserWithStatus?.guildId || (!myGuild && !isLoading && hasLoadedRef.current)) {
+        if (!currentUserWithStatus?.guildId) return;
+        if (isLoading) return; // 로딩 중에는 리다이렉트하지 않음
+        if (!myGuild && hasLoadedRef.current) {
             window.location.hash = '#/profile';
         }
     }, [currentUserWithStatus?.guildId, myGuild, isLoading]);

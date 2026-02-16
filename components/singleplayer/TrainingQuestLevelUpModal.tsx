@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SinglePlayerMissionInfo } from '../../types.js';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
+
+const ENHANCE_GAUGE_DURATION = 3000; // 3초
 
 interface TrainingQuestLevelUpModalProps {
     mission: SinglePlayerMissionInfo;
@@ -33,6 +35,25 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
     const [isLevelingUp, setIsLevelingUp] = useState(false);
     const [displayLevel, setDisplayLevel] = useState(currentLevel);
     const [showLevelUpEffect, setShowLevelUpEffect] = useState(false);
+    const [isEnhancing, setIsEnhancing] = useState(false);
+    const [enhancementProgress, setEnhancementProgress] = useState(0);
+    const enhanceIntervalRef = useRef<number | null>(null);
+    const enhanceTimeoutRef = useRef<number | null>(null);
+
+    const clearEnhanceTimers = useCallback(() => {
+        if (enhanceIntervalRef.current !== null) {
+            window.clearInterval(enhanceIntervalRef.current);
+            enhanceIntervalRef.current = null;
+        }
+        if (enhanceTimeoutRef.current !== null) {
+            window.clearTimeout(enhanceTimeoutRef.current);
+            enhanceTimeoutRef.current = null;
+        }
+    }, []);
+
+    useEffect(() => {
+        return () => clearEnhanceTimers();
+    }, [clearEnhanceTimers]);
 
     const currentLevelInfo = currentLevel > 0 ? mission.levels[currentLevel - 1] : null;
     const nextLevelInfo = mission.levels && mission.levels[currentLevel];
@@ -93,8 +114,36 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
     const xpRemaining = xpReady ? 0 : Math.max(0, normalizedRequired - normalizedAccumulated);
 
     const handleEnhance = async () => {
-        if (!canLevelUp || !hasEnoughGold) return;
-        await onConfirm();
+        if (!canLevelUp || !hasEnoughGold || isEnhancing) return;
+
+        setIsEnhancing(true);
+        setEnhancementProgress(0);
+        clearEnhanceTimers();
+
+        const startTime = Date.now();
+        enhanceIntervalRef.current = window.setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const percent = Math.min(100, Math.round((elapsed / ENHANCE_GAUGE_DURATION) * 100));
+            setEnhancementProgress(percent);
+            if (elapsed >= ENHANCE_GAUGE_DURATION && enhanceIntervalRef.current !== null) {
+                window.clearInterval(enhanceIntervalRef.current);
+                enhanceIntervalRef.current = null;
+            }
+        }, 50);
+
+        enhanceTimeoutRef.current = window.setTimeout(() => {
+            enhanceTimeoutRef.current = null;
+            (async () => {
+                try {
+                    setEnhancementProgress(100);
+                    await onConfirm();
+                } finally {
+                    clearEnhanceTimers();
+                    setIsEnhancing(false);
+                    setEnhancementProgress(0);
+                }
+            })();
+        }, ENHANCE_GAUGE_DURATION);
     };
 
     return (
@@ -257,32 +306,43 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                     )}
                 </div>
 
-                <div className="px-4 py-3 border-t border-slate-700/70 bg-slate-950/40 flex gap-3 rounded-b-xl">
-                    <Button 
-                        onClick={onClose} 
-                        colorScheme="none"
-                        className="flex-1 rounded-lg border border-slate-600/60 bg-slate-800/70 text-slate-200 hover:bg-slate-700/70"
-                    >
-                        취소
-                    </Button>
-                    <Button 
-                        onClick={handleEnhance} 
-                        colorScheme="none"
-                        className={`flex-1 justify-center rounded-lg border border-indigo-400/70 bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-400 text-white shadow-[0_18px_40px_-18px_rgba(99,102,241,0.9)] hover:from-indigo-400 hover:to-cyan-400 ${(!canLevelUp || !hasEnoughGold) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={!canLevelUp || !hasEnoughGold}
-                    >
-                        {!canLevelUp
-                            ? '강화 조건 미충족'
-                            : !hasEnoughGold
-                                ? '골드 부족'
-                                : (
-                                    <span className="flex items-center gap-2 font-semibold tracking-wide">
-                                        <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4 drop-shadow" />
-                                        <span>{upgradeCost.toLocaleString()}</span>
-                                        <span>강화하기</span>
-                                    </span>
-                                )}
-                    </Button>
+                <div className="px-4 py-3 border-t border-slate-700/70 bg-slate-950/40 flex flex-col gap-2 rounded-b-xl">
+                    <div className="flex gap-3">
+                        <Button 
+                            onClick={onClose} 
+                            colorScheme="none"
+                            className={`flex-1 rounded-lg border border-slate-600/60 bg-slate-800/70 text-slate-200 hover:bg-slate-700/70 ${isEnhancing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={isEnhancing}
+                        >
+                            취소
+                        </Button>
+                        <Button 
+                            onClick={handleEnhance} 
+                            colorScheme="none"
+                            className={`flex-1 flex items-center justify-center rounded-lg border border-indigo-400/70 bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-400 text-white shadow-[0_18px_40px_-18px_rgba(99,102,241,0.9)] hover:from-indigo-400 hover:to-cyan-400 ${(!canLevelUp || !hasEnoughGold || isEnhancing) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={!canLevelUp || !hasEnoughGold || isEnhancing}
+                        >
+                            {isEnhancing ? (
+                                '강화 중...'
+                            ) : !canLevelUp ? (
+                                '강화 조건 미충족'
+                            ) : !hasEnoughGold ? (
+                                '골드 부족'
+                            ) : (
+                                <span className="flex items-center justify-center gap-2 font-semibold tracking-wide">
+                                    <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4 drop-shadow flex-shrink-0" />
+                                    <span>{upgradeCost.toLocaleString()}</span>
+                                    <span>강화하기</span>
+                                </span>
+                            )}
+                        </Button>
+                    </div>
+                    <div className="h-2 w-full bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/60">
+                        <div
+                            className={`h-full bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 transition-[width] duration-100 ease-linear ${isEnhancing ? '' : 'opacity-0'}`}
+                            style={{ width: `${isEnhancing ? enhancementProgress : 0}%` }}
+                        />
+                    </div>
                 </div>
             </div>
         </DraggableWindow>
