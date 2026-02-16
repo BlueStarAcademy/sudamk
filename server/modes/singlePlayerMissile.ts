@@ -174,7 +174,6 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
     
     // 애니메이션 처리 - 최우선 처리
     if (game.gameStatus === 'missile_animating') {
-        console.log(`[SinglePlayer Missile] updateSinglePlayerMissileState: Checking animation, gameId=${game.id}, animation=${game.animation ? 'exists' : 'null'}, now=${now}`);
             // animation이 null인데 gameStatus가 여전히 missile_animating인 경우 정리
             if (!game.animation) {
                 console.warn(`[SinglePlayer Missile] Game ${game.id} has missile_animating status but no animation, cleaning up...`);
@@ -269,9 +268,7 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
             // 이미 처리된 애니메이션인지 확인 (중복 처리 방지)
             const lastProcessedAnimationTime = (game as any).lastProcessedMissileAnimationTime;
             if (lastProcessedAnimationTime === animationStartTime) {
-                // 이미 처리된 애니메이션 - 게임 상태가 여전히 missile_animating이면 정리
                 if (game.gameStatus === 'missile_animating') {
-                    console.log(`[SinglePlayer Missile] Cleaning up already processed animation, gameId=${game.id}`);
                     game.animation = null;
                     game.gameStatus = 'playing';
                     // 타이머 복원
@@ -284,18 +281,11 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
             }
             
             // 애니메이션이 종료되었는지 확인 (정상 종료: elapsed >= duration)
-            // 멀티플레이어와 동일하게 서버 루프에서 자동으로 처리
-            // 더 빠른 종료를 위해 duration보다 조금만 지나도 종료 처리
-            // 또는 애니메이션이 시작된 지 2.5초가 지나면 무조건 종료
-            console.log(`[SinglePlayer Missile] Animation check: elapsed=${elapsed}ms, duration=${duration}ms, startTime=${animationStartTime}, now=${now}, gameId=${game.id}`);
             if (elapsed >= duration - 100 || elapsed >= 2500) { // 100ms 여유를 두고 조금 일찍 종료, 또는 2.5초 경과 시 무조건 종료
-                console.log(`[SinglePlayer Missile] Animation should end: elapsed=${elapsed}ms >= duration-100=${duration-100}ms or elapsed >= 2500ms, gameId=${game.id}`);
                 // 이미 처리된 애니메이션인지 확인 (중복 처리 방지)
                 const lastProcessedAnimationTime = (game as any).lastProcessedMissileAnimationTime;
                 if (lastProcessedAnimationTime === animationStartTime) {
-                    // 이미 처리된 애니메이션 - 게임 상태가 여전히 missile_animating이면 정리
                     if (game.gameStatus === 'missile_animating') {
-                        console.log(`[SinglePlayer Missile] Cleaning up already processed animation, gameId=${game.id}`);
                         game.animation = null;
                         game.gameStatus = 'playing';
                         // 타이머 복원

@@ -437,7 +437,11 @@ export async function makeGoAiBotMove(
             }
             
             // GnuGo로 수 생성 시도 (전략바둑/20층+ 시 Railway GNUGO_API_URL 사용)
-            const gnuGoMove = await generateGnuGoMove(moveRequest);
+            // 3초 내 응답 없으면 즉시 goAiBot으로 폴백 (MainLoop 타임아웃 방지)
+            const gnuGoTimeout = new Promise<never>((_, reject) => 
+                setTimeout(() => reject(new Error('GnuGo request timeout (3s)')), 3000)
+            );
+            const gnuGoMove = await Promise.race([generateGnuGoMove(moveRequest), gnuGoTimeout]);
             
             // GnuGo가 생성한 수가 유효한지 확인
             const { processMove } = await import('./goLogic.js');

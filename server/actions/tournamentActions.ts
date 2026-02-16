@@ -269,31 +269,12 @@ export const startTournamentSessionForUser = async (user: User, tournamentType: 
     const freshUser = await getCachedUser(user.id);
     if (!freshUser) return { success: false, error: 'User not found in DB.' };
     
-    const allUsers = await db.getAllUsers();
-    // allUsers에 현재 유저가 최신 상태로 포함되도록 업데이트
-    const currentUserIndex = allUsers.findIndex(u => u.id === freshUser.id);
-    if (currentUserIndex !== -1) {
-        allUsers[currentUserIndex] = freshUser;
-    } else {
-        allUsers.push(freshUser);
-    }
-    
     const myLeague = freshUser.league;
-    const myId = freshUser.id;
-
-    // 각 경기장 매칭: 같은 리그에 있는 모든 유저(온라인/오프라인 포함) 중에서 완전 랜덤으로 선택
-    // 주간 경쟁 상대(weeklyCompetitors)와는 별개이며, 매칭될 수도 있고 안될 수도 있음 (완전 랜덤)
-    // 오프라인 사용자도 포함되어 있으며, 매칭 시점(0시)의 능력치로 고정되어 PVE처럼 클론과 대결하는 구조
-    const potentialOpponents = allUsers
-        .filter(u => u.id !== myId && u.league === myLeague)
-        .sort(() => 0.5 - Math.random()); // 완전 랜덤 셔플
-    
     const neededOpponents = definition.players - 1;
-    const selectedOpponents = potentialOpponents.slice(0, neededOpponents);
-    
-    // 같은 리그에 인원이 부족한 경우 봇으로 보완
 
-    const botsToCreate = neededOpponents - selectedOpponents.length;
+    // 챔피언십(동네/전국/월드)은 던전 모드로만 진행: 유저 vs 유저 매칭 금지, 오직 봇만 상대
+    const selectedOpponents: Array<{ id: string; nickname: string; avatarId: string; borderId: string; league: typeof myLeague }> = [];
+    const botsToCreate = neededOpponents;
     const botNames = [...BOT_NAMES].sort(() => 0.5 - Math.random());
     const botUsers: User[] = [];
 
@@ -340,15 +321,10 @@ export const startTournamentSessionForUser = async (user: User, tournamentType: 
                 initialStats = stats as Record<CoreStat, number>;
             }
         } else {
-            // 실제 유저의 경우 - allUsers에서 찾아서 매칭 시점(0시)의 능력치로 고정
-            // 오프라인/온라인 모두 포함되며, 이 시점의 능력치가 토너먼트 전체에서 사용됨 (PVE 클론 구조)
-            const realUser = allUsers.find(u => u.id === p.id);
-            if (realUser) {
-                // calculateTotalStats는 baseStats + spentStatPoints + 장비 보너스를 모두 계산
-                // 이 능력치는 originalStats에 저장되어 토너먼트 전체에서 고정됨
-                initialStats = calculateTotalStats(realUser);
+            // 현재 유저만 여기 도달 (챔피언십은 봇 전용이므로 상대는 전부 봇)
+            if (p.id === freshUser.id) {
+                initialStats = calculateTotalStats(freshUser);
             } else {
-                // 폴백: 기본 능력치 생성
                 const baseStatValue = 100;
                 const stats: Partial<Record<CoreStat, number>> = {};
                 for (const key of Object.values(CoreStat)) {

@@ -27,7 +27,7 @@ interface RankingCache {
 }
 
 let rankingCache: RankingCache | null = null;
-const CACHE_TTL = 10 * 60 * 1000; // 10분 캐시 (5분 -> 10분으로 증가)
+const CACHE_TTL = 15 * 60 * 1000; // 15분 캐시 (메모리·DB 부하 감소)
 
 // 동시 빌드 방지: 빌드 중인 경우 기존 Promise를 기다림
 let buildingPromise: Promise<RankingCache> | null = null;
@@ -68,8 +68,9 @@ export async function buildRankingCache(): Promise<RankingCache> {
     };
     console.log(`[RankingCache] Memory before build: RSS=${memUsageMBBefore.rss}MB, Heap=${memUsageMBBefore.heapUsed}MB`);
     
-    // 메모리 사용량이 너무 높으면 기존 캐시 반환
-    if (memUsageMBBefore.rss > 400) {
+    // 메모리 사용량이 너무 높으면 기존 캐시 반환 (32GB: 8GB, 512MB: 400MB)
+    const skipThresholdMB = parseInt(process.env.RAILWAY_REPLICA_MEMORY_LIMIT_MB || '0', 10) > 4000 ? 8000 : 400;
+    if (memUsageMBBefore.rss > skipThresholdMB) {
         console.warn(`[RankingCache] High memory usage (${memUsageMBBefore.rss}MB), returning stale cache`);
         if (rankingCache) {
             return rankingCache;

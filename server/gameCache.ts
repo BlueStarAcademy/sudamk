@@ -142,7 +142,7 @@ export function cleanupExpiredCache(): void {
     // 게임 캐시 정리
     const gameCache = volatileState.gameCache;
     if (gameCache) {
-        const maxGameCacheSize = isRailway ? 100 : 500; // Railway: 100개로 제한 (메모리 사용량 감소)
+        const maxGameCacheSize = isRailway ? 60 : 500; // Railway: 60개 (100명/50게임 최적화)
         
         // 먼저 만료된 항목 제거
         for (const [gameId, cached] of gameCache.entries()) {
@@ -167,7 +167,7 @@ export function cleanupExpiredCache(): void {
     // 사용자 캐시 정리
     const userCache = volatileState.userCache;
     if (userCache) {
-        const maxUserCacheSize = isRailway ? 500 : 1000; // Railway: 500개로 증가 (더 많은 사용자 지원)
+        const maxUserCacheSize = isRailway ? 300 : 1000; // Railway: 300개 (메모리 절감)
         
         // 먼저 만료된 항목 제거
         for (const [userId, cached] of userCache.entries()) {

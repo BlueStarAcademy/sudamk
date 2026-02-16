@@ -295,7 +295,7 @@ async function generateGnuGoMoveViaHttp(request: GenerateMoveRequest, apiUrl?: s
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(requestData)
             },
-            timeout: 10000
+            timeout: 5000
         };
         
         const req = httpModule.request(options, (res) => {
@@ -356,8 +356,13 @@ export async function generateGnuGoMove(request: GenerateMoveRequest): Promise<P
             console.log(`[GnuGo Service] Using HTTP API: ${GNUGO_API_URL}`);
             return await generateGnuGoMoveViaHttp(request);
         } catch (error: any) {
-            console.warn('[GnuGo Service] HTTP API failed, falling back to local process:', error.message);
-            // Fall through to local process
+            const msg = error?.message || String(error);
+            console.warn('[GnuGo Service] HTTP API failed:', msg);
+            if (msg.includes('ECONNREFUSED') || msg.includes('timeout') || msg.includes('ENOTFOUND')) {
+                console.warn('[GnuGo Service] GnuGo 서비스 연결 실패. GNUGO_API_URL 확인: ' + (GNUGO_API_URL ? '설정됨' : '미설정'));
+            }
+            // Fall through to local process (로컬 없으면 goAiBot fallback으로 전달)
+            throw error;
         }
     }
     

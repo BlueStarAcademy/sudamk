@@ -144,7 +144,9 @@ const PlayerProfilePanel: React.FC<{
     isMobile?: boolean;
     /** 1회차 경기 시작 전에만 true. 시작 후·종료 후에는 false (컨디션 회복제 버튼 비활성화) */
     canUseConditionPotion?: boolean;
-}> = ({ player, initialPlayer, allUsers, currentUserId, onViewUser, highlightPhase, isUserMatch, onUseConditionPotion, onOpenShop, timeElapsed = 0, tournamentStatus, isMobile = false, canUseConditionPotion = false }) => {
+    /** 티어 표시 여부. 챔피언십 경기장에서는 false (티어는 전략바둑/놀이바둑에만 존재) */
+    showLeague?: boolean;
+}> = ({ player, initialPlayer, allUsers, currentUserId, onViewUser, highlightPhase, isUserMatch, onUseConditionPotion, onOpenShop, timeElapsed = 0, tournamentStatus, isMobile = false, canUseConditionPotion = false, showLeague = false }) => {
     // 모든 hooks는 조건부 return 전에 선언되어야 함
     const [previousCondition, setPreviousCondition] = useState<number | undefined>(undefined);
     const [showConditionIncrease, setShowConditionIncrease] = useState(false);
@@ -529,7 +531,7 @@ const PlayerProfilePanel: React.FC<{
     return (
         <div className={`bg-gray-900/50 p-1.5 md:p-2 rounded-lg flex flex-col gap-0.5 md:gap-1 h-full min-h-0 ${isClickable ? 'cursor-pointer hover:bg-gray-700/50' : ''}`} onClick={isClickable ? () => onViewUser(playerId) : undefined} title={isClickable ? `${playerNickname} 프로필 보기` : ''} style={{ maxHeight: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
             <div className="flex items-center gap-1 md:gap-2 w-full flex-shrink-0">
-                {leagueInfo && (
+                {showLeague && leagueInfo && (
                     <img
                         key={`league-${playerId}-${leagueInfo.tier}`}
                         src={leagueInfo.icon}

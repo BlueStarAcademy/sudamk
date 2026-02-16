@@ -645,18 +645,11 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const freshUser = await getCachedUser(targetUserId) || await db.getUser(targetUserId);
             if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
 
-            const allUsers = await db.getAllUsers();
             const myLeague = freshUser.league;
-            const myId = freshUser.id;
-        
-            const potentialOpponents = allUsers
-                .filter(u => u.id !== myId && u.league === myLeague)
-                .sort(() => 0.5 - Math.random());
-            
             const neededOpponents = definition.players - 1;
-            const selectedOpponents = potentialOpponents.slice(0, neededOpponents);
-        
-            const botsToCreate = neededOpponents - selectedOpponents.length;
+            // 챔피언십은 봇 전용: 유저 vs 유저 매칭 금지
+            const selectedOpponents: Array<{ id: string; nickname: string; avatarId: string; borderId: string; league: string }> = [];
+            const botsToCreate = neededOpponents;
             const botNames = [...BOT_NAMES].sort(() => 0.5 - Math.random());
             
             // 봇 생성 함수 import
@@ -703,9 +696,9 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                         initialStats = stats as Record<CoreStat, number>;
                     }
                 } else {
-                    const realUser = allUsers.find((u: any) => u.id === p.id);
-                    if (realUser) {
-                        initialStats = calculateTotalStats(realUser);
+                    // 현재 유저만 여기 도달 (챔피언십은 봇 전용)
+                    if (p.id === freshUser.id) {
+                        initialStats = calculateTotalStats(freshUser);
                     } else {
                         const baseStatValue = 100;
                         const stats: Partial<Record<CoreStat, number>> = {};
@@ -819,13 +812,11 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 if (!definition) continue;
                 const freshUser = await getCachedUser(targetUserId) || await db.getUser(targetUserId);
                 if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
-                const allUsers = await db.getAllUsers();
                 const myLeague = freshUser.league;
-                const myId = freshUser.id;
-                const potentialOpponents = allUsers.filter(u => u.id !== myId && u.league === myLeague).sort(() => 0.5 - Math.random());
                 const neededOpponents = definition.players - 1;
-                const selectedOpponents = potentialOpponents.slice(0, neededOpponents);
-                const botsToCreate = neededOpponents - selectedOpponents.length;
+                // 챔피언십은 봇 전용: 유저 vs 유저 매칭 금지
+                const selectedOpponents: Array<{ id: string; nickname: string; avatarId: string; borderId: string; league: string }> = [];
+                const botsToCreate = neededOpponents;
                 const botNames = [...BOT_NAMES].sort(() => 0.5 - Math.random());
                 const { createBotUser } = await import('./tournamentActions.js');
                 const botUsers: types.User[] = [];
@@ -852,8 +843,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                             initialStats = stats as Record<CoreStat, number>;
                         }
                     } else {
-                        const realUser = allUsers.find((u: any) => u.id === p.id);
-                        if (realUser) initialStats = calculateTotalStats(realUser);
+                        if (p.id === freshUser.id) initialStats = calculateTotalStats(freshUser);
                         else {
                             const baseStatValue = 100;
                             const stats: Partial<Record<CoreStat, number>> = {};

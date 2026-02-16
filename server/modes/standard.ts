@@ -34,7 +34,27 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
             }
             break;
         case types.GameMode.Capture:
-            initializeCapture(game, now);
+            if (game.isAiGame) {
+                const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
+                const p1 = game.player1;
+                const p2 = game.player2;
+                if (humanPlayerColor === types.Player.Black) {
+                    game.blackPlayerId = p1.id;
+                    game.whitePlayerId = p2.id;
+                } else {
+                    game.whitePlayerId = p1.id;
+                    game.blackPlayerId = p2.id;
+                }
+                const baseTarget = game.settings.captureTarget || 20;
+                game.effectiveCaptureTargets = {
+                    [types.Player.None]: 0,
+                    [types.Player.Black]: baseTarget,
+                    [types.Player.White]: baseTarget,
+                };
+                transitionToPlaying(game, now);
+            } else {
+                initializeCapture(game, now);
+            }
             break;
         case types.GameMode.Base:
             initializeBase(game, now);
@@ -174,7 +194,6 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
             const { broadcastToGameParticipants } = await import('../socket.js');
             const db = await import('../db.js');
             await db.saveGame(game);
-            console.log(`[updateStrategicGameState] SinglePlayer state changed (missile=${missileStateChanged}, itemTimeout=${itemTimeoutStateChanged}), broadcasting GAME_UPDATE: gameId=${game.id}, gameStatus=${game.gameStatus}`);
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
         }
     } else {
@@ -356,11 +375,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             } else {
                 // PVP만 클라이언트 boardState 사용 (AI/싱글/탑은 위에서 이미 서버 기준 적용)
                 if (clientBoardState && Array.isArray(clientBoardState) && clientBoardState.length > 0) {
-                    console.log(`[handleStandardAction] PLACE_STONE: using client boardState, gameId=${game.id}`);
                     game.boardState = clientBoardState;
                 }
                 if (clientMoveHistory && Array.isArray(clientMoveHistory) && clientMoveHistory.length > 0) {
-                    console.log(`[handleStandardAction] PLACE_STONE: using client moveHistory, gameId=${game.id}`);
                     game.moveHistory = clientMoveHistory;
                 }
             }
@@ -488,7 +505,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 } else if (result.reason === 'occupied') {
                     errorMessage = '이미 돌이 놓인 자리입니다.';
                 }
-                console.error(`[handleStandardAction] Invalid move at (${x}, ${y}), reason=${result.reason}, gameId=${game.id}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn(`[handleStandardAction] Invalid move at (${x}, ${y}), reason=${result.reason}, gameId=${game.id}`);
+                }
                 return { error: errorMessage };
             }
             

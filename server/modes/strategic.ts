@@ -36,7 +36,27 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
             }
             break;
         case types.GameMode.Capture:
-            initializeCapture(game, now);
+            if (game.isAiGame) {
+                const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
+                const p1 = game.player1;
+                const p2 = game.player2;
+                if (humanPlayerColor === types.Player.Black) {
+                    game.blackPlayerId = p1.id;
+                    game.whitePlayerId = p2.id;
+                } else {
+                    game.whitePlayerId = p1.id;
+                    game.blackPlayerId = p2.id;
+                }
+                const baseTarget = game.settings.captureTarget || 20;
+                game.effectiveCaptureTargets = {
+                    [types.Player.None]: 0,
+                    [types.Player.Black]: baseTarget,
+                    [types.Player.White]: baseTarget,
+                };
+                transitionToPlaying(game, now);
+            } else {
+                initializeCapture(game, now);
+            }
             break;
         case types.GameMode.Base:
             initializeBase(game, now);
@@ -180,7 +200,6 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             const { x, y, isHidden } = payload;
-            console.log(`[handleStandardAction] PLACE_STONE: x=${x}, y=${y}, isHidden=${isHidden}, gameStatus=${game.gameStatus}, gameId=${game.id}`);
             
             // 치명적 버그 방지: 패 위치(-1, -1)에 돌을 놓으려는 시도 차단
             if (x === -1 || y === -1) {

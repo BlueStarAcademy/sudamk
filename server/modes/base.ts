@@ -213,12 +213,29 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
     
     game.baseStones_p1 = validP1Stones;
     game.baseStones_p2 = validP2Stones;
+    game.basePlacementDeadline = undefined;
+
+    // AI 게임: 흑선 가져오기 미니게임 건너뛰기 (설정에서 이미 결정됨)
+    if (game.isAiGame) {
+        const humanColor = game.settings.player1Color ?? types.Player.Black;
+        const p1 = game.player1;
+        const p2 = game.player2;
+        if (humanColor === types.Player.Black) {
+            game.blackPlayerId = p1.id;
+            game.whitePlayerId = p2.id;
+        } else {
+            game.whitePlayerId = p1.id;
+            game.blackPlayerId = p2.id;
+        }
+        game.finalKomi = game.settings.komi ?? 0.5;
+        transitionToPlaying(game, now);
+        return;
+    }
 
     game.gameStatus = 'komi_bidding';
     game.komiBiddingDeadline = now + 30000;
     game.komiBids = { [game.player1.id]: null, [game.player2.id]: null };
     game.komiBiddingRound = 1;
-    game.basePlacementDeadline = undefined;
 };
 
 
