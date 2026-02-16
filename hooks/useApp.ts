@@ -46,6 +46,8 @@ export const useApp = () => {
     const lastHttpActionType = useRef<string | null>(null);
     const lastHttpHadUpdatedUser = useRef<boolean>(false); // HTTP 응답에 updatedUser가 있었는지 추적
     const HTTP_UPDATE_DEBOUNCE_MS = 2000; // HTTP 응답 후 2초 내 WebSocket 업데이트 무시 (더 긴 시간으로 확실하게 보호)
+    // AI 게임 경기 시작 후 경기장 입장 시 state 반영 전 리다이렉트 방지 (레이스 컨디션)
+    const pendingAiGameEntryRef = useRef<{ gameId: string; until: number } | null>(null);
 
     useEffect(() => {
         currentUserRef.current = currentUser;
@@ -253,6 +255,7 @@ export const useApp = () => {
     const towerGameSignaturesRef = useRef<Record<string, string>>({});
     // WebSocket GAME_UPDATE 메시지 쓰로틀링 (같은 게임에 대해 최대 100ms당 1회만 처리)
     const lastGameUpdateTimeRef = useRef<Record<string, number>>({});
+    const lastGameUpdateMoveCountRef = useRef<Record<string, number>>({}); // AI 수 등 새 수가 있으면 쓰로틀 무시
     const GAME_UPDATE_THROTTLE_MS = 100; // 100ms 쓰로틀링
     const [negotiations, setNegotiations] = useState<Record<string, Negotiation>>({});
     const [waitingRoomChats, setWaitingRoomChats] = useState<Record<string, ChatMessage[]>>({});
@@ -565,12 +568,6 @@ export const useApp = () => {
     useEffect(() => {
         if (currentUser) {
             sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-            console.log('[useApp] currentUser updated:', {
-                id: currentUser.id,
-                inventoryLength: currentUser.inventory?.length,
-                gold: currentUser.gold,
-                diamonds: currentUser.diamonds
-            });
         } else {
             sessionStorage.removeItem('currentUser');
         }
@@ -865,16 +862,6 @@ export const useApp = () => {
                 // 공통 유틸리티 함수를 사용하여 게임 상태 업데이트
                 const updateResult = updateGameStateAfterMove(game, payload, gameType);
                 finalUpdatedGame = updateResult.updatedGame;
-                
-                console.log(`[handleAction] ${actionTypeName} - Updated game state:`, {
-                    gameId,
-                    moveHistoryLength: updateResult.updatedGame.moveHistory.length,
-                    currentPlayer: updateResult.updatedGame.currentPlayer,
-                    captures: updateResult.updatedGame.captures,
-                    shouldCheckVictory: updateResult.shouldCheckVictory,
-                    whiteTurnsPlayed: (updateResult.updatedGame as any).whiteTurnsPlayed,
-                    totalTurns: (updateResult.updatedGame as any).totalTurns
-                });
                 
                 // 싱글플레이 자동 계가 트리거 체크 (즉시 동기적으로 처리하여 게임 초기화 방지)
                 let shouldTriggerAutoScoring = false;
@@ -1635,9 +1622,9 @@ export const useApp = () => {
                 const gameId = (result as any).gameId || result.clientResponse?.gameId;
                 const game = (result as any).game || result.clientResponse?.game;
                 
-                // CONFIRM_TOWER_GAME_START의 경우 gameId가 없어도 게임이 이미 있을 수 있으므로, session에서 gameId를 가져올 수 있음
+                // CONFIRM_TOWER_GAME_START, CONFIRM_AI_GAME_START의 경우 gameId가 없어도 payload에서 가져올 수 있음
                 let effectiveGameId = gameId;
-                if (!effectiveGameId && (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START')) {
+                if (!effectiveGameId && (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START')) {
                     effectiveGameId = (action.payload as any)?.gameId;
                     console.log(`[handleAction] ${action.type} - gameId not in response, using payload gameId:`, effectiveGameId);
                 }
@@ -1792,6 +1779,10 @@ export const useApp = () => {
                     const targetHash = `#/game/${effectiveGameId}`;
                     if (window.location.hash !== targetHash) {
                         console.log('[handleAction] Setting immediate route to new game:', targetHash, 'hasGame:', !!game);
+                        // AI 게임: state 반영 전 리다이렉트 방지를 위해 유예 시간 설정
+                        if (action.type === 'CONFIRM_AI_GAME_START') {
+                            pendingAiGameEntryRef.current = { gameId: effectiveGameId, until: Date.now() + 3000 };
+                        }
                         // 즉시 라우팅 (지연 제거)
                         window.location.hash = targetHash;
                     }
@@ -2624,11 +2615,15 @@ export const useApp = () => {
                                 // 성능 최적화: GAME_UPDATE 메시지 쓰로틀링 (같은 게임에 대해 최대 100ms당 1회만 처리)
                                 const now = Date.now();
                                 const lastUpdateTime = lastGameUpdateTimeRef.current[gameId] || 0;
-                                if (now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS) {
-                                    // 쓰로틀링: 이전 업데이트로부터 100ms가 지나지 않았으면 무시
+                                const incomingMoveCount = (game.moveHistory && Array.isArray(game.moveHistory)) ? game.moveHistory.length : 0;
+                                const lastProcessedMoveCount = lastGameUpdateMoveCountRef.current[gameId] ?? 0;
+                                // 새 수(AI 수 등)가 있으면 반드시 처리 - 쓰로틀 무시 (바둑판에 돌이 안 보이는 버그 방지)
+                                const hasNewMoves = incomingMoveCount > lastProcessedMoveCount;
+                                if (!hasNewMoves && now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS) {
                                     return;
                                 }
                                 lastGameUpdateTimeRef.current[gameId] = now;
+                                lastGameUpdateMoveCountRef.current[gameId] = incomingMoveCount;
                                 
                                 const gameCategory = game.gameCategory || (game.isSinglePlayer ? 'singleplayer' : 'normal');
                                 
@@ -3456,10 +3451,13 @@ export const useApp = () => {
             console.log('[useApp] Routing to game:', activeGame.id);
             window.location.hash = `#/game/${activeGame.id}`;
         } else if (!activeGame && isGamePage) {
+            const urlGameId = currentHash.replace('#/game/', '');
+            // AI 게임 진입 직후: state 반영 전 레이스 컨디션으로 리다이렉트하지 않음 (3초 유예)
+            const pending = pendingAiGameEntryRef.current;
+            const isPendingAiEntry = pending?.gameId === urlGameId && Date.now() < pending.until;
             // AI 게임의 경우, 게임이 종료되어도 결과창을 확인할 수 있도록 게임 페이지에 머물 수 있음
-            // 나가기 버튼을 통해 대기실로 이동할 수 있음
-            const isAiGame = currentHash.startsWith('#/game/') && liveGames[currentHash.replace('#/game/', '')]?.isAiGame;
-            if (!isAiGame) {
+            const isAiGame = liveGames[urlGameId]?.isAiGame;
+            if (!isAiGame && !isPendingAiEntry) {
                 let targetHash = '#/profile';
                 if (currentUserWithStatus?.status === 'waiting' && currentUserWithStatus?.mode) {
                     targetHash = `#/waiting/${encodeURIComponent(currentUserWithStatus.mode)}`;
