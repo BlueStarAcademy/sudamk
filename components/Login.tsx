@@ -10,6 +10,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{ ok: boolean; message: string; url: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,10 +99,8 @@ const Login: React.FC = () => {
       const msg = err?.message || '';
       const isNetworkError = err?.name === 'TypeError' && (msg.includes('fetch') || msg.includes('Failed to'));
       if (isNetworkError) {
-        const healthUrl = getApiUrl('/api/health');
-        setError(
-          `서버에 연결할 수 없습니다. Railway 대시보드에서 SUDAM-API 서비스를 확인한 뒤 재배포해보세요. 상태 확인: ${healthUrl}`
-        );
+        setError('서버에 연결할 수 없습니다. 아래 "연결 확인"으로 API 주소와 상태를 확인한 뒤, Railway 대시보드에서 SUDAM-API 서비스를 확인·재배포해주세요.');
+        setConnectionStatus(null);
         return;
       }
       if (msg.includes('JSON')) {
@@ -153,6 +152,47 @@ const Login: React.FC = () => {
           </div>
           
           {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                const url = getApiUrl('/api/health');
+                setConnectionStatus({ ok: false, message: '확인 중...', url });
+                try {
+                  const res = await fetch(url, { method: 'GET', credentials: 'omit', signal: AbortSignal.timeout(8000) });
+                  const ok = res.ok;
+                  const text = await res.text();
+                  let msg = ok ? '연결됨' : `HTTP ${res.status}`;
+                  try {
+                    const json = JSON.parse(text);
+                    if (json.status === 'ok') msg = '연결됨 (서버 정상)';
+                  } catch {
+                    if (text.length < 80) msg += ` - ${text}`;
+                  }
+                  setConnectionStatus({ ok, message: msg, url });
+                } catch (e: any) {
+                  setConnectionStatus({
+                    ok: false,
+                    message: e?.name === 'TimeoutError' ? '타임아웃 (8초)' : (e?.message || '연결 실패'),
+                    url,
+                  });
+                }
+              }}
+              className="text-xs text-gray-500 hover:text-gray-300 underline"
+            >
+              연결 확인
+            </button>
+            {connectionStatus && (
+              <p className="text-xs text-center break-all">
+                <span className={connectionStatus.ok ? 'text-green-400' : 'text-amber-400'}>
+                  {connectionStatus.message}
+                </span>
+                <br />
+                <span className="text-gray-500">{connectionStatus.url}</span>
+              </p>
+            )}
+          </div>
 
           <div className="w-full flex justify-center">
              <Button 
