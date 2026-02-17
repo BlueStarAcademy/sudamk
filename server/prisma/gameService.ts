@@ -3,9 +3,9 @@ import type { LiveGameSession, GameStatus } from "../../types/index.js";
 
 const ENDED_STATUSES: GameStatus[] = ["ended", "no_contest"];
 
-// Railway 등 배포 환경에서는 DB 지연이 클 수 있어 타임아웃 완화
+// Railway 등 배포 환경에서는 DB 지연이 클 수 있어 타임아웃 완화 (MainLoop와 맞춤)
 const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
-const DB_QUERY_TIMEOUT_MS = isRailwayOrProd ? 10000 : 5000; // Railway: 10초, 로컬: 5초
+const DB_QUERY_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000; // Railway: 18초, 로컬: 5초
 
 const mapRowToGame = (row: { id: string; data: unknown; status: string; category: string | null }): LiveGameSession | null => {
   if (!row || !row.data) return null;

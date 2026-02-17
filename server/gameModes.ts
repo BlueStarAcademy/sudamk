@@ -820,8 +820,8 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             return games; // PVE 게임만 있으면 원본 반환
         }
 
-        // 주기당 처리 게임 수 제한 (updateGameStates 타임아웃 방지)
-        const MAX_GAMES_PER_CYCLE = 12;
+        // 주기당 처리 게임 수 제한 (updateGameStates 타임아웃 방지, Railway 안정화)
+        const MAX_GAMES_PER_CYCLE = 8;
         let roundRobinOffset = (global as any).__updateGameStatesRoundRobin ?? 0;
         const toProcess: LiveGameSession[] = multiPlayerGames.length <= MAX_GAMES_PER_CYCLE
             ? multiPlayerGames

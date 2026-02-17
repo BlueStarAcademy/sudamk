@@ -80,12 +80,11 @@ let lastBotScoreUpdateAt = 0;
 let lastGetAllActiveGamesTimeout = 0;
 const GET_ALL_ACTIVE_GAMES_BACKOFF_MS = 120000; // 타임아웃 발생 시 120초 동안 DB 조회 스킵 (캐시 사용)
 let lastGetAllActiveGamesSuccess = 0; // 마지막 성공한 게임 로드 시간
-const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = 30000; // 게임 목록을 30초마다 한 번만 로드 (DB 쿼리 최소화)
-// Railway 등 배포 환경에서는 DB 지연이 클 수 있어 타임아웃 완화
+// Railway 등 배포 환경에서는 DB 지연이 클 수 있어 타임아웃 완화 (반복 타임아웃 시 서버 불안정 방지)
 const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
-const MAINLOOP_DB_TIMEOUT_MS = isRailwayOrProd ? 10000 : 5000; // Railway: 10초, 로컬: 5초
-// Railway: 20게임×7배치×3초≈21초 → 25초로 여유
-const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 25000 : 5000; // Railway: 25초, 로컬: 5초
+const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = isRailwayOrProd ? 45000 : 30000; // Railway: 45초(부하 감소), 로컬: 30초
+const MAINLOOP_DB_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000; // Railway: 18초, 로컬: 5초
+const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 45000 : 5000; // Railway: 45초 (게임 많을 때 완료 여유), 로컬: 5초
 
 // 만료된 negotiation 정리 함수
 const cleanupExpiredNegotiations = (volatileState: types.VolatileState, now: number): void => {
@@ -2160,7 +2159,13 @@ const startServer = async () => {
                                 // 에러 발생 시 지연 시간을 백오프로 증가 (연속 실패 시 더 긴 대기)
                                 const baseDelay = 15000; // 기본 15초
                                 const backoffMultiplier = Math.min(mainLoopConsecutiveFailures, 5); // 최대 5배
-                                const nextDelay = baseDelay * backoffMultiplier;
+                                let nextDelay = baseDelay * backoffMultiplier;
+                                // Railway: 성공 시에도 최소 2초 대기하여 DB/이벤트 루프 부하 완화 (연속 타임아웃 방지)
+                                if (nextDelay === 0 && isRailwayOrProd) {
+                                    nextDelay = 2000;
+                                } else if (nextDelay === 0) {
+                                    nextDelay = 1000;
+                                }
                                 
                                 // 절대 실패하지 않도록 보호
                                 try {
