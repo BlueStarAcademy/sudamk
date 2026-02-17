@@ -98,7 +98,10 @@ const Login: React.FC = () => {
       const msg = err?.message || '';
       const isNetworkError = err?.name === 'TypeError' && (msg.includes('fetch') || msg.includes('Failed to'));
       if (isNetworkError) {
-        setError('서버에 연결할 수 없습니다. SUDAM-API가 실행 중인지 Railway 대시보드에서 확인하고, FRONTEND_URL을 설정한 뒤 재배포해주세요.');
+        const healthUrl = getApiUrl('/api/health');
+        setError(
+          `서버에 연결할 수 없습니다. Railway 대시보드에서 SUDAM-API 서비스를 확인한 뒤 재배포해보세요. 상태 확인: ${healthUrl}`
+        );
         return;
       }
       if (msg.includes('JSON')) {

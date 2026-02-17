@@ -1,5 +1,38 @@
 # 백엔드 서버 상태 확인 가이드
 
+## "서버에 연결할 수 없습니다" / Failed to fetch 발생 시
+
+프론트(https://sudam.up.railway.app)에서 로그인 시 위 메시지가 나오면, **브라우저가 API 서버에 연결하지 못한** 상태입니다.
+
+### 1단계: API가 살아 있는지 확인
+
+브라우저 새 탭에서 아래 주소를 열어보세요.
+
+- **https://sudam-api-production.up.railway.app/api/health**
+
+- **응답이 보이면** (JSON 등): API는 동작 중입니다. CORS/설정 문제일 수 있으므로 3단계로.
+- **연결 실패/타임아웃이면**: API 서비스가 중단되었거나 URL이 바뀌었습니다. 2단계로.
+
+### 2단계: Railway 대시보드에서 API 서비스 확인
+
+1. **Railway 대시보드** → **SUDAM-API** (백엔드) 서비스 선택
+2. **Deployments** 탭: 최근 배포가 성공(초록)인지 확인
+3. **Logs** 탭: 크래시·에러 메시지 확인
+4. **Variables** 탭: `DATABASE_URL`, `FRONTEND_URL` 등 필수 변수 설정 여부 확인
+5. 문제가 있으면 **Redeploy** 실행
+
+배포 후 Railway가 새 URL을 부여했을 수 있습니다. **Settings → Domains**에서 현재 공개 URL을 확인하고, 프론트엔드 서비스의 `VITE_API_URL`, `VITE_WS_URL`이 이 URL과 일치하는지 확인한 뒤, 필요하면 값 수정 후 **프론트엔드 재배포**하세요.
+
+### 3단계: CORS / FRONTEND_URL
+
+백엔드 서비스 Variables에 다음이 설정되어 있는지 확인합니다.
+
+- `FRONTEND_URL=https://sudam.up.railway.app`
+
+설정 후 변경 사항 반영을 위해 백엔드 **Redeploy**가 필요할 수 있습니다.
+
+---
+
 ## 현재 상황 분석
 
 로그를 보면 서버는 정상적으로 실행되고 있습니다:

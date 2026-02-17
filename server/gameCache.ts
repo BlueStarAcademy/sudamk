@@ -2,12 +2,21 @@ import { LiveGameSession, User } from '../types/index.js';
 import { volatileState } from './state.js';
 import * as db from './db.js';
 
-// Railway 환경에서는 캐시 TTL을 늘려서 데이터베이스 쿼리 감소
-// 로컬 환경도 성능 개선을 위해 캐시 TTL 증가
 const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
-const CACHE_TTL_MS = isRailway ? 300 * 1000 : 30 * 1000; // Railway: 300초, 로컬: 30초 캐시 (DB 쿼리 대폭 감소)
-// Railway DB는 네트워크 지연이 크므로 사용자 캐시 TTL을 더 길게 설정
-const USER_CACHE_TTL_MS = isRailway ? 1800 * 1000 : 600 * 1000; // Railway: 30분, 로컬: 10분 사용자 캐시 (성능 대폭 개선)
+const CACHE_TTL_MS = isRailway ? 300 * 1000 : 30 * 1000;
+const USER_CACHE_TTL_MS = isRailway ? 1800 * 1000 : 600 * 1000;
+
+// 1000명 규모: 접속자 수 기반 캐시 상한 (메모리 폭증 방지)
+function getMaxUserCacheSize(): number {
+    const connCount = Object.keys(volatileState.userConnections ?? {}).length;
+    if (isRailway) return Math.min(2500, 600 + connCount * 2);
+    return Math.min(2000, 500 + connCount * 2);
+}
+function getMaxGameCacheSize(): number {
+    const connCount = Object.keys(volatileState.userConnections ?? {}).length;
+    if (isRailway) return Math.min(200, 80 + Math.floor(connCount / 10));
+    return Math.min(500, 100 + Math.floor(connCount / 5));
+}
 
 /**
  * 게임 상태를 캐시에서 가져오거나 DB에서 로드
@@ -139,23 +148,19 @@ export function cleanupExpiredCache(): void {
     let gamesCleaned = 0;
     let usersCleaned = 0;
     
-    // 게임 캐시 정리
+    const maxGameCacheSize = getMaxGameCacheSize();
+    const maxUserCacheSize = getMaxUserCacheSize();
+
     const gameCache = volatileState.gameCache;
     if (gameCache) {
-        const maxGameCacheSize = isRailway ? 60 : 500; // Railway: 60개 (100명/50게임 최적화)
-        
-        // 먼저 만료된 항목 제거
         for (const [gameId, cached] of gameCache.entries()) {
             if (now - cached.lastUpdated > CACHE_TTL_MS * 2) {
                 gameCache.delete(gameId);
                 gamesCleaned++;
             }
         }
-        
-        // 캐시 크기가 너무 크면 LRU 방식으로 오래된 항목 제거
         if (gameCache.size > maxGameCacheSize) {
-            const sorted = Array.from(gameCache.entries())
-                .sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
+            const sorted = Array.from(gameCache.entries()).sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
             const toRemove = sorted.slice(0, gameCache.size - maxGameCacheSize);
             for (const [gameId] of toRemove) {
                 gameCache.delete(gameId);
@@ -164,23 +169,16 @@ export function cleanupExpiredCache(): void {
         }
     }
 
-    // 사용자 캐시 정리
     const userCache = volatileState.userCache;
     if (userCache) {
-        const maxUserCacheSize = isRailway ? 300 : 1000; // Railway: 300개 (메모리 절감)
-        
-        // 먼저 만료된 항목 제거
         for (const [userId, cached] of userCache.entries()) {
             if (now - cached.lastUpdated > USER_CACHE_TTL_MS * 2) {
                 userCache.delete(userId);
                 usersCleaned++;
             }
         }
-        
-        // 캐시 크기가 너무 크면 LRU 방식으로 오래된 항목 제거
         if (userCache.size > maxUserCacheSize) {
-            const sorted = Array.from(userCache.entries())
-                .sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
+            const sorted = Array.from(userCache.entries()).sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
             const toRemove = sorted.slice(0, userCache.size - maxUserCacheSize);
             for (const [userId] of toRemove) {
                 userCache.delete(userId);

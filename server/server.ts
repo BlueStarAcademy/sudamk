@@ -75,6 +75,8 @@ let lastOfflineRegenAt = 0;
 const DAILY_TASK_CHECK_INTERVAL_MS = 60_000; // 1 minute
 let lastDailyTaskCheckAt = 0;
 let lastBotScoreUpdateAt = 0;
+let lastStaleUserStatusCleanupAt = 0;
+const STALE_USER_STATUS_CLEANUP_INTERVAL_MS = 60_000; // 1000명 규모: userStatuses 무한 증가 방지
 
 // getAllActiveGames 타임아웃 백오프 추적
 let lastGetAllActiveGamesTimeout = 0;
@@ -1386,7 +1388,14 @@ const startServer = async () => {
             }
             
             const originalGamesJson = activeGames.map(g => JSON.stringify(g));
-            
+            const onlineUserIdsSet = new Set(Object.keys(volatileState.userConnections));
+            // 1000명 경량화: 접속 중인 플레이어가 있는 게임만 updateGameStates에 전달 (미접속 게임은 스킵)
+            const gamesWithOnlinePlayers = activeGames.filter((g) => {
+                if (!g?.player1?.id && !g?.player2?.id) return false;
+                if (g.isAiGame) return true; // AI 대국은 한 명만 접속해도 처리
+                return onlineUserIdsSet.has(g.player1?.id ?? '') || onlineUserIdsSet.has(g.player2?.id ?? '');
+            });
+
             // 게임을 캐시에 미리 로드
             const { updateGameCache } = await import('./gameCache.js');
             for (const game of activeGames) {
@@ -1790,33 +1799,54 @@ const startServer = async () => {
 
             const onlineUserIds = Object.keys(volatileState.userConnections);
             let updatedGames: types.LiveGameSession[] = [];
-            
-            // 게임 업데이트: 에러가 발생해도 서버는 계속 실행되도록 보장
-            if (activeGames.length > 0) {
+            if (gamesWithOnlinePlayers.length > 0) {
                 try {
                     const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                         setTimeout(() => {
                             const shouldLog = !(global as any).lastUpdateGamesTimeout || (Date.now() - (global as any).lastUpdateGamesTimeout > 30000);
                             if (shouldLog) {
-                                console.warn(`[MainLoop] updateGameStates timeout (${MAINLOOP_UPDATE_GAMES_TIMEOUT_MS}ms) for ${activeGames.length} games, using original state`);
+                                console.warn(`[MainLoop] updateGameStates timeout (${MAINLOOP_UPDATE_GAMES_TIMEOUT_MS}ms) for ${gamesWithOnlinePlayers.length} games, using original state`);
                                 (global as any).lastUpdateGamesTimeout = Date.now();
                             }
-                            resolve(activeGames); // 타임아웃 시 원본 상태 유지
+                            resolve(gamesWithOnlinePlayers);
                         }, MAINLOOP_UPDATE_GAMES_TIMEOUT_MS);
                     });
-                    updatedGames = await Promise.race([
-                        updateGameStates(activeGames, now).catch((err: any) => {
+                    const updatedSubset = await Promise.race([
+                        updateGameStates(gamesWithOnlinePlayers, now).catch((err: any) => {
                             console.error('[MainLoop] Error in updateGameStates:', err?.message || err);
-                            return activeGames; // 에러 발생 시 원본 게임 상태 유지
+                            return gamesWithOnlinePlayers;
                         }),
                         updateGamesTimeout
                     ]);
+                    const updatedById = new Map<string, types.LiveGameSession>();
+                    for (const g of updatedSubset) updatedById.set(g.id, g);
+                    updatedGames = activeGames.map((g) => updatedById.get(g.id) ?? g);
                 } catch (error: any) {
                     console.error('[MainLoop] Fatal error in updateGameStates:', error?.message || error);
-                    updatedGames = activeGames; // 에러 발생 시 원본 게임 상태 유지
+                    updatedGames = activeGames;
                 }
             } else {
-                updatedGames = activeGames; // 게임이 없으면 빈 배열
+                updatedGames = activeGames;
+            }
+
+            // 1000명 규모: 접속 끊긴 유저 중 대국 참가자가 아닌 경우 userStatuses에서 제거 (메모리 상한)
+            if (now - lastStaleUserStatusCleanupAt >= STALE_USER_STATUS_CLEANUP_INTERVAL_MS) {
+                lastStaleUserStatusCleanupAt = now;
+                const inGameUserIds = new Set<string>();
+                for (const g of activeGames) {
+                    if (g.player1?.id) inGameUserIds.add(g.player1.id);
+                    if (g.player2?.id) inGameUserIds.add(g.player2.id);
+                }
+                let removed = 0;
+                for (const uid of Object.keys(volatileState.userStatuses)) {
+                    if (volatileState.userConnections[uid]) continue;
+                    if (inGameUserIds.has(uid)) continue;
+                    delete volatileState.userStatuses[uid];
+                    removed++;
+                }
+                if (removed > 0 && process.env.NODE_ENV === 'development') {
+                    console.log(`[MainLoop] Cleaned ${removed} stale userStatuses`);
+                }
             }
 
             // Check for mutual disconnection - 에러 핸들링 추가

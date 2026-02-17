@@ -6,6 +6,8 @@ import { volatileState } from './state.js';
 let wss: WebSocketServer;
 // WebSocket 연결과 userId 매핑 (대역폭 최적화를 위해 게임 참가자에게만 전송)
 const wsUserIdMap = new Map<WebSocket, string>();
+// userId → 해당 유저의 WebSocket 연결들 (한 유저 다중 탭/기기 지원). 1000명 규모에서 broadcastToGameParticipants O(참가자수)로 최적화
+const userIdToClients = new Map<string, Set<WebSocket>>();
 
 export const getWebSocketServer = (): WebSocketServer | undefined => {
     return wss;
@@ -73,22 +75,31 @@ export const createWebSocketServer = (server: Server) => {
             });
 
         ws.on('close', (code, reason) => {
-            // 정상적인 연결 종료는 로깅하지 않음 (코드 1001: Going Away)
-            // 비정상적인 종료만 로깅하려면: if (code !== 1001) console.log('[WebSocket] Client disconnected:', { code, reason: reason.toString() });
-            // userId 매핑 제거
             const userId = wsUserIdMap.get(ws);
             if (userId) {
                 wsUserIdMap.delete(ws);
+                const set = userIdToClients.get(userId);
+                if (set) {
+                    set.delete(ws);
+                    if (set.size === 0) userIdToClients.delete(userId);
+                }
             }
             isClosed = true;
         });
-        
+
         // 클라이언트로부터 메시지 수신 (userId 설정용)
         ws.on('message', (data: Buffer) => {
             try {
                 const message = JSON.parse(data.toString());
                 if (message.type === 'AUTH' && message.userId) {
-                    wsUserIdMap.set(ws, message.userId);
+                    const uid = message.userId as string;
+                    wsUserIdMap.set(ws, uid);
+                    let set = userIdToClients.get(uid);
+                    if (!set) {
+                        set = new Set();
+                        userIdToClients.set(uid, set);
+                    }
+                    set.add(ws);
                 }
             } catch (e) {
                 // 무시 (다른 메시지 타입)
@@ -380,7 +391,7 @@ export const createWebSocketServer = (server: Server) => {
     console.log('[WebSocket] Server created');
 };
 
-// 게임 참가자에게만 GAME_UPDATE 전송 (대역폭 최적화)
+// 게임 참가자에게만 GAME_UPDATE 전송 (1000명 규모: 전체 클라이언트 순회 대신 참가자만 전송)
 export const broadcastToGameParticipants = (gameId: string, message: any, game: any) => {
     if (!wss || !game) return;
     const participantIds = new Set<string>();
@@ -388,53 +399,35 @@ export const broadcastToGameParticipants = (gameId: string, message: any, game: 
     if (game.player2?.id) participantIds.add(game.player2.id);
     if (game.blackPlayerId) participantIds.add(game.blackPlayerId);
     if (game.whitePlayerId) participantIds.add(game.whitePlayerId);
-    
-    // 관전자도 포함 (userStatuses에서 spectating 상태인 사용자)
     Object.entries(volatileState.userStatuses).forEach(([userId, status]) => {
-        if (status.status === 'spectating' && status.spectatingGameId === gameId) {
-            participantIds.add(userId);
-        }
+        if (status.status === 'spectating' && status.spectatingGameId === gameId) participantIds.add(userId);
     });
-    
-    // 최적화: 메시지 직렬화를 한 번만 수행 (직렬화 실패 시 크래시 방지)
+
     let messageString: string;
     try {
         messageString = JSON.stringify(message);
     } catch (serializeError: any) {
-        console.error('[WebSocket] broadcastToGameParticipants: JSON serialization failed', {
-            gameId,
-            error: serializeError?.message,
-            stack: serializeError?.stack,
-        });
-        return; // 직렬화 실패 시 조용히 반환 (서버 크래시 방지)
+        console.error('[WebSocket] broadcastToGameParticipants: JSON serialization failed', { gameId, error: (serializeError as Error)?.message });
+        return;
     }
     let sentCount = 0;
     let errorCount = 0;
-
-    // 최적화: Array.from 대신 직접 순회 (메모리 효율)
-    for (const client of wss.clients) {
-        if (client.readyState === WebSocket.OPEN) {
-            try {
-                const userId = wsUserIdMap.get(client);
-                if (userId && participantIds.has(userId)) {
-                    client.send(messageString, (err) => {
-                        if (err) {
-                            errorCount++;
-                            console.error(`[WebSocket] Error sending to user ${userId}:`, err);
-                        }
-                    });
+    for (const uid of participantIds) {
+        const clients = userIdToClients.get(uid);
+        if (!clients) continue;
+        for (const client of clients) {
+            if (client.readyState === WebSocket.OPEN) {
+                try {
+                    client.send(messageString, (err) => { if (err) errorCount++; });
                     sentCount++;
+                } catch {
+                    errorCount++;
                 }
-            } catch (error) {
-                errorCount++;
-                console.error('[WebSocket] Error in broadcastToGameParticipants:', error);
             }
         }
     }
-    
-    // 개발 환경에서만 로깅 (프로덕션 성능 향상)
-    if (process.env.NODE_ENV === 'development' && sentCount > 0) {
-        console.log(`[WebSocket] Sent GAME_UPDATE to ${sentCount} participants for game ${gameId}${errorCount > 0 ? ` (${errorCount} errors)` : ''}`);
+    if (process.env.NODE_ENV === 'development' && sentCount > 0 && errorCount > 0) {
+        console.warn(`[WebSocket] broadcastToGameParticipants ${gameId}: ${errorCount} errors`);
     }
 };
 
@@ -474,23 +467,18 @@ export const broadcast = (message: any) => {
     }
 };
 
-// 특정 사용자에게만 메시지를 보내는 함수
+// 특정 사용자에게만 메시지 전송 (1000명 규모: O(1) 조회)
 export const sendToUser = (userId: string, message: any) => {
     if (!wss) return;
-    // 최적화: 메시지 직렬화를 한 번만 수행
     const messageString = JSON.stringify({ ...message, targetUserId: userId });
-    
-    // 최적화: Array.from 대신 직접 순회 (메모리 효율)
-    for (const client of wss.clients) {
+    const clients = userIdToClients.get(userId);
+    if (!clients) return;
+    for (const client of clients) {
         if (client.readyState === WebSocket.OPEN) {
             try {
-                const clientUserId = wsUserIdMap.get(client);
-                if (clientUserId === userId) {
-                    client.send(messageString);
-                    return; // 사용자 찾으면 즉시 반환 (불필요한 순회 방지)
-                }
-            } catch (error) {
-                // 에러는 조용히 처리
+                client.send(messageString);
+            } catch {
+                // 조용히 처리
             }
         }
     }

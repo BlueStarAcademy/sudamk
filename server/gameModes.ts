@@ -821,7 +821,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
         }
 
         // 주기당 처리 게임 수 제한 (updateGameStates 타임아웃 방지, Railway 안정화)
-        const MAX_GAMES_PER_CYCLE = 8;
+        const MAX_GAMES_PER_CYCLE = 4;
         let roundRobinOffset = (global as any).__updateGameStatesRoundRobin ?? 0;
         const toProcess: LiveGameSession[] = multiPlayerGames.length <= MAX_GAMES_PER_CYCLE
             ? multiPlayerGames
@@ -833,27 +833,35 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 return [...a, ...b];
             })();
 
-        // 배치 처리: 3개씩 병렬 처리하여 메모리 및 CPU 부하 분산 (성능 개선)
-        const BATCH_SIZE = 3;
+        // 이번 주기에 처리할 게임의 플레이어를 캐시에 미리 로드 (getCachedUser DB 호출 분산)
+        const { getCachedUser } = await import('./gameCache.js');
+        const playerIds = new Set<string>();
+        for (const g of toProcess) {
+            if (g?.player1?.id && g.player1.id !== aiUserId) playerIds.add(g.player1.id);
+            if (g?.player2?.id && g.player2.id !== aiUserId) playerIds.add(g.player2.id);
+        }
+        const prewarmTimeout = new Promise<void>((resolve) => setTimeout(resolve, 6000));
+        await Promise.race([
+            Promise.allSettled(Array.from(playerIds).map((id) => getCachedUser(id))),
+            prewarmTimeout
+        ]);
+
+        // 배치 처리: 2개씩 병렬 처리하여 타임아웃 시에도 빠르게 완료 (Railway 안정화)
+        const BATCH_SIZE = 2;
         const results: LiveGameSession[] = [];
         
         for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
             const batch = toProcess.slice(i, i + BATCH_SIZE);
             
-            // 각 배치에 타임아웃 추가 (3초로 단축 - 더 빠른 실패)
+            // 각 배치에 타임아웃 (2게임씩, Railway에서 45s 내 완료 보장)
             const batchTimeout = new Promise<LiveGameSession[]>((resolve) => {
-                setTimeout(() => {
-                    // 타임아웃은 정상적인 동작이므로 로그 제거 (스팸 방지)
-                    resolve(batch); // 타임아웃 시 원본 게임들 반환
-                }, 3000); // 5초 -> 3초로 단축
+                setTimeout(() => resolve(batch), 8000);
             });
 
-            // 각 게임 처리에 개별 타임아웃 추가 (1초로 단축)
+            // 각 게임 처리에 개별 타임아웃 (한 게임이 DB/AI에 묶여도 배치가 진행되도록)
             const processGameWithTimeout = async (game: LiveGameSession): Promise<LiveGameSession> => {
                 const gameTimeout = new Promise<LiveGameSession>((resolve) => {
-                    setTimeout(() => {
-                        resolve(game); // 타임아웃 시 원본 게임 반환 (로그 제거로 스팸 방지)
-                    }, 1000); // 2초 -> 1초로 단축
+                    setTimeout(() => resolve(game), 4000);
                 });
 
                 try {

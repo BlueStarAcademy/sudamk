@@ -107,7 +107,8 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
       setTimeout(() => resolve([]), DB_QUERY_TIMEOUT_MS);
     });
 
-    // 성능 최적화: DB 부하 감소 (로그인/MainLoop 지연 방지)
+    // 성능 최적화: DB 부하 감소 (Railway에서 타임아웃 완화를 위해 조회 수 제한)
+    const takeLimit = isRailwayOrProd ? 25 : 40;
     const queryPromise = prisma.liveGame.findMany({
       where: { isEnded: false },
       select: {
@@ -117,7 +118,7 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
         category: true
       },
       orderBy: { updatedAt: 'desc' },
-      take: 40 // 60→40: 조회 부담 감소
+      take: takeLimit
     }).then(rows => {
       // 배치 처리로 파싱 최적화 (한 번에 너무 많은 JSON 파싱 방지)
       const batchSize = 5; // 배치 크기 더 감소 (JSON 파싱 부하 고려)
