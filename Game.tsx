@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 // FIX: Import types from the new centralized types barrel file
 import { Player, GameMode, GameStatus, Point, GameProps, LiveGameSession, ServerAction } from './types/index.js';
 import GameArena from './components/GameArena.js';
+import Header from './components/Header.js';
 import Sidebar from './components/game/Sidebar.js';
 import PlayerPanel from './components/game/PlayerPanel.js';
 import GameModals from './components/game/GameModals.js';
@@ -106,7 +107,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const storedState = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
             if (storedState) {
                 const parsed = JSON.parse(storedState);
-                if (parsed.gameId === gameId && parsed.boardState && Array.isArray(parsed.boardState) && parsed.boardState.length > 0) {
+                    if (parsed.gameId === gameId && parsed.boardState && Array.isArray(parsed.boardState) && parsed.boardState.length > 0) {
+                    // 서버 moveHistory가 더 길면 서버가 최신(AI 수 등) → 서버 boardState 또는 moveHistory 복원 (AI가 둔 수가 사라지는 버그 방지)
+                    const serverMoveCount = session.moveHistory?.length ?? 0;
+                    const storedMoveCount = parsed.moveHistory?.length ?? 0;
+                    if (serverMoveCount > storedMoveCount) {
+                        if (session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0) {
+                            console.log(`[Game] Using server boardState (server moves: ${serverMoveCount}, stored: ${storedMoveCount}) for game ${gameId}`);
+                            return session.boardState;
+                        }
+                        // 서버 boardState가 비어 있으면 moveHistory로 보드 복원
+                        if (session.moveHistory?.length && session.settings?.boardSize) {
+                            const boardSize = session.settings.boardSize;
+                            const derived = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
+                            for (const move of session.moveHistory) {
+                                if (move && move.x >= 0 && move.x < boardSize && move.y >= 0 && move.y < boardSize) {
+                                    derived[move.y][move.x] = move.player;
+                                }
+                            }
+                            return derived;
+                        }
+                    }
                     // 진행 중이거나 종료/계가 중일 때 모두 sessionStorage 보드 사용 → 결과 모달 시에도 바둑판 유지
                     console.log(`[Game] Restored boardState from sessionStorage for game ${gameId} (gameStatus: ${gameStatus})`);
                     return parsed.boardState;
@@ -188,6 +209,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [hasNewMessage, setHasNewMessage] = useState(false);
+    // 우측 사이드바 접기/펼치기 (전략·놀이바둑 경기장)
+    const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
     const gameChat = useMemo(() => gameChats[session.id] || [], [gameChats, session.id]);
     const prevChatLength = usePrevious(gameChat.length);
 
@@ -596,19 +619,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         if (['ended', 'no_contest', 'rematch_pending'].includes(gameStatus)) {
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
-            // 싱글플레이 게임인 경우 postGameRedirect 설정
-            if (session.isSinglePlayer) {
+            // AI/일반 게임 종료 후 나가기 시 해당 종류의 대기실로 이동
+            if (session.gameCategory === 'tower') {
+                sessionStorage.setItem('postGameRedirect', '#/tower');
+            } else if (session.isSinglePlayer) {
                 sessionStorage.setItem('postGameRedirect', '#/singleplayer');
             } else {
-                // 일반 게임인 경우 해당 모드의 대기실로 이동
-                // 게임 모드를 strategic/playful로 변환
+                // 놀이바둑(컬링·알까기 등) → 놀이바둑 대기실, 전략바둑 → 전략바둑 대기실
                 let waitingRoomMode: 'strategic' | 'playful' | null = null;
                 if (SPECIAL_GAME_MODES.some(m => m.mode === session.mode)) {
                     waitingRoomMode = 'strategic';
                 } else if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {
                     waitingRoomMode = 'playful';
                 }
-                
                 if (waitingRoomMode) {
                     sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
                 }
@@ -623,7 +646,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         } else {
             setConfirmModalType('resign');
         }
-    }, [isSpectator, handlers.handleAction, session.isAiGame, session.isSinglePlayer, session.mode, gameId, gameStatus, isNoContestLeaveAvailable]);
+    }, [isSpectator, handlers.handleAction, session.isAiGame, session.isSinglePlayer, session.gameCategory, session.mode, gameId, gameStatus, isNoContestLeaveAvailable]);
 
     useEffect(() => {
         return () => {
@@ -1136,7 +1159,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         onStart={handleStartGame}
                     />
                 )}
-                <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0">
+                <Header />
+                <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0 overflow-hidden">
                     <main className="flex-1 flex items-center justify-center min-w-0 min-h-0">
                         <div className="w-full h-full max-h-full max-w-full lg:max-w-[calc(100vh-8rem)] flex flex-col items-center gap-1 lg:gap-2">
                             <div className="flex-shrink-0 w-full flex items-center gap-2">
@@ -1178,18 +1202,36 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     </main>
                     
                     {!isMobile && (
-                        <div className="w-full lg:w-[320px] xl:w-[360px] flex-shrink-0">
-                                <SinglePlayerSidebar 
-                                    session={session}
-                                    gameChat={gameChat}
-                                    onAction={handlers.handleAction}
-                                    currentUser={currentUserWithStatus}
-                                    isPaused={isPaused}
-                                    resumeCountdown={resumeCountdown}
-                                    pauseButtonCooldown={pauseButtonCooldown}
-                                    onTogglePause={handlePauseToggle}
-                                    onOpenSettings={handlers.openSettingsModal}
-                                />
+                        <div
+                            className={`flex flex-shrink-0 items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden transition-[width] duration-200 ${
+                                isRightSidebarCollapsed ? 'w-9' : 'w-[320px] xl:w-[360px]'
+                            }`}
+                        >
+                            <div className="flex-shrink-0 w-9 flex items-center justify-center py-2 border-r border-gray-600/80">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
+                                    className="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700/90 hover:bg-gray-600/90 text-gray-300 hover:text-white transition-colors border border-gray-600/80"
+                                    title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                                    aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                                >
+                                    <span className="text-sm font-bold leading-none">{isRightSidebarCollapsed ? '>' : '<'}</span>
+                                </button>
+                            </div>
+                            {!isRightSidebarCollapsed && (
+                                <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                                    <SinglePlayerSidebar
+                                        session={session}
+                                        gameChat={gameChat}
+                                        onAction={handlers.handleAction}
+                                        currentUser={currentUserWithStatus}
+                                        isPaused={isPaused}
+                                        resumeCountdown={resumeCountdown}
+                                        pauseButtonCooldown={pauseButtonCooldown}
+                                        onTogglePause={handlePauseToggle}
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
                     
@@ -1202,7 +1244,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     onAction={handlers.handleAction}
                                     currentUser={currentUserWithStatus}
                                     onClose={() => setIsMobileSidebarOpen(false)}
-                                    onOpenSettings={handlers.openSettingsModal}
                                     isPaused={isPaused}
                                     resumeCountdown={resumeCountdown}
                                     pauseButtonCooldown={pauseButtonCooldown}
@@ -1247,7 +1288,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         onStart={handleStartGame}
                     />
                 )}
-                <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0">
+                <Header />
+                <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0 overflow-hidden">
                     <main className="flex-1 flex items-center justify-center min-w-0 min-h-0">
                         <div className="w-full h-full max-h-full max-w-full lg:max-w-[calc(100vh-8rem)] flex flex-col items-center gap-1 lg:gap-2">
                             <div className="flex-shrink-0 w-full flex items-center gap-2">
@@ -1287,18 +1329,36 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     </main>
                     
                     {!isMobile && (
-                        <div className="w-full lg:w-[320px] xl:w-[360px] flex-shrink-0">
-                            <TowerSidebar 
-                                session={session}
-                                gameChat={gameChat}
-                                onAction={handlers.handleAction}
-                                currentUser={currentUserWithStatus}
-                                onOpenSettings={handlers.openSettingsModal}
-                                onTogglePause={handlePauseToggle}
-                                isPaused={isPaused}
-                                resumeCountdown={resumeCountdown}
-                                pauseButtonCooldown={pauseButtonCooldown}
-                            />
+                        <div
+                            className={`flex flex-shrink-0 items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden transition-[width] duration-200 ${
+                                isRightSidebarCollapsed ? 'w-9' : 'w-[320px] xl:w-[360px]'
+                            }`}
+                        >
+                            <div className="flex-shrink-0 w-9 flex items-center justify-center py-2 border-r border-gray-600/80">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
+                                    className="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700/90 hover:bg-gray-600/90 text-gray-300 hover:text-white transition-colors border border-gray-600/80"
+                                    title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                                    aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                                >
+                                    <span className="text-sm font-bold leading-none">{isRightSidebarCollapsed ? '>' : '<'}</span>
+                                </button>
+                            </div>
+                            {!isRightSidebarCollapsed && (
+                                <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                                    <TowerSidebar
+                                        session={session}
+                                        gameChat={gameChat}
+                                        onAction={handlers.handleAction}
+                                        currentUser={currentUserWithStatus}
+                                        onTogglePause={handlePauseToggle}
+                                        isPaused={isPaused}
+                                        resumeCountdown={resumeCountdown}
+                                        pauseButtonCooldown={pauseButtonCooldown}
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
                     
@@ -1311,7 +1371,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     onAction={handlers.handleAction}
                                     currentUser={currentUserWithStatus}
                                     onClose={() => setIsMobileSidebarOpen(false)}
-                                    onOpenSettings={handlers.openSettingsModal}
                                     onTogglePause={handlePauseToggle}
                                     isPaused={isPaused}
                                     resumeCountdown={resumeCountdown}
@@ -1352,13 +1411,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     return (
         <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full ${pvpBackgroundClass}`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
             {session.disconnectionState && <DisconnectionModal session={session} currentUser={currentUser} />}
+            {/* 전략·놀이바둑 경기장 상단 헤더 (행동력, 재화, 설정 등) */}
+            <Header />
             {session.gameStatus === 'scoring' && !session.analysisResult?.['system'] && (
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-30 pointer-events-none">
                     <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-gray-100 mb-4"></div>
                     <p className="text-xl font-bold text-white">계가 중...</p>
                 </div>
             )}
-            <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0">
+            <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0 overflow-hidden">
                 <main className="flex-1 flex items-center justify-center min-w-0 min-h-0">
                     <div className="w-full h-full max-h-full max-w-full lg:max-w-[calc(100vh-8rem)] flex flex-col items-center gap-1 lg:gap-2">
                         <div className="flex-shrink-0 w-full flex items-center gap-2">
@@ -1409,33 +1470,52 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 </main>
                 
                 {!isMobile && (
-                     <div className="w-full lg:w-[320px] xl:w-[360px] flex-shrink-0">
-                        <Sidebar 
-                            {...gameProps}
-                            onLeaveOrResign={handleLeaveOrResignClick}
-                            isNoContestLeaveAvailable={isNoContestLeaveAvailable}
-                            onOpenSettings={handlers.openSettingsModal}
-                            onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
-                            isPaused={effectivePaused}
-                            resumeCountdown={resumeCountdown}
-                            pauseButtonCooldown={pauseButtonCooldown}
-                        />
+                    <div
+                        className={`flex flex-shrink-0 items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden transition-[width] duration-200 ${
+                            isRightSidebarCollapsed ? 'w-9' : 'w-[320px] xl:w-[360px]'
+                        }`}
+                    >
+                        <div className="flex-shrink-0 w-9 flex items-center justify-center py-2 border-r border-gray-600/80">
+                            <button
+                                type="button"
+                                onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
+                                className="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700/90 hover:bg-gray-600/90 text-gray-300 hover:text-white transition-colors border border-gray-600/80"
+                                title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                                aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                            >
+                                <span className="text-sm font-bold leading-none">{isRightSidebarCollapsed ? '>' : '<'}</span>
+                            </button>
+                        </div>
+                        {!isRightSidebarCollapsed && (
+                            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                                <Sidebar
+                                    {...gameProps}
+                                    onLeaveOrResign={handleLeaveOrResignClick}
+                                    isNoContestLeaveAvailable={isNoContestLeaveAvailable}
+                                    onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                                    isPaused={effectivePaused}
+                                    resumeCountdown={resumeCountdown}
+                                    pauseButtonCooldown={pauseButtonCooldown}
+                                    pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
                 
                 {isMobile && (
                     <>
                         <div className={`fixed top-0 right-0 h-full w-[280px] bg-secondary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                            <Sidebar 
+                            <Sidebar
                                 {...gameProps}
                                 onLeaveOrResign={handleLeaveOrResignClick}
                                 isNoContestLeaveAvailable={isNoContestLeaveAvailable}
                                 onClose={() => setIsMobileSidebarOpen(false)}
-                                onOpenSettings={handlers.openSettingsModal}
                                 onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
                                 isPaused={effectivePaused}
                                 resumeCountdown={resumeCountdown}
                                 pauseButtonCooldown={pauseButtonCooldown}
+                                pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
                             />
                         </div>
                         {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}

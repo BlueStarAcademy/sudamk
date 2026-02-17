@@ -82,7 +82,8 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
 
         const stoneRadius = (localStones && localStones.length > 0 && localStones[0].radius) ? localStones[0].radius : (840 / 19) * 0.47;
         
-        const { x: svgX, y: svgY } = point;
+        // 회전된 보드에서는 클릭 좌표를 서버 좌표계로 변환
+        const { x: svgX, y: svgY } = isRotated ? { x: boardSizePx - point.x, y: boardSizePx - point.y } : point;
 
         if (svgX < stoneRadius || svgX > boardSizePx - stoneRadius || svgY < stoneRadius || svgY > boardSizePx - stoneRadius) {
             return false;
@@ -121,7 +122,7 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
             }
         }
         return true;
-    }, [gameStatus, myPlayer, localStones, settings.alkkagiLayout, cellSize, padding]);
+    }, [gameStatus, myPlayer, localStones, settings.alkkagiLayout, cellSize, padding, isRotated, boardSizePx]);
     
     const isHoverValid = useMemo(() => isPlacementValid(hoverPos), [hoverPos, isPlacementValid]);
 
@@ -129,7 +130,9 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
         if ((gameStatus !== 'alkkagi_placement' && gameStatus !== 'alkkagi_simultaneous_placement') || !isMyTurn) return;
         const svgPoint = getSvgCoordinates(e);
         if (svgPoint && isPlacementValid(svgPoint)) {
-            onPlacementClick({ x: svgPoint.x, y: svgPoint.y });
+            // 회전된 보드에서는 클릭 좌표를 서버 좌표계로 변환
+            const serverPoint = isRotated ? { x: boardSizePx - svgPoint.x, y: boardSizePx - svgPoint.y } : svgPoint;
+            onPlacementClick(serverPoint);
         }
     };
 
@@ -151,18 +154,25 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
             const strokeColor = myPlayer === Player.Black ? 'rgba(50, 50, 50, 0.8)' : 'rgba(220, 220, 220, 0.8)';
             return (
                 <g>
-                    {myZones.map((zone, i) => (
-                        <rect
-                            key={`zone-${i}`}
-                            x={padding + (zone.x - 0.5) * cellSize}
-                            y={padding + (zone.y - 0.5) * cellSize}
-                            width={zone.width * cellSize}
-                            height={zone.height * cellSize}
-                            fill={color}
-                            stroke={strokeColor}
-                            {...baseProps}
-                        />
-                    ))}
+                    {myZones.map((zone, i) => {
+                        // 회전된 보드에서는 배치 영역 위치를 변환
+                        const zoneX = padding + (zone.x - 0.5) * cellSize;
+                        const zoneY = padding + (zone.y - 0.5) * cellSize;
+                        const displayX = isRotated ? boardSizePx - zoneX - zone.width * cellSize : zoneX;
+                        const displayY = isRotated ? boardSizePx - zoneY - zone.height * cellSize : zoneY;
+                        return (
+                            <rect
+                                key={`zone-${i}`}
+                                x={displayX}
+                                y={displayY}
+                                width={zone.width * cellSize}
+                                height={zone.height * cellSize}
+                                fill={color}
+                                stroke={strokeColor}
+                                {...baseProps}
+                            />
+                        );
+                    })}
                 </g>
             );
         } else {
@@ -176,10 +186,13 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
             const color = myPlayer === Player.Black ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.35)';
             const strokeColor = myPlayer === Player.Black ? 'rgba(50, 50, 50, 0.8)' : 'rgba(220, 220, 220, 0.8)';
 
+            // 회전된 보드에서는 배치 영역 위치를 변환
+            const displayY = isRotated ? boardSizePx - zoneY - zoneHeight : zoneY;
+
             return (
                 <rect
                     x={0}
-                    y={zoneY}
+                    y={displayY}
                     width={boardSizePx}
                     height={zoneHeight}
                     fill={color}
@@ -211,7 +224,15 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
         const currentStone = selectedStone;
         
         const svgStart = { x: currentStone.x, y: currentStone.y };
-        let svgEnd = { x: svgStart.x - dx, y: svgStart.y - dy };
+        
+        // 회전된 보드에서는 화살표 방향도 반대로 표시해야 함
+        // 화면에서 위로 드래그 (dy < 0) = 서버 좌표계에서 아래로 발사 (vy > 0)
+        // 화면에서 아래로 드래그 (dy > 0) = 서버 좌표계에서 위로 발사 (vy < 0)
+        // 따라서 회전된 보드에서는 dx와 dy의 부호를 반대로 해야 함
+        const adjustedDx = isRotated ? -dx : dx;
+        const adjustedDy = isRotated ? -dy : dy;
+        
+        let svgEnd = { x: svgStart.x - adjustedDx, y: svgStart.y - adjustedDy };
         
         const myActiveItems = session.activeAlkkagiItems?.[currentUser.id] || [];
         const isAimingLineActive = myActiveItems.includes('aimingLine');
@@ -228,7 +249,7 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
         }
         
         return { start: svgStart, end: svgEnd };
-    }, [dragStartPoint, dragEndPoint, selectedStone, session.activeAlkkagiItems, currentUser.id]);
+    }, [dragStartPoint, dragEndPoint, selectedStone, session.activeAlkkagiItems, currentUser.id, isRotated]);
 
 
     return (
@@ -280,13 +301,29 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
 
                 {canPlaceStone && hoverPos && isHoverValid && (
                     <g opacity="0.5" style={{ pointerEvents: 'none' }}>
-                        <circle cx={hoverPos.x} cy={hoverPos.y} r={(localStones && localStones[0] ? localStones[0].radius : (840/19)*0.47)} fill={myPlayer === Player.Black ? "#111827" : "#f9fafb"} />
+                        {/* 회전된 보드에서는 호버 위치를 변환 */}
+                        {(() => {
+                            const displayX = isRotated ? boardSizePx - hoverPos.x : hoverPos.x;
+                            const displayY = isRotated ? boardSizePx - hoverPos.y : hoverPos.y;
+                            return (
+                                <circle cx={displayX} cy={displayY} r={(localStones && localStones[0] ? localStones[0].radius : (840/19)*0.47)} fill={myPlayer === Player.Black ? "#111827" : "#f9fafb"} />
+                            );
+                        })()}
                     </g>
                 )}
 
                 {dragLine && (
                      <g style={{ pointerEvents: 'none' }}>
-                        <line x1={dragLine.start.x} y1={dragLine.start.y} x2={dragLine.end.x} y2={dragLine.end.y} stroke="rgba(239, 68, 68, 0.7)" strokeWidth="4" strokeDasharray="8 4" markerEnd="url(#arrowhead-alkkagi)" />
+                        {/* 회전된 보드에서는 드래그 라인 위치를 변환 */}
+                        {(() => {
+                            const startX = isRotated ? boardSizePx - dragLine.start.x : dragLine.start.x;
+                            const startY = isRotated ? boardSizePx - dragLine.start.y : dragLine.start.y;
+                            const endX = isRotated ? boardSizePx - dragLine.end.x : dragLine.end.x;
+                            const endY = isRotated ? boardSizePx - dragLine.end.y : dragLine.end.y;
+                            return (
+                                <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="rgba(239, 68, 68, 0.7)" strokeWidth="4" strokeDasharray="8 4" markerEnd="url(#arrowhead-alkkagi)" />
+                            );
+                        })()}
                     </g>
                 )}
             </svg>

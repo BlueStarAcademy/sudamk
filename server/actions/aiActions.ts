@@ -36,7 +36,8 @@ export async function handleAiAction(
 
   const now = Date.now();
 
-  // Minimal "negotiation-like" object for initializer functions that need settings/mode
+  // Minimal "negotiation-like" object for initializer functions that need settings/mode.
+  // game.settings는 START_AI_GAME 시 클라이언트에서 받은 전체 설정(계가까지 턴, 초읽기 등)을 그대로 유지.
   const neg = {
     challenger: game.player1,
     opponent: game.player2,

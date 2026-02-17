@@ -8,7 +8,7 @@ import { initializeBase, updateBaseState, handleBaseAction } from './base.js';
 import { initializeCapture, updateCaptureState, handleCaptureAction } from './capture.js';
 import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
-import { handleSharedAction, transitionToPlaying } from './shared.js';
+import { handleSharedAction, transitionToPlaying, hasTimeControl } from './shared.js';
 
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
@@ -99,7 +99,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
     
     // 플레이어가 차례를 시작할 때 초읽기 모드인지 확인하고, 초읽기 시간을 30초로 리셋
     // (초읽기 모드에서 수를 두면 다음 턴에서 30초로 꽉 채워짐)
-    if (game.gameStatus === 'playing' && game.settings.timeLimit > 0 && game.turnStartTime) {
+    if (game.gameStatus === 'playing' && hasTimeControl(game.settings) && game.turnStartTime) {
         const timeSinceTurnStart = now - game.turnStartTime;
         // 턴이 시작된 직후 (100ms 이내)에만 체크하여 중복 방지
         if (timeSinceTurnStart >= 0 && timeSinceTurnStart < 100) {
@@ -137,13 +137,14 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
                 return;
             }
         } else { // Byoyomi expired
-            if (game[byoyomiKey] > 0) {
-                // 초읽기 시간이 만료되면 횟수를 차감
+            if (game[byoyomiKey] > 1) {
+                // 2회 이상 남았을 때만 차감 후 추가 시간 부여; 1회 남은 상태에서 만료되면 즉시 패배
                 game[byoyomiKey]--;
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 game.turnStartTime = now;
                 return;
             }
+            // 초읽기 횟수가 0이 되는 순간(1회 남은 상태에서 시간 만료) 바로 패배 처리
         }
         
         // No time or byoyomi left
@@ -351,22 +352,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 범위 체크 후에만 boardState에 접근
             const stoneAtTarget = serverBoardState[y][x];
             
-            // 싱글플레이/AI 게임에서 AI가 둔 자리 체크 (서버 boardState 기준) - 반드시 먼저 체크
+            // 싱글플레이/AI 게임에서 AI가 둔 자리 체크 (서버 boardState 기준만 사용)
+            // boardState가 빈 칸이면 moveHistory와 불일치해도 착수 허용 (화면과 일치시키기 위함)
             if (game.isSinglePlayer || game.isAiGame) {
-                // boardState에 상대방(AI) 돌이 있으면 무조건 차단
                 if (stoneAtTarget === opponentPlayerEnum) {
                     console.error(`[handleStandardAction] PLACE_STONE BLOCKED: AI stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}`);
                     return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
-                }
-                
-                // moveHistory에서도 추가 확인
-                const moveIndexAtTarget = serverMoveHistory.findIndex(m => m.x === x && m.y === y);
-                if (moveIndexAtTarget !== -1) {
-                    const moveAtTarget = serverMoveHistory[moveIndexAtTarget];
-                    if (moveAtTarget && moveAtTarget.player === opponentPlayerEnum) {
-                        console.error(`[handleStandardAction] PLACE_STONE BLOCKED: AI move in history at (${x}, ${y}), gameId=${game.id}`);
-                        return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
-                    }
                 }
                 
                 // 서버 boardState를 게임 객체에 반영 (클라이언트 boardState 무시)
@@ -678,7 +669,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 수를 둔 플레이어가 초읽기 모드에서 수를 두었는지 기록 (다음 턴에서 30초로 리셋하기 위해)
             let movedPlayerWasInByoyomi = false;
             
-            if (game.settings.timeLimit > 0) {
+            if (hasTimeControl(game.settings)) {
                 const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                 const fischerIncrement = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed)) ? (game.settings.timeIncrement || 0) : 0;
@@ -713,7 +704,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             game.pausedTurnTimeLeft = undefined;
 
 
-            if (game.settings.timeLimit > 0) {
+            if (hasTimeControl(game.settings)) {
                 const nextPlayer = game.currentPlayer;
                 const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
@@ -721,7 +712,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
 
                 if (isNextInByoyomi) {
-                    // 다음 플레이어가 초읽기 모드인 경우 30초 설정
+                    // 다음 플레이어가 초읽기 모드인 경우 초읽기 시간 설정
                     game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 } else {
                     game.turnDeadline = now + game[nextTimeKey] * 1000;
@@ -845,7 +836,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             } else {
                 const playerWhoMoved = myPlayerEnum;
-                if (game.settings.timeLimit > 0) {
+                if (hasTimeControl(game.settings)) {
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     
                     if (game.turnDeadline) {
@@ -854,17 +845,21 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
                 }
                 game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-                if (game.settings.timeLimit > 0) {
+                if (hasTimeControl(game.settings)) {
                     const nextPlayer = game.currentPlayer;
                     const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                    const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                      const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
-                    const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
+                    const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
                     if (isNextInByoyomi) {
                         game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                     } else {
                         game.turnDeadline = now + game[nextTimeKey] * 1000;
                     }
                     game.turnStartTime = now;
+                } else {
+                    game.turnDeadline = undefined;
+                    game.turnStartTime = undefined;
                 }
                 // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                 if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {

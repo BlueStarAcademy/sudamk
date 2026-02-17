@@ -34,10 +34,11 @@ const ShopItemCard: React.FC<{ item: GuildShopItem }> = ({ item }) => {
     let purchasesThisPeriod = 0;
 
     if (purchaseRecord) {
-        if (item.limitType === 'weekly' && !isDifferentWeekKST(purchaseRecord.lastPurchaseTimestamp, now)) {
+        const ts = purchaseRecord.lastPurchaseTimestamp ?? purchaseRecord.date;
+        if (item.limitType === 'weekly' && !isDifferentWeekKST(ts, now)) {
             purchasesThisPeriod = purchaseRecord.quantity;
         }
-        if (item.limitType === 'monthly' && !isDifferentMonthKST(purchaseRecord.lastPurchaseTimestamp, now)) {
+        if (item.limitType === 'monthly' && !isDifferentMonthKST(ts, now)) {
             purchasesThisPeriod = purchaseRecord.quantity;
         }
     }

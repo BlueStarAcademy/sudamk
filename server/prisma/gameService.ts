@@ -3,9 +3,11 @@ import type { LiveGameSession, GameStatus } from "../../types/index.js";
 
 const ENDED_STATUSES: GameStatus[] = ["ended", "no_contest"];
 
-// Railway 등 배포 환경에서는 DB 지연이 클 수 있어 타임아웃 완화 (MainLoop와 맞춤)
 const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
-const DB_QUERY_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000; // Railway: 18초, 로컬: 5초
+const DB_QUERY_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000;
+// 청크 단위 타임아웃: 한 번에 많은 row를 조회하지 않고 소량씩 나눠 조회해 단일 쿼리 타임아웃 방지
+const CHUNK_TIMEOUT_MS = isRailwayOrProd ? 7000 : 4000;
+const CHUNK_SIZE = isRailwayOrProd ? 10 : 20;
 
 const mapRowToGame = (row: { id: string; data: unknown; status: string; category: string | null }): LiveGameSession | null => {
   if (!row || !row.data) return null;
@@ -99,6 +101,50 @@ export async function getAllActiveGamesLight(): Promise<Array<{ id: string; stat
     console.error('[gameService] Error fetching active games (light):', error);
     return [];
   }
+}
+
+/** 단일 대형 쿼리 대신 소량 청크로 나눠 조회해 타임아웃 없이 완료 (Railway 등) */
+async function fetchActiveGamesChunk(skip: number, take: number): Promise<LiveGameSession[]> {
+  const rows = await prisma.liveGame.findMany({
+    where: { isEnded: false },
+    select: { id: true, data: true, status: true, category: true },
+    orderBy: { updatedAt: 'desc' },
+    skip,
+    take,
+  });
+  const results: LiveGameSession[] = [];
+  for (const row of rows) {
+    try {
+      const g = mapRowToGame(row);
+      if (g) results.push(g);
+    } catch {
+      // skip parse error
+    }
+  }
+  return results;
+}
+
+export async function getAllActiveGamesChunked(): Promise<LiveGameSession[]> {
+  if (!isRailwayOrProd) {
+    return getAllActiveGames();
+  }
+  const totalTake = 25;
+  const results: LiveGameSession[] = [];
+  for (let skip = 0; skip < totalTake; skip += CHUNK_SIZE) {
+    const take = Math.min(CHUNK_SIZE, totalTake - skip);
+    const chunkTimeout = new Promise<LiveGameSession[]>((resolve) => setTimeout(() => resolve([]), CHUNK_TIMEOUT_MS));
+    try {
+      const chunk = await Promise.race([
+        fetchActiveGamesChunk(skip, take),
+        chunkTimeout,
+      ]);
+      results.push(...chunk);
+      if (chunk.length < take) break;
+    } catch {
+      break;
+    }
+  }
+  return results;
 }
 
 export async function getAllActiveGames(): Promise<LiveGameSession[]> {

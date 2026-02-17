@@ -19,4 +19,6 @@ export const volatileState: VolatileState = {
         strategic: {},
         playful: {}
     },
+    // PVP 양쪽 접속 끊김 시 재접속 후 안내
+    pendingMutualDisconnectByUser: {},
 };

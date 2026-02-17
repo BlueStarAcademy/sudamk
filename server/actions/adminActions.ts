@@ -456,6 +456,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 console.warn(`[Admin] Failed to delete game ${gameId} from DB (may not exist):`, deleteError);
                 // DB에 없어도 캐시에서 삭제했으므로 계속 진행
             }
+            if (volatileState.gameChats) delete volatileState.gameChats[gameId];
 
             // 브로드캐스트
             broadcast({ type: 'GAME_DELETED', payload: { gameId, gameCategory } });

@@ -247,6 +247,46 @@ const MbtiComparisonModal: React.FC<MbtiComparisonModalProps> = ({ opponentUser,
         return analyzeCompatibility(currentUserWithStatus?.mbti, opponentUser.mbti);
     }, [currentUserWithStatus?.mbti, opponentUser.mbti]);
 
+    // 상대만 MBTI가 있는 경우: 상대 분석 힌트만 표시 (상대할 때 참고용)
+    if (opponentUser.mbti && opponentUser.mbti.length === 4 && !currentUserWithStatus?.mbti) {
+        const opponentStyle = MBTI_GO_STYLES[opponentUser.mbti];
+        if (opponentStyle) {
+            return (
+                <DraggableWindow title="상대 분석" onClose={onClose} windowId="mbti-comparison" initialWidth={500} initialHeight={520} isTopmost={isTopmost}>
+                    <div className="p-4 space-y-4">
+                        <div className="bg-gray-800/50 rounded-lg p-3">
+                            <p className="text-xs text-gray-400 mb-1">상대의 MBTI</p>
+                            <p className="text-xl font-bold text-red-400">{opponentUser.mbti}</p>
+                            <p className="text-sm text-gray-300 mt-1">{opponentStyle.style}</p>
+                            <p className="text-xs text-gray-400 mt-1">{opponentStyle.playStyle}</p>
+                        </div>
+                        <div className="bg-gray-800/50 rounded-lg p-4">
+                            <h3 className="text-sm font-bold text-white mb-2">상대할 때 참고</h3>
+                            <div className="space-y-2">
+                                <div>
+                                    <p className="text-xs font-semibold text-green-300 mb-1">강점</p>
+                                    <ul className="list-disc list-inside text-xs text-gray-300 space-y-0.5">
+                                        {opponentStyle.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold text-red-300 mb-1">약점</p>
+                                    <ul className="list-disc list-inside text-xs text-gray-300 space-y-0.5">
+                                        {opponentStyle.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-500 text-center">MBTI를 설정하면 상대와의 상성 분석도 볼 수 있습니다.</p>
+                        <div className="flex justify-center">
+                            <button onClick={onClose} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">확인</button>
+                        </div>
+                    </div>
+                </DraggableWindow>
+            );
+        }
+    }
+
     if (!currentUserWithStatus?.mbti || !opponentUser.mbti) {
         return (
             <DraggableWindow title="MBTI 비교" onClose={onClose} windowId="mbti-comparison" initialWidth={500} initialHeight={300} isTopmost={isTopmost}>
@@ -254,9 +294,9 @@ const MbtiComparisonModal: React.FC<MbtiComparisonModalProps> = ({ opponentUser,
                     <p className="text-gray-300 mb-4">
                         {!currentUserWithStatus?.mbti && !opponentUser.mbti
                             ? '양쪽 모두 MBTI가 설정되지 않았습니다.'
-                            : !currentUserWithStatus?.mbti
-                            ? '당신의 MBTI가 설정되지 않았습니다.'
-                            : '상대방의 MBTI가 설정되지 않았습니다.'}
+                            : !opponentUser.mbti
+                            ? '상대방의 MBTI가 설정되지 않았습니다.'
+                            : 'MBTI 정보를 불러올 수 없습니다.'}
                     </p>
                     <button
                         onClick={onClose}

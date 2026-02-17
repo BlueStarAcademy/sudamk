@@ -27,6 +27,8 @@ interface SidebarProps extends GameProps {
     isPaused?: boolean;
     resumeCountdown?: number;
     pauseButtonCooldown?: number;
+    /** AI 대국에서 AI 턴일 때 true면 일시정지 버튼 비활성화 (유저 차례에만 일시정지 가능) */
+    pauseDisabledBecauseAiTurn?: boolean;
 }
 
 export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () => void, onOpenSettings?: () => void }> = ({ session, onClose, onOpenSettings }) => {
@@ -87,7 +89,10 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
                 details.push(renderSetting("제한시간", `${settings.timeLimit}분`));
                 details.push(renderSetting("초읽기", mode === GameMode.Speed ? `${settings.timeIncrement}초 피셔` : `${settings.byoyomiTime}초 ${settings.byoyomiCount}회`));
             } else {
-                 details.push(renderSetting("제한시간", "없음"));
+                details.push(renderSetting("제한시간", "없음"));
+                if (settings.byoyomiTime > 0 && settings.byoyomiCount > 0) {
+                    details.push(renderSetting("초읽기", mode === GameMode.Speed ? `${settings.timeIncrement}초 피셔` : `${settings.byoyomiTime}초 ${settings.byoyomiCount}회`));
+                }
             }
         }
         
@@ -147,6 +152,10 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
         
         if (mode === GameMode.Missile || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Missile))) {
              details.push(renderSetting("미사일", `${settings.missileCount}개`));
+        }
+
+        if (SPECIAL_GAME_MODES.some(m => m.mode === mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
+            details.push(renderSetting("계가까지 턴", `${settings.scoringTurnLimit}턴`));
         }
         
         if (mode === GameMode.Dice) {
@@ -592,11 +601,12 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
 };
 
 const Sidebar: React.FC<SidebarProps> = (props) => {
-    const { session, onLeaveOrResign, isNoContestLeaveAvailable, isSpectator, onTogglePause, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0 } = props;
+    const { session, onLeaveOrResign, isNoContestLeaveAvailable, isSpectator, onTogglePause, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, pauseDisabledBecauseAiTurn = false } = props;
     const { gameStatus } = session;
 
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
     const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+    const isPauseButtonDisabled = (isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0) || pauseDisabledBecauseAiTurn;
 
     const leaveButtonText = isNoContestLeaveAvailable ? '무효처리' : (isGameEnded ? '나가기' : (isSpectator ? '관전종료' : '기권하기'));
     const leaveButtonColor = isNoContestLeaveAvailable ? 'yellow' : 'red';
@@ -616,11 +626,12 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                         onClick={onTogglePause}
                         colorScheme={isPaused ? 'green' : 'yellow'}
                         className="w-full"
-                        disabled={(isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0)}
+                        disabled={isPauseButtonDisabled}
+                        title={pauseDisabledBecauseAiTurn ? '내 차례에만 일시정지할 수 있습니다' : undefined}
                     >
                         {isPaused
                             ? (resumeCountdown > 0 ? `대국 재개 (${resumeCountdown})` : '대국 재개')
-                            : (pauseButtonCooldown > 0 ? `일시 정지 (${pauseButtonCooldown})` : '일시 정지')}
+                            : (pauseButtonCooldown > 0 ? `일시 정지 (${pauseButtonCooldown})` : (pauseDisabledBecauseAiTurn ? '일시 정지 (AI 차례)' : '일시 정지'))}
                     </Button>
                 ) : (
                     <Button onClick={onLeaveOrResign} colorScheme={leaveButtonColor} className="w-full">

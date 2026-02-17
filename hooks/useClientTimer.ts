@@ -28,7 +28,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
 
         // 애니메이션 중에는 시간이 멈춰있어야 함 (애니메이션 종료 후에 시간이 흘러가도록)
         const isAnimating = session.animation !== null && session.animation !== undefined;
-        const isAnimationStatus = ['missile_animating', 'scanning_animating', 'hidden_reveal_animating'].includes(session.gameStatus);
+        const isAnimationStatus = ['missile_animating', 'scanning_animating', 'hidden_reveal_animating', 'curling_animating', 'alkkagi_animating'].includes(session.gameStatus);
         
         if (isAnimating || isAnimationStatus) {
             // 애니메이션 중에는 pausedTurnTimeLeft를 사용하여 시간을 멈춤

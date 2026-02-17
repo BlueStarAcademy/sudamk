@@ -721,8 +721,11 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
         baseStoneCaptures: { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 }, 
         hiddenStoneCaptures: { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 },
         winner: null, winReason: null, createdAt: now, lastMove: null, passCount: 0, koInfo: null,
-        winningLine: null, statsUpdated: false, blackTimeLeft: settings.timeLimit * 60, whiteTimeLeft: settings.timeLimit * 60,
-        blackByoyomiPeriodsLeft: settings.byoyomiCount, whiteByoyomiPeriodsLeft: settings.byoyomiCount,
+        winningLine: null, statsUpdated: false,
+        blackTimeLeft: (settings.timeLimit ?? 0) * 60,
+        whiteTimeLeft: (settings.timeLimit ?? 0) * 60,
+        blackByoyomiPeriodsLeft: Math.max(1, settings.byoyomiCount ?? 1),
+        whiteByoyomiPeriodsLeft: Math.max(1, settings.byoyomiCount ?? 1),
         disconnectionState: null, disconnectionCounts: { [challenger.id]: 0, [opponent.id]: 0 },
         currentActionButtons: { [challenger.id]: [], [opponent.id]: [] },
         actionButtonCooldownDeadline: {},
@@ -771,8 +774,10 @@ export const resetGameForRematch = (game: LiveGameSession, negotiation: types.Ne
         baseStoneCaptures: { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 }, 
         hiddenStoneCaptures: { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 }, 
         lastMove: null, passCount: 0, koInfo: null,
-        blackTimeLeft: newGame.settings.timeLimit * 60, whiteTimeLeft: newGame.settings.timeLimit * 60,
-        blackByoyomiPeriodsLeft: newGame.settings.byoyomiCount, whiteByoyomiPeriodsLeft: newGame.settings.byoyomiCount,
+        blackTimeLeft: (newGame.settings.timeLimit ?? 0) * 60,
+        whiteTimeLeft: (newGame.settings.timeLimit ?? 0) * 60,
+        blackByoyomiPeriodsLeft: Math.max(1, newGame.settings.byoyomiCount ?? 1),
+        whiteByoyomiPeriodsLeft: Math.max(1, newGame.settings.byoyomiCount ?? 1),
         currentActionButtons: { [game.player1.id]: [], [game.player2.id]: [] },
         actionButtonCooldownDeadline: {},
         actionButtonUsedThisCycle: { [game.player1.id]: false, [game.player2.id]: false },
@@ -781,6 +786,8 @@ export const resetGameForRematch = (game: LiveGameSession, negotiation: types.Ne
         isAnalyzing: false, analysisResult: null, round: 1, turnInRound: 1,
         scores: { [game.player1.id]: 0, [game.player2.id]: 0 },
         rematchRejectionCount: undefined,
+        disconnectionState: null,
+        disconnectionCounts: { [game.player1.id]: 0, [game.player2.id]: 0 },
     };
 
     Object.assign(newGame, baseFields);
@@ -820,8 +827,8 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             return games; // PVE 게임만 있으면 원본 반환
         }
 
-        // 주기당 처리 게임 수 제한 (updateGameStates 타임아웃 방지, Railway 안정화)
-        const MAX_GAMES_PER_CYCLE = 4;
+        // 주기당 1게임만 처리 → 사이클당 ~4초 이내 완료, 25초 타임아웃 방지
+        const MAX_GAMES_PER_CYCLE = 1;
         let roundRobinOffset = (global as any).__updateGameStatesRoundRobin ?? 0;
         const toProcess: LiveGameSession[] = multiPlayerGames.length <= MAX_GAMES_PER_CYCLE
             ? multiPlayerGames
@@ -833,71 +840,125 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 return [...a, ...b];
             })();
 
-        // 이번 주기에 처리할 게임의 플레이어를 캐시에 미리 로드 (getCachedUser DB 호출 분산)
-        const { getCachedUser } = await import('./gameCache.js');
-        const playerIds = new Set<string>();
-        for (const g of toProcess) {
-            if (g?.player1?.id && g.player1.id !== aiUserId) playerIds.add(g.player1.id);
-            if (g?.player2?.id && g.player2.id !== aiUserId) playerIds.add(g.player2.id);
-        }
-        const prewarmTimeout = new Promise<void>((resolve) => setTimeout(resolve, 6000));
-        await Promise.race([
-            Promise.allSettled(Array.from(playerIds).map((id) => getCachedUser(id))),
-            prewarmTimeout
-        ]);
-
-        // 배치 처리: 2개씩 병렬 처리하여 타임아웃 시에도 빠르게 완료 (Railway 안정화)
-        const BATCH_SIZE = 2;
-        const results: LiveGameSession[] = [];
-        
-        for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
-            const batch = toProcess.slice(i, i + BATCH_SIZE);
-            
-            // 각 배치에 타임아웃 (2게임씩, Railway에서 45s 내 완료 보장)
-            const batchTimeout = new Promise<LiveGameSession[]>((resolve) => {
-                setTimeout(() => resolve(batch), 8000);
-            });
-
-            // 각 게임 처리에 개별 타임아웃 (한 게임이 DB/AI에 묶여도 배치가 진행되도록)
-            const processGameWithTimeout = async (game: LiveGameSession): Promise<LiveGameSession> => {
-                const gameTimeout = new Promise<LiveGameSession>((resolve) => {
-                    setTimeout(() => resolve(game), 4000);
-                });
-
-                try {
-                    return await Promise.race([
-                        processGame(game, now),
-                        gameTimeout
-                    ]);
-                } catch (error: any) {
-                    console.error(`[updateGameStates] Error processing game ${game.id}:`, error?.message || error);
-                    return game; // 에러 발생 시 원본 게임 반환
+        const OUTER_DEADLINE_MS = 3000; // 전체 처리 3초 초과 시 원본 반환 (MainLoop 경량화, 타임아웃 방지)
+        const outerTimeout = new Promise<LiveGameSession[]>((resolve) => {
+            setTimeout(() => {
+                // 로그를 덜 자주 출력 (30초마다 한 번만)
+                const shouldLog = !(global as any).lastUpdateGameStatesTimeoutLog || (Date.now() - (global as any).lastUpdateGameStatesTimeoutLog > 30000);
+                if (shouldLog) {
+                    console.warn(`[updateGameStates] Outer timeout (${OUTER_DEADLINE_MS}ms) reached, returning original games`);
+                    (global as any).lastUpdateGameStatesTimeoutLog = Date.now();
                 }
-            };
-
-            // 배치 병렬 처리
-            const batchResults = await Promise.race([
-                Promise.all(batch.map(processGameWithTimeout)),
-                batchTimeout
-            ]);
-
-            results.push(...batchResults);
-        }
-
-        // 라운드로빈 사용 시: 처리된 게임만 results에 있음 → 멀티플레이 전체에 병합
-        const processedMap = new Map<string, LiveGameSession>();
-        for (const g of results) processedMap.set(g.id, g);
-        const mergedMultiPlayer = multiPlayerGames.map(g => processedMap.get(g.id) ?? g);
-
-        // PVE 게임은 원본 그대로 반환 (처리하지 않음)
-        const pveGames = games.filter(game => {
-            if (!game || !game.id) return false;
-            return game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
+                resolve(games);
+            }, OUTER_DEADLINE_MS);
         });
 
-        return [...mergedMultiPlayer, ...pveGames];
+        const inner = (async (): Promise<LiveGameSession[]> => {
+            const startTime = Date.now();
+            // 즉시 yield하여 4초/25초 타임아웃이 스케줄된 뒤 실행되도록 함 (이벤트 루프 블로킹 시에도 타임아웃 동작)
+            await new Promise<void>((r) => setImmediate(r));
+            
+            // 타임아웃 체크: 이미 시간이 초과했으면 즉시 반환
+            if (Date.now() - startTime >= OUTER_DEADLINE_MS) {
+                return games;
+            }
+            
+            // 플레이어 캐시 프리웜 (1초 내 완료, 더 엄격하게)
+            const { getCachedUser } = await import('./gameCache.js');
+            const playerIds = new Set<string>();
+            for (const g of toProcess) {
+                if (g?.player1?.id && g.player1.id !== aiUserId) playerIds.add(g.player1.id);
+                if (g?.player2?.id && g.player2.id !== aiUserId) playerIds.add(g.player2.id);
+            }
+            const PREWARM_DEADLINE_MS = 1000; // 1.5초 -> 1초로 단축
+            const prewarmTimeout = new Promise<void>((resolve) => setTimeout(resolve, PREWARM_DEADLINE_MS));
+            await Promise.race([
+                Promise.allSettled(Array.from(playerIds).map((id) => getCachedUser(id))),
+                prewarmTimeout
+            ]);
+
+            // 타임아웃 체크: 프리웜 후 시간 확인
+            if (Date.now() - startTime >= OUTER_DEADLINE_MS) {
+                return games;
+            }
+
+            const BATCH_SIZE = 1;
+            const results: LiveGameSession[] = [];
+            const BATCH_DEADLINE_MS = 1500; // 2초 -> 1.5초로 단축
+            const GAME_DEADLINE_MS = 1000; // 게임당 1초 초과 시 원본 반환 (AI/DB 지연 시 타임아웃 방지)
+
+            for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
+                // 타임아웃 체크: 각 배치 전 시간 확인
+                if (Date.now() - startTime >= OUTER_DEADLINE_MS) {
+                    break;
+                }
+                
+                const batch = toProcess.slice(i, i + BATCH_SIZE);
+                const batchTimeout = new Promise<LiveGameSession[]>((resolve) => {
+                    setTimeout(() => resolve(batch), BATCH_DEADLINE_MS);
+                });
+
+                const processGameWithTimeout = async (game: LiveGameSession): Promise<LiveGameSession> => {
+                    const gameStartTime = Date.now();
+                    let timeoutOccurred = false;
+                    const gameTimeout = new Promise<LiveGameSession>((resolve) => {
+                        setTimeout(() => {
+                            timeoutOccurred = true;
+                            resolve(game);
+                        }, GAME_DEADLINE_MS);
+                    });
+                    try {
+                        const result = await Promise.race([
+                            processGame(game, now),
+                            gameTimeout
+                        ]);
+                        const duration = Date.now() - gameStartTime;
+                        if (timeoutOccurred && duration >= GAME_DEADLINE_MS * 0.9) {
+                            console.warn(`[updateGameStates] Game ${game.id} processing timeout after ${duration}ms (limit: ${GAME_DEADLINE_MS}ms)`);
+                        }
+                        return result;
+                    } catch (error: any) {
+                        console.error(`[updateGameStates] Error processing game ${game.id}:`, {
+                            message: error?.message || String(error),
+                            stack: error?.stack,
+                            gameStatus: game.gameStatus,
+                            mode: game.mode
+                        });
+                        return game;
+                    }
+                };
+
+                const batchResults = await Promise.race([
+                    Promise.all(batch.map(processGameWithTimeout)),
+                    batchTimeout
+                ]);
+                results.push(...batchResults);
+                
+                // 타임아웃 체크: 배치 처리 후 시간 확인
+                if (Date.now() - startTime >= OUTER_DEADLINE_MS) {
+                    break;
+                }
+            }
+
+            const processedMap = new Map<string, LiveGameSession>();
+            for (const g of results) processedMap.set(g.id, g);
+            const mergedMultiPlayer = multiPlayerGames.map(g => processedMap.get(g.id) ?? g);
+            const pveGames = games.filter(game => {
+                if (!game || !game.id) return false;
+                return game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
+            });
+            return [...mergedMultiPlayer, ...pveGames];
+        })();
+
+        return await Promise.race([inner, outerTimeout]);
     } catch (error: any) {
-        console.error('[updateGameStates] Fatal error:', error?.message || error);
+        // 더 자세한 에러 정보 출력
+        console.error('[updateGameStates] Fatal error:', {
+            message: error?.message || String(error),
+            stack: error?.stack,
+            name: error?.name,
+            gamesCount: games?.length || 0
+        });
         return games; // 치명적 에러 발생 시 원본 게임들 반환
     }
 };
@@ -920,7 +981,15 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 game.winReason = 'timeout';
                 game.gameStatus = 'ended';
                 game.disconnectionState = null;
-                await summaryService.endGame(game, game.winner, 'timeout');
+                // endGame 호출에도 타임아웃 추가 (DB 저장 지연 방지)
+                const END_GAME_DEADLINE_MS = 1000;
+                const endGameTimeout = new Promise<void>((resolve) => setTimeout(resolve, END_GAME_DEADLINE_MS));
+                await Promise.race([
+                    summaryService.endGame(game, game.winner, 'timeout'),
+                    endGameTimeout
+                ]).catch((error: any) => {
+                    console.error(`[processGame] Error ending game ${game.id}:`, error?.message || error);
+                });
             }
 
             if (game.lastTimeoutPlayerIdClearTime && now >= game.lastTimeoutPlayerIdClearTime) {
@@ -937,15 +1006,28 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             // PVE 게임은 이미 updateGameStates에서 필터링되었으므로 여기서는 처리하지 않음
             // 이 함수는 멀티플레이어 게임만 처리함
 
-            // 멀티플레이 게임 처리 (기존 로직)
-            // 캐시를 사용하여 DB 조회 최소화 (병렬 처리로 성능 개선)
+            // 멀티플레이 게임 처리: 유저 로드는 짧은 타임아웃으로 DB 지연 시 블로킹 방지 (MainLoop 경량화)
+            // 캐시된 유저가 이미 있으면 로드 스킵하여 속도 향상
             const { getCachedUser } = await import('./gameCache.js');
-            const [p1, p2] = await Promise.all([
-                getCachedUser(game.player1.id),
-                game.player2.id === aiUserId ? Promise.resolve(getAiUser(game.mode)) : getCachedUser(game.player2.id)
-            ]);
-            if (p1) game.player1 = p1;
-            if (p2) game.player2 = p2;
+            const USER_LOAD_DEADLINE_MS = 500; // 600ms -> 500ms로 단축하여 더 빠르게 타임아웃
+            const withTimeout = <T>(p: Promise<T>, ms: number, fallback: T): Promise<T> =>
+                Promise.race([p, new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
+            
+            // 유저 데이터가 이미 있으면 로드 스킵 (성능 최적화)
+            const needsP1Load = !game.player1 || !game.player1.nickname;
+            const needsP2Load = game.player2.id !== aiUserId && (!game.player2 || !game.player2.nickname);
+            
+            if (needsP1Load || needsP2Load) {
+                const [p1, p2] = await Promise.all([
+                    needsP1Load ? withTimeout(getCachedUser(game.player1.id), USER_LOAD_DEADLINE_MS, null) : Promise.resolve(null),
+                    game.player2.id === aiUserId ? Promise.resolve(getAiUser(game.mode)) : (needsP2Load ? withTimeout(getCachedUser(game.player2.id), USER_LOAD_DEADLINE_MS, null) : Promise.resolve(null))
+                ]);
+                if (p1) game.player1 = p1;
+                if (p2) game.player2 = p2;
+            } else if (game.player2.id === aiUserId) {
+                // AI 유저는 항상 최신 상태로 유지
+                game.player2 = getAiUser(game.mode);
+            }
 
             const players = [game.player1, game.player2].filter(p => p.id !== aiUserId);
 
@@ -986,11 +1068,30 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
 
             // 게임 상태 업데이트를 먼저 실행하여 애니메이션 완료 후 턴 전환을 처리
             // 중요: 게임 상태 업데이트를 먼저 실행해야 애니메이션 완료 후 턴 전환이 제대로 처리됨
+            // 타임아웃 추가: 게임 상태 업데이트가 너무 오래 걸리면 스킵
             if (game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest' && game.gameStatus !== 'scoring') {
-                if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                    await updateStrategicGameState(game, now);
-                } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode }) => m.mode === game.mode)) {
-                    await updatePlayfulGameState(game, now);
+                const STATE_UPDATE_DEADLINE_MS = 600; // 게임 상태 업데이트 600ms 타임아웃 (800ms -> 600ms로 단축)
+                const stateUpdateTimeout = new Promise<void>((resolve) => setTimeout(resolve, STATE_UPDATE_DEADLINE_MS));
+                try {
+                    if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                        await Promise.race([
+                            updateStrategicGameState(game, now),
+                            stateUpdateTimeout
+                        ]);
+                    } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode }) => m.mode === game.mode)) {
+                        await Promise.race([
+                            updatePlayfulGameState(game, now),
+                            stateUpdateTimeout
+                        ]);
+                    }
+                } catch (error: any) {
+                    // 에러 로그를 덜 자주 출력 (30초마다 한 번만)
+                    const shouldLog = !(global as any).lastProcessGameErrorLog || (Date.now() - (global as any).lastProcessGameErrorLog > 30000);
+                    if (shouldLog) {
+                        console.error(`[processGame] Error updating game state for ${game.id}:`, error?.message || error);
+                        (global as any).lastProcessGameErrorLog = Date.now();
+                    }
+                    // 에러 발생 시 게임 상태 업데이트 스킵하고 계속 진행
                 }
             }
 
@@ -1009,42 +1110,44 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || game.gameStatus === 'alkkagi_playing' || game.gameStatus === 'curling_playing');
             
             if (canProcessAiTurn) {
-                // aiTurnStartTime이 설정되지 않았거나, 이전에 undefined로 설정된 경우 새로 설정
                 if (!game.aiTurnStartTime || game.aiTurnStartTime === undefined) {
                     game.aiTurnStartTime = now;
                 }
-                
-                // aiTurnStartTime이 현재 시간보다 작거나 같으면 즉시 실행
                 if (now >= game.aiTurnStartTime) {
+                    // 근본 원인 수정: makeAiMove 내부의 동기 무거운 연산(goAiBot)이 이벤트 루프를 25초 이상 블로킹하여
+                    // 타임아웃이 동작하지 않음. 메인 루프에서는 기다리지 않고 setImmediate로 지연 실행하여
+                    // updateGameStates가 즉시 반환되도록 함. 완료 시 캐시/저장/브로드캐스트는 콜백에서 수행.
+                    const gameId = game.id;
                     const initialMoveCount = game.moveHistory?.length ?? 0;
-                    const initialStonesCount = (game.mode === types.GameMode.Curling ? game.curlingStones?.length : 
-                                               game.mode === types.GameMode.Alkkagi ? game.alkkagiStones?.length : 0) ?? 0;
-                    const initialGameStatus = game.gameStatus;
-                    try {
-                        await makeAiMove(game);
-                        
-                        const moveCountAfter = game.moveHistory?.length ?? initialMoveCount;
-                        const stonesCountAfter = (game.mode === types.GameMode.Curling ? game.curlingStones?.length : 
-                                                 game.mode === types.GameMode.Alkkagi ? game.alkkagiStones?.length : 0) ?? 0;
-                        const aiActuallyMoved = moveCountAfter > initialMoveCount || stonesCountAfter > initialStonesCount || 
-                                               game.gameStatus === 'curling_animating' || game.gameStatus === 'alkkagi_animating' ||
-                                               (initialGameStatus !== game.gameStatus && animatingStatuses.includes(game.gameStatus));
-
-                        if (aiActuallyMoved) {
-                            // AI가 수를 두었으므로 aiTurnStartTime을 undefined로 설정하여 다음 AI 턴까지 대기
-                            game.aiTurnStartTime = undefined;
-                            if (!game.turnStartTime) {
-                                game.turnStartTime = now;
+                    setImmediate(() => {
+                        makeAiMove(game).then(async () => {
+                            const moveCountAfter = game.moveHistory?.length ?? 0;
+                            const aiActuallyMoved = moveCountAfter > initialMoveCount;
+                            if (aiActuallyMoved) {
+                                game.aiTurnStartTime = undefined;
+                                if (!game.turnStartTime) game.turnStartTime = Date.now();
+                            } else {
+                                game.aiTurnStartTime = Date.now() + 50;
                             }
-                        } else {
-                            console.warn(`[processGame] AI move did not execute for game ${game.id}, retrying in 50ms`);
-                            game.aiTurnStartTime = now + 50;
-                        }
-                    } catch (error) {
-                        console.error(`[processGame] Error in makeAiMove for game ${game.id}:`, error);
-                        // 에러 발생 시에도 다음 시도 시간 설정
-                        game.aiTurnStartTime = now + 1000;
-                    }
+                            try {
+                                const { updateGameCache } = await import('./gameCache.js');
+                                updateGameCache(game);
+                                db.saveGame(game).catch((err: any) => console.error(`[processGame] Deferred save failed ${gameId}:`, err?.message));
+                                const { broadcastToGameParticipants } = await import('./socket.js');
+                                // AI 수 반영 직후 브로드캐스트 시 boardState 포함하여 전송 (클라이언트에서 AI가 둔 수가 사라지는 버그 방지)
+                                const payloadGame = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
+                                    ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
+                                    : game;
+                                broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: payloadGame } }, game);
+                            } catch (e: any) {
+                                console.error(`[processGame] Deferred AI broadcast failed ${gameId}:`, e?.message);
+                            }
+                        }).catch((error) => {
+                            console.error(`[processGame] Deferred makeAiMove failed for game ${gameId}:`, error);
+                            game.aiTurnStartTime = Date.now() + 1000;
+                        });
+                    });
+                    // 이번 사이클에서는 AI 수를 기다리지 않고 즉시 반환 → 타임아웃 방지
                 }
             } else if (isAiTurn && animatingStatuses.includes(game.gameStatus)) {
                 // 애니메이션 중인 경우에도 aiTurnStartTime을 유지하거나 설정

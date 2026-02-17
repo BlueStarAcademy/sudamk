@@ -177,6 +177,7 @@ const AppContent: React.FC = () => {
         if (modals.craftResult) ids.push('craftResult');
         if (modals.isEnhancementResultModalOpen) ids.push('enhancementResult');
         if (modals.isMbtiInfoModalOpen) ids.push('mbtiInfo');
+        if (modals.mutualDisconnectMessage) ids.push('mutualDisconnect');
         // itemObtained은 항상 마지막에 추가하여 최상단에 표시
         if (modals.lastUsedItemResult) ids.push('itemObtained');
         return ids;
@@ -384,6 +385,15 @@ const AppContent: React.FC = () => {
                         );
                     })()}
                     {modals.isMbtiInfoModalOpen && <MbtiInfoModal onClose={handlers.closeMbtiInfoModal} isTopmost={topmostModalId === 'mbtiInfo'} />}
+                    {modals.mutualDisconnectMessage && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">
+                            <div className="bg-panel border border-color rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 text-center">
+                                <h2 id="mutual-disconnect-title" className="text-lg font-bold text-on-panel mb-3">대국 종료 안내</h2>
+                                <p className="text-on-panel/90 mb-6">{modals.mutualDisconnectMessage}</p>
+                                <button type="button" onClick={handlers.closeMutualDisconnectModal} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
+                            </div>
+                        </div>
+                    )}
                     {modals.isBlacksmithModalOpen && (
                         <Suspense fallback={ModalLoadingFallback()}>
                             <BlacksmithModal 

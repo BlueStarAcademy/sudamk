@@ -332,7 +332,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                 <span className="flex items-center justify-center gap-2 font-semibold tracking-wide">
                                     <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4 drop-shadow flex-shrink-0" />
                                     <span>{upgradeCost.toLocaleString()}</span>
-                                    <span>강화하기</span>
+                                    <span>강화</span>
                                 </span>
                             )}
                         </Button>

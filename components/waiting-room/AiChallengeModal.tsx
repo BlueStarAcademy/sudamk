@@ -178,6 +178,23 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                     </div>
                 )}
 
+                {showGoAiLevel && (
+                    <div className="grid grid-cols-2 gap-2 items-center">
+                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>계가까지 턴</label>
+                        <select 
+                            value={settings.scoringTurnLimit ?? 0} 
+                            onChange={e => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
+                            className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                            style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                        >
+                            <option value={0}>없음</option>
+                            <option value={40}>40턴</option>
+                            <option value={60}>60턴</option>
+                            <option value={100}>100턴</option>
+                        </select>
+                    </div>
+                )}
+
                 {showBoardSize && (
                     <div className="grid grid-cols-2 gap-2 items-center">
                         <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>판 크기</label>

@@ -95,12 +95,25 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
       rows.push({
         label: '시간',
         value: mode === GameMode.Speed
-          ? `${settings.timeLimit}분 · ${settings.timeIncrement}초 피셔`
-          : `${settings.timeLimit}분 · 초읽기 ${settings.byoyomiTime}초 × ${settings.byoyomiCount}회`,
+          ? `${settings.timeLimit}분 · ${settings.timeIncrement ?? 0}초 피셔`
+          : `${settings.timeLimit}분 · 초읽기 ${settings.byoyomiTime ?? 30}초 × ${settings.byoyomiCount ?? 3}회`,
       });
+      // 초읽기 정보를 "N초 / N회" 형식으로 별도 표시 (제한시간 있는 비-스피드 모드)
+      if (mode !== GameMode.Speed && !(mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed))) {
+        const byoyomiTime = settings.byoyomiTime ?? 30;
+        const byoyomiCount = settings.byoyomiCount ?? 3;
+        if (byoyomiCount > 0) {
+          rows.push({ label: '초읽기', value: `${byoyomiTime}초 / ${byoyomiCount}회` });
+        }
+      }
     } else {
       rows.push({ label: '시간', value: '없음' });
     }
+  }
+  // 전략 바둑(클래식 등) AI 대전: 계가까지 턴 설정 표시 (대국실에 전달된 설정과 동일하게 표시)
+  const strategicModesWithScoringTurn = [GameMode.Standard, GameMode.Speed, GameMode.Base, GameMode.Hidden, GameMode.Missile, GameMode.Mix];
+  if (strategicModesWithScoringTurn.includes(mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
+    rows.push({ label: '계가까지 턴', value: `${settings.scoringTurnLimit}턴` });
   }
   if ([GameMode.Dice, GameMode.Alkkagi, GameMode.Curling].includes(mode)) {
     rows.push({ label: '내 색', value: formatColor(settings.player1Color) });

@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 
+type ButtonColorScheme = 'blue' | 'red' | 'gray' | 'green' | 'yellow' | 'purple' | 'orange' | 'accent' | 'none';
+
 interface ConfirmModalProps {
     title?: string;
     message: string;
@@ -9,7 +11,7 @@ interface ConfirmModalProps {
     onCancel: () => void;
     confirmText?: string;
     cancelText?: string;
-    confirmColorScheme?: string;
+    confirmColorScheme?: ButtonColorScheme;
     isTopmost?: boolean;
     windowId?: string;
 }

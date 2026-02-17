@@ -120,6 +120,7 @@ export enum UserStatus {
   Negotiating = 'negotiating',
   InGame = 'in-game',
   Spectating = 'spectating',
+  Offline = 'offline',
 }
 
 export type WinReason = 'resign' | 'timeout' | 'disconnect' | 'score' | 'capture_limit' | 'omok_win' | 'thief_captured' | 'police_win' | 'alkkagi_win' | 'curling_win' | 'total_score' | 'dice_win' | 'foul_limit';

@@ -73,7 +73,7 @@ export default defineConfig({
       'cors': false,
       'sqlite3': false,
       'sqlite': false,
-    },
+    } as any,
   },
   define: {
     // require를 정의하지 않음 (브라우저 환경)
@@ -190,7 +190,5 @@ export default defineConfig({
     // 빌드 시 타입 체크 건너뛰기 (Docker 빌드 환경에서 문제 발생 시)
     // esbuild는 기본적으로 타입 체크를 하지 않지만, 명시적으로 설정
     target: 'esnext',
-    // 빌드 모드를 명시적으로 설정
-    mode: process.env.NODE_ENV || 'production',
   },
 })

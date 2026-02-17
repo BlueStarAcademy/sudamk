@@ -11,6 +11,7 @@ import * as summaryService from './summaryService.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import * as db from './db.js';
 import { generateGnuGoMove, isGnuGoAvailable } from './gnugoService.js';
+import { hasTimeControl } from './modes/shared.js';
 
 /**
  * AI 봇 단계별 특성 정의
@@ -404,6 +405,29 @@ export async function makeGoAiBotMove(
     const aiPlayerEnum = game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
+
+    // 전략바둑 로비 턴 제한: 이미 제한 수순에 도달했으면 수를 두지 않고 즉시 계가 진행 (그누고/계속 진행 방지)
+    const scoringTurnLimit = (game.settings as any)?.scoringTurnLimit;
+    if (scoringTurnLimit != null && scoringTurnLimit > 0 && !game.isSinglePlayer && (game as any).gameCategory !== 'tower') {
+        const validMovesSoFar = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1);
+        if (validMovesSoFar.length >= scoringTurnLimit) {
+            console.log(`[makeGoAiBotMove] Game ${game.id} already at or over scoringTurnLimit (${validMovesSoFar.length} >= ${scoringTurnLimit}), triggering getGameResult without making a move`);
+            game.gameStatus = 'scoring';
+            game.totalTurns = validMovesSoFar.length;
+            await db.saveGame(game);
+            const { broadcastToGameParticipants } = await import('./socket.js');
+            const gameToBroadcast = { ...game };
+            delete (gameToBroadcast as any).boardState;
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+            const { getGameResult } = await import('./gameModes.js');
+            try {
+                await getGameResult(game);
+            } catch (e: any) {
+                console.error(`[makeGoAiBotMove] getGameResult failed for game ${game.id}:`, e?.message);
+            }
+            return;
+        }
+    }
     
     // 도전의 탑: 1-19층은 goAiBot만 사용, 20층+는 그누고 사용 (Railway 배포 서버)
     const isTower = game.gameCategory === 'tower';
@@ -958,20 +982,22 @@ export async function makeGoAiBotMove(
     const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(game.gameStatus);
     
     if (!isItemMode) {
+        const scoringLimit = (game.settings as any)?.scoringTurnLimit;
         const autoScoringTurns = game.isSinglePlayer && game.stageId
             ? (await import('../constants/singlePlayerConstants.js')).SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns
-            : (game.settings as any)?.autoScoringTurns;
+            : (game as any).gameCategory === 'tower'
+                ? (game.settings as any)?.autoScoringTurns
+                : (scoringLimit != null && scoringLimit > 0 ? scoringLimit : undefined);
         
         if (autoScoringTurns !== undefined || (game.isSinglePlayer && game.stageId)) {
-        // totalTurns가 없으면 validMoves에서 계산 (패스 제외)
+        // 항상 현재 moveHistory 기준 유효 수 개수 사용 (수순 초과 방지)
         const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-        const totalTurns = game.totalTurns ?? validMoves.length;
-        // totalTurns 업데이트
+        const totalTurns = validMoves.length;
         game.totalTurns = totalTurns;
         
         if (autoScoringTurns) {
             const gameType = game.isSinglePlayer ? 'SinglePlayer' : 'AiGame';
-            console.log(`[GoAiBot][${gameType}] Auto-scoring check: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}, gameStatus=${game.gameStatus}, validMovesLength=${validMoves.length}`);
+            console.log(`[GoAiBot][${gameType}] Auto-scoring check: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}, gameStatus=${game.gameStatus}`);
             if (totalTurns >= autoScoringTurns) {
                 // 게임 상태를 먼저 확인하여 중복 트리거 방지
                 if (game.gameStatus === 'playing' || (game.gameStatus as string) === 'hidden_placing') {
@@ -1045,10 +1071,11 @@ export async function makeGoAiBotMove(
             }
         }
         
-        if (game.settings.timeLimit > 0) {
+        if (hasTimeControl(game.settings)) {
             const timeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            const byoyomiKey = game.currentPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
             const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
-            const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
+            const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0 && !isFischer;
             
             if (isNextInByoyomi) {
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;

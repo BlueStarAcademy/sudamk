@@ -347,6 +347,19 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
 
+    // 전략바둑 로비(대국실) 턴 표시: 제한 없음 → N수, 제한 있음 → 0/N ~ N/N
+    const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
+    const strategicLobbyTurnInfo = useMemo(() => {
+        if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower' || session.stageId) return null;
+        const moveHistory = session.moveHistory ?? [];
+        const current = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
+        const limit = settings.scoringTurnLimit;
+        if (limit != null && limit > 0) {
+            return { type: 'scoring_limit' as const, label: '수순', current, total: limit };
+        }
+        return { type: 'moves_only' as const, label: '수순', current };
+    }, [isStrategicMode, isSinglePlayer, session.gameCategory, session.stageId, settings.scoringTurnLimit, session.moveHistory, mode]);
+
     // 싱글플레이/도전의 탑 턴 안내 패널 계산
     const turnInfo = useMemo(() => {
         // 초기 동기화 payload에서 moveHistory가 생략될 수 있으므로 방어
@@ -410,28 +423,32 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const turnInfoValueSize = isMobile ? 'text-lg' : 'text-2xl md:text-3xl';
     const turnInfoTotalSize = isMobile ? 'text-[0.6rem]' : 'text-sm md:text-base';
 
+    const showStrategicTurnBox = strategicLobbyTurnInfo != null;
+
     return (
-        <div className={`flex justify-between items-start ${isMobile ? 'gap-1' : 'gap-2'} flex-shrink-0 h-full`}>
-            <SinglePlayerPanel
-                user={leftPlayerUser}
-                playerEnum={leftPlayerEnum}
-                score={leftPlayerScore}
-                isActive={isLeftPlayerActive}
-                timeLeft={leftPlayerTime}
-                totalTime={turnDuration}
-                mainTimeLeft={leftPlayerMainTime}
-                byoyomiPeriodsLeft={leftPlayerByoyomi}
-                totalByoyomi={settings.byoyomiCount}
-                byoyomiTime={settings.byoyomiTime}
-                isLeft={true}
-                session={session}
-                captureTarget={getCaptureTargetForPlayer(leftPlayerEnum)}
-                role={leftPlayerRole}
-                isAiPlayer={isLeftAi}
-                mode={mode}
-                isSinglePlayer={isSinglePlayer}
-                isMobile={isMobile}
-            />
+        <div className={`flex justify-between items-stretch ${isMobile ? 'gap-1' : 'gap-2'} flex-shrink-0 h-full`}>
+            <div className="flex-1 min-w-0 min-h-[4.5rem] flex">
+                <SinglePlayerPanel
+                    user={leftPlayerUser}
+                    playerEnum={leftPlayerEnum}
+                    score={leftPlayerScore}
+                    isActive={isLeftPlayerActive}
+                    timeLeft={leftPlayerTime}
+                    totalTime={turnDuration}
+                    mainTimeLeft={leftPlayerMainTime}
+                    byoyomiPeriodsLeft={leftPlayerByoyomi}
+                    totalByoyomi={settings.byoyomiCount}
+                    byoyomiTime={settings.byoyomiTime}
+                    isLeft={true}
+                    session={session}
+                    captureTarget={getCaptureTargetForPlayer(leftPlayerEnum)}
+                    role={leftPlayerRole}
+                    isAiPlayer={isLeftAi}
+                    mode={mode}
+                    isSinglePlayer={isSinglePlayer}
+                    isMobile={isMobile}
+                />
+            </div>
             {isSinglePlayer && turnInfo && (
                 <div className={`flex items-center justify-center ${turnInfoSize} flex-shrink-0 bg-stone-800/95 rounded-lg border-2 border-stone-500 shadow-xl`}>
                     <div className="flex flex-col items-center justify-center text-center px-1">
@@ -443,6 +460,22 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     </div>
                 </div>
             )}
+            {showStrategicTurnBox && strategicLobbyTurnInfo && (
+                <div className={`flex items-center justify-center ${turnInfoSize} flex-shrink-0 bg-gray-800/95 rounded-lg border-2 border-gray-500 shadow-xl`}>
+                    <div className="flex flex-col items-center justify-center text-center px-1">
+                        <span className={`${turnInfoLabelSize} text-gray-300 ${isMobile ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{strategicLobbyTurnInfo.label}</span>
+                        {strategicLobbyTurnInfo.type === 'moves_only' ? (
+                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}수</span>
+                        ) : (
+                            <div className="flex items-baseline justify-center gap-0.5">
+                                <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}</span>
+                                <span className={`${turnInfoTotalSize} text-gray-400`}>/ {strategicLobbyTurnInfo.total}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+            <div className="flex-1 min-w-0 min-h-[4.5rem] flex">
             <SinglePlayerPanel
                 user={rightPlayerUser}
                 playerEnum={rightPlayerEnum}
@@ -463,6 +496,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 isSinglePlayer={isSinglePlayer}
                 isMobile={isMobile}
             />
+            </div>
         </div>
     );
 };

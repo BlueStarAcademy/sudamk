@@ -500,6 +500,12 @@ export const getAllActiveGames = async (): Promise<LiveGameSession[]> => {
     const { getAllActiveGames: prismaGetAllActiveGames } = await import('./prisma/gameService.ts');
     return prismaGetAllActiveGames();
 };
+
+/** MainLoop 전용: 청크 단위 조회로 타임아웃 없이 완료 (Skipping DB 방지) */
+export const getAllActiveGamesChunked = async (): Promise<LiveGameSession[]> => {
+    const { getAllActiveGamesChunked: prismaGetAllActiveGamesChunked } = await import('./prisma/gameService.ts');
+    return prismaGetAllActiveGamesChunked();
+};
 export const getAllEndedGames = async (): Promise<LiveGameSession[]> => {
     const { getAllEndedGames: prismaGetAllEndedGames } = await import('./prisma/gameService.ts');
     return prismaGetAllEndedGames();

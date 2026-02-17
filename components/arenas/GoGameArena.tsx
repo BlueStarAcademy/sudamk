@@ -12,6 +12,8 @@ interface GoGameArenaProps extends GameProps {
     isMobile: boolean;
     myRevealedMoves: number[];
     showLastMoveMarker: boolean;
+    isBoardRotated?: boolean;
+    onToggleBoardRotation?: () => void;
 }
 
 const GoGameArena: React.FC<GoGameArenaProps> = (props) => {

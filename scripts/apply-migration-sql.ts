@@ -8,7 +8,7 @@
  *   npx tsx --tsconfig server/tsconfig.json scripts/apply-migration-sql.ts 0001_init_schema
  */
 
-import { PrismaClient } from '../generated/prisma/index.js';
+import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';

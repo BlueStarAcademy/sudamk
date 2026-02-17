@@ -21,11 +21,12 @@ interface CurlingBoardProps {
     currentUser: UserWithStatus;
     session: LiveGameSession; // Added for active items
     isRotated?: boolean; // Whether the board is rotated 180 degrees
+    myPlayerEnum?: Player; // Current player's enum for view adjustment
 }
 
 
 const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, ref) => {
-    const { stones, gameStatus, myPlayer, currentPlayer, onLaunchAreaInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, currentUser, session, isRotated = false } = props;
+    const { stones, gameStatus, myPlayer, currentPlayer, onLaunchAreaInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, currentUser, session, isRotated = false, myPlayerEnum } = props;
     const [localStones, setLocalStones] = useState(stones);
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -79,15 +80,14 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
         
         const currentStone = selectedStone;
         
-        // 회전된 보드에서는 화살표 방향도 반대로 표시해야 함
-        // 화면에서 위로 드래그 (dy < 0) = 서버 좌표계에서 아래로 발사 (vy > 0)
-        // 화면에서 아래로 드래그 (dy > 0) = 서버 좌표계에서 위로 발사 (vy < 0)
-        // 따라서 회전된 보드에서는 dx와 dy의 부호를 반대로 해야 함
-        const adjustedDx = isRotated ? -dx : dx;
-        const adjustedDy = isRotated ? -dy : dy;
+        // 바둑판이 회전하지 않으므로 드래그 방향 변환
+        // 백 플레이어의 경우 y축을 반전해야 함 (화면에서 위로 드래그 = 서버 좌표계에서 아래로 발사)
+        const isMyStone = currentStone.player === myPlayerEnum;
+        const adjustedDx = -dx; // 항상 반대 방향
+        const adjustedDy = isMyStone && myPlayerEnum === Player.White ? dy : -dy; // 백 플레이어는 y축 반전
         
         const svgStart = { x: currentStone.x, y: currentStone.y };
-        let svgEnd = { x: svgStart.x - adjustedDx, y: svgStart.y - adjustedDy };
+        let svgEnd = { x: svgStart.x + adjustedDx, y: svgStart.y + adjustedDy };
         
         const myActiveItems = session.activeCurlingItems?.[currentUser.id] || [];
         const isAimingLineActive = myActiveItems.includes('aimingLine');
@@ -104,7 +104,7 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
         }
         
         return { start: svgStart, end: svgEnd };
-    }, [dragStartPoint, dragEndPoint, selectedStone, session.activeCurlingItems, currentUser.id, isRotated]);
+    }, [dragStartPoint, dragEndPoint, selectedStone, session.activeCurlingItems, currentUser.id, myPlayerEnum]);
 
 
     const renderHouse = () => {
@@ -125,26 +125,18 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
     const launchAreaCellSize = 1;
     const launchAreaPx = launchAreaCellSize * cellSize;
     
-    // 백 플레이어가 보드를 180도 회전해서 보면, 백 플레이어의 발사 영역이 화면 상단에 보이도록 함
+    // 바둑판이 회전하지 않으므로, 각 플레이어의 발사 영역은 항상 화면 하단에 표시
+    // 서버 좌표계에서는 백이 위, 흑이 아래이지만, 각 플레이어의 뷰에서는 자신의 발사 영역이 아래에 보이도록
     const launchAreas = useMemo(() => {
-        if (isRotated && myPlayer === Player.White) {
-            // 백 플레이어가 회전된 보드를 볼 때: 백 플레이어의 발사 영역을 상단에 표시
-            return [
-                { x: padding, y: padding, player: Player.White }, // Top-left (화면 상단)
-                { x: boardSizePx - padding - launchAreaPx, y: padding, player: Player.White }, // Top-right (화면 상단)
-                { x: padding, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-left
-                { x: boardSizePx - padding - launchAreaPx, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-right
-            ];
-        } else {
-            // 기본 배치: 백 플레이어는 상단, 흑 플레이어는 하단
-            return [
-                { x: padding, y: padding, player: Player.White }, // Top-left
-                { x: boardSizePx - padding - launchAreaPx, y: padding, player: Player.White }, // Top-right
-                { x: padding, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-left
-                { x: boardSizePx - padding - launchAreaPx, y: boardSizePx - padding - launchAreaPx, player: Player.Black }, // Bottom-right
-            ];
-        }
-    }, [isRotated, myPlayer, padding, launchAreaPx, boardSizePx]);
+        // 각 플레이어의 발사 영역을 화면 하단에 표시
+        const bottomY = boardSizePx - padding - launchAreaPx;
+        return [
+            { x: padding, y: bottomY, player: Player.Black }, // Bottom-left (흑)
+            { x: boardSizePx - padding - launchAreaPx, y: bottomY, player: Player.Black }, // Bottom-right (흑)
+            { x: padding, y: bottomY, player: Player.White }, // Bottom-left (백)
+            { x: boardSizePx - padding - launchAreaPx, y: bottomY, player: Player.White }, // Bottom-right (백)
+        ];
+    }, [padding, launchAreaPx, boardSizePx]);
 
     return (
         <div
@@ -175,6 +167,9 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
                 {renderHouse()}
                 
                 {launchAreas.map((area, i) => {
+                    // 각 플레이어는 자신의 발사 영역만 표시
+                    if (area.player !== myPlayerEnum) return null;
+                    
                     const isMyArea = canLaunch && area.player === myPlayer;
                     const classNames = [
                         isMyArea ? 'cursor-pointer' : 'cursor-default',
@@ -202,9 +197,33 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
 
                 {localStones.map(stone => {
                     if (!stone.onBoard) return null;
-                    // 회전된 보드에서는 돌 위치를 변환
-                    const displayX = isRotated ? boardSizePx - stone.x : stone.x;
-                    const displayY = isRotated ? boardSizePx - stone.y : stone.y;
+                    // 바둑판은 회전하지 않고, 각 플레이어의 돌 위치만 조정
+                    // 서버 좌표계: 백(White)은 상단(y 작음), 흑(Black)은 하단(y 큼)
+                    // 화면 좌표계: 각 플레이어의 발사 영역이 화면 하단에 보임
+                    const isMyStone = stone.player === myPlayerEnum;
+                    const displayX = stone.x;
+                    let displayY: number;
+                    if (isMyStone) {
+                        // 내 돌: 내 플레이어 타입에 따라 변환
+                        if (myPlayerEnum === Player.White) {
+                            // 백 플레이어: 서버 좌표계 상단 = 화면 하단 (반전)
+                            displayY = boardSizePx - stone.y;
+                        } else {
+                            // 흑 플레이어: 서버 좌표계 하단 = 화면 하단 (그대로)
+                            displayY = stone.y;
+                        }
+                    } else {
+                        // 상대방 돌: 상대방의 플레이어 타입에 따라 변환
+                        // 흑 플레이어가 볼 때: 백 돌은 서버 좌표계 상단(y 작음) = 화면 상단(y 작음) (반전 불필요)
+                        // 백 플레이어가 볼 때: 흑 돌은 서버 좌표계 하단(y 큼) = 화면 상단(y 작음) (반전 필요)
+                        if (stone.player === Player.White) {
+                            // 상대방이 백: 서버 상단 = 화면 상단 (반전 불필요)
+                            displayY = stone.y;
+                        } else {
+                            // 상대방이 흑: 서버 하단 = 화면 상단 (반전 필요)
+                            displayY = boardSizePx - stone.y;
+                        }
+                    }
                     return (
                         <g key={stone.id}>
                             <circle cx={displayX} cy={displayY} r={stone.radius} fill={stone.player === Player.Black ? "#111827" : "#f9fafb"} />
@@ -215,10 +234,17 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
                 
                  {selectedStone && dragLine && (
                     <g opacity="0.7">
-                        {/* 회전된 보드에서는 선택된 돌 위치를 변환 */}
+                        {/* 선택된 돌 위치 변환 */}
                         {(() => {
-                            const displayX = isRotated ? boardSizePx - selectedStone.x : selectedStone.x;
-                            const displayY = isRotated ? boardSizePx - selectedStone.y : selectedStone.y;
+                            const isMyStone = selectedStone.player === myPlayerEnum;
+                            const displayX = selectedStone.x;
+                            let displayY: number;
+                            if (isMyStone) {
+                                displayY = myPlayerEnum === Player.White ? boardSizePx - selectedStone.y : selectedStone.y;
+                            } else {
+                                // 상대방 돌: 상대방의 플레이어 타입에 따라 변환
+                                displayY = selectedStone.player === Player.White ? selectedStone.y : boardSizePx - selectedStone.y;
+                            }
                             return (
                                 <>
                                     <circle cx={displayX} cy={displayY} r={selectedStone.radius} fill={selectedStone.player === Player.Black ? "#111827" : "#f9fafb"} />
@@ -232,12 +258,25 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
 
                 {dragLine && (
                      <g style={{ pointerEvents: 'none' }}>
-                        {/* 회전된 보드에서는 드래그 라인 위치를 변환 */}
+                        {/* 드래그 라인 위치 변환 */}
                         {(() => {
-                            const startX = isRotated ? boardSizePx - dragLine.start.x : dragLine.start.x;
-                            const startY = isRotated ? boardSizePx - dragLine.start.y : dragLine.start.y;
-                            const endX = isRotated ? boardSizePx - dragLine.end.x : dragLine.end.x;
-                            const endY = isRotated ? boardSizePx - dragLine.end.y : dragLine.end.y;
+                            const isMyStone = selectedStone?.player === myPlayerEnum;
+                            const startX = dragLine.start.x;
+                            let startY: number;
+                            if (isMyStone) {
+                                startY = myPlayerEnum === Player.White ? boardSizePx - dragLine.start.y : dragLine.start.y;
+                            } else {
+                                // 상대방 돌: 상대방의 플레이어 타입에 따라 변환
+                                startY = selectedStone?.player === Player.White ? dragLine.start.y : boardSizePx - dragLine.start.y;
+                            }
+                            const endX = dragLine.end.x;
+                            let endY: number;
+                            if (isMyStone) {
+                                endY = myPlayerEnum === Player.White ? boardSizePx - dragLine.end.y : dragLine.end.y;
+                            } else {
+                                // 상대방 돌: 상대방의 플레이어 타입에 따라 변환
+                                endY = selectedStone?.player === Player.White ? dragLine.end.y : boardSizePx - dragLine.end.y;
+                            }
                             return (
                                 <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="rgba(239, 68, 68, 0.7)" strokeWidth="4" strokeDasharray="8 4" markerEnd="url(#arrowhead-curling)" />
                             );

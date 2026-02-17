@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
-import { GuildWar as GuildWarType, GuildWarBoard, User } from '../../types/index.js';
+import { GuildWar as GuildWarType, User } from '../../types/index.js';
 
 interface Board {
     id: string;

@@ -1,8 +1,14 @@
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+// .env를 프로젝트 루트에서 명시적으로 로드 (cwd에 의존하지 않음)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envPath = path.resolve(__dirname, '..', '.env');
+dotenv.config({ path: envPath });
+
+import express from 'express';
+import cors from 'cors';
 import { randomUUID } from 'crypto';
 import process from 'process';
 import http from 'http';
@@ -85,8 +91,27 @@ let lastGetAllActiveGamesSuccess = 0; // 마지막 성공한 게임 로드 시�
 // Railway 등 배포 환경에서는 DB 지연이 클 수 있어 타임아웃 완화 (반복 타임아웃 시 서버 불안정 방지)
 const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
 const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = isRailwayOrProd ? 45000 : 30000; // Railway: 45초(부하 감소), 로컬: 30초
-const MAINLOOP_DB_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000; // Railway: 18초, 로컬: 5초
-const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 45000 : 5000; // Railway: 45초 (게임 많을 때 완료 여유), 로컬: 5초
+const MAINLOOP_DB_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000;
+// updateGameStates: 2게임/사이클, 내부 prewarm 2초+배치 4초 → 보통 6초 내 완료. DB/API 지연 시 여유 확보
+const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 5000 : 5000; // 5초로 단축 (updateGameStates 내부 타임아웃 3초와 조화)
+
+// 타임아웃 연속 발생 추적 (크래시 방지)
+let consecutiveTimeouts = 0;
+let lastTimeoutResetTime = 0;
+const MAX_CONSECUTIVE_TIMEOUTS = 10; // 연속 타임아웃 10회 초과 시 크래시 가능성
+const TIMEOUT_RESET_WINDOW_MS = 60000; // 1분 내 타임아웃이 연속 발생하면 카운트
+
+/** 게임 변경 감지용 경량 시그니처 (전체 JSON 직렬화 대체, MainLoop 경량화) */
+function getGameSignature(g: types.LiveGameSession): string {
+    if (!g?.id) return '';
+    const rev = g.serverRevision ?? 0;
+    const moves = (g.moveHistory?.length) ?? 0;
+    const status = g.gameStatus ?? '';
+    const synced = g.lastSyncedAt ?? 0;
+    const turn = g.turnDeadline ?? 0;
+    const winner = g.winner ?? '';
+    return `${g.id}\t${rev}\t${moves}\t${status}\t${synced}\t${turn}\t${winner}`;
+}
 
 // 만료된 negotiation 정리 함수
 const cleanupExpiredNegotiations = (volatileState: types.VolatileState, now: number): void => {
@@ -245,6 +270,11 @@ const startServer = async () => {
         if (!dbUrl) {
             console.error("[Server Startup] DATABASE_URL is not set! Please check Railway Variables.");
             console.error("[Server Startup] All environment variables:", Object.keys(process.env).filter(k => k.includes('DATABASE') || k.includes('POSTGRES')).join(', '));
+            if (!process.env.RAILWAY_ENVIRONMENT) {
+                console.error("[Server] 로컬 실행: .env에 DATABASE_URL을 설정하세요.");
+                console.error("[Server] 예: DATABASE_URL=postgresql://user:password@localhost:5432/sudamr");
+                console.error("[Server] 참고: .env.local.example");
+            }
         } else {
             // Railway 환경에서 내부 네트워크 사용 권장
             const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway');
@@ -257,20 +287,22 @@ const startServer = async () => {
             }
         }
         
-        // 데이터베이스 연결 상태 주기적 확인 및 로깅 (변경이 있을 때만 출력)
-        let lastDbConnectionStatus: boolean | null = null;
-        setInterval(async () => {
-            const connected = await db.isDatabaseConnected();
-            // 연결 상태가 변경되었을 때만 로그 출력 (스팸 방지)
-            if (lastDbConnectionStatus !== null && lastDbConnectionStatus !== connected) {
-                if (!connected) {
-                    console.warn(`[Server Startup] Database connection status: DISCONNECTED (will retry in background)`);
-                } else {
-                    console.log(`[Server Startup] Database connection status: CONNECTED`);
+        // DATABASE_URL이 있을 때만 데이터베이스 연결 상태 주기적 확인 (없으면 isDatabaseConnected 호출 시 Prisma 에러 반복 방지)
+        if (dbUrl) {
+            let lastDbConnectionStatus: boolean | null = null;
+            setInterval(async () => {
+                const connected = await db.isDatabaseConnected();
+                // 연결 상태가 변경되었을 때만 로그 출력 (스팸 방지)
+                if (lastDbConnectionStatus !== null && lastDbConnectionStatus !== connected) {
+                    if (!connected) {
+                        console.warn(`[Server Startup] Database connection status: DISCONNECTED (will retry in background)`);
+                    } else {
+                        console.log(`[Server Startup] Database connection status: CONNECTED`);
+                    }
                 }
-            }
-            lastDbConnectionStatus = connected;
-        }, 30000); // 30초마다 확인
+                lastDbConnectionStatus = connected;
+            }, 30000); // 30초마다 확인
+        }
         
         // --- Initialize Database on Start ---
         try {
@@ -512,13 +544,15 @@ const startServer = async () => {
             // 허용할 origin 목록 (Railway 배포 시 FRONTEND_URL 미설정 대비)
             const allowedOrigins: (string | RegExp)[] = [
                 process.env.FRONTEND_URL,
-                'https://sudam.up.railway.app',  // SUDAM 프론트엔드 (FRONTEND_URL 미설정 시 fallback)
+                'https://sudam.up.railway.app',
+                'https://suadam.up.railway.app',  // 오타 도메인 대비
                 /\.railway\.app$/,
                 /\.up\.railway\.app$/
             ].filter((o): o is string | RegExp => o !== undefined && o !== null && o !== '');
             
             // 로깅은 개발 환경에서만 (프로덕션에서는 로그 스팸 방지)
-            const isDevelopment = process.env.NODE_ENV === 'development';
+            const nodeEnv = process.env.NODE_ENV as string | undefined;
+            const isDevelopment = nodeEnv === 'development';
             if (isDevelopment) {
                 console.log('[CORS] Request from origin:', origin);
                 console.log('[CORS] FRONTEND_URL:', process.env.FRONTEND_URL || 'NOT SET');
@@ -556,9 +590,14 @@ const startServer = async () => {
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        optionsSuccessStatus: 204,
+        preflightContinue: false
     };
     app.use(cors(corsOptions));
+    // POST 등 비동기 요청 시 브라우저 preflight(OPTIONS)가 확실히 CORS 헤더로 응답하도록
+    app.options('/api/auth/login', cors(corsOptions));
+    app.options('/api/auth/kakao/url', cors(corsOptions));
     
     // Ignore development tooling noise such as Vite/Esbuild status pings
     // This route should be early in the middleware stack to avoid unnecessary processing
@@ -1317,19 +1356,7 @@ const startServer = async () => {
                     // 캐시가 비어있으면 강제로 로드 (첫 실행 후)
                     console.log('[MainLoop] Cache empty, forcing game load with timeout...');
                     try {
-                        const shortTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
-                            setTimeout(() => {
-                                console.warn(`[MainLoop] Forced game load timeout (${MAINLOOP_DB_TIMEOUT_MS}ms), using empty array`);
-                                resolve([]);
-                            }, MAINLOOP_DB_TIMEOUT_MS);
-                        });
-                        activeGames = await Promise.race([
-                            db.getAllActiveGames().catch((err: any) => {
-                                console.error('[MainLoop] Forced getAllActiveGames error:', err?.message || err);
-                                return [];
-                            }),
-                            shortTimeout
-                        ]);
+                        activeGames = await db.getAllActiveGamesChunked();
                         if (activeGames.length > 0) {
                             lastGetAllActiveGamesSuccess = now;
                         }
@@ -1354,40 +1381,35 @@ const startServer = async () => {
                         console.log(`[MainLoop] First run: Using ${activeGames.length} cached games`);
                     }
                 } else {
-                    let timeoutOccurred = false;
                     try {
-                        const gamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
-                            setTimeout(() => {
-                                timeoutOccurred = true;
-                                lastGetAllActiveGamesTimeout = Date.now();
-                                if (timeSinceLastTimeout >= GET_ALL_ACTIVE_GAMES_BACKOFF_MS) {
-                                    console.warn(`[MainLoop] getAllActiveGames timeout after ${MAINLOOP_DB_TIMEOUT_MS}ms. Skipping DB for ${GET_ALL_ACTIVE_GAMES_BACKOFF_MS / 1000}s (using cache)`);
-                                }
-                                resolve([]);
-                            }, MAINLOOP_DB_TIMEOUT_MS);
-                        });
-                        activeGames = await Promise.race([
-                            db.getAllActiveGames().catch((err: any) => {
-                                console.error('[MainLoop] getAllActiveGames error:', err?.message || err);
-                                console.error('[MainLoop] getAllActiveGames error stack:', err?.stack);
-                                return [];
-                            }),
-                            gamesTimeout
-                        ]);
-                        // 성공 시 백오프 리셋 및 성공 시간 기록 (타임아웃이 발생하지 않았고 게임이 로드된 경우)
-                        if (!timeoutOccurred && activeGames.length > 0) {
+                        // 청크 단위 조회로 단일 18초 타임아웃/Skipping DB 방지 (각 청크 7초 이내 완료)
+                        const dbQueryStartTime = Date.now();
+                        activeGames = await db.getAllActiveGamesChunked();
+                        const dbQueryDuration = Date.now() - dbQueryStartTime;
+                        
+                        if (activeGames.length > 0) {
                             lastGetAllActiveGamesTimeout = 0;
                             lastGetAllActiveGamesSuccess = now;
+                            // DB 쿼리가 너무 오래 걸리면 경고
+                            if (dbQueryDuration > MAINLOOP_DB_TIMEOUT_MS * 0.8) {
+                                console.warn(`[MainLoop] getAllActiveGamesChunked took ${dbQueryDuration}ms (close to timeout ${MAINLOOP_DB_TIMEOUT_MS}ms)`);
+                            }
+                        } else {
+                            // 빈 배열 반환 시 타임아웃 가능성 체크
+                            if (dbQueryDuration >= MAINLOOP_DB_TIMEOUT_MS * 0.9) {
+                                lastGetAllActiveGamesTimeout = now;
+                                console.warn(`[MainLoop] getAllActiveGames timeout after ${dbQueryDuration}ms. Skipping DB for ${GET_ALL_ACTIVE_GAMES_BACKOFF_MS / 1000}s (using cache)`);
+                            }
                         }
                     } catch (error: any) {
-                        console.error('[MainLoop] Failed to load active games:', error?.message || error);
-                        console.error('[MainLoop] Load games error stack:', error?.stack);
+                        console.error('[MainLoop] getAllActiveGamesChunked error:', error?.message || error);
                         activeGames = [];
+                        lastGetAllActiveGamesTimeout = now;
                     }
                 }
             }
             
-            const originalGamesJson = activeGames.map(g => JSON.stringify(g));
+            let originalGameSignatures = activeGames.map(g => getGameSignature(g));
             const onlineUserIdsSet = new Set(Object.keys(volatileState.userConnections));
             // 1000명 경량화: 접속 중인 플레이어가 있는 게임만 updateGameStates에 전달 (미접속 게임은 스킵)
             const gamesWithOnlinePlayers = activeGames.filter((g) => {
@@ -1709,7 +1731,7 @@ const startServer = async () => {
                                         
                                         // 게임 삭제
                                         await db.deleteGame(activeGame.id);
-                                        
+                                        delete volatileState.gameChats[activeGame.id];
                                         // 게임 삭제 브로드캐스트
                                         broadcast({ type: 'GAME_DELETED', payload: { gameId: activeGame.id } });
                                     } else {
@@ -1801,8 +1823,10 @@ const startServer = async () => {
             let updatedGames: types.LiveGameSession[] = [];
             if (gamesWithOnlinePlayers.length > 0) {
                 try {
+                    let timeoutOccurred = false;
                     const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                         setTimeout(() => {
+                            timeoutOccurred = true;
                             const shouldLog = !(global as any).lastUpdateGamesTimeout || (Date.now() - (global as any).lastUpdateGamesTimeout > 30000);
                             if (shouldLog) {
                                 console.warn(`[MainLoop] updateGameStates timeout (${MAINLOOP_UPDATE_GAMES_TIMEOUT_MS}ms) for ${gamesWithOnlinePlayers.length} games, using original state`);
@@ -1812,18 +1836,54 @@ const startServer = async () => {
                         }, MAINLOOP_UPDATE_GAMES_TIMEOUT_MS);
                     });
                     const updatedSubset = await Promise.race([
-                        updateGameStates(gamesWithOnlinePlayers, now).catch((err: any) => {
+                        updateGameStates(gamesWithOnlinePlayers, now).then((result) => {
+                            // 성공 시 타임아웃 카운터 리셋
+                            if (now - lastTimeoutResetTime > TIMEOUT_RESET_WINDOW_MS) {
+                                consecutiveTimeouts = 0;
+                            }
+                            return result;
+                        }).catch((err: any) => {
                             console.error('[MainLoop] Error in updateGameStates:', err?.message || err);
                             return gamesWithOnlinePlayers;
                         }),
                         updateGamesTimeout
                     ]);
+                    
+                    // 타임아웃 발생 시 카운터 증가
+                    if (timeoutOccurred) {
+                        if (now - lastTimeoutResetTime > TIMEOUT_RESET_WINDOW_MS) {
+                            consecutiveTimeouts = 1;
+                            lastTimeoutResetTime = now;
+                        } else {
+                            consecutiveTimeouts++;
+                        }
+                        
+                        // 연속 타임아웃이 너무 많으면 크래시 방지를 위해 재시작
+                        if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+                            console.error(`[MainLoop] CRITICAL: ${consecutiveTimeouts} consecutive timeouts detected. Server may be unstable. Exiting for restart.`);
+                            process.stderr.write(`[CRITICAL] Too many consecutive timeouts (${consecutiveTimeouts}) - exiting for restart\n`);
+                            setTimeout(() => {
+                                process.exit(1);
+                            }, 2000);
+                            return; // 루프 종료
+                        }
+                    }
+                    
                     const updatedById = new Map<string, types.LiveGameSession>();
                     for (const g of updatedSubset) updatedById.set(g.id, g);
                     updatedGames = activeGames.map((g) => updatedById.get(g.id) ?? g);
                 } catch (error: any) {
                     console.error('[MainLoop] Fatal error in updateGameStates:', error?.message || error);
                     updatedGames = activeGames;
+                    // 치명적 에러도 타임아웃으로 간주
+                    consecutiveTimeouts++;
+                    if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+                        console.error(`[MainLoop] CRITICAL: ${consecutiveTimeouts} consecutive errors/timeouts. Exiting for restart.`);
+                        setTimeout(() => {
+                            process.exit(1);
+                        }, 2000);
+                        return;
+                    }
                 }
             } else {
                 updatedGames = activeGames;
@@ -1849,8 +1909,11 @@ const startServer = async () => {
                 }
             }
 
-            // Check for mutual disconnection - 에러 핸들링 추가
+            // Check for mutual disconnection - 양쪽 모두 끊기면 대국실 삭제 후 재접속 시 안내
             const disconnectedGamesToBroadcast: Record<string, types.LiveGameSession> = {};
+            const mutualDisconnectGameIds = new Set<string>();
+            const MUTUAL_DISCONNECT_MESSAGE = '양쪽 유저의 접속이 모두 끊어져 대국이 종료되었습니다.';
+
             for (const game of updatedGames) {
                 try {
                     // scoring 상태의 게임은 연결 끊김으로 처리하지 않음 (자동계가 진행 중)
@@ -1866,20 +1929,40 @@ const startServer = async () => {
                     });
 
                     if (!p1Online && !p2Online && !isSpectatorPresent) {
-                        console.log(`[Game ${game.id}] Both players disconnected and no spectators. Setting to no contest.`);
-                        game.gameStatus = 'no_contest';
-                        game.winReason = 'disconnect'; // For context, but no one is penalized
-                        try {
-                            await db.saveGame(game);
-                            clearAiSession(game.id);
-                            disconnectedGamesToBroadcast[game.id] = game;
-                        } catch (saveError: any) {
-                            console.error(`[MainLoop] Failed to save disconnected game ${game.id}:`, saveError?.message);
+                        console.log(`[Game ${game.id}] Both players disconnected and no spectators. Deleting game and notifying on reconnect.`);
+                            try {
+                                const p1Id = game.player1?.id;
+                                const p2Id = game.player2?.id;
+                                clearAiSession(game.id);
+                                await db.deleteGame(game.id);
+                                delete volatileState.gameChats[game.id];
+                                if (!volatileState.pendingMutualDisconnectByUser) volatileState.pendingMutualDisconnectByUser = {};
+                            if (p1Id) volatileState.pendingMutualDisconnectByUser[p1Id] = MUTUAL_DISCONNECT_MESSAGE;
+                            if (p2Id) volatileState.pendingMutualDisconnectByUser[p2Id] = MUTUAL_DISCONNECT_MESSAGE;
+                            if (volatileState.userStatuses[p1Id]) {
+                                delete volatileState.userStatuses[p1Id].gameId;
+                                volatileState.userStatuses[p1Id].status = types.UserStatus.Waiting;
+                            }
+                            if (volatileState.userStatuses[p2Id]) {
+                                delete volatileState.userStatuses[p2Id].gameId;
+                                volatileState.userStatuses[p2Id].status = types.UserStatus.Waiting;
+                            }
+                            mutualDisconnectGameIds.add(game.id);
+                            broadcast({ type: 'GAME_DELETED', payload: { gameId: game.id, reason: 'mutual_disconnect' } });
+                        } catch (delError: any) {
+                            console.error(`[MainLoop] Failed to delete mutually disconnected game ${game.id}:`, delError?.message);
                         }
+                        continue;
                     }
                 } catch (disconnectError: any) {
                     console.warn(`[MainLoop] Error checking disconnection for game ${game.id}:`, disconnectError?.message);
                 }
+            }
+
+            // 양쪽 끊김으로 삭제된 게임은 이후 루프에서 제외 (updatedGames와 originalGameSignatures 인덱스 일치 유지)
+            if (mutualDisconnectGameIds.size > 0) {
+                updatedGames = updatedGames.filter(g => !mutualDisconnectGameIds.has(g.id));
+                originalGameSignatures = originalGameSignatures.filter((_, i) => !mutualDisconnectGameIds.has(activeGames[i]?.id));
             }
             
             // 연결 끊김으로 인한 게임 상태 변경 브로드캐스트 (게임 참가자에게만 전송) - 에러 핸들링 추가
@@ -1912,8 +1995,8 @@ const startServer = async () => {
                     continue;
                 }
 
-                // 멀티플레이 게임만 상세 처리
-                if (JSON.stringify(updatedGame) !== originalGamesJson[i]) {
+                // 멀티플레이 게임만 상세 처리 (경량 시그니처로 변경 감지, JSON 직렬화 제거)
+                if (getGameSignature(updatedGame) !== originalGameSignatures[i]) {
                     const currentMoveCount = updatedGame.moveHistory?.length ?? 0;
                     const localRevision = updatedGame.serverRevision ?? 0;
                     const localSyncedAt = updatedGame.lastSyncedAt ?? 0;
@@ -1938,22 +2021,16 @@ const startServer = async () => {
                         if (newerReason) {
                             console.warn(`[Game Loop] Detected newer game state for ${updatedGame.id} (${newerReason}). Refreshing local copy instead of saving.`);
                             syncAiSession(latestGame, aiPlayer.aiUserId);
-                            // 캐시 업데이트하여 다음 루프에서 중복 감지 방지
                             const { updateGameCache } = await import('./gameCache.js');
                             updateGameCache(latestGame);
-                            // 최신 상태를 브로드캐스트하지 않음 (이미 다른 곳에서 브로드캐스트되었을 가능성이 높음)
-                            // 무한 루프 방지: 최신 상태를 감지한 경우에는 브로드캐스트하지 않고 로컬 상태만 업데이트
                             updatedGames[i] = latestGame;
-                            // originalGamesJson도 업데이트하여 다음 루프에서 변경으로 감지되지 않도록 함
-                            originalGamesJson[i] = JSON.stringify(latestGame);
+                            originalGameSignatures[i] = getGameSignature(latestGame);
                             continue;
                         }
                     }
 
-                    // 멀티플레이 게임만 저장
                     const { updateGameCache } = await import('./gameCache.js');
                     updateGameCache(updatedGame);
-                    // DB 저장은 비동기로 처리하여 응답 지연 최소화
                     db.saveGame(updatedGame).catch(err => {
                         console.error(`[Game Loop] Failed to save game ${updatedGame.id}:`, err);
                     });
@@ -1971,15 +2048,11 @@ const startServer = async () => {
                         try {
                             const gameIndex = activeGames.findIndex(g => g.id === gameId);
                             if (gameIndex !== -1) {
-                                // 실제로 변경된 경우에만 브로드캐스트 (무한 루프 방지)
-                                const currentGameJson = JSON.stringify(game);
-                                if (currentGameJson !== originalGamesJson[gameIndex]) {
+                                const currentSig = getGameSignature(game);
+                                if (currentSig !== originalGameSignatures[gameIndex]) {
                                     broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
-                                    
-                                    // activeGames 배열도 업데이트하여 다음 루프에서 올바른 비교가 이루어지도록 함
                                     activeGames[gameIndex] = game;
-                                    // originalGamesJson도 업데이트하여 다음 루프에서 변경으로 감지되지 않도록 함
-                                    originalGamesJson[gameIndex] = currentGameJson;
+                                    originalGameSignatures[gameIndex] = currentSig;
                                 }
                             }
                         } catch (gameBroadcastError: any) {
@@ -2112,6 +2185,7 @@ const startServer = async () => {
                             console.log(`[GC] Deleting empty, ended game room: ${game.id}`);
                             clearAiSession(game.id);
                             await db.deleteGame(game.id);
+                            delete volatileState.gameChats[game.id];
                         }
                     }
                 } catch (gcError: any) {
@@ -2650,10 +2724,11 @@ const startServer = async () => {
         }
     });
 
-    app.post('/api/auth/login', async (req, res, next) => {
+    app.post('/api/auth/login', (req, res, next) => {
+        (async () => {
+        let responseSent = false;
         console.log('[/api/auth/login] Received request');
         console.log('[/api/auth/login] Request body type:', typeof req.body, req.body ? '(present)' : '(missing)');
-        let responseSent = false;
         
         // 데이터베이스 연결 상태 확인
         try {
@@ -2687,11 +2762,11 @@ const startServer = async () => {
             return;
         }
         
-        // 요청 타임아웃 설정 (10초 - Railway 환경 최적화)
+        // 요청 타임아웃 (8초 - 프록시 502 방지, Railway 등)
         const requestTimeout = setTimeout(() => {
             if (!responseSent && !res.headersSent) {
                 responseSent = true;
-                console.error('[/api/auth/login] Request timeout after 10 seconds');
+                console.error('[/api/auth/login] Request timeout after 8 seconds');
                 try {
                     res.status(504).json({ message: '로그인 요청이 시간 초과되었습니다. 다시 시도해주세요.' });
                 } catch (err) {
@@ -2701,7 +2776,7 @@ const startServer = async () => {
                     }
                 }
             }
-        }, 10000); // 10초 타임아웃 (Railway 환경 최적화)
+        }, 8000);
         
         // 요청이 종료되면 타임아웃 정리
         req.on('close', () => {
@@ -3222,7 +3297,9 @@ const startServer = async () => {
                         weeklyCompetitors: userForLogin.weeklyCompetitors
                     };
                 }
-                sendResponse(200, { user: sanitizedUser });
+                const pendingMutualMsg = volatileState.pendingMutualDisconnectByUser?.[userForLogin.id];
+                if (pendingMutualMsg) delete volatileState.pendingMutualDisconnectByUser![userForLogin.id];
+                sendResponse(200, { user: sanitizedUser, mutualDisconnectMessage: pendingMutualMsg ?? null });
             } catch (finalError: any) {
                 console.error('[/api/auth/login] Failed to send success response:', finalError?.message);
                 // 최종 응답 전송 실패 시에도 응답 보장
@@ -3338,9 +3415,18 @@ const startServer = async () => {
                 console.error('[/api/auth/login] Response already sent, cannot send error response');
             }
         } finally {
-            // 타임아웃 정리 보장
             clearTimeout(requestTimeout);
         }
+        })().catch((err: any) => {
+            if (!res.headersSent) {
+                try {
+                    res.status(500).json({ message: '로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' });
+                } catch (_) {
+                    try { res.status(500).end(); } catch (_2) {}
+                }
+            }
+            next(err);
+        });
     });
 
     // 카카오 로그인 URL 생성
@@ -4122,7 +4208,7 @@ const startServer = async () => {
                     updatedCount++;
                     
                     // 업데이트된 봇 수 계산
-                    const botCount = (user.weeklyCompetitors || []).filter(c => c.id.startsWith('bot-')).length;
+                    const botCount = (user.weeklyCompetitors || []).filter((c: types.WeeklyCompetitor) => c.id.startsWith('bot-')).length;
                     totalBotsUpdated += botCount;
                 }
             }

@@ -103,7 +103,7 @@ const getStarDisplayInfo = (stars: number) => {
     return { text: "", colorClass: "text-white" };
 };
 
-const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem; onClick?: () => void; }> = ({ slot, item, onClick }) => {
+const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem; onClick?: () => void; scaleFactor?: number; }> = ({ slot, item, onClick }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     
     if (item) {

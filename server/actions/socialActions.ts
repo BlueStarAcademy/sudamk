@@ -102,7 +102,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                             
                             // 게임 삭제
                             await db.deleteGame(activeGameId);
-                            
+                            if (volatileState.gameChats) delete volatileState.gameChats[activeGameId];
                             // 게임 삭제 브로드캐스트
                             broadcast({ type: 'GAME_DELETED', payload: { gameId: activeGameId } });
                         }
@@ -375,6 +375,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     console.log(`[GC] Deleting game ${gameId} - both players left and no spectators`);
                     clearAiSession(gameId);
                     await db.deleteGame(gameId);
+                    if (volatileState.gameChats) delete volatileState.gameChats[gameId];
                     // 게임 삭제를 클라이언트에 알리기 위해 GAME_DELETED 브로드캐스트
                     broadcast({ type: 'GAME_DELETED', payload: { gameId } });
                 }

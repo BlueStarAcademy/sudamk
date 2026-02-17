@@ -14,6 +14,7 @@ const statusDisplay: Record<UserStatus, { text: string; color: string; }> = {
   'negotiating': { text: '협상 중', color: 'text-yellow-400' },
   'in-game': { text: '대국 중', color: 'text-blue-400' },
   'spectating': { text: '관전 중', color: 'text-purple-400' },
+  'offline': { text: '오프라인', color: 'text-gray-500' },
 };
 
 interface PlayerListProps {
@@ -148,7 +149,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
               </div>
             )}
             {/* AI와 대결하기 항목 - 현재 유저 아래에 표시 */}
-            {onOpenAiModal && (mode === 'strategic' || mode === 'playful' || SPECIAL_GAME_MODES.some(m => m.mode === mode) || PLAYFUL_GAME_MODES.includes(mode as GameMode)) && (
+            {onOpenAiModal && (mode === 'strategic' || mode === 'playful' || SPECIAL_GAME_MODES.some(m => m.mode === mode) || PLAYFUL_GAME_MODES.some(m => m.mode === mode)) && (
                 <div className="flex-shrink-0 mb-2">
                     <li className="flex items-center justify-between p-1.5 rounded-lg bg-tertiary/50 border border-purple-500/30">
                         <div className="flex items-center gap-2 lg:gap-3 overflow-hidden cursor-pointer" onClick={onOpenAiModal} title="AI와 대결하기">

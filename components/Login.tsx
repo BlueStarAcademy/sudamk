@@ -5,7 +5,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { getApiUrl } from '../utils/apiConfig.js';
 
 const Login: React.FC = () => {
-  const { setCurrentUserAndRoute } = useAppContext();
+  const { setCurrentUserAndRoute, handlers } = useAppContext();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +59,10 @@ const Login: React.FC = () => {
       }
       
       if (!response.ok) {
+        if (response.status === 502) {
+          setError('서버가 일시적으로 응답하지 않습니다 (502). 잠시 후 다시 시도하거나 Railway 대시보드에서 백엔드 로그를 확인해주세요.');
+          return;
+        }
         let errorMessage = `로그인 실패 (${response.statusText})`;
         try {
             const errorData = await response.json();
@@ -81,7 +85,9 @@ const Login: React.FC = () => {
       }
       
       setCurrentUserAndRoute(data.user);
-      
+      if (data.mutualDisconnectMessage && typeof handlers.showMutualDisconnectMessage === 'function') {
+        handlers.showMutualDisconnectMessage(data.mutualDisconnectMessage);
+      }
       // 닉네임이 없거나 임시 닉네임이면 닉네임 설정 화면으로, 아니면 프로필로
       if (!data.user.nickname || data.user.nickname.startsWith('user_')) {
         window.location.hash = '#/set-nickname';

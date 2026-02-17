@@ -8,7 +8,7 @@
  *   npx tsx --tsconfig server/tsconfig.json scripts/resolve-failed-migration.ts 0001_init_schema
  */
 
-import { PrismaClient } from '../generated/prisma/index.js';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 

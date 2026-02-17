@@ -283,7 +283,7 @@ export type User = {
   lastActionPointUpdate: number;
   actionPointPurchasesToday?: number;
   lastActionPointPurchaseDate?: number;
-  dailyShopPurchases?: Record<string, { quantity: number; date: number }>;
+  dailyShopPurchases?: Record<string, { quantity: number; date: number; lastPurchaseTimestamp?: number }>;
   gold: number;
   diamonds: number;
   mannerScore: number;
@@ -313,7 +313,11 @@ export type User = {
   dailyWorldWins?: number;
   worldRewardClaimed?: boolean;
   lastWorldTournament?: TournamentState | null;
-  // 경쟁상대 관련 필드 제거됨 (weeklyCompetitors, weeklyCompetitorsBotScores 등)
+  /** 주간 리그 경쟁상대 (동네/전국/월드 던전 등에서 사용) */
+  weeklyCompetitors?: WeeklyCompetitor[];
+  /** 주간 경쟁상대 중 봇의 점수 (id -> { score, lastUpdate, yesterdayScore }) */
+  weeklyCompetitorsBotScores?: Record<string, { score: number; lastUpdate: number; yesterdayScore: number }>;
+  lastWeeklyCompetitorsUpdate?: number | null;
   lastLeagueUpdate?: number | null; // league는 유지 (다른 곳에서 사용 가능)
   monthlyGoldBuffExpiresAt?: number | null;
   // 던전 진행 상태
@@ -355,6 +359,7 @@ export type User = {
     strategic?: { rank: number; score: number; lastUpdated: number };
     playful?: { rank: number; score: number; lastUpdated: number };
     championship?: {
+      score?: number;
       neighborhood?: { rank: number; maxStage: number; maxScoreDiff: number; totalAbility: number; lastUpdated: number };
       national?: { rank: number; maxStage: number; maxScoreDiff: number; totalAbility: number; lastUpdated: number };
       world?: { rank: number; maxStage: number; maxScoreDiff: number; totalAbility: number; lastUpdated: number };
@@ -539,6 +544,8 @@ export type GameSettings = {
   aiDifficulty?: number; // 1-5 (싱글/탑)
   /** Gnugo AI 레벨 1~10 (전략바둑 AI 대국, Railway Gnugo 사용) */
   goAiBotLevel?: number;
+  /** 전략바둑 대국 시 계가까지 턴 제한 (해당 턴 수가 되면 자동으로 KataGo 계가 진행). 0/미설정 시 제한 없음 */
+  scoringTurnLimit?: number;
 };
 
 // --- Round Summaries ---
@@ -552,8 +559,8 @@ export type AlkkagiRoundSummary = {
 export type CurlingRoundSummary = {
     round: number;
     roundWinner?: Player | null; // Winner of the round
-    black: { houseScore: number; knockoutScore: number; total: number; };
-    white: { houseScore: number; knockoutScore: number; total: number; };
+    black: { houseScore: number; knockoutScore: number; previousKnockoutScore?: number; total: number; };
+    white: { houseScore: number; knockoutScore: number; previousKnockoutScore?: number; total: number; };
     cumulativeScores: { [key in Player]: number; };
     stonesState: AlkkagiStone[];
     scoredStones: { [stoneId: number]: number };
@@ -920,6 +927,7 @@ export type Guild = {
     currentBossId?: string;
     currentBossHp?: number;
     totalDamageLog?: Record<string, number>;
+    maxDamageLog?: Record<string, number>;
   } | null;
   weeklyMissions?: GuildMission[];
   lastMissionReset?: number;

@@ -289,7 +289,7 @@ export const useApp = () => {
     const [isEncyclopediaOpen, setIsEncyclopediaOpen] = useState(false);
     const [isStatAllocationModalOpen, setIsStatAllocationModalOpen] = useState(false);
     const [enhancementResult, setEnhancementResult] = useState<{ message: string; success: boolean } | null>(null);
-    const [enhancementOutcome, setEnhancementOutcome] = useState<{ message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; } | null>(null);
+    const [enhancementOutcome, setEnhancementOutcome] = useState<{ message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; xpGained?: number; isRolling?: boolean; } | null>(null);
     const [refinementResult, setRefinementResult] = useState<{ message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; } | null>(null);
     const [enhancementAnimationTarget, setEnhancementAnimationTarget] = useState<{ itemId: string; stars: number } | null>(null);
     const [pastRankingsInfo, setPastRankingsInfo] = useState<{ user: UserWithStatus; mode: GameMode | 'strategic' | 'playful'; } | null>(null);
@@ -300,6 +300,7 @@ export const useApp = () => {
     const [isProfileEditModalOpen, setIsProfileEditModalOpen] = useState(false);
     const [moderatingUser, setModeratingUser] = useState<UserWithStatus | null>(null);
     const [isMbtiInfoModalOpen, setIsMbtiInfoModalOpen] = useState(false);
+    const [mutualDisconnectMessage, setMutualDisconnectMessage] = useState<string | null>(null);
     const [isEquipmentEffectsModalOpen, setIsEquipmentEffectsModalOpen] = useState(false);
     const [isBlacksmithModalOpen, setIsBlacksmithModalOpen] = useState(false);
     const [isGameRecordListOpen, setIsGameRecordListOpen] = useState(false);
@@ -630,7 +631,7 @@ export const useApp = () => {
     const actionDebounceRef = useRef<Map<string, number>>(new Map());
     const ACTION_DEBOUNCE_MS = 300; // 300ms 디바운스
     
-    const handleAction = useCallback(async (action: ServerAction): Promise<{ gameId?: string; claimAllTrainingQuestRewards?: any } | void> => {
+    const handleAction = useCallback(async (action: ServerAction): Promise<{ gameId?: string; claimAllTrainingQuestRewards?: any; clientResponse?: any } | void> => {
         // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
         if (process.env.NODE_ENV === 'development') {
             console.log(`[handleAction] Action received: ${action.type}`, action);
@@ -734,11 +735,17 @@ export const useApp = () => {
                     whiteTimeLeft: updatedWhiteTime,
                     pausedTurnTimeLeft: undefined,
                     itemUseDeadline: undefined,
-                    // 타이머 재개를 위해 turnDeadline과 turnStartTime도 설정
-                    turnDeadline: game.settings.timeLimit > 0 && (updatedBlackTime > 0 || updatedWhiteTime > 0) 
-                        ? Date.now() + (playerWhoMoved === Player.Black ? updatedBlackTime : updatedWhiteTime) * 1000
-                        : undefined,
-                    turnStartTime: game.settings.timeLimit > 0 ? Date.now() : undefined,
+                    // 타이머 재개를 위해 turnDeadline과 turnStartTime도 설정 (제한시간 없음+초읽기 모드 포함)
+                    turnDeadline: (() => {
+                        const hasTC = (game.settings.timeLimit ?? 0) > 0 || ((game.settings.byoyomiCount ?? 0) > 0 && (game.settings.byoyomiTime ?? 0) > 0);
+                        return hasTC && (updatedBlackTime > 0 || updatedWhiteTime > 0)
+                            ? Date.now() + (playerWhoMoved === Player.Black ? updatedBlackTime : updatedWhiteTime) * 1000
+                            : undefined;
+                    })(),
+                    turnStartTime: (() => {
+                        const hasTC = (game.settings.timeLimit ?? 0) > 0 || ((game.settings.byoyomiCount ?? 0) > 0 && (game.settings.byoyomiTime ?? 0) > 0);
+                        return hasTC ? Date.now() : undefined;
+                    })(),
                     // totalTurns와 captures 보존
                     totalTurns: preservedTotalTurns,
                     captures: preservedCaptures,
@@ -1106,18 +1113,19 @@ export const useApp = () => {
             // 싱글플레이 게임과 도전의 탑 게임의 경우 sessionStorage에 저장 (restoredBoardState가 최신 상태를 읽을 수 있도록)
             if ((gameType === 'singleplayer' || gameType === 'tower') && finalUpdatedGame) {
                 try {
+                    const game = finalUpdatedGame as LiveGameSession;
                     const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
                     const gameStateToSave = {
                         gameId,
-                        boardState: finalUpdatedGame.boardState,
-                        moveHistory: finalUpdatedGame.moveHistory || [],
-                        captures: finalUpdatedGame.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
-                        baseStoneCaptures: finalUpdatedGame.baseStoneCaptures,
-                        hiddenStoneCaptures: finalUpdatedGame.hiddenStoneCaptures,
-                        permanentlyRevealedStones: finalUpdatedGame.permanentlyRevealedStones || [],
-                        blackPatternStones: finalUpdatedGame.blackPatternStones,
-                        whitePatternStones: finalUpdatedGame.whitePatternStones,
-                        totalTurns: finalUpdatedGame.totalTurns,
+                        boardState: game.boardState,
+                        moveHistory: game.moveHistory || [],
+                        captures: game.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+                        baseStoneCaptures: game.baseStoneCaptures,
+                        hiddenStoneCaptures: game.hiddenStoneCaptures,
+                        permanentlyRevealedStones: game.permanentlyRevealedStones || [],
+                        blackPatternStones: game.blackPatternStones,
+                        whitePatternStones: game.whitePatternStones,
+                        totalTurns: game.totalTurns,
                         timestamp: Date.now()
                     };
                     sessionStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(gameStateToSave));
@@ -1682,7 +1690,7 @@ export const useApp = () => {
                 }
                 
                 // END_TOWER_GAME / END_SINGLE_PLAYER_GAME 액션 처리 (서버 응답 병합 시 클라이언트 바둑판 상태 유지)
-                if (action.type === 'END_TOWER_GAME' || action.type === 'END_SINGLE_PLAYER_GAME') {
+                if (action.type === 'END_TOWER_GAME' || (action as ServerAction).type === 'END_SINGLE_PLAYER_GAME') {
                     const endGameId = (action.payload as any)?.gameId || gameId;
                     const endGame = game || (result.clientResponse?.game);
                     
@@ -2009,7 +2017,7 @@ export const useApp = () => {
                 // Return result for actions that need it (preserve original structure)
                 // Include donationResult and other specific response fields
                 // LIST_GUILDS는 이미 위에서 반환되므로 여기서는 제외
-                if (action.type !== 'LIST_GUILDS' && result && (
+                if ((action as ServerAction).type !== 'LIST_GUILDS' && result && (
                     result.clientResponse || 
                     result.guild || 
                     result.gameId ||
@@ -2020,7 +2028,7 @@ export const useApp = () => {
                 }
                 
                 // LIST_GUILDS가 위에서 반환되지 않은 경우 (예: result가 undefined인 경우)
-                if (action.type === 'LIST_GUILDS') {
+                if ((action as ServerAction).type === 'LIST_GUILDS') {
                     console.warn(`[handleAction] LIST_GUILDS - result was not returned earlier, returning empty array`);
                     return { clientResponse: { guilds: [] } };
                 }
@@ -3107,20 +3115,37 @@ export const useApp = () => {
                                     });
                                 } else {
                                     setLiveGames(currentGames => {
-                                        const signature = stableStringify(game);
-                                        const previousSignature = liveGameSignaturesRef.current[gameId];
-                                        if (previousSignature === signature) {
-                                            return currentGames;
-                                        }
-                                        liveGameSignaturesRef.current[gameId] = signature;
-                                        const updatedGames = { ...currentGames };
                                         const existingGame = currentGames[gameId];
-                                        // 서버가 boardState를 생략했거나 비어 있으면 기존 보드 유지 (돌 사라짐 버그 방지)
+                                        const incomingMoveCount = (game.moveHistory && Array.isArray(game.moveHistory)) ? game.moveHistory.length : 0;
+                                        const existingMoveCount = (existingGame?.moveHistory && Array.isArray(existingGame.moveHistory)) ? existingGame.moveHistory.length : 0;
+                                        // 새 수(AI 수 등)가 있으면 반드시 반영 - 서명 일치해도 스킵하지 않음 (AI가 둔 수가 사라지는 버그 방지)
+                                        const hasNewMoves = incomingMoveCount > existingMoveCount;
+                                        if (!hasNewMoves) {
+                                            const signature = stableStringify(game);
+                                            const previousSignature = liveGameSignaturesRef.current[gameId];
+                                            if (previousSignature === signature) {
+                                                return currentGames;
+                                            }
+                                            liveGameSignaturesRef.current[gameId] = signature;
+                                        } else {
+                                            liveGameSignaturesRef.current[gameId] = stableStringify(game);
+                                        }
+                                        const updatedGames = { ...currentGames };
                                         let mergedGame: typeof game = game;
-                                        const hasExistingBoard = existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
                                         const hasServerBoard = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 &&
                                             game.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((c: any) => c !== 0 && c != null));
-                                        if (hasExistingBoard && !hasServerBoard) {
+                                        if (!hasServerBoard && game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0 && game.settings?.boardSize) {
+                                            // 서버가 boardState를 생략한 경우(대역폭 절약): moveHistory로 보드 복원 → AI가 둔 수가 사라지는 버그 방지
+                                            const boardSize = game.settings.boardSize;
+                                            const derivedBoard: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
+                                            for (const move of game.moveHistory) {
+                                                if (move && move.x >= 0 && move.x < boardSize && move.y >= 0 && move.y < boardSize) {
+                                                    derivedBoard[move.y][move.x] = move.player;
+                                                }
+                                            }
+                                            mergedGame = { ...game, boardState: derivedBoard, moveHistory: game.moveHistory };
+                                        } else if (incomingMoveCount <= existingMoveCount && existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0 && !hasServerBoard) {
+                                            // 서버가 boardState를 보내지 않았고, 서버 수가 기존보다 많지 않을 때만 기존 보드 유지 (AI 수 업데이트 덮어쓰기 방지)
                                             mergedGame = { ...game, boardState: existingGame.boardState };
                                             if (existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0) {
                                                 mergedGame.moveHistory = existingGame.moveHistory;
@@ -3157,10 +3182,23 @@ export const useApp = () => {
                             });
                             return;
                         }
+                        case 'MUTUAL_DISCONNECT_ENDED': {
+                            const msg = message.payload?.message ?? '양쪽 유저의 접속이 모두 끊어져 대국이 종료되었습니다.';
+                            setMutualDisconnectMessage(msg);
+                            return;
+                        }
                         case 'GAME_DELETED': {
                             const deletedGameId = message.payload?.gameId;
                             const serverGameCategory = message.payload?.gameCategory;
                             if (!deletedGameId) return;
+
+                            try {
+                                sessionStorage.removeItem(`gameState_${deletedGameId}`);
+                            } catch {
+                                // ignore
+                            }
+                            delete lastGameUpdateTimeRef.current[deletedGameId];
+                            delete lastGameUpdateMoveCountRef.current[deletedGameId];
 
                             const removeFromGames = (setter: any, signaturesRef: Record<string, string>) => {
                                 setter((currentGames: Record<string, any>) => {
@@ -3184,16 +3222,14 @@ export const useApp = () => {
                                 removeFromGames(setTowerGames, towerGameSignaturesRef.current);
                             }
 
-                            // 싱글플레이 또는 도전의탑 게임 삭제 시 홈 화면으로 리다이렉트
-                            if (serverGameCategory === 'singleplayer' || serverGameCategory === 'tower') {
-                                const currentHash = window.location.hash;
-                                const isGamePage = currentHash.startsWith('#/game/') && currentHash.includes(deletedGameId);
-                                if (isGamePage) {
-                                    console.log(`[WebSocket] ${serverGameCategory === 'tower' ? 'Tower' : 'Single player'} game deleted, routing to home`);
-                                    setTimeout(() => {
-                                        window.location.hash = '#/';
-                                    }, 100);
-                                }
+                            // 삭제된 대국실 페이지에 있으면 홈으로 리다이렉트 (AI 대국 로그아웃/삭제, 싱글·탑·일반 모두)
+                            const currentHash = window.location.hash;
+                            const isOnDeletedGamePage = currentHash.startsWith('#/game/') && currentHash.includes(deletedGameId);
+                            if (isOnDeletedGamePage) {
+                                console.log(`[WebSocket] Game deleted (category: ${serverGameCategory ?? 'unknown'}), routing to home`);
+                                setTimeout(() => {
+                                    window.location.hash = '#/';
+                                }, 100);
                             }
                             return;
                         }
@@ -3795,6 +3831,7 @@ export const useApp = () => {
             isClaimAllSummaryOpen,
             claimAllSummary,
             isMbtiInfoModalOpen,
+            mutualDisconnectMessage,
             isEquipmentEffectsModalOpen,
             isBlacksmithModalOpen,
             blacksmithSelectedItemForEnhancement,
@@ -3851,6 +3888,7 @@ export const useApp = () => {
             openViewingItem,
             closeViewingItem: () => setViewingItem(null),
             openEnhancingItem,
+            startEnhancement,
             openEnhancementFromDetail,
             clearEnhancementOutcome,
             clearRefinementResult,
@@ -3859,6 +3897,8 @@ export const useApp = () => {
             closeModerationModal,
             openMbtiInfoModal: () => setIsMbtiInfoModalOpen(true),
             closeMbtiInfoModal: () => setIsMbtiInfoModalOpen(false),
+            showMutualDisconnectMessage: (msg: string) => setMutualDisconnectMessage(msg),
+            closeMutualDisconnectModal: () => setMutualDisconnectMessage(null),
             openEquipmentEffectsModal: () => setIsEquipmentEffectsModalOpen(true),
             closeEquipmentEffectsModal: () => setIsEquipmentEffectsModalOpen(false),
             openBlacksmithModal: () => setIsBlacksmithModalOpen(true),

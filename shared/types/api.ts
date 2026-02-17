@@ -86,6 +86,8 @@ export interface VolatileState {
         strategic?: Record<string, RankedMatchingEntry>;
         playful?: Record<string, RankedMatchingEntry>;
     };
+    // PVP 양쪽 접속 끊김 시 재접속 후 안내 메시지 (userId -> 메시지)
+    pendingMutualDisconnectByUser?: Record<string, string>;
 }
 
 export interface UserStatusInfo {
@@ -151,7 +153,7 @@ export type ServerAction =
     | { type: 'START_MISSILE_SELECTION', payload: { gameId: string } }
     // Scoring (PVE games only)
     | { type: 'REQUEST_SCORING', payload: { gameId: string; boardState: BoardState; moveHistory: any[]; settings: any } }
-    | { type: 'LAUNCH_MISSILE', payload: { gameId: string, from: Point, direction: 'up' | 'down' | 'left' | 'right' } }
+    | { type: 'LAUNCH_MISSILE', payload: { gameId: string, from: Point, direction: 'up' | 'down' | 'left' | 'right', boardState?: BoardState, moveHistory?: any[] } }
     | { type: 'MISSILE_INVALID_SELECTION', payload: { gameId: string } }
     | { type: 'CANCEL_MISSILE_SELECTION', payload: { gameId: string } }
     | { type: 'MISSILE_ANIMATION_COMPLETE', payload: { gameId: string } }
@@ -200,7 +202,7 @@ export type ServerAction =
     | { type: 'APPLY_PRESET', payload: { presetName: string, equipment?: Partial<Record<EquipmentSlot, string>> } }
     | { type: 'SAVE_PRESET', payload: { preset: EquipmentPreset, index: number } }
     // Inventory & Item Actions
-    | { type: 'USE_ITEM', payload: { itemId: string, quantity?: number } }
+    | { type: 'USE_ITEM', payload: { itemId: string; quantity?: number; itemName?: string } }
     | { type: 'USE_ALL_ITEMS_OF_TYPE', payload: { itemName: string } }
     | { type: 'TOGGLE_EQUIP_ITEM', payload: { itemId: string } }
     | { type: 'SELL_ITEM', payload: { itemId: string, quantity?: number } }
@@ -220,6 +222,7 @@ export type ServerAction =
     | { type: 'BUY_SHOP_ITEM', payload: { itemId: string, quantity: number } }
     | { type: 'BUY_MATERIAL_BOX', payload: { itemId: string, quantity: number } }
     | { type: 'BUY_TOWER_ITEM', payload: { itemId: string, quantity: number } }
+    | { type: 'BUY_CONSUMABLE', payload: { itemId: string; quantity?: number } }
     | { type: 'PURCHASE_ACTION_POINTS', payload?: never }
     | { type: 'EXPAND_INVENTORY', payload: { category: InventoryItemType } }
     | { type: 'BUY_BORDER', payload: { borderId: string } }
@@ -283,6 +286,7 @@ export type ServerAction =
     | { type: 'TOWER_REFRESH_PLACEMENT', payload: { gameId: string } }
     | { type: 'TOWER_ADD_TURNS', payload: { gameId: string } }
     | { type: 'END_TOWER_GAME', payload: { gameId: string; winner: Player; winReason: WinReason } }
+    | { type: 'END_SINGLE_PLAYER_GAME', payload: { gameId: string; winner: Player; winReason: WinReason } }
     | { type: 'TOWER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; } }
     | { type: 'SINGLE_PLAYER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; } }
     | { type: 'START_SINGLE_PLAYER_MISSION', payload: { missionId: string } }
@@ -291,9 +295,9 @@ export type ServerAction =
     | { type: 'LEVEL_UP_TRAINING_QUEST', payload: { missionId: string } }
     | { type: 'MANNER_ACTION', payload: { targetUserId: string, actionType: 'up' | 'down' } }
     // Guild
-    | { type: 'CREATE_GUILD', payload: { name: string; description?: string; emblem?: string; isPublic?: boolean } }
+    | { type: 'CREATE_GUILD', payload: { name: string; description?: string; emblem?: string; isPublic?: boolean; joinType?: 'application' | 'free' } }
     | { type: 'JOIN_GUILD', payload: { guildId: string } }
-    | { type: 'LEAVE_GUILD', payload?: never }
+    | { type: 'LEAVE_GUILD', payload?: { guildId?: string } }
     | { type: 'GUILD_LEAVE', payload?: never }
     | { type: 'LIST_GUILDS', payload?: { searchQuery?: string; limit?: number } }
     | { type: 'KICK_GUILD_MEMBER', payload: { memberId: string } }
@@ -314,7 +318,7 @@ export type ServerAction =
     | { type: 'GUILD_CLAIM_MISSION_REWARD', payload: { missionId: string } }
     | { type: 'CLAIM_GUILD_WAR_REWARD', payload?: never }
     | { type: 'GET_GUILD_WAR_DATA', payload?: never }
-    | { type: 'START_GUILD_WAR_GAME', payload: { boardId: string } }
+    | { type: 'START_GUILD_WAR_GAME', payload: { boardId: string; isDemo?: boolean; gameMode?: 'capture' | 'hidden' | 'missile' } }
     | { type: 'DONATE_TO_GUILD', payload: { amount?: number; itemId?: string } }
     | { type: 'GUILD_DONATE_GOLD', payload?: { count?: number } }
     | { type: 'GUILD_DONATE_DIAMOND', payload?: { count?: number } }
@@ -322,8 +326,9 @@ export type ServerAction =
     | { type: 'GUILD_BUY_SHOP_ITEM', payload: { shopItemId: string; itemId?: string; quantity?: number } }
     | { type: 'GUILD_CHECK_IN', payload?: never }
     | { type: 'GUILD_CLAIM_CHECK_IN_REWARD', payload: { userId?: string; milestoneIndex: number } }
-    | { type: 'START_GUILD_WAR', payload: { targetGuildId: string } }
+    | { type: 'START_GUILD_WAR', payload?: { targetGuildId?: string } }
     | { type: 'END_GUILD_WAR', payload: { warId: string } }
+    | { type: 'CANCEL_GUILD_WAR', payload?: never }
     | { type: 'GET_GUILD_INFO', payload?: never }
     | { type: 'GUILD_ACCEPT_APPLICANT', payload: { guildId?: string; userId: string; applicantId?: string } }
     | { type: 'GUILD_REJECT_APPLICANT', payload: { guildId?: string; userId: string; applicantId?: string } }
@@ -331,12 +336,13 @@ export type ServerAction =
     | { type: 'GUILD_START_RESEARCH', payload: { guildId?: string; researchId: string } }
     | { type: 'START_GUILD_BOSS_BATTLE', payload: { bossId?: string; result?: any; bossName?: string } }
     | { type: 'LOAD_EQUIPMENT_PRESET', payload: { presetName?: string; presetIndex?: number } }
+    | { type: 'REFINE_EQUIPMENT', payload: { itemId: string; optionType: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; optionIndex: number; refinementType: 'type' | 'value' | 'mythic' | null } }
     ;
 
 export interface GameProps {
     session: LiveGameSession;
     currentUser: UserWithStatus;
-    onAction: (action: ServerAction) => void;
+    onAction: (action: ServerAction) => void | Promise<void | { gameId?: string; claimAllTrainingQuestRewards?: any }>;
     isSpectator: boolean;
     onlineUsers: UserWithStatus[];
     onViewUser: (userId: string) => void;
@@ -351,7 +357,7 @@ export interface AdminProps {
     allUsers: User[];
     liveGames: LiveGameSession[];
     adminLogs: AdminLog[];
-    onAction: (action: ServerAction) => void;
+    onAction: (action: ServerAction) => void | Promise<void | { gameId?: string; claimAllTrainingQuestRewards?: any }>;
     onBack: () => void;
     gameModeAvailability: Partial<Record<GameMode, boolean>>;
     announcements: Announcement[];

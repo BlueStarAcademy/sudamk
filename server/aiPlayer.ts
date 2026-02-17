@@ -854,7 +854,7 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
     const aiPlayerEnum = game.currentPlayer;
     
     if (game.gameStatus === 'alkkagi_placement' || game.gameStatus === 'alkkagi_simultaneous_placement') {
-        // 돌 배치: 상대방 돌에 가까운 위치에 배치
+        // 돌 배치: 자신의 영역에만 배치 (상하 반전 시 상대는 위→아래, 나는 아래→위 공격)
         const targetPlacements = game.settings.alkkagiStoneCount || 5;
         const placedThisRound = game.alkkagiStonesPlacedThisRound?.[aiPlayerId] || 0;
         
@@ -882,26 +882,67 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
         
         const boardSizePx = 840;
         const cellSize = boardSizePx / 19;
-        const opponentStones = (game.alkkagiStones || []).filter(s => s.player !== aiPlayerEnum && s.onBoard);
-        
-        let bestPoint: types.Point | null = null;
-        if (opponentStones.length > 0) {
-            // 상대방 돌 근처에 배치
-            const targetStone = opponentStones[Math.floor(Math.random() * opponentStones.length)];
-            const offsetX = (Math.random() - 0.5) * cellSize * 2;
-            const offsetY = (Math.random() - 0.5) * cellSize * 2;
+        const padding = cellSize / 2;
+        const stoneRadius = (boardSizePx / 19) * 0.47;
+        const settings = game.settings || {};
+        const layout = settings.alkkagiLayout;
+
+        // 항상 자신의 영역에만 배치 (바둑/컬링처럼: 흑=하단, 백=상단 → 화면에서 백은 180° 회전으로 내 영역=아래)
+        let bestPoint: types.Point;
+        if (layout === types.AlkkagiLayoutType.Battle) {
+            const zones = BATTLE_PLACEMENT_ZONES[aiPlayerEnum as keyof typeof BATTLE_PLACEMENT_ZONES];
+            const randomZone = zones[Math.floor(Math.random() * zones.length)];
+            const zoneXStart = padding + (randomZone.x - 0.5) * cellSize;
+            const zoneYStart = padding + (randomZone.y - 0.5) * cellSize;
+            const zoneXEnd = zoneXStart + randomZone.width * cellSize;
+            const zoneYEnd = zoneYStart + randomZone.height * cellSize;
             bestPoint = {
-                x: Math.max(cellSize, Math.min(boardSizePx - cellSize, targetStone.x + offsetX)),
-                y: Math.max(cellSize, Math.min(boardSizePx - cellSize, targetStone.y + offsetY))
+                x: zoneXStart + Math.random() * (zoneXEnd - zoneXStart),
+                y: zoneYStart + Math.random() * (zoneYEnd - zoneYStart)
             };
         } else {
-            // 중앙 근처에 배치
-            bestPoint = {
-                x: boardSizePx / 2 + (Math.random() - 0.5) * cellSize * 4,
-                y: boardSizePx / 2 + (Math.random() - 0.5) * cellSize * 4
-            };
+            const whiteZoneMinY = boardSizePx * 0.15;
+            const whiteZoneMaxY = boardSizePx * 0.35;
+            const blackZoneMinY = boardSizePx * 0.65;
+            const blackZoneMaxY = boardSizePx * 0.85;
+            const x = stoneRadius + Math.random() * (boardSizePx - stoneRadius * 2);
+            const y = aiPlayerEnum === types.Player.White
+                ? whiteZoneMinY + Math.random() * (whiteZoneMaxY - whiteZoneMinY)
+                : blackZoneMinY + Math.random() * (blackZoneMaxY - blackZoneMinY);
+            bestPoint = { x, y };
         }
-        
+
+        const allStones = [
+            ...(game.alkkagiStones || []),
+            ...(game.alkkagiStones_p1 || []),
+            ...(game.alkkagiStones_p2 || [])
+        ];
+        let attempts = 0;
+        while (attempts < 50 && allStones.some(s => Math.hypot(bestPoint.x - s.x, bestPoint.y - s.y) < stoneRadius * 2)) {
+            if (layout === types.AlkkagiLayoutType.Battle) {
+                const zones = BATTLE_PLACEMENT_ZONES[aiPlayerEnum as keyof typeof BATTLE_PLACEMENT_ZONES];
+                const randomZone = zones[Math.floor(Math.random() * zones.length)];
+                const zoneXStart = padding + (randomZone.x - 0.5) * cellSize;
+                const zoneYStart = padding + (randomZone.y - 0.5) * cellSize;
+                bestPoint = {
+                    x: zoneXStart + Math.random() * randomZone.width * cellSize,
+                    y: zoneYStart + Math.random() * randomZone.height * cellSize
+                };
+            } else {
+                const whiteZoneMinY = boardSizePx * 0.15;
+                const whiteZoneMaxY = boardSizePx * 0.35;
+                const blackZoneMinY = boardSizePx * 0.65;
+                const blackZoneMaxY = boardSizePx * 0.85;
+                bestPoint = {
+                    x: stoneRadius + Math.random() * (boardSizePx - stoneRadius * 2),
+                    y: aiPlayerEnum === types.Player.White
+                        ? whiteZoneMinY + Math.random() * (whiteZoneMaxY - whiteZoneMinY)
+                        : blackZoneMinY + Math.random() * (blackZoneMaxY - blackZoneMinY)
+                };
+            }
+            attempts++;
+        }
+
         const newStone: types.AlkkagiStone = {
             id: Date.now() + Math.random(),
             player: aiPlayerEnum,
@@ -909,7 +950,7 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
             y: bestPoint.y,
             vx: 0,
             vy: 0,
-            radius: (boardSizePx / 19) * 0.47,
+            radius: stoneRadius,
             onBoard: true
         };
         
@@ -973,24 +1014,262 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
     const now = Date.now();
     const aiPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
     const aiPlayerEnum = game.currentPlayer;
+    const opponentEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     
     if (game.gameStatus === 'curling_playing') {
-        // 최적의 위치와 속도로 돌 던지기
         const boardSizePx = 840;
         const center = { x: boardSizePx / 2, y: boardSizePx / 2 };
         const cellSize = boardSizePx / 19;
         
-        // 플레이어 위치에 따라 발사 위치 결정
-        // Black은 하단에서, White는 상단에서 발사
-        const launchX = boardSizePx * 0.1 + Math.random() * boardSizePx * 0.1;
-        const launchY = aiPlayerEnum === types.Player.Black ? boardSizePx * 0.9 : boardSizePx * 0.1;
+        // 현재 보드 상태 분석
+        const onBoardStones = (game.curlingStones || []).filter(s => s.onBoard);
+        const myStones = onBoardStones.filter(s => s.player === aiPlayerEnum);
+        const opponentStones = onBoardStones.filter(s => s.player === opponentEnum);
         
-        const dx = center.x - launchX;
-        const dy = center.y - launchY;
+        // 점수 영역 경계값
+        const score5Boundary = cellSize * 0.5;
+        const score3Boundary = cellSize * 2;
+        const score2Boundary = cellSize * 4;
+        const score1Boundary = cellSize * 6;
+        
+        // 현재 라운드 진행 상황
+        const stonesThrown = game.stonesThrownThisRound?.[aiPlayerId] || 0;
+        const totalStones = game.settings.curlingStoneCount || 5;
+        const roundProgress = stonesThrown / totalStones;
+        
+        // 현재 점수 상황 분석
+        const currentScore = game.curlingScores?.[aiPlayerEnum] || 0;
+        const opponentScore = game.curlingScores?.[opponentEnum] || 0;
+        const scoreDifference = currentScore - opponentScore;
+        
+        // 전략 선택 (확률 기반 + 상황 분석)
+        type Strategy = 'house_score' | 'knockout' | 'defense' | 'placement';
+        let strategy: Strategy;
+        const rand = Math.random();
+        
+        // 라운드 초반 (0-40%): 주로 하우스 점수에 집중하거나 배치
+        if (roundProgress < 0.4) {
+            if (rand < 0.5) {
+                strategy = 'house_score';
+            } else {
+                strategy = 'placement';
+            }
+        }
+        // 라운드 중반 (40-70%): 상황에 따라 선택
+        else if (roundProgress < 0.7) {
+            if (opponentStones.length > myStones.length && rand < 0.4) {
+                strategy = 'knockout'; // 상대방 돌이 많으면 넉아웃 시도
+            } else if (opponentStones.some(s => {
+                const dist = Math.hypot(s.x - center.x, s.y - center.y);
+                return dist + s.radius <= score3Boundary; // 상대방이 좋은 위치에 있으면
+            }) && rand < 0.5) {
+                strategy = 'defense'; // 방어 전략
+            } else if (rand < 0.6) {
+                strategy = 'house_score';
+            } else {
+                strategy = 'placement';
+            }
+        }
+        // 라운드 후반 (70-100%): 공격적 전략 또는 하우스 점수
+        else {
+            if (scoreDifference < 0 && rand < 0.6) {
+                strategy = 'knockout'; // 뒤쳐져 있으면 넉아웃 시도
+            } else if (opponentStones.length > 0 && rand < 0.5) {
+                strategy = 'knockout';
+            } else {
+                strategy = 'house_score'; // 하우스 점수에 집중
+            }
+        }
+        
+        // 발사 위치 결정 (양쪽 모서리에서만 출발)
+        let launchX: number;
+        let launchY: number;
+        
+        // 클라이언트와 동일한 발사 영역 계산 (cellSize는 이미 위에서 선언됨)
+        const safeBoardSize = 19;
+        const padding = cellSize / 2;
+        const launchAreaCellSize = 1;
+        const launchAreaPx = launchAreaCellSize * cellSize;
+        const stoneRadius = (boardSizePx / safeBoardSize) * 0.47;
+        
+        // 양쪽 모서리에서만 출발 (50% 확률로 왼쪽 또는 오른쪽)
+        const launchPositionRand = Math.random();
+        if (launchPositionRand < 0.5) {
+            // 왼쪽 모서리 (클라이언트의 padding 위치)
+            launchX = padding + Math.random() * launchAreaPx;
+        } else {
+            // 오른쪽 모서리 (클라이언트의 boardSizePx - padding - launchAreaPx 위치)
+            launchX = (boardSizePx - padding - launchAreaPx) + Math.random() * launchAreaPx;
+        }
+        
+        // Y 위치는 플레이어에 따라 결정
+        // 백(White): 서버 좌표계 상단에서 공격 (위에서 아래로)
+        // 흑(Black): 서버 좌표계 하단에서 공격 (아래에서 위로)
+        if (aiPlayerEnum === types.Player.White) {
+            // 백: 서버 좌표계 상단에서 공격 (위에서 아래로)
+            // 클라이언트의 화면 하단 = 서버 좌표계 상단이므로, 상단 근처에서 시작
+            const topY = padding + Math.random() * launchAreaPx; // 상단 발사 영역
+            launchY = topY + stoneRadius;
+        } else {
+            // 흑: 서버 좌표계 하단에서 공격 (아래에서 위로)
+            const bottomY = boardSizePx - padding - launchAreaPx;
+            const areaY = bottomY + Math.random() * launchAreaPx; // 발사 영역 내 랜덤 Y 위치
+            launchY = areaY + stoneRadius;
+        }
+        
+        // 목표 지점과 속도 결정
+        let targetX: number;
+        let targetY: number;
+        let baseSpeed: number;
+        
+        switch (strategy) {
+            case 'house_score': {
+                // 하우스 점수 전략: 중앙에 가까이 배치
+                // 약간의 랜덤성을 추가하여 다양한 위치 시도
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * score3Boundary * 0.8; // 3점 영역 내
+                targetX = center.x + Math.cos(angle) * radius;
+                targetY = center.y + Math.sin(angle) * radius;
+                
+                // 힘 조절: 중앙에 가까이 갈수록 약한 힘
+                const distanceToCenter = Math.hypot(targetX - center.x, targetY - center.y);
+                const normalizedDist = distanceToCenter / score3Boundary;
+                baseSpeed = 8 + normalizedDist * 4; // 8-12 범위
+                break;
+            }
+            
+            case 'knockout': {
+                // 넉아웃 전략: 상대방 돌을 공격
+                if (opponentStones.length === 0) {
+                    // 상대방 돌이 없으면 하우스 점수로 전환
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.random() * score2Boundary;
+                    targetX = center.x + Math.cos(angle) * radius;
+                    targetY = center.y + Math.sin(angle) * radius;
+                    baseSpeed = 10;
+                } else {
+                    // 가장 가까운 상대방 돌 또는 가장 점수가 높은 돌을 공격
+                    let targetStone: types.AlkkagiStone | null = null;
+                    if (Math.random() < 0.5) {
+                        // 가장 가까운 돌
+                        let minDist = Infinity;
+                        for (const stone of opponentStones) {
+                            const dist = Math.hypot(stone.x - launchX, stone.y - launchY);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                targetStone = stone;
+                            }
+                        }
+                    } else {
+                        // 가장 점수가 높은 돌 (중앙에 가까운 돌)
+                        let bestScore = -1;
+                        for (const stone of opponentStones) {
+                            const dist = Math.hypot(stone.x - center.x, stone.y - center.y);
+                            const outerEdgeDist = dist + stone.radius;
+                            let score = 0;
+                            if (outerEdgeDist <= score5Boundary) score = 5;
+                            else if (outerEdgeDist <= score3Boundary) score = 3;
+                            else if (outerEdgeDist <= score2Boundary) score = 2;
+                            else if (outerEdgeDist <= score1Boundary) score = 1;
+                            
+                            if (score > bestScore) {
+                                bestScore = score;
+                                targetStone = stone;
+                            }
+                        }
+                    }
+                    
+                    if (targetStone) {
+                        // 돌의 약간 앞쪽이나 옆쪽을 공격하여 넉아웃 효과 극대화
+                        const angle = Math.atan2(targetStone.y - launchY, targetStone.x - launchX);
+                        const offsetAngle = angle + (Math.random() - 0.5) * 0.5; // ±15도 범위
+                        const offsetDist = targetStone.radius * 1.5;
+                        targetX = targetStone.x + Math.cos(offsetAngle) * offsetDist;
+                        targetY = targetStone.y + Math.sin(offsetAngle) * offsetDist;
+                        
+                        // 넉아웃에는 강한 힘 필요
+                        baseSpeed = 12 + Math.random() * 4; // 12-16 범위
+                    } else {
+                        // 폴백: 중앙
+                        targetX = center.x;
+                        targetY = center.y;
+                        baseSpeed = 10;
+                    }
+                }
+                break;
+            }
+            
+            case 'defense': {
+                // 방어 전략: 상대방의 좋은 위치에 있는 돌을 방해
+                const highValueStones = opponentStones.filter(s => {
+                    const dist = Math.hypot(s.x - center.x, s.y - center.y);
+                    const outerEdgeDist = dist + s.radius;
+                    return outerEdgeDist <= score3Boundary; // 3점 이상인 돌
+                });
+                
+                if (highValueStones.length > 0) {
+                    const targetStone = highValueStones[Math.floor(Math.random() * highValueStones.length)];
+                    // 돌의 앞쪽을 공격하여 위치를 방해
+                    const angle = Math.atan2(targetStone.y - launchY, targetStone.x - launchX);
+                    targetX = targetStone.x + Math.cos(angle) * targetStone.radius * 2;
+                    targetY = targetStone.y + Math.sin(angle) * targetStone.radius * 2;
+                    baseSpeed = 10 + Math.random() * 3; // 10-13 범위
+                } else {
+                    // 방어할 돌이 없으면 하우스 점수
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.random() * score2Boundary;
+                    targetX = center.x + Math.cos(angle) * radius;
+                    targetY = center.y + Math.sin(angle) * radius;
+                    baseSpeed = 9 + Math.random() * 3;
+                }
+                break;
+            }
+            
+            case 'placement': {
+                // 배치 전략: 다양한 위치에 돌 배치 (나중을 위한 전략)
+                // 보드의 다양한 영역에 배치
+                const zone = Math.floor(Math.random() * 4);
+                switch (zone) {
+                    case 0: // 중앙 근처
+                        targetX = center.x + (Math.random() - 0.5) * score2Boundary;
+                        targetY = center.y + (Math.random() - 0.5) * score2Boundary;
+                        baseSpeed = 8 + Math.random() * 3;
+                        break;
+                    case 1: // 왼쪽 상단/하단
+                        targetX = center.x - score2Boundary + Math.random() * score1Boundary;
+                        targetY = center.y + (Math.random() - 0.5) * score2Boundary;
+                        baseSpeed = 9 + Math.random() * 3;
+                        break;
+                    case 2: // 오른쪽 상단/하단
+                        targetX = center.x + score2Boundary - Math.random() * score1Boundary;
+                        targetY = center.y + (Math.random() - 0.5) * score2Boundary;
+                        baseSpeed = 9 + Math.random() * 3;
+                        break;
+                    default: // 랜덤
+                        targetX = center.x + (Math.random() - 0.5) * score3Boundary;
+                        targetY = center.y + (Math.random() - 0.5) * score3Boundary;
+                        baseSpeed = 8 + Math.random() * 4;
+                }
+                break;
+            }
+        }
+        
+        // 속도에 약간의 랜덤성 추가 (±10%)
+        const speedVariation = baseSpeed * (0.9 + Math.random() * 0.2);
+        const finalSpeed = Math.min(18, Math.max(6, speedVariation)); // 6-18 범위로 제한
+        
+        // 방향 계산
+        const dx = targetX - launchX;
+        const dy = targetY - launchY;
         const distance = Math.hypot(dx, dy);
-        const speed = Math.min(12, distance / 30); // 적절한 속도
-        const vx = (dx / distance) * speed;
-        const vy = (dy / distance) * speed;
+        
+        // 방향에 약간의 랜덤성 추가 (±5도)
+        const baseAngle = Math.atan2(dy, dx);
+        const angleVariation = (Math.random() - 0.5) * (Math.PI / 18); // ±5도
+        const finalAngle = baseAngle + angleVariation;
+        
+        const vx = Math.cos(finalAngle) * finalSpeed;
+        const vy = Math.sin(finalAngle) * finalSpeed;
         
         const newStone: types.AlkkagiStone = {
             id: Date.now(),
@@ -1003,7 +1282,7 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
             onBoard: false,
         };
         
-        game.animation = { type: 'curling_flick', stone: newStone, velocity: { x: vx, y: vy }, startTime: now, duration: 8000 };
+        game.animation = { type: 'curling_flick', stone: newStone, velocity: { x: vx, y: vy }, startTime: now, duration: 3000 };
         game.gameStatus = 'curling_animating';
         if (!game.stonesThrownThisRound) game.stonesThrownThisRound = {};
         game.stonesThrownThisRound[aiPlayerId] = (game.stonesThrownThisRound[aiPlayerId] || 0) + 1;

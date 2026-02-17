@@ -99,6 +99,8 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                 joinDate: Date.now(),
                 contributionTotal: 0,
                 weeklyContribution: 0,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
             }];
         }
         return [...members].sort((a, b) => (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3));

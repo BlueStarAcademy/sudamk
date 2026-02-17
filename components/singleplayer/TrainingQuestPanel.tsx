@@ -442,15 +442,31 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser }) 
                                         )}
                                     </div>
 
+                                    {/* 경험치 막대그래프 - 수령/강화 버튼 위쪽에 표시 */}
+                                    {levelUpInfo && !isMaxLevel && quest.isStarted && (
+                                        <div className={`mb-0.5 sm:mb-1 flex-shrink-0 ${!quest.isUnlocked ? 'opacity-50' : ''}`}>
+                                            <div className="flex items-center justify-between mb-0.5">
+                                                <span className="text-[8px] sm:text-[9px] text-amber-200/90">경험치</span>
+                                                <span className="text-[8px] sm:text-[9px] font-bold text-amber-200/90">{Math.floor(levelUpInfo.progress)}%</span>
+                                            </div>
+                                            <div className="w-full h-2 sm:h-2.5 bg-gray-700/70 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-300"
+                                                    style={{ width: `${levelUpInfo.progress}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* 버튼 - 항상 표시, 잠김 상태일 때는 비활성화 */}
-                                    <div className="mt-auto flex flex-col gap-0.5 sm:gap-1 flex-shrink-0">
+                                    <div className="mt-auto flex flex-row gap-0.5 sm:gap-1 flex-shrink-0">
                                         {!quest.isUnlocked ? (
                                             <>
                                                 {/* 잠김 상태: 수령 및 강화 버튼 표시 (비활성화) */}
                                                 <Button
                                                     disabled
                                                     colorScheme="green"
-                                                    className="w-full !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 opacity-50 flex items-center justify-center"
+                                                    className="flex-1 !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 opacity-50 flex items-center justify-center"
                                                 >
                                                     <span className="flex items-center gap-1">
                                                         <span>수령</span>
@@ -465,23 +481,9 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser }) 
                                                 <Button
                                                     disabled
                                                     colorScheme="accent"
-                                                    className="w-full !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 opacity-50 flex items-center justify-center gap-1 !whitespace-nowrap"
+                                                    className="flex-1 !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 opacity-50 flex items-center justify-center !whitespace-nowrap"
                                                 >
-                                                    {quest.levelInfo && quest.currentLevel > 0 ? (
-                                                        <div className="w-full flex items-center gap-1 min-w-0">
-                                                            <div className="flex-1 flex items-center gap-1 min-w-0">
-                                                                <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden min-w-0">
-                                                                    <div 
-                                                                        className="h-full bg-gradient-to-r from-yellow-400/50 to-yellow-500/50 transition-all duration-300"
-                                                                        style={{ width: '0%' }}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                            <span className="text-sm font-bold flex-shrink-0">↑</span>
-                                                        </div>
-                                                    ) : (
-                                                        <span>강화</span>
-                                                    )}
+                                                    강화
                                                 </Button>
                                             </>
                                         ) : !quest.isStarted ? (
@@ -497,7 +499,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser }) 
                                                 <Button
                                                     onClick={() => handleCollectReward(quest.id)}
                                                     colorScheme="green"
-                                                    className="w-full !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 flex items-center justify-center"
+                                                    className="flex-1 !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 flex items-center justify-center"
                                                     disabled={!canCollect}
                                                 >
                                                     <span className="flex items-center gap-1">
@@ -513,25 +515,10 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser }) 
                                                 <Button
                                                     onClick={() => handleLevelUpClick(quest.id)}
                                                     colorScheme="accent"
-                                                    className="w-full !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 flex items-center justify-center gap-0.5 relative !whitespace-nowrap"
+                                                    className="flex-1 !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 flex items-center justify-center !whitespace-nowrap"
                                                     disabled={isMaxLevel}
                                                 >
-                                                    {levelUpInfo && !isMaxLevel ? (
-                                                        <div className="w-full flex items-center gap-0.5 min-w-0">
-                                                            <div className="flex-1 flex items-center gap-0.5 min-w-0">
-                                                                <div className="flex-1 bg-gray-700/70 rounded-full h-1.5 sm:h-2 overflow-hidden min-w-0">
-                                                                    <div 
-                                                                        className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-300"
-                                                                        style={{ width: `${levelUpInfo.progress}%` }}
-                                                                    />
-                                                                </div>
-                                                                <span className="text-[8px] sm:text-[9px] text-white font-bold whitespace-nowrap flex-shrink-0">{Math.floor(levelUpInfo.progress)}%</span>
-                                                            </div>
-                                                            <span className="text-xs sm:text-sm font-bold flex-shrink-0">↑</span>
-                                                        </div>
-                                                    ) : (
-                                                        <span>강화</span>
-                                                    )}
+                                                    강화
                                                 </Button>
                                             </>
                                         )}

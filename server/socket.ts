@@ -100,6 +100,16 @@ export const createWebSocketServer = (server: Server) => {
                         userIdToClients.set(uid, set);
                     }
                     set.add(ws);
+                    // PVP 양쪽 끊김 안내: 재접속 시 한 번만 전송 후 제거
+                    const pendingMsg = volatileState.pendingMutualDisconnectByUser?.[uid];
+                    if (pendingMsg && ws.readyState === WebSocket.OPEN) {
+                        try {
+                            ws.send(JSON.stringify({ type: 'MUTUAL_DISCONNECT_ENDED', payload: { message: pendingMsg } }));
+                            delete volatileState.pendingMutualDisconnectByUser![uid];
+                        } catch {
+                            // 전송 실패 시 다음 접속 시 다시 시도
+                        }
+                    }
                 }
             } catch (e) {
                 // 무시 (다른 메시지 타입)

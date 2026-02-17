@@ -900,6 +900,61 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         );
     };
 
+    // 영토(빈 교차점)에 사석과 동일한 네모 표시
+    // ownershipMap(KataGo) 또는 blackConfirmed/whiteConfirmed(수동 계가) 사용
+    const renderTerritoryMarkers = () => {
+        if (!showTerritoryOverlay || !analysisResult) return null;
+
+        const cellSize = (boardSizePx - padding * 2) / safeBoardSize;
+        const size = cellSize * 0.6;
+        const opacity = 0.85;
+        const TERRITORY_THRESHOLD = 7; // ownershipMap: -10~10, 7 이상이면 흑 영토, -7 이하면 백 영토
+
+        const markers: React.ReactNode[] = [];
+
+        if (analysisResult.ownershipMap) {
+            // KataGo: ownershipMap 기반
+            analysisResult.ownershipMap.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (displayBoardState[y]?.[x] !== Player.None) return;
+                    if (Math.abs(value) < TERRITORY_THRESHOLD) return;
+
+                    const { cx, cy } = toSvgCoords({ x, y });
+                    const isBlackTerritory = value > 0;
+                    const fill = isBlackTerritory ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+                    const stroke = isBlackTerritory ? `rgba(0, 0, 0, ${opacity * 0.5})` : `rgba(255, 255, 255, ${opacity * 0.5})`;
+
+                    markers.push(
+                        <g key={`territory-${y}-${x}`} style={{ zIndex: 10 }}>
+                            <rect x={cx - size / 2} y={cy - size / 2} width={size} height={size} fill={fill} stroke={stroke} strokeWidth={size * 0.05} rx={size * 0.15} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }} />
+                        </g>
+                    );
+                });
+            });
+        } else if (analysisResult.blackConfirmed?.length || analysisResult.whiteConfirmed?.length) {
+            // 수동 계가: blackConfirmed/whiteConfirmed 기반
+            const renderTerritoryPoint = (p: Point, isBlack: boolean, key: string) => {
+                const { cx, cy } = toSvgCoords(p);
+                const fill = isBlack ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+                const stroke = isBlack ? `rgba(0, 0, 0, ${opacity * 0.5})` : `rgba(255, 255, 255, ${opacity * 0.5})`;
+                return (
+                    <g key={key} style={{ zIndex: 10 }}>
+                        <rect x={cx - size / 2} y={cy - size / 2} width={size} height={size} fill={fill} stroke={stroke} strokeWidth={size * 0.05} rx={size * 0.15} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }} />
+                    </g>
+                );
+            };
+            analysisResult.blackConfirmed?.forEach((p, i) => markers.push(renderTerritoryPoint(p, true, `territory-b-${i}`)));
+            analysisResult.whiteConfirmed?.forEach((p, i) => markers.push(renderTerritoryPoint(p, false, `territory-w-${i}`)));
+        }
+
+        if (markers.length === 0) return null;
+        return (
+            <g style={{ pointerEvents: 'none' }} className="animate-fade-in">
+                {markers}
+            </g>
+        );
+    };
+
     const findMoveIndexAt = (game: Pick<LiveGameSession, 'moveHistory'>, x: number, y: number): number => {
         const moveHistory = game.moveHistory || [];
         if (!Array.isArray(moveHistory)) {
@@ -998,18 +1053,24 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     
     return (
         <div 
-            className={`relative w-full h-full shadow-2xl rounded-lg overflow-hidden p-0 border-4 bg-transparent go-board-panel ${isItemModeActive ? 'prism-border' : 'border-gray-800'}`}
+            className={`relative w-full h-full min-h-0 shadow-2xl rounded-lg overflow-hidden p-0 border-4 bg-transparent go-board-panel ${isItemModeActive ? 'prism-border' : 'border-gray-800'}`}
             style={{ 
                 backgroundImage: 'none', 
                 backgroundColor: 'transparent',
             }}
         >
-            <svg
-                ref={svgRef}
-                viewBox={`0 0 ${boardSizePx} ${boardSizePx}`}
-                className="w-full h-full touch-none"
-                transform={isRotated ? `rotate(180 ${boardSizePx / 2} ${boardSizePx / 2})` : undefined}
-                onPointerDown={handleBoardPointerDown}
+            <div
+                className="w-full h-full min-h-0"
+                style={{
+                    transform: isRotated ? 'rotate(180deg)' : 'none',
+                    transformOrigin: '50% 50%',
+                }}
+            >
+                <svg
+                    ref={svgRef}
+                    viewBox={`0 0 ${boardSizePx} ${boardSizePx}`}
+                    className="w-full h-full touch-none block"
+                    onPointerDown={handleBoardPointerDown}
                 onPointerMove={handleBoardPointerMove}
                 onPointerUp={handleBoardPointerUp}
                 onPointerLeave={() => { setHoverPos(null); }}
@@ -1229,6 +1290,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     );
                 })()}
                 {renderDeadStoneMarkers()}
+                {renderTerritoryMarkers()}
                 {showHintOverlay && !isBoardDisabled && analysisResult?.recommendedMoves?.map(move => ( <RecommendedMoveMarker key={`rec-${move.order}`} move={move} toSvgCoords={toSvgCoords} cellSize={cell_size} onClick={onBoardClick} /> ))}
                 {gameStatus === 'scoring' && !analysisResult && (
                     <g>
@@ -1257,6 +1319,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     </g>
                 )}
             </svg>
+            </div>
         </div>
     );
 };

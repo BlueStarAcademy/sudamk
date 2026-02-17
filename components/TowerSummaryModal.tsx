@@ -489,7 +489,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                     ? item.name.replace('골드 꾸러미', '골드꾸러미')
                                                     : item.name;
                                                 
-                                                const imagePath = item.image || 
+                                                const imagePath = ('image' in item && item.image) || 
                                                     CONSUMABLE_ITEMS.find(ci => 
                                                         ci.name === item.name || 
                                                         ci.name === nameWithSpace || 
@@ -500,7 +500,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                     MATERIAL_ITEMS[nameWithoutSpace]?.image;
                                                 
                                                 return (
-                                                    <div key={item.id || idx} className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
+                                                    <div key={'id' in item && item.id ? item.id : idx} className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
                                                         {imagePath ? (
                                                             <img 
                                                                 src={imagePath} 

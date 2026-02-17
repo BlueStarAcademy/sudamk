@@ -1,4 +1,11 @@
-import "dotenv/config";
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+
+// .env를 프로젝트 루트에서 명시적으로 로드 (서버 진입점보다 먼저 로드될 수 있음)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
+
 import { PrismaClient } from "../generated/prisma/client.ts";
 
 // DATABASE_URL에 연결 풀링 파라미터 추가 (없는 경우)
@@ -148,11 +155,12 @@ const getDatabaseUrl = () => {
   return `${url}${separator}connection_limit=${connectionLimit}&pool_timeout=${poolTimeout}&connect_timeout=${connectTimeout}&statement_cache_size=${statementCacheSize}`;
 };
 
+const _databaseUrl = getDatabaseUrl();
 const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   datasources: {
     db: {
-      url: getDatabaseUrl(),
+      url: _databaseUrl,
     },
   },
 });
@@ -199,43 +207,45 @@ const reconnectPrisma = async (): Promise<boolean> => {
   }
 };
 
-// 주기적으로 연결 상태 확인 (Railway 환경에서는 더 자주 확인)
+// DATABASE_URL이 있을 때만 주기적으로 연결 상태 확인 (없으면 쿼리 시 Prisma 에러 반복 방지)
 const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway');
 const connectionCheckInterval = isRailway ? 10000 : 15000; // Railway: 10초, 로컬: 15초
 
-setInterval(async () => {
-  try {
-    await Promise.race([
-      prisma.$queryRaw`SELECT 1`,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)) // 3초 타임아웃
-    ]);
-    // 연결 성공 시 실패 카운터 리셋
-    if (consecutiveConnectionFailures > 0) {
-      consecutiveConnectionFailures = 0;
-    }
-  } catch (error: any) {
-    const isConnectionError = 
-      error.code === 'P1017' || 
-      error.code === 'P1001' ||
-      error.message?.includes('closed the connection') ||
-      error.message?.includes('timeout') ||
-      error.message?.includes("Can't reach database server") ||
-      error.kind === 'Closed';
-    
-    if (isConnectionError) {
-      console.warn('[Prisma] Connection lost or timeout, attempting to reconnect...');
-      const reconnected = await reconnectPrisma();
-      if (!reconnected && consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
-        // 연속 실패가 너무 많으면 프로세스 종료 (Railway가 재시작)
-        console.error('[Prisma] CRITICAL: Too many reconnection failures. Exiting for Railway restart.');
-        process.stderr.write('[CRITICAL] Database connection lost - exiting for restart\n');
-        setTimeout(() => {
-          process.exit(1);
-        }, 5000);
+if (_databaseUrl) {
+  setInterval(async () => {
+    try {
+      await Promise.race([
+        prisma.$queryRaw`SELECT 1`,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)) // 3초 타임아웃
+      ]);
+      // 연결 성공 시 실패 카운터 리셋
+      if (consecutiveConnectionFailures > 0) {
+        consecutiveConnectionFailures = 0;
+      }
+    } catch (error: any) {
+      const isConnectionError = 
+        error.code === 'P1017' || 
+        error.code === 'P1001' ||
+        error.message?.includes('closed the connection') ||
+        error.message?.includes('timeout') ||
+        error.message?.includes("Can't reach database server") ||
+        error.kind === 'Closed';
+      
+      if (isConnectionError) {
+        console.warn('[Prisma] Connection lost or timeout, attempting to reconnect...');
+        const reconnected = await reconnectPrisma();
+        if (!reconnected && consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
+          // 연속 실패가 너무 많으면 프로세스 종료 (Railway가 재시작)
+          console.error('[Prisma] CRITICAL: Too many reconnection failures. Exiting for Railway restart.');
+          process.stderr.write('[CRITICAL] Database connection lost - exiting for restart\n');
+          setTimeout(() => {
+            process.exit(1);
+          }, 5000);
+        }
       }
     }
-  }
-}, connectionCheckInterval);
+  }, connectionCheckInterval);
+}
 
 // 프로세스 종료 시 정리
 process.on('beforeExit', async () => {

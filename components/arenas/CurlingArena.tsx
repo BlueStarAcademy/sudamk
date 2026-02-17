@@ -31,6 +31,8 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
     const isDraggingRef = useRef(false);
     const selectedStoneRef = useRef<AlkkagiStone | null>(null);
     const dragStartPointRef = useRef<Point | null>(null);
+    const flickInProgressRef = useRef(false);
+    const flickFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     
     const [simStones, setSimStones] = useState<AlkkagiStone[] | null>(null);
     const [dragStartPoint, setDragStartPoint] = useState<Point | null>(null);
@@ -39,6 +41,8 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
     const [flickPower, setFlickPower] = useState<number | null>(null);
     const [isRenderingPreviewStone, setIsRenderingPreviewStone] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    // 각 플레이어의 마지막 발사 파워 저장 (애니메이션 중에도 표시하기 위해)
+    const lastFlickPowerRef = useRef<{ [playerId: string]: number }>({});
 
     const latestProps = useRef(props);
     useEffect(() => {
@@ -54,23 +58,54 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         return currentPlayer === myPlayerEnum;
     }, [currentPlayer, myPlayerEnum, isSpectator]);
 
-    const shouldRotate = myPlayerEnum === Player.White;
+    // 바둑판은 회전하지 않고, 각 플레이어의 돌 위치만 조정
+    const shouldRotate = false;
     
     const prevGameStatus = usePrevious(session.gameStatus);
     const prevTurnStartTime = usePrevious(session.turnStartTime);
 
-    useEffect(() => {
-        if (session.turnStartTime !== prevTurnStartTime) {
-            setFlickPower(null);
+    // stopPowerGauge를 먼저 정의 (useEffect에서 사용하기 전에)
+    const stopPowerGauge = useCallback(() => {
+        if (powerGaugeAnimFrameRef.current) {
+            cancelAnimationFrame(powerGaugeAnimFrameRef.current);
+            powerGaugeAnimFrameRef.current = null;
         }
-    }, [session.turnStartTime, prevTurnStartTime]);
+        gaugeStartTimeRef.current = null;
+    }, []);
+
+    useEffect(() => {
+        if (session.turnStartTime !== prevTurnStartTime && prevTurnStartTime !== undefined) {
+            // 턴이 바뀔 때 파워게이지 완전히 초기화
+            stopPowerGauge();
+            setFlickPower(null);
+            setPower(0);
+            powerRef.current = 0;
+            setDragStartPoint(null);
+            setDragEndPoint(null);
+            isDraggingRef.current = false;
+            selectedStoneRef.current = null;
+            dragStartPointRef.current = null;
+            setIsRenderingPreviewStone(false);
+        }
+    }, [session.turnStartTime, prevTurnStartTime, stopPowerGauge]);
 
     useEffect(() => {
         if (prevGameStatus === 'curling_animating' && session.gameStatus !== 'curling_animating') {
             setSimStones(null);
+            flickInProgressRef.current = false;
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
                 animationFrameRef.current = null;
+            }
+            // 애니메이션이 끝나면 파워게이지 초기화 (턴이 바뀌기 전까지는 유지하지 않음)
+            // 턴이 바뀌면 위의 useEffect에서 초기화됨
+        }
+        // 공격 전송 후 curling_animating 수신 시 flick 잠금 해제
+        if (session.gameStatus === 'curling_animating') {
+            flickInProgressRef.current = false;
+            if (flickFallbackTimerRef.current) {
+                clearTimeout(flickFallbackTimerRef.current);
+                flickFallbackTimerRef.current = null;
             }
         }
     }, [session.gameStatus, prevGameStatus]);
@@ -79,14 +114,6 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
         window.addEventListener('resize', checkIsMobile);
         return () => window.removeEventListener('resize', checkIsMobile);
-    }, []);
-    
-    const stopPowerGauge = useCallback(() => {
-        if (powerGaugeAnimFrameRef.current) {
-            cancelAnimationFrame(powerGaugeAnimFrameRef.current);
-            powerGaugeAnimFrameRef.current = null;
-        }
-        gaugeStartTimeRef.current = null;
     }, []);
     
     const cancelFlick = useCallback(() => {
@@ -105,6 +132,8 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
     const startPowerGauge = useCallback(() => {
         stopPowerGauge();
         setFlickPower(null);
+        setPower(0);
+        powerRef.current = 0;
         gaugeStartTimeRef.current = performance.now();
     
         const animateGauge = (timestamp: number) => {
@@ -130,9 +159,8 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                 newPower = (2 - progressInCycle) * 100;
             }
     
-            if (powerGaugeRef.current) {
-                powerGaugeRef.current.style.width = `${newPower}%`;
-            }
+            // 상태 업데이트를 통해 React가 렌더링하도록 함
+            setPower(newPower);
             powerRef.current = newPower;
             powerGaugeAnimFrameRef.current = requestAnimationFrame(animateGauge);
         };
@@ -224,15 +252,19 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         const { session: currentSession, currentUser: user } = latestProps.current;
         const myPlayer = currentSession.blackPlayerId === user.id ? Player.Black : (currentSession.whitePlayerId === user.id ? Player.White : Player.None);
         const currentIsMyTurn = currentSession.currentPlayer === myPlayer;
-        if (!currentIsMyTurn || currentSession.gameStatus !== 'curling_playing') return;
+        if (!currentIsMyTurn || currentSession.gameStatus !== 'curling_playing' || flickInProgressRef.current) return;
 
         isDraggingRef.current = true;
         const stoneRadius = (840 / 19) * 0.47;
         const boardSizePx = 840;
         
-        // 회전된 보드에서는 발사 위치를 서버 좌표계로 변환
-        const serverX = shouldRotate ? boardSizePx - (area.x + stoneRadius) : (area.x + stoneRadius);
-        const serverY = shouldRotate ? boardSizePx - (area.y + stoneRadius) : (area.y + stoneRadius);
+        // 바둑판이 회전하지 않으므로, 발사 위치를 서버 좌표계로 변환
+        // 각 플레이어의 발사 영역은 화면 하단에 있지만, 서버 좌표계에서는:
+        // - 흑 플레이어: 화면 하단 = 서버 좌표계 하단 (그대로)
+        // - 백 플레이어: 화면 하단 = 서버 좌표계 상단 (y축만 반전, x축은 그대로)
+        // 화면에서 오른쪽 아래 클릭 = 서버 좌표계에서 오른쪽 위
+        const serverX = area.x + stoneRadius; // x축은 그대로
+        const serverY = myPlayerEnum === Player.White ? boardSizePx - (area.y + stoneRadius) : (area.y + stoneRadius);
         
         const newStone: AlkkagiStone = {
             id: Date.now(),
@@ -252,7 +284,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         setDragEndPoint(point);
         setIsRenderingPreviewStone(true);
         startPowerGauge();
-    }, [startPowerGauge, shouldRotate]);
+    }, [startPowerGauge, myPlayerEnum]);
     
     useEffect(() => {
         const handleInteractionMove = (e: MouseEvent | TouchEvent) => {
@@ -262,10 +294,17 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             setDragEndPoint(point);
         };
 
-        const handleInteractionEnd = () => {
+            const handleInteractionEnd = () => {
             if (!isDraggingRef.current) return;
     
-            const { session: currentSession, onAction: currentOnAction } = latestProps.current;
+            const { session: currentSession, onAction: currentOnAction, currentUser: user } = latestProps.current;
+            const currentMyPlayerEnum = currentSession.blackPlayerId === user.id ? Player.Black : (currentSession.whitePlayerId === user.id ? Player.White : Player.None);
+
+            // 애니메이션 중이거나 이미 전송 대기 중이면 전송 방지 (중복/400 에러 방지)
+            if (currentSession.gameStatus !== 'curling_playing' || flickInProgressRef.current) {
+                cancelFlick();
+                return;
+            }
 
             const finalSelectedStone = selectedStoneRef.current;
             const finalDragStart = dragStartPointRef.current;
@@ -273,9 +312,12 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             stopPowerGauge();
             const finalPower = powerRef.current;
             setFlickPower(finalPower);
+            // 현재 플레이어의 마지막 발사 파워 저장
+            lastFlickPowerRef.current[currentUser.id] = finalPower;
 
             setDragEndPoint(currentDragEnd => {
                 if (finalSelectedStone && finalDragStart && currentDragEnd) {
+                    if (flickInProgressRef.current) return null;
                     const svg = boardRef.current?.getSvg();
                     if (!svg) {
                         console.error("SVG element not found for coordinate conversion.");
@@ -303,24 +345,22 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                     const dx = svgDragEnd.x - svgDragStart.x;
                     const dy = svgDragEnd.y - svgDragStart.y;
                     
-                    // 회전된 보드에서는 속도 벡터도 반전 (회전된 보드에서 드래그 방향이 반대이므로)
-                    // 화면 좌표계에서의 드래그 방향을 서버 좌표계로 변환:
-                    // - 회전된 보드에서 오른쪽으로 드래그 (dx > 0) = 서버 좌표계에서 왼쪽으로 발사 (vx < 0)
-                    // - 회전된 보드에서 왼쪽으로 드래그 (dx < 0) = 서버 좌표계에서 오른쪽으로 발사 (vx > 0)
-                    // - 회전된 보드에서 위로 드래그 (dy < 0) = 서버 좌표계에서 아래로 발사 (vy > 0)
-                    // - 회전된 보드에서 아래로 드래그 (dy > 0) = 서버 좌표계에서 위로 발사 (vy < 0)
-                    // 기본 보드에서는:
-                    // - 오른쪽으로 드래그 (dx > 0) = 서버 좌표계에서 왼쪽으로 발사 (vx < 0)
-                    // - 왼쪽으로 드래그 (dx < 0) = 서버 좌표계에서 오른쪽으로 발사 (vx > 0)
-                    // - 위로 드래그 (dy < 0) = 서버 좌표계에서 위로 발사 (vy < 0)
-                    // - 아래로 드래그 (dy > 0) = 서버 좌표계에서 아래로 발사 (vy > 0)
-                    const velocityX = shouldRotate ? -dx : -dx; // 회전 여부와 관계없이 dx는 항상 반대
-                    const velocityY = shouldRotate ? dy : -dy;   // 회전된 보드에서는 dy 그대로, 기본 보드에서는 반대
+                    // 바둑판이 회전하지 않으므로, 속도 벡터 변환:
+                    // 화살표 방향과 일치하도록 속도 벡터 설정
+                    // CurlingBoard.tsx의 adjustedDy 로직과 일치해야 함
+                    const velocityX = -dx; // 항상 반대 방향
+                    const velocityY = currentMyPlayerEnum === Player.White ? dy : -dy; // 화살표 방향과 일치
     
                     const launchStrength = finalPower / 100 * 25;
                     const mag = Math.hypot(velocityX, velocityY);
                     
                     if (mag > 0) {
+                        flickInProgressRef.current = true;
+                        if (flickFallbackTimerRef.current) clearTimeout(flickFallbackTimerRef.current);
+                        flickFallbackTimerRef.current = setTimeout(() => {
+                            flickFallbackTimerRef.current = null;
+                            flickInProgressRef.current = false;
+                        }, 3000);
                         const vx = (velocityX / mag) * launchStrength;
                         const vy = (velocityY / mag) * launchStrength;
                         currentOnAction({ type: 'CURLING_FLICK_STONE', payload: { gameId: currentSession.id, launchPosition: { x: finalSelectedStone.x, y: finalSelectedStone.y }, velocity: { x: vx, y: vy } } });
@@ -337,7 +377,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             });
             setPower(0);
             powerRef.current = 0;
-            setTimeout(() => setFlickPower(null), 1500);
+            // flickPower는 애니메이션 중에도 유지되도록 setTimeout 제거
         };
 
         const handleContextMenu = (e: MouseEvent) => {
@@ -361,8 +401,12 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             window.removeEventListener('contextmenu', handleContextMenu);
             stopPowerGauge();
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            if (flickFallbackTimerRef.current) {
+                clearTimeout(flickFallbackTimerRef.current);
+                flickFallbackTimerRef.current = null;
+            }
         };
-    }, [stopPowerGauge, cancelFlick, shouldRotate]);
+    }, [stopPowerGauge, cancelFlick, myPlayerEnum]);
 
     useEffect(() => {
         const { session: currentSession } = latestProps.current;
@@ -371,10 +415,68 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             lastAnimationTimestampRef.current = animation.startTime;
             const { stone, velocity } = animation;
             runClientAnimation(currentSession.curlingStones || [], stone, velocity);
+            
+            // 애니메이션이 시작되면 해당 플레이어의 파워게이지를 표시
+            const flickingPlayerId = stone.player === Player.Black 
+                ? currentSession.blackPlayerId 
+                : currentSession.whitePlayerId;
+            if (flickingPlayerId && lastFlickPowerRef.current[flickingPlayerId]) {
+                // 애니메이션 중에는 해당 플레이어의 파워게이지 표시
+                if (flickingPlayerId === currentUser.id) {
+                    setFlickPower(lastFlickPowerRef.current[flickingPlayerId]);
+                }
+            }
         }
-    }, [session.animation, runClientAnimation]);
+    }, [session.animation, runClientAnimation, currentUser.id]);
 
-    const displayedPower = flickPower !== null ? flickPower : power;
+    // 현재 턴의 플레이어 ID 확인
+    const currentTurnPlayerId = useMemo(() => {
+        if (currentPlayer === Player.Black) return session.blackPlayerId;
+        if (currentPlayer === Player.White) return session.whitePlayerId;
+        return null;
+    }, [currentPlayer, session.blackPlayerId, session.whitePlayerId]);
+
+    // 표시할 파워 결정: 드래그 중이면 현재 파워, 아니면 마지막 발사 파워
+    const displayedPower = useMemo(() => {
+        // 드래그 중이면 현재 파워 표시
+        if (power > 0) return power;
+        if (flickPower !== null) return flickPower;
+        
+        // 애니메이션 중일 때만 해당 플레이어의 마지막 발사 파워 표시
+        if (session.gameStatus === 'curling_animating' && session.animation?.type === 'curling_flick') {
+            const animStone = session.animation.stone;
+            const animPlayerId = animStone.player === Player.Black 
+                ? session.blackPlayerId 
+                : session.whitePlayerId;
+            if (animPlayerId && lastFlickPowerRef.current[animPlayerId]) {
+                return lastFlickPowerRef.current[animPlayerId];
+            }
+        }
+        
+        return 0;
+    }, [flickPower, power, session.gameStatus, session.animation]);
+
+    // 파워게이지 표시 여부 결정
+    const shouldShowPowerGauge = useMemo(() => {
+        // 드래그 중이면 표시
+        if (dragStartPoint) return true;
+        
+        // 발사된 파워가 있으면 표시
+        if (flickPower !== null) return true;
+        
+        // 애니메이션 중일 때만 표시
+        if (session.gameStatus === 'curling_animating' && session.animation?.type === 'curling_flick') {
+            const animStone = session.animation.stone;
+            const animPlayerId = animStone.player === Player.Black 
+                ? session.blackPlayerId 
+                : session.whitePlayerId;
+            if (animPlayerId && lastFlickPowerRef.current[animPlayerId]) {
+                return true;
+            }
+        }
+        
+        return false;
+    }, [dragStartPoint, flickPower, session.gameStatus, session.animation]);
 
     // 놀이바둑 모드에서는 배경을 투명하게
     const backgroundClass = useMemo(() => {
@@ -387,10 +489,9 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
     return (
         <div className={`relative w-full h-full flex items-center justify-center px-4 sm:px-6 lg:px-0 ${backgroundClass}`}>
              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-3/4 max-w-md z-10 pointer-events-none">
-                {(dragStartPoint || flickPower !== null) && (
-                    <div className={`bg-gray-900/50 rounded-full h-6 border-2 border-gray-500 ${flickPower !== null ? 'animate-flick-power-pulse' : ''}`}>
+                {shouldShowPowerGauge && (
+                    <div className={`bg-gray-900/50 rounded-full h-6 border-2 border-gray-500 ${flickPower !== null || (session.gameStatus === 'curling_animating' && session.animation?.type === 'curling_flick') ? 'animate-flick-power-pulse' : ''}`}>
                         <div 
-                            ref={powerGaugeRef}
                             className="bg-gradient-to-r from-yellow-400 to-red-500 h-full rounded-full" 
                             style={{ width: `${displayedPower}%` }}
                         />
@@ -400,7 +501,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                     </div>
                 )}
             </div>
-            <div className={`w-full h-full transition-transform duration-500 ${shouldRotate ? 'rotate-180' : ''}`}>
+            <div className="w-full h-full">
                 <CurlingBoard
                     ref={boardRef}
                     stones={simStones ?? curlingStones ?? []}
@@ -415,7 +516,8 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                     activeCurlingItems={session.activeCurlingItems}
                     currentUser={currentUser}
                     session={session}
-                    isRotated={shouldRotate}
+                    isRotated={false}
+                    myPlayerEnum={myPlayerEnum}
                 />
             </div>
         </div>

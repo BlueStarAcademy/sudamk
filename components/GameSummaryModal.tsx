@@ -270,19 +270,95 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
     const whiteAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === whitePlayer.avatarId)?.url;
     const whiteBorderUrl = BORDER_POOL.find((b: BorderInfo) => b.id === whitePlayer.borderId)?.url;
 
+    // 라운드별 점수 히스토리 가져오기
+    const roundHistory = (gameSession as any).curlingRoundHistory || [];
+    const totalRounds = gameSession.settings?.curlingRounds || 3;
 
     return (
-        <div className="text-center">
-            <p className={`text-gray-300 mb-2 sm:mb-4 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>최종 점수</p>
-            <div className="flex items-center justify-center my-1 sm:my-2">
+        <div className="text-center space-y-3 sm:space-y-4">
+            {/* 대국자 프로필과 점수 표시 */}
+            <div className="flex items-center justify-center gap-2 sm:gap-4">
                 <div className={`flex flex-col items-center gap-1 sm:gap-2 ${isMobile ? 'w-20' : 'w-32'} flex-shrink-0`}>
                     <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={isMobile ? Math.round(40 * mobileImageScale) : 64} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
-                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : ''}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{blackPlayer.nickname} (흑)</span>
+                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : 'text-sm'}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{blackPlayer.nickname} (흑)</span>
                 </div>
-                <p className={`${isMobile ? 'text-3xl' : 'text-5xl'} font-mono text-center flex-grow px-1 sm:px-2`} style={{ fontSize: isMobile ? `${28 * mobileTextScale}px` : undefined }}>{blackScore} : {whiteScore}</p>
+                <div className={`flex-shrink-0 ${isMobile ? 'text-2xl' : 'text-4xl'} font-mono font-bold whitespace-nowrap`} style={{ fontSize: isMobile ? `${24 * mobileTextScale}px` : `${36 * mobileTextScale}px` }}>
+                    <span className="text-white">{blackScore}</span>
+                    <span className="mx-2 text-gray-400">:</span>
+                    <span className="text-white">{whiteScore}</span>
+                </div>
                 <div className={`flex flex-col items-center gap-1 sm:gap-2 ${isMobile ? 'w-20' : 'w-32'} flex-shrink-0`}>
                     <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={isMobile ? Math.round(40 * mobileImageScale) : 64} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl}/>
-                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : ''}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{whitePlayer.nickname} (백)</span>
+                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : 'text-sm'}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{whitePlayer.nickname} (백)</span>
+                </div>
+            </div>
+            
+            {/* 상세 점수 내역 표 */}
+            <div className={`mt-4 bg-gray-800/50 ${isMobile ? 'p-2' : 'p-4'} rounded-lg`}>
+                <h3 className={`font-bold mb-3 ${isMobile ? 'text-xs' : 'text-base'} text-left`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>상세 점수 내역</h3>
+                <div className={`overflow-x-auto ${isMobile ? 'text-[9px]' : 'text-xs'}`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="border-b-2 border-gray-600">
+                                <th className={`text-left ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}>라운드</th>
+                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={2}>{blackPlayer.nickname} (흑)</th>
+                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={2}>{whitePlayer.nickname} (백)</th>
+                            </tr>
+                            <tr className="border-b border-gray-600">
+                                <th className={`text-left ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}></th>
+                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30 border-l-2 border-gray-600`}>하우스</th>
+                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30`}>넉아웃</th>
+                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30 border-l-2 border-gray-600`}>하우스</th>
+                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30`}>넉아웃</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Array.from({ length: totalRounds }, (_, i) => i + 1).map(roundNum => {
+                                const roundData = roundHistory.find((r: any) => r.round === roundNum);
+                                const blackHouse = roundData ? roundData.black.houseScore : 0;
+                                const blackKnockout = roundData ? roundData.black.knockoutScore : 0;
+                                const blackPreviousKnockout = roundData?.black?.previousKnockoutScore ?? 0;
+                                const blackTotal = roundData ? roundData.black.total : 0;
+                                const whiteHouse = roundData ? roundData.white.houseScore : 0;
+                                const whiteKnockout = roundData ? roundData.white.knockoutScore : 0;
+                                const whitePreviousKnockout = roundData?.white?.previousKnockoutScore ?? 0;
+                                const whiteTotal = roundData ? roundData.white.total : 0;
+                                
+                                return (
+                                    <tr key={roundNum} className="border-b border-gray-700/50">
+                                        <td className={`font-semibold ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/30`}>{roundNum}라운드</td>
+                                        <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20 border-l-2 border-gray-600`}>{blackHouse}</td>
+                                        <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20`}>
+                                            <div className="flex flex-col items-center">
+                                                <span className="font-semibold">{blackKnockout}</span>
+                                                {blackPreviousKnockout > 0 && (
+                                                    <span className={`text-gray-400 ${isMobile ? 'text-[7px]' : 'text-[9px]'}`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>
+                                                        (이전: {blackPreviousKnockout})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20 border-l-2 border-gray-600`}>{whiteHouse}</td>
+                                        <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20`}>
+                                            <div className="flex flex-col items-center">
+                                                <span className="font-semibold">{whiteKnockout}</span>
+                                                {whitePreviousKnockout > 0 && (
+                                                    <span className={`text-gray-400 ${isMobile ? 'text-[7px]' : 'text-[9px]'}`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>
+                                                        (이전: {whitePreviousKnockout})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            <tr className="border-t-2 border-gray-500 font-bold">
+                                <td className={`${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}>합계</td>
+                                <td className={`text-center text-yellow-300 ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/30 border-l-2 border-gray-600`} colSpan={2}>{blackScore}</td>
+                                <td className={`text-center text-yellow-300 ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/30 border-l-2 border-gray-600`} colSpan={2}>{whiteScore}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -524,24 +600,24 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const finalMannerRank = mySummary ? getMannerRank(mySummary.manner.final) : '';
 
     return (
-        <DraggableWindow title="대국 결과" onClose={onConfirm} initialWidth={isMobile ? 600 : 900} initialHeight={isMobile ? 560 : 760} windowId="game-summary">
-            <div className={`text-white ${isMobile ? 'text-xs' : 'text-[clamp(0.75rem,2.5vw,1rem)]'} flex flex-col ${isMobile ? 'max-h-[85vh]' : 'h-full'} overflow-y-auto`}>
-                <h1 className={`${isMobile ? 'text-lg' : 'text-[clamp(2.25rem,10vw,3rem)]'} font-black text-center mb-2 sm:mb-4 tracking-widest ${color} flex-shrink-0`} style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}>{title}</h1>
+        <DraggableWindow title="대국 결과" onClose={onConfirm} initialWidth={isMobile ? 600 : 1000} windowId="game-summary">
+            <div className={`text-white ${isMobile ? 'text-xs' : 'text-[clamp(0.75rem,2.5vw,1rem)]'} flex flex-col`}>
+                <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-black text-center mb-2 sm:mb-3 tracking-widest ${color} flex-shrink-0`} style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}>{title}</h1>
                 
-                <div className={`flex flex-row gap-2 sm:gap-4 overflow-hidden flex-1 min-h-0`}>
+                <div className={`flex flex-row gap-2 sm:gap-3`}>
                     {/* Left Panel: Game Content */}
-                    <div className={`w-1/2 bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-4'} rounded-lg overflow-y-auto flex flex-col`}>
-                        <h2 className={`${isMobile ? 'text-xs' : 'text-lg'} font-bold text-center text-gray-200 mb-1 sm:mb-3 border-b border-gray-700 pb-0.5 sm:pb-2 flex-shrink-0`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>경기 내용</h2>
-                        <div className="flex-1 min-h-0">
+                    <div className={`w-1/2 bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg flex flex-col`}>
+                        <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-2 border-b border-gray-700 pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>경기 내용</h2>
+                        <div>
                             {renderGameContent()}
                         </div>
                     </div>
                     
                     {/* Right Panel: My Results & Rewards */}
                     {mySummary && (
-                        <div className={`w-1/2 flex flex-col gap-1.5 sm:gap-4`}>
-                            <div className={`bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-4'} rounded-lg flex flex-col gap-1`}>
-                                <h2 className={`${isMobile ? 'text-xs' : 'text-lg'} font-bold text-center text-gray-200 mb-1 sm:mb-2 border-b border-gray-700 pb-0.5`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>내 대국 결과</h2>
+                        <div className={`w-1/2 flex flex-col gap-2 sm:gap-3`}>
+                            <div className={`bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg flex flex-col gap-1`}>
+                                <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-2 border-b border-gray-700 pb-1`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>내 대국 결과</h2>
                                 <div className="flex items-center gap-1.5 sm:gap-2">
                                     <Avatar userId={currentUser.id} userName={currentUser.nickname} size={isMobile ? Math.round(24 * mobileImageScale) : 48} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                                     <div>
@@ -551,18 +627,32 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                         </p>
                                     </div>
                                 </div>
-                                {mySummary.level && (
+                                {mySummary.level ? (
                                     <div className="flex-shrink-0">
                                         <XpBar
                                             initial={mySummary.level.progress.initial}
                                             final={mySummary.level.progress.final}
                                             max={mySummary.level.progress.max}
                                             levelUp={mySummary.level.initial < mySummary.level.final}
-                                            xpGain={mySummary.xp.change}
+                                            xpGain={mySummary.xp?.change ?? 0}
                                             finalLevel={mySummary.level.final}
                                             isMobile={isMobile}
                                             mobileTextScale={mobileTextScale}
                                         />
+                                    </div>
+                                ) : (
+                                    <div className="flex-shrink-0">
+                                        <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
+                                            <span className={`${isMobile ? 'text-xs w-12' : 'text-sm w-16'} font-bold text-right`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>경험치</span>
+                                            <div className={`w-full bg-gray-700/50 rounded-full ${isMobile ? 'h-3' : 'h-4'} relative border border-gray-900/50 overflow-hidden flex items-center justify-center`}>
+                                                <span className={`${isMobile ? 'text-[9px]' : 'text-xs'} font-bold text-gray-400`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
+                                                    0 XP
+                                                </span>
+                                            </div>
+                                            <span className={`${isMobile ? 'text-xs w-14' : 'text-sm w-20'} font-bold text-gray-400 whitespace-nowrap`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
+                                                +0 XP
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
                                 <div className={`grid grid-cols-2 gap-1 text-center`}>
@@ -591,14 +681,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     </div>
                                 </div>
                             </div>
-                            <div className={`bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-4'} rounded-lg space-y-1 sm:space-y-2 flex-shrink-0`}>
-                                <h2 className={`${isMobile ? 'text-xs' : 'text-lg'} font-bold text-center text-gray-200 border-b border-gray-700 pb-0.5`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>획득 보상</h2>
+                            <div className={`bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg space-y-2 flex-shrink-0`}>
+                                <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 border-b border-gray-700 pb-1 mb-2`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>획득 보상</h2>
                                 <div className={`flex gap-1.5 sm:gap-3 justify-center items-stretch`}>
                                     {/* Gold Reward - Square */}
                                     <div className={`${isMobile ? 'w-16 h-16' : 'w-32 h-32'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
                                         <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-5 h-5' : 'w-12 h-12'} mb-0.5`} />
                                         <p className={`font-bold text-yellow-300 text-center`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>
-                                            {(mySummary.gold ?? 0).toLocaleString()}
+                                            {(mySummary?.gold ?? 0).toLocaleString()}
                                         </p>
                                     </div>
                                     {/* Items Reward - Multiple items support */}
@@ -631,7 +721,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                         </div>
                                     ) : (
                                         <div className={`${isMobile ? 'w-16 h-16' : 'w-32 h-32'} bg-gray-800/50 border-2 border-gray-700/50 rounded-lg flex items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
-                                            <p className={`text-gray-500 text-center`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>
+                                            <p className={`text-gray-500 text-center ${isMobile ? 'text-[6px]' : 'text-xs'}`} style={{ fontSize: isMobile ? `${6 * mobileTextScale}px` : undefined }}>
                                                 보상 없음
                                             </p>
                                         </div>
@@ -666,7 +756,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         {savingRecord ? '저장 중...' : hasSavedRecord ? '이미 저장됨' : '기보 저장'}
                     </Button>
                 )}
-                 <Button onClick={onConfirm} className={`w-full ${isMobile ? 'py-1.5 text-xs' : 'py-3'} mt-2 sm:mt-4 flex-shrink-0`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>확인</Button>
+                 <div className="flex justify-center mt-3 flex-shrink-0">
+                     <Button onClick={onConfirm} className={`${isMobile ? 'w-32 py-1.5 text-xs' : 'w-40 py-2 text-sm'} mx-auto`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>확인</Button>
+                 </div>
             </div>
         </DraggableWindow>
     );

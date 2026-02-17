@@ -16,11 +16,17 @@ interface GroupInfo {
 
 /**
  * 빈 점의 영역을 계산합니다 (한국식 계가)
+ * 영토 점 좌표도 함께 반환 (보드 시각화용)
  */
-function calculateTerritory(boardState: BoardState, boardSize: number): { black: number; white: number } {
+function calculateTerritory(
+    boardState: BoardState,
+    boardSize: number
+): { black: number; white: number; blackTerritoryPoints: Point[]; whiteTerritoryPoints: Point[] } {
     const visited = Array(boardSize).fill(0).map(() => Array(boardSize).fill(false));
     let blackTerritory = 0;
     let whiteTerritory = 0;
+    const blackTerritoryPoints: Point[] = [];
+    const whiteTerritoryPoints: Point[] = [];
 
     const getNeighbors = (x: number, y: number): Point[] => {
         const neighbors: Point[] = [];
@@ -49,7 +55,7 @@ function calculateTerritory(boardState: BoardState, boardSize: number): { black:
 
                 for (const neighbor of getNeighbors(current.x, current.y)) {
                     const neighborContent = boardState[neighbor.y][neighbor.x];
-                    
+
                     if (neighborContent === Player.None && !visited[neighbor.y][neighbor.x]) {
                         visited[neighbor.y][neighbor.x] = true;
                         q.push(neighbor);
@@ -64,38 +70,37 @@ function calculateTerritory(boardState: BoardState, boardSize: number): { black:
             // 영역이 한쪽 색상만 접촉하면 그 색상의 영역
             if (touchesBlack && !touchesWhite) {
                 blackTerritory += region.length;
+                blackTerritoryPoints.push(...region);
             } else if (touchesWhite && !touchesBlack) {
                 whiteTerritory += region.length;
+                whiteTerritoryPoints.push(...region);
             }
             // 양쪽 모두 접촉하거나 아무것도 접촉하지 않으면 중립 (계산하지 않음)
         }
     }
 
-    return { black: blackTerritory, white: whiteTerritory };
+    return { black: blackTerritory, white: whiteTerritory, blackTerritoryPoints, whiteTerritoryPoints };
 }
 
 /**
  * 그룹의 생사를 판정합니다
- * 간단한 휴리스틱: 자유도가 2개 이상이면 살아있음
+ * 보수적 휴리스틱: 과도한 사석 판정(살아있는 그룹을 죽은 것으로 오판) 방지
+ * - 자유도 2개 이상: 살아있음
+ * - 자유도 1개: 단일 돌만 죽음으로 판정 (2개 이상 돌은 연결/포착 가능성 있어 살아있음으로)
+ * - 자유도 0: 죽음 (실제로는 착점 후 제거되므로 보드에 없음)
  */
 function determineGroupLife(
     group: { stones: Point[]; liberties: number; libertyPoints: Set<string> },
     boardState: BoardState,
     boardSize: number
 ): boolean {
-    // 자유도가 2개 이상이면 살아있음
     if (group.liberties >= 2) {
         return true;
     }
-
-    // 자유도가 1개인 경우, 그 자유도가 실제로 살 수 있는지 확인
     if (group.liberties === 1) {
-        // 자유도가 1개면 거의 죽은 상태지만, 상대가 그 자유도에 착점하면 죽음
-        // 간단히 죽은 것으로 판정
-        return false;
+        // 자유도 1개: 단일 돌만 확실히 죽음. 2개 이상 돌은 포착/연결로 살 수 있음
+        return group.stones.length > 1;
     }
-
-    // 자유도가 0이면 죽음
     return false;
 }
 
@@ -246,8 +251,8 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
                 total: whiteScore
             }
         },
-        blackConfirmed: [],
-        whiteConfirmed: [],
+        blackConfirmed: territory.blackTerritoryPoints,
+        whiteConfirmed: territory.whiteTerritoryPoints,
         blackRight: [],
         whiteRight: [],
         blackLikely: [],

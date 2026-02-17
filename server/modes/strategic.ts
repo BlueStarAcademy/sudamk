@@ -10,7 +10,7 @@ import { initializeBase, updateBaseState, handleBaseAction } from './base.js';
 import { initializeCapture, updateCaptureState, handleCaptureAction } from './capture.js';
 import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
-import { handleSharedAction, transitionToPlaying } from './shared.js';
+import { handleSharedAction, transitionToPlaying, hasTimeControl } from './shared.js';
 
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
@@ -91,13 +91,14 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
                 return;
             }
         } else { // Byoyomi expired
-            if (game[byoyomiKey] > 0) {
-                // 초읽기 시간이 만료되면 횟수를 차감
+            if (game[byoyomiKey] > 1) {
+                // 2회 이상 남았을 때만 차감 후 추가 시간 부여; 1회 남은 상태에서 만료되면 즉시 패배
                 game[byoyomiKey]--;
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 game.turnStartTime = now;
                 return;
             }
+            // 초읽기 횟수가 0이 되는 순간(1회 남은 상태에서 시간 만료) 바로 패배 처리
         }
         
         // No time or byoyomi left
@@ -199,6 +200,28 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 return { error: '내 차례가 아닙니다.' };
             }
 
+            // 전략바둑 로비 턴 제한: 이미 제한 수순에 도달했으면 착수 거부 후 계가 진행 (수순 초과 방지)
+            const scoringTurnLimit = game.settings.scoringTurnLimit;
+            if (scoringTurnLimit != null && scoringTurnLimit > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                const validMovesSoFar = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1);
+                if (validMovesSoFar.length >= scoringTurnLimit) {
+                    console.log(`[handleStrategicAction] Game ${game.id} at/over scoringTurnLimit (${validMovesSoFar.length} >= ${scoringTurnLimit}), triggering getGameResult without applying move`);
+                    game.gameStatus = 'scoring';
+                    game.totalTurns = validMovesSoFar.length;
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('../socket.js');
+                    const gameToBroadcast = { ...game };
+                    delete (gameToBroadcast as any).boardState;
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                    try {
+                        await getGameResult(game);
+                    } catch (e: any) {
+                        console.error(`[handleStrategicAction] getGameResult failed for game ${game.id}:`, e?.message);
+                    }
+                    return { error: '정해진 수순에 도달했습니다. 계가를 진행합니다.' };
+                }
+            }
+
             const { x, y, isHidden } = payload;
             
             // 치명적 버그 방지: 패 위치(-1, -1)에 돌을 놓으려는 시도 차단
@@ -233,22 +256,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 범위 체크 후에만 boardState에 접근
             const stoneAtTarget = serverBoardState[y][x];
 
-            // 싱글플레이/AI 게임에서 AI가 둔 자리 체크 (서버 boardState 기준) - 최우선 체크 (치명적 버그 방지)
+            // 싱글플레이/AI 게임에서 AI가 둔 자리 체크 (서버 boardState 기준만 사용)
+            // boardState가 빈 칸이면 moveHistory와 불일치해도 착수 허용 (빈 공간에 돌이 안 놓이는 현상 방지)
             if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
-                // boardState에 상대방(AI) 돌이 있으면 무조건 차단
                 if (stoneAtTarget === opponentPlayerEnum) {
                     console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
                     return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
-                }
-                
-                // moveHistory에서도 추가 확인
-                const moveIndexAtTarget = serverMoveHistory.findIndex(m => m.x === x && m.y === y);
-                if (moveIndexAtTarget !== -1) {
-                    const moveAtTarget = serverMoveHistory[moveIndexAtTarget];
-                    if (moveAtTarget && moveAtTarget.player === opponentPlayerEnum) {
-                        console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI move in history at (${x}, ${y}), gameId=${game.id}, movePlayer=${moveAtTarget.player}`);
-                        return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
-                    }
                 }
                 
                 // 서버 boardState를 게임 객체에 반영 (클라이언트 무시, 돌 사라짐 방지)
@@ -574,11 +587,15 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             const playerWhoMoved = myPlayerEnum;
-            if (game.settings.timeLimit > 0) {
+            if (hasTimeControl(game.settings)) {
                 const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                 const fischerIncrement = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed)) ? (game.settings.timeIncrement || 0) : 0;
-                
-                if (game.turnDeadline) {
+                const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                const isInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0 && !isFischer;
+                if (isInByoyomi) {
+                    game[timeKey] = 0;
+                } else if (game.turnDeadline) {
                     const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
                     game[timeKey] = timeRemaining + fischerIncrement;
                 } else if(game.pausedTurnTimeLeft) {
@@ -618,11 +635,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
 
-            if (game.settings.timeLimit > 0) {
+            if (hasTimeControl(game.settings)) {
                 const nextPlayer = game.currentPlayer;
                 const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                  const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
-                const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
+                const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
 
                 if (isNextInByoyomi) {
                     game.turnDeadline = now + game.settings.byoyomiTime * 1000;
@@ -672,6 +690,29 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     if (newTotalTurns === autoScoringTurns - 1) {
                         console.log(`[handleStrategicAction] Last turn reached: totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, next turn will trigger auto-scoring after AI move`);
                     }
+                }
+            }
+
+            // 전략바둑 로비/AI 대국: 계가까지 턴 제한(scoringTurnLimit)이 있으면 해당 턴 수 도달 시 자동 계가
+            const scoringTurnLimit = game.settings.scoringTurnLimit;
+            if (scoringTurnLimit != null && scoringTurnLimit > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
+                const newTotalTurns = validMoves.length;
+                game.totalTurns = newTotalTurns;
+                if (newTotalTurns >= scoringTurnLimit) {
+                    console.log(`[handleStrategicAction] Scoring turn limit reached: totalTurns=${newTotalTurns}, scoringTurnLimit=${scoringTurnLimit}, triggering getGameResult`);
+                    game.gameStatus = 'scoring';
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('../socket.js');
+                    const gameToBroadcast = { ...game };
+                    delete (gameToBroadcast as any).boardState;
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                    try {
+                        await getGameResult(game);
+                    } catch (scoringError: any) {
+                        console.error(`[handleStrategicAction] Error during scoring (turn limit) for game ${game.id}:`, scoringError?.message);
+                    }
+                    return {};
                 }
             }
 
@@ -745,7 +786,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             } else {
                 const playerWhoMoved = myPlayerEnum;
-                if (game.settings.timeLimit > 0) {
+                if (hasTimeControl(game.settings)) {
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     
                     if (game.turnDeadline) {
@@ -754,17 +795,21 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
                 }
                 game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-                if (game.settings.timeLimit > 0) {
+                if (hasTimeControl(game.settings)) {
                     const nextPlayer = game.currentPlayer;
                     const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                    const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                      const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
-                    const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
+                    const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
                     if (isNextInByoyomi) {
                         game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                     } else {
                         game.turnDeadline = now + game[nextTimeKey] * 1000;
                     }
                     game.turnStartTime = now;
+                } else {
+                    game.turnDeadline = undefined;
+                    game.turnStartTime = undefined;
                 }
                 
                 // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정

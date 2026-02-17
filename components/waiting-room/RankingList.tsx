@@ -71,8 +71,10 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
         score: allRankedUsers[myRankIndex].avgScore 
     } : null;
 
-    // 페이지네이션: 초기 10명, 스크롤 시 10명씩 추가
-    const [displayCount, setDisplayCount] = useState(10);
+    // 페이지네이션: 초기 30명, 스크롤 시 20명씩 추가
+    const INITIAL_DISPLAY = 30;
+    const LOAD_MORE_COUNT = 20;
+    const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY);
     const loadMoreRef = useRef<HTMLLIElement>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -86,7 +88,7 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
             observerRef.current = new IntersectionObserver(
                 (entries) => {
                     if (entries[0].isIntersecting) {
-                        setDisplayCount(prev => Math.min(prev + 10, allRankedUsers.length));
+                        setDisplayCount(prev => Math.min(prev + LOAD_MORE_COUNT, allRankedUsers.length));
                     }
                 },
                 { threshold: 0.1 }
@@ -103,7 +105,7 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
 
     // 탭 변경 시 displayCount 리셋
     useEffect(() => {
-        setDisplayCount(10);
+        setDisplayCount(INITIAL_DISPLAY);
     }, [lobbyType]);
 
     const topUsers = allRankedUsers.slice(0, displayCount);
@@ -126,33 +128,117 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
         const tier = getTierForUser(user);
         
         const isCurrentUserInList = !isMyRankDisplay && user.id === currentUser.id;
-        const baseClass = 'flex items-center gap-2 rounded-lg';
-        const myRankClass = 'bg-yellow-900/40 border border-yellow-700';
-        const highlightClass = 'bg-blue-900/60 border border-blue-600';
-        const defaultClass = 'bg-tertiary/50';
+        const isTopThree = rank <= 3 && !isMyRankDisplay;
+        
+        // 상위 3위에 대한 특별한 스타일링
+        const getRankStyle = () => {
+            if (isMyRankDisplay) {
+                return {
+                    container: 'group relative overflow-hidden bg-gradient-to-r from-yellow-900/50 via-amber-900/40 to-yellow-900/50 border-2 border-yellow-500/60 shadow-[0_4px_20px_rgba(234,179,8,0.3)]',
+                    rankText: 'text-yellow-400 font-bold',
+                    glow: 'absolute inset-0 bg-gradient-to-r from-yellow-500/20 via-transparent to-yellow-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
+                };
+            }
+            if (rank === 1) {
+                return {
+                    container: 'group relative overflow-hidden bg-gradient-to-r from-amber-900/40 via-yellow-900/30 to-amber-900/40 border-2 border-amber-400/70 shadow-[0_4px_20px_rgba(251,191,36,0.4)]',
+                    rankText: 'text-amber-300 font-bold text-lg',
+                    glow: 'absolute inset-0 bg-gradient-to-r from-amber-500/30 via-transparent to-amber-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
+                };
+            }
+            if (rank === 2) {
+                return {
+                    container: 'group relative overflow-hidden bg-gradient-to-r from-slate-700/40 via-slate-600/30 to-slate-700/40 border-2 border-slate-400/70 shadow-[0_4px_20px_rgba(148,163,184,0.3)]',
+                    rankText: 'text-slate-300 font-bold text-lg',
+                    glow: 'absolute inset-0 bg-gradient-to-r from-slate-400/20 via-transparent to-slate-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
+                };
+            }
+            if (rank === 3) {
+                return {
+                    container: 'group relative overflow-hidden bg-gradient-to-r from-orange-900/40 via-amber-900/30 to-orange-900/40 border-2 border-orange-500/70 shadow-[0_4px_20px_rgba(249,115,22,0.3)]',
+                    rankText: 'text-orange-300 font-bold text-lg',
+                    glow: 'absolute inset-0 bg-gradient-to-r from-orange-500/20 via-transparent to-orange-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
+                };
+            }
+            if (isCurrentUserInList) {
+                return {
+                    container: 'group relative overflow-hidden bg-gradient-to-r from-blue-900/50 via-indigo-900/40 to-blue-900/50 border-2 border-blue-500/60 shadow-[0_4px_15px_rgba(59,130,246,0.3)]',
+                    rankText: 'text-blue-300 font-semibold',
+                    glow: 'absolute inset-0 bg-gradient-to-r from-blue-500/20 via-transparent to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
+                };
+            }
+            return {
+                container: 'group relative overflow-hidden bg-gradient-to-br from-gray-800/40 via-gray-900/30 to-gray-800/40 border border-gray-700/50 shadow-[0_2px_8px_rgba(0,0,0,0.3)] hover:border-gray-600/70 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]',
+                rankText: 'text-gray-300 font-semibold',
+                glow: 'absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-transparent to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
+            };
+        };
 
+        const rankStyle = getRankStyle();
         const isClickable = !isMyRankDisplay && user.id !== currentUser.id;
-        const finalClass = `${baseClass} ${isMyRankDisplay ? myRankClass : (isCurrentUserInList ? highlightClass : defaultClass)} p-1.5 ${isClickable ? 'cursor-pointer hover:bg-secondary/50' : ''}`;
         const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
         const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
+        
+        // 랭킹 표시 아이콘
+        const rankDisplay = () => {
+            if (rank === 1) return <span className="text-xl" role="img" aria-label="Gold Medal">🥇</span>;
+            if (rank === 2) return <span className="text-xl" role="img" aria-label="Silver Medal">🥈</span>;
+            if (rank === 3) return <span className="text-xl" role="img" aria-label="Bronze Medal">🥉</span>;
+            return <span className={`${rankStyle.rankText} text-xs`}>{rank}</span>;
+        };
         
         return (
             <li 
                 key={user.id} 
-                className={finalClass}
+                className={`flex items-center gap-2 rounded-lg p-1.5 lg:p-2 transition-all duration-300 ${rankStyle.container} ${isClickable ? 'cursor-pointer hover:scale-[1.02] hover:-translate-y-0.5' : ''}`}
                 onClick={isClickable ? () => onViewUser(user.id) : undefined}
                 title={isClickable ? `${user.nickname} 프로필 보기` : ''}
             >
-                <span className="w-8 text-center font-mono text-sm">{rank}</span>
-                <img src={tier.icon} alt={tier.name} className="w-8 h-8 flex-shrink-0" title={tier.name}/>
-                <Avatar userId={user.id} userName={user.nickname} size={32} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                <div className="flex-grow overflow-hidden">
-                    <p className="font-semibold text-sm truncate">{user.nickname}</p>
-                    <p className="text-xs text-highlight font-mono">{Math.round(score)}점</p>
+                <div className={rankStyle.glow}></div>
+                <div className="w-8 flex items-center justify-center flex-shrink-0 relative z-10">
+                    {rankDisplay()}
                 </div>
-                <div className="text-right text-[10px] lg:text-xs flex-shrink-0 w-20 text-tertiary">
-                    <p>{wins}승 {losses}패</p>
-                    <p className="font-semibold">{winRate}%</p>
+                <div className="relative z-10 flex-shrink-0">
+                    <div className="relative">
+                        <img 
+                            src={tier.icon} 
+                            alt={tier.name} 
+                            className="w-7 h-7 lg:w-8 lg:h-8 flex-shrink-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-300" 
+                            title={tier.name}
+                        />
+                        {(isTopThree || isMyRankDisplay) && (
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-lg blur-sm"></div>
+                        )}
+                    </div>
+                </div>
+                <Avatar 
+                    userId={user.id} 
+                    userName={user.nickname} 
+                    size={isTopThree ? 32 : 28} 
+                    avatarUrl={avatarUrl} 
+                    borderUrl={borderUrl}
+                    className="relative z-10 transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="flex-grow overflow-hidden relative z-10">
+                    <p className={`font-bold text-xs lg:text-sm truncate ${isTopThree || isMyRankDisplay ? 'text-white' : 'text-gray-200'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
+                        {user.nickname}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className={`text-[10px] lg:text-xs font-mono font-semibold ${isTopThree || isMyRankDisplay ? 'text-yellow-300' : 'text-yellow-400'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
+                            {Math.round(score)}점
+                        </p>
+                        {(isTopThree || isMyRankDisplay) && (
+                            <span className="text-[9px] px-1 py-0.5 bg-gradient-to-r from-yellow-500/30 to-amber-500/30 border border-yellow-400/50 rounded-full text-yellow-200 font-semibold">
+                                {tier.name}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                <div className={`text-right text-[9px] lg:text-[10px] flex-shrink-0 w-18 relative z-10 ${isTopThree || isMyRankDisplay ? 'text-gray-200' : 'text-gray-400'}`}>
+                    <p className="font-medium">{wins}승 {losses}패</p>
+                    <p className={`font-bold ${winRate >= 60 ? 'text-green-400' : winRate >= 50 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                        {winRate}%
+                    </p>
                 </div>
             </li>
         );
@@ -161,21 +247,34 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
     const rankingTitle = lobbyType === 'strategic' ? '전략바둑 랭킹' : lobbyType === 'playful' ? '놀이바둑 랭킹' : `${mode} 랭킹`;
 
     return (
-        <div className="p-4 flex flex-col h-full text-on-panel min-h-0">
-            <div className="flex justify-between items-center mb-3 border-b border-color pb-2 flex-shrink-0 flex-wrap gap-2">
-                <h2 className="text-xl font-semibold">{rankingTitle} ({getCurrentSeasonName()})</h2>
+        <div className="p-4 lg:p-5 flex flex-col h-full text-on-panel min-h-0 relative">
+            {/* 배경 그라데이션 효과 */}
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/5 to-blue-900/10 pointer-events-none rounded-lg"></div>
+            
+            <div className="relative z-10 flex justify-between items-center mb-4 border-b-2 border-gradient-to-r from-transparent via-indigo-500/30 to-transparent pb-3 flex-shrink-0 flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-1 h-8 bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 rounded-full shadow-[0_0_8px_rgba(234,179,8,0.5)]"></div>
+                    <div>
+                        <h2 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                            {rankingTitle}
+                        </h2>
+                        <p className="text-xs lg:text-sm text-gray-400 font-medium mt-0.5">
+                            {getCurrentSeasonName()}
+                        </p>
+                    </div>
+                </div>
                 <div className="flex items-center gap-2">
                     <Button 
                         onClick={() => onShowPastRankings({ user: currentUser, mode })}
                         colorScheme="none"
-                        className="!text-xs !py-1 bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white font-bold rounded-lg shadow-lg transition-all duration-200"
+                        className="!text-xs !py-1.5 !px-3 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold rounded-lg shadow-[0_4px_12px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] transition-all duration-200 border border-purple-400/30 hover:border-purple-300/50"
                     >
                         지난 랭킹
                     </Button>
                     <Button 
                         onClick={onShowTierInfo}
                         colorScheme="none"
-                        className="!text-xs !py-1 bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white font-bold rounded-lg shadow-lg transition-all duration-200"
+                        className="!text-xs !py-1.5 !px-3 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold rounded-lg shadow-[0_4px_12px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] transition-all duration-200 border border-purple-400/30 hover:border-purple-300/50"
                     >
                         티어 안내
                     </Button>
@@ -183,32 +282,58 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
             </div>
             
             {myRankData && (
-                <div className="flex-shrink-0 mb-3">
+                <div className="relative z-10 flex-shrink-0 mb-2.5">
+                    <div className="mb-1.5 px-1">
+                        <span className="text-xs font-semibold text-yellow-400/80 uppercase tracking-wider">내 랭킹</span>
+                    </div>
                     {renderRankItem(myRankData.user, myRankData.rank, true)}
                 </div>
             )}
 
-            <ul className="space-y-2 overflow-y-auto pr-2 flex-1 min-h-0">
-                 {loading ? (
-                     <p className="text-center text-tertiary pt-8">랭킹을 불러오는 중...</p>
-                 ) : error ? (
-                     <p className="text-center text-red-500 pt-8">랭킹을 불러오는데 실패했습니다.</p>
-                 ) : topUsers.length > 0 ? (
-                     <>
-                         {topUsers.map((user) => {
-                             const rank = user.rank || 1;
-                             return renderRankItem(user, rank, false);
-                         })}
-                         {displayCount < allRankedUsers.length && (
-                             <li ref={loadMoreRef} className="text-center text-tertiary py-2 text-xs">
-                                 로딩 중...
-                             </li>
-                         )}
-                     </>
-                 ) : (
-                     <p className="text-center text-tertiary pt-8">랭킹 정보가 없습니다.</p>
-                 )}
-            </ul>
+            <div className="relative z-10 flex-1 min-h-0 flex flex-col">
+                {myRankData && (
+                    <div className="mb-1.5 px-1 flex-shrink-0">
+                        <span className="text-xs font-semibold text-gray-400/80 uppercase tracking-wider">전체 랭킹</span>
+                    </div>
+                )}
+                <ul className="space-y-1.5 overflow-y-auto pr-2 flex-1 min-h-0">
+                     {loading ? (
+                         <li className="flex items-center justify-center py-12">
+                             <div className="text-center">
+                                 <div className="inline-block w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-2"></div>
+                                 <p className="text-gray-400 text-sm">랭킹을 불러오는 중...</p>
+                             </div>
+                         </li>
+                     ) : error ? (
+                         <li className="flex items-center justify-center py-12">
+                             <p className="text-center text-red-400 text-sm font-medium bg-red-900/20 border border-red-500/30 rounded-lg px-4 py-2">
+                                 랭킹을 불러오는데 실패했습니다.
+                             </p>
+                         </li>
+                     ) : topUsers.length > 0 ? (
+                         <>
+                             {topUsers.map((user) => {
+                                 const rank = user.rank || 1;
+                                 return renderRankItem(user, rank, false);
+                             })}
+                             {displayCount < allRankedUsers.length && (
+                                 <li ref={loadMoreRef} className="text-center text-gray-500 py-4 text-xs">
+                                     <div className="inline-flex items-center gap-2">
+                                         <div className="w-4 h-4 border-2 border-gray-500/30 border-t-gray-500 rounded-full animate-spin"></div>
+                                         <span>더 많은 랭킹 로딩 중...</span>
+                                     </div>
+                                 </li>
+                             )}
+                         </>
+                     ) : (
+                         <li className="flex items-center justify-center py-12">
+                             <p className="text-center text-gray-400 text-sm bg-gray-800/30 border border-gray-700/50 rounded-lg px-4 py-2">
+                                 랭킹 정보가 없습니다.
+                             </p>
+                         </li>
+                     )}
+                </ul>
+            </div>
         </div>
     );
 };

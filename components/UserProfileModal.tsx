@@ -5,7 +5,6 @@ import DraggableWindow from './DraggableWindow.js';
 import { AVATAR_POOL, BORDER_POOL, emptySlotImages, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, RANKING_TIERS, CORE_STATS_DATA } from '../constants';
 import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manner.js';
 import { calculateTotalStats } from '../services/statService.js';
-import MbtiInfoModal from './MbtiInfoModal.js';
 import MbtiComparisonModal from './MbtiComparisonModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 
@@ -196,7 +195,6 @@ const getTier = (score: number, rank: number, totalGames: number) => {
 
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onViewItem, isTopmost }) => {
     const { inventory, stats, nickname, avatarId, borderId, equipment } = user;
-    const [showMbtiHelp, setShowMbtiHelp] = useState(false);
     const [showMbtiComparison, setShowMbtiComparison] = useState(false);
     const { currentUserWithStatus } = useAppContext();
     
@@ -311,7 +309,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
 
     return (
         <DraggableWindow title={`${user.nickname}님의 프로필`} onClose={onClose} windowId={`view-user-${user.id}`} initialWidth={containerWidth} initialHeight={800} isTopmost={isTopmost}>
-            {showMbtiHelp && <MbtiInfoModal onClose={() => setShowMbtiHelp(false)} isTopmost={true} />}
             {showMbtiComparison && <MbtiComparisonModal opponentUser={user} onClose={() => setShowMbtiComparison(false)} isTopmost={true} />}
             <div className="flex flex-col md:flex-row gap-3 h-full">
                     {/* Left Column */}
@@ -323,22 +320,18 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                 <span>매너: </span>
                                 <span className={`font-semibold ${mannerRank.color}`}>{totalMannerScore}점 ({mannerRank.rank})</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
+                            <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5 flex-wrap">
                                 <span>MBTI:</span>
                                 {user.mbti ? (
-                                    <button
-                                        onClick={() => {
-                                            if (currentUserWithStatus?.mbti) {
-                                                setShowMbtiComparison(true);
-                                            } else {
-                                                setShowMbtiHelp(true);
-                                            }
-                                        }}
-                                        className="font-semibold text-gray-200 hover:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
-                                    >
-                                        {user.mbti}
-                                        <span className="w-3.5 h-3.5 text-[10px] bg-gray-600 rounded-full text-white flex items-center justify-center hover:bg-gray-500">?</span>
-                                    </button>
+                                    <>
+                                        <span className="font-semibold text-gray-200">{user.mbti}</span>
+                                        <button
+                                            onClick={() => setShowMbtiComparison(true)}
+                                            className="px-2 py-0.5 text-[11px] font-medium rounded bg-blue-600/80 hover:bg-blue-500 text-white transition-colors"
+                                        >
+                                            분석하기
+                                        </button>
+                                    </>
                                 ) : (
                                     <span className="font-semibold text-gray-200 flex items-center gap-1">
                                         미설정

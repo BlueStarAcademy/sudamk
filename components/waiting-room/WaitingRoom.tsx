@@ -216,19 +216,19 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   
   if (!currentUserWithStatus) return null;
 
-  // 전략/놀이바둑 대기실에서는 해당 카테고리의 게임만 표시
+  // 전략/놀이바둑 대기실에서는 해당 카테고리의 게임만 표시 (AI 봇 대국은 진행중인 대국 리스트에 제외)
   const ongoingGames = useMemo(() => {
     const allGames = Object.values(liveGames) as LiveGameSession[];
-    if (mode === 'strategic') {
-      // 전략바둑 대기실: 전략바둑 게임만 표시
-      return allGames.filter(g => SPECIAL_GAME_MODES.some(m => m.mode === g.mode));
-    } else if (mode === 'playful') {
-      // 놀이바둑 대기실: 놀이바둑 게임만 표시
-      return allGames.filter(g => PLAYFUL_GAME_MODES.some(m => m.mode === g.mode));
-    } else {
-      // 단일 게임 모드 대기실: 해당 모드 게임만 표시
-      return allGames.filter(g => g.mode === mode);
-    }
+    const byCategory = (() => {
+      if (mode === 'strategic') {
+        return allGames.filter(g => SPECIAL_GAME_MODES.some(m => m.mode === g.mode));
+      } else if (mode === 'playful') {
+        return allGames.filter(g => PLAYFUL_GAME_MODES.some(m => m.mode === g.mode));
+      } else {
+        return allGames.filter(g => g.mode === mode);
+      }
+    })();
+    return byCategory.filter(g => !g.isAiGame);
   }, [liveGames, mode]);
   
   const usersInThisRoom = useMemo(() => {

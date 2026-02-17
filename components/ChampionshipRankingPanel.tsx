@@ -13,14 +13,14 @@ const LOAD_MORE = 10;
 const CompactRankRow: React.FC<{
     entry: RankingEntry;
     isCurrentUser: boolean;
-    onViewUser: (userId: string) => void;
+    onViewUser?: (userId: string) => void;
 }> = ({ entry, isCurrentUser, onViewUser }) => {
     const avatarUrl = AVATAR_POOL.find(a => a.id === entry.avatarId)?.url;
     const borderUrl = BORDER_POOL.find(b => b.id === entry.borderId)?.url;
     return (
         <div
             className={`flex items-center p-1 rounded-md ${isCurrentUser ? 'bg-blue-500/30' : onViewUser ? 'cursor-pointer hover:bg-secondary/50' : ''}`}
-            onClick={!isCurrentUser ? () => onViewUser(entry.id) : undefined}
+            onClick={!isCurrentUser && onViewUser ? () => onViewUser(entry.id) : undefined}
             title={!isCurrentUser ? `${entry.nickname} 프로필 보기` : ''}
         >
             <span className="w-8 text-center font-bold text-xs">{entry.rank === 0 ? '-' : entry.rank}</span>
@@ -73,7 +73,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
     const { rankings, loading, error, total } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
 
     const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY);
-    const loadMoreRef = useRef<HTMLLIElement>(null);
+    const loadMoreRef = useRef<HTMLDivElement | HTMLLIElement>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
 
     useEffect(() => {
@@ -163,7 +163,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                                     />
                                 ))}
                                 {displayCount < rankings.length && (
-                                    <div ref={loadMoreRef} className="text-center text-gray-400 py-2 text-xs">로딩 중...</div>
+                                    <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="text-center text-gray-400 py-2 text-xs">로딩 중...</div>
                                 )}
                             </div>
                         </>
@@ -230,7 +230,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                                     />
                                 ))}
                                 {displayCount < rankings.length && (
-                                    <li ref={loadMoreRef} className="text-center text-gray-500 py-2 text-xs">스크롤하여 더 보기...</li>
+                                    <li ref={loadMoreRef as React.RefObject<HTMLLIElement>} className="text-center text-gray-500 py-2 text-xs">스크롤하여 더 보기...</li>
                                 )}
                             </>
                         ) : (

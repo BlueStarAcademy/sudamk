@@ -16,7 +16,7 @@ import UseQuantityModal from './UseQuantityModal.js';
 interface InventoryModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
-    onAction: (action: ServerAction) => Promise<void> | void;
+    onAction: (action: ServerAction) => void | Promise<void | { gameId?: string; claimAllTrainingQuestRewards?: any }>;
     onStartEnhance: (item: InventoryItem) => void;
     enhancementAnimationTarget: { itemId: string; stars: number } | null;
     onAnimationComplete: () => void;
@@ -144,7 +144,7 @@ const EquipmentSlotDisplay: React.FC<{
                 />
                 {(() => {
                     // 이미지 경로 찾기: item.image가 있으면 사용, 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
-                    let imagePath = item.image;
+                    let imagePath: string | undefined = item.image;
                     
                     if (!imagePath && item.type === 'consumable') {
                         const consumableItem = findConsumableItem(item.name);
@@ -426,7 +426,7 @@ const LocalItemDetailDisplay: React.FC<{
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                     {(() => {
                         // 이미지 경로 찾기: item.image가 있으면 사용, 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
-                        let imagePath = item.image;
+                        let imagePath: string | undefined = item.image;
                         
                         if (!imagePath && item.type === 'consumable') {
                             const consumableItem = findConsumableItem(item.name);
@@ -1184,7 +1184,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     <>
                                                         {isUsable && (
                                                             <>
-                                                                <Button onClick={() => onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } })} colorScheme="blue" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                <Button onClick={() => { void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } }); }} colorScheme="blue" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                     사용
                                                                 </Button>
                                                                 {selectedItem.quantity && selectedItem.quantity > 1 && (
@@ -1536,7 +1536,7 @@ const InventoryItemCard: React.FC<{
             <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 object-cover rounded-md" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />
             {(() => {
                 // 이미지 경로 찾기: item.image가 있으면 사용, 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
-                let imagePath = item.image;
+                let imagePath: string | undefined = item.image;
                 
                 if (!imagePath && item.type === 'consumable') {
                     const consumableItem = findConsumableItem(item.name);

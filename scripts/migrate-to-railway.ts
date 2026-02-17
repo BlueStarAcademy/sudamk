@@ -218,7 +218,7 @@ async function migrateData() {
                         createdAt: user.createdAt,
                         updatedAt: user.updatedAt,
                         version: user.version,
-                    },
+                    } as any,
                     update: {
                         nickname: user.nickname,
                         username: user.username,
@@ -240,7 +240,7 @@ async function migrateData() {
                         status: user.status,
                         updatedAt: user.updatedAt,
                         version: user.version,
-                    },
+                    } as any,
                 });
             } catch (error: any) {
                 // nickname 충돌 시 기존 사용자 삭제 후 재시도
@@ -271,7 +271,7 @@ async function migrateData() {
                             createdAt: user.createdAt,
                             updatedAt: user.updatedAt,
                             version: user.version,
-                        },
+                        } as any,
                     });
                 } else {
                     throw error;
@@ -290,14 +290,14 @@ async function migrateData() {
                         emailVerified: user.credential.emailVerified,
                         createdAt: user.credential.createdAt,
                         updatedAt: user.credential.updatedAt,
-                    },
+                    } as any,
                     update: {
                         passwordHash: user.credential.passwordHash,
                         userId: user.id, // 업데이트 시에도 user.id 사용
                         kakaoId: user.credential.kakaoId,
                         emailVerified: user.credential.emailVerified,
                         updatedAt: user.credential.updatedAt,
-                    },
+                    } as any,
                 });
             }
             
@@ -336,7 +336,7 @@ async function migrateData() {
                     createdAt: inv.createdAt,
                     updatedAt: inv.updatedAt,
                     version: inv.version,
-                })),
+                })) as any,
                 skipDuplicates: true,
             });
             process.stdout.write(`  진행: ${Math.min(i + batchSize, validInventories.length)}/${validInventories.length}\r`);
@@ -388,7 +388,7 @@ async function migrateData() {
                         expiresAt: m.expiresAt,
                         createdAt: m.createdAt,
                         updatedAt: m.updatedAt,
-                    })),
+                    })) as any,
                     skipDuplicates: true,
                 });
             }
@@ -410,7 +410,7 @@ async function migrateData() {
                         progress: q.progress,
                         createdAt: q.createdAt,
                         updatedAt: q.updatedAt,
-                    })),
+                    })) as any,
                     skipDuplicates: true,
                 });
             }
@@ -432,7 +432,7 @@ async function migrateData() {
                         state: m.state,
                         createdAt: m.createdAt,
                         updatedAt: m.updatedAt,
-                    })),
+                    })) as any,
                     skipDuplicates: true,
                 });
             }
@@ -453,7 +453,7 @@ async function migrateData() {
                         data: g.data,
                         createdAt: g.createdAt,
                         updatedAt: g.updatedAt,
-                    })),
+                    })) as any,
                     skipDuplicates: true,
                 });
             }
@@ -479,7 +479,7 @@ async function migrateData() {
                         experience: g.experience,
                         createdAt: g.createdAt,
                         updatedAt: g.updatedAt,
-                    })),
+                    })) as any,
                     skipDuplicates: true,
                 });
             }
