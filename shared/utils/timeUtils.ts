@@ -188,10 +188,10 @@ export const getNextGuildWarMatchDate = (now: number = Date.now()): number => {
     const todayStart = getStartOfDayKST(now);
     const oneDay = 24 * 60 * 60 * 1000;
 
-    // 매칭 실행 창(화/금 0:00~0:30) 안이면 "이번 매칭"은 이미 진행 중 → 다음 매칭일 반환
-    const inTueMatchWindow = kstDay === 2 && kstHours === 0 && kstMinutes < 30;
-    const inFriMatchWindow = kstDay === 5 && kstHours === 0 && kstMinutes < 30;
-    const pastMatchWindow = (kstDay === 2 || kstDay === 5) && (kstHours > 0 || kstMinutes >= 30);
+    // 매칭 실행 창(화/금 0:00~0:59) 안이면 "이번 매칭"은 이미 진행 중 → 다음 매칭일 반환
+    const inTueMatchWindow = kstDay === 2 && kstHours === 0 && kstMinutes < 60;
+    const inFriMatchWindow = kstDay === 5 && kstHours === 0 && kstMinutes < 60;
+    const pastMatchWindow = (kstDay === 2 || kstDay === 5) && (kstHours > 0 || kstMinutes >= 60);
 
     if (inTueMatchWindow) return todayStart + 3 * oneDay; // 다음 금요일 0:00
     if (inFriMatchWindow) return todayStart + 4 * oneDay;   // 다음 화요일 0:00

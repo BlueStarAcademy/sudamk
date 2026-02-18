@@ -5,7 +5,7 @@ import * as types from '../shared/types/index.js';
 import type { WeeklyCompetitor, InventoryItem } from '../shared/types/index.js';
 import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, SEASONAL_TIER_BORDERS, DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL } from '../shared/constants';
 import { randomUUID } from 'crypto';
-import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate, getGuildWarTypeFromMatchTime } from '../shared/utils/timeUtils.js';
+import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate } from '../shared/utils/timeUtils.js';
 import { resetAndGenerateQuests } from './gameActions.js';
 import * as tournamentService from './tournamentService.js';
 import { calculateTotalStats } from './statService.js';
@@ -205,14 +205,37 @@ export const processRankingRewards = async (volatileState: types.VolatileState):
 // force: true로 호출되면 월요일 0시 체크를 건너뛰고 강제 실행
 // 경쟁상대 시스템 제거됨 - 던전 시스템으로 변경
 export async function processWeeklyResetAndRematch(force: boolean = false): Promise<void> {
-    // 던전 시스템으로 변경되어 더 이상 사용되지 않음
-    console.log('[WeeklyReset] processWeeklyResetAndRematch is deprecated - dungeon system replaced weekly competitors');
-    return;
     const now = Date.now();
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
     const isMondayMidnight = kstDay === 1 && kstHours === 0 && kstMinutes < 5;
+
+    // 월요일 0시 또는 force일 때 길드 미션·보스 리셋 (던전 시스템으로 경쟁상대 매칭은 제거되었지만 길드 리셋은 유지)
+    if (force || isMondayMidnight) {
+        try {
+            const { resetWeeklyGuildMissions } = await import('./guildService.js');
+            const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
+            for (const guild of Object.values(guilds)) {
+                const lastMissionReset = (guild as any).lastMissionReset;
+                if (!lastMissionReset || isDifferentWeekKST(lastMissionReset, now)) {
+                    resetWeeklyGuildMissions(guild, now);
+                }
+            }
+            if (Object.keys(guilds).length > 0) {
+                await db.setKV('guilds', guilds);
+                const { broadcast } = await import('./socket.js');
+                await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+                console.log(`[WeeklyReset] Guild missions and boss reset completed for ${Object.keys(guilds).length} guilds`);
+            }
+        } catch (guildResetError: any) {
+            console.error('[WeeklyReset] Error in guild mission/boss reset:', guildResetError?.message);
+        }
+    }
+
+    // 던전 시스템으로 변경되어 경쟁상대 매칭은 더 이상 사용되지 않음
+    console.log('[WeeklyReset] processWeeklyResetAndRematch (guild reset done, competitor rematch deprecated)');
+    return;
     
     // force가 false이고 월요일 0시가 아니면 실행하지 않음
     if (!force && !isMondayMidnight) {
@@ -1496,7 +1519,7 @@ export async function processDailyRankings(): Promise<void> {
             updatedUser.dailyDungeonScore = 0;
         }
         
-        // 던전 일일 시도 횟수 리셋
+        // 던전 일일 시도 횟수 리셋 (unlockedStages, currentStage, stageResults는 절대 리셋하지 않음 - 1단계 클리어 시 2단계가 열리면 내일에도 그대로 유지)
         if (updatedUser.dungeonProgress) {
             for (const dungeonType of ['neighborhood', 'national', 'world'] as const) {
                 const progress = updatedUser.dungeonProgress?.[dungeonType];
@@ -2039,14 +2062,15 @@ export async function processTowerRankingRewards(): Promise<void> {
     console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
 }
 
-// 화요일 0:00 / 금요일 0:00 KST에만 길드전 매칭 (신청 마감: 월/목 23:00, 매칭 1시간 후 집계)
+// 길드전 매칭: 월요일 23:00~23:50, 목요일 23:00~23:50 KST에 실행 → 0시(자정)에는 이미 매칭 완료
+// 신청 마감 23:00, 매칭 23:00~23:50에 실행되어 12시(0시)에 결과 표시
 export async function processGuildWarMatching(force: boolean = false): Promise<void> {
     const now = Date.now();
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
-    const isMatchTimeWindow = kstHours === 0 && kstMinutes < 30;
-    const isMatchDay = kstDay === 2 || kstDay === 5; // 화요일(2), 금요일(5)
+    const isMatchTimeWindow = kstHours === 23 && kstMinutes < 50; // 23:00~23:49
+    const isMatchDay = kstDay === 1 || kstDay === 4; // 월요일(1), 목요일(4)
 
     if (!force && (!isMatchDay || !isMatchTimeWindow)) {
         return;
@@ -2056,18 +2080,18 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         const lastMatchDayStart = getStartOfDayKST(lastGuildWarMatchTimestamp);
         const currentDayStart = getStartOfDayKST(now);
         if (lastMatchDayStart === currentDayStart) {
-            console.log(`[GuildWarMatch] Already processed today (${new Date(lastGuildWarMatchTimestamp).toISOString()})`);
+            const queueLen = (await db.getKV<string[]>('guildWarMatchingQueue'))?.length ?? 0;
+            console.log(`[GuildWarMatch] Already processed today (${new Date(lastGuildWarMatchTimestamp).toISOString()}), queue=${queueLen}`);
             return;
         }
     }
 
-    const warType = getGuildWarTypeFromMatchTime(now);
+    const warType = (kstDay === 1 || kstDay === 2) ? 'tue_wed' : 'fri_sun'; // 월23시→화수 전쟁, 목23시→금일 전쟁
     const durationMs = warType === 'tue_wed' ? 47 * 60 * 60 * 1000 : 71 * 60 * 60 * 1000;
     const maxAttemptsPerGuild = warType === 'tue_wed' ? 2 : 3;
-    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} at 0:00 KST (${kstDay === 2 ? 'Tuesday' : 'Friday'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets)`);
-    
     const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
     const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
+    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} at 23:00 KST (${kstDay === 1 ? 'Mon→Tue' : 'Thu→Fri'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${matchingQueue.length}`);
     
     if (matchingQueue.length === 0) {
         console.log(`[GuildWarMatch] No guilds in matching queue`);
@@ -2143,7 +2167,9 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         const remainingGuildId = matchingQueue[matchingQueue.length - 1];
         const remainingGuild = guilds[remainingGuildId];
 
-        if (remainingGuild) {
+        if (!remainingGuild) {
+            console.warn(`[GuildWarMatch] Remaining guild ${remainingGuildId} not found in guilds - skipping bot match (queue may be stale)`);
+        } else {
             // DB FK용 봇 길드 (없으면 생성)
             const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
             const botGuildId = await getOrCreateBotGuildForWar();
