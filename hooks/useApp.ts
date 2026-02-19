@@ -301,6 +301,10 @@ export const useApp = () => {
     const [moderatingUser, setModeratingUser] = useState<UserWithStatus | null>(null);
     const [isMbtiInfoModalOpen, setIsMbtiInfoModalOpen] = useState(false);
     const [mutualDisconnectMessage, setMutualDisconnectMessage] = useState<string | null>(null);
+    /** 로그인 응답에 포함된 진행 중 경기 (다른 PC에서 로그인 후 즉시 이어하기용, INITIAL_STATE 수신 시 해제) */
+    const [activeGameFromLogin, setActiveGameFromLogin] = useState<LiveGameSession | null>(null);
+    /** 다른 기기에서 로그인되어 자동 로그아웃 안내 모달 표시 여부 */
+    const [showOtherDeviceLoginModal, setShowOtherDeviceLoginModal] = useState(false);
     const [isEquipmentEffectsModalOpen, setIsEquipmentEffectsModalOpen] = useState(false);
     const [isBlacksmithModalOpen, setIsBlacksmithModalOpen] = useState(false);
     const [isGameRecordListOpen, setIsGameRecordListOpen] = useState(false);
@@ -494,12 +498,16 @@ export const useApp = () => {
         const statusInfo = Array.isArray(onlineUsers)
             ? onlineUsers.find(u => u && u.id === currentUser.id)
             : null;
-        const statusData: UserStatusInfo = {
+        let statusData: UserStatusInfo = {
             status: statusInfo?.status ?? ('online' as UserStatus),
             mode: statusInfo?.mode,
             gameId: statusInfo?.gameId,
             spectatingGameId: statusInfo?.spectatingGameId,
         };
+        // 로그인 응답으로 받은 진행 중 경기가 있으면 WebSocket INITIAL_STATE 전까지 in-game으로 표시
+        if (activeGameFromLogin && (activeGameFromLogin.player1?.id === currentUser.id || activeGameFromLogin.player2?.id === currentUser.id)) {
+            statusData = { ...statusData, status: 'in-game' as UserStatus, gameId: activeGameFromLogin.id };
+        }
         
         // 행동력 최대치를 실시간으로 계산하여 반영
         const effects = calculateUserEffects(currentUser);
@@ -510,7 +518,7 @@ export const useApp = () => {
         } : currentUser.actionPoints;
         
         return { ...currentUser, actionPoints: updatedActionPoints, ...statusData };
-    }, [currentUser, onlineUsers, updateTrigger, actionPointUpdateTrigger]);
+    }, [currentUser, onlineUsers, updateTrigger, actionPointUpdateTrigger, activeGameFromLogin]);
 
     useEffect(() => {
         currentUserStatusRef.current = currentUserWithStatus;
@@ -899,6 +907,8 @@ export const useApp = () => {
             let victoryCheckResult: { winner: Player; winReason: string } | null = null;
             let shouldEndGameSurvival = false;
             let endGameWinnerSurvival: Player | null = null;
+            let shouldEndGameTurnLimit = false;
+            let endGameWinnerTurnLimit: Player | null = null;
             let finalUpdatedGame: LiveGameSession | null = null;
             
             updateGameState((currentGames) => {
@@ -1077,6 +1087,22 @@ export const useApp = () => {
                     }
                 }
                 
+                // 싱글플레이 따내기 바둑: 흑(유저) 제한 턴이 0이면 계가 없이 미션 실패 처리
+                if (gameType === 'singleplayer' && game.stageId && game.gameStatus === 'playing') {
+                    const stage = SINGLE_PLAYER_STAGES.find((s: { id: string }) => s.id === game.stageId) as { blackTurnLimit?: number } | undefined;
+                    const blackTurnLimit = stage?.blackTurnLimit;
+                    if (blackTurnLimit !== undefined) {
+                        const moveHistory = updateResult.updatedGame.moveHistory || [];
+                        const blackMoves = moveHistory.filter((m: { player: Player; x: number; y: number }) => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
+                        if (blackMoves >= blackTurnLimit) {
+                            console.log(`[handleAction] ${actionTypeName} - Black turn limit reached (${blackMoves}/${blackTurnLimit}), mission fail - ENDING GAME`);
+                            shouldEndGameTurnLimit = true;
+                            endGameWinnerTurnLimit = Player.White;
+                            return { ...currentGames, [gameId]: { ...updateResult.updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' } };
+                        }
+                    }
+                }
+                
                 // 승리 조건 체크 (도전의 탑 및 싱글플레이)
                 if (updateResult.shouldCheckVictory && updateResult.checkInfo) {
                     checkVictoryCondition(updateResult.checkInfo, gameId, game.effectiveCaptureTargets).then(result => {
@@ -1147,6 +1173,20 @@ export const useApp = () => {
                     }
                 } as any).catch(err => {
                     console.error(`[handleAction] Failed to end single player game:`, err);
+                });
+            }
+            
+            // 싱글플레이 따내기 바둑 제한 턴 소진 시 미션 실패(서버에 종료 반영)
+            if (shouldEndGameTurnLimit && endGameWinnerTurnLimit !== null && finalUpdatedGame) {
+                handleAction({
+                    type: 'END_SINGLE_PLAYER_GAME',
+                    payload: {
+                        gameId,
+                        winner: endGameWinnerTurnLimit,
+                        winReason: 'timeout'
+                    }
+                } as any).catch(err => {
+                    console.error(`[handleAction] Failed to end single player game (turn limit):`, err);
                 });
             }
             
@@ -1370,6 +1410,7 @@ export const useApp = () => {
                         'CLAIM_SINGLE_PLAYER_MISSION_REWARD',
                         'CLAIM_ALL_TRAINING_QUEST_REWARDS',
                         'SINGLE_PLAYER_REFRESH_PLACEMENT',
+                        'TOWER_REFRESH_PLACEMENT',
                         'COMPLETE_DUNGEON_STAGE',
                         'BUY_SHOP_ITEM',
                         'BUY_MATERIAL_BOX',
@@ -1458,7 +1499,7 @@ export const useApp = () => {
                         'CLAIM_ALL_MAIL_ATTACHMENTS', 'MARK_MAIL_AS_READ',
                         'CLAIM_QUEST_REWARD', 'CLAIM_ACTIVITY_MILESTONE',
                         'CLAIM_SINGLE_PLAYER_MISSION_REWARD', 'CLAIM_ALL_TRAINING_QUEST_REWARDS', 'LEVEL_UP_TRAINING_QUEST',
-                        'SINGLE_PLAYER_REFRESH_PLACEMENT',
+                        'SINGLE_PLAYER_REFRESH_PLACEMENT', 'TOWER_REFRESH_PLACEMENT',
                         'MANNER_ACTION',
                         'START_GUILD_BOSS_BATTLE'
                     ];
@@ -1683,15 +1724,28 @@ export const useApp = () => {
                 const game = (result as any).game || result.clientResponse?.game;
                 
                 // CONFIRM_TOWER_GAME_START, CONFIRM_AI_GAME_START의 경우 gameId가 없어도 payload에서 가져올 수 있음
+                // SINGLE_PLAYER_REFRESH_PLACEMENT는 서버가 gameId를 넣지 않고 game만 반환하므로 payload에서 gameId 사용
                 let effectiveGameId = gameId;
                 if (!effectiveGameId && (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START')) {
                     effectiveGameId = (action.payload as any)?.gameId;
                     console.log(`[handleAction] ${action.type} - gameId not in response, using payload gameId:`, effectiveGameId);
                 }
+                if (!effectiveGameId && (action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' && game)) {
+                    effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
+                    console.log(`[handleAction] ${action.type} - using payload/game gameId:`, effectiveGameId);
+                }
+                if (!effectiveGameId && (action.type === 'RESIGN_GAME' && game)) {
+                    effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
+                    console.log(`[handleAction] ${action.type} - using payload/game gameId:`, effectiveGameId);
+                }
+                if (!effectiveGameId && (action.type === 'TOWER_REFRESH_PLACEMENT' && game)) {
+                    effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
+                    console.log(`[handleAction] ${action.type} - using payload/game gameId:`, effectiveGameId);
+                }
                 
-                // END_TOWER_GAME / END_SINGLE_PLAYER_GAME 액션 처리 (서버 응답 병합 시 클라이언트 바둑판 상태 유지)
-                if (action.type === 'END_TOWER_GAME' || (action as ServerAction).type === 'END_SINGLE_PLAYER_GAME') {
-                    const endGameId = (action.payload as any)?.gameId || gameId;
+                // END_TOWER_GAME / END_SINGLE_PLAYER_GAME / RESIGN_GAME 액션 처리 (서버 응답 병합 시 클라이언트 바둑판 상태 유지)
+                if (action.type === 'END_TOWER_GAME' || (action as ServerAction).type === 'END_SINGLE_PLAYER_GAME' || action.type === 'RESIGN_GAME') {
+                    const endGameId = (action.payload as any)?.gameId || gameId || (game as any)?.id;
                     const endGame = game || (result.clientResponse?.game);
                     
                     if (endGameId && endGame) {
@@ -1729,7 +1783,7 @@ export const useApp = () => {
                     }
                 }
                 
-                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START')) {
+                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'TOWER_REFRESH_PLACEMENT')) {
                     console.log(`[handleAction] ${action.type} - gameId received:`, effectiveGameId, 'hasGame:', !!game, 'result keys:', Object.keys(result), 'clientResponse keys:', result.clientResponse ? Object.keys(result.clientResponse) : []);
                     
                     // 응답에 게임 데이터가 있으면 즉시 상태에 추가 (WebSocket 업데이트를 기다리지 않음)
@@ -1741,18 +1795,27 @@ export const useApp = () => {
                         // 게임 카테고리 확인
                         if (game.isSinglePlayer) {
                             setSinglePlayerGames(currentGames => {
-                                // CONFIRM 액션의 경우 게임 상태가 업데이트되었으므로 항상 업데이트
-                                if (action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || !currentGames[effectiveGameId]) {
-                                    return { ...currentGames, [effectiveGameId]: game };
+                                // CONFIRM 액션·배치변경(SINGLE_PLAYER_REFRESH_PLACEMENT)의 경우 게임 상태가 업데이트되었으므로 항상 업데이트
+                                if (action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || !currentGames[effectiveGameId]) {
+                                    // 배치 새로고침 시 보드/패턴을 새 참조로 넣어 화면이 확실히 갱신되도록 함
+                                    const isRefresh = action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT';
+                                    const nextGame = isRefresh && game.boardState
+                                        ? { ...game, boardState: (game.boardState as any[][]).map(row => [...row]), blackPatternStones: Array.isArray(game.blackPatternStones) ? [...game.blackPatternStones] : game.blackPatternStones, whitePatternStones: Array.isArray(game.whitePatternStones) ? [...game.whitePatternStones] : game.whitePatternStones }
+                                        : game;
+                                    return { ...currentGames, [effectiveGameId]: nextGame };
                                 }
                                 return currentGames;
                             });
                         } else if (isTowerGame) {
                             setTowerGames(currentGames => {
-                                // CONFIRM 액션의 경우 게임 상태가 pending에서 playing으로 변경되었으므로 항상 업데이트
-                                if (action.type === 'CONFIRM_TOWER_GAME_START' || !currentGames[effectiveGameId]) {
+                                // CONFIRM·배치변경(TOWER_REFRESH_PLACEMENT) 시 게임 상태가 바뀌었으므로 항상 업데이트
+                                if (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'TOWER_REFRESH_PLACEMENT' || !currentGames[effectiveGameId]) {
                                     console.log('[handleAction] Updating tower game:', effectiveGameId, 'gameStatus:', game.gameStatus, 'action type:', action.type, 'existing game status:', currentGames[effectiveGameId]?.gameStatus);
-                                    return { ...currentGames, [effectiveGameId]: game };
+                                    const isRefresh = action.type === 'TOWER_REFRESH_PLACEMENT';
+                                    const nextGame = isRefresh && game.boardState
+                                        ? { ...game, boardState: (game.boardState as any[][]).map(row => [...row]), blackPatternStones: Array.isArray(game.blackPatternStones) ? [...game.blackPatternStones] : game.blackPatternStones, whitePatternStones: Array.isArray(game.whitePatternStones) ? [...game.whitePatternStones] : game.whitePatternStones }
+                                        : game;
+                                    return { ...currentGames, [effectiveGameId]: nextGame };
                                 }
                                 return currentGames;
                             });
@@ -2331,6 +2394,7 @@ export const useApp = () => {
                 };
 
                 const completeInitialState = () => {
+                    setActiveGameFromLogin(null);
                     if (initialStateTimeout) {
                         clearTimeout(initialStateTimeout);
                         initialStateTimeout = null;
@@ -2496,25 +2560,27 @@ export const useApp = () => {
                             if (currentUser && updatedCurrentUser && updatedCurrentUser.id === currentUser.id) {
                                 const now = Date.now();
                                 const timeSinceLastHttpUpdate = now - lastHttpUpdateTime.current;
+                                const hasNicknameUpdate = updatedCurrentUser.nickname !== undefined && updatedCurrentUser.nickname !== currentUser.nickname;
 
                                 const hadHttpUpdate = lastHttpUpdateTime.current > 0;
                                 const httpUpdateHadUser = lastHttpHadUpdatedUser.current;
 
-                                if (hadHttpUpdate && httpUpdateHadUser && timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS) {
-                                    console.log(`[WebSocket] USER_UPDATE ignored (${timeSinceLastHttpUpdate}ms since HTTP update with user, debounce: ${HTTP_UPDATE_DEBOUNCE_MS}ms, last action: ${lastHttpActionType.current})`);
-                                    return;
+                                if (!hasNicknameUpdate) {
+                                    if (hadHttpUpdate && httpUpdateHadUser && timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS) {
+                                        console.log(`[WebSocket] USER_UPDATE ignored (${timeSinceLastHttpUpdate}ms since HTTP update with user, debounce: ${HTTP_UPDATE_DEBOUNCE_MS}ms, last action: ${lastHttpActionType.current})`);
+                                        return;
+                                    }
+                                    if (!httpUpdateHadUser && lastHttpActionType.current) {
+                                        console.log(`[WebSocket] USER_UPDATE applied immediately (HTTP response had no updatedUser for ${lastHttpActionType.current})`);
+                                        lastHttpUpdateTime.current = now;
+                                        lastHttpHadUpdatedUser.current = true;
+                                    }
+                                    if (hadHttpUpdate && httpUpdateHadUser && timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 && lastHttpActionType.current) {
+                                        console.log(`[WebSocket] USER_UPDATE ignored (possible stale data, ${timeSinceLastHttpUpdate}ms since HTTP update)`);
+                                        return;
+                                    }
                                 }
-
-                                if (!httpUpdateHadUser && lastHttpActionType.current) {
-                                    console.log(`[WebSocket] USER_UPDATE applied immediately (HTTP response had no updatedUser for ${lastHttpActionType.current})`);
-                                    lastHttpUpdateTime.current = now;
-                                    lastHttpHadUpdatedUser.current = true;
-                                }
-
-                                if (hadHttpUpdate && httpUpdateHadUser && timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 && lastHttpActionType.current) {
-                                    console.log(`[WebSocket] USER_UPDATE ignored (possible stale data, ${timeSinceLastHttpUpdate}ms since HTTP update)`);
-                                    return;
-                                }
+                                // 닉네임 변경은 디바운스 없이 항상 즉시 반영
 
                                 const mergedUser = applyUserUpdate(updatedCurrentUser, 'USER_UPDATE-websocket');
                                 console.log('[WebSocket] Applied USER_UPDATE for currentUser:', {
@@ -2541,13 +2607,14 @@ export const useApp = () => {
                                     if (!user) {
                                         const allUsersArray = Object.values(currentUsersMap);
                                         user = allUsersArray.find((u: any) => u?.id === id) as User | undefined;
-                                        if (!user) {
-                                            console.warn(`[WebSocket] User ${id} not found in usersMap or allUsers`);
-                                            return undefined;
-                                        }
-                                        updatedUsersMap[id] = user;
                                     }
-                                    return { ...user, ...statusInfo };
+                                    if (user) {
+                                        if (!updatedUsersMap[id]) updatedUsersMap[id] = user;
+                                        return { ...user, ...statusInfo };
+                                    }
+                                    // 새로 접속한 유저(usersMap에 없음): 최소 정보로 목록에 포함 → /api/users/brief로 닉네임 등 로드
+                                    const minimalUser = { id, ...statusInfo } as UserWithStatus;
+                                    return minimalUser;
                                 }).filter(Boolean) as UserWithStatus[];
                                 setOnlineUsers(onlineStatuses);
 
@@ -3187,6 +3254,10 @@ export const useApp = () => {
                             setMutualDisconnectMessage(msg);
                             return;
                         }
+                        case 'OTHER_DEVICE_LOGIN': {
+                            setShowOtherDeviceLoginModal(true);
+                            return;
+                        }
                         case 'GAME_DELETED': {
                             const deletedGameId = message.payload?.gameId;
                             const serverGameCategory = message.payload?.gameCategory;
@@ -3323,7 +3394,7 @@ export const useApp = () => {
                                 setGuilds(prev => ({ ...prev, ...message.payload.guilds }));
                             }
                             // 기존 default 처리 (이미 다른 case에서 처리되지 않은 경우)
-                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED'].includes(message.type)) {
+                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN'].includes(message.type)) {
                                 console.warn('[WebSocket] Unhandled message type:', message.type);
                             }
                             return;
@@ -3620,7 +3691,7 @@ export const useApp = () => {
 
     const closeModerationModal = useCallback(() => setModeratingUser(null), []);
 
-    const setCurrentUserAndRoute = useCallback((user: User) => {
+    const setCurrentUserAndRoute = useCallback((user: User, options?: { activeGame?: LiveGameSession }) => {
         const mergedUser = applyUserUpdate(user, 'setCurrentUserAndRoute');
         console.log('[setCurrentUserAndRoute] User set:', {
             id: mergedUser.id,
@@ -3629,6 +3700,18 @@ export const useApp = () => {
             hasInventory: !!mergedUser.inventory,
             hasEquipment: !!mergedUser.equipment
         });
+        if (options?.activeGame) {
+            const g = options.activeGame;
+            setActiveGameFromLogin(g);
+            const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+            if (category === 'singleplayer') {
+                setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
+            } else if (category === 'tower') {
+                setTowerGames(prev => ({ ...prev, [g.id]: g }));
+            } else {
+                setLiveGames(prev => ({ ...prev, [g.id]: g }));
+            }
+        }
         window.location.hash = '#/profile';
     }, [applyUserUpdate]);
     
@@ -3832,6 +3915,7 @@ export const useApp = () => {
             claimAllSummary,
             isMbtiInfoModalOpen,
             mutualDisconnectMessage,
+            showOtherDeviceLoginModal,
             isEquipmentEffectsModalOpen,
             isBlacksmithModalOpen,
             blacksmithSelectedItemForEnhancement,
@@ -3899,6 +3983,16 @@ export const useApp = () => {
             closeMbtiInfoModal: () => setIsMbtiInfoModalOpen(false),
             showMutualDisconnectMessage: (msg: string) => setMutualDisconnectMessage(msg),
             closeMutualDisconnectModal: () => setMutualDisconnectMessage(null),
+            confirmOtherDeviceLoginAndLogout: () => {
+                try {
+                    sessionStorage.removeItem('currentUser');
+                } catch {
+                    // ignore
+                }
+                setCurrentUser(null);
+                setShowOtherDeviceLoginModal(false);
+                window.location.hash = '#/login';
+            },
             openEquipmentEffectsModal: () => setIsEquipmentEffectsModalOpen(true),
             closeEquipmentEffectsModal: () => setIsEquipmentEffectsModalOpen(false),
             openBlacksmithModal: () => setIsBlacksmithModalOpen(true),

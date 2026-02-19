@@ -155,10 +155,12 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     
     const handleRefresh = React.useCallback(() => {
         if (canRefresh && canAfford) {
+            const priceLine = nextCost > 0 ? `이용 가격: ${nextCost.toLocaleString()} 골드` : '이용 가격: 무료';
             const confirmationMessage = nextCost > 0
-                ? `${nextCost.toLocaleString()} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
-                : '첫 재배치는 무료입니다. 배치를 다시 섞으시겠습니까?';
+                ? `${priceLine}\n\n${nextCost.toLocaleString()} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
+                : `${priceLine}\n\n첫 재배치는 무료입니다. 배치를 다시 섞으시겠습니까?`;
             setConfirmModal({
+                title: '배치변경',
                 message: confirmationMessage,
                 onConfirm: () => {
                     onAction({ type: 'SINGLE_PLAYER_REFRESH_PLACEMENT', payload: { gameId: session.id } });

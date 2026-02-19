@@ -178,6 +178,7 @@ const AppContent: React.FC = () => {
         if (modals.isEnhancementResultModalOpen) ids.push('enhancementResult');
         if (modals.isMbtiInfoModalOpen) ids.push('mbtiInfo');
         if (modals.mutualDisconnectMessage) ids.push('mutualDisconnect');
+        if (modals.showOtherDeviceLoginModal) ids.push('otherDeviceLogin');
         // itemObtained은 항상 마지막에 추가하여 최상단에 표시
         if (modals.lastUsedItemResult) ids.push('itemObtained');
         return ids;
@@ -391,6 +392,15 @@ const AppContent: React.FC = () => {
                                 <h2 id="mutual-disconnect-title" className="text-lg font-bold text-on-panel mb-3">대국 종료 안내</h2>
                                 <p className="text-on-panel/90 mb-6">{modals.mutualDisconnectMessage}</p>
                                 <button type="button" onClick={handlers.closeMutualDisconnectModal} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
+                            </div>
+                        </div>
+                    )}
+                    {modals.showOtherDeviceLoginModal && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="other-device-login-title">
+                            <div className="bg-panel border border-color rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 text-center">
+                                <h2 id="other-device-login-title" className="text-lg font-bold text-on-panel mb-3">로그아웃 안내</h2>
+                                <p className="text-on-panel/90 mb-6">다른 곳에서 로그인 되었습니다. 로그아웃 됩니다.</p>
+                                <button type="button" onClick={handlers.confirmOtherDeviceLoginAndLogout} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
                             </div>
                         </div>
                     )}

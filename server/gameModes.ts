@@ -840,7 +840,8 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 return [...a, ...b];
             })();
 
-        const OUTER_DEADLINE_MS = 2500; // 전체 처리 2.5초 초과 시 원본 반환 (MainLoop 타임아웃 방지를 위해 단축)
+        // 게임 수가 적을 때는 바둑 AI 등 느린 처리 완료 허용 (MainLoop 타임아웃 10초 이하로 유지)
+        const OUTER_DEADLINE_MS = toProcess.length <= 2 ? 9000 : toProcess.length <= 3 ? 6000 : 2500;
         const outerTimeout = new Promise<LiveGameSession[]>((resolve) => {
             setTimeout(() => {
                 // 로그를 덜 자주 출력 (30초마다 한 번만)
@@ -884,8 +885,9 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
 
             const BATCH_SIZE = 1;
             const results: LiveGameSession[] = [];
-            const BATCH_DEADLINE_MS = 1200; // 배치 처리 상한
-            const GAME_DEADLINE_MS = 800; // 게임당 0.8초 초과 시 원본 반환 (MainLoop 타임아웃 방지)
+            const BATCH_DEADLINE_MS = Math.min(OUTER_DEADLINE_MS - 500, 5000); // 배치 상한 (outer 여유 확보)
+            // 게임 수가 적을 때는 AI(바둑 등) 한 수에 시간 허용; 많을 때만 짧게
+            const GAME_DEADLINE_MS = toProcess.length <= 2 ? 10000 : toProcess.length <= 3 ? 4000 : 800;
 
             for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
                 // 타임아웃 체크: 각 배치 전 시간 확인

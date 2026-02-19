@@ -13,44 +13,18 @@
  */
 
 import prisma from '../prismaClient.js';
+import { cleanupOrphanedGamesInDb } from '../prisma/gameService.js';
 
 async function main() {
-  console.log('[cleanupOrphanedActiveGames] Fetching all games with isEnded: false...');
+  console.log('[cleanupOrphanedActiveGames] Running cleanup (gameService.cleanupOrphanedGamesInDb)...');
 
-  const activeGames = await prisma.liveGame.findMany({
-    where: { isEnded: false },
-    select: { id: true, status: true, category: true, data: true, updatedAt: true },
-  });
+  const deleted = await cleanupOrphanedGamesInDb();
 
-  console.log(`[cleanupOrphanedActiveGames] Found ${activeGames.length} orphaned/active games.`);
-
-  if (activeGames.length === 0) {
+  if (deleted === 0) {
     console.log('[cleanupOrphanedActiveGames] Nothing to delete. Done.');
-    return;
+  } else {
+    console.log(`[cleanupOrphanedActiveGames] Deleted ${deleted} games. Done.`);
   }
-
-  let aiCount = 0;
-  let endedStatusCount = 0;
-
-  for (const row of activeGames) {
-    try {
-      const data = row.data as Record<string, unknown>;
-      if (data?.isAiGame) aiCount++;
-      if (data?.gameStatus === 'ended' || data?.gameStatus === 'no_contest') endedStatusCount++;
-    } catch {
-      // ignore parse errors
-    }
-  }
-
-  console.log(
-    `[cleanupOrphanedActiveGames] Breakdown: ~${aiCount} AI games, ~${endedStatusCount} with ended status (failed sync). Deleting all...`
-  );
-
-  const result = await prisma.liveGame.deleteMany({
-    where: { isEnded: false },
-  });
-
-  console.log(`[cleanupOrphanedActiveGames] Deleted ${result.count} games. Done.`);
 }
 
 main()

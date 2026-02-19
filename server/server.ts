@@ -12,7 +12,7 @@ import cors from 'cors';
 import { randomUUID } from 'crypto';
 import process from 'process';
 import http from 'http';
-import { createWebSocketServer, broadcast } from './socket.js';
+import { createWebSocketServer, broadcast, broadcastUserUpdate, sendToUser } from './socket.js';
 
 // Railway 환경 자동 감지
 // Railway는 RAILWAY_ENVIRONMENT_NAME, RAILWAY_SERVICE_NAME 등을 제공하지만
@@ -83,6 +83,10 @@ let lastDailyTaskCheckAt = 0;
 let lastBotScoreUpdateAt = 0;
 let lastStaleUserStatusCleanupAt = 0;
 const STALE_USER_STATUS_CLEANUP_INTERVAL_MS = 60_000; // 1000명 규모: userStatuses 무한 증가 방지
+
+// 고아 게임 정리: 온라인 0명일 때만 실행 (접속자가 없을 때 DB에 남은 AI/오류 대국 삭제)
+let lastOrphanedGameCleanupAt = 0;
+const ORPHANED_GAME_CLEANUP_INTERVAL_MS = 15 * 60 * 1000; // 15분
 
 // getAllActiveGames 타임아웃 백오프 추적
 let lastGetAllActiveGamesTimeout = 0;
@@ -316,6 +320,15 @@ const startServer = async () => {
             await Promise.race([db.initializeDatabase(), dbTimeout]);
             dbInitialized = true;
             console.log('[Server Startup] Database initialized successfully');
+            // 서버 시작 시 고아 게임 정리 (접속자가 없으므로 안전)
+            try {
+                const cleaned = await db.cleanupOrphanedGamesInDb();
+                if (cleaned > 0) {
+                    console.log(`[Server Startup] Cleaned ${cleaned} orphaned games before MainLoop start`);
+                }
+            } catch (cleanupErr: any) {
+                console.warn('[Server Startup] Orphaned game cleanup failed (non-fatal):', cleanupErr?.message);
+            }
         } catch (err: any) {
             console.error("Error during server startup:", err);
             
@@ -1335,6 +1348,22 @@ const startServer = async () => {
                 }
             }
 
+            // 고아 게임 정리: 온라인 0명일 때 주기적으로 실행 (AI/오류 대국이 DB에 쌓이는 것 방지)
+            const onlineCount = Object.keys(volatileState.userConnections).length;
+            if (onlineCount === 0 && now - lastOrphanedGameCleanupAt >= ORPHANED_GAME_CLEANUP_INTERVAL_MS) {
+                lastOrphanedGameCleanupAt = now;
+                try {
+                    const cleaned = await db.cleanupOrphanedGamesInDb();
+                    if (cleaned > 0) {
+                        const { clearAllCache } = await import('./gameCache.js');
+                        clearAllCache();
+                        console.log(`[MainLoop] No players online: cleaned ${cleaned} orphaned games from DB`);
+                    }
+                } catch (cleanupErr: any) {
+                    console.warn('[MainLoop] Orphaned game cleanup failed:', cleanupErr?.message);
+                }
+            }
+
             // 게임 로드에 타임아웃 추가 (첫 실행: 30초, 이후: 10초)
             // 백오프 로직: 타임아웃이 발생하면 일정 시간 동안 스킵
             // 성능 최적화: 게임 목록을 일정 간격으로만 로드 (10초마다)
@@ -1412,9 +1441,13 @@ const startServer = async () => {
             let originalGameSignatures = activeGames.map(g => getGameSignature(g));
             const onlineUserIdsSet = new Set(Object.keys(volatileState.userConnections));
             // 1000명 경량화: 접속 중인 플레이어가 있는 게임만 updateGameStates에 전달 (미접속 게임은 스킵)
+            // AI 대국도 인간 플레이어가 접속 중일 때만 처리 (고아 AI 대국으로 인한 불필요한 업데이트/타임아웃 방지)
             const gamesWithOnlinePlayers = activeGames.filter((g) => {
                 if (!g?.player1?.id && !g?.player2?.id) return false;
-                if (g.isAiGame) return true; // AI 대국은 한 명만 접속해도 처리
+                if (g.isAiGame) {
+                    const humanId = g.player1?.id === aiPlayer.aiUserId ? g.player2?.id : g.player1?.id;
+                    return humanId ? onlineUserIdsSet.has(humanId) : false;
+                }
                 return onlineUserIdsSet.has(g.player1?.id ?? '') || onlineUserIdsSet.has(g.player2?.id ?? '');
             });
 
@@ -3299,7 +3332,29 @@ const startServer = async () => {
                 }
                 const pendingMutualMsg = volatileState.pendingMutualDisconnectByUser?.[userForLogin.id];
                 if (pendingMutualMsg) delete volatileState.pendingMutualDisconnectByUser![userForLogin.id];
-                sendResponse(200, { user: sanitizedUser, mutualDisconnectMessage: pendingMutualMsg ?? null });
+                // 다른 기기에서 로그인 시 기존 연결된 클라이언트(다른 PC/탭)에 자동 로그아웃 알림
+                try {
+                    sendToUser(userForLogin.id, {
+                        type: 'OTHER_DEVICE_LOGIN',
+                        payload: { message: '다른 기기에서 로그인되어 로그아웃되었습니다.' }
+                    });
+                } catch (notifyErr: any) {
+                    console.warn('[/api/auth/login] Notify other devices failed:', notifyErr?.message);
+                }
+                // 진행 중인 경기가 있으면 응답에 포함해 새 기기에서 즉시 이어하기 가능하도록
+                let sanitizedActiveGame: types.LiveGameSession | null = null;
+                if (activeGame) {
+                    try {
+                        sanitizedActiveGame = JSON.parse(JSON.stringify(activeGame)) as types.LiveGameSession;
+                    } catch {
+                        // 직렬화 실패 시 제외
+                    }
+                }
+                sendResponse(200, {
+                    user: sanitizedUser,
+                    mutualDisconnectMessage: pendingMutualMsg ?? null,
+                    activeGame: sanitizedActiveGame
+                });
             } catch (finalError: any) {
                 console.error('[/api/auth/login] Failed to send success response:', finalError?.message);
                 // 최종 응답 전송 실패 시에도 응답 보장
@@ -3580,6 +3635,9 @@ const startServer = async () => {
             // 닉네임 업데이트
             user.nickname = nickname.trim();
             await db.updateUser(user);
+            
+            // 모든 클라이언트에 닉네임 변경 브로드캐스트 (대기실·프로필 등에서 즉시 반영)
+            broadcastUserUpdate(user, ['nickname']);
             
             res.json({ user });
         } catch (e: any) {

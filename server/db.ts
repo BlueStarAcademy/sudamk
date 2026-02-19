@@ -636,6 +636,10 @@ export const deleteGame = async (id: string): Promise<void> => {
     await prismaDeleteGame(id);
 };
 
+export const cleanupOrphanedGamesInDb = async (): Promise<number> => {
+    const { cleanupOrphanedGamesInDb: prismaCleanup } = await import('./prisma/gameService.ts');
+    return prismaCleanup();
+};
 
 // --- Full State Retrieval (for client sync) ---
 export const getAllData = async (): Promise<Pick<AppState, 'users' | 'userCredentials' | 'liveGames' | 'singlePlayerGames' | 'towerGames' | 'adminLogs' | 'announcements' | 'globalOverrideAnnouncement' | 'gameModeAvailability' | 'announcementInterval' | 'homeBoardPosts'> & { guilds?: Record<string, any> }> => {

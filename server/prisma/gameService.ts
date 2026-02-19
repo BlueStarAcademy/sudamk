@@ -376,6 +376,30 @@ export async function saveGame(game: LiveGameSession): Promise<void> {
   }
 }
 
+/**
+ * 고아 게임 정리: isEnded: false로 남아있는 모든 게임 삭제
+ * - 종료처리 실패로 DB에 남은 게임
+ * - AI 게임 정상 종료되지 않고 남아있는 게임
+ * - 오류 대국 등
+ *
+ * ⚠️ MainLoop에서 호출 시 반드시 onlineUserIds.length === 0 일 때만 호출할 것.
+ *    (접속 중인 유저가 있으면 진행 중인 대국이 삭제될 수 있음)
+ */
+export async function cleanupOrphanedGamesInDb(): Promise<number> {
+  try {
+    const result = await prisma.liveGame.deleteMany({
+      where: { isEnded: false },
+    });
+    if (result.count > 0) {
+      console.log(`[gameService] cleanupOrphanedGamesInDb: deleted ${result.count} orphaned/active games`);
+    }
+    return result.count;
+  } catch (error: any) {
+    console.error('[gameService] cleanupOrphanedGamesInDb error:', error?.message || error);
+    return 0;
+  }
+}
+
 export async function deleteGame(id: string): Promise<void> {
   try {
     // deleteMany를 사용하여 레코드가 없어도 에러를 던지지 않음

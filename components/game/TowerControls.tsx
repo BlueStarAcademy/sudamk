@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GameProps, Player } from '../../types.js';
 import Button from '../Button.js';
+import ConfirmModal from '../ConfirmModal.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
@@ -40,6 +41,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
 };
 
 const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, currentUser, showResultModal, setShowResultModal }) => {
+    const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
     const floor = session.towerFloor ?? 1;
     const stage = TOWER_STAGES.find(s => {
         const stageFloor = parseInt(s.id.replace('tower-', ''));
@@ -130,6 +132,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     }
     
     const handleRefresh = () => {
+        if (refreshDisabled) return;
+        setRefreshConfirmModal(true);
+    };
+    const handleRefreshConfirm = () => {
+        setRefreshConfirmModal(false);
         onAction({ type: 'TOWER_REFRESH_PLACEMENT', payload: { gameId: session.id } });
     };
 
@@ -215,11 +222,25 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                         count={refreshCount}
                         maxCount={refreshMaxCount}
                     />
-					<span className={`text-[11px] font-semibold ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
+						<span className={`text-[11px] font-semibold ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
                         배치변경
                     </span>
                 </div>
             </div>
+
+            {refreshConfirmModal && (
+                <ConfirmModal
+                    title="배치변경"
+                    message="이용 가격: 배치 새로고침 1개\n\n배치 새로고침 아이템 1개를 사용하여 배치를 다시 섞으시겠습니까?"
+                    onConfirm={handleRefreshConfirm}
+                    onCancel={() => setRefreshConfirmModal(false)}
+                    confirmText="확인"
+                    cancelText="취소"
+                    confirmColorScheme="red"
+                    isTopmost={true}
+                    windowId="tower-refresh-confirm-modal"
+                />
+            )}
 
 			{/* Right group: 턴 추가 (1~20층) 또는 미사일, 히든 (21층 이상) (가운데 정렬) */}
 			<div className="flex-1 flex items-center justify-center gap-6">

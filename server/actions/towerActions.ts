@@ -145,11 +145,17 @@ const generateTowerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, 
     // 백돌 배치
     const whiteStones = placeStonesOnBoard(board, stage.boardSize, stage.placements.white, Player.White);
     
-    // 흑 문양돌 배치
+    // 흑 문양돌 배치 (빈 칸에 개수만큼 랜덤 위치 선정 후 보드에도 표시)
     const blackPattern = placePatternStonesOnBoard(board, stage.boardSize, stage.placements.blackPattern, Player.Black, blackStones);
+    for (const p of blackPattern) {
+        board[p.y][p.x] = Player.Black;
+    }
     
     // 백 문양돌 배치
     const whitePattern = placePatternStonesOnBoard(board, stage.boardSize, stage.placements.whitePattern, Player.White, whiteStones);
+    for (const p of whitePattern) {
+        board[p.y][p.x] = Player.White;
+    }
     
     return { board, blackPattern, whitePattern };
 };
@@ -499,16 +505,13 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             game.whitePatternStones = whitePattern;
 
             await db.saveGame(game);
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-            db.updateUser(user).catch(err => {
-                console.error(`[TOWER_BATTLE] Failed to save user ${user.id}:`, err);
-            });
+            await db.updateUser(user);
 
             const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             broadcastUserUpdate(user, ['actionPoints', 'towerFloor']);
             
-            return { clientResponse: { updatedUser: user } };
+            return { clientResponse: { updatedUser: user, gameId: game.id, game } };
         }
         case 'TOWER_ADD_TURNS': {
             const { gameId } = payload;

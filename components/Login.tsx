@@ -84,12 +84,14 @@ const Login: React.FC = () => {
         return;
       }
       
-      setCurrentUserAndRoute(data.user);
+      setCurrentUserAndRoute(data.user, { activeGame: data.activeGame ?? undefined });
       if (data.mutualDisconnectMessage && typeof handlers.showMutualDisconnectMessage === 'function') {
         handlers.showMutualDisconnectMessage(data.mutualDisconnectMessage);
       }
-      // 닉네임이 없거나 임시 닉네임이면 닉네임 설정 화면으로, 아니면 프로필로
-      if (!data.user.nickname || data.user.nickname.startsWith('user_')) {
+      // 진행 중인 경기가 있으면 게임으로 이동, 없으면 닉네임/프로필
+      if (data.activeGame) {
+        window.location.hash = `#/game/${data.activeGame.id}`;
+      } else if (!data.user.nickname || data.user.nickname.startsWith('user_')) {
         window.location.hash = '#/set-nickname';
       } else {
         window.location.hash = '#/profile';

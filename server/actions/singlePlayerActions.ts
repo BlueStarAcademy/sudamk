@@ -313,6 +313,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     scanCount: stage.scanCount, // 히든바둑: 스캔 아이템 개수
                     missileCount: stage.missileCount, // 미사일바둑: 미사일 아이템 개수
                     autoScoringTurns: stage.autoScoringTurns, // 자동 계가 턴 수
+                    blackTurnLimit: stage.blackTurnLimit, // 따내기 바둑: 흑(유저) 턴 수 제한
                 } as any,
                 player1: user,
                 player2: aiUser,
@@ -545,10 +546,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             // 캐시 업데이트
             updateGameCache(game);
             
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-            db.updateUser(user).catch(err => {
-                console.error(`[REFRESH_SINGLE_PLAYER_BOARD] Failed to save user ${user.id}:`, err);
-            });
+            // 재화 차감 반영을 위해 사용자 저장 후 게임 저장
+            await db.updateUser(user);
             await db.saveGame(game);
 
             const { broadcastToGameParticipants } = await import('../socket.js');

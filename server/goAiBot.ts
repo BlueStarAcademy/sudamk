@@ -1048,6 +1048,17 @@ export async function makeGoAiBotMove(
     }
     }
     }
+    
+    // 싱글플레이 따내기 바둑: 흑(유저) 턴 수 제한 도달 시 AI 수 후 계가 없이 미션 실패 처리
+    const blackTurnLimit = (game.settings as any)?.blackTurnLimit;
+    if (!isItemMode && game.isSinglePlayer && game.stageId && blackTurnLimit !== undefined && aiPlayerEnum === types.Player.White) {
+        const blackMoves = game.moveHistory.filter(m => m.player === types.Player.Black && m.x !== -1 && m.y !== -1).length;
+        if (blackMoves >= blackTurnLimit) {
+            console.log(`[GoAiBot] SinglePlayer blackTurnLimit reached after AI move: blackMoves=${blackMoves}, limit=${blackTurnLimit}, mission fail (no scoring)`);
+            await summaryService.endGame(game, types.Player.White, 'timeout');
+            return;
+        }
+    }
 
     // 히든 돌 공개 애니메이션 직후에는 턴을 넘기지 않음
     // (updateHiddenState에서 이미 AI 턴을 유지하고 aiProcessingQueue에 추가했으므로)

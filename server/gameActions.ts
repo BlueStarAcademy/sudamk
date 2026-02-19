@@ -523,9 +523,17 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     return {};
                 }
             }
+            // 싱글플레이 배치변경은 singlePlayerActions에서 처리 (골드 차감·보드 갱신·updatedUser/game 반환)
+            if (type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' && game.isSinglePlayer) {
+                const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
+                return handleSinglePlayerAction(volatileState, action, userData);
+            }
             // PVE 게임 관련 특수 액션만 서버에서 처리 (TOWER_REFRESH_PLACEMENT, TOWER_ADD_TURNS 등은 이미 위에서 처리됨)
             // 착수 액션(PLACE_STONE 등)은 클라이언트에서만 처리하므로 여기서는 조용히 무시
-            return {};
+            // 기권(RESIGN_GAME)은 handleSharedAction에서 처리하므로 아래 strategic/playful 핸들러로 넘김
+            if (type !== 'RESIGN_GAME') {
+                return {};
+            }
         }
         
         let result: HandleActionResult | null | undefined = null;

@@ -496,7 +496,9 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
                 if (volatileState.userStatuses[user.id]) {
                     volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: game.mode };
                 }
-                return {};
+                // 클라이언트가 즉시 종료 상태를 반영할 수 있도록 종료된 게임 객체 반환
+                const freshGame = await db.getLiveGame(game.id);
+                return { clientResponse: { game: freshGame || game } };
             }
             
             // 2-player games, if one player resigns, the other wins.

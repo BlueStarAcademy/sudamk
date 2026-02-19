@@ -774,6 +774,17 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
             
+            // 싱글플레이 따내기 바둑: 흑(유저) 턴 수 제한(blackTurnLimit) 도달 시 계가 없이 미션 실패 처리
+            const blackTurnLimit = (game.settings as any)?.blackTurnLimit;
+            if (game.isSinglePlayer && game.stageId && blackTurnLimit !== undefined && myPlayerEnum === types.Player.Black) {
+                const blackMoves = game.moveHistory.filter(m => m.player === types.Player.Black && m.x !== -1 && m.y !== -1).length;
+                if (blackMoves >= blackTurnLimit) {
+                    console.log(`[handleStandardAction] SinglePlayer blackTurnLimit reached: blackMoves=${blackMoves}, limit=${blackTurnLimit}, mission fail (no scoring)`);
+                    await summaryService.endGame(game, types.Player.White, 'timeout');
+                    return {};
+                }
+            }
+            
             // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
             if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                 const { aiUserId } = await import('../aiPlayer.js');

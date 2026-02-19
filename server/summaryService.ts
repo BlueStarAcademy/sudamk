@@ -48,7 +48,8 @@ const getXpForLevel = (level: number): number => {
 };
 
 const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
-    // DB에서 최신 사용자 데이터를 가져와서 clearedSinglePlayerStages가 정확한지 확인
+    // 캐시 무효화 후 DB에서 최신 사용자 조회 (첫 클리어 vs 재도전 판정 정확도)
+    db.invalidateUserCache(game.player1.id);
     const freshUser = await db.getUser(game.player1.id);
     if (!freshUser) {
         console.error(`[SP Summary] Could not find user ${game.player1.id} in database`);
