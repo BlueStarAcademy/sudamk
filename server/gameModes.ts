@@ -840,7 +840,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 return [...a, ...b];
             })();
 
-        const OUTER_DEADLINE_MS = 3000; // 전체 처리 3초 초과 시 원본 반환 (MainLoop 경량화, 타임아웃 방지)
+        const OUTER_DEADLINE_MS = 2500; // 전체 처리 2.5초 초과 시 원본 반환 (MainLoop 타임아웃 방지를 위해 단축)
         const outerTimeout = new Promise<LiveGameSession[]>((resolve) => {
             setTimeout(() => {
                 // 로그를 덜 자주 출력 (30초마다 한 번만)
@@ -870,7 +870,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 if (g?.player1?.id && g.player1.id !== aiUserId) playerIds.add(g.player1.id);
                 if (g?.player2?.id && g.player2.id !== aiUserId) playerIds.add(g.player2.id);
             }
-            const PREWARM_DEADLINE_MS = 1000; // 1.5초 -> 1초로 단축
+            const PREWARM_DEADLINE_MS = 600; // 플레이어 캐시 프리웜 상한 (타임아웃 방지)
             const prewarmTimeout = new Promise<void>((resolve) => setTimeout(resolve, PREWARM_DEADLINE_MS));
             await Promise.race([
                 Promise.allSettled(Array.from(playerIds).map((id) => getCachedUser(id))),
@@ -884,8 +884,8 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
 
             const BATCH_SIZE = 1;
             const results: LiveGameSession[] = [];
-            const BATCH_DEADLINE_MS = 1500; // 2초 -> 1.5초로 단축
-            const GAME_DEADLINE_MS = 1000; // 게임당 1초 초과 시 원본 반환 (AI/DB 지연 시 타임아웃 방지)
+            const BATCH_DEADLINE_MS = 1200; // 배치 처리 상한
+            const GAME_DEADLINE_MS = 800; // 게임당 0.8초 초과 시 원본 반환 (MainLoop 타임아웃 방지)
 
             for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
                 // 타임아웃 체크: 각 배치 전 시간 확인

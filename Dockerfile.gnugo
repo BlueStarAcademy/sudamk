@@ -38,9 +38,14 @@ FROM base AS runner
 WORKDIR /app
 ENV PORT=4002
 
-# Install GnuGo in runner stage
-RUN apk add --no-cache gnugo && \
-    gnugo --version || echo "GnuGo installed"
+# Install GnuGo in runner stage (community repo 필요할 수 있음)
+# spawn gnugo ENOENT 방지: apk update 후 설치, 설치 경로를 ENV로 명시
+RUN apk update && \
+    apk add --no-cache gnugo && \
+    GNUGOPATH=$(which gnugo 2>/dev/null || echo "/usr/bin/gnugo") && \
+    test -x "$GNUGOPATH" && echo "GnuGo installed at $GNUGOPATH"
+# Railway spawn ENOENT 방지: 절대 경로를 환경변수로 설정
+ENV GNUGO_PATH=/usr/bin/gnugo
 
 # Copy production dependencies
 COPY --from=deps /app/node_modules ./node_modules

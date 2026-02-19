@@ -92,8 +92,8 @@ let lastGetAllActiveGamesSuccess = 0; // 마지막 성공한 게임 로드 시�
 const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
 const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = isRailwayOrProd ? 45000 : 30000; // Railway: 45초(부하 감소), 로컬: 30초
 const MAINLOOP_DB_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000;
-// updateGameStates: 2게임/사이클, 내부 prewarm 2초+배치 4초 → 보통 6초 내 완료. DB/API 지연 시 여유 확보
-const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 5000 : 5000; // 5초로 단축 (updateGameStates 내부 타임아웃 3초와 조화)
+// updateGameStates: 사이클당 1게임 처리, 내부 2.5초 데드라인. 이벤트 루프 지연 시를 위해 메인루프 타임아웃은 여유있게
+const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 10000 : 8000; // 8~10초 (updateGameStates 내부 2.5초와 조화, 타임아웃 방지)
 
 // 타임아웃 연속 발생 추적 (크래시 방지)
 let consecutiveTimeouts = 0;
