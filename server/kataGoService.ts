@@ -789,9 +789,10 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
     }
 
     // HTTP API를 사용하는 경우 queryKataGoViaHttp 함수 정의 (재시도 로직 포함)
+    // 계가 정확도를 위해 KataGo 성공 시까지 재시도 (절대 틀리지 않게)
     const queryKataGoViaHttp = async (analysisQuery: any, apiUrl?: string, retryCount: number = 0): Promise<any> => {
-        const MAX_RETRIES = 1; // 최대 1번 재시도 (총 2번 시도) - 빠른 fallback을 위해 감소
-        const RETRY_DELAY_MS = 1000; // 재시도 전 1초 대기 - 빠른 fallback을 위해 감소
+        const MAX_RETRIES = 3; // 최대 3번 재시도 (총 4번 시도) - 계가 정확도 우선
+        const RETRY_DELAY_MS = 2000; // 재시도 전 2초 대기 (KataGo/네트워크 복구 시간)
         
         let urlToUse = apiUrl || KATAGO_API_URL || (analysisQuery.__fallbackUrl ? analysisQuery.__fallbackUrl : undefined);
         if (!urlToUse) {

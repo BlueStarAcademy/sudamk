@@ -3,6 +3,7 @@ import { GameProps, Player } from '../../types.js';
 import Button from '../Button.js';
 import ConfirmModal from '../ConfirmModal.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
+import { shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
 
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     showResultModal?: boolean;
@@ -69,7 +70,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
         const handleRetry = async () => {
             try {
-                const result = await onAction({ type: 'START_TOWER_GAME', payload: { floor } });
+                const result = await onAction({ type: 'START_TOWER_GAME', payload: { floor, useClientSideAi: shouldUseClientSideAi() } });
                 const gameId = (result as any)?.gameId;
                 if (gameId) {
                     await new Promise(resolve => setTimeout(resolve, 200));
@@ -85,7 +86,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         const handleNextFloor = async () => {
             if (!canTryNext || !nextFloor) return;
             try {
-                const result = await onAction({ type: 'START_TOWER_GAME', payload: { floor: nextFloor } });
+                const result = await onAction({ type: 'START_TOWER_GAME', payload: { floor: nextFloor, useClientSideAi: shouldUseClientSideAi() } });
                 const gameId = (result as any)?.gameId;
                 if (gameId) {
                     await new Promise(resolve => setTimeout(resolve, 200));

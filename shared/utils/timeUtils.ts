@@ -164,17 +164,22 @@ export const formatLastLogin = (timestamp: number | undefined): string => {
     return `${Math.floor(days / 365)}년 전`;
 };
 
-/** 길드원 목록용: N시간전 / N일전 / N주전 / 장기미접속 4가지 형식 */
+/** 길드원 목록용: 1시간 이내 / N시간전 / N일전 / N주전 / N달전 / 장기미접속 */
 export const formatLastSeenGuild = (timestamp: number | undefined): string => {
-    if (!timestamp) return '장기미접속';
+    if (timestamp == null || timestamp <= 0) return '장기미접속';
     const now = Date.now();
     const diff = now - timestamp;
+    if (diff < 0) return '1시간 이내'; // 시계 오차 대비
+    const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const weeks = Math.floor(days / 7);
-    if (hours < 24) return hours < 1 ? '1시간전' : `${hours}시간전`;
+    const months = Math.floor(days / 30);
+    if (minutes < 60) return '1시간 이내';
+    if (hours < 24) return `${hours}시간전`;
     if (days < 7) return `${days}일전`;
     if (weeks < 4) return `${weeks}주전`;
+    if (months < 12) return `${months}달전`;
     return '장기미접속';
 };
 

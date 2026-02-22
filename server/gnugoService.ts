@@ -34,11 +34,16 @@ if (GNUGO_API_URL && !GNUGO_API_URL.match(/^https?:\/\//)) {
 }
 const USE_HTTP_API = !!GNUGO_API_URL && GNUGO_API_URL.trim() !== '';
 
+/** 동시에 처리할 GnuGo 프로세스 수. 2 이상이면 풀 사용, 동시 요청이 느려지지 않음. */
+const GNUGO_POOL_SIZE = Math.max(1, parseInt(process.env.GNUGO_POOL_SIZE || '4', 10));
+
 interface GnuGoManager {
     process: ChildProcess | null;
     isStarting: boolean;
     isReady: boolean;
     lastError: Error | null;
+    /** 풀 사용 시 동시 처리 가능 개수 */
+    poolSize?: number;
 }
 
 interface GenerateMoveRequest {
@@ -57,6 +62,42 @@ let gnuGoManager: GnuGoManager = {
     isReady: false,
     lastError: null
 };
+
+// 프로세스 풀: 동시 N개 요청 처리 (국면 겹침 없음)
+const processPool: ChildProcess[] = [];
+const availablePool: ChildProcess[] = [];
+const waitQueue: Array<(p: ChildProcess) => void> = [];
+
+function removeFromPool(proc: ChildProcess): void {
+    const idx = processPool.indexOf(proc);
+    if (idx !== -1) processPool.splice(idx, 1);
+    const availIdx = availablePool.indexOf(proc);
+    if (availIdx !== -1) availablePool.splice(availIdx, 1);
+}
+
+function acquireProcess(): Promise<ChildProcess> {
+    while (availablePool.length > 0) {
+        const p = availablePool.pop()!;
+        if (!p.killed) return Promise.resolve(p);
+        removeFromPool(p);
+    }
+    return new Promise<ChildProcess>((resolve) => {
+        waitQueue.push((p: ChildProcess) => resolve(p));
+    });
+}
+
+function releaseProcess(proc: ChildProcess): void {
+    if (proc.killed) {
+        removeFromPool(proc);
+    } else {
+        availablePool.push(proc);
+    }
+    if (waitQueue.length > 0 && availablePool.length > 0) {
+        const next = waitQueue.shift()!;
+        const p = availablePool.pop()!;
+        next(p);
+    }
+}
 
 /**
  * Convert point to GTP coordinate format
@@ -185,80 +226,71 @@ function sendGtpCommand(process: ChildProcess, command: string, timeout: number 
 }
 
 /**
- * Initialize GnuGo process
+ * Initialize GnuGo process(es) - 풀 사용 시 동시 N개 요청 처리
  */
 export async function initializeGnuGo(): Promise<void> {
-    if (gnuGoManager.process && !gnuGoManager.process.killed) {
-        console.log('[GnuGo Service] GnuGo process already running');
+    if (processPool.length > 0 && processPool.some(p => !p.killed)) {
+        console.log('[GnuGo Service] GnuGo pool already running');
         return;
     }
-    
     if (gnuGoManager.isStarting) {
         console.log('[GnuGo Service] GnuGo initialization already in progress');
         return;
     }
-    
+
     gnuGoManager.isStarting = true;
     gnuGoManager.lastError = null;
-    
+    processPool.length = 0;
+    availablePool.length = 0;
+    waitQueue.length = 0;
+
+    const poolSize = GNUGO_POOL_SIZE;
+    console.log(`[GnuGo Service] Starting GnuGo pool: ${GNUGO_PATH}, size=${poolSize}, level=${GNUGO_LEVEL}`);
+
     try {
-        console.log(`[GnuGo Service] Starting GnuGo process: ${GNUGO_PATH}`);
-        console.log(`[GnuGo Service] GnuGo level: ${GNUGO_LEVEL}`);
-        
-        // Spawn GnuGo process with GTP mode
-        const process = spawn(GNUGO_PATH, ['--mode', 'gtp', '--level', GNUGO_LEVEL.toString()], {
-            stdio: ['pipe', 'pipe', 'pipe']
-        });
-        
-        gnuGoManager.process = process;
-        
-        // Handle process errors
-        process.on('error', (error) => {
-            console.error('[GnuGo Service] Process error:', error);
-            gnuGoManager.lastError = error as Error;
-            gnuGoManager.isReady = false;
-        });
-        
-        process.on('exit', (code, signal) => {
-            console.log(`[GnuGo Service] Process exited: code=${code}, signal=${signal}`);
-            gnuGoManager.process = null;
-            gnuGoManager.isReady = false;
-        });
-        
-        // Handle stderr (GnuGo sends some info to stderr)
-        process.stderr?.on('data', (data) => {
-            const text = data.toString();
-            if (text.includes('error') || text.includes('Error')) {
-                console.warn('[GnuGo Service] stderr:', text.trim());
+        for (let i = 0; i < poolSize; i++) {
+            const proc = spawn(GNUGO_PATH, ['--mode', 'gtp', '--level', GNUGO_LEVEL.toString()], {
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
+
+            proc.on('error', (error) => {
+                console.error(`[GnuGo Service] Process ${i} error:`, error);
+                gnuGoManager.lastError = error as Error;
+                removeFromPool(proc);
+            });
+            proc.on('exit', (code, signal) => {
+                console.log(`[GnuGo Service] Process ${i} exited: code=${code}, signal=${signal}`);
+                removeFromPool(proc);
+                gnuGoManager.process = processPool[0] ?? null;
+                if (processPool.length === 0) gnuGoManager.isReady = false;
+            });
+            proc.stderr?.on('data', (data) => {
+                const text = data.toString();
+                if (text.includes('error') || text.includes('Error')) console.warn(`[GnuGo Service] stderr [${i}]:`, text.trim());
+            });
+
+            await new Promise(r => setTimeout(r, 200));
+            try {
+                await sendGtpCommand(proc, 'version', 3000);
+            } catch (e: any) {
+                console.warn(`[GnuGo Service] Process ${i} version check failed:`, e?.message);
+                proc.kill();
+                continue;
             }
-        });
-        
-        // Test connection with a simple command
-        try {
-            // Wait a bit for process to start
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Send version command to test
-            const versionResponse = await sendGtpCommand(process, 'version', 3000);
-            console.log('[GnuGo Service] GnuGo version:', versionResponse.trim());
-            
-            gnuGoManager.isReady = true;
-            gnuGoManager.isStarting = false;
-            console.log('[GnuGo Service] ✅ GnuGo initialized successfully');
-        } catch (error: any) {
-            console.error('[GnuGo Service] Failed to initialize GnuGo:', error.message);
-            gnuGoManager.lastError = error;
-            gnuGoManager.isReady = false;
-            gnuGoManager.isStarting = false;
-            // Don't throw - allow server to continue without GnuGo
+            processPool.push(proc);
+            availablePool.push(proc);
         }
-        
+
+        gnuGoManager.process = processPool[0] ?? null;
+        gnuGoManager.isReady = processPool.length > 0;
+        gnuGoManager.poolSize = processPool.length;
+        gnuGoManager.isStarting = false;
+        console.log(`[GnuGo Service] ✅ GnuGo pool initialized: ${processPool.length} process(es)`);
     } catch (error: any) {
-        console.error('[GnuGo Service] Failed to spawn GnuGo process:', error);
+        console.error('[GnuGo Service] Failed to initialize GnuGo pool:', error);
         gnuGoManager.lastError = error;
         gnuGoManager.isReady = false;
         gnuGoManager.isStarting = false;
-        // Don't throw - allow server to continue without GnuGo
     }
 }
 
@@ -366,51 +398,33 @@ export async function generateGnuGoMove(request: GenerateMoveRequest): Promise<P
         }
     }
     
-    // Use local process
-    if (!gnuGoManager.process || gnuGoManager.process.killed) {
-        throw new Error('GnuGo process is not running and HTTP API is not available');
+    // Use local process pool
+    if (!gnuGoManager.isReady || processPool.length === 0) {
+        throw new Error('GnuGo is not ready and HTTP API is not available');
     }
-    
-    if (!gnuGoManager.isReady) {
-        throw new Error('GnuGo is not ready');
-    }
-    
+
+    const process = await acquireProcess();
     try {
-        const process = gnuGoManager.process;
-        
-        // Convert player string to GTP color
         const color = player.toLowerCase() === 'white' ? 'white' : 'black';
-        
-        // Set up board state
         const setupCommands = boardStateToGtpCommands(boardState, boardSize, moveHistory, color);
         for (const cmd of setupCommands) {
             await sendGtpCommand(process, cmd, 2000);
         }
-        
-        // Per-request level override (GnuGo GTP "level" command: 1-10)
         const levelToUse = (request as GenerateMoveRequest).level;
         if (levelToUse !== undefined && levelToUse >= 1 && levelToUse <= 10) {
             await sendGtpCommand(process, `level ${levelToUse}`, 2000);
         }
-        
-        // Generate move
         const genMoveResponse = await sendGtpCommand(process, `genmove ${color}`, 10000);
-        
-        // Parse response (format: "= A1\n" or "= pass\n")
         const match = genMoveResponse.match(/^=\s*([A-T]\d+|pass)/i);
-        if (!match) {
-            throw new Error(`Invalid genmove response: ${genMoveResponse}`);
-        }
-        
-        const moveCoord = match[1];
-        const point = gtpCoordToPoint(moveCoord, boardSize);
-        
+        if (!match) throw new Error(`Invalid genmove response: ${genMoveResponse}`);
+        const point = gtpCoordToPoint(match[1], boardSize);
         return point;
-        
     } catch (error: any) {
         console.error('[GnuGo Service] Error generating move:', error);
         gnuGoManager.lastError = error;
         throw error;
+    } finally {
+        releaseProcess(process);
     }
 }
 
@@ -422,12 +436,10 @@ export function getGnuGoManager(): GnuGoManager {
 }
 
 /**
- * Check if GnuGo is available (HTTP API or local process)
+ * Check if GnuGo is available (HTTP API or local process pool)
  */
 export function isGnuGoAvailable(): boolean {
-    // HTTP API 사용 가능하면 true (로컬 프로세스 없이 Railway 서버 사용)
     if (USE_HTTP_API && GNUGO_API_URL) return true;
-    // 로컬 프로세스 사용
-    return gnuGoManager.isReady && gnuGoManager.process !== null && !gnuGoManager.process.killed;
+    return gnuGoManager.isReady && processPool.length > 0 && processPool.some(p => !p.killed);
 }
 

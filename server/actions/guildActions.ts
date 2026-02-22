@@ -363,6 +363,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         joinDate: Date.now(),
                         contributionTotal: 0,
                         weeklyContribution: 0,
+                        lastLoginAt: user.lastLoginAt,
                         createdAt: Date.now(),
                         updatedAt: Date.now(),
                     });
@@ -643,6 +644,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 joinDate: Date.now(), 
                 contributionTotal: 0, 
                 weeklyContribution: 0,
+                lastLoginAt: applicant.lastLoginAt,
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
             });
@@ -1884,6 +1886,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                                 joinDate: m.joinDate,
                                 contributionTotal: m.contributionTotal,
                                 weeklyContribution: 0,
+                                lastLoginAt: memberUser?.lastLoginAt,
                                 createdAt: m.createdAt,
                                 updatedAt: m.updatedAt,
                             };
@@ -1904,6 +1907,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                             joinDate: dbMemberForUser?.joinDate ?? Date.now(),
                             contributionTotal: dbMemberForUser ? Number(dbMemberForUser.contributionTotal) : 0,
                             weeklyContribution: 0,
+                            lastLoginAt: memberUser?.lastLoginAt,
                             createdAt: dbMemberForUser?.createdAt ?? Date.now(),
                             updatedAt: dbMemberForUser?.updatedAt ?? Date.now(),
                         });
@@ -1998,13 +2002,14 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                                 guildId: dbMember.guildId,
                                 userId: canonicalUserId,
                                 nickname: memberUser?.nickname || '',
-                            role: dbMember.role as 'leader' | 'officer' | 'member',
-                            joinDate: dbMember.joinDate,
-                            contributionTotal: dbMember.contributionTotal,
-                            weeklyContribution: 0,
-                            createdAt: dbMember.createdAt,
-                            updatedAt: dbMember.updatedAt,
-                        });
+                                role: dbMember.role as 'leader' | 'officer' | 'member',
+                                joinDate: dbMember.joinDate,
+                                contributionTotal: dbMember.contributionTotal,
+                                weeklyContribution: 0,
+                                lastLoginAt: memberUser?.lastLoginAt,
+                                createdAt: dbMember.createdAt,
+                                updatedAt: dbMember.updatedAt,
+                            });
                         addedCount++;
                         console.log(`[GET_GUILD_INFO] Added member ${dbMember.userId} (${memberUser?.nickname || 'unknown'})`);
                     }
@@ -2044,13 +2049,14 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         joinDate,
                         contributionTotal,
                         weeklyContribution: 0,
+                        lastLoginAt: memberUser?.lastLoginAt,
                         createdAt: joinDate,
                         updatedAt: Date.now(),
                     });
                     console.log(`[GET_GUILD_INFO] Added current user ${effectiveUserId} to members (was missing)`);
                 }
                 
-                // 모든 멤버의 nickname과 기여도 정보 업데이트
+                // 모든 멤버의 nickname, 기여도, 최근 접속 시각 업데이트
                 for (const member of guild.members) {
                     let dbMember = dbMembers.find(m => m.userId === member.userId);
                     if (!dbMember && member.userId === ADMIN_USER_ID) {
@@ -2063,9 +2069,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         member.contributionTotal = dbMember.contributionTotal;
                         member.joinDate = dbMember.joinDate;
                         member.updatedAt = dbMember.updatedAt;
-                        if (!member.nickname || member.nickname.trim() === '') {
-                            const memberUser = await db.getUser(dbMember.userId);
-                            if (memberUser) member.nickname = memberUser.nickname || '';
+                        const memberUser = await db.getUser(dbMember.userId);
+                        if (memberUser) {
+                            if (!member.nickname || member.nickname.trim() === '') member.nickname = memberUser.nickname || '';
+                            member.lastLoginAt = memberUser.lastLoginAt;
                         }
                     }
                 }
@@ -2219,6 +2226,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             guild.guildBossState.currentBossHp = result.bossHpAfter;
             guild.guildBossState.totalDamageLog[effectiveUserId] = (guild.guildBossState.totalDamageLog[effectiveUserId] || 0) + result.damageDealt;
+            // 역대 최고 기록 (이번 주 누적 데미지 중 최대값 유지)
+            if (!guild.guildBossState.maxDamageLog) guild.guildBossState.maxDamageLog = {};
+            const currentTotal = guild.guildBossState.totalDamageLog[effectiveUserId] || 0;
+            const prevMax = guild.guildBossState.maxDamageLog[effectiveUserId] || 0;
+            guild.guildBossState.maxDamageLog[effectiveUserId] = Math.max(prevMax, currentTotal);
 
             if (!freshUser.isAdmin) {
                 freshUser.guildBossAttempts = (freshUser.guildBossAttempts || 0) + 1;

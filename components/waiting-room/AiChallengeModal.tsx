@@ -12,6 +12,7 @@ import {
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS
 } from '../../constants/gameSettings.js';
 import Avatar from '../Avatar.js';
+import { loadWasmGnuGo, shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
 
 interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';
@@ -124,9 +125,15 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         });
     };
 
+    // AI 대국 입장 시 WASM GnuGo 최초 1회 프리로드
+    useEffect(() => {
+        loadWasmGnuGo().catch(() => {});
+    }, []);
+
     const handleChallenge = () => {
         if (selectedGameMode) {
-            onAction({ type: 'START_AI_GAME', payload: { mode: selectedGameMode, settings } });
+            const useClientSideAi = shouldUseClientSideAi();
+            onAction({ type: 'START_AI_GAME', payload: { mode: selectedGameMode, settings: { ...settings, useClientSideAi } } });
             onClose();
         }
     };

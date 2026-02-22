@@ -196,6 +196,58 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 return {};
             }
 
+            // 클라이언트 측 AI(Electron 로컬 GnuGo): 클라이언트가 계산한 AI 수를 서버가 검증 후 적용
+            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+            if (payload.clientSideAiMove && useClientSideAi && game.isAiGame) {
+                const { aiUserId } = await import('../aiPlayer.js');
+                const aiPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                if (aiPlayerId === aiUserId && game.currentPlayer !== types.Player.None && (game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing')) {
+                    const { x, y } = payload;
+                    const boardSize = game.settings.boardSize;
+                    if (typeof x !== 'number' || typeof y !== 'number' || x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
+                        return { error: 'Invalid client-side AI move position.' };
+                    }
+                    const aiPlayerEnum = game.currentPlayer;
+                    const humanPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+                    const move = { x, y, player: aiPlayerEnum };
+                    const result = processMove(
+                        game.boardState,
+                        move,
+                        game.koInfo,
+                        game.moveHistory.length,
+                        { ignoreSuicide: false, isSinglePlayer: true, opponentPlayer: humanPlayerEnum }
+                    );
+                    if (!result.isValid) {
+                        return { error: `Client-side AI move invalid: ${result.reason || 'invalid'}` };
+                    }
+                    game.boardState = result.newBoardState;
+                    game.moveHistory.push(move);
+                    game.koInfo = result.newKoInfo;
+                    game.lastMove = { x, y };
+                    game.passCount = 0;
+                    if (result.capturedStones.length > 0) {
+                        game.captures[aiPlayerEnum] = (game.captures[aiPlayerEnum] ?? 0) + result.capturedStones.length;
+                        if (!game.justCaptured) game.justCaptured = [];
+                        for (const stone of result.capturedStones) {
+                            game.justCaptured.push({ point: stone, player: humanPlayerEnum, wasHidden: false });
+                        }
+                    }
+                    game.currentPlayer = humanPlayerEnum;
+                    game.gameStatus = 'playing';
+                    game.aiTurnStartTime = undefined;
+                    const { hasTimeControl } = await import('./shared.js');
+                    if (hasTimeControl(game.settings)) {
+                        const nextTimeKey = humanPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                        game.turnDeadline = now + (game[nextTimeKey] ?? 0) * 1000;
+                        game.turnStartTime = now;
+                    } else {
+                        game.turnDeadline = undefined;
+                        game.turnStartTime = undefined;
+                    }
+                    return {};
+                }
+            }
+
             if (!isMyTurn || (game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_placing')) {
                 return { error: '내 차례가 아닙니다.' };
             }

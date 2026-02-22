@@ -18,6 +18,15 @@ import { endGame } from './summaryService.js';
 export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, session: types.LiveGameSession, preservedTimeInfo?: { blackTimeLeft?: number, whiteTimeLeft?: number }): types.AnalysisResult => {
     const finalAnalysis = JSON.parse(JSON.stringify(baseAnalysis)); // Deep copy
 
+    // 사석 점수 동기화: deadStones 배열과 scoreDetails가 항상 일치하도록 (보드 마커와 모달 점수 불일치 방지)
+    const boardState = session.boardState;
+    if (finalAnalysis.deadStones && Array.isArray(finalAnalysis.deadStones) && boardState && Array.isArray(boardState) && boardState.length > 0) {
+        const whiteDeadCount = finalAnalysis.deadStones.filter((p: { x: number; y: number }) => boardState[p.y]?.[p.x] === types.Player.White).length;
+        const blackDeadCount = finalAnalysis.deadStones.filter((p: { x: number; y: number }) => boardState[p.y]?.[p.x] === types.Player.Black).length;
+        finalAnalysis.scoreDetails.black.deadStones = Math.round(whiteDeadCount);
+        finalAnalysis.scoreDetails.white.deadStones = Math.round(blackDeadCount);
+    }
+
     // Base stone bonus
     finalAnalysis.scoreDetails.black.baseStoneBonus = 0;
     finalAnalysis.scoreDetails.white.baseStoneBonus = 0;
@@ -224,42 +233,36 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     };
     (game as any).preservedTimeInfo = preservedTimeInfo;
     
-    console.log(`[getGameResult] Preserving game state for scoring: boardStateSize=${game.boardState?.length || 0}, moveHistoryLength=${game.moveHistory?.length || 0}, blackTimeLeft=${preservedGameState.blackTimeLeft}, whiteTimeLeft=${preservedGameState.whiteTimeLeft}`);
-    
     // 게임 상태를 scoring으로 변경
     game.gameStatus = 'scoring';
     game.winReason = 'score';
     game.isAnalyzing = true;
     
-    // boardState와 moveHistory가 반드시 포함되도록 보장 (게임 객체 자체에도 적용)
-    // preservedGameState가 있으면 무조건 사용 (초기화 방지)
     if (preservedGameState.boardState && Array.isArray(preservedGameState.boardState) && preservedGameState.boardState.length > 0) {
         game.boardState = preservedGameState.boardState;
-        console.log(`[getGameResult] Restored boardState from preservedGameState: size=${game.boardState.length}x${game.boardState[0]?.length || 0}`);
-    } else {
-        console.warn(`[getGameResult] preservedGameState.boardState is invalid, using game.boardState: size=${game.boardState?.length || 0}`);
     }
     if (preservedGameState.moveHistory && Array.isArray(preservedGameState.moveHistory) && preservedGameState.moveHistory.length > 0) {
         game.moveHistory = preservedGameState.moveHistory;
-        console.log(`[getGameResult] Restored moveHistory from preservedGameState: length=${game.moveHistory.length}`);
-    } else {
-        console.warn(`[getGameResult] preservedGameState.moveHistory is invalid, using game.moveHistory: length=${game.moveHistory?.length || 0}`);
     }
-    if (preservedGameState.blackTimeLeft !== undefined) {
-        game.blackTimeLeft = preservedGameState.blackTimeLeft;
+    if (preservedGameState.blackTimeLeft !== undefined) game.blackTimeLeft = preservedGameState.blackTimeLeft;
+    if (preservedGameState.whiteTimeLeft !== undefined) game.whiteTimeLeft = preservedGameState.whiteTimeLeft;
+
+    // 보드가 수순보다 돌 수가 적으면 moveHistory로 보드 복원 (불완전한 보드로 계가되는 버그 방지)
+    const boardSize = game.settings?.boardSize ?? 19;
+    const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x >= 0 && m.y >= 0 && m.x < boardSize && m.y < boardSize);
+    const stoneCount = game.boardState && Array.isArray(game.boardState) ? game.boardState.flat().filter((c: number) => c !== types.Player.None && c != null).length : 0;
+    if (validMoves.length > stoneCount && validMoves.length > 0) {
+        const derived: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(types.Player.None));
+        for (const move of validMoves) {
+            derived[move.y][move.x] = move.player;
+        }
+        game.boardState = derived;
     }
-    if (preservedGameState.whiteTimeLeft !== undefined) {
-        game.whiteTimeLeft = preservedGameState.whiteTimeLeft;
-    }
-    
-    // 최종 확인: boardState가 유효한지 확인
-    const boardStateValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && 
-                            game.boardState[0] && Array.isArray(game.boardState[0]) && game.boardState[0].length > 0;
+
+    const boardStateValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]) && game.boardState[0].length > 0;
     if (!boardStateValid) {
-        console.error(`[getGameResult] ERROR: boardState is invalid after restoration! boardState=${JSON.stringify(game.boardState?.slice(0, 2))}`);
+        console.error(`[getGameResult] ERROR: boardState invalid for game ${game.id}, cannot start analysis`);
     }
-    
-    console.log(`[getGameResult] Game state before save: boardStateSize=${game.boardState?.length || 0}, boardStateValid=${boardStateValid}, moveHistoryLength=${game.moveHistory?.length || 0}, blackTimeLeft=${game.blackTimeLeft}, whiteTimeLeft=${game.whiteTimeLeft}`);
     
     await db.saveGame(game);
     const { broadcast } = await import('./socket.js');
@@ -282,17 +285,8 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     delete (gameToBroadcast as any).boardState;
     const { broadcastToGameParticipants } = await import('./socket.js');
     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-    console.log(`[getGameResult] Broadcasted game with preserved state (boardState excluded for bandwidth): moveHistoryLength=${gameToBroadcast.moveHistory?.length || 0}, totalTurns=${gameToBroadcast.totalTurns}`);
-    console.log(`[getGameResult] Game ${game.id} set to scoring state and broadcasted (isSinglePlayer: ${game.isSinglePlayer}, stageId: ${game.stageId}, moveHistoryLength: ${game.moveHistory.length})`);
-    
-    // 카타고 분석 시작
-    console.log(`[getGameResult] ========================================`);
-    console.log(`[getGameResult] Starting KataGo analysis for game ${game.id}...`);
-    console.log(`[getGameResult] Game details: isSinglePlayer=${game.isSinglePlayer}, stageId=${game.stageId}, moveHistoryLength=${game.moveHistory.length}, boardSize=${game.settings.boardSize}`);
-    console.log(`[getGameResult] Board state validation: boardState exists=${!!game.boardState}, boardState size=${game.boardState?.length || 0}x${game.boardState?.[0]?.length || 0}, moveHistory length=${game.moveHistory?.length || 0}`);
-    console.log(`[getGameResult] KataGo config: KATAGO_API_URL=${process.env.KATAGO_API_URL || 'not set'}`);
-    console.log(`[getGameResult] ========================================`);
-    
+    console.log(`[getGameResult] Scoring started for ${game.id}: moves=${game.moveHistory?.length ?? 0}, board=${game.boardState?.length ?? 0}x${game.boardState?.[0]?.length ?? 0}`);
+
     // 게임 상태 검증 (KataGo 분석 전)
     if (!game.boardState || !Array.isArray(game.boardState) || game.boardState.length === 0) {
         console.error(`[getGameResult] ERROR: Invalid boardState for game ${game.id}, cannot start KataGo analysis`);
@@ -306,8 +300,23 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const savedPreservedGameState = preservedGameState;
     const savedPreservedTimeInfo = preservedTimeInfo;
     
+    // KataGo 계가가 절대 틀리지 않도록 최대 3회 재시도 (일시적 오류 시에도 성공 유도)
+    const KATAGO_MAX_ATTEMPTS = 3;
+    const runAnalysisWithRetries = async (attempt = 1): Promise<types.AnalysisResult> => {
+        try {
+            return await analyzeGame(game);
+        } catch (err: any) {
+            if (attempt < KATAGO_MAX_ATTEMPTS) {
+                console.warn(`[getGameResult] KataGo attempt ${attempt}/${KATAGO_MAX_ATTEMPTS} failed for game ${game.id}, retrying in 2s:`, err?.message);
+                await new Promise(r => setTimeout(r, 2000));
+                return runAnalysisWithRetries(attempt + 1);
+            }
+            throw err;
+        }
+    };
+    
     const analysisStartTime = Date.now();
-    analyzeGame(game)
+    runAnalysisWithRetries()
         .then(async (baseAnalysis) => {
             const analysisDuration = Date.now() - analysisStartTime;
             console.log(`[getGameResult] KataGo analysis completed for game ${game.id} in ${analysisDuration}ms, getting fresh game state...`);
@@ -1098,10 +1107,14 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             }
 
             // 게임 상태 업데이트 후 AI 턴 처리 (애니메이션 완료로 턴이 전환되었을 수 있음)
-            const isAiTurn = game.isAiGame && !isManuallyPaused && game.currentPlayer !== types.Player.None &&
-                (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId) &&
-                // 클라이언트 전용 AI로 동작시킬 게임(도전의 탑)은 서버에서 AI 수를 처리하지 않음
-                game.gameCategory !== 'tower';
+            const currentPlayerIdForAi = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            const isAiPlayerTurn = currentPlayerIdForAi === aiUserId ||
+                (currentPlayerIdForAi && String(currentPlayerIdForAi).startsWith('dungeon-bot-'));
+            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+            const isAiTurn = (game.isAiGame || isAiPlayerTurn) && !isManuallyPaused && game.currentPlayer !== types.Player.None &&
+                isAiPlayerTurn &&
+                // 클라이언트 측 AI(Electron 로컬 GnuGo) 사용 시에만 서버에서 makeAiMove 호출하지 않음. useClientSideAi가 false면 탑/전략바둑 모두 서버 AI 사용.
+                !useClientSideAi;
 
             // 멀티플레이 AI 게임의 경우에만 메인 루프에서 AI 수 처리
             // 놀이바둑 모드의 경우 placement 상태에서도 AI가 동작해야 함

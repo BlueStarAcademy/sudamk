@@ -8,6 +8,8 @@
    (백엔드가 꺼져 있거나, 잘못된 URL로 요청해 404/502 HTML 페이지가 온 경우)
 2. **네트워크 오류**  
    (CORS, 타임아웃, DNS 실패, 백엔드 서비스 다운)
+3. **`TypeError: Failed to fetch`**  
+   (요청이 백엔드에 도달하지 못함 → CORS preflight 실패, 백엔드 미응답, 또는 프론트 도메인 미허용)
 
 ---
 
@@ -42,12 +44,17 @@
 - **VITE_*** 변수는 빌드 시점에 코드에 박히므로**, 값을 바꾼 뒤 **반드시 재배포(재빌드)** 해야 적용됨
 - 백엔드 서비스가 **Crashed**면 같은 증상이 남 → 백엔드 로그/상태 확인
 
-### 3. 백엔드 Variables
+### 3. 백엔드 Variables (CORS / Failed to fetch 해결)
 
 - **백엔드 서비스**에서:
   - `DATABASE_URL` 이 **내부 주소**로 설정되어 있는지  
     (`postgres.railway.internal:5432` 권장)
   - Postgres 서비스와 **Connected** 되어 있는지
+  - **`FRONTEND_URL`** (중요): 프론트엔드가 **다른 도메인**에서 서빙될 때 로그인 등 API 요청이 CORS로 막히지 않도록, **프론트엔드 주소를 정확히** 넣어야 합니다.
+    - 예: 프론트가 `https://sudam-production.up.railway.app` 이면  
+      `FRONTEND_URL=https://sudam-production.up.railway.app` (끝에 `/` 없이)
+    - **커스텀 도메인**을 쓰면 반드시 그 URL을 `FRONTEND_URL`에 설정
+    - 값을 바꾼 뒤 백엔드 서비스 **재시작 또는 재배포** 필요
 
 ### 4. 브라우저에서 실제 요청 확인
 
@@ -67,6 +74,7 @@
 |------|------|
 | 백엔드 서비스 Crashed | 해당 서비스 Redeploy, 로그 확인 |
 | 프론트/백 분리인데 VITE_API_URL 없음 | 프론트 서비스에 VITE_API_URL, VITE_WS_URL 설정 후 **재빌드·재배포** |
+| **Failed to fetch / 로그인 안 됨** | 백엔드에 **FRONTEND_URL** = 프론트 주소(끝 `/` 없이) 설정 후 재배포. 브라우저 Network에서 login 요청 Status 확인 |
 | DB 연결 끊김 | Postgres 연결 복구, DATABASE_URL(내부 주소) 확인 |
 | 요청 URL이 잘못됨 | 위 변수와 실제 백엔드 도메인 일치 여부 확인 |
 

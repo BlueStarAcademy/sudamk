@@ -346,6 +346,33 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         
         console.log(`[handleAction] Game found: gameId=${gameId}, type=${type}, isSinglePlayer=${game.isSinglePlayer}, gameStatus=${game.gameStatus}`);
 
+        // 클라이언트 측 AI(WASM/Electron) 실패 시 서버 GnuGo로 해당 국면 수 계산 폴백 (예: 패 포함 수순)
+        if (type === 'REQUEST_SERVER_AI_MOVE') {
+            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+            if (!useClientSideAi) {
+                return { error: 'Game does not use client-side AI.' };
+            }
+            const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            const { aiUserId } = await import('./aiPlayer.js');
+            const isAiTurn = currentPlayerId === aiUserId || (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-'));
+            if (!isAiTurn) {
+                return { error: 'Not AI turn.' };
+            }
+            if (game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_placing') {
+                return { error: 'Game not in playing state.' };
+            }
+            const { makeAiMove } = await import('./aiPlayer.js');
+            await makeAiMove(game);
+            updateGameCache(game);
+            await db.saveGame(game);
+            const { broadcastToGameParticipants } = await import('./socket.js');
+            const payloadGame = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
+                ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
+                : game;
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: payloadGame } }, game);
+            return { clientResponse: { serverAiMoveDone: true } };
+        }
+
         // 일반 AI 대국의 수동 일시정지 중에는 착수/통과 등 주요 게임 액션을 차단
         const isManuallyPausedAi = game.isAiGame && !game.isSinglePlayer && game.gameCategory !== 'tower' && game.gameCategory !== 'singleplayer'
             && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;

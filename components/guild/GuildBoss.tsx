@@ -866,6 +866,8 @@ const GuildBoss: React.FC = () => {
                     onClose={() => {
                         setShowResultModal(false);
                         setBattleResult(null);
+                        // 길드 홈으로 돌아갔을 때 나의 기록(랭킹/총 데미지/현재순위/역대 최고)이 갱신되어 보이도록 길드 정보 재요청
+                        void handlers.handleAction({ type: 'GET_GUILD_INFO' });
                     }} 
                     isTopmost={true}
                 />

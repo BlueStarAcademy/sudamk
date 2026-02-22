@@ -80,18 +80,15 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// GnuGo move generation endpoint
+// GnuGo move generation endpoint (프로세스 풀 사용으로 동시 N개 요청 처리, 국면 겹침 없음)
 app.post('/api/gnugo/move', async (req, res) => {
     try {
         const { boardState, boardSize, player, moveHistory, level } = req.body;
-        
         if (!boardState || !boardSize) {
             return res.status(400).json({ error: 'Invalid request: boardState and boardSize are required' });
         }
-
         const levelNum = level !== undefined ? parseInt(String(level), 10) : undefined;
-        console.log(`[GnuGo Server] Received move request: boardSize=${boardSize}, player=${player}, level=${levelNum ?? 'default'}`);
-        
+        console.log(`[GnuGo Server] Move request: boardSize=${boardSize}, player=${player}, level=${levelNum ?? 'default'}`);
         const { generateGnuGoMove } = await import('./gnugoService.js');
         const move = await generateGnuGoMove({
             boardState,
@@ -100,14 +97,11 @@ app.post('/api/gnugo/move', async (req, res) => {
             moveHistory: moveHistory || [],
             level: (levelNum >= 1 && levelNum <= 10) ? levelNum : undefined
         });
-        
         console.log(`[GnuGo Server] Move generated: (${move.x}, ${move.y})`);
         res.json({ move });
     } catch (error: any) {
         console.error('[GnuGo Server] Error:', error);
-        res.status(500).json({ 
-            error: error.message || 'Internal server error'
-        });
+        res.status(500).json({ error: error.message || 'Internal server error' });
     }
 });
 
@@ -123,9 +117,11 @@ app.get('/api/gnugo/status', async (req, res) => {
             status: processRunning ? 'running' : (isStarting ? 'starting' : 'stopped'),
             processRunning,
             isStarting,
+            poolSize: (manager as any)?.poolSize,
             config: {
                 GNUGO_PATH: process.env.GNUGO_PATH || 'gnugo',
                 GNUGO_LEVEL: process.env.GNUGO_LEVEL || '10',
+                GNUGO_POOL_SIZE: process.env.GNUGO_POOL_SIZE || '4',
                 PORT: PORT
             }
         });

@@ -196,7 +196,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
 
     switch(type) {
         case 'START_TOWER_GAME': {
-            const { floor } = payload;
+            const { floor, useClientSideAi } = payload;
             const stage = TOWER_STAGES.find(s => {
                 const stageFloor = parseInt(s.id.replace('tower-', ''));
                 return stageFloor === floor;
@@ -304,6 +304,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                     scanCount: stage.scanCount,
                     missileCount: stage.missileCount,
                     mixedModes: mixedModes.length > 0 ? mixedModes : undefined,
+                    useClientSideAi: useClientSideAi === true,
                 } as any,
                 player1: user,
                 player2: aiUser,

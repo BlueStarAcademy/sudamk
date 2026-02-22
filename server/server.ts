@@ -80,6 +80,8 @@ const OFFLINE_REGEN_SKIP_RSS_MB = _replicaLimitMb > 4000 ? 8000 : (process.env.R
 let lastOfflineRegenAt = 0;
 const DAILY_TASK_CHECK_INTERVAL_MS = 60_000; // 1 minute
 let lastDailyTaskCheckAt = 0;
+/** 0시 스케줄러 완료 브로드캐스트를 해당 날짜에 이미 보냈는지 (KST 0시 기준 타임스탬프) */
+let lastSchedulerMidnightBroadcastDay = 0;
 let lastBotScoreUpdateAt = 0;
 let lastStaleUserStatusCleanupAt = 0;
 const STALE_USER_STATUS_CLEANUP_INTERVAL_MS = 60_000; // 1000명 규모: userStatuses 무한 증가 방지
@@ -611,6 +613,8 @@ const startServer = async () => {
     // POST 등 비동기 요청 시 브라우저 preflight(OPTIONS)가 확실히 CORS 헤더로 응답하도록
     app.options('/api/auth/login', cors(corsOptions));
     app.options('/api/auth/kakao/url', cors(corsOptions));
+    // 모든 /api 경로에 대한 preflight 허용 (배포 환경에서 Failed to fetch 방지)
+    app.options(/^\/api\//, cors(corsOptions));
     
     // Ignore development tooling noise such as Vite/Esbuild status pings
     // This route should be early in the middleware stack to avoid unnecessary processing
@@ -1382,8 +1386,12 @@ const startServer = async () => {
                 const { getAllCachedGames } = await import('./gameCache.js');
                 activeGames = getAllCachedGames();
                 if (activeGames.length === 0) {
-                    // 캐시가 비어있으면 강제로 로드 (첫 실행 후)
-                    console.log('[MainLoop] Cache empty, forcing game load with timeout...');
+                    // 캐시가 비어있으면 강제로 로드 (첫 실행 후). 로그는 30초마다만 출력 (스팸 방지)
+                    const lastLog = (global as any).__mainLoopCacheEmptyLog ?? 0;
+                    if (Date.now() - lastLog > 30000) {
+                        console.log('[MainLoop] Cache empty, forcing game load with timeout...');
+                        (global as any).__mainLoopCacheEmptyLog = Date.now();
+                    }
                     try {
                         activeGames = await db.getAllActiveGamesChunked();
                         if (activeGames.length > 0) {
@@ -1593,6 +1601,21 @@ const startServer = async () => {
                     }
 
                     lastDailyTaskCheckAt = now;
+                    // 0시(자정) 스케줄러 실행 후 접속 중인 클라이언트에 새로고침 요청 → 스케줄러 반영 보장 (해당 날짜 1회만)
+                    const isMidnightKST = kstHours === 0 && kstMinutes < 5;
+                    if (isMidnightKST) {
+                        const { getStartOfDayKST } = await import('../utils/timeUtils.js');
+                        const todayStartKST = getStartOfDayKST(now);
+                        if (lastSchedulerMidnightBroadcastDay !== todayStartKST) {
+                            lastSchedulerMidnightBroadcastDay = todayStartKST;
+                            try {
+                                broadcast({ type: 'SCHEDULER_MIDNIGHT_COMPLETE' });
+                                console.log('[MainLoop] Broadcast SCHEDULER_MIDNIGHT_COMPLETE for client refresh');
+                            } catch (broadcastErr: any) {
+                                console.warn('[MainLoop] Failed to broadcast SCHEDULER_MIDNIGHT_COMPLETE:', broadcastErr?.message);
+                            }
+                        }
+                    }
                 } catch (dailyTaskError: any) {
                     console.error('[MainLoop] Error in daily task check:', dailyTaskError?.message);
                     // 일일 작업 실패해도 서버는 계속 실행

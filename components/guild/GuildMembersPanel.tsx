@@ -15,6 +15,7 @@ interface GuildMembersPanelProps {
 const MemberManagementModal: React.FC<{
     member: GuildMember;
     memberDisplayName: string;
+    roleLabel: string;
     isMaster: boolean;
     isVice: boolean;
     onPromote: () => void;
@@ -22,47 +23,90 @@ const MemberManagementModal: React.FC<{
     onKick: () => void;
     onTransfer: () => void;
     onClose: () => void;
-}> = ({ member, memberDisplayName, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose }) => {
+}> = ({ member, memberDisplayName, roleLabel, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose }) => {
     const canPromoteToVice = isMaster && member.role === GuildMemberRole.Member;
     const canDemote = isMaster && member.role === GuildMemberRole.Vice;
     const canKick = (isMaster && member.role !== GuildMemberRole.Master) || (isVice && member.role === GuildMemberRole.Member);
     const canTransfer = isMaster && member.role !== GuildMemberRole.Master;
+    const roleBadgeClass =
+        member.role === 'leader'
+            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+            : member.role === 'officer'
+            ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+            : 'bg-stone-500/20 text-stone-300 border-stone-500/40';
 
     return (
         <DraggableWindow
-            title={`${memberDisplayName} 관리`}
+            title="길드원 관리"
             windowId="guild-member-management-modal"
             onClose={onClose}
-            initialWidth={340}
-            initialHeight={320}
+            initialWidth={400}
+            initialHeight={520}
             modal={true}
             closeOnOutsideClick={true}
         >
-            <div className="flex flex-col p-4 gap-3">
-                <p className="text-center text-stone-300 text-sm mb-2">이 길드원에 대해 수행할 작업을 선택하세요.</p>
-                {canPromoteToVice && (
-                    <Button onClick={onPromote} className="w-full !text-sm !py-2.5 border border-blue-500/50 bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg hover:shadow-xl transition-all">
-                        부길드장 임명
+            <div className="flex flex-col min-h-0 flex-1 overflow-y-auto">
+                {/* 대상 멤버 헤더 */}
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-stone-800/60 border border-stone-600/40 mb-4">
+                    <Avatar userId={member.userId} userName={memberDisplayName} size={52} />
+                    <div className="flex-1 min-w-0">
+                        <p className="font-bold text-lg text-white truncate" title={memberDisplayName}>{memberDisplayName}</p>
+                        <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold border ${roleBadgeClass}`}>
+                            {roleLabel}
+                        </span>
+                    </div>
+                </div>
+
+                {/* 안내 문구 */}
+                <p className="text-stone-400 text-sm mb-4 px-0.5">
+                    아래 작업 중 선택하세요. 내용이 길어도 모두 표시됩니다.
+                </p>
+
+                {/* 작업 버튼 영역 - 내용 잘림 방지 */}
+                <div className="flex flex-col gap-3 flex-1 min-h-0">
+                    {canPromoteToVice && (
+                        <Button
+                            onClick={onPromote}
+                            className="w-full !text-sm !py-3 !min-h-[44px] border border-blue-500/50 bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg hover:shadow-xl hover:from-blue-500/95 hover:to-indigo-500/95 transition-all whitespace-normal break-words"
+                        >
+                            부길드장 임명
+                        </Button>
+                    )}
+                    {canDemote && (
+                        <Button
+                            onClick={onDemote}
+                            className="w-full !text-sm !py-3 !min-h-[44px] border border-yellow-500/50 bg-gradient-to-r from-yellow-600/90 to-amber-600/90 text-white shadow-lg hover:shadow-xl hover:from-yellow-500/95 hover:to-amber-500/95 transition-all whitespace-normal break-words"
+                        >
+                            부길드장 해임
+                        </Button>
+                    )}
+                    {canTransfer && (
+                        <Button
+                            onClick={onTransfer}
+                            className="w-full !text-sm !py-3 !min-h-[44px] border border-orange-500/50 bg-gradient-to-r from-orange-600/90 to-red-600/90 text-white shadow-lg hover:shadow-xl hover:from-orange-500/95 hover:to-red-500/95 transition-all whitespace-normal break-words"
+                        >
+                            길드장 위임
+                        </Button>
+                    )}
+                    {canKick && (
+                        <Button
+                            onClick={onKick}
+                            className="w-full !text-sm !py-3 !min-h-[44px] border border-red-500/50 bg-gradient-to-r from-red-600/90 to-rose-600/90 text-white shadow-lg hover:shadow-xl hover:from-red-500/95 hover:to-rose-500/95 transition-all whitespace-normal break-words"
+                        >
+                            추방
+                        </Button>
+                    )}
+                </div>
+
+                {/* 닫기 */}
+                <div className="mt-4 pt-4 border-t border-stone-600/50">
+                    <Button
+                        onClick={onClose}
+                        className="w-full !text-sm !py-3 !min-h-[44px] border border-stone-500/50 bg-stone-700/80 hover:bg-stone-600/80 text-stone-200 shadow transition-all"
+                    >
+                        닫기
                     </Button>
-                )}
-                {canDemote && (
-                    <Button onClick={onDemote} className="w-full !text-sm !py-2.5 border border-yellow-500/50 bg-gradient-to-r from-yellow-600/90 to-amber-600/90 text-white shadow-lg hover:shadow-xl transition-all">
-                        부길드장 해임
-                    </Button>
-                )}
-                {canTransfer && (
-                    <Button onClick={onTransfer} className="w-full !text-sm !py-2.5 border border-orange-500/50 bg-gradient-to-r from-orange-600/90 to-red-600/90 text-white shadow-lg hover:shadow-xl transition-all">
-                        길드장 위임
-                    </Button>
-                )}
-                {canKick && (
-                    <Button onClick={onKick} className="w-full !text-sm !py-2.5 border border-red-500/50 bg-gradient-to-r from-red-600/90 to-rose-600/90 text-white shadow-lg hover:shadow-xl transition-all">
-                        추방
-                    </Button>
-                )}
-                <Button onClick={onClose} className="w-full !text-sm !py-2.5 border border-stone-500/50 bg-gradient-to-r from-stone-700/90 to-neutral-700/90 text-white shadow-lg hover:shadow-xl transition-all mt-2">
-                    닫기
-                </Button>
+                </div>
             </div>
         </DraggableWindow>
     );
@@ -280,7 +324,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                         <p className="font-bold text-lg text-accent drop-shadow-lg">{member.contributionTotal || 0}</p>
                                     </td>
                                     <td className="text-center w-28 align-middle min-w-0">
-                                        <p className="truncate text-sm font-semibold">{isOnline ? <span className="text-green-400 drop-shadow-lg">온라인</span> : <span className="text-tertiary">{formatLastSeenGuild(user?.lastLoginAt)}</span>}</p>
+                                        <p className="truncate text-sm font-semibold">{isOnline ? <span className="text-green-400 drop-shadow-lg">온라인</span> : <span className="text-tertiary">{formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}</span>}</p>
                                     </td>
                                     {canManage && (
                                         <td className="text-center w-20 align-middle" onClick={(e) => e.stopPropagation()}>
@@ -314,6 +358,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                 || (managingMember.userId === ADMIN_USER_ID ? ADMIN_NICKNAME : (u?.isAdmin ? ADMIN_NICKNAME : (u?.nickname || 'Unknown')));
                         })()
                     }
+                    roleLabel={getRoleName(managingMember.role)}
                     isMaster={isMaster}
                     isVice={isVice}
                     onPromote={() => handleAction('PROMOTE', managingMember.userId)}

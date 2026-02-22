@@ -129,6 +129,7 @@ export const resetWeeklyGuildMissions = (guild: Guild, now: number) => {
             : 0;
         const nextBoss = GUILD_BOSSES[nextBossIndex];
         
+        const prevMaxDamageLog = guild.guildBossState.maxDamageLog || {};
         guild.guildBossState = {
             bossId: nextBoss.id,
             hp: nextBoss.maxHp,
@@ -136,6 +137,7 @@ export const resetWeeklyGuildMissions = (guild: Guild, now: number) => {
             currentBossId: nextBoss.id,
             currentBossHp: nextBoss.maxHp,
             totalDamageLog: {},
+            maxDamageLog: prevMaxDamageLog,
             lastResetAt: now,
         };
         console.log(`[GuildBossReset] Guild ${guild.name}: Boss reset to ${nextBoss.name} (${nextBoss.id})`);

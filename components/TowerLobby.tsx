@@ -5,6 +5,7 @@ import Avatar from './Avatar.js';
 import { UserWithStatus } from '../types.js';
 import { AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
+import { loadWasmGnuGo, shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
 import QuickAccessSidebar from './QuickAccessSidebar.js';
@@ -25,6 +26,11 @@ const TowerLobby: React.FC = () => {
         const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
         window.addEventListener('resize', checkIsMobile);
         return () => window.removeEventListener('resize', checkIsMobile);
+    }, []);
+
+    // 도전의 탑 입장 시 WASM GnuGo 최초 1회 프리로드
+    useEffect(() => {
+        loadWasmGnuGo().catch(() => {});
     }, []);
 
     // 다음 달 1일 0시(KST)까지 남은 시간 계산
@@ -651,7 +657,7 @@ const TowerLobby: React.FC = () => {
 														// useApp.ts에서 라우팅을 처리하므로 여기서는 액션만 호출
 														await handlers.handleAction({
                                                             type: 'START_TOWER_GAME',
-                                                            payload: { floor }
+                                                            payload: { floor, useClientSideAi: shouldUseClientSideAi() }
                                                         });
 													} catch (error) {
 														console.error('[TowerLobby] Failed to start tower game:', error);
@@ -1021,7 +1027,7 @@ const TowerLobby: React.FC = () => {
 											try {
 												const res = await handlers.handleAction({
                                                     type: 'START_TOWER_GAME',
-                                                    payload: { floor }
+                                                    payload: { floor, useClientSideAi: shouldUseClientSideAi() }
                                                 });
 												const gameId = (res as any)?.gameId || (res as any)?.clientResponse?.gameId;
 												console.log('[TowerLobby] START_TOWER_GAME response:', { res, gameId });

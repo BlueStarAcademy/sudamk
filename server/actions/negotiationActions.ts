@@ -387,9 +387,12 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
                 broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
                 
+                // 클라이언트가 WebSocket 도착 전에 대국실 진입할 수 있도록 game 객체 포함
+                // (배포 환경에서 WS 지연 시 게임 미표시 → 프로필로 튕기는 현상 방지)
                 return {
                     clientResponse: {
-                        gameId: game.id
+                        gameId: game.id,
+                        game,
                     }
                 };
             } catch (err: any) {

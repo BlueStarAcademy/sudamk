@@ -133,6 +133,7 @@ export type ServerAction =
     | { type: 'RESIGN_GAME', payload: { gameId: string, andLeave?: boolean } }
     | { type: 'LEAVE_AI_GAME', payload: { gameId: string } }
     | { type: 'REQUEST_NO_CONTEST_LEAVE', payload: { gameId: string } }
+    | { type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: string } }
     | { type: 'EMERGENCY_EXIT', payload?: never }
     | { type: 'USE_ACTION_BUTTON', payload: { gameId: string; buttonName: string } }
     // Nigiri
@@ -281,7 +282,7 @@ export type ServerAction =
     | { type: 'START_SINGLE_PLAYER_GAME', payload: { stageId: string } }
     | { type: 'CONFIRM_SINGLE_PLAYER_GAME_START', payload: { gameId: string } }
     | { type: 'SINGLE_PLAYER_REFRESH_PLACEMENT', payload: { gameId: string } }
-    | { type: 'START_TOWER_GAME', payload: { floor: number } }
+    | { type: 'START_TOWER_GAME', payload: { floor: number; useClientSideAi?: boolean } }
     | { type: 'CONFIRM_TOWER_GAME_START', payload: { gameId: string } }
     | { type: 'TOWER_REFRESH_PLACEMENT', payload: { gameId: string } }
     | { type: 'TOWER_ADD_TURNS', payload: { gameId: string } }

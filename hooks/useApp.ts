@@ -20,6 +20,7 @@ import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { aiUserId } from '../constants/auth.js';
+import { loadWasmGnuGo, getWasmGnuGoMove, isAvailable as isWasmGnuGoAvailable } from '../services/wasmGnuGo.js';
 
 export const useApp = () => {
     // --- State Management ---
@@ -48,6 +49,8 @@ export const useApp = () => {
     const HTTP_UPDATE_DEBOUNCE_MS = 2000; // HTTP 응답 후 2초 내 WebSocket 업데이트 무시 (더 긴 시간으로 확실하게 보호)
     // AI 게임 경기 시작 후 경기장 입장 시 state 반영 전 리다이렉트 방지 (레이스 컨디션)
     const pendingAiGameEntryRef = useRef<{ gameId: string; until: number } | null>(null);
+    // 클라이언트 측 AI(Electron): 같은 턴에 중복 전송 방지
+    const lastClientSideAiSentRef = useRef<Record<string, number>>({});
 
     useEffect(() => {
         currentUserRef.current = currentUser;
@@ -1037,23 +1040,32 @@ export const useApp = () => {
                 
                 // 자동 계가 트리거가 필요한 경우 서버에 요청 (비동기로 처리)
                 if (shouldTriggerAutoScoring && autoScoringPreservedState) {
-                    const { totalTurns, moveHistory, boardState, blackTimeLeft, whiteTimeLeft } = autoScoringPreservedState;
-                    
+                    let { totalTurns, moveHistory, boardState, blackTimeLeft, whiteTimeLeft } = autoScoringPreservedState;
+                    const boardSize = game.settings?.boardSize || 9;
+                    const validMoves = moveHistory.filter((m: any) => m && m.x >= 0 && m.y >= 0 && m.x < boardSize && m.y < boardSize);
+                    const stoneCountOnBoard = Array.isArray(boardState) && boardState.length > 0
+                        ? boardState.flat().filter((c: any) => c !== 0 && c !== null && c !== undefined).length
+                        : 0;
+                    if (validMoves.length > stoneCountOnBoard && validMoves.length > 0) {
+                        const derived: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
+                        for (const move of validMoves) {
+                            derived[move.y][move.x] = move.player;
+                        }
+                        boardState = derived;
+                    }
                     console.log(`[handleAction] Auto-scoring triggered on client, sending to server: totalTurns=${totalTurns}, moveHistoryLength=${moveHistory.length}, boardStateSize=${boardState.length}, blackTimeLeft=${blackTimeLeft}, whiteTimeLeft=${whiteTimeLeft}, stage=${game.stageId}`);
-                    
-                    // 서버에 자동 계가 트리거 요청 전송 (수 좌표 없이 플래그만 전송)
                     const autoScoringAction = {
                         type: 'PLACE_STONE',
                         payload: {
                             gameId,
-                            x: -1, // 패스 좌표 (실제 수를 두는 것이 아님)
-                            y: -1, // 패스 좌표 (실제 수를 두는 것이 아님)
-                            totalTurns: totalTurns, // 서버에 totalTurns 정보 전달
-                            moveHistory: moveHistory, // 서버에 moveHistory 정보 전달 (KataGo 분석용)
-                            boardState: boardState, // 서버에 boardState 정보 전달 (KataGo 분석용)
-                            blackTimeLeft: blackTimeLeft, // 서버에 시간 정보 전달
-                            whiteTimeLeft: whiteTimeLeft, // 서버에 시간 정보 전달
-                            triggerAutoScoring: true // 자동 계가 트리거 플래그
+                            x: -1,
+                            y: -1,
+                            totalTurns: totalTurns,
+                            moveHistory: moveHistory,
+                            boardState: boardState,
+                            blackTimeLeft: blackTimeLeft,
+                            whiteTimeLeft: whiteTimeLeft,
+                            triggerAutoScoring: true
                         }
                     } as any;
                     
@@ -1269,6 +1281,22 @@ export const useApp = () => {
                     console.error(`[handleAction] ${action.type} - Server returned error:`, errorMessage);
                     showError(errorMessage);
                     return;
+                }
+                // LEAVE_AI_GAME 성공 시 로컬 상태에서 해당 게임 제거 및 사용자 gameId 해제 → activeGame이 null이 되어 "재접속 중..."에 갇히지 않음
+                if (action.type === 'LEAVE_AI_GAME') {
+                    const gameId = (action.payload as { gameId?: string })?.gameId;
+                    if (gameId) {
+                        const inTower = towerGames[gameId];
+                        const inSingle = singlePlayerGames[gameId];
+                        const inLive = liveGames[gameId];
+                        if (inTower) setTowerGames(current => { const next = { ...current }; delete next[gameId]; return next; });
+                        if (inSingle) setSinglePlayerGames(current => { const next = { ...current }; delete next[gameId]; return next; });
+                        if (inLive) setLiveGames(current => { const next = { ...current }; delete next[gameId]; return next; });
+                        const uid = currentUserRef.current?.id;
+                        if (uid) {
+                            setOnlineUsers(prev => prev.map(u => u.id === uid ? { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined } : u));
+                        }
+                    }
                 }
                 // COMPLETE_DUNGEON_STAGE: 서버가 { success, ...clientResponse } 형태로 보내므로 clientResponse 없이 flat하게 옴. updatedUser를 먼저 적용해 dungeonProgress(unlockedStages, stageResults 등) 반영 후 반환.
                 if (action.type === 'COMPLETE_DUNGEON_STAGE' && result && result.userRank != null) {
@@ -2069,12 +2097,17 @@ export const useApp = () => {
                 
                 // Handle other guild responses that might include guilds
                 // GET_GUILD_WAR_DATA도 guilds 병합 (guildWarMatching 등 매칭 상태 동기화 - broadcast 누락 시 대비)
-                if (result?.clientResponse?.guilds && typeof result.clientResponse.guilds === 'object') {
-                    setGuilds(prev => ({ ...prev, ...result.clientResponse.guilds }));
-                }
-                
-                if (result?.guilds && typeof result.guilds === 'object') {
-                    setGuilds(prev => ({ ...prev, ...result.guilds }));
+                // API 응답은 { success: true, ...clientResponse } 형태라 result.guilds / result.clientResponse.guilds 둘 다 확인
+                const guildsFromResponse = result?.guilds ?? result?.clientResponse?.guilds;
+                if (guildsFromResponse && typeof guildsFromResponse === 'object') {
+                    if (action.type === 'START_GUILD_BOSS_BATTLE') {
+                        // 보스전 직후 길드홈으로 돌아갔을 때 나의 기록이 갱신되도록 동기 반영
+                        flushSync(() => {
+                            setGuilds(prev => ({ ...prev, ...guildsFromResponse }));
+                        });
+                    } else {
+                        setGuilds(prev => ({ ...prev, ...guildsFromResponse }));
+                    }
                 }
                 
                 // Return result for actions that need it (preserve original structure)
@@ -2306,20 +2339,13 @@ export const useApp = () => {
                 }
                 
                 // WebSocket 연결 URL 결정
-                // Vite 개발 서버를 사용하는 경우 프록시를 통해 연결
+                // 프로덕션(배포)에서는 항상 VITE_WS_URL/API 기반 URL 사용 (프론트와 백엔드가 분리된 경우 동작하도록)
+                // 개발 환경에서만 같은 호스트(Vite 프록시 /ws) 사용
                 let wsUrl: string;
-                
-                // Vite 개발 서버를 사용하는 경우 (포트가 5173인 경우)
-                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const isViteDevServer = window.location.port === '5173' || window.location.port === '';
-
-                if (isViteDevServer) {
-                    // Vite 개발 환경에서는 프록시 (/ws) 사용
-                    // 네트워크 주소(192.168.x.x)로 접속해도 프록시 사용
+                if (import.meta.env.DEV) {
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                     wsUrl = `${wsProtocol}//${window.location.host}/ws`;
                 } else {
-                    // 그 외 환경에서는 환경 변수로 설정된 WebSocket URL 사용
-                    // 환경 변수가 없으면 같은 호스트의 /ws 엔드포인트 사용
                     wsUrl = getWebSocketUrlFor('/ws');
                 }
                 
@@ -2421,6 +2447,12 @@ export const useApp = () => {
                         case 'CONNECTION_ESTABLISHED':
                             console.log('[WebSocket] Connection established, waiting for initial state...');
                             return;
+                        case 'SCHEDULER_MIDNIGHT_COMPLETE': {
+                            // 0시 스케줄러 동작 완료 시 서버가 전송. 새로고침하여 일일 퀘스트/던전/랭킹 등 반영
+                            console.log('[WebSocket] SCHEDULER_MIDNIGHT_COMPLETE received, refreshing page');
+                            window.location.reload();
+                            return;
+                        }
                         case 'INITIAL_STATE_START': {
                             console.log('[WebSocket] Receiving chunked initial state (start):', {
                                 chunkIndex: message.payload.chunkIndex,
@@ -2796,78 +2828,57 @@ export const useApp = () => {
                                         // scoring 상태인 경우 기존 게임의 boardState와 moveHistory 무조건 보존
                                         if (game.gameStatus === 'scoring') {
                                             if (existingGame) {
-                                                // scoring 상태에서는 기존 게임의 boardState와 moveHistory를 절대 덮어쓰지 않음
-                                                // 기존 게임의 boardState와 moveHistory가 유효한지 확인
-                                                const existingBoardStateValid = existingGame.boardState && 
-                                                    Array.isArray(existingGame.boardState) && 
-                                                    existingGame.boardState.length > 0 && 
-                                                    existingGame.boardState[0] && 
-                                                    Array.isArray(existingGame.boardState[0]) && 
-                                                    existingGame.boardState[0].length > 0;
-                                                
-                                                const existingMoveHistoryValid = existingGame.moveHistory && 
-                                                    Array.isArray(existingGame.moveHistory) && 
-                                                    existingGame.moveHistory.length > 0;
-                                                
-                                                // 기존 boardState에 실제 돌이 있는지 확인
-                                                const existingBoardStateHasStones = existingBoardStateValid && existingGame.boardState.some((row: any[]) => 
-                                                    row && Array.isArray(row) && row.some((cell: any) => cell !== 0 && cell !== null && cell !== undefined)
-                                                );
-                                                
-                                                // scoring 상태에서는 기존 boardState를 절대 덮어쓰지 않음 (돌이 있으면 무조건 유지)
-                                                // 서버에서 보낸 boardState가 유효하면 사용, 아니면 기존 것 사용
-                                                const serverBoardStateValid = game.boardState && 
-                                                    Array.isArray(game.boardState) && 
-                                                    game.boardState.length > 0 && 
-                                                    game.boardState[0] && 
-                                                    Array.isArray(game.boardState[0]) && 
-                                                    game.boardState[0].length > 0 &&
-                                                    game.boardState.some((row: any[]) => 
-                                                        row && Array.isArray(row) && row.some((cell: any) => cell !== 0 && cell !== null && cell !== undefined)
-                                                    );
-                                                
-                                                // scoring 상태에서는 기존 boardState를 절대 덮어쓰지 않음
-                                                // 서버에서 보낸 boardState가 유효하고 돌이 있으면 사용, 아니면 기존 것 사용
-                                                const finalBoardState = (serverBoardStateValid && existingBoardStateHasStones)
-                                                    ? game.boardState
-                                                    : ((existingBoardStateValid && existingBoardStateHasStones)
-                                                        ? existingGame.boardState 
-                                                        : (existingBoardStateValid ? existingGame.boardState : (serverBoardStateValid ? game.boardState : existingGame.boardState)));
-                                                
                                                 // 서버에서 보낸 moveHistory가 유효하면 사용, 아니면 기존 것 사용
-                                                const serverMoveHistoryValid = game.moveHistory && 
-                                                    Array.isArray(game.moveHistory) && 
-                                                    game.moveHistory.length > 0;
-                                                
-                                                const finalMoveHistory = serverMoveHistoryValid
-                                                    ? game.moveHistory
-                                                    : (existingMoveHistoryValid 
-                                                        ? existingGame.moveHistory 
-                                                        : (game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0 ? game.moveHistory : existingGame.moveHistory));
-                                                
-                                                // totalTurns도 보존
-                                                const finalTotalTurns = (game.totalTurns !== undefined && game.totalTurns !== null)
-                                                    ? game.totalTurns
-                                                    : (existingGame.totalTurns !== undefined && existingGame.totalTurns !== null ? existingGame.totalTurns : game.totalTurns);
-                                                
-                                                // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
-                                                if (process.env.NODE_ENV === 'development') {
-                                                    console.log(`[WebSocket][SinglePlayer] Scoring state: preserving state - boardState (serverValid=${serverBoardStateValid}, existingValid=${existingBoardStateValid}, hasStones=${existingBoardStateHasStones}, size=${finalBoardState?.length || 0}), moveHistory (serverValid=${serverMoveHistoryValid}, existingValid=${existingMoveHistoryValid}, length=${finalMoveHistory?.length || 0}), totalTurns=${finalTotalTurns}`);
+                                                const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
+                                                const existingMoveHistoryValid = existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0;
+                                                const finalMoveHistory = serverMoveHistoryValid ? game.moveHistory : (existingMoveHistoryValid ? existingGame.moveHistory : (game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0 ? game.moveHistory : existingGame.moveHistory));
+
+                                                // 서버가 boardState를 생략한 경우(계가 시 대역폭 절약): moveHistory로 보드 복원 → AI 수가 누락되거나 순서 이슈로 돌이 사라지는 버그 방지
+                                                const boardSize = game.settings?.boardSize || 9;
+                                                const deriveBoardFromMoveHistory = (moveHistory: any[]): number[][] | null => {
+                                                    if (!moveHistory || !Array.isArray(moveHistory) || moveHistory.length === 0) return null;
+                                                    const board: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
+                                                    for (const move of moveHistory) {
+                                                        if (move && move.x >= 0 && move.x < boardSize && move.y >= 0 && move.y < boardSize) {
+                                                            board[move.y][move.x] = move.player;
+                                                        }
+                                                    }
+                                                    return board;
+                                                };
+
+                                                const serverBoardStateValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]) && game.boardState[0].length > 0 &&
+                                                    game.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((cell: any) => cell !== 0 && cell !== null && cell !== undefined));
+                                                const existingBoardStateValid = existingGame.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0 && existingGame.boardState[0] && Array.isArray(existingGame.boardState[0]) && existingGame.boardState[0].length > 0;
+                                                const existingBoardStateHasStones = existingBoardStateValid && existingGame.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((cell: any) => cell !== 0 && cell !== null && cell !== undefined));
+
+                                                let finalBoardState: any;
+                                                if (serverBoardStateValid) {
+                                                    finalBoardState = game.boardState;
+                                                } else if (existingBoardStateValid && existingBoardStateHasStones && finalMoveHistory && existingGame.boardState) {
+                                                    const moveCount = (finalMoveHistory as any[]).filter((m: any) => m && m.x >= 0 && m.y >= 0).length;
+                                                    const existingStoneCount = existingGame.boardState.flat().filter((c: any) => c !== 0 && c !== null && c !== undefined).length;
+                                                    if (moveCount > existingStoneCount) {
+                                                        const derived = deriveBoardFromMoveHistory(finalMoveHistory as any[]);
+                                                        finalBoardState = derived || existingGame.boardState;
+                                                    } else {
+                                                        finalBoardState = existingGame.boardState;
+                                                    }
+                                                } else if (finalMoveHistory && (finalMoveHistory as any[]).length > 0) {
+                                                    const derived = deriveBoardFromMoveHistory(finalMoveHistory as any[]);
+                                                    finalBoardState = derived || (existingBoardStateValid ? existingGame.boardState : existingGame.boardState);
+                                                } else {
+                                                    finalBoardState = (existingBoardStateValid ? existingGame.boardState : existingGame.boardState);
                                                 }
-                                                
+
+                                                const finalTotalTurns = (game.totalTurns !== undefined && game.totalTurns !== null) ? game.totalTurns : (existingGame.totalTurns !== undefined && existingGame.totalTurns !== null ? existingGame.totalTurns : game.totalTurns);
+
                                                 const preservedGame = {
                                                     ...game,
-                                                    // boardState, moveHistory, totalTurns는 서버에서 온 값이 유효하면 사용, 아니면 기존 것 사용
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
                                                     totalTurns: finalTotalTurns,
-                                                    // 시간 정보도 서버에서 온 값이 유효하면 사용, 아니면 기존 것 사용
-                                                    blackTimeLeft: (game.blackTimeLeft !== undefined && game.blackTimeLeft !== null && game.blackTimeLeft > 0) 
-                                                        ? game.blackTimeLeft 
-                                                        : (existingGame.blackTimeLeft !== undefined && existingGame.blackTimeLeft !== null ? existingGame.blackTimeLeft : game.blackTimeLeft),
-                                                    whiteTimeLeft: (game.whiteTimeLeft !== undefined && game.whiteTimeLeft !== null && game.whiteTimeLeft > 0) 
-                                                        ? game.whiteTimeLeft 
-                                                        : (existingGame.whiteTimeLeft !== undefined && existingGame.whiteTimeLeft !== null ? existingGame.whiteTimeLeft : game.whiteTimeLeft),
+                                                    blackTimeLeft: (game.blackTimeLeft !== undefined && game.blackTimeLeft !== null && game.blackTimeLeft > 0) ? game.blackTimeLeft : (existingGame.blackTimeLeft !== undefined && existingGame.blackTimeLeft !== null ? existingGame.blackTimeLeft : game.blackTimeLeft),
+                                                    whiteTimeLeft: (game.whiteTimeLeft !== undefined && game.whiteTimeLeft !== null && game.whiteTimeLeft > 0) ? game.whiteTimeLeft : (existingGame.whiteTimeLeft !== undefined && existingGame.whiteTimeLeft !== null ? existingGame.whiteTimeLeft : game.whiteTimeLeft),
                                                 };
                                                 updatedGames[gameId] = preservedGame;
                                             } else {
@@ -3201,16 +3212,18 @@ export const useApp = () => {
                                         let mergedGame: typeof game = game;
                                         const hasServerBoard = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 &&
                                             game.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((c: any) => c !== 0 && c != null));
-                                        if (!hasServerBoard && game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0 && game.settings?.boardSize) {
-                                            // 서버가 boardState를 생략한 경우(대역폭 절약): moveHistory로 보드 복원 → AI가 둔 수가 사라지는 버그 방지
+                                        const moveHistoryToDerive = (game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0)
+                                            ? game.moveHistory
+                                            : ((game.gameStatus === 'scoring' || game.gameStatus === 'ended') && existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0 ? existingGame.moveHistory : null);
+                                        if (!hasServerBoard && moveHistoryToDerive && moveHistoryToDerive.length > 0 && game.settings?.boardSize) {
                                             const boardSize = game.settings.boardSize;
                                             const derivedBoard: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
-                                            for (const move of game.moveHistory) {
+                                            for (const move of moveHistoryToDerive) {
                                                 if (move && move.x >= 0 && move.x < boardSize && move.y >= 0 && move.y < boardSize) {
                                                     derivedBoard[move.y][move.x] = move.player;
                                                 }
                                             }
-                                            mergedGame = { ...game, boardState: derivedBoard, moveHistory: game.moveHistory };
+                                            mergedGame = { ...game, boardState: derivedBoard, moveHistory: game.moveHistory && game.moveHistory.length > 0 ? game.moveHistory : moveHistoryToDerive };
                                         } else if (incomingMoveCount <= existingMoveCount && existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0 && !hasServerBoard) {
                                             // 서버가 boardState를 보내지 않았고, 서버 수가 기존보다 많지 않을 때만 기존 보드 유지 (AI 수 업데이트 덮어쓰기 방지)
                                             mergedGame = { ...game, boardState: existingGame.boardState };
@@ -3394,7 +3407,7 @@ export const useApp = () => {
                                 setGuilds(prev => ({ ...prev, ...message.payload.guilds }));
                             }
                             // 기존 default 처리 (이미 다른 case에서 처리되지 않은 경우)
-                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN'].includes(message.type)) {
+                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE'].includes(message.type)) {
                                 console.warn('[WebSocket] Unhandled message type:', message.type);
                             }
                             return;
@@ -3762,22 +3775,8 @@ export const useApp = () => {
         setEnhancementOutcome(null);
     }, []);
 
-    const startEnhancement = useCallback((item: InventoryItem) => {
-        // 제련 시작 시 즉시 모달을 열고 롤링 애니메이션을 위한 임시 결과 설정
-        const tempItemAfter = JSON.parse(JSON.stringify(item));
-        // 임시 결과: 성공/실패는 아직 모르므로 일단 성공으로 가정하고 롤링 애니메이션 표시
-        // 별이 하나 증가한 상태로 표시 (실제 결과는 서버 응답에서 업데이트됨)
-        if (tempItemAfter.stars < 10) {
-            tempItemAfter.stars = tempItemAfter.stars + 1;
-        }
-        setEnhancementOutcome({
-            message: '제련 중...',
-            success: true, // 임시로 성공으로 설정 (실제 결과는 서버 응답에서 업데이트됨)
-            itemBefore: JSON.parse(JSON.stringify(item)),
-            itemAfter: tempItemAfter,
-            isRolling: true, // 롤링 애니메이션 상태
-        });
-        setIsEnhancementResultModalOpen(true);
+    const startEnhancement = useCallback((_item: InventoryItem) => {
+        // 제련 진행 중 모달 제거: 강화 결과(성공/실패) 수신 시에만 모달 표시
     }, []);
 
         const closeClaimAllSummary = useCallback(() => {
@@ -3864,6 +3863,78 @@ export const useApp = () => {
 
         return aggregated;
     }, [currentUserWithStatus]);
+
+    // 클라이언트 측 AI(Electron 또는 WASM GnuGo): useClientSideAi 게임에서 AI 차례일 때 로컬에서 수 계산 후 서버로 전송
+    useEffect(() => {
+        const game = activeGame;
+        if (!game?.id || !game?.isAiGame || (game?.gameStatus !== 'playing' && game?.gameStatus !== 'hidden_placing')) return;
+        const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+        if (!useClientSideAi) return;
+        const win = typeof window !== 'undefined' ? (window as any).electron : undefined;
+        const useElectron = !!win?.getGnuGoMove;
+        const useWasm = !useElectron && isWasmGnuGoAvailable();
+        if (!useElectron && !useWasm) return;
+        const myPlayer = game.blackPlayerId === currentUser?.id ? Player.Black : (game.whitePlayerId === currentUser?.id ? Player.White : Player.None);
+        if (myPlayer === Player.None) return;
+        const isAiTurn = game.currentPlayer !== myPlayer && game.currentPlayer !== Player.None;
+        if (!isAiTurn) return;
+        const moveCount = (game.moveHistory || []).filter((m: { x: number; y: number }) => m.x >= 0 && m.y >= 0).length;
+        if (lastClientSideAiSentRef.current[game.id] === moveCount) return;
+        lastClientSideAiSentRef.current[game.id] = moveCount;
+        const boardSize = game.settings?.boardSize ?? 19;
+        const playerStr = game.currentPlayer === Player.Black ? 'black' : 'white';
+        const moveHistoryForGnuGo = (game.moveHistory || []).map((m: { x: number; y: number; player: Player }) => ({
+            x: m.x,
+            y: m.y,
+            player: m.player === Player.Black ? 1 : 2
+        }));
+        const level = (game.settings as any)?.goAiBotLevel ?? (game.settings as any)?.aiDifficulty ?? 5;
+        const request = {
+            boardState: game.boardState || [],
+            boardSize,
+            player: playerStr,
+            moveHistory: moveHistoryForGnuGo,
+            level: Math.min(10, Math.max(1, level))
+        };
+        const promise = useElectron
+            ? (win.getGnuGoMove as (r: typeof request) => Promise<{ move?: { x: number; y: number }; error?: string }>)(request)
+            : getWasmGnuGoMove(request);
+        promise.then((result: { move?: { x: number; y: number }; error?: string }) => {
+            if (result?.error || result?.move === undefined) {
+                console.warn('[useApp] Client-side GnuGo failed, requesting server AI move:', result?.error);
+                handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err) => {
+                    console.error('[useApp] REQUEST_SERVER_AI_MOVE failed:', err);
+                    delete lastClientSideAiSentRef.current[game.id];
+                });
+                return;
+            }
+            if (result.move.x === -1 && result.move.y === -1) {
+                handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err) => {
+                    console.error('[useApp] REQUEST_SERVER_AI_MOVE (pass) failed:', err);
+                    delete lastClientSideAiSentRef.current[game.id];
+                });
+                return;
+            }
+            handleAction({
+                type: 'PLACE_STONE',
+                payload: {
+                    gameId: game.id,
+                    x: result.move.x,
+                    y: result.move.y,
+                    clientSideAiMove: true
+                }
+            }).catch((err) => {
+                console.error('[useApp] Client-side AI PLACE_STONE failed:', err);
+                delete lastClientSideAiSentRef.current[game.id];
+            });
+        }).catch((err) => {
+            console.error('[useApp] Client-side GnuGo getGnuGoMove failed, requesting server AI move:', err);
+            handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err2) => {
+                console.error('[useApp] REQUEST_SERVER_AI_MOVE failed:', err2);
+                delete lastClientSideAiSentRef.current[game.id];
+            });
+        });
+    }, [activeGame?.id, activeGame?.currentPlayer, activeGame?.moveHistory?.length, activeGame?.gameStatus, currentUser?.id, handleAction]);
 
     return {
         currentUser,

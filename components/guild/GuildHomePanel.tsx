@@ -227,23 +227,35 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
             </div>
             <div ref={chatBodyRef} className="flex-grow space-y-3 overflow-y-auto pr-2 mb-3 bg-tertiary/50 p-4 rounded-lg min-h-0 border-2 border-black/20 shadow-inner backdrop-blur-sm relative z-10">
                 {activeTab === 'global' ? (
-                    // 전체 채팅 메시지 표시
+                    // 전체 채팅 메시지 표시 (길드채팅과 동일한 형태)
                     globalChatMessages.length > 0 ? (
                         globalChatMessages.map((msg: any) => {
-                            const sender = allUsers.find(u => u.id === msg.user?.id);
+                            const senderId = msg.user?.id;
+                            const sender = senderId ? userMap.get(senderId) : undefined;
+                            const isSystem = msg.system || senderId === 'system';
+                            const isBotMessage = isSystem && msg.user?.nickname === 'AI 보안관봇';
+                            const displayName = isSystem ? (isBotMessage ? 'AI 보안관봇' : '시스템') : (msg.user?.nickname || sender?.nickname || 'Unknown');
+                            const avatarUrl = sender ? AVATAR_POOL.find(a => a.id === sender.avatarId)?.url : undefined;
+                            const borderUrl = sender ? BORDER_POOL.find(b => b.id === sender.borderId)?.url : undefined;
                             return (
                                 <div key={msg.id} className="flex items-start gap-3 group p-2 rounded-lg hover:bg-black/10 transition-colors">
                                     <div className="flex-shrink-0 mt-1">
-                                        {sender && <Avatar userId={sender.id} userName={sender.nickname} size={36} />}
+                                        <Avatar userId={senderId ?? ''} userName={displayName} avatarUrl={avatarUrl} borderUrl={borderUrl} size={36} />
                                     </div>
                                     <div className="flex-grow">
                                         <div className="flex items-center justify-between mb-1">
                                             <div className="flex items-baseline gap-2">
-                                                <span className="font-semibold text-primary text-sm">{sender?.nickname || 'Unknown'}</span>
+                                                <span className={`font-semibold text-sm ${
+                                                    isSystem ? 'text-blue-400' : 'text-blue-300'
+                                                }`}>
+                                                    {displayName}
+                                                </span>
                                                 <span className="text-xs text-tertiary">{formatDateTimeKST(msg.timestamp || msg.createdAt)}</span>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-secondary break-words whitespace-pre-wrap leading-relaxed">{msg.text || msg.content || ''}</p>
+                                        <p className={`text-sm break-words whitespace-pre-wrap leading-relaxed ${
+                                            isSystem ? 'text-blue-300' : 'text-blue-300'
+                                        }`}>{msg.text || msg.content || ''}</p>
                                     </div>
                                 </div>
                             );

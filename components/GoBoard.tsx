@@ -495,42 +495,40 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         }
     }, [boardState]);
     
-    // scoring 상태일 때는 보존된 boardState 사용, 아니면 현재 boardState 사용
+    // 단일 소스 원칙: 계가/종료 후 분석 결과가 있으면 moveHistory로만 보드 구성 → 따낸 돌 자리·사석 표시 불일치 방지
     const displayBoardState = useMemo(() => {
-        const isBoardStateValid = boardState && 
-            Array.isArray(boardState) && 
-            boardState.length > 0 && 
-            boardState[0] && 
-            Array.isArray(boardState[0]) && 
-            boardState[0].length > 0 &&
-            boardState.some((row: Player[]) => 
-                row && Array.isArray(row) && row.some((cell: Player) => cell !== Player.None && cell !== null && cell !== undefined)
-            );
-        
-        // scoring 상태일 때는 보존된 boardState를 우선 사용
+        const safeSize = boardSize > 0 ? boardSize : 19;
+        const isScoringOrEnded = gameStatus === 'scoring' || gameStatus === 'ended';
+        const hasAnalysis = analysisResult != null;
+        const validMoves = moveHistory && Array.isArray(moveHistory) && moveHistory.length > 0
+            ? moveHistory.filter((m: { x: number; y: number }) => m && m.x >= 0 && m.y >= 0 && m.x < safeSize && m.y < safeSize)
+            : [];
+
+        if (isScoringOrEnded && hasAnalysis && validMoves.length > 0) {
+            const derived: BoardState = Array(safeSize).fill(null).map(() => Array(safeSize).fill(Player.None));
+            for (const move of validMoves) {
+                const m = move as { x: number; y: number; player: Player };
+                derived[m.y][m.x] = m.player;
+            }
+            return derived;
+        }
+
+        const isBoardStateValid = boardState && Array.isArray(boardState) && boardState.length > 0 &&
+            boardState[0] && Array.isArray(boardState[0]) && boardState[0].length > 0 &&
+            boardState.some((row: Player[]) => row && Array.isArray(row) && row.some((cell: Player) => cell !== Player.None && cell !== null && cell !== undefined));
+
         if (gameStatus === 'scoring') {
-            if (preservedBoardStateRef.current) {
-                return preservedBoardStateRef.current;
-            }
-            // 보존된 boardState가 없으면 현재 boardState 사용 (빈 보드 생성 안 함)
-            if (isBoardStateValid) {
-                return boardState;
-            }
-            // scoring 상태에서는 빈 보드 상태를 생성하지 않고 보존된 것을 우선 사용
-            // 만약 아무것도 없으면 기존 boardState를 그대로 사용
+            if (preservedBoardStateRef.current) return preservedBoardStateRef.current;
+            if (isBoardStateValid) return boardState;
             return boardState || [];
         }
-        
+
         const result = isBoardStateValid ? boardState : (preservedBoardStateRef.current || boardState);
-        
-        // scoring이 아닌 경우에만 결과가 유효한 배열이 아니면 빈 보드 상태를 생성
         if (!result || !Array.isArray(result) || result.length === 0) {
-            const safeSize = boardSize > 0 ? boardSize : 19;
             return Array(safeSize).fill(null).map(() => Array(safeSize).fill(Player.None));
         }
-        
         return result;
-    }, [boardState, gameStatus, boardSize]);
+    }, [boardState, gameStatus, boardSize, moveHistory, analysisResult]);
 
     const safeBoardSize = boardSize > 0 ? boardSize : 19;
     const cell_size = boardSizePx / safeBoardSize;

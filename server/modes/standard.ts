@@ -248,48 +248,26 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
         case 'PLACE_STONE': {
             // triggerAutoScoring 플래그가 있으면 계가를 트리거
             if (payload.triggerAutoScoring) {
-                console.log(`[handleStandardAction] triggerAutoScoring received for game ${game.id}, updating game state...`);
-                
-                // 싱글플레이 게임은 메모리 캐시에서 최신 상태 확인
-                if (game.isSinglePlayer && game.id.startsWith('sp-game-')) {
+                // 계가 시 클라이언트가 보낸 보드/수순을 최우선 사용 (캐시나 서버 상태가 지연되면 잘못된 보드로 계가되는 버그 방지)
+                const payloadHasBoard = payload.boardState && Array.isArray(payload.boardState) && payload.boardState.length > 0;
+                const payloadHasMoves = payload.moveHistory && Array.isArray(payload.moveHistory) && payload.moveHistory.length > 0;
+                if (payloadHasMoves) {
+                    game.moveHistory = payload.moveHistory;
+                    if (payload.totalTurns !== undefined) game.totalTurns = payload.totalTurns;
+                }
+                if (payloadHasBoard) {
+                    game.boardState = payload.boardState;
+                } else if (game.isSinglePlayer && game.id.startsWith('sp-game-')) {
                     const { getCachedGame } = await import('../gameCache.js');
                     const cachedGame = await getCachedGame(game.id);
-                    if (cachedGame) {
-                        // 캐시된 게임 상태를 사용 (더 최신 상태일 수 있음)
+                    if (cachedGame?.boardState?.length && cachedGame?.moveHistory?.length) {
                         game.boardState = cachedGame.boardState;
-                        game.moveHistory = cachedGame.moveHistory;
-                        game.totalTurns = cachedGame.totalTurns;
-                        game.blackTimeLeft = cachedGame.blackTimeLeft;
-                        game.whiteTimeLeft = cachedGame.whiteTimeLeft;
-                        game.captures = cachedGame.captures;
-                        game.koInfo = cachedGame.koInfo;
-                        console.log(`[handleStandardAction] Using cached game state: totalTurns=${game.totalTurns}, moveHistoryLength=${game.moveHistory?.length || 0}`);
+                        if (!payloadHasMoves) game.moveHistory = cachedGame.moveHistory;
+                        if (cachedGame.totalTurns != null) game.totalTurns = cachedGame.totalTurns;
                     }
                 }
-                
-                // 클라이언트에서 전송한 게임 상태를 반영 (캐시가 없거나 캐시보다 클라이언트가 더 최신인 경우)
-                if (payload.totalTurns !== undefined && (!game.totalTurns || payload.totalTurns > game.totalTurns)) {
-                    game.totalTurns = payload.totalTurns;
-                }
-                if (payload.moveHistory && payload.moveHistory.length > (game.moveHistory?.length || 0)) {
-                    game.moveHistory = payload.moveHistory;
-                }
-                if (payload.boardState && Array.isArray(payload.boardState) && payload.boardState.length > 0) {
-                    // 클라이언트 boardState와 서버 boardState를 병합 (서버 우선)
-                    const serverBoardState = game.boardState || payload.boardState;
-                    // 클라이언트가 보낸 최신 moveHistory를 기준으로 boardState 검증
-                    if (payload.moveHistory && payload.moveHistory.length > 0) {
-                        game.boardState = payload.boardState;
-                    }
-                }
-                if (payload.blackTimeLeft !== undefined) {
-                    game.blackTimeLeft = payload.blackTimeLeft;
-                }
-                if (payload.whiteTimeLeft !== undefined) {
-                    game.whiteTimeLeft = payload.whiteTimeLeft;
-                }
-                
-                console.log(`[handleStandardAction] Game state updated: totalTurns=${game.totalTurns}, moveHistoryLength=${game.moveHistory?.length || 0}, boardStateSize=${game.boardState?.length || 0}`);
+                if (payload.blackTimeLeft !== undefined) game.blackTimeLeft = payload.blackTimeLeft;
+                if (payload.whiteTimeLeft !== undefined) game.whiteTimeLeft = payload.whiteTimeLeft;
                 
                 // 게임 캐시 업데이트 (계가 시작 전에 최신 상태 저장)
                 if (game.isSinglePlayer && game.id.startsWith('sp-game-')) {
@@ -311,6 +289,58 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     throw error;
                 }
                 return {};
+            }
+
+            // 클라이언트 측 AI(Electron 로컬 GnuGo): 클라이언트가 계산한 AI 수를 서버가 검증 후 적용
+            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+            if (payload.clientSideAiMove && useClientSideAi && game.isAiGame) {
+                const { aiUserId } = await import('../aiPlayer.js');
+                const aiPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                if (aiPlayerId === aiUserId && game.currentPlayer !== types.Player.None && (game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing')) {
+                    const { x, y } = payload;
+                    const boardSize = game.settings.boardSize;
+                    if (typeof x !== 'number' || typeof y !== 'number' || x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
+                        return { error: 'Invalid client-side AI move position.' };
+                    }
+                    const aiPlayerEnum = game.currentPlayer;
+                    const humanPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+                    const move = { x, y, player: aiPlayerEnum };
+                    const result = processMove(
+                        game.boardState,
+                        move,
+                        game.koInfo,
+                        game.moveHistory.length,
+                        { ignoreSuicide: false, isSinglePlayer: true, opponentPlayer: humanPlayerEnum }
+                    );
+                    if (!result.isValid) {
+                        return { error: `Client-side AI move invalid: ${result.reason || 'invalid'}` };
+                    }
+                    game.boardState = result.newBoardState;
+                    game.moveHistory.push(move);
+                    game.koInfo = result.newKoInfo;
+                    game.lastMove = { x, y };
+                    game.passCount = 0;
+                    if (result.capturedStones.length > 0) {
+                        game.captures[aiPlayerEnum] = (game.captures[aiPlayerEnum] ?? 0) + result.capturedStones.length;
+                        if (!game.justCaptured) game.justCaptured = [];
+                        for (const stone of result.capturedStones) {
+                            game.justCaptured.push({ point: stone, player: humanPlayerEnum, wasHidden: false });
+                        }
+                    }
+                    game.currentPlayer = humanPlayerEnum;
+                    game.gameStatus = 'playing';
+                    game.aiTurnStartTime = undefined;
+                    const { hasTimeControl } = await import('./shared.js');
+                    if (hasTimeControl(game.settings)) {
+                        const nextTimeKey = humanPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                        game.turnDeadline = now + (game[nextTimeKey] ?? 0) * 1000;
+                        game.turnStartTime = now;
+                    } else {
+                        game.turnDeadline = undefined;
+                        game.turnStartTime = undefined;
+                    }
+                    return {};
+                }
             }
 
             if (!isMyTurn || (game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_placing')) {

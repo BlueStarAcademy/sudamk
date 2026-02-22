@@ -946,6 +946,7 @@ export type GuildMember = {
   joinDate: number;
   contributionTotal: number;
   weeklyContribution?: number;
+  lastLoginAt?: number; // 최근 접속 시각 (길드원 목록 표시용)
   createdAt: number;
   updatedAt: number;
 };

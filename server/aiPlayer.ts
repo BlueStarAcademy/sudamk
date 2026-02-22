@@ -328,8 +328,15 @@ const makeStrategicAiMove = async (game: types.LiveGameSession) => {
     // 이 함수는 하위 호환성을 위해 유지하되, 실제로는 호출되지 않아야 합니다.
     console.warn('[AI] makeStrategicAiMove is deprecated. Use makeGoAiBotMove instead.');
     
-    // 최고단계(10단계) AI봇을 사용
-    const aiLevel = 10;
+    // 던전(월드챔피언십 등) 봇이면 봇 ID에서 단계 파싱 (dungeon-bot-{type}-{stage}-{i}-{ts})
+    let aiLevel = 10;
+    if (aiPlayerId && String(aiPlayerId).startsWith('dungeon-bot-')) {
+        const parts = String(aiPlayerId).split('-');
+        const stageNum = parseInt(parts[3], 10);
+        if (!Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10) {
+            aiLevel = stageNum;
+        }
+    }
     const { makeGoAiBotMove } = await import('./goAiBot.js');
     await makeGoAiBotMove(game, aiLevel);
     return;
@@ -1307,11 +1314,14 @@ export const makeAiMove = async (game: LiveGameSession) => {
         let moveExecuted = false;
 
         // 새로운 바둑 AI 봇 시스템 사용 여부 확인
-        // 싱글플레이, 도전의탑, 전략바둑 AI 게임에서 사용
+        // 싱글플레이, 도전의탑, 전략바둑 AI 게임, 던전(월드챔피언십 등) 봇에서 사용
         const isTower = game.gameCategory === 'tower';
+        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+        const isDungeonBot = currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-');
         const useGoAiBot = game.isSinglePlayer ||
                            isTower ||
                            game.isAiGame ||
+                           isDungeonBot ||
                            (game.settings as any)?.useGoAiBot === true ||
                            (game.settings as any)?.goAiBotLevel !== undefined;
         
@@ -1330,7 +1340,12 @@ export const makeAiMove = async (game: LiveGameSession) => {
             // AI 봇 단계 결정
             let aiLevel = 1; // 기본값
             
-            if (game.isSinglePlayer || isTower) {
+            if (isDungeonBot && currentPlayerId) {
+                // 던전(월드챔피언십 등): 봇 ID에서 단계 파싱 (dungeon-bot-{type}-{stage}-{i}-{ts})
+                const parts = String(currentPlayerId).split('-');
+                const stageNum = parseInt(parts[3], 10);
+                aiLevel = !Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10 ? stageNum : 1;
+            } else if (game.isSinglePlayer || isTower) {
                 // 싱글플레이/도전의 탑: 게임 설정의 aiDifficulty를 사용 (katagoLevel 제거됨)
                 aiLevel = (game.settings.aiDifficulty || 1);
             } else if ((game.settings as any)?.goAiBotLevel !== undefined) {

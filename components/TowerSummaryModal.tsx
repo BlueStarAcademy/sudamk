@@ -7,6 +7,7 @@ import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants/ui.js';
 import { AvatarInfo, BorderInfo } from '../types.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
+import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -270,7 +271,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         try {
             // onAction이 완료될 때까지 기다림 (gameId 반환 가능)
             // handleAction에서 이미 라우팅을 업데이트하므로 즉시 모달 닫기 (지연 제거)
-            await onAction({ type: 'START_TOWER_GAME', payload: { floor: currentFloor } });
+            await onAction({ type: 'START_TOWER_GAME', payload: { floor: currentFloor, useClientSideAi: shouldUseClientSideAi() } });
             onClose();
         } catch (error) {
             console.error('[TowerSummaryModal] Failed to retry floor:', error);
@@ -284,7 +285,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         try {
             // onAction이 완료될 때까지 기다림 (gameId 반환 가능)
             // handleAction에서 이미 라우팅을 업데이트하므로 즉시 모달 닫기 (지연 제거)
-            await onAction({ type: 'START_TOWER_GAME', payload: { floor: nextFloor } });
+            await onAction({ type: 'START_TOWER_GAME', payload: { floor: nextFloor, useClientSideAi: shouldUseClientSideAi() } });
             onClose();
         } catch (error) {
             console.error('[TowerSummaryModal] Failed to start next floor:', error);

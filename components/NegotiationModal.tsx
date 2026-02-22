@@ -10,6 +10,7 @@ import {
     PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST
 } from '../constants.js';
 import { audioService } from '../services/audioService.js';
+import { loadWasmGnuGo, shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import Avatar from './Avatar.js';
@@ -79,7 +80,12 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const isAiGame = opponent.id === aiUserId;
   const isRanked = negotiation.isRanked ?? false;
   const isCasual = !isRanked; // 친선전
-  
+
+  // AI 대국 설정 시 WASM GnuGo 프리로드
+  useEffect(() => {
+    if (isAiGame) loadWasmGnuGo().catch(() => {});
+  }, [isAiGame]);
+
   const onDecline = useCallback(() => {
     onAction({ type: 'DECLINE_NEGOTIATION', payload: { negotiationId: negotiation.id } });
   }, [onAction, negotiation.id]);
@@ -216,7 +222,10 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const onAccept = () => onAction({ type: 'ACCEPT_NEGOTIATION', payload: { negotiationId: negotiation.id, settings } });
   const onPropose = () => onAction({ type: 'UPDATE_NEGOTIATION', payload: { negotiationId: negotiation.id, settings } });
   const onSendChallenge = () => saveSettingsAndAct({ type: 'SEND_CHALLENGE', payload: { negotiationId: negotiation.id, settings } });
-  const onStartAiGame = () => saveSettingsAndAct({ type: 'START_AI_GAME', payload: { mode: negotiation.mode, settings } });
+  const onStartAiGame = () => {
+    const useClientSideAi = shouldUseClientSideAi();
+    saveSettingsAndAct({ type: 'START_AI_GAME', payload: { mode: negotiation.mode, settings: { ...settings, useClientSideAi } } });
+  };
   
   const title = useMemo(() => {
     const modeName = negotiation.mode;
