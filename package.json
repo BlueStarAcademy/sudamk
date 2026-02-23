@@ -31,6 +31,8 @@
     "fix-orphaned-guild-refs": "npx tsx --tsconfig server/tsconfig.json server/scripts/fixOrphanedGuildReferences.ts",
     "reset-championship-data": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipData.ts",
     "reset-championship-scores": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipScores.ts",
+    "script:reset-single-tower": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetSinglePlayerAndTower.ts",
+    "script:lock-training-quests": "npx tsx --tsconfig server/tsconfig.json server/scripts/lockTrainingQuests.ts",
     "cleanup-orphaned-games": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanupOrphanedActiveGames.ts",
     "clean-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanAdminGuild.ts",
     "check-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/checkAdminGuild.ts",

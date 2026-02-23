@@ -716,19 +716,14 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 user.singlePlayerMissions = {};
             }
             
-            const clearedStages = user.clearedSinglePlayerStages || [];
-            const clearedStagesSet = new Set(clearedStages); // Set으로 변환하여 O(1) 조회
             const rewards: Array<{ missionId: string; missionName: string; rewardType: 'gold' | 'diamonds'; rewardAmount: number }> = [];
             let totalGold = 0;
             let totalDiamonds = 0;
             
-            // 모든 수령 가능한 미션 보상 수집
+            // 이미 시작된 미션만 처리 (시작 시점에 이미 언락 검사 통과했으므로 clearedStages 재검사 생략)
             for (const missionInfo of SINGLE_PLAYER_MISSIONS) {
                 const missionState = user.singlePlayerMissions[missionInfo.id];
                 if (!missionState || !missionState.isStarted) continue;
-                
-                // 미션 언락 확인 (Set으로 빠른 조회)
-                if (!clearedStagesSet.has(missionInfo.unlockStageId)) continue;
                 
                 const currentLevel = missionState.level || 1;
                 if (!missionInfo.levels || !Array.isArray(missionInfo.levels) || missionInfo.levels.length < currentLevel) continue;
@@ -793,22 +788,17 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 }
             }
             
-            if (rewards.length === 0) {
-                return { error: '수령할 보상이 없습니다.' };
-            }
-            
-            // 선택적 필드만 반환 (메시지 크기 최적화)
+            // 수령할 보상이 없어도 200 + 빈 보상으로 응답 (클라이언트 오류 방지)
             const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_SINGLE_PLAYER_MISSION_REWARD');
             
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-            db.updateUser(user).catch(err => {
-                console.error(`[CLAIM_ALL_TRAINING_QUEST_REWARDS] Failed to save user ${user.id}:`, err);
-            });
-            
-            // 최적화: 변경된 필드만 브로드캐스트
-            const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['gold', 'diamonds', 'singlePlayerMissions']);
+            if (rewards.length > 0) {
+                db.updateUser(user).catch(err => {
+                    console.error(`[CLAIM_ALL_TRAINING_QUEST_REWARDS] Failed to save user ${user.id}:`, err);
+                });
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['gold', 'diamonds', 'singlePlayerMissions']);
+            }
             
             return {
                 clientResponse: {

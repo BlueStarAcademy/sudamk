@@ -185,13 +185,14 @@ export const initializeDatabase = async () => {
     
     while (retries > 0) {
         try {
-            // 연결 타임아웃 추가
             const prisma = (await import('./prismaClient.js')).default;
+            // Prisma engine must be connected before any query; avoids "Engine is not yet connected"
+            await prisma.$connect();
             const queryPromise = prisma.$queryRaw`SELECT 1`;
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => reject(new Error('Database connection timeout')), connectionTimeout);
             });
-            
+
             await Promise.race([queryPromise, timeoutPromise]);
             
             const existingUsers = await listUsers();
@@ -208,8 +209,16 @@ export const initializeDatabase = async () => {
             lastError = error;
             retries--;
             
-            // Prisma 연결 오류인 경우
-            if (error.code === 'P1001' || error.message?.includes("Can't reach database server") || 
+            // Prisma engine not ready yet (transient on startup) or connection errors
+            const engineNotReady = error.message?.includes?.('Engine is not yet connected');
+            if (engineNotReady) {
+                console.warn(`[DB] Prisma engine not ready yet (attempt ${maxRetries - retries}/${maxRetries}). Retrying...`);
+                if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    continue;
+                }
+            }
+            if (error.code === 'P1001' || error.message?.includes("Can't reach database server") ||
                 error.message?.includes('connection') || error.code?.startsWith('P') ||
                 error.message?.includes('timeout')) {
                 console.warn(`[DB] Database connection failed (attempt ${maxRetries - retries}/${maxRetries}). Retries left: ${retries}`);

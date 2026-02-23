@@ -51,8 +51,12 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
         }
     };
     
+    const [claimingIndex, setClaimingIndex] = useState<number | null>(null);
     const handleClaimMilestone = (index: number) => {
-        handlers.handleAction({ type: 'GUILD_CLAIM_CHECK_IN_REWARD', payload: { milestoneIndex: index } });
+        if (claimingIndex !== null) return;
+        setClaimingIndex(index);
+        handlers.handleAction({ type: 'GUILD_CLAIM_CHECK_IN_REWARD', payload: { milestoneIndex: index } })
+            .finally(() => setClaimingIndex(null));
     };
 
     return (
@@ -104,8 +108,9 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
                 <div className="mt-2 grid grid-cols-4 gap-1 sm:gap-3 flex-grow relative z-10 min-h-0 min-w-0">
                     {GUILD_CHECK_IN_MILESTONE_REWARDS.map((milestone, index) => {
                         const isAchieved = todaysCheckIns >= milestone.count;
-                        const isClaimed = guild.dailyCheckInRewardsClaimed?.some(c => c.userId === currentUserWithStatus!.id && c.milestoneIndex === index);
-                        const canClaim = isAchieved && !isClaimed && hasCheckedInToday;
+                        const isClaimed = guild.dailyCheckInRewardsClaimed?.some(c => c.userId === effectiveUserId && c.milestoneIndex === index);
+                        const isClaiming = claimingIndex === index;
+                        const canClaim = isAchieved && !isClaimed && hasCheckedInToday && !isClaiming;
                         
                         return (
                             <div key={index} className={`bg-gradient-to-br ${isAchieved ? 'from-yellow-900/40 via-amber-900/30 to-yellow-800/40' : 'from-tertiary/60 via-tertiary/50 to-tertiary/40'} p-1.5 sm:p-3 rounded-xl text-center flex flex-col items-center justify-between border-2 ${isAchieved ? 'border-yellow-500/60 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-transparent'} min-w-0 aspect-square backdrop-blur-sm transition-all hover:scale-105`}>
@@ -120,7 +125,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
                                     colorScheme="none"
                                     className={canClaim ? `${getLuxuryButtonClasses('success')} !text-[8px] sm:!text-xs !py-0.5 sm:!py-1.5 !px-1 sm:!px-2 mt-1 sm:mt-2 w-full` : `${getLuxuryButtonClasses('gray')} !text-[8px] sm:!text-xs !py-0.5 sm:!py-1.5 !px-1 sm:!px-2 mt-1 sm:mt-2 w-full`}
                                 >
-                                    {isClaimed ? '완료' : (isAchieved ? '받기' : '미달성')}
+                                    {isClaimed ? '완료' : (isClaiming ? '처리중' : (isAchieved ? '받기' : '미달성'))}
                                 </Button>
                             </div>
                         );

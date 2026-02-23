@@ -574,10 +574,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         if (result !== null && result !== undefined) {
             // 캐시 업데이트
             updateGameCache(game);
-            // DB 저장은 비동기로 처리하여 응답 지연 최소화
-            db.saveGame(game).catch(err => {
+            // PVP 턴 전환: 다음 요청(다른 인스턴스/캐시 미스)이 DB에서 최신 currentPlayer를 읽도록 먼저 저장 후 브로드캐스트
+            try {
+                await db.saveGame(game);
+            } catch (err) {
                 console.error(`[GameActions] Failed to save game ${game.id}:`, err);
-            });
+            }
             // 게임 상태 변경 후 실시간 브로드캐스트 (게임 참가자에게만 전송)
             const { broadcastToGameParticipants } = await import('./socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);

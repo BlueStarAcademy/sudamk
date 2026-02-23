@@ -414,15 +414,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 // 서버 boardState를 게임 객체에 반영 (클라이언트 boardState 무시)
                 game.boardState = serverBoardState;
                 game.moveHistory = serverMoveHistory;
-            } else {
-                // PVP만 클라이언트 boardState 사용 (AI/싱글/탑은 위에서 이미 서버 기준 적용)
-                if (clientBoardState && Array.isArray(clientBoardState) && clientBoardState.length > 0) {
-                    game.boardState = clientBoardState;
-                }
-                if (clientMoveHistory && Array.isArray(clientMoveHistory) && clientMoveHistory.length > 0) {
-                    game.moveHistory = clientMoveHistory;
-                }
             }
+            // PVP: 클라이언트 boardState를 덮어쓰지 않으므로 game.boardState는 캐시(서버) 상태 유지.
+            // 낙관적 업데이트로 이미 둔 수를 보내면 finalStoneCheck에서 거절되어 턴이 안 넘어가는 버그 방지.
 
             // 싱글플레이 모드에서 AI 초기 히든돌 확인
             const isAiInitialHiddenStone = game.isSinglePlayer && 

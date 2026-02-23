@@ -953,7 +953,15 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             if (!milestone || todaysCheckIns < milestone.count) return { error: '보상 조건??만족?��? 못했?�니??' };
             if (!guild.dailyCheckInRewardsClaimed) guild.dailyCheckInRewardsClaimed = [];
-            if (guild.dailyCheckInRewardsClaimed.some(c => c.userId === effectiveUserId && c.milestoneIndex === milestoneIndex)) return { error: '?��? ?�령??보상?�니??' };
+            if (guild.dailyCheckInRewardsClaimed.some(c => c.userId === effectiveUserId && c.milestoneIndex === milestoneIndex)) {
+                const alreadyUser = await db.getUser(user.id);
+                if (alreadyUser) {
+                    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+                    return { clientResponse: { updatedUser: alreadyUser, guilds, alreadyClaimed: true } };
+                }
+                return { error: '이미 수령한 보상입니다.' };
+            }
+
             
             // 최신 사용자 데이터를 다시 로드하여 보스전 등에서 받은 길드코인을 반영
             const freshUser = await db.getUser(user.id);

@@ -223,14 +223,18 @@ if (_databaseUrl) {
         consecutiveConnectionFailures = 0;
       }
     } catch (error: any) {
-      const isConnectionError = 
-        error.code === 'P1017' || 
+      // Engine not yet connected: skip (no reconnect), avoids spam before first $connect()
+      if (error.message?.includes?.('Engine is not yet connected')) {
+        return;
+      }
+      const isConnectionError =
+        error.code === 'P1017' ||
         error.code === 'P1001' ||
         error.message?.includes('closed the connection') ||
         error.message?.includes('timeout') ||
         error.message?.includes("Can't reach database server") ||
         error.kind === 'Closed';
-      
+
       if (isConnectionError) {
         console.warn('[Prisma] Connection lost or timeout, attempting to reconnect...');
         const reconnected = await reconnectPrisma();
