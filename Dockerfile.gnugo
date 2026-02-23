@@ -1,56 +1,57 @@
 # syntax=docker/dockerfile:1.6
+# GnuGo is not in Alpine repos; use Debian (bookworm) where gnugo is available via apt.
 
-FROM node:20-alpine AS base
+FROM node:20-bookworm-slim AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
+# Install build dependencies (Debian)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
-# Install dependencies
 RUN npm config set update-notifier false
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 FROM base AS build-deps
-# Install build dependencies for mozjpeg (imagemin-mozjpeg dependency)
-RUN apk add --no-cache autoconf automake libtool pkgconfig nasm
-# Install all dependencies including dev for tsx
+# Build deps for native modules (e.g. mozjpeg) if needed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    autoconf automake libtool pkg-config nasm \
+    && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=development
 COPY package.json package-lock.json ./
 RUN npm ci
 
 FROM build-deps AS build
-# Copy source code
 COPY package.json package-lock.json ./
 COPY server ./server
 COPY shared ./shared
 COPY types ./types
 COPY tsconfig.base.json ./
 
-# GnuGo service doesn't need Prisma (no database access)
-# Install GnuGo via apk (Alpine package manager)
-RUN apk add --no-cache gnugo && \
-    gnugo --version || echo "GnuGo installed (version check may fail)"
+# GnuGo: install via apt (Debian has gnugo package)
+RUN apt-get update && apt-get install -y --no-install-recommends gnugo \
+    && rm -rf /var/lib/apt/lists/* \
+    && (gnugo --version || echo "GnuGo installed")
 
 FROM base AS runner
 WORKDIR /app
 ENV PORT=4002
 
-# Install GnuGo in runner stage (community repo 필요할 수 있음)
-# spawn gnugo ENOENT 방지: apk update 후 설치, 설치 경로를 ENV로 명시
-RUN apk update && \
-    apk add --no-cache gnugo && \
-    GNUGOPATH=$(which gnugo 2>/dev/null || echo "/usr/bin/gnugo") && \
-    test -x "$GNUGOPATH" && echo "GnuGo installed at $GNUGOPATH"
-# Railway spawn ENOENT 방지: 절대 경로를 환경변수로 설정
-ENV GNUGO_PATH=/usr/bin/gnugo
+# Install GnuGo in runner (Debian package)
+RUN apt-get update && apt-get install -y --no-install-recommends gnugo \
+    && rm -rf /var/lib/apt/lists/* \
+    && GNUGOPATH=$(which gnugo 2>/dev/null || echo "/usr/games/gnugo") \
+    && test -x "$GNUGOPATH" && echo "GnuGo at $GNUGOPATH"
+# Debian puts gnugo in /usr/games/gnugo
+ENV GNUGO_PATH=/usr/games/gnugo
 
 # Copy production dependencies
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy tsx and its dependencies from build stage
+# Copy tsx and runtime deps from build stage
 RUN mkdir -p ./node_modules/.bin
 COPY --from=build /app/node_modules/tsx ./node_modules/tsx
 COPY --from=build /app/node_modules/esbuild ./node_modules/esbuild
@@ -72,21 +73,12 @@ COPY --from=build /app/types ./types
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/tsconfig.base.json ./tsconfig.base.json
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
-# Change ownership
+# Non-root user (Debian: groupadd/useradd)
+RUN groupadd --gid 1001 nodejs && useradd --uid 1001 --gid nodejs --shell /bin/false --create-home nodejs
 RUN chown -R nodejs:nodejs /app
-
 USER nodejs
 
 EXPOSE 4002
-
-# Use Railway's PORT if provided, otherwise default to 4002
 ENV PORT=${PORT:-4002}
 
-# Start command - use tsx directly to avoid cross-env issues
-# Railway will set PORT automatically, so we don't need to override it
 CMD ["node", "node_modules/tsx/dist/cli.mjs", "--tsconfig", "server/tsconfig.json", "server/gnugoServer.ts"]
-
