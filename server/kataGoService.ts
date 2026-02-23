@@ -345,14 +345,20 @@ class KataGoManager {
                 }
                 
                 // 모델 파일 다운로드 (Promise 내부에서 동기적으로 import 사용)
+                // 403 방지: User-Agent 없으면 media.katagotraining.org가 차단함
                 import('https').then((https) => {
                     console.log(`[KataGo] Downloading model from ${modelUrl}...`);
                     const writeStream = fs.createWriteStream(modelPath);
-                    
-                    https.get(modelUrl, (response) => {
+                    const requestOptions = {
+                        headers: {
+                            'User-Agent': 'KataGo-NodeService/1.0 (https://github.com/lightvector/KataGo)',
+                            'Accept': 'application/octet-stream',
+                        },
+                    };
+                    https.get(modelUrl, requestOptions, (response) => {
                         if (response.statusCode !== 200) {
                             writeStream.close();
-                            fs.unlinkSync(modelPath); // 실패한 파일 삭제
+                            if (fs.existsSync(modelPath)) fs.unlinkSync(modelPath);
                             const errorMsg = `[KataGo] Model file not found and download failed. Tried paths:\n${modelPathsToTry.map(p => `  - ${p}`).join('\n')}\n\nDownload error: HTTP ${response.statusCode}\n\nPlease set KATAGO_MODEL_PATH environment variable or place the model file in one of the expected locations.`;
                             console.error(errorMsg);
                             this.isStarting = false;

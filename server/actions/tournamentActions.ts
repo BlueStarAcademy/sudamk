@@ -32,7 +32,8 @@ const getRandomInt = (min: number, max: number): number => {
 /** 라운드 경기 결과에서 각 플레이어의 승/패를 계산 (players[].wins/losses가 비어있을 때 사용, 동네/전국/월드 공통) */
 function getWinsLossesFromRounds(state: TournamentState): Record<string, { wins: number; losses: number }> {
     const result: Record<string, { wins: number; losses: number }> = {};
-    state.players.forEach(p => { result[p.id] = { wins: 0, losses: 0 }; });
+    const players = state?.players && Array.isArray(state.players) ? state.players : [];
+    players.forEach((p: { id: string }) => { result[p.id] = { wins: 0, losses: 0 }; });
     state.rounds?.forEach(round => {
         round.matches?.forEach(m => {
             if (!m.isFinished || !m.winner) return;
@@ -1777,6 +1778,11 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const isTournamentComplete = dungeonState.status === 'complete' || dungeonState.status === 'eliminated';
             if (!isTournamentComplete) {
                 return { error: '토너먼트가 아직 완료되지 않았습니다.' };
+            }
+            // players 없으면 크래시 방지 (DB/캐시 손상 시)
+            if (!dungeonState.players || !Array.isArray(dungeonState.players) || dungeonState.players.length === 0) {
+                console.error(`[COMPLETE_DUNGEON_STAGE] dungeonState.players missing or empty for user ${user.id}, dungeonType=${dungeonType}`);
+                return { error: '대회 데이터가 올바르지 않습니다. 잠시 후 다시 시도해 주세요.' };
             }
             
             // 던전 진행 상태 업데이트
