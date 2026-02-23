@@ -5,17 +5,7 @@ import Button from '../Button.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { ENHANCEMENT_SUCCESS_RATES, ENHANCEMENT_COSTS, MATERIAL_ITEMS, ENHANCEMENT_FAIL_BONUS_RATES, GRADE_LEVEL_REQUIREMENTS, calculateEnhancementGoldCost } from '../../constants';
 import { useAppContext } from '../../hooks/useAppContext.js';
-
-// 모바일 감지 훅
-const useIsMobile = () => {
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-    return isMobile;
-};
+import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
@@ -231,7 +221,7 @@ interface EnhancementViewProps {
 }
 
 const EnhancementView: React.FC<EnhancementViewProps> = ({ selectedItem, currentUser, onAction, enhancementOutcome, onOutcomeConfirm, onStartEnhancement }) => {
-    const isMobile = useIsMobile();
+    const isMobile = useIsMobileLayout(768);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [enhancementProgress, setEnhancementProgress] = useState(0);
     const [previousStars, setPreviousStars] = useState<number | undefined>(undefined);

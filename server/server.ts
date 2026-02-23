@@ -107,7 +107,7 @@ let lastTimeoutResetTime = 0;
 const MAX_CONSECUTIVE_TIMEOUTS = 10; // 연속 타임아웃 10회 초과 시 크래시 가능성
 const TIMEOUT_RESET_WINDOW_MS = 60000; // 1분 내 타임아웃이 연속 발생하면 카운트
 
-/** 게임 변경 감지용 경량 시그니처 (전체 JSON 직렬화 대체, MainLoop 경량화) */
+/** 게임 변경 감지용 경량 시그니처 (전체 JSON 직렬화 대체, MainLoop 경량화). 초읽기/제한시간 갱신 감지에 turnDeadline·남은시간·초읽기 횟수 포함 */
 function getGameSignature(g: types.LiveGameSession): string {
     if (!g?.id) return '';
     const rev = g.serverRevision ?? 0;
@@ -116,7 +116,11 @@ function getGameSignature(g: types.LiveGameSession): string {
     const synced = g.lastSyncedAt ?? 0;
     const turn = g.turnDeadline ?? 0;
     const winner = g.winner ?? '';
-    return `${g.id}\t${rev}\t${moves}\t${status}\t${synced}\t${turn}\t${winner}`;
+    const blackTime = g.blackTimeLeft ?? 0;
+    const whiteTime = g.whiteTimeLeft ?? 0;
+    const blackByo = g.blackByoyomiPeriodsLeft ?? 0;
+    const whiteByo = g.whiteByoyomiPeriodsLeft ?? 0;
+    return `${g.id}\t${rev}\t${moves}\t${status}\t${synced}\t${turn}\t${winner}\t${blackTime}\t${whiteTime}\t${blackByo}\t${whiteByo}`;
 }
 
 // 만료된 negotiation 정리 함수
@@ -2042,12 +2046,10 @@ const startServer = async () => {
             for (let i = 0; i < updatedGames.length; i++) {
                 const updatedGame = updatedGames[i];
                 
-                // PVE 게임 (싱글플레이어, 도전의 탑)은 클라이언트에서 실행되므로 서버 루프에서 최소 처리
-                // AI 게임은 서버에서 진행/저장/브로드캐스트가 필요하므로 제외하지 않음
-                const isPVEGame = updatedGame.isSinglePlayer || updatedGame.gameCategory === 'tower' || updatedGame.gameCategory === 'singleplayer';
-                if (isPVEGame) {
-                    // PVE 게임은 클라이언트에서 실행되므로 서버 루프에서 브로드캐스트하지 않음
-                    // 게임 상태 변경은 클라이언트에서 처리되거나, 액션 처리 시에만 브로드캐스트됨
+                // PVE 중 도전의 탑은 서버에서 초읽기/제한시간을 갱신하므로 변경 시 브로드캐스트 필요 (클라이언트 타이머 동기화)
+                // 싱글플레이어(단순 PVE)만 서버 루프 브로드캐스트 제외
+                const isPVESkipBroadcast = (updatedGame.isSinglePlayer || updatedGame.gameCategory === 'singleplayer') && updatedGame.gameCategory !== 'tower';
+                if (isPVESkipBroadcast) {
                     continue;
                 }
 

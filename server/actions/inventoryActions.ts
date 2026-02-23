@@ -402,7 +402,16 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 console.error(`[USE_ITEM] Missing itemId and itemName for user ${user.id}`);
                 return { error: '아이템 ID 또는 이름이 제공되지 않았습니다.' };
             }
-            
+
+            // 도전의 탑 전용 아이템: 싱글/전략/놀이바둑에서는 source !== 'tower'인 것만 사용·합산
+            const isTowerOnlyItemName = (name: string): boolean => {
+                if (!name || typeof name !== 'string') return false;
+                const n = name.trim();
+                return ['턴 추가', '턴증가', '미사일', '히든', '스캔', '배치 새로고침', '배치변경'].includes(n) ||
+                    ['turn_add', 'turn_add_item', 'addturn', 'missile', 'hidden', 'scan', 'reflesh', 'refresh'].includes(n);
+            };
+            const isTowerSource = (inv: InventoryItem): boolean => (inv as InventoryItem & { source?: string }).source === 'tower';
+
             // itemId로 먼저 찾기
             let itemIndex = itemId ? user.inventory.findIndex(i => i && i.id === itemId) : -1;
             let item: InventoryItem | undefined;
@@ -436,17 +445,18 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 
                 const normalizedName = normalizeItemNameForSearch(itemName);
                 
-                // 정확한 이름으로 찾기 (다양한 변형 모두 시도)
+                // 정확한 이름으로 찾기 (다양한 변형 모두 시도). 도전의 탑 전용 아이템은 비(非)탑 소스만 사용
                 itemIndex = user.inventory.findIndex(i => {
                     if (!i || i.type !== 'consumable') return false;
-                    
                     const itemNameNormalized = normalizeItemNameForSearch(i.name);
-                    return (
-                        i.name === itemName || 
-                        i.name === normalizedName ||
+                    const nameMatch = (
+                        i.name === itemName || i.name === normalizedName ||
                         itemNameNormalized === normalizedName ||
                         itemNameNormalized === normalizeItemNameForSearch(normalizedName)
                     );
+                    if (!nameMatch) return false;
+                    if (isTowerOnlyItemName(i.name) && isTowerSource(i)) return false; // 탑 전용은 USE_ITEM에서 소모 불가
+                    return true;
                 });
                 
                 if (itemIndex !== -1) {
@@ -488,9 +498,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 };
             }
 
-            // 일괄 사용의 경우: 같은 이름의 모든 아이템 수량 합산
+            // 일괄 사용의 경우: 같은 이름의 모든 아이템 수량 합산 (도전의 탑 전용은 비탑만)
             const totalAvailableQuantity = user.inventory
-                .filter(i => i.name === item.name && i.type === 'consumable')
+                .filter(i => i.name === item.name && i.type === 'consumable' && (!isTowerOnlyItemName(item.name) || !isTowerSource(i)))
                 .reduce((sum, i) => sum + (i.quantity || 1), 0);
             
             const useQuantity = Math.min(quantity || 1, totalAvailableQuantity);
@@ -661,8 +671,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             for (let i = 0; i < user.inventory.length; i++) {
                 const invItem = user.inventory[i];
                 
-                // 같은 이름의 소모품인지 확인하고, 아직 제거할 수량이 남아있는 경우
-                if (invItem.name === item.name && invItem.type === 'consumable' && remainingToRemove > 0) {
+                // 같은 이름의 소모품인지 확인하고, 아직 제거할 수량이 남아있는 경우 (도전의 탑 전용은 비탑만 제거)
+                const canRemove = invItem.name === item.name && invItem.type === 'consumable' && remainingToRemove > 0 &&
+                    (!isTowerOnlyItemName(invItem.name) || !isTowerSource(invItem));
+                if (canRemove) {
                     const itemQuantity = invItem.quantity || 1;
                     console.log(`[USE_ITEM] Found matching item: name=${invItem.name}, quantity=${itemQuantity}, remainingToRemove=${remainingToRemove}`);
                     

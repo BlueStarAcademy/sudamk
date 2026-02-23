@@ -5,17 +5,7 @@ import ResourceActionButton from '../ui/ResourceActionButton.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { ENHANCEMENT_COSTS, MATERIAL_ITEMS } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
-
-// 모바일 감지 훅
-const useIsMobile = () => {
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-    return isMobile;
-};
+import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 const DisassemblyPreviewPanel: React.FC<{
     selectedIds: Set<string>;
@@ -175,7 +165,7 @@ interface DisassemblyViewProps {
 }
 
 const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedForDisassembly = new Set(), onToggleDisassemblySelection }) => { // Added default value
-    const isMobile = useIsMobile();
+    const isMobile = useIsMobileLayout(768);
     const { currentUserWithStatus } = useAppContext();
     const [isAutoSelectOpen, setIsAutoSelectOpen] = useState(false);
 

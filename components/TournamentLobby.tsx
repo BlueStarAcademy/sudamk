@@ -4,6 +4,7 @@ import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LE
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 import LeagueTierInfoModal from './LeagueTierInfoModal.js';
 import QuickAccessSidebar from './QuickAccessSidebar.js';
 import ChatWindow from './waiting-room/ChatWindow.js';
@@ -695,18 +696,12 @@ const TournamentLobby: React.FC = () => {
     const { currentUserWithStatus, allUsers, handlers, waitingRoomChats, presets } = useAppContext();
     
     const [viewingTournament, setViewingTournament] = useState<TournamentState | null>(null);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    const isMobile = useIsMobileLayout(1024);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [hasRankChanged, setHasRankChanged] = useState(false);
     const [enrollingIn, setEnrollingIn] = useState<TournamentType | null>(null);
     const [selectedPreset, setSelectedPreset] = useState(0);
     const [isChampionshipHelpOpen, setIsChampionshipHelpOpen] = useState(false);
-
-    useEffect(() => {
-        const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
-        window.addEventListener('resize', checkIsMobile);
-        return () => window.removeEventListener('resize', checkIsMobile);
-    }, []);
 
     if (!currentUserWithStatus) {
         return (

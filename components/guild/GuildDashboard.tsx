@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { Guild as GuildType, UserWithStatus, GuildBossInfo, QuestReward, GuildMember, GuildMemberRole, CoreStat, GuildResearchId, GuildResearchCategory, ItemGrade, ServerAction, GuildBossSkill } from '../../types/index.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
 import GuildHomePanel, { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
@@ -96,7 +97,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
     };
 
     const donationRecords = [...(guild?.donationLog || [])].reverse();
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const isMobile = useIsMobileLayout(768);
 
     return (
         <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col gap-3 relative overflow-hidden border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-1 min-h-[200px]" style={{ minHeight: '200px' }}>
@@ -462,7 +463,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
 
     const theme = getBossTheme(currentBoss.id);
 
-    const isMobile = window.innerWidth < 768;
+    const isMobile = useIsMobileLayout(768);
     
     return (
         <div className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center w-full relative overflow-hidden h-full ${className || ''}`}>
@@ -638,17 +639,13 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                         </div>
                     )}
                     
-                    {/* 남은 시간 */}
-                    <p className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-tertiary bg-gray-800/50 px-2 py-1 rounded-md ${isMobile ? 'mt-0.5 mb-0.5' : 'mt-2 mb-2'} text-center`}>{timeLeft}</p>
-                </div>
-                <div className="w-full flex-1 flex flex-col min-h-0">
-                    <div className="flex-1 min-h-0" />
-                    {/* 입장하기 버튼 - 하단 고정 */}
-                    <div className={`flex-shrink-0 ${isMobile ? 'mt-1 pt-1' : 'mt-2 pt-2'} border-t border-stone-600/40 flex justify-center`}>
+                    {/* 남은 시간(보스 스킬 아래 폭만 사용) + 보스전 입장 버튼(옆에 배치) */}
+                    <div className={`flex flex-row items-center gap-2 w-full ${isMobile ? 'mt-0.5 mb-0.5' : 'mt-2 mb-2'}`}>
+                        <p className={`flex-1 min-w-0 ${isMobile ? 'text-[10px]' : 'text-sm'} text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
                         <button
                             onClick={() => window.location.hash = '#/guildboss'}
                             disabled={!canEnter}
-                            className={canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}
+                            className={`flex-shrink-0 ${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}`}
                         >
                             <img src="/images/guild/ticket.png" alt="보스전 티켓" className="w-4 h-4" />
                             <span>{myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}</span>
@@ -1107,7 +1104,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     
     const { ourGuild: ourGuildOccupancy, enemyGuild: enemyGuildOccupancy, ourStars, enemyStars, ourScore, enemyScore } = calculateOccupancy();
     const enemyGuildName = opponentGuild?.name || "상대 길드";
-    const isMobile = window.innerWidth < 768;
+    const isMobile = useIsMobileLayout(768);
     const isPastApplicationDeadline = applicationDeadline != null && Date.now() >= applicationDeadline;
     
     return (
@@ -1598,7 +1595,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [isBossGuideOpen, setIsBossGuideOpen] = useState(false);
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [isIconSelectOpen, setIsIconSelectOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const isMobile = useIsMobileLayout(768);
     const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
     const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
     const goldButtonRef = useRef<HTMLDivElement>(null);
@@ -1608,14 +1605,11 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [scale, setScale] = useState(1);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // 모바일 감지 및 스케일 계산
+    // 스케일 계산 (가로 모드/데스크톱만)
     useEffect(() => {
         const handleResize = () => {
-            const newIsMobile = window.innerWidth < 768;
-            setIsMobile(newIsMobile);
-            
-            // 길드 홈 화면 스케일 계산 (데스크톱만)
-            if (!newIsMobile && containerRef.current) {
+            const desktopLayout = window.innerWidth >= 768 || window.innerWidth > window.innerHeight;
+            if (desktopLayout && containerRef.current) {
                 const viewportWidth = window.innerWidth;
                 const viewportHeight = window.innerHeight;
                 

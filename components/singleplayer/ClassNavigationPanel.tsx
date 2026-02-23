@@ -1,5 +1,6 @@
 import React from 'react';
 import { SinglePlayerLevel } from '../../types.js';
+import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 interface ClassNavigationPanelProps {
     selectedClass: SinglePlayerLevel;
@@ -30,7 +31,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedCla
         }
     };
 
-    const isMobile = window.innerWidth < 1024;
+    const isMobile = useIsMobileLayout(1024);
     
     return (
         <div className={`bg-gray-800 rounded-lg shadow-lg ${isMobile ? 'p-2' : 'p-4'} h-full flex flex-col`}>

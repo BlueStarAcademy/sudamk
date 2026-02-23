@@ -3,6 +3,7 @@ import { GameMode, ServerAction, Announcement, OverrideAnnouncement, UserWithSta
 import Avatar from '../Avatar.js';
 import HelpModal from '../HelpModal.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 // Import newly created sub-components
 import PlayerList from './PlayerList.js';
@@ -33,6 +34,8 @@ function usePrevious<T>(value: T): T | undefined {
 }
 
 
+const ROW_HEIGHT_REM = 2.5;
+
 const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }> = ({ mode }) => {
     const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -45,9 +48,10 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
             setCurrentIndex(0);
             return;
         }
+        const intervalMs = Math.max(2000, (announcementInterval ?? 3) * 1000);
         const timer = setInterval(() => {
             setCurrentIndex(prevIndex => (prevIndex + 1) % announcements.length);
-        }, announcementInterval * 1000);
+        }, intervalMs);
         return () => clearInterval(timer);
     }, [announcementIds, announcements.length, announcementInterval]);
 
@@ -70,21 +74,31 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
     
     if (!announcements || announcements.length === 0) {
         return (
-            <div className="bg-panel rounded-lg shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel">
+            <div className="bg-panel rounded-lg shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel border border-color">
                 <span className="font-bold text-tertiary text-center">[현재 등록된 공지사항이 없습니다.]</span>
             </div>
         );
     }
 
     return (
-        <div className="bg-panel rounded-lg shadow-lg px-4 relative overflow-hidden flex-shrink-0 h-10">
+        <div
+            className="bg-panel rounded-lg shadow-lg px-4 relative overflow-hidden flex-shrink-0 border border-color text-on-panel"
+            style={{ height: `${ROW_HEIGHT_REM}rem` }}
+        >
             <div
-                className="w-full absolute top-0 left-0 transition-transform duration-1000 ease-in-out"
-                style={{ transform: `translateY(-${currentIndex * 2.5}rem)` }}
+                className="w-full absolute left-0 transition-transform duration-500 ease-in-out will-change-transform"
+                style={{
+                    height: `${announcements.length * ROW_HEIGHT_REM}rem`,
+                    transform: `translateY(-${currentIndex * ROW_HEIGHT_REM}rem)`,
+                }}
             >
                 {announcements.map((announcement) => (
-                    <div key={announcement.id} className="w-full h-10 flex items-center justify-center">
-                        <span className="font-bold">
+                    <div
+                        key={announcement.id}
+                        className="w-full flex items-center justify-center flex-shrink-0"
+                        style={{ height: `${ROW_HEIGHT_REM}rem` }}
+                    >
+                        <span className="font-bold text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-2">
                             <span className="text-red-500 mr-2">[공지]</span>
                             <span className="text-highlight">{announcement.message}</span>
                         </span>
@@ -102,7 +116,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     waitingRoomChats, negotiations, handlers 
   } = useAppContext();
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const isMobile = useIsMobileLayout(1024);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [isTierInfoModalOpen, setIsTierInfoModalOpen] = useState(false);
@@ -208,12 +222,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     window.location.hash = '#/profile';
   }
 
-  useEffect(() => {
-    const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener('resize', checkIsMobile);
-    return () => window.removeEventListener('resize', checkIsMobile);
-  }, []);
-  
   if (!currentUserWithStatus) return null;
 
   // 전략/놀이바둑 대기실에서는 해당 카테고리의 게임만 표시 (AI 봇 대국은 진행중인 대국 리스트에 제외)

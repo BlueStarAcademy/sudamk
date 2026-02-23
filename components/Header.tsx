@@ -6,6 +6,7 @@ import Avatar from './Avatar.js';
 import { getMannerEffects } from '../services/effectService.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIconKey } from './resourceIcons.js';
 
 const RESOURCE_LABEL: Record<ResourceIconKey, string> = {
@@ -68,18 +69,9 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus }> = ({ user }) =
 const Header: React.FC = () => {
     const { currentUserWithStatus, handlers, unreadMailCount } = useAppContext();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
+    const isMobile = useIsMobileLayout(640);
     const [isSpecialResourcesOpen, setIsSpecialResourcesOpen] = useState(false);
     const specialResourcesRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const checkIsMobile = () => {
-            setIsMobile(window.innerWidth < 640); // sm breakpoint
-        };
-        checkIsMobile();
-        window.addEventListener('resize', checkIsMobile);
-        return () => window.removeEventListener('resize', checkIsMobile);
-    }, []);
 
     useEffect(() => {
         // 메뉴가 열려있을 때 외부 클릭으로 닫기

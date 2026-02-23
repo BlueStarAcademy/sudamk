@@ -22,6 +22,7 @@ import SinglePlayerSidebar from './components/game/SinglePlayerSidebar.js';
 import TowerControls from './components/game/TowerControls.js';
 import TowerSidebar from './components/game/TowerSidebar.js';
 import { useClientTimer } from './hooks/useClientTimer.js';
+import { useIsMobileLayout } from './hooks/useIsMobileLayout.js';
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 
@@ -205,20 +206,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [restoredBoardState, session.moveHistory, session.captures, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, session.totalTurns, gameId, gameStatus]);
     
-    // --- Mobile UI State ---
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    // --- Mobile UI State (가로 모드에서는 PC와 동일 UI) ---
+    const isMobile = useIsMobileLayout(1024);
+    const isMobileSafeArea = useIsMobileLayout(768);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [hasNewMessage, setHasNewMessage] = useState(false);
     // 우측 사이드바 접기/펼치기 (전략·놀이바둑 경기장)
     const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
     const gameChat = useMemo(() => gameChats[session.id] || [], [gameChats, session.id]);
     const prevChatLength = usePrevious(gameChat.length);
-
-    useEffect(() => {
-        const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
-        window.addEventListener('resize', checkIsMobile);
-        return () => window.removeEventListener('resize', checkIsMobile);
-    }, []);
 
     useEffect(() => {
         if (!isMobileSidebarOpen && prevChatLength !== undefined && gameChat.length > prevChatLength) {
@@ -473,6 +469,56 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 } as any);
                 return;
             }
+            // 전략바둑 AI(그누고): 유저 수를 클라이언트에 먼저 표시한 뒤 서버로 전송
+            const isStrategicAiGame = session.isAiGame && !isSinglePlayer && !isTower && !PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+            if (isStrategicAiGame) {
+                const boardStateToUse = restoredBoardState || session.boardState;
+                if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return;
+                if (x === -1 || y === -1) return;
+                const boardSize = session.settings.boardSize;
+                if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
+                const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+                const stoneAtTarget = boardStateToUse[y][x];
+                if (stoneAtTarget === opponentPlayerEnum) return;
+                let moveResult;
+                try {
+                    moveResult = processMoveClient(
+                        boardStateToUse,
+                        { x, y, player: myPlayerEnum },
+                        session.koInfo,
+                        session.moveHistory?.length || 0,
+                        { ignoreSuicide: false, isSinglePlayer: false, opponentPlayer: opponentPlayerEnum }
+                    );
+                } catch (e) {
+                    console.error('[Game] Strategic AI game - processMoveClient error:', e);
+                    return;
+                }
+                if (!moveResult.isValid) return;
+                handlers.handleAction({
+                    type: 'AI_GAME_CLIENT_MOVE',
+                    payload: {
+                        gameId,
+                        x,
+                        y,
+                        newBoardState: moveResult.newBoardState,
+                        capturedStones: moveResult.capturedStones,
+                        newKoInfo: moveResult.newKoInfo,
+                    }
+                } as any);
+                handlers.handleAction({
+                    type: 'PLACE_STONE',
+                    payload: {
+                        gameId,
+                        x,
+                        y,
+                        isHidden: gameStatus === 'hidden_placing',
+                        boardState: moveResult.newBoardState,
+                        moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
+                    }
+                } as ServerAction);
+                if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                return;
+            }
             actionType = 'PLACE_STONE'; 
             payload.isHidden = gameStatus === 'hidden_placing';
             // 클라이언트의 boardState와 moveHistory를 서버로 전송하여 정확한 검증 가능하도록 함
@@ -501,24 +547,62 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
         if (!pendingMove) return;
-        
+        const x = pendingMove.x;
+        const y = pendingMove.y;
+        const isStrategicAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && !PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+        if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn && isStrategicAiGame) {
+            const boardStateToUse = restoredBoardState || session.boardState;
+            if (boardStateToUse && Array.isArray(boardStateToUse) && boardStateToUse.length > 0 && x >= 0 && y >= 0) {
+                const boardSize = session.settings.boardSize;
+                if (x < boardSize && y < boardSize) {
+                    const opponentPlayerEnum = (session.currentPlayer === Player.Black ? Player.White : Player.Black) as Player;
+                    const stoneAtTarget = boardStateToUse[y][x];
+                    if (stoneAtTarget !== opponentPlayerEnum) {
+                        try {
+                            const moveResult = processMoveClient(
+                                boardStateToUse,
+                                { x, y, player: session.currentPlayer as Player },
+                                session.koInfo,
+                                session.moveHistory?.length || 0,
+                                { ignoreSuicide: false, isSinglePlayer: false, opponentPlayer: opponentPlayerEnum }
+                            );
+                            if (moveResult.isValid) {
+                                handlers.handleAction({
+                                    type: 'AI_GAME_CLIENT_MOVE',
+                                    payload: { gameId, x, y, newBoardState: moveResult.newBoardState, capturedStones: moveResult.capturedStones, newKoInfo: moveResult.newKoInfo }
+                                } as any);
+                                handlers.handleAction({
+                                    type: 'PLACE_STONE',
+                                    payload: {
+                                        gameId, x, y,
+                                        isHidden: gameStatus === 'hidden_placing',
+                                        boardState: moveResult.newBoardState,
+                                        moveHistory: [...(session.moveHistory || []), { x, y, player: session.currentPlayer }],
+                                    }
+                                } as ServerAction);
+                                setPendingMove(null);
+                                return;
+                            }
+                        } catch (_e) { /* fall through to normal PLACE_STONE */ }
+                    }
+                }
+            }
+        }
         let actionType: ServerAction['type'] | null = null;
-        let payload: any = { gameId, x: pendingMove.x, y: pendingMove.y };
+        let payload: any = { gameId, x, y };
 
         if ((mode === GameMode.Omok || mode === GameMode.Ttamok) && gameStatus === 'playing' && isMyTurn) {
             actionType = 'OMOK_PLACE_STONE';
         } else if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn) {
-            actionType = 'PLACE_STONE'; 
+            actionType = 'PLACE_STONE';
             payload.isHidden = gameStatus === 'hidden_placing';
-            // 클라이언트의 boardState와 moveHistory를 서버로 전송하여 정확한 검증 가능하도록 함
             payload.boardState = restoredBoardState || session.boardState;
             payload.moveHistory = session.moveHistory || [];
         }
-        
+
         if (actionType) handlers.handleAction({ type: actionType, payload } as ServerAction);
-        
         setPendingMove(null);
-    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode]);
+    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, session.isAiGame, session.isSinglePlayer, session.gameCategory, session.boardState, session.koInfo, session.moveHistory, session.currentPlayer, session.settings.boardSize, restoredBoardState]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
 
@@ -1152,7 +1236,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     if (isSinglePlayer) {
         return (
-            <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full bg-single-player-background text-stone-200`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
+            <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full bg-single-player-background text-stone-200`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
                 {showGameDescription && (
                     <SinglePlayerGameDescriptionModal 
                         session={session}
@@ -1273,7 +1357,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 style={{
                     height: '100dvh',
                     maxHeight: '100dvh',
-                    paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'env(safe-area-inset-bottom, 0px)' : '0px',
+                    paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px',
                     ...(towerBackgroundImage ? {
                         backgroundImage: `url(${towerBackgroundImage})`,
                         backgroundSize: 'cover',
@@ -1409,7 +1493,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame) ? isPaused : false;
 
     return (
-        <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full ${pvpBackgroundClass}`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
+        <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full ${pvpBackgroundClass}`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
             {session.disconnectionState && <DisconnectionModal session={session} currentUser={currentUser} />}
             {/* 전략·놀이바둑 경기장 상단 헤더 (행동력, 재화, 설정 등) */}
             <Header />

@@ -389,15 +389,15 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
         game.diceRollHistory[aiPlayerId].push(dice1);
         
     } else if (game.gameStatus === 'dice_placing') {
-        // 최적의 위치에 돌 배치
+        // 규칙: 백돌의 활로에만 착수 가능
         const logic = getGoLogic(game);
-        const liberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
-        let stonesToPlace = game.stonesToPlace || 0;
+        let liberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
+        let stonesToPlace = game.stonesToPlace ?? 0;
         let totalCaptures = 0;
         let lastCaptureStones: types.Point[] = [];
         
         while (stonesToPlace > 0 && liberties.length > 0) {
-            // 최대한 많은 돌을 따낼 수 있는 위치 선택
+            // 최대한 많은 돌을 따낼 수 있는 위치 선택 (백돌 활로 중)
             let bestMove: types.Point | null = null;
             let maxCaptures = 0;
             
@@ -409,7 +409,6 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
                 }
             }
             
-            // 최선의 수가 없으면 랜덤하게 선택
             if (!bestMove) {
                 bestMove = liberties[Math.floor(Math.random() * liberties.length)];
             }
@@ -432,16 +431,19 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
                 
                 if (!game.stonesPlacedThisTurn) game.stonesPlacedThisTurn = [];
                 game.stonesPlacedThisTurn.push(bestMove);
+                stonesToPlace--;
+                game.stonesToPlace = stonesToPlace;
             } else {
                 break;
             }
             
-            stonesToPlace--;
-            // 업데이트된 liberties 계산
+            // 다음 반복을 위해 백돌 활로 갱신 (이미 둔 자리 제외)
             const updatedLogic = getGoLogic(game);
-            const updatedLiberties = updatedLogic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
-            if (updatedLiberties.length === 0) break;
+            liberties = updatedLogic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
+            if (liberties.length === 0) break;
         }
+        
+        game.stonesToPlace = 0;
         
         game.diceCapturesThisTurn = totalCaptures;
         game.diceLastCaptureStones = lastCaptureStones;
@@ -768,7 +770,6 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                             game.justCaptured.push({ point: stone, player: myRole === 'thief' ? types.Player.White : types.Player.Black, wasHidden: false });
                         }
                         
-                        // 경찰이 도둑 돌을 따낼 때 점수 추가
                         if (myRole === 'police') {
                             if (!game.thiefCapturesThisRound) game.thiefCapturesThisRound = 0;
                             game.thiefCapturesThisRound += result.capturedStones.length;
@@ -776,9 +777,8 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                     }
                     
                     game.stonesToPlace = (game.stonesToPlace || 1) - 1;
-                    stonesToPlace = game.stonesToPlace;
+                    stonesToPlace = game.stonesToPlace ?? 0;
                     
-                    // 경찰이 모든 도둑 돌을 따낸 경우
                     const blackStonesLeft = game.boardState.flat().filter(s => s === types.Player.Black).length;
                     const allThievesCaptured = blackStonesLeft === 0 && myRole === 'police';
                     if (allThievesCaptured) {
@@ -786,6 +786,8 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                     }
                 }
             } else {
+                // 착수 가능한 자리가 없으면 남은 돌 수를 0으로 하고 턴 종료
+                game.stonesToPlace = 0;
                 break;
             }
             

@@ -6,6 +6,7 @@ import ResourceActionButton from './ui/ResourceActionButton.js';
 import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS } from '../constants';
 import { audioService } from '../services/audioService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 
 interface QuestsModalProps {
     currentUser: UserWithStatus;
@@ -164,15 +165,8 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
     const currentUser = currentUserWithStatus || propCurrentUser;
     
     const [activeTab, setActiveTab] = useState<QuestTab>('daily');
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const isMobile = useIsMobileLayout(768);
     const { quests } = currentUser;
-
-    useEffect(() => {
-        const checkIsMobile = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', checkIsMobile);
-        checkIsMobile();
-        return () => window.removeEventListener('resize', checkIsMobile);
-    }, []);
 
     const handleClaim = (questId: string) => {
         onAction({ type: 'CLAIM_QUEST_REWARD', payload: { questId } });

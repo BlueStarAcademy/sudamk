@@ -3,6 +3,29 @@ import type { LiveGameSession, GameStatus } from "../../types/index.js";
 
 const ENDED_STATUSES: GameStatus[] = ["ended", "no_contest"];
 
+const ENGINE_NOT_CONNECTED = 'Engine is not yet connected';
+const ENGINE_READY_DELAY_MS = 200;
+const MAX_ENGINE_RETRIES = 8;
+
+/** Windows 등에서 $connect() 직후에도 엔진이 준비되지 않을 수 있음. 연결 후 짧은 대기·프로브로 준비될 때까지 대기 */
+export async function ensurePrismaEngineReady(): Promise<void> {
+  for (let attempt = 0; attempt < MAX_ENGINE_RETRIES; attempt++) {
+    try {
+      await prisma.$connect();
+      await new Promise(r => setTimeout(r, ENGINE_READY_DELAY_MS));
+      await prisma.$queryRaw`SELECT 1`;
+      return;
+    } catch (e: unknown) {
+      const msg = (e as { message?: string })?.message ?? '';
+      if (msg.includes(ENGINE_NOT_CONNECTED) && attempt < MAX_ENGINE_RETRIES - 1) {
+        await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+
 const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
 const DB_QUERY_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000;
 // 청크 단위 타임아웃: 한 번에 많은 row를 조회하지 않고 소량씩 나눠 조회해 단일 쿼리 타임아웃 방지
@@ -80,6 +103,7 @@ export async function getLiveGame(id: string): Promise<LiveGameSession | null> {
  */
 export async function getAllActiveGamesLight(): Promise<Array<{ id: string; status: string; category: string | null; updatedAt: Date }>> {
   try {
+    await ensurePrismaEngineReady();
     const timeoutPromise = new Promise<Array<{ id: string; status: string; category: string | null; updatedAt: Date }>>((resolve) => {
       setTimeout(() => resolve([]), DB_QUERY_TIMEOUT_MS);
     });
@@ -128,6 +152,7 @@ export async function getAllActiveGamesChunked(): Promise<LiveGameSession[]> {
   if (!isRailwayOrProd) {
     return getAllActiveGames();
   }
+  await ensurePrismaEngineReady();
   const totalTake = 25;
   const results: LiveGameSession[] = [];
   for (let skip = 0; skip < totalTake; skip += CHUNK_SIZE) {
@@ -149,6 +174,7 @@ export async function getAllActiveGamesChunked(): Promise<LiveGameSession[]> {
 
 export async function getAllActiveGames(): Promise<LiveGameSession[]> {
   try {
+    await ensurePrismaEngineReady();
     const timeoutPromise = new Promise<LiveGameSession[]>((resolve) => {
       setTimeout(() => resolve([]), DB_QUERY_TIMEOUT_MS);
     });
@@ -235,53 +261,46 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
   }
 }
 
+async function fetchEndedGamesRows() {
+  return prisma.liveGame.findMany({
+    where: { isEnded: true },
+    select: { id: true, data: true, status: true, category: true },
+    orderBy: { updatedAt: 'desc' },
+    take: 100
+  });
+}
+
 export async function getAllEndedGames(): Promise<LiveGameSession[]> {
-  try {
-    // Prisma Engine 연결 보장 (getAllEndedGames가 메인루프에서 호출되므로 연결 전 호출 시 무한 에러 방지)
-    await prisma.$connect();
-    // 성능 최적화: 필요한 필드만 선택
-    const rows = await prisma.liveGame.findMany({
-      where: { isEnded: true },
-      select: {
-        id: true,
-        data: true,
-        status: true,
-        category: true
-      },
-      // 최신 게임 우선 (최근 종료된 게임이 더 중요)
-      orderBy: { updatedAt: 'desc' },
-      // 최대 100개로 제한하여 성능 보장
-      take: 100
-    });
+  const run = async (): Promise<LiveGameSession[]> => {
+    const rows = await fetchEndedGamesRows();
     return rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
-  } catch (error: any) {
+  };
+  try {
+    await ensurePrismaEngineReady();
+    return await run();
+  } catch (error: unknown) {
+    const err = error as { code?: string; message?: string };
     const isConnectionError =
-      error.code === 'P1017' ||
-      error.message?.includes('closed the connection') ||
-      error.message?.includes('Engine is not yet connected');
+      err.code === 'P1017' ||
+      err.message?.includes('closed the connection') ||
+      err.message?.includes(ENGINE_NOT_CONNECTED);
     if (isConnectionError) {
-      if (error.message?.includes('Engine is not yet connected')) {
+      if (err.message?.includes(ENGINE_NOT_CONNECTED)) {
         console.warn('[gameService] Prisma engine not ready, connecting and retrying...');
       } else {
         console.warn('[gameService] Database connection lost, retrying...');
       }
-      try {
-        await prisma.$connect();
-        const rows = await prisma.liveGame.findMany({
-          where: { isEnded: true },
-          select: {
-            id: true,
-            data: true,
-            status: true,
-            category: true
-          },
-          orderBy: { updatedAt: 'desc' },
-          take: 100
-        });
-        return rows.map((row) => mapRowToGame(row)).filter((g): g is LiveGameSession => g !== null);
-      } catch (retryError) {
-        console.error('[gameService] Retry failed:', retryError);
-        return [];
+      for (let retry = 0; retry < 3; retry++) {
+        try {
+          await new Promise(r => setTimeout(r, 150 * (retry + 1)));
+          await ensurePrismaEngineReady();
+          return await run();
+        } catch (retryError) {
+          if (retry === 2) {
+            console.error('[gameService] Retry failed:', retryError);
+            return [];
+          }
+        }
       }
     }
     console.error('[gameService] Error fetching ended games:', error);

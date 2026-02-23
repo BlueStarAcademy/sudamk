@@ -13,6 +13,7 @@ import {
 } from '../../constants/gameSettings.js';
 import Avatar from '../Avatar.js';
 import { loadWasmGnuGo, shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
+import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';
@@ -83,8 +84,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         return () => window.removeEventListener('resize', handleResize);
     }, []);
     
-    // 모바일 감지
-    const isMobile = windowWidth < 768;
+    // 모바일 감지 (가로 모드에서는 PC와 동일 UI)
+    const isMobile = useIsMobileLayout(768);
     
     // 뷰포트 크기에 비례한 창 크기 계산 (80% 너비, 최소 550px, 최대 950px)
     const calculatedWidth = Math.max(550, Math.min(950, windowWidth * 0.8));

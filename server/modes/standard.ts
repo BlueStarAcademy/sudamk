@@ -339,6 +339,27 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         game.turnDeadline = undefined;
                         game.turnStartTime = undefined;
                     }
+                    // 전략바둑: AI 수 적용 후 정해진 수순(scoringTurnLimit) 도달 시 계가 진행
+                    const scoringTurnLimitAfterAi = game.settings.scoringTurnLimit;
+                    if (scoringTurnLimitAfterAi != null && scoringTurnLimitAfterAi > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                        const validMovesAfter = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1);
+                        if (validMovesAfter.length >= scoringTurnLimitAfterAi) {
+                            console.log(`[handleStandardAction] Scoring turn limit reached after clientSideAiMove: totalTurns=${validMovesAfter.length}, scoringTurnLimit=${scoringTurnLimitAfterAi}, triggering getGameResult`);
+                            game.gameStatus = 'scoring';
+                            game.totalTurns = validMovesAfter.length;
+                            await db.saveGame(game);
+                            const { broadcastToGameParticipants } = await import('../socket.js');
+                            const gameToBroadcast = { ...game };
+                            delete (gameToBroadcast as any).boardState;
+                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                            try {
+                                await getGameResult(game);
+                            } catch (e: any) {
+                                console.error(`[handleStandardAction] getGameResult failed after clientSideAiMove for game ${game.id}:`, e?.message);
+                            }
+                            return {};
+                        }
+                    }
                     return {};
                 }
             }

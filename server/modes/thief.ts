@@ -287,8 +287,8 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                         }
                     }
                 } else {
-                    // 경찰: 흰 돌의 활로에 놓을 수 있음
-                    const liberties = logicForLiberty.getAllLibertiesOfPlayer(types.Player.White, tempBoardState);
+                    // 경찰: 도둑(흑) 돌의 활로에만 놓을 수 있음
+                    const liberties = logicForLiberty.getAllLibertiesOfPlayer(types.Player.Black, tempBoardState);
                     if (liberties.length > 0) {
                         move = liberties[Math.floor(Math.random() * liberties.length)];
                     }
@@ -296,7 +296,8 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                 
                 if (!move) break;
                 
-                const result = processMove(tempBoardState, { ...move, player: types.Player.Black }, game.koInfo, game.moveHistory.length, { ignoreSuicide: true });
+                const placePlayer = myRole === 'thief' ? types.Player.Black : types.Player.White;
+                const result = processMove(tempBoardState, { ...move, player: placePlayer }, game.koInfo, game.moveHistory.length, { ignoreSuicide: true });
     
                 if (result.isValid) {
                     tempBoardState = result.newBoardState;

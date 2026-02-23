@@ -572,10 +572,11 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             const now = Date.now();
             
-            // 현재 보유 개수 확인
+            // 현재 보유 개수 확인 (도전의 탑 전용 아이템만 합산)
             const inventory = user.inventory || [];
-            const currentItem = inventory.find((inv: any) => inv.name === itemInfo.name || inv.id === itemInfo.name);
-            const currentOwned = currentItem?.quantity ?? 0;
+            const currentOwned = inventory
+                .filter((inv: any) => (inv.name === itemInfo.name || inv.id === itemInfo.name) && inv.source === 'tower')
+                .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
 
             // 보유 제한 확인
             if (!user.isAdmin && currentOwned + quantity > itemInfo.maxOwned) {
@@ -607,7 +608,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 return { error: '아이템 템플릿을 찾을 수 없습니다.' };
             }
 
-            // 아이템 생성
+            // 아이템 생성 (도전의 탑 전용 표시)
             const newItem: InventoryItem = {
                 ...template,
                 id: `item-${randomUUID()}`,
@@ -616,6 +617,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 isEquipped: false,
                 level: 1,
                 stars: 0,
+                source: 'tower',
             };
 
             if (!user.inventory) {

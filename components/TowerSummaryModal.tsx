@@ -8,6 +8,7 @@ import { AVATAR_POOL, BORDER_POOL } from '../constants/ui.js';
 import { AvatarInfo, BorderInfo } from '../types.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
+import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -124,7 +125,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     }, []);
 
     const effectiveViewportWidth = viewportWidth ?? 1024;
-    const isMobileView = effectiveViewportWidth <= 768;
+    const isMobileView = useIsMobileLayout(768);
     const initialWidth = isMobileView ? Math.max(Math.min(effectiveViewportWidth - 32, 420), 320) : 500;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';

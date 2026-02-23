@@ -472,11 +472,11 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: '배치는 첫 수 전에만 새로고침할 수 있습니다.' };
             }
             
-            // 배치변경 아이템 사용 가능 여부 확인 및 소모
+            // 배치변경 아이템 사용 가능 여부 확인 및 소모 (도전의 탑 전용 아이템만 사용)
             const itemName = '배치 새로고침';
             const inventory = user.inventory || [];
             const itemIndex = inventory.findIndex((item: any) => 
-                item.name === itemName || item.name === '배치변경' || item.id === 'reflesh' || item.id === 'refresh'
+                (item.name === itemName || item.name === '배치변경' || item.id === 'reflesh' || item.id === 'refresh') && item.source === 'tower'
             );
             
             if (itemIndex === -1) {
@@ -535,14 +535,11 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: '게임이 진행 중이 아닙니다.' };
             }
             
-            // 턴 추가 아이템 사용 가능 여부 확인 및 소모
+            // 턴 추가 아이템 사용 가능 여부 확인 및 소모 (도전의 탑 전용 아이템만 사용)
             const itemName = '턴 추가';
             const inventory = user.inventory || [];
             const itemIndex = inventory.findIndex((item: any) => 
-                item.name === itemName || 
-                item.name === '턴증가' || 
-                item.id === 'turn_add' || 
-                item.id === 'turn_add_item'
+                (item.name === itemName || item.name === '턴증가' || item.id === 'turn_add' || item.id === 'turn_add_item') && item.source === 'tower'
             );
             
             if (itemIndex === -1) {

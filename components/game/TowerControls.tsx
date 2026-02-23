@@ -147,11 +147,12 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         }
     };
 
-    // 도전의 탑 아이템: 인벤토리에서 개수 가져오기
+    // 도전의 탑 아이템: 인벤토리에서 도전의 탑 전용(source:'tower') 개수만 합산
     const inventory = currentUser?.inventory || [];
     const getItemCount = (itemName: string): number => {
-        const item = inventory.find((inv: any) => inv.name === itemName || inv.id === itemName);
-        return item?.quantity ?? 0;
+        return inventory
+            .filter((inv: any) => (inv.name === itemName || inv.id === itemName) && inv.source === 'tower')
+            .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
     };
 
     const isMyTurn = session.currentPlayer === Player.Black;

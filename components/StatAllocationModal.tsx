@@ -4,6 +4,7 @@ import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import RadarChart from './RadarChart.js';
 import { CORE_STATS_DATA } from '../constants';
+import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 
 interface StatAllocationModalProps {
     currentUser: UserWithStatus;
@@ -13,15 +14,7 @@ interface StatAllocationModalProps {
 }
 
 const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
-    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
-    
-    useEffect(() => {
-        const handleResize = () => {
-            setIsMobile(window.innerWidth < 768);
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    const isMobile = useIsMobileLayout(768);
     
     // 모달이 열릴 때: 남은 보너스 포인트가 있으면 항상 편집 모드 활성화
     // 기존에 분배한 포인트는 초기화를 해야만 조절 가능하고, 현재 남아있는 보너스 포인트는 바로 조절 가능

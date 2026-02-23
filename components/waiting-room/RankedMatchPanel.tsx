@@ -155,56 +155,81 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                 {/* 배경 그라데이션 효과 */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/5 to-blue-900/10 pointer-events-none rounded-lg"></div>
                 
-                {/* 헤더 */}
-                <div className="relative z-10 flex items-center gap-3 mb-4 pb-3 border-b-2 border-gradient-to-r from-transparent via-indigo-500/30 to-transparent flex-shrink-0">
-                    <div className="w-1 h-8 bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 rounded-full shadow-[0_0_8px_rgba(234,179,8,0.5)]"></div>
-                    <h2 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                        랭킹전
-                    </h2>
+                {/* 헤더: 타이틀 + 랭킹전 시작/취소 버튼 */}
+                <div className="relative z-10 flex items-center justify-between gap-3 mb-3 pb-3 border-b-2 border-gradient-to-r from-transparent via-indigo-500/30 to-transparent flex-shrink-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-1 h-8 bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 rounded-full shadow-[0_0_8px_rgba(234,179,8,0.5)] flex-shrink-0"></div>
+                        <h2 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] truncate">
+                            랭킹전
+                        </h2>
+                    </div>
+                    {!isMatching ? (
+                        <Button
+                            onClick={() => setIsModalOpen(true)}
+                            colorScheme="none"
+                            className="!py-2 !px-3 !text-xs font-bold flex-shrink-0 bg-gradient-to-r from-green-600/90 via-emerald-600/90 to-green-600/90 hover:from-green-500 hover:via-emerald-500 hover:to-green-500 text-white rounded-lg shadow-[0_2px_12px_rgba(34,197,94,0.4)] hover:shadow-[0_4px_16px_rgba(34,197,94,0.5)] transition-all duration-200 border border-green-400/30 hover:border-green-300/50"
+                        >
+                            <span className="flex items-center gap-1.5">
+                                <span>⚔️</span>
+                                <span>랭킹전 시작</span>
+                            </span>
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={handleCancelMatching}
+                            colorScheme="none"
+                            className="!py-2 !px-3 !text-xs font-bold flex-shrink-0 bg-gradient-to-r from-red-600/90 via-rose-600/90 to-red-600/90 hover:from-red-500 hover:via-rose-500 hover:to-red-500 text-white rounded-lg shadow-[0_2px_12px_rgba(220,38,38,0.4)] hover:shadow-[0_4px_16px_rgba(220,38,38,0.5)] transition-all duration-200 border border-red-400/30 hover:border-red-300/50"
+                        >
+                            <span className="flex items-center gap-1.5">
+                                <span>✕</span>
+                                <span>취소</span>
+                            </span>
+                        </Button>
+                    )}
                 </div>
                 
                 {!isMatching ? (
                     <>
-                        <div className="relative z-10 flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 pr-1">
-                            {/* 현재 시즌 / 최고 시즌 2단 구성 */}
-                            <div className="grid grid-cols-2 gap-3 flex-shrink-0">
+                        <div className="relative z-10 flex flex-col gap-2 overflow-visible flex-shrink-0">
+                            {/* 현재 시즌 / 최고 시즌 2단 구성 - 내부 스크롤 없이 한 화면에 표시 */}
+                            <div className="grid grid-cols-2 gap-2 flex-shrink-0">
                                 {/* 현재 시즌 */}
-                                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-900/40 via-indigo-900/30 to-purple-900/40 border-2 border-blue-500/50 p-3 shadow-[0_4px_20px_rgba(59,130,246,0.3)] hover:border-blue-400/70 hover:shadow-[0_6px_24px_rgba(59,130,246,0.4)] transition-all duration-300">
+                                <div className="group relative overflow-hidden rounded-lg bg-gradient-to-br from-blue-900/40 via-indigo-900/30 to-purple-900/40 border-2 border-blue-500/50 p-2 shadow-[0_4px_20px_rgba(59,130,246,0.3)] hover:border-blue-400/70 hover:shadow-[0_6px_24px_rgba(59,130,246,0.4)] transition-all duration-300">
                                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                    <div className="relative z-10 flex flex-col gap-2.5">
-                                        <div className="flex items-center justify-between pb-2 border-b border-blue-400/30">
+                                    <div className="relative z-10 flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between pb-1.5 border-b border-blue-400/30">
                                             <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wider">현재 시즌</p>
                                             <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
                                         </div>
                                         {currentSeasonTierAndScore ? (
                                             <>
-                                                <div className="flex items-center gap-2.5">
+                                                <div className="flex items-center gap-2">
                                                     <div className="relative">
                                                         <img 
                                                             src={currentSeasonTierAndScore.tier.icon} 
                                                             alt="" 
-                                                            className="w-10 h-10 flex-shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(59,130,246,0.5)] group-hover:scale-110 transition-transform duration-300" 
+                                                            className="w-8 h-8 flex-shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(59,130,246,0.5)] group-hover:scale-110 transition-transform duration-300" 
                                                         />
                                                         <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent rounded-lg blur-sm"></div>
                                                     </div>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className={`text-sm font-bold truncate ${currentSeasonTierAndScore.tier.color} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
+                                                        <p className={`text-xs font-bold truncate ${currentSeasonTierAndScore.tier.color} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
                                                             {currentSeasonTierAndScore.tier.name}
                                                         </p>
-                                                        <p className="text-[10px] text-blue-300/80 truncate font-medium">
+                                                        <p className="text-[9px] text-blue-300/80 truncate font-medium">
                                                             {currentSeasonName}{isFirstSeason ? ' (첫 시즌)' : ''}
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 rounded-lg p-2 border border-blue-500/30">
-                                                    <div className="flex justify-between items-baseline mb-1">
-                                                        <span className="text-[10px] text-blue-300/80 font-medium">현재 점수</span>
-                                                        <span className="font-mono font-bold text-white text-base drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                                <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 rounded-md p-1.5 border border-blue-500/30">
+                                                    <div className="flex justify-between items-baseline">
+                                                        <span className="text-[9px] text-blue-300/80 font-medium">현재 점수</span>
+                                                        <span className="font-mono font-bold text-white text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
                                                             {(currentSeasonTierAndScore.score ?? 0).toLocaleString()}
                                                         </span>
                                                     </div>
                                                     {(currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses) > 0 && (
-                                                        <div className="text-[10px] text-blue-300/70 pt-1.5 border-t border-blue-400/20">
+                                                        <div className="text-[9px] text-blue-300/70 pt-1 border-t border-blue-400/20">
                                                             {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률{' '}
                                                             <span className="font-bold text-blue-200">
                                                                 {((currentSeasonTierAndScore.wins / (currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses)) * 100).toFixed(0)}%
@@ -212,7 +237,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex justify-between items-center text-[10px] pt-1">
+                                                <div className="flex justify-between items-center text-[9px] pt-0.5">
                                                     <span className="text-blue-300/70 font-medium">시즌 최고</span>
                                                     <span className="font-mono font-semibold text-blue-200">
                                                         {currentSeasonTierAndScore.score.toLocaleString()}점{isFirstSeason ? ' (동일)' : ''}
@@ -221,53 +246,53 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                             </>
                                         ) : (
                                             <>
-                                                <div className="flex items-center gap-2.5">
+                                                <div className="flex items-center gap-2">
                                                     <img 
                                                         src={RANKING_TIERS[RANKING_TIERS.length - 1].icon} 
                                                         alt="" 
-                                                        className="w-10 h-10 flex-shrink-0 object-contain opacity-50" 
+                                                        className="w-8 h-8 flex-shrink-0 object-contain opacity-50" 
                                                     />
-                                                    <p className="text-sm text-blue-300/70">미집계</p>
+                                                    <p className="text-xs text-blue-300/70">미집계</p>
                                                 </div>
-                                                <p className="text-[10px] text-blue-300/60">{currentSeasonName}</p>
+                                                <p className="text-[9px] text-blue-300/60">{currentSeasonName}</p>
                                             </>
                                         )}
                                     </div>
                                 </div>
                                 {/* 최고 시즌: 현재 시즌과 같으면 등급·점수·승패만, 아니면 역대 최고 등급만 */}
-                                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-900/40 via-yellow-900/30 to-orange-900/40 border-2 border-amber-500/50 p-3 shadow-[0_4px_20px_rgba(251,191,36,0.3)] hover:border-amber-400/70 hover:shadow-[0_6px_24px_rgba(251,191,36,0.4)] transition-all duration-300">
+                                <div className="group relative overflow-hidden rounded-lg bg-gradient-to-br from-amber-900/40 via-yellow-900/30 to-orange-900/40 border-2 border-amber-500/50 p-2 shadow-[0_4px_20px_rgba(251,191,36,0.3)] hover:border-amber-400/70 hover:shadow-[0_6px_24px_rgba(251,191,36,0.4)] transition-all duration-300">
                                     <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-transparent to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                    <div className="relative z-10 flex flex-col gap-2.5">
-                                        <div className="flex items-center justify-between pb-2 border-b border-amber-400/30">
+                                    <div className="relative z-10 flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between pb-1.5 border-b border-amber-400/30">
                                             <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">최고 시즌</p>
                                             <span className="text-xs">⭐</span>
                                         </div>
                                         {bestSeasonSameAsCurrent && currentSeasonTierAndScore ? (
                                             <>
-                                                <div className="flex items-center gap-2.5">
+                                                <div className="flex items-center gap-2">
                                                     <div className="relative">
                                                         <img 
                                                             src={currentSeasonTierAndScore.tier.icon} 
                                                             alt="" 
-                                                            className="w-10 h-10 flex-shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(251,191,36,0.5)] group-hover:scale-110 transition-transform duration-300" 
+                                                            className="w-8 h-8 flex-shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(251,191,36,0.5)] group-hover:scale-110 transition-transform duration-300" 
                                                         />
                                                         <div className="absolute inset-0 bg-gradient-to-br from-amber-400/20 to-transparent rounded-lg blur-sm"></div>
                                                     </div>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className={`text-sm font-bold truncate ${currentSeasonTierAndScore.tier.color} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
+                                                        <p className={`text-xs font-bold truncate ${currentSeasonTierAndScore.tier.color} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
                                                             {currentSeasonTierAndScore.tier.name}
                                                         </p>
-                                                        <p className="text-[10px] text-amber-300/80 truncate font-medium">
+                                                        <p className="text-[9px] text-amber-300/80 truncate font-medium">
                                                             {currentSeasonName}{isFirstSeason ? ' (첫 시즌)' : ''}
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div className="bg-gradient-to-r from-amber-900/50 to-yellow-900/50 rounded-lg p-2 border border-amber-500/30">
-                                                    <p className="font-mono font-bold text-white text-base text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                                <div className="bg-gradient-to-r from-amber-900/50 to-yellow-900/50 rounded-md p-1.5 border border-amber-500/30">
+                                                    <p className="font-mono font-bold text-white text-sm text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
                                                         {(currentSeasonTierAndScore.score ?? 0).toLocaleString()}점
                                                     </p>
                                                     {(currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses) > 0 && (
-                                                        <p className="text-[10px] text-amber-300/70 pt-1.5 border-t border-amber-400/20 text-center">
+                                                        <p className="text-[9px] text-amber-300/70 pt-1 border-t border-amber-400/20 text-center">
                                                             {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률{' '}
                                                             <span className="font-bold text-amber-200">
                                                                 {((currentSeasonTierAndScore.wins / (currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses)) * 100).toFixed(0)}%
@@ -277,43 +302,31 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                 </div>
                                             </>
                                         ) : bestSeasonSameAsCurrent ? (
-                                            <div className="flex-1 flex flex-col justify-center py-4">
-                                                <p className="text-sm text-amber-300/70 text-center">첫 시즌 (없음)</p>
-                                                <p className="text-[10px] text-amber-300/60 mt-1 text-center">{currentSeasonName}</p>
+                                            <div className="flex-1 flex flex-col justify-center py-2">
+                                                <p className="text-xs text-amber-300/70 text-center">첫 시즌 (없음)</p>
+                                                <p className="text-[9px] text-amber-300/60 mt-0.5 text-center">{currentSeasonName}</p>
                                             </div>
                                         ) : previousBestTier ? (
                                             <>
-                                                <div className="flex-1 flex flex-col justify-center py-4">
-                                                    <div className="flex flex-col items-center gap-2">
-                                                        <p className={`text-lg font-bold ${RANKING_TIERS.find(t => t.name === previousBestTier)?.color ?? 'text-highlight'} drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]`}>
+                                                <div className="flex-1 flex flex-col justify-center py-2">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <p className={`text-sm font-bold ${RANKING_TIERS.find(t => t.name === previousBestTier)?.color ?? 'text-highlight'} drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]`}>
                                                             {previousBestTier}
                                                         </p>
-                                                        <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-amber-400/50 to-transparent"></div>
+                                                        <div className="w-10 h-0.5 bg-gradient-to-r from-transparent via-amber-400/50 to-transparent"></div>
                                                     </div>
                                                 </div>
-                                                <p className="text-[10px] text-amber-300/70 pt-1 border-t border-amber-400/20 text-center">역대 최고 등급</p>
+                                                <p className="text-[9px] text-amber-300/70 pt-0.5 border-t border-amber-400/20 text-center">역대 최고 등급</p>
                                             </>
                                         ) : (
-                                            <div className="flex-1 flex flex-col justify-center py-4">
-                                                <p className="text-sm text-amber-300/70 text-center">-</p>
-                                                <p className="text-[10px] text-amber-300/60 mt-1 text-center">역대 최고 등급</p>
+                                            <div className="flex-1 flex flex-col justify-center py-2">
+                                                <p className="text-xs text-amber-300/70 text-center">-</p>
+                                                <p className="text-[9px] text-amber-300/60 mt-0.5 text-center">역대 최고 등급</p>
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="relative z-10 flex-shrink-0 mt-3">
-                            <Button
-                                onClick={() => setIsModalOpen(true)}
-                                colorScheme="none"
-                                className="w-full !py-3 !text-sm font-bold bg-gradient-to-r from-green-600/90 via-emerald-600/90 to-green-600/90 hover:from-green-500 hover:via-emerald-500 hover:to-green-500 text-white rounded-xl shadow-[0_4px_16px_rgba(34,197,94,0.4)] hover:shadow-[0_6px_20px_rgba(34,197,94,0.5)] transition-all duration-200 border-2 border-green-400/30 hover:border-green-300/50"
-                            >
-                                <span className="flex items-center justify-center gap-2">
-                                    <span className="text-lg">⚔️</span>
-                                    <span>랭킹전 시작</span>
-                                </span>
-                            </Button>
                         </div>
                     </>
                 ) : (
@@ -340,16 +353,6 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                 </div>
                             </div>
                         </div>
-                        <Button
-                            onClick={handleCancelMatching}
-                            colorScheme="none"
-                            className="w-full !py-3 !text-sm font-bold bg-gradient-to-r from-red-600/90 via-rose-600/90 to-red-600/90 hover:from-red-500 hover:via-rose-500 hover:to-red-500 text-white rounded-xl shadow-[0_4px_16px_rgba(220,38,38,0.4)] hover:shadow-[0_6px_20px_rgba(220,38,38,0.5)] transition-all duration-200 border-2 border-red-400/30 hover:border-red-300/50"
-                        >
-                            <span className="flex items-center justify-center gap-2">
-                                <span className="text-lg">✕</span>
-                                <span>매칭 취소</span>
-                            </span>
-                        </Button>
                     </div>
                 )}
             </div>

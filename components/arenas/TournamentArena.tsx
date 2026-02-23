@@ -2,6 +2,7 @@
 import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { TournamentType, UserWithStatus, PlayerForTournament } from '../../types';
 import { useAppContext } from '../../hooks/useAppContext';
+import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 import { TournamentBracket } from '../TournamentBracket';
 import Button from '../Button';
 import { TOURNAMENT_DEFINITIONS } from '../../constants';
@@ -60,13 +61,7 @@ interface TournamentArenaProps {
 
 const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     const { currentUserWithStatus, handlers, allUsers } = useAppContext();
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
-
-    useEffect(() => {
-        const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
-        window.addEventListener('resize', checkIsMobile);
-        return () => window.removeEventListener('resize', checkIsMobile);
-    }, []);
+    const isMobile = useIsMobileLayout(1024);
 
     // stateKey 결정
     let stateKey: keyof Pick<UserWithStatus, 'lastNeighborhoodTournament' | 'lastNationalTournament' | 'lastWorldTournament'>;

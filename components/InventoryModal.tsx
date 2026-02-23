@@ -1526,12 +1526,14 @@ const InventoryItemCard: React.FC<{
         );
     };
 
+    const isDivineMythic = item.isDivineMythic === true;
+
     return (
         <div
             onClick={onClick}
-            className={`relative aspect-square rounded-lg cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} hover:ring-2 hover:ring-accent/70`}
+            className={`relative aspect-square rounded-lg cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} hover:ring-2 hover:ring-accent/70 ${isDivineMythic ? 'divine-mythic-border' : ''}`}
             title={item.name}
-            style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%', maxHeight: '100%' }}
+            style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%', maxHeight: '100%', boxSizing: 'border-box' }}
         >
             <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 object-cover rounded-md" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />
             {(() => {
@@ -1645,6 +1647,20 @@ const InventoryItemCard: React.FC<{
                     }}
                 >
                     {item.quantity}
+                </div>
+            )}
+            {isDivineMythic && (
+                <div 
+                    className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10"
+                    style={{
+                        textShadow: '1px 1px 2px black',
+                        padding: `${Math.max(2, Math.round(3 * scaleFactor))}px ${Math.max(4, Math.round(5 * scaleFactor))}px`,
+                        fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px`,
+                        fontWeight: 'bold',
+                        color: '#FFD700'
+                    }}
+                >
+                    D
                 </div>
             )}
         </div>

@@ -262,6 +262,11 @@ export const useApp = () => {
     const lastGameUpdateTimeRef = useRef<Record<string, number>>({});
     const lastGameUpdateMoveCountRef = useRef<Record<string, number>>({}); // AI 수 등 새 수가 있으면 쓰로틀 무시
     const GAME_UPDATE_THROTTLE_MS = 100; // 100ms 쓰로틀링
+    // 도전의 탑·전략바둑 AI: 그누고(AI) 수 수신 시 1초 지연 후 표시 (쾌적한 UX·과도한 연타 오류 방지)
+    const towerGnugoDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const towerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
+    const liveGameGnugoDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const singlePlayerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
     const [negotiations, setNegotiations] = useState<Record<string, Negotiation>>({});
     const [waitingRoomChats, setWaitingRoomChats] = useState<Record<string, ChatMessage[]>>({});
     const [gameChats, setGameChats] = useState<Record<string, ChatMessage[]>>({});
@@ -889,6 +894,29 @@ export const useApp = () => {
             return;
         }
         
+        // 전략바둑 AI 게임: 유저 수를 클라이언트에 먼저 표시(낙관적 반영) 후 서버 전송은 아래 PLACE_STONE으로 처리
+        if ((action as any).type === 'AI_GAME_CLIENT_MOVE') {
+            const payload = (action as any).payload;
+            const { gameId, x, y, newBoardState, capturedStones, newKoInfo } = payload;
+            setLiveGames((currentGames) => {
+                const game = currentGames[gameId];
+                if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') return currentGames;
+                const movePlayer = game.currentPlayer;
+                const newCaptures = { ...game.captures, [movePlayer]: (game.captures[movePlayer] || 0) + (capturedStones?.length || 0) };
+                const updatedGame: LiveGameSession = {
+                    ...game,
+                    boardState: newBoardState,
+                    koInfo: newKoInfo ?? game.koInfo,
+                    lastMove: { x, y },
+                    moveHistory: [...(game.moveHistory || []), { x, y, player: movePlayer }],
+                    captures: newCaptures,
+                    currentPlayer: movePlayer === Player.Black ? Player.White : Player.Black,
+                };
+                return { ...currentGames, [gameId]: updatedGame };
+            });
+            return;
+        }
+
         // 타워 게임과 싱글플레이 게임의 클라이언트 측 move 처리 (서버로 전송하지 않음)
         // 클라이언트 측 이동 처리 (도전의 탑, 싱글플레이 공통 로직)
         if ((action as any).type === 'TOWER_CLIENT_MOVE' || (action as any).type === 'SINGLE_PLAYER_CLIENT_MOVE') {
@@ -1380,7 +1408,11 @@ export const useApp = () => {
                     moveHistoryLength: Array.isArray(result.clientResponse?.game?.moveHistory) ? result.clientResponse.game.moveHistory.length : undefined,
                     raw: result,
                 });
-                
+
+                if (action.type === 'ADMIN_TOGGLE_GAME_MODE' && (result.gameModeAvailability ?? result.clientResponse?.gameModeAvailability)) {
+                    setGameModeAvailability(result.gameModeAvailability ?? result.clientResponse.gameModeAvailability);
+                }
+
                 // CONFIRM_TOWER_GAME_START 액션에 대한 상세 로깅
                 if (action.type === 'CONFIRM_TOWER_GAME_START') {
                     const responseGameId = result.clientResponse?.gameId || (result as any).gameId;
@@ -2975,13 +3007,6 @@ export const useApp = () => {
                                                         }
                                                         
                                                         if (totalTurns !== undefined && totalTurns >= autoScoringTurns) {
-                                                        // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
-                                                        if (process.env.NODE_ENV === 'development') {
-                                                            const gameTypeLabel = game.isSinglePlayer ? 'SinglePlayer' : 'AiGame';
-                                                            console.log(`[WebSocket][${gameTypeLabel}] Auto-scoring triggered from GAME_UPDATE at ${totalTurns} turns (stageId: ${game.stageId || 'N/A'}) - IMMEDIATELY FREEZING GAME`);
-                                                        }
-                                                        
-                                                        // 즉시 게임 상태를 scoring으로 변경하여 게임 초기화 방지
                                                         const preservedBoardState = game.boardState && game.boardState.length > 0
                                                             ? game.boardState
                                                             : (existingGame?.boardState || game.boardState);
@@ -2991,19 +3016,6 @@ export const useApp = () => {
                                                         const preservedTotalTurns = totalTurns;
                                                         const preservedBlackTimeLeft = game.blackTimeLeft ?? existingGame?.blackTimeLeft;
                                                         const preservedWhiteTimeLeft = game.whiteTimeLeft ?? existingGame?.whiteTimeLeft;
-                                                        
-                                                        // 게임 상태를 즉시 scoring으로 변경
-                                                        updatedGames[gameId] = {
-                                                            ...game,
-                                                            gameStatus: 'scoring' as const,
-                                                            boardState: preservedBoardState,
-                                                            moveHistory: preservedMoveHistory,
-                                                            totalTurns: preservedTotalTurns,
-                                                            blackTimeLeft: preservedBlackTimeLeft,
-                                                            whiteTimeLeft: preservedWhiteTimeLeft,
-                                                        };
-                                                        
-                                                        // 서버에 자동 계가 트리거 요청 전송
                                                         const autoScoringAction = {
                                                             type: 'PLACE_STONE',
                                                             payload: {
@@ -3018,19 +3030,34 @@ export const useApp = () => {
                                                                 triggerAutoScoring: true
                                                             }
                                                         } as any;
-                                                        
-                                                        // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
-                                                        if (process.env.NODE_ENV === 'development') {
-                                                            console.log(`[WebSocket][SinglePlayer] Sending auto-scoring action to server: totalTurns=${preservedTotalTurns}, moveHistoryLength=${preservedMoveHistory?.length || 0}`);
+                                                        // 마지막 AI 수가 바둑판에 보인 뒤 계가 진행: 먼저 'playing'으로 보드만 표시, 0.5초 후 scoring 전환
+                                                        if (singlePlayerScoringDelayTimeoutRef.current[gameId] != null) {
+                                                            clearTimeout(singlePlayerScoringDelayTimeoutRef.current[gameId]);
                                                         }
-                                                        handleAction(autoScoringAction).then(result => {
-                                                            // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
-                                                            if (process.env.NODE_ENV === 'development') {
-                                                                console.log(`[WebSocket][SinglePlayer] Auto-scoring action sent successfully:`, result);
-                                                            }
-                                                        }).catch(err => {
-                                                            console.error(`[WebSocket][SinglePlayer] Failed to trigger auto-scoring on server:`, err);
-                                                        });
+                                                        updatedGames[gameId] = {
+                                                            ...game,
+                                                            gameStatus: 'playing' as const,
+                                                            boardState: preservedBoardState,
+                                                            moveHistory: preservedMoveHistory,
+                                                            totalTurns: preservedTotalTurns,
+                                                            blackTimeLeft: preservedBlackTimeLeft,
+                                                            whiteTimeLeft: preservedWhiteTimeLeft,
+                                                        };
+                                                        singlePlayerScoringDelayTimeoutRef.current[gameId] = setTimeout(() => {
+                                                            setSinglePlayerGames(prev => {
+                                                                const g = prev[gameId];
+                                                                if (!g) return prev;
+                                                                return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
+                                                            });
+                                                            handleAction(autoScoringAction).then((result: any) => {
+                                                                if (process.env.NODE_ENV === 'development') {
+                                                                    console.log(`[WebSocket][SinglePlayer] Auto-scoring action sent successfully:`, result);
+                                                                }
+                                                            }).catch((err: any) => {
+                                                                console.error(`[WebSocket][SinglePlayer] Failed to trigger auto-scoring on server:`, err);
+                                                            });
+                                                            delete singlePlayerScoringDelayTimeoutRef.current[gameId];
+                                                        }, 500);
                                                         }
                                                     }
                                                 } catch (err) {
@@ -3166,6 +3193,40 @@ export const useApp = () => {
                                         }
                                         updatedGames[gameId] = mergedGame;
 
+                                        // 그누고(AI) 수: 1초 지연 후 표시 (유저 수는 클라이언트에서 즉시 반영됨)
+                                        const isNewAiMove = hasNewMoves && game.moveHistory?.length > 0 &&
+                                            game.whitePlayerId === aiUserId &&
+                                            (game.moveHistory[game.moveHistory.length - 1] as any)?.player === Player.White;
+                                        if (isNewAiMove) {
+                                            if (towerGnugoDelayTimeoutRef.current[gameId] != null) {
+                                                clearTimeout(towerGnugoDelayTimeoutRef.current[gameId]);
+                                            }
+                                            const gameToApply = JSON.parse(JSON.stringify(mergedGame)) as LiveGameSession;
+                                            const isScoringInUpdate = gameToApply.gameStatus === 'scoring';
+                                            towerGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
+                                                delete towerGnugoDelayTimeoutRef.current[gameId];
+                                                // 마지막 AI 수가 보드에 보인 뒤 계가 진행: scoring이면 먼저 'playing'으로 보드만 표시
+                                                if (isScoringInUpdate) {
+                                                    const withPlaying = { ...gameToApply, gameStatus: 'playing' as const };
+                                                    setTowerGames(prev => ({ ...prev, [gameId]: withPlaying }));
+                                                    lastGameUpdateMoveCountRef.current[gameId] = withPlaying.moveHistory?.length ?? 0;
+                                                    towerGameSignaturesRef.current[gameId] = stableStringify(withPlaying);
+                                                    const scoringDelay = 500;
+                                                    towerScoringDelayTimeoutRef.current[gameId] = setTimeout(() => {
+                                                        setTowerGames(prev => ({ ...prev, [gameId]: gameToApply }));
+                                                        lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
+                                                        towerGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
+                                                        delete towerScoringDelayTimeoutRef.current[gameId];
+                                                    }, scoringDelay);
+                                                } else {
+                                                    setTowerGames(prev => ({ ...prev, [gameId]: gameToApply }));
+                                                    lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
+                                                    towerGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
+                                                }
+                                            }, 1000);
+                                            return currentGames;
+                                        }
+
                                         if (currentUser && mergedGame.player1 && mergedGame.player2) {
                                             const isPlayer1 = mergedGame.player1.id === currentUser.id;
                                             const isPlayer2 = mergedGame.player2.id === currentUser.id;
@@ -3233,6 +3294,25 @@ export const useApp = () => {
                                         }
                                         updatedGames[gameId] = mergedGame;
 
+                                        // 전략바둑 대기실 그누고(AI) 수: 1초 지연 후 표시 (타워와 동일한 쾌적한 UX)
+                                        const isStrategicAiGame = game.isAiGame && game.moveHistory?.length > 0;
+                                        const lastMove = (game.moveHistory as any[])?.[game.moveHistory.length - 1];
+                                        const aiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
+                                        const isNewAiMoveLive = isStrategicAiGame && hasNewMoves && lastMove?.player === aiPlayerEnum;
+                                        if (isNewAiMoveLive) {
+                                            if (liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
+                                                clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
+                                            }
+                                            const gameToApply = JSON.parse(JSON.stringify(mergedGame)) as LiveGameSession;
+                                            liveGameGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
+                                                setLiveGames(prev => ({ ...prev, [gameId]: gameToApply }));
+                                                lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
+                                                liveGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
+                                                delete liveGameGnugoDelayTimeoutRef.current[gameId];
+                                            }, 1000);
+                                            return currentGames;
+                                        }
+
                                         if (currentUser && game.player1 && game.player2) {
                                             const isPlayer1 = game.player1.id === currentUser.id;
                                             const isPlayer2 = game.player2.id === currentUser.id;
@@ -3283,6 +3363,18 @@ export const useApp = () => {
                             }
                             delete lastGameUpdateTimeRef.current[deletedGameId];
                             delete lastGameUpdateMoveCountRef.current[deletedGameId];
+                            if (towerGnugoDelayTimeoutRef.current[deletedGameId] != null) {
+                                clearTimeout(towerGnugoDelayTimeoutRef.current[deletedGameId]);
+                                delete towerGnugoDelayTimeoutRef.current[deletedGameId];
+                            }
+                            if (towerScoringDelayTimeoutRef.current[deletedGameId] != null) {
+                                clearTimeout(towerScoringDelayTimeoutRef.current[deletedGameId]);
+                                delete towerScoringDelayTimeoutRef.current[deletedGameId];
+                            }
+                            if (liveGameGnugoDelayTimeoutRef.current[deletedGameId] != null) {
+                                clearTimeout(liveGameGnugoDelayTimeoutRef.current[deletedGameId]);
+                                delete liveGameGnugoDelayTimeoutRef.current[deletedGameId];
+                            }
 
                             const removeFromGames = (setter: any, signaturesRef: Record<string, string>) => {
                                 setter((currentGames: Record<string, any>) => {
@@ -3294,6 +3386,10 @@ export const useApp = () => {
                                 });
                             };
 
+                            if (singlePlayerScoringDelayTimeoutRef.current[deletedGameId] != null) {
+                                clearTimeout(singlePlayerScoringDelayTimeoutRef.current[deletedGameId]);
+                                delete singlePlayerScoringDelayTimeoutRef.current[deletedGameId];
+                            }
                             if (serverGameCategory === 'singleplayer') {
                                 removeFromGames(setSinglePlayerGames, singlePlayerGameSignaturesRef.current);
                             } else if (serverGameCategory === 'tower') {
@@ -3343,9 +3439,10 @@ export const useApp = () => {
                             return;
                         }
                         case 'ANNOUNCEMENT_UPDATE': {
-                            const { announcements: anns, globalOverrideAnnouncement: override } = message.payload || {};
+                            const { announcements: anns, globalOverrideAnnouncement: override, announcementInterval: interval } = message.payload || {};
                             if (Array.isArray(anns)) setAnnouncements(anns);
                             if (override !== undefined) setGlobalOverrideAnnouncement(override);
+                            if (typeof interval === 'number') setAnnouncementInterval(interval);
                             return;
                         }
                         case 'GAME_MODE_AVAILABILITY_UPDATE': {

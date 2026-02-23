@@ -354,10 +354,14 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                         <div className="w-full">
                             <div className={`flex justify-between text-xs mb-1`}>
                                 <span>경험치</span>
-                                <span>{(blacksmithXp ?? 0)} / {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)} ({Math.round(((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100)}%)</span>
+                                {isMaxLevel ? (
+                                    <span>{(blacksmithXp ?? 0).toLocaleString()}(Max)</span>
+                                ) : (
+                                    <span>{(blacksmithXp ?? 0)} / {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)} ({Math.round(((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100)}%)</span>
+                                )}
                             </div>
                             <div className={`w-full bg-black/50 rounded-full h-3 border border-color`}>
-                                <div className="bg-yellow-500 h-full rounded-full transition-all" style={{ width: `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%` }}></div>
+                                <div className="bg-yellow-500 h-full rounded-full transition-all" style={{ width: isMaxLevel ? '100%' : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%` }}></div>
                             </div>
                         </div>
                         <div className={`w-full text-left flex-1 min-h-0 overflow-y-auto`}>

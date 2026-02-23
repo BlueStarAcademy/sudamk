@@ -39,6 +39,13 @@ const createAdminLog = async (admin: User, action: AdminLog['action'], target: U
     await db.setKV('adminLogs', logs);
 };
 
+const broadcastAnnouncementUpdate = async () => {
+    const announcements = await db.getKV<Announcement[]>('announcements') || [];
+    const globalOverrideAnnouncement = await db.getKV<OverrideAnnouncement | null>('globalOverrideAnnouncement') ?? null;
+    const announcementInterval = await db.getKV<number>('announcementInterval') ?? 3;
+    broadcast({ type: 'ANNOUNCEMENT_UPDATE', payload: { announcements, globalOverrideAnnouncement, announcementInterval } });
+};
+
 export const handleAdminAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
     if (!user.isAdmin) {
         return { error: 'Permission denied.' };
@@ -337,6 +344,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
         }
         case 'ADMIN_REORDER_ANNOUNCEMENTS': {
             await db.setKV('announcements', payload.announcements);
+            await broadcastAnnouncementUpdate();
             return {};
         }
         case 'ADMIN_ADD_ANNOUNCEMENT': {
@@ -344,25 +352,30 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const newAnnouncement: Announcement = { id: `ann-${randomUUID()}`, message: payload.message };
             announcements.push(newAnnouncement);
             await db.setKV('announcements', announcements);
+            await broadcastAnnouncementUpdate();
             return {};
         }
         case 'ADMIN_REMOVE_ANNOUNCEMENT': {
             const announcements = await db.getKV<Announcement[]>('announcements') || [];
             const updatedAnnouncements = announcements.filter(a => a.id !== payload.id);
             await db.setKV('announcements', updatedAnnouncements);
+            await broadcastAnnouncementUpdate();
             return {};
         }
         case 'ADMIN_SET_ANNOUNCEMENT_INTERVAL': {
             await db.setKV('announcementInterval', payload.interval);
+            await broadcastAnnouncementUpdate();
             return {};
         }
         case 'ADMIN_SET_OVERRIDE_ANNOUNCEMENT': {
             const override: OverrideAnnouncement = { message: payload.message, modes: 'all' };
             await db.setKV('globalOverrideAnnouncement', override);
+            await broadcastAnnouncementUpdate();
             return {};
         }
         case 'ADMIN_CLEAR_OVERRIDE_ANNOUNCEMENT': {
             await db.setKV('globalOverrideAnnouncement', null);
+            await broadcastAnnouncementUpdate();
             return {};
         }
         case 'ADMIN_TOGGLE_GAME_MODE': {
@@ -370,7 +383,8 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const availability = await db.getKV<Record<GameMode, boolean>>('gameModeAvailability') || {} as Record<GameMode, boolean>;
             availability[mode as GameMode] = isAvailable;
             await db.setKV('gameModeAvailability', availability);
-            return {};
+            broadcast({ type: 'GAME_MODE_AVAILABILITY_UPDATE', payload: { gameModeAvailability: availability } });
+            return { clientResponse: { gameModeAvailability: availability } };
         }
         case 'ADMIN_SET_GAME_DESCRIPTION': {
             const { gameId, description } = payload;

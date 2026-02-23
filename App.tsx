@@ -38,6 +38,7 @@ import EnhancementModal from './components/EnhancementModal';
 import EquipmentEffectsModal from './components/EquipmentEffectsModal';
 import EnhancementResultModal from './components/modals/EnhancementResultModal.js';
 import InstallPrompt from './components/InstallPrompt.js';
+import { useIsMobileLayout } from './hooks/useIsMobileLayout.js';
 
 // Lazy 로드된 모달을 위한 로딩 컴포넌트
 const ModalLoadingFallback = () => null;
@@ -189,16 +190,20 @@ const AppContent: React.FC = () => {
     const isGameView = currentRoute.view === 'game';
     const backgroundClass = currentUser ? 'bg-primary' : 'bg-login-background';
 
-    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
-    
+    const isMobile = useIsMobileLayout(768);
+
+    // 휴대기기에서 가로 모드만 사용: 화면 방향을 landscape로 고정 시도 (안내 문구 없이)
     useEffect(() => {
-        const handleResize = () => {
-            setIsMobile(window.innerWidth < 768);
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        if (typeof window === 'undefined') return;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const isNarrow = w <= 1024;
+        const orient = (window as any).screen?.orientation;
+        if (isNarrow && orient?.lock) {
+            orient.lock('landscape').catch(() => {});
+        }
     }, []);
-    
+
     return (
         <div className={`font-sans ${backgroundClass} text-primary flex flex-col`} style={{ 
             minHeight: isMobile ? '100dvh' : '100vh',

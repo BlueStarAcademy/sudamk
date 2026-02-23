@@ -3,6 +3,7 @@ import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSe
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import { audioService } from '../services/audioService.js';
+import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 
 const AnimatedBonusText: React.FC<{
     animation: Extract<AnimationData, { type: 'bonus_text' }>;
@@ -470,7 +471,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const [isDraggingMissile, setIsDraggingMissile] = useState(false);
     const [dragStartPoint, setDragStartPoint] = useState<Point | null>(null);
     const [dragEndPoint, setDragEndPoint] = useState<Point | null>(null);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    const isMobile = useIsMobileLayout(1024);
     const dragStartBoardPoint = useRef<Point | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const preservedBoardStateRef = useRef<BoardState | null>(null);
@@ -535,12 +536,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const padding = cell_size / 2;
     const stone_radius = cell_size * 0.47;
     
-    useEffect(() => {
-        const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
-        window.addEventListener('resize', checkIsMobile);
-        return () => window.removeEventListener('resize', checkIsMobile);
-    }, []);
-
     // 히든 돌 미사일 애니메이션 소리 재생 (애니메이션은 보이지 않음)
     useEffect(() => {
         if (animation && (animation.type === 'missile' || animation.type === 'hidden_missile')) {

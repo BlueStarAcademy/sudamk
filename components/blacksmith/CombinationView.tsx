@@ -3,17 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, ServerAction, ItemGrade, EquipmentSlot, UserWithStatus } from '../../types.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES } from '../../constants/rules.js';
-
-// 모바일 감지 훅
-const useIsMobile = () => {
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-    return isMobile;
-};
+import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
@@ -144,7 +134,7 @@ interface CombinationViewProps {
 }
 
 const CombinationView: React.FC<CombinationViewProps> = ({ items, onRemoveItem, onAction, currentUser }) => {
-    const isMobile = useIsMobile();
+    const isMobile = useIsMobileLayout(768);
     const [isRandom, setIsRandom] = useState(false);
 
     const handleCombine = () => {

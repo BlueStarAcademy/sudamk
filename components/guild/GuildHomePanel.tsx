@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Guild as GuildType, ChatMessage, GuildMemberRole, GuildMember } from '../../types/index.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 import Button from '../Button.js';
 import { GUILD_CHECK_IN_MILESTONE_REWARDS } from '../../constants/index.js';
 import { isSameDayKST, formatDateTimeKST } from '../../utils/timeUtils.js';
@@ -378,15 +379,7 @@ interface GuildHomePanelProps {
 }
 
 const GuildHomePanel: React.FC<GuildHomePanelProps> = ({ guild, myMemberInfo, rightOfChat }) => {
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-    useEffect(() => {
-        const handleResize = () => {
-            setIsMobile(window.innerWidth < 768);
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    const isMobile = useIsMobileLayout(768);
 
     return (
         <div className="flex flex-col gap-4 h-full">

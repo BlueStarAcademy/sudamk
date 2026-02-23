@@ -3,6 +3,7 @@ import { AlkkagiStone, GameProps, Player, Point, GameStatus } from '../types.js'
 import AlkkagiBoard, { AlkkagiBoardHandle } from './AlkkagiBoard.js';
 import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT } from '../constants';
 import { audioService } from '../services/audioService.js';
+import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 
 interface AlkkagiArenaProps extends GameProps {}
 
@@ -34,7 +35,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
     const [dragEndPoint, setDragEndPoint] = useState<Point | null>(null);
     const [power, setPower] = useState(0);
     const [flickPower, setFlickPower] = useState<number | null>(null);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    const isMobile = useIsMobileLayout(1024);
 
     const latestProps = useRef(props);
     useEffect(() => {
@@ -75,12 +76,6 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
             setFlickPower(null);
         }
     }, [session.gameStatus, prevGameStatus]);
-
-    useEffect(() => {
-        const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
-        window.addEventListener('resize', checkIsMobile);
-        return () => window.removeEventListener('resize', checkIsMobile);
-    }, []);
 
     const myPlayerEnum = useMemo(() => (
         session.blackPlayerId === currentUser.id ? Player.Black : (session.whitePlayerId === currentUser.id ? Player.White : Player.None)

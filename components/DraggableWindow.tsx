@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 
 interface DraggableWindowProps {
 
@@ -71,7 +72,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
     const positionRef = useRef(position);
 
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const isMobile = useIsMobileLayout(768);
 
     const [rememberPosition, setRememberPosition] = useState(true);
 
@@ -129,34 +130,27 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
 
     useEffect(() => {
-        const checkIsMobile = () => {
-            const newIsMobile = window.innerWidth < 768;
-            setIsMobile(newIsMobile);
-            if (newIsMobile) {
-                // 모바일일 때 position을 { x: 0, y: 0 }으로 설정
-                setPosition({ x: 0, y: 0 });
-                // 모바일일 때 저장된 위치 정보 삭제
-                try {
-                    const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
-                    delete savedPositions[windowId];
-                    localStorage.setItem('draggableWindowPositions', JSON.stringify(savedPositions));
-                } catch (e) {
-                    console.error("Failed to clear mobile position", e);
-                }
+        if (isMobile) {
+            setPosition({ x: 0, y: 0 });
+            try {
+                const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
+                delete savedPositions[windowId];
+                localStorage.setItem('draggableWindowPositions', JSON.stringify(savedPositions));
+            } catch (e) {
+                console.error("Failed to clear mobile position", e);
             }
-        };
+        }
+    }, [isMobile, windowId]);
 
+    useEffect(() => {
         const handleResize = () => {
             setWindowWidth(window.innerWidth);
             setWindowHeight(window.innerHeight);
-            checkIsMobile();
         };
-
+        handleResize();
         window.addEventListener('resize', handleResize);
-        checkIsMobile();
-
         return () => window.removeEventListener('resize', handleResize);
-    }, [windowId]);
+    }, []);
 
 
 

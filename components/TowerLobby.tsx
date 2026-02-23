@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { UserWithStatus } from '../types.js';
@@ -13,7 +14,7 @@ import TowerItemShopModal from './TowerItemShopModal.js';
 
 const TowerLobby: React.FC = () => {
         const { currentUser, currentUserWithStatus, allUsers, handlers } = useAppContext();
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    const isMobile = useIsMobileLayout(1024);
     const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -21,12 +22,6 @@ const TowerLobby: React.FC = () => {
     const [timeUntilReset, setTimeUntilReset] = useState<string>('');
     const stageScrollRef = useRef<HTMLDivElement>(null);
     const isChallengingRef = useRef(false); // 중복 클릭 방지용 ref
-
-    useEffect(() => {
-        const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
-        window.addEventListener('resize', checkIsMobile);
-        return () => window.removeEventListener('resize', checkIsMobile);
-    }, []);
 
     // 도전의 탑 입장 시 WASM GnuGo 최초 1회 프리로드
     useEffect(() => {
@@ -360,8 +355,9 @@ const TowerLobby: React.FC = () => {
                                     {(() => {
                                         const inventory = currentUserWithStatus?.inventory || [];
                                         const getItemCount = (itemName: string): number => {
-                                            const item = inventory.find((inv: any) => inv.name === itemName || inv.id === itemName);
-                                            return item?.quantity ?? 0;
+                                            return (inventory as any[])
+                                                .filter((inv: any) => (inv.name === itemName || inv.id === itemName) && inv.source === 'tower')
+                                                .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
                                         };
                                         const items = [
                                             { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount('턴 추가') || getItemCount('addturn') },
@@ -682,10 +678,12 @@ const TowerLobby: React.FC = () => {
                     </div>
                 </div>
             ) : (
-                /* 데스크톱: 4개 패널 */
+                /* 데스크톱: 좌(랭킹+보유아이템) / 가운데 이미지 / 스테이지 / 퀵메뉴 */
                 <div className="flex-1 flex flex-col lg:flex-row lg:justify-center gap-2 sm:gap-3 lg:gap-4 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 lg:py-4 min-h-0 overflow-hidden">
-                    {/* 좌측: 랭킹 Top 100 */}
-                    <div className="flex-1 lg:flex-[0_0_20%] lg:max-w-[20%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
+                    {/* 좌측: 랭킹 Top 100 + 보유 아이템 (아래쪽 별도 패널) */}
+                    <div className="flex-1 lg:flex-[0_0_20%] lg:max-w-[20%] flex flex-col gap-2 min-h-0 overflow-hidden">
+                    {/* 랭킹 Top 100 (하단 여유 줄여서 보유 아이템 공간 확보) */}
+                    <div className="flex-1 min-h-0 flex flex-col bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
                     <div className="flex items-center justify-between mb-2 flex-shrink-0">
                         <div className="flex items-center gap-2">
                             <h2 className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
@@ -701,7 +699,7 @@ const TowerLobby: React.FC = () => {
                             보상정보
                         </Button>
                     </div>
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
                         {/* 내 랭킹 (맨 위 고정) */}
                         {myRankingEntry && (
                             <div className="bg-gradient-to-r from-amber-800/50 to-yellow-800/50 border-2 border-amber-500/70 shadow-lg shadow-amber-700/50 rounded-lg p-2 mb-2">
@@ -766,7 +764,47 @@ const TowerLobby: React.FC = () => {
                             <p className="text-center text-amber-300/60 py-8">랭킹 데이터가 없습니다.</p>
                         )}
                     </div>
-                </div>
+                    </div>
+
+                    {/* 보유 아이템 (랭킹 하단 별도 패널, 잘리지 않도록) */}
+                    <div className="flex-shrink-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 backdrop-blur-md shadow-2xl shadow-amber-900/50">
+                        <h3 className="text-xs sm:text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 mb-2 text-center drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
+                            보유 아이템
+                        </h3>
+                        <div className="flex flex-row gap-1.5 justify-center items-center flex-wrap">
+                            {(() => {
+                                const inventory = currentUserWithStatus?.inventory || [];
+                                const getItemCount = (itemName: string): number => {
+                                    return (inventory as any[])
+                                        .filter((inv: any) => (inv.name === itemName || inv.id === itemName) && inv.source === 'tower')
+                                        .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
+                                };
+                                const items = [
+                                    { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount('턴 추가') || getItemCount('addturn') },
+                                    { name: '미사일', icon: '/images/button/missile.png', count: getItemCount('미사일') || getItemCount('missile') },
+                                    { name: '히든', icon: '/images/button/hidden.png', count: getItemCount('히든') || getItemCount('hidden') },
+                                    { name: '스캔', icon: '/images/button/scan.png', count: getItemCount('스캔') || getItemCount('scan') },
+                                    { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount('배치 새로고침') || getItemCount('배치변경') || getItemCount('reflesh') || getItemCount('refresh') }
+                                ];
+                                return items.map((item, index) => (
+                                    <button
+                                        key={index}
+                                        className="flex flex-col items-center gap-0.5 bg-gray-800/40 border border-amber-700/30 rounded-lg p-1.5 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors"
+                                        onClick={() => setIsItemShopOpen(true)}
+                                    >
+                                        <div className="relative w-8 h-8 flex-shrink-0">
+                                            <img src={item.icon} alt={item.name} className="w-full h-full object-contain" />
+                                            <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-amber-900 ${item.count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'}`}>
+                                                {item.count}
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] font-semibold text-amber-100 text-center leading-tight">{item.name}</p>
+                                    </button>
+                                ));
+                            })()}
+                        </div>
+                    </div>
+                    </div>
 
                     {/* 가운데: 도전의 탑 이미지 */}
                     <div className="flex-1 lg:flex-[0_0_25%] lg:max-w-[25%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative min-h-0">
@@ -1055,86 +1093,10 @@ const TowerLobby: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 우측 끝: 퀵메뉴 + 아이템 */}
-                <div className="flex-shrink-0 w-20 sm:w-24 lg:w-28 flex flex-col gap-2 sm:gap-3 lg:gap-4 min-h-0">
-                    {/* 퀵메뉴 */}
-                    <div className="flex-shrink-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-1.5 sm:p-2 backdrop-blur-md shadow-2xl shadow-amber-900/50">
-                        <QuickAccessSidebar compact={true} fillHeight={false} />
-                    </div>
-
-                    {/* 아이템 패널 */}
-                    <div className="flex-1 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-1.5 sm:p-2 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
-                        <h3 className="text-xs sm:text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 mb-2 flex-shrink-0 text-center drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                            보유 아이템
-                        </h3>
-                        <div className="flex flex-col gap-1.5 justify-center items-center flex-1 min-h-0">
-                            {(() => {
-                                const inventory = currentUserWithStatus?.inventory || [];
-                                
-                                // 아이템 개수 계산 함수
-                                const getItemCount = (itemName: string): number => {
-                                    const item = inventory.find((inv: any) => inv.name === itemName || inv.id === itemName);
-                                    return item?.quantity ?? 0;
-                                };
-                                
-                                // 모든 아이템 항상 표시 (최대 보유 개수 포함)
-                                const items = [
-                                    {
-                                        name: '턴 추가',
-                                        icon: '/images/button/addturn.png',
-                                        count: getItemCount('턴 추가') || getItemCount('addturn'),
-                                        maxCount: 3
-                                    },
-                                    {
-                                        name: '미사일',
-                                        icon: '/images/button/missile.png',
-                                        count: getItemCount('미사일') || getItemCount('missile'),
-                                        maxCount: 2
-                                    },
-                                    {
-                                        name: '히든',
-                                        icon: '/images/button/hidden.png',
-                                        count: getItemCount('히든') || getItemCount('hidden'),
-                                        maxCount: 2
-                                    },
-                                    {
-                                        name: '스캔',
-                                        icon: '/images/button/scan.png',
-                                        count: getItemCount('스캔') || getItemCount('scan'),
-                                        maxCount: 2
-                                    },
-                                    {
-                                        name: '배치변경',
-                                        icon: '/images/button/reflesh.png',
-                                        count: getItemCount('배치 새로고침') || getItemCount('배치변경') || getItemCount('reflesh') || getItemCount('refresh'),
-                                        maxCount: 5
-                                    }
-                                ];
-                                
-                                return items.map((item, index) => (
-                                    <button
-                                        key={index}
-                                        className="w-full bg-gray-800/40 border border-amber-700/30 rounded-lg p-1.5 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors flex flex-col items-center gap-0.5 flex-shrink-0"
-                                        onClick={() => setIsItemShopOpen(true)}
-                                    >
-                                        <div className="relative w-8 h-8 flex-shrink-0">
-                                            <img
-                                                src={item.icon}
-                                                alt={item.name}
-                                                className="w-full h-full object-contain"
-                                            />
-                                            {/* 항상 개수 표시 (0개도 표시) */}
-                                            <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-amber-900 ${
-                                                item.count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'
-                                            }`}>
-                                                {item.count}
-                                            </div>
-                                        </div>
-                                        <p className="text-[10px] font-semibold text-amber-100 truncate w-full text-center leading-tight">{item.name}</p>
-                                    </button>
-                                ));
-                            })()}
-                        </div>
+                {/* 우측 끝: 퀵메뉴 (홈화면과 동일 크기, 아래로 늘어나지 않음) */}
+                <div className="flex-shrink-0 w-24 min-w-[96px] overflow-hidden">
+                    <div className="bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-1 backdrop-blur-md shadow-2xl shadow-amber-900/50">
+                        <QuickAccessSidebar fillHeight={false} />
                     </div>
                 </div>
                 </div>
