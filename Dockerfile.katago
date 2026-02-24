@@ -1,12 +1,25 @@
 # syntax=docker/dockerfile:1.6
 
-FROM node:20-alpine AS base
+#
+# IMPORTANT:
+# - KataGo official Linux binaries are built against glibc.
+# - Alpine uses musl and frequently fails to execute KataGo with exit code 127.
+# - Use Debian slim (glibc) for reliability in Railway.
+FROM node:20-bookworm-slim AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install build dependencies (including autoconf/automake for mozjpeg)
-# py3-setuptools provides distutils which is needed for node-gyp to build native modules like sqlite3
-RUN apk add --no-cache python3 py3-setuptools make g++ wget unzip autoconf automake libtool pkgconfig nasm
+# Install minimal build/runtime deps (node-gyp may be needed for sqlite3)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      findutils \
+      python3 \
+      make \
+      g++ \
+      wget \
+      unzip && \
+    rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 # Install dependencies
@@ -36,7 +49,7 @@ RUN echo "=== Starting KataGo download ===" && \
     cd /tmp && \
     echo "[1/4] Downloading KataGo binary v1.16.4..." && \
     (wget --progress=dot:giga --no-check-certificate --timeout=120 --tries=2 --read-timeout=120 --dns-timeout=20 --connect-timeout=60 \
-        https://github.com/lightvector/KataGo/releases/download/v1.16.4/katago-v1.16.4-eigenavx2-linux-x64.zip -O katago.zip && \
+        https://github.com/lightvector/KataGo/releases/download/v1.16.4/katago-v1.16.4-eigen-linux-x64.zip -O katago.zip && \
     echo "[2/4] Verifying download..." && \
     test -f katago.zip && test -s katago.zip && \
     echo "[3/4] Extracting KataGo binary..." && \

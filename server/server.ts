@@ -4149,6 +4149,20 @@ const startServer = async () => {
                 }
             }
 
+            // 외부 KataGo 서비스가 "실제 분석 가능" 상태인지 status도 확인
+            let status: { ok: boolean; status?: number; body?: any; error?: string } | null = null;
+            if (statusUrl) {
+                try {
+                    const r = await fetch(statusUrl, { method: 'GET' });
+                    const bodyText = await r.text();
+                    let body: any = null;
+                    try { body = bodyText ? JSON.parse(bodyText) : null; } catch { body = bodyText; }
+                    status = { ok: r.ok, status: r.status, body };
+                } catch (e: any) {
+                    status = { ok: false, error: e?.message || String(e) };
+                }
+            }
+
             // UI 호환을 위해 기존 필드 유지
             const config: Record<string, string | number | boolean> = {
                 USE_HTTP_API,
@@ -4160,14 +4174,20 @@ const startServer = async () => {
                 MODE: 'external_service',
             };
 
-            const running = USE_HTTP_API && !!health?.ok;
+            const statusSaysRunning =
+                !!status?.ok &&
+                (status.body?.status === 'running' || status.body?.processRunning === true);
+            const running = USE_HTTP_API && !!health?.ok && statusSaysRunning;
             res.json({
                 status: running ? 'running' : 'stopped',
                 processRunning: running,
                 isStarting: false,
                 pendingQueries: 0,
                 config,
-                log: null,
+                log: {
+                    health,
+                    status,
+                },
             });
         } catch (error: any) {
             console.error('[Admin] Error getting KataGo status:', error);

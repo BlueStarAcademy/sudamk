@@ -496,23 +496,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         }
     }, [boardState]);
     
-    // 단일 소스 원칙: 계가/종료 후 분석 결과가 있으면 moveHistory로만 보드 구성 → 따낸 돌 자리·사석 표시 불일치 방지
+    // IMPORTANT:
+    // - moveHistory로 보드를 "단순 복원"하면 포획(따낸돌 제거)을 반영할 수 없어, 계가 시점에 없던 돌이 생겨나는 버그가 발생한다.
+    // - 계가/종료 화면에서도 반드시 "실제 boardState(포획 반영)"를 보존/표시하고,
+    //   분석 결과(ownershipMap/deadStones)는 오버레이로만 표현한다.
     const displayBoardState = useMemo(() => {
         const safeSize = boardSize > 0 ? boardSize : 19;
-        const isScoringOrEnded = gameStatus === 'scoring' || gameStatus === 'ended';
-        const hasAnalysis = analysisResult != null;
-        const validMoves = moveHistory && Array.isArray(moveHistory) && moveHistory.length > 0
-            ? moveHistory.filter((m: { x: number; y: number }) => m && m.x >= 0 && m.y >= 0 && m.x < safeSize && m.y < safeSize)
-            : [];
-
-        if (isScoringOrEnded && hasAnalysis && validMoves.length > 0) {
-            const derived: BoardState = Array(safeSize).fill(null).map(() => Array(safeSize).fill(Player.None));
-            for (const move of validMoves) {
-                const m = move as { x: number; y: number; player: Player };
-                derived[m.y][m.x] = m.player;
-            }
-            return derived;
-        }
 
         const isBoardStateValid = boardState && Array.isArray(boardState) && boardState.length > 0 &&
             boardState[0] && Array.isArray(boardState[0]) && boardState[0].length > 0 &&

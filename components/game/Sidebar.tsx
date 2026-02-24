@@ -13,7 +13,7 @@ import {
     SINGLE_PLAYER_STAGES,
     ADMIN_USER_ID,
     ADMIN_NICKNAME
-} from '../../constants.js';
+} from '../../constants/index.js';
 import Button from '../Button.js';
 import Avatar from '../Avatar.js';
 import { containsProfanity } from '../../profanity.js';

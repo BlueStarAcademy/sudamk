@@ -117,17 +117,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             console.log(`[Game] Using server boardState (server moves: ${serverMoveCount}, stored: ${storedMoveCount}) for game ${gameId}`);
                             return session.boardState;
                         }
-                        // 서버 boardState가 비어 있으면 moveHistory로 보드 복원
-                        if (session.moveHistory?.length && session.settings?.boardSize) {
-                            const boardSize = session.settings.boardSize;
-                            const derived = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
-                            for (const move of session.moveHistory) {
-                                if (move && move.x >= 0 && move.x < boardSize && move.y >= 0 && move.y < boardSize) {
-                                    derived[move.y][move.x] = move.player;
-                                }
-                            }
-                            return derived;
-                        }
+                        // IMPORTANT: moveHistory 기반 단순 복원은 포획을 반영하지 못해 "없던 돌이 생김" 버그를 만든다.
+                        // 서버 boardState가 비어 있으면, 일단 저장된 boardState(포획 반영)를 유지한다.
+                        console.warn(`[Game] Server has more moves but no boardState; keeping stored boardState to avoid capture desync (server moves: ${serverMoveCount}, stored: ${storedMoveCount}) for game ${gameId}`);
+                        return parsed.boardState;
                     }
                     // 진행 중이거나 종료/계가 중일 때 모두 sessionStorage 보드 사용 → 결과 모달 시에도 바둑판 유지
                     console.log(`[Game] Restored boardState from sessionStorage for game ${gameId} (gameStatus: ${gameStatus})`);
