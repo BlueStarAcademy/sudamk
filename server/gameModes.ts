@@ -300,15 +300,15 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const savedPreservedGameState = preservedGameState;
     const savedPreservedTimeInfo = preservedTimeInfo;
     
-    // KataGo 계가가 절대 틀리지 않도록 최대 3회 재시도 (일시적 오류 시에도 성공 유도)
-    const KATAGO_MAX_ATTEMPTS = 3;
+    // KataGo만 사용(수동 계가 없음). 일시적 오류 시 최대 4회 재시도, 1초 간격
+    const KATAGO_MAX_ATTEMPTS = 4;
     const runAnalysisWithRetries = async (attempt = 1): Promise<types.AnalysisResult> => {
         try {
             return await analyzeGame(game);
         } catch (err: any) {
             if (attempt < KATAGO_MAX_ATTEMPTS) {
-                console.warn(`[getGameResult] KataGo attempt ${attempt}/${KATAGO_MAX_ATTEMPTS} failed for game ${game.id}, retrying in 2s:`, err?.message);
-                await new Promise(r => setTimeout(r, 2000));
+                console.warn(`[getGameResult] KataGo attempt ${attempt}/${KATAGO_MAX_ATTEMPTS} failed for game ${game.id}, retrying in 1s:`, err?.message);
+                await new Promise(r => setTimeout(r, 1000));
                 return runAnalysisWithRetries(attempt + 1);
             }
             throw err;
@@ -497,142 +497,33 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         console.error(`[getGameResult] Game details: isSinglePlayer=${game.isSinglePlayer}, stageId=${game.stageId}, mode=${game.mode}, boardSize=${game.settings.boardSize}`);
         console.error(`[getGameResult] KataGo config: USE_HTTP_API=${process.env.KATAGO_API_URL ? 'true' : 'false'}, KATAGO_API_URL=${process.env.KATAGO_API_URL || 'not set'}`);
         console.error(`[getGameResult] ========================================`);
-        
-        // KataGo 실패 시 자체 계가 프로그램 사용
-        console.log(`[getGameResult] KataGo failed, attempting manual scoring for game ${game.id}...`);
-        const manualScoringStartTime = Date.now();
-        try {
-            const { calculateScoreManually } = await import('./scoringService.js');
-            console.log(`[getGameResult] Starting manual scoring calculation...`);
-            const manualAnalysis = calculateScoreManually(game);
-            const manualScoringDuration = Date.now() - manualScoringStartTime;
-            console.log(`[getGameResult] Manual scoring calculation completed in ${manualScoringDuration}ms`);
-                
-                // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기
-                let freshGame = null;
-                if (game.isSinglePlayer) {
-                    const { getCachedGame } = await import('./gameCache.js');
-                    freshGame = await getCachedGame(game.id);
-                }
-                // 캐시에서 못 찾으면 DB에서 찾기
-                if (!freshGame) {
-                    freshGame = await db.getLiveGame(game.id);
-                }
-                if (!freshGame) {
-                    console.error(`[getGameResult] Game ${game.id} not found in cache or database after manual scoring`);
-                    return;
-                }
-                
-                // 게임 상태 확인 및 복원
-                if (freshGame.gameStatus === 'playing' && freshGame.isSinglePlayer && freshGame.stageId) {
-                    const preservedState = (freshGame as any).preservedGameState || (game as any).preservedGameState || savedPreservedGameState;
-                    if (preservedState) {
-                        if (preservedState.moveHistory && preservedState.moveHistory.length > 0) {
-                            freshGame.moveHistory = preservedState.moveHistory;
-                        }
-                        if (preservedState.boardState && preservedState.boardState.length > 0) {
-                            freshGame.boardState = preservedState.boardState;
-                        }
-                    }
-                    freshGame.gameStatus = 'scoring';
-                    freshGame.isAnalyzing = true;
-                    (freshGame as any).isScoringProtected = true;
-                    await db.saveGame(freshGame);
-                }
-                
-                if (freshGame.gameStatus !== 'scoring') {
-                    console.log(`[getGameResult] Game ${freshGame.id} no longer in scoring state (status: ${freshGame.gameStatus}), skipping manual scoring result`);
-                    return;
-                }
-                
-                // 수동 계가 결과 적용
-                const timeInfoToUse = (freshGame as any).preservedTimeInfo || savedPreservedTimeInfo || preservedTimeInfo;
-                const finalAnalysis = finalizeAnalysisResult(manualAnalysis, freshGame, timeInfoToUse);
-                
-                if (!freshGame.analysisResult) freshGame.analysisResult = {};
-                freshGame.analysisResult['system'] = finalAnalysis;
-                freshGame.finalScores = {
-                    black: finalAnalysis.scoreDetails.black.total,
-                    white: finalAnalysis.scoreDetails.white.total
-                };
-                freshGame.isAnalyzing = false;
-                
-                // 분석 결과 저장 및 브로드캐스트
-                const preservedStateForBroadcast = (freshGame as any).preservedGameState || savedPreservedGameState;
-                const timeInfoForBroadcast = (freshGame as any).preservedTimeInfo || savedPreservedTimeInfo || preservedTimeInfo;
-                const gameToBroadcast = {
-                    ...freshGame,
-                    moveHistory: preservedStateForBroadcast?.moveHistory || freshGame.moveHistory,
-                    totalTurns: preservedStateForBroadcast?.totalTurns ?? freshGame.totalTurns,
-                    blackTimeLeft: timeInfoForBroadcast?.blackTimeLeft ?? freshGame.blackTimeLeft,
-                    whiteTimeLeft: timeInfoForBroadcast?.whiteTimeLeft ?? freshGame.whiteTimeLeft,
-                    blackPatternStones: preservedStateForBroadcast?.blackPatternStones || freshGame.blackPatternStones,
-                    whitePatternStones: preservedStateForBroadcast?.whitePatternStones || freshGame.whitePatternStones,
-                    captures: preservedStateForBroadcast?.captures || freshGame.captures,
-                    baseStoneCaptures: preservedStateForBroadcast?.baseStoneCaptures || freshGame.baseStoneCaptures,
-                    hiddenStoneCaptures: preservedStateForBroadcast?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
-                };
-                delete (gameToBroadcast as any).boardState;
-                await db.saveGame(freshGame);
-                const { broadcastToGameParticipants } = await import('./socket.js');
-                broadcastToGameParticipants(freshGame.id, { type: 'GAME_UPDATE', payload: { [freshGame.id]: gameToBroadcast } }, freshGame);
-                console.log(`[getGameResult] Manual scoring completed for game ${freshGame.id}, scores: Black ${finalAnalysis.scoreDetails.black.total}, White ${finalAnalysis.scoreDetails.white.total}`);
-                
-                // 승자 판정
-                const blackTotal = finalAnalysis.scoreDetails.black.total;
-                const whiteTotal = finalAnalysis.scoreDetails.white.total;
-                const winner = blackTotal > whiteTotal ? types.Player.Black : types.Player.White;
-                console.log(`[getGameResult] Winner determination (manual): Black=${blackTotal}, White=${whiteTotal}, Winner=${winner === types.Player.Black ? 'Black' : 'White'}`);
-                
-                await endGame(freshGame, winner, 'score');
-            } catch (manualError) {
-                console.error(`[getGameResult] Manual scoring also failed for game ${game.id}:`, manualError);
-                // 최종 fallback: 랜덤 승자
-                let failedGame = null;
-                if (game.isSinglePlayer) {
-                    const { getCachedGame } = await import('./gameCache.js');
-                    failedGame = await getCachedGame(game.id);
-                }
-                if (!failedGame) {
-                    failedGame = await db.getLiveGame(game.id);
-                }
-                if (failedGame && failedGame.gameStatus === 'scoring') {
-                    console.log(`[getGameResult] Game ${failedGame.id} still in scoring state, setting isAnalyzing to false and ending game with fallback winner`);
-                    failedGame.isAnalyzing = false;
-                    
-                    const preservedState = (failedGame as any).preservedGameState || (game as any).preservedGameState;
-                    if (preservedState) {
-                        if (preservedState.moveHistory && preservedState.moveHistory.length > 0) {
-                            failedGame.moveHistory = preservedState.moveHistory;
-                        }
-                        if (preservedState.boardState && preservedState.boardState.length > 0) {
-                            failedGame.boardState = preservedState.boardState;
-                        }
-                        if (preservedState.captures) {
-                            failedGame.captures = preservedState.captures;
-                        }
-                        if (preservedState.totalTurns !== undefined) {
-                            failedGame.totalTurns = preservedState.totalTurns;
-                        }
-                    }
-                    
-                    await db.saveGame(failedGame);
-                    const { broadcastToGameParticipants } = await import('./socket.js');
-                    const gameToBroadcast = {
-                        ...failedGame,
-                        moveHistory: preservedState?.moveHistory || failedGame.moveHistory,
-                        totalTurns: preservedState?.totalTurns ?? failedGame.totalTurns,
-                        captures: preservedState?.captures || failedGame.captures,
-                    };
-                    broadcastToGameParticipants(failedGame.id, { type: 'GAME_UPDATE', payload: { [failedGame.id]: gameToBroadcast } }, failedGame);
-                    
-                    const winner = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
-                    console.log(`[getGameResult] Ending game ${failedGame.id} with fallback winner: ${winner === types.Player.Black ? 'Black' : 'White'}`);
-                    await endGame(failedGame, winner, 'score');
-                } else {
-                    console.error(`[getGameResult] Game ${game.id} not found or not in scoring state after all scoring attempts failed`);
-                }
+        // 수동 계가 사용 안 함. KataGo만 사용. 실패 시 scoring 유지 + isAnalyzing=false 로 브로드캐스트하여 클라이언트가 재시도 가능하게 함.
+        let freshGame: types.LiveGameSession | null = null;
+        if (game.isSinglePlayer) {
+            const { getCachedGame } = await import('./gameCache.js');
+            freshGame = await getCachedGame(game.id);
+        }
+        if (!freshGame) freshGame = await db.getLiveGame(game.id);
+        if (freshGame && freshGame.gameStatus === 'scoring') {
+            freshGame.isAnalyzing = false;
+            const preservedState = (freshGame as any).preservedGameState || (game as any).preservedGameState || savedPreservedGameState;
+            if (preservedState) {
+                if (preservedState.moveHistory && preservedState.moveHistory.length > 0) freshGame.moveHistory = preservedState.moveHistory;
+                if (preservedState.boardState && preservedState.boardState.length > 0) freshGame.boardState = preservedState.boardState;
+                if (preservedState.captures) freshGame.captures = preservedState.captures;
+                if (preservedState.totalTurns !== undefined) freshGame.totalTurns = preservedState.totalTurns;
             }
+            await db.saveGame(freshGame);
+            const { broadcastToGameParticipants } = await import('./socket.js');
+            const gameToBroadcast = {
+                ...freshGame,
+                moveHistory: preservedState?.moveHistory || freshGame.moveHistory,
+                totalTurns: preservedState?.totalTurns ?? freshGame.totalTurns,
+                captures: preservedState?.captures || freshGame.captures,
+            };
+            broadcastToGameParticipants(freshGame.id, { type: 'GAME_UPDATE', payload: { [freshGame.id]: gameToBroadcast } }, freshGame);
+            console.log(`[getGameResult] KataGo failed for game ${freshGame.id}. Game left in scoring state; client can retry.`);
+        }
         });
     return game;
 };

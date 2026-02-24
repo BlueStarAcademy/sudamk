@@ -106,13 +106,8 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
                     let ownerProbRaw = ownership[index];
                     let ownerProb = (typeof ownerProbRaw === 'number' && isFinite(ownerProbRaw)) ? ownerProbRaw : 0;
                     
-                    // KataGo's ownership is from the current player's perspective.
-                    // Positive for current player, negative for opponent.
-                    // We want to standardize to Black's perspective (positive for black, negative for white).
-                    if (isWhitesTurn) {
-                        ownerProb *= -1;
-                    }
-
+                    // KataGo reports ownership from Black's perspective (reportAnalysisWinratesAs=BLACK in config).
+                    // Positive = black will own, negative = white will own. Do NOT flip by turn.
                     ownershipMap[y][x] = Math.round(ownerProb * 10);
                     
                     const stoneOnBoard = session.boardState[y][x];
@@ -172,17 +167,17 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
             const scoreLead = info.scoreLead || 0;
             return {
                 ...kataGoMoveToPoint(info.move, boardSize),
-                winrate: (isWhitesTurn ? (1 - winrate) : winrate) * 100,
-                scoreLead: isWhitesTurn ? -scoreLead : scoreLead,
+                winrate: (winrate || 0) * 100,
+                scoreLead: scoreLead || 0,
                 order: i + 1,
             };
         });
     
     const winrateNum = Number(rootInfo.winrate);
     const scoreLeadNum = Number(rootInfo.scoreLead);
-    
-    const winRateBlack = isFinite(winrateNum) ? (isWhitesTurn ? (1 - winrateNum) * 100 : winrateNum * 100) : 50;
-    const finalScoreLead = isFinite(scoreLeadNum) ? (isWhitesTurn ? -scoreLeadNum : scoreLeadNum) : 0;
+    // KataGo rootInfo is from Black's perspective (reportAnalysisWinratesAs=BLACK)
+    const winRateBlack = isFinite(winrateNum) ? winrateNum * 100 : 50;
+    const finalScoreLead = isFinite(scoreLeadNum) ? scoreLeadNum : 0;
     
     let winRateChange = 0;
     const prevAnalysis = session.previousAnalysisResult?.[session.player1.id] ?? session.previousAnalysisResult?.[session.player2.id];
@@ -500,6 +495,7 @@ class KataGoManager {
             const configContent = `
 logFile = ./katago_analysis_log.txt
 homeDataDir = ${KATAGO_HOME_PATH.replace(/\\/g, '/')}
+reportAnalysisWinratesAs = BLACK
 nnMaxBatchSize = ${KATAGO_NN_MAX_BATCH_SIZE}
 analysisPVLen = 10
 numAnalysisThreads = ${KATAGO_NUM_ANALYSIS_THREADS}
@@ -815,9 +811,10 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
             komi: session.finalKomi ?? session.settings.komi,
             boardXSize: session.settings.boardSize,
             boardYSize: session.settings.boardSize,
-            maxVisits: options?.maxVisits ?? parseInt(process.env.KATAGO_MAX_VISITS || '800', 10),
+            maxVisits: options?.maxVisits ?? parseInt(process.env.KATAGO_MAX_VISITS || '500', 10),
             includePolicy: true,
             includeOwnership: true,
+            overrideSettings: { maxTime: parseInt(process.env.KATAGO_MAX_TIME_SEC || '20', 10) },
         };
     } else {
         // For standard games, send the move history.
@@ -874,17 +871,18 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
             komi: session.finalKomi ?? session.settings.komi,
             boardXSize: session.settings.boardSize,
             boardYSize: session.settings.boardSize,
-            maxVisits: options?.maxVisits ?? parseInt(process.env.KATAGO_MAX_VISITS || '800', 10),
+            maxVisits: options?.maxVisits ?? parseInt(process.env.KATAGO_MAX_VISITS || '500', 10),
             includePolicy: true,
             includeOwnership: true,
+            overrideSettings: { maxTime: parseInt(process.env.KATAGO_MAX_TIME_SEC || '20', 10) },
         };
     }
 
     // HTTP API를 사용하는 경우 queryKataGoViaHttp 함수 정의 (재시도 로직 포함)
     // 계가 정확도를 위해 KataGo 성공 시까지 재시도 (절대 틀리지 않게)
     const queryKataGoViaHttp = async (analysisQuery: any, apiUrl?: string, retryCount: number = 0): Promise<any> => {
-        const MAX_RETRIES = 3; // 최대 3번 재시도 (총 4번 시도) - 계가 정확도 우선
-        const RETRY_DELAY_MS = 2000; // 재시도 전 2초 대기 (KataGo/네트워크 복구 시간)
+        const MAX_RETRIES = 2; // 최대 2번 재시도 (총 3번 시도) - 계가 대기 시간 단축
+        const RETRY_DELAY_MS = 1000; // 재시도 전 1초 대기
         
         let urlToUse = apiUrl || KATAGO_API_URL || (analysisQuery.__fallbackUrl ? analysisQuery.__fallbackUrl : undefined);
         if (!urlToUse) {
@@ -916,8 +914,8 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
                 
                 const postData = JSON.stringify(cleanQuery);
                 
-                // 120초 타임아웃 후 자체 계가 프로그램 사용 (계가에 더 많은 시간 필요)
-                const timeoutMs = 120000; // 120초
+                // KataGo maxTime(20초) + 네트워크 여유. 수동 계가로 넘어가지 않으므로 타임아웃 시 재시도됨.
+                const timeoutMs = parseInt(process.env.KATAGO_HTTP_TIMEOUT_MS || '35000', 10); // 35초
                 const timeoutSeconds = timeoutMs / 1000;
                 
                 const options = {
@@ -1065,30 +1063,7 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
         console.error('[KataGo] Analysis query failed:', error);
         console.error('[KataGo] Error details:', error instanceof Error ? error.message : String(error));
         console.error('[KataGo] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-        
-        // KataGo 실패 시 자체 계가 프로그램 사용
-        console.log(`[KataGo] KataGo failed, falling back to manual scoring for game ${session.id}`);
-        try {
-            const { calculateScoreManually } = await import('./scoringService.js');
-            const manualResult = calculateScoreManually(session);
-            console.log(`[KataGo] Manual scoring completed for game ${session.id}`);
-            return manualResult;
-        } catch (manualError) {
-            console.error('[KataGo] Manual scoring also failed:', manualError);
-            // 최종 fallback: 기본 에러 상태
-            console.log(`[KataGo] Returning fallback analysis result for game ${session.id}`);
-            return {
-                winRateBlack: 50,
-                winRateChange: 0,
-                scoreLead: 0,
-                deadStones: [], ownershipMap: null, recommendedMoves: [],
-                areaScore: { black: 0, white: 0 },
-                scoreDetails: {
-                    black: { territory: 0, captures: 0, liveCaptures: 0, deadStones: 0, baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, total: 0 },
-                    white: { territory: 0, captures: 0, liveCaptures: 0, deadStones: 0, komi: 0, baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, total: 0 },
-                },
-                blackConfirmed: [], whiteConfirmed: [], blackRight: [], whiteRight: [], blackLikely: [], whiteLikely: [],
-            };
-        }
+        // 수동 계가 폴백 없음: 무조건 KataGo 결과만 사용. 실패 시 호출자가 재시도하거나 에러 처리.
+        throw error;
     }
 };

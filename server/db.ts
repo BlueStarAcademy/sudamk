@@ -183,17 +183,32 @@ export const initializeDatabase = async () => {
     
     console.log(`[DB] Initializing database connection (max retries: ${maxRetries}, delay: ${retryDelay}ms, timeout: ${connectionTimeout}ms)...`);
     
+    const ENGINE_READY_DELAY_MS = 200;
+    const ENGINE_READY_MAX_ATTEMPTS = 15; // Windows/tsx: engine can be slow to become ready after $connect()
+
     while (retries > 0) {
         try {
             const prisma = (await import('./prismaClient.js')).default;
             // Prisma engine must be connected before any query; avoids "Engine is not yet connected"
             await prisma.$connect();
-            const queryPromise = prisma.$queryRaw`SELECT 1`;
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Database connection timeout')), connectionTimeout);
-            });
-
-            await Promise.race([queryPromise, timeoutPromise]);
+            // Wait for engine to accept queries (Windows/Node native addon can lag after $connect())
+            for (let attempt = 0; attempt < ENGINE_READY_MAX_ATTEMPTS; attempt++) {
+                try {
+                    await new Promise(r => setTimeout(r, ENGINE_READY_DELAY_MS));
+                    const queryPromise = prisma.$queryRaw`SELECT 1`;
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('Database connection timeout')), connectionTimeout);
+                    });
+                    await Promise.race([queryPromise, timeoutPromise]);
+                    break; // engine ready
+                } catch (probeErr: any) {
+                    if (probeErr?.message?.includes('Engine is not yet connected') && attempt < ENGINE_READY_MAX_ATTEMPTS - 1) {
+                        await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
+                        continue;
+                    }
+                    throw probeErr;
+                }
+            }
             
             const existingUsers = await listUsers();
             if (existingUsers.length === 0) {
