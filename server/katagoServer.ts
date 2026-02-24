@@ -136,6 +136,53 @@ app.get('/api/katago/status', async (req, res) => {
     }
 });
 
+// Warmup: 서버 부팅 직후 1회만 아주 작은 분석을 실행해 모델 로딩/초기화를 끝내 둔다.
+// - 사용자에게 결과를 노출하지 않음
+// - 정확도에 영향 없음 (단지 "첫 요청 지연"을 앞당겨 제거)
+let warmupStarted = false;
+async function warmupKataGoOnce(): Promise<void> {
+    if (warmupStarted) return;
+    warmupStarted = true;
+
+    const enabled = String(process.env.KATAGO_WARMUP_ON_START || 'true').toLowerCase() === 'true';
+    if (!enabled) {
+        console.log('[KataGo Server] Warmup is disabled (KATAGO_WARMUP_ON_START=false)');
+        return;
+    }
+
+    try {
+        const { getKataGoManager } = await import('./kataGoService.js');
+        const manager = getKataGoManager();
+
+        // ensureStarted()가 내부적으로 HTTP API 모드면 no-op 처리함
+        if (typeof (manager as any).ensureStarted === 'function') {
+            await (manager as any).ensureStarted();
+        }
+
+        const queryId = `warmup-${Date.now()}`;
+        const warmupQuery = {
+            id: queryId,
+            rules: 'korean',
+            komi: 6.5,
+            boardXSize: 19,
+            boardYSize: 19,
+            // 최소 작업: pass 2회(의미 없는 국면), visits/time 최소
+            moves: [['B', 'pass'], ['W', 'pass']],
+            maxVisits: 1,
+            includePolicy: false,
+            includeOwnership: false,
+            overrideSettings: { maxTime: 1 },
+        };
+
+        const start = Date.now();
+        console.log(`[KataGo Server] Starting warmup analysis: queryId=${queryId}`);
+        await (manager as any).query(warmupQuery);
+        console.log(`[KataGo Server] Warmup analysis complete in ${Date.now() - start}ms: queryId=${queryId}`);
+    } catch (e: any) {
+        console.error('[KataGo Server] Warmup analysis failed (non-fatal):', e?.message || e);
+    }
+}
+
 // Start server
 const startServer = async () => {
     try {
@@ -163,6 +210,9 @@ const startServer = async () => {
                     const { initializeKataGo } = await import('./kataGoService.js');
                     await initializeKataGo();
                     console.log('[KataGo Server] ✅ KataGo initialization complete');
+
+                    // initialization 직후 warmup 1회 실행 (비동기, 실패해도 서버 유지)
+                    await warmupKataGoOnce();
                 } catch (error: any) {
                     console.error('[KataGo Server] ⚠️ KataGo initialization failed:', error?.message || error);
                     console.error('[KataGo Server] Server will continue, but KataGo may not be available');

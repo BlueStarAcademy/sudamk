@@ -619,6 +619,10 @@ export type RecommendedMove = {
 };
 
 export type AnalysisResult = {
+  /** 분석/계가 결과 출처 (UI 표시 및 디버깅 용도) */
+  source?: 'katago' | 'manual';
+  /** KataGo가 느릴 때 임시(대체) 계가 결과 여부 */
+  isProvisional?: boolean;
   winRateBlack: number;
   winRateChange?: number;
   scoreLead?: number;

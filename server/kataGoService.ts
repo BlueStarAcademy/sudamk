@@ -50,6 +50,10 @@ if (KATAGO_API_URL && !KATAGO_API_URL.match(/^https?:\/\//)) {
 
 const USE_HTTP_API = !!KATAGO_API_URL && KATAGO_API_URL.trim() !== '';
 
+// HTTP keep-alive: scoring 호출 시 TLS/커넥션 재수립 비용을 줄여 "대기시간"만 단축 (정확도 영향 없음)
+const HTTP_KEEPALIVE_AGENT = new http.Agent({ keepAlive: true });
+const HTTPS_KEEPALIVE_AGENT = new https.Agent({ keepAlive: true });
+
 const LETTERS = "ABCDEFGHJKLMNOPQRST";
 
 const pointToKataGoMove = (p: Point, boardSize: number): string => {
@@ -737,7 +741,15 @@ export const initializeKataGo = async (): Promise<void> => {
     }
 };
 
-export const analyzeGame = async (session: LiveGameSession, options?: { maxVisits?: number }): Promise<AnalysisResult> => {
+export const analyzeGame = async (
+    session: LiveGameSession,
+    options?: {
+        maxVisits?: number;
+        maxTimeSec?: number;
+        includePolicy?: boolean;
+        includeOwnership?: boolean;
+    }
+): Promise<AnalysisResult> => {
     // Only modes that alter past moves (like missile go) or have a pre-set board (single player) need to send the full board state.
     const useBoardStateForAnalysis = session.mode === types.GameMode.Missile ||
                                    (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Missile)) ||
@@ -812,9 +824,9 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
             boardXSize: session.settings.boardSize,
             boardYSize: session.settings.boardSize,
             maxVisits: options?.maxVisits ?? parseInt(process.env.KATAGO_MAX_VISITS || '500', 10),
-            includePolicy: true,
-            includeOwnership: true,
-            overrideSettings: { maxTime: parseInt(process.env.KATAGO_MAX_TIME_SEC || '20', 10) },
+            includePolicy: options?.includePolicy ?? true,
+            includeOwnership: options?.includeOwnership ?? true,
+            overrideSettings: { maxTime: options?.maxTimeSec ?? parseInt(process.env.KATAGO_MAX_TIME_SEC || '20', 10) },
         };
     } else {
         // For standard games, send the move history.
@@ -872,9 +884,9 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
             boardXSize: session.settings.boardSize,
             boardYSize: session.settings.boardSize,
             maxVisits: options?.maxVisits ?? parseInt(process.env.KATAGO_MAX_VISITS || '500', 10),
-            includePolicy: true,
-            includeOwnership: true,
-            overrideSettings: { maxTime: parseInt(process.env.KATAGO_MAX_TIME_SEC || '20', 10) },
+            includePolicy: options?.includePolicy ?? true,
+            includeOwnership: options?.includeOwnership ?? true,
+            overrideSettings: { maxTime: options?.maxTimeSec ?? parseInt(process.env.KATAGO_MAX_TIME_SEC || '20', 10) },
         };
     }
 
@@ -924,7 +936,8 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
                         'Content-Type': 'application/json',
                         'Content-Length': Buffer.byteLength(postData)
                     },
-                    timeout: timeoutMs
+                    timeout: timeoutMs,
+                    agent: isHttps ? HTTPS_KEEPALIVE_AGENT : HTTP_KEEPALIVE_AGENT,
                 };
                 
                 const req = httpModule.request(url, options, (res) => {

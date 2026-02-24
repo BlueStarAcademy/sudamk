@@ -15,6 +15,23 @@ import * as db from './db.js';
 import * as effectService from './effectService.js';
 import { endGame } from './summaryService.js';
 
+// 정확한 계가 결과는 1회만 표시한다는 전제 하에,
+// (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
+// scoring 상태에서의 대기 시간을 줄이기 위한 프리컴퓨트 캐시.
+// - UI에는 결과를 미리 보여주지 않음 (ended 전까지 분석 결과 미노출)
+// - 애니메이션 종료 후 getGameResult가 다시 호출될 때 결과를 재사용
+const scoringPrecompute = new Map<string, { startedAt: number; promise: Promise<types.AnalysisResult> }>();
+const PRECOMPUTE_TTL_MS = 60_000;
+
+function cleanupScoringPrecompute(nowMs: number): void {
+    if (scoringPrecompute.size === 0) return;
+    for (const [gameId, entry] of scoringPrecompute.entries()) {
+        if (!entry || (nowMs - entry.startedAt) > PRECOMPUTE_TTL_MS) {
+            scoringPrecompute.delete(gameId);
+        }
+    }
+}
+
 export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, session: types.LiveGameSession, preservedTimeInfo?: { blackTimeLeft?: number, whiteTimeLeft?: number }): types.AnalysisResult => {
     const finalAnalysis = JSON.parse(JSON.stringify(baseAnalysis)); // Deep copy
 
@@ -71,6 +88,7 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
 
 
 export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSession> => {
+    cleanupScoringPrecompute(Date.now());
     console.log(`[getGameResult] Called for game ${game.id}, gameStatus=${game.gameStatus}, isSinglePlayer=${game.isSinglePlayer}, stageId=${game.stageId}`);
     
     // 이미 계가가 진행 중이거나 완료된 경우 중복 호출 방지
@@ -202,6 +220,30 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             const gameToBroadcast = { ...game };
             delete (gameToBroadcast as any).boardState;
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+
+            // 정공법: "결과를 바꾸지 않되 더 빨리"를 위해 애니메이션 동안 KataGo 계가 분석을 미리 시작한다.
+            // - 아직 scoring 상태로 바꾸지 않음 (UI/상태 전환은 기존 로직 유지)
+            // - 분석 결과는 저장/브로드캐스트하지 않고, 다음 getGameResult 호출 시 재사용만 한다.
+            const existing = scoringPrecompute.get(game.id);
+            const nowMs = Date.now();
+            if (!existing || (nowMs - existing.startedAt) > PRECOMPUTE_TTL_MS) {
+                scoringPrecompute.delete(game.id);
+                const snapshot = JSON.parse(JSON.stringify({
+                    ...game,
+                    // boardState/moveHistory는 분석 정확도에 중요하므로 스냅샷 고정
+                    boardState: game.boardState,
+                    moveHistory: game.moveHistory,
+                }));
+                const p = analyzeGame(snapshot as types.LiveGameSession, {
+                    includePolicy: false,
+                    includeOwnership: true,
+                }).catch((e) => {
+                    // 프리컴퓨트 실패는 치명적이지 않음. 본 분석 단계에서 정상 재시도됨.
+                    throw e;
+                });
+                scoringPrecompute.set(game.id, { startedAt: nowMs, promise: p });
+                console.log(`[getGameResult] Started KataGo precompute during hidden_final_reveal for game ${game.id}`);
+            }
             
             // 애니메이션이 끝날 때까지 대기하지 않고 즉시 반환 (updateHiddenState에서 처리)
             return game;
@@ -300,11 +342,115 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const savedPreservedGameState = preservedGameState;
     const savedPreservedTimeInfo = preservedTimeInfo;
     
-    // KataGo만 사용(수동 계가 없음). 일시적 오류 시 최대 4회 재시도, 1초 간격
+    // 기본 정책: 정확성이 최우선이므로, 수동 계가 폴백은 기본적으로 비활성화합니다.
+    // (필요한 경우에만 ENABLE_MANUAL_SCORING_FALLBACK=true 로 명시적으로 켤 수 있음)
+    const ENABLE_MANUAL_SCORING_FALLBACK = String(process.env.ENABLE_MANUAL_SCORING_FALLBACK || '').toLowerCase() === 'true';
+    const SCORING_FALLBACK_AFTER_MS = parseInt(process.env.KATAGO_SCORING_FALLBACK_AFTER_MS || '0', 10);
+    // 정확도 우선: 아래 값들은 "명시적으로 설정된 경우에만" KataGo 쿼리에 override로 적용합니다.
+    // (미설정 시 kataGoService.ts의 기본값(KATAGO_MAX_VISITS / KATAGO_MAX_TIME_SEC)을 사용)
+    const scoringMaxVisitsRaw = (process.env.KATAGO_SCORING_MAX_VISITS || '').trim();
+    const scoringMaxTimeSecRaw = (process.env.KATAGO_SCORING_MAX_TIME_SEC || '').trim();
+    const SCORING_MAX_VISITS = scoringMaxVisitsRaw ? parseInt(scoringMaxVisitsRaw, 10) : undefined;
+    const SCORING_MAX_TIME_SEC = scoringMaxTimeSecRaw ? parseInt(scoringMaxTimeSecRaw, 10) : undefined;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const finalizeAndEndGame = async (freshGame: types.LiveGameSession, baseAnalysis: types.AnalysisResult, source: 'katago' | 'manual') => {
+        console.log(`[getGameResult] Finalizing ${source} analysis result for game ${freshGame.id}...`);
+        const timeInfoToUse = (freshGame as any).preservedTimeInfo || savedPreservedTimeInfo || preservedTimeInfo;
+        console.log(`[getGameResult] Using time info for bonus: blackTimeLeft=${timeInfoToUse.blackTimeLeft}, whiteTimeLeft=${timeInfoToUse.whiteTimeLeft}`);
+        const finalAnalysis = finalizeAnalysisResult(baseAnalysis, freshGame, timeInfoToUse);
+        finalAnalysis.source = source;
+        finalAnalysis.isProvisional = source !== 'katago';
+
+        if (!freshGame.analysisResult) freshGame.analysisResult = {};
+        freshGame.analysisResult['system'] = finalAnalysis;
+        freshGame.finalScores = {
+            black: finalAnalysis.scoreDetails.black.total,
+            white: finalAnalysis.scoreDetails.white.total
+        };
+        freshGame.isAnalyzing = false;
+
+        const preservedStateForBroadcast = (freshGame as any).preservedGameState || savedPreservedGameState;
+        const timeInfoForBroadcast = (freshGame as any).preservedTimeInfo || savedPreservedTimeInfo || preservedTimeInfo;
+        const gameToBroadcast = {
+            ...freshGame,
+            // boardState는 제외 (클라이언트에서 보존)
+            moveHistory: preservedStateForBroadcast?.moveHistory || freshGame.moveHistory,
+            totalTurns: preservedStateForBroadcast?.totalTurns ?? freshGame.totalTurns,
+            blackTimeLeft: timeInfoForBroadcast?.blackTimeLeft ?? freshGame.blackTimeLeft,
+            whiteTimeLeft: timeInfoForBroadcast?.whiteTimeLeft ?? freshGame.whiteTimeLeft,
+            blackPatternStones: preservedStateForBroadcast?.blackPatternStones || freshGame.blackPatternStones,
+            whitePatternStones: preservedStateForBroadcast?.whitePatternStones || freshGame.whitePatternStones,
+            captures: preservedStateForBroadcast?.captures || freshGame.captures,
+            baseStoneCaptures: preservedStateForBroadcast?.baseStoneCaptures || freshGame.baseStoneCaptures,
+            hiddenStoneCaptures: preservedStateForBroadcast?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
+        };
+        delete (gameToBroadcast as any).boardState;
+
+        await db.saveGame(freshGame);
+        const { broadcastToGameParticipants } = await import('./socket.js');
+        broadcastToGameParticipants(freshGame.id, { type: 'GAME_UPDATE', payload: { [freshGame.id]: gameToBroadcast } }, freshGame);
+        console.log(`[getGameResult] Broadcasted ${source} result for game ${freshGame.id}, scores: Black ${finalAnalysis.scoreDetails.black.total}, White ${finalAnalysis.scoreDetails.white.total}`);
+
+        // 승자 판정: 흑의 점수가 백의 점수보다 크면 흑 승리, 같거나 작으면 백 승리 (덤 때문에)
+        const blackTotal = finalAnalysis.scoreDetails.black.total;
+        const whiteTotal = finalAnalysis.scoreDetails.white.total;
+        const winner = blackTotal > whiteTotal ? types.Player.Black : types.Player.White;
+        await endGame(freshGame, winner, 'score');
+    };
+
+    const runManualFallbackIfStillScoring = async () => {
+        if (!ENABLE_MANUAL_SCORING_FALLBACK || !(SCORING_FALLBACK_AFTER_MS > 0)) return;
+        try {
+            let freshGame: types.LiveGameSession | null = null;
+            if (game.isSinglePlayer) {
+                const { getCachedGame } = await import('./gameCache.js');
+                freshGame = await getCachedGame(game.id);
+            }
+            if (!freshGame) freshGame = await db.getLiveGame(game.id);
+            if (!freshGame) return;
+            if (freshGame.gameStatus !== 'scoring') return;
+            if (freshGame.analysisResult?.['system']) return;
+
+            console.warn(`[getGameResult] KataGo scoring taking too long (${SCORING_FALLBACK_AFTER_MS}ms). Falling back to manual scoring for game ${freshGame.id}.`);
+            const { calculateScoreManually } = await import('./scoringService.js');
+            const manualBase = calculateScoreManually(freshGame);
+            await finalizeAndEndGame(freshGame, manualBase, 'manual');
+        } catch (e: any) {
+            console.error(`[getGameResult] Manual scoring fallback failed for game ${game.id}:`, e?.message || e);
+        }
+    };
+
+    if (ENABLE_MANUAL_SCORING_FALLBACK && (SCORING_FALLBACK_AFTER_MS > 0)) {
+        fallbackTimer = setTimeout(() => { void runManualFallbackIfStillScoring(); }, SCORING_FALLBACK_AFTER_MS);
+    }
+
+    // KataGo 기반 계가:
+    // - scoring 전용 빠른 옵션으로 먼저 시도 (maxTime/maxVisits)
+    // - 수동 계가 폴백은 기본 비활성화(정확성 우선). 켜려면 ENABLE_MANUAL_SCORING_FALLBACK=true
+    // - 일시적 오류 시 최대 4회 재시도, 1초 간격
     const KATAGO_MAX_ATTEMPTS = 4;
     const runAnalysisWithRetries = async (attempt = 1): Promise<types.AnalysisResult> => {
         try {
-            return await analyzeGame(game);
+            // 히든돌 최종 공개 애니메이션 중 미리 시작한 분석이 있으면 재사용
+            const pre = scoringPrecompute.get(game.id);
+            if (pre) {
+                scoringPrecompute.delete(game.id);
+                console.log(`[getGameResult] Using precomputed KataGo analysis for game ${game.id} (startedAt=${pre.startedAt})`);
+                return await pre.promise;
+            }
+
+            const opts: any = {
+                includePolicy: false,
+                includeOwnership: true,
+            };
+            if (typeof SCORING_MAX_VISITS === 'number' && Number.isFinite(SCORING_MAX_VISITS) && SCORING_MAX_VISITS > 0) {
+                opts.maxVisits = SCORING_MAX_VISITS;
+            }
+            if (typeof SCORING_MAX_TIME_SEC === 'number' && Number.isFinite(SCORING_MAX_TIME_SEC) && SCORING_MAX_TIME_SEC > 0) {
+                opts.maxTimeSec = SCORING_MAX_TIME_SEC;
+            }
+            return await analyzeGame(game, opts);
         } catch (err: any) {
             if (attempt < KATAGO_MAX_ATTEMPTS) {
                 console.warn(`[getGameResult] KataGo attempt ${attempt}/${KATAGO_MAX_ATTEMPTS} failed for game ${game.id}, retrying in 1s:`, err?.message);
@@ -318,6 +464,10 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const analysisStartTime = Date.now();
     runAnalysisWithRetries()
         .then(async (baseAnalysis) => {
+            if (fallbackTimer) {
+                clearTimeout(fallbackTimer);
+                fallbackTimer = null;
+            }
             const analysisDuration = Date.now() - analysisStartTime;
             console.log(`[getGameResult] KataGo analysis completed for game ${game.id} in ${analysisDuration}ms, getting fresh game state...`);
             // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기 (DB에 저장되지 않을 수 있음)
@@ -421,74 +571,13 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                 console.log(`[getGameResult] Game ${game.id} no longer in scoring state (status: ${freshGame.gameStatus}), skipping analysis result`);
                 return;
             }
-
-            console.log(`[getGameResult] Finalizing analysis result for game ${game.id}...`);
-            // 보존된 시간 정보를 사용하여 시간 보너스 계산 (게임이 재시작되어 시간이 초기화된 경우 대비)
-            const timeInfoToUse = (freshGame as any).preservedTimeInfo || savedPreservedTimeInfo || preservedTimeInfo;
-            console.log(`[getGameResult] Using time info for bonus: blackTimeLeft=${timeInfoToUse.blackTimeLeft}, whiteTimeLeft=${timeInfoToUse.whiteTimeLeft}`);
-            const finalAnalysis = finalizeAnalysisResult(baseAnalysis, freshGame, timeInfoToUse);
-
-            if (!freshGame.analysisResult) freshGame.analysisResult = {};
-            freshGame.analysisResult['system'] = finalAnalysis;
-            freshGame.finalScores = {
-                black: finalAnalysis.scoreDetails.black.total,
-                white: finalAnalysis.scoreDetails.white.total
-            };
-            freshGame.isAnalyzing = false;
-            
-            // 분석 결과 저장 및 브로드캐스트 (계가 화면에 표시되도록)
-            // 보존된 게임 상태를 사용하여 브로드캐스트하되, boardState는 제외하여 대역폭 절약
-            const preservedStateForBroadcast = (freshGame as any).preservedGameState || savedPreservedGameState;
-            const timeInfoForBroadcast = (freshGame as any).preservedTimeInfo || savedPreservedTimeInfo || preservedTimeInfo;
-            const gameToBroadcast = {
-                ...freshGame,
-                // boardState는 제외 (클라이언트에서 보존)
-                moveHistory: preservedStateForBroadcast?.moveHistory || freshGame.moveHistory,
-                totalTurns: preservedStateForBroadcast?.totalTurns ?? freshGame.totalTurns,
-                blackTimeLeft: timeInfoForBroadcast?.blackTimeLeft ?? freshGame.blackTimeLeft,
-                whiteTimeLeft: timeInfoForBroadcast?.whiteTimeLeft ?? freshGame.whiteTimeLeft,
-                blackPatternStones: preservedStateForBroadcast?.blackPatternStones || freshGame.blackPatternStones,
-                whitePatternStones: preservedStateForBroadcast?.whitePatternStones || freshGame.whitePatternStones,
-                captures: preservedStateForBroadcast?.captures || freshGame.captures,
-                baseStoneCaptures: preservedStateForBroadcast?.baseStoneCaptures || freshGame.baseStoneCaptures,
-                hiddenStoneCaptures: preservedStateForBroadcast?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
-            };
-            // boardState 제거하여 대역폭 절약
-            delete (gameToBroadcast as any).boardState;
-            await db.saveGame(freshGame);
-            const { broadcastToGameParticipants } = await import('./socket.js');
-            broadcastToGameParticipants(freshGame.id, { type: 'GAME_UPDATE', payload: { [freshGame.id]: gameToBroadcast } }, freshGame);
-            console.log(`[getGameResult] Broadcasted final result with preserved state: boardStateSize=${gameToBroadcast.boardState?.length || 0}, moveHistoryLength=${gameToBroadcast.moveHistory?.length || 0}, totalTurns=${gameToBroadcast.totalTurns}`);
-            console.log(`[getGameResult] Analysis complete for game ${freshGame.id}, scores: Black ${finalAnalysis.scoreDetails.black.total}, White ${finalAnalysis.scoreDetails.white.total}`);
-            
-            // 승자 판정: 흑의 점수가 백의 점수보다 크면 흑 승리, 같거나 작으면 백 승리 (덤 때문에)
-            const blackTotal = finalAnalysis.scoreDetails.black.total;
-            const whiteTotal = finalAnalysis.scoreDetails.white.total;
-            
-            // Fallback 결과인지 확인 (모든 점수가 0이고 deadStones가 비어있으면 fallback 결과)
-            const isFallbackResult = blackTotal === 0 && whiteTotal === 0 && 
-                                   (!baseAnalysis.deadStones || baseAnalysis.deadStones.length === 0);
-            
-            let winner: types.Player;
-            if (isFallbackResult) {
-                // Fallback 결과인 경우: 캡처 수를 기반으로 승자 판정
-                const preservedState = (freshGame as any).preservedGameState || savedPreservedGameState;
-                const blackCaptures = preservedState?.captures?.[types.Player.Black] || freshGame.captures?.[types.Player.Black] || 0;
-                const whiteCaptures = preservedState?.captures?.[types.Player.White] || freshGame.captures?.[types.Player.White] || 0;
-                
-                console.warn(`[getGameResult] Fallback result detected for game ${freshGame.id}, using captures for winner determination: Black=${blackCaptures}, White=${whiteCaptures}`);
-                
-                // 캡처 수가 같으면 백 승리 (덤 때문에), 다르면 캡처 수가 많은 쪽 승리
-                winner = blackCaptures > whiteCaptures ? types.Player.Black : types.Player.White;
-            } else {
-                winner = blackTotal > whiteTotal ? types.Player.Black : types.Player.White;
-            }
-            
-            console.log(`[getGameResult] Winner determination: Black=${blackTotal}, White=${whiteTotal}, Winner=${winner === types.Player.Black ? 'Black' : 'White'}, ScoreDiff=${Math.abs(blackTotal - whiteTotal).toFixed(1)}, isFallback=${isFallbackResult}`);
-            
-            await endGame(freshGame, winner, 'score');
+            await finalizeAndEndGame(freshGame, baseAnalysis, 'katago');
         })
         .catch(async (error) => {
+        if (fallbackTimer) {
+            clearTimeout(fallbackTimer);
+            fallbackTimer = null;
+        }
         const analysisDuration = Date.now() - analysisStartTime;
         console.error(`[getGameResult] ========================================`);
         console.error(`[getGameResult] KataGo analysis FAILED for game ${game.id} after ${analysisDuration}ms`);
@@ -497,7 +586,13 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         console.error(`[getGameResult] Game details: isSinglePlayer=${game.isSinglePlayer}, stageId=${game.stageId}, mode=${game.mode}, boardSize=${game.settings.boardSize}`);
         console.error(`[getGameResult] KataGo config: USE_HTTP_API=${process.env.KATAGO_API_URL ? 'true' : 'false'}, KATAGO_API_URL=${process.env.KATAGO_API_URL || 'not set'}`);
         console.error(`[getGameResult] ========================================`);
-        // 수동 계가 사용 안 함. KataGo만 사용. 실패 시 scoring 유지 + isAnalyzing=false 로 브로드캐스트하여 클라이언트가 재시도 가능하게 함.
+        // 정확성 우선: 기본적으로는 게임을 ended 처리하지 않고 scoring 상태를 유지하되,
+        // isAnalyzing=false 로 브로드캐스트하여 클라이언트가 재시도 가능하게 함.
+        if (ENABLE_MANUAL_SCORING_FALLBACK && (SCORING_FALLBACK_AFTER_MS > 0)) {
+            await runManualFallbackIfStillScoring();
+            return;
+        }
+
         let freshGame: types.LiveGameSession | null = null;
         if (game.isSinglePlayer) {
             const { getCachedGame } = await import('./gameCache.js');
