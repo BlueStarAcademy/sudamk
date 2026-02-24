@@ -139,9 +139,18 @@ export const getStartOfDayKST = (timestamp: number = Date.now()): number => {
     return kstDate.getTime() - KST_OFFSET;
 };
 
+/** KST 기준 오늘 날짜 문자열 'YYYY-MM-DD' (길드 보스 일일 참여 등에 사용) */
+export const getTodayKSTDateString = (date: Date | number = Date.now()): string => {
+    const d = getKSTDate(date);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
+
 export const formatDateTimeKST = (timestamp: number): string => {
-    const kstDate = getKSTDate(timestamp);
-    return kstDate.toLocaleString('ko-KR', { 
+    // timestamp는 UTC 기준 밀리초. 이 순간을 한국 시간(Asia/Seoul)으로 표시 (getKSTDate 사용 시 이중 변환되므로 사용하지 않음)
+    return new Date(timestamp).toLocaleString('ko-KR', { 
         year: 'numeric', 
         month: '2-digit', 
         day: '2-digit', 

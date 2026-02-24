@@ -106,6 +106,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
             if (savedSettings) {
                 try {
                     const parsed = JSON.parse(savedSettings);
+                    // 알까기: 예전 단일 아이템 개수(alkkagiItemCount)를 슬로우/조준선 각각으로 이전
+                    if (selectedGameMode === GameMode.Alkkagi && parsed.alkkagiItemCount != null && parsed.alkkagiSlowItemCount == null && parsed.alkkagiAimingLineItemCount == null) {
+                        parsed.alkkagiSlowItemCount = parsed.alkkagiItemCount;
+                        parsed.alkkagiAimingLineItemCount = parsed.alkkagiItemCount;
+                    }
                     setSettings({ ...DEFAULT_GAME_SETTINGS, ...parsed });
                 } catch {
                     setSettings({ ...DEFAULT_GAME_SETTINGS });
@@ -530,10 +535,21 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                             </select>
                         </div>
                         <div className="grid grid-cols-2 gap-2 items-center">
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>아이템 개수</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>슬로우 아이템</label>
                             <select 
-                                value={settings.alkkagiItemCount ?? 2} 
-                                onChange={e => handleSettingChange('alkkagiItemCount', parseInt(e.target.value))}
+                                value={settings.alkkagiSlowItemCount ?? 2} 
+                                onChange={e => handleSettingChange('alkkagiSlowItemCount', parseInt(e.target.value))}
+                                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                                style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                            >
+                                {ALKKAGI_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 items-center">
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>조준선 아이템</label>
+                            <select 
+                                value={settings.alkkagiAimingLineItemCount ?? 2} 
+                                onChange={e => handleSettingChange('alkkagiAimingLineItemCount', parseInt(e.target.value))}
                                 className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                 style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
                             >

@@ -10,7 +10,9 @@ import {
     ALKKAGI_GAUGE_SPEEDS,
     CURLING_GAUGE_SPEEDS,
     SPECIAL_GAME_MODES,
-    SINGLE_PLAYER_STAGES
+    SINGLE_PLAYER_STAGES,
+    ADMIN_USER_ID,
+    ADMIN_NICKNAME
 } from '../../constants.js';
 import Button from '../Button.js';
 import Avatar from '../Avatar.js';
@@ -428,11 +430,12 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                             const senderId = msg.user?.id || msg.authorId;
                             const sender = senderId && senderId !== 'system' ? allUsers.find(u => u.id === senderId) : undefined;
                             const isSystem = senderId === 'system';
+                            const displayName = isSystem ? '시스템' : (msg.user?.nickname || (senderId === ADMIN_USER_ID || sender?.isAdmin ? ADMIN_NICKNAME : sender?.nickname) || 'Unknown');
                             
                             return (
                                 <div key={msg.id || msg.timestamp || msg.createdAt} className="text-sm">
                                     <span className={`font-semibold pr-2 ${isSystem ? 'text-blue-400' : 'text-blue-300 cursor-pointer hover:underline'}`}>
-                                        {isSystem ? '시스템' : (sender?.nickname || 'Unknown')}:
+                                        {displayName}:
                                     </span>
                                     <span className="text-blue-300">{msg.text || msg.content || ''}</span>
                                 </div>

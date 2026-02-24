@@ -220,7 +220,19 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
         winRateChange: 0, // 수동 계산이므로 변화 없음
         scoreLead,
         deadStones: [...blackDeadStones, ...whiteDeadStones],
-        ownershipMap: null, // 수동 계산에서는 ownership map 생성하지 않음
+        // UI는 ownershipMap이 있으면 이를 기반으로 영토 네모(사각형)를 표시할 수 있다.
+        // 수동 계가에서도 확정 영토 좌표를 ownershipMap(-10~10)로 변환해 제공하여,
+        // KataGo(HTTP/로컬)가 실패해도 영토 오버레이가 항상 표시되도록 한다.
+        ownershipMap: (() => {
+            const map: number[][] = Array(boardSize).fill(0).map(() => Array(boardSize).fill(0));
+            for (const p of territory.blackTerritoryPoints) {
+                if (p.x >= 0 && p.x < boardSize && p.y >= 0 && p.y < boardSize) map[p.y][p.x] = 10;
+            }
+            for (const p of territory.whiteTerritoryPoints) {
+                if (p.x >= 0 && p.x < boardSize && p.y >= 0 && p.y < boardSize) map[p.y][p.x] = -10;
+            }
+            return map;
+        })(),
         recommendedMoves: [], // 수동 계산에서는 추천 수 없음
         areaScore: {
             black: blackScore,

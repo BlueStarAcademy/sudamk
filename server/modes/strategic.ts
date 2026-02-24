@@ -171,6 +171,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (payload.boardState) {
                     game.boardState = payload.boardState;
                 }
+                if (payload.captures && typeof payload.captures === 'object') {
+                    // 싱글플레이는 클라이언트에서 포획 수를 계산하므로, 자동계가 시점에 동기화가 필요
+                    game.captures = { ...(game.captures || {}), ...payload.captures };
+                }
                 if (payload.blackTimeLeft !== undefined) {
                     game.blackTimeLeft = payload.blackTimeLeft;
                 }
@@ -767,13 +771,14 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             // 전략바둑 로비/AI 대국: 계가까지 턴 제한(scoringTurnLimit)이 있으면 해당 턴 수 도달 시 자동 계가
-            const scoringTurnLimit = game.settings.scoringTurnLimit;
-            if (scoringTurnLimit != null && scoringTurnLimit > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+            // (이미 위에서 scoringTurnLimit을 읽었으므로 여기서는 재선언하지 않음)
+            const scoringTurnLimitAfterMove = scoringTurnLimit;
+            if (scoringTurnLimitAfterMove != null && scoringTurnLimitAfterMove > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
                 const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
                 const newTotalTurns = validMoves.length;
                 game.totalTurns = newTotalTurns;
-                if (newTotalTurns >= scoringTurnLimit) {
-                    console.log(`[handleStrategicAction] Scoring turn limit reached: totalTurns=${newTotalTurns}, scoringTurnLimit=${scoringTurnLimit}, triggering getGameResult`);
+                if (newTotalTurns >= scoringTurnLimitAfterMove) {
+                    console.log(`[handleStrategicAction] Scoring turn limit reached: totalTurns=${newTotalTurns}, scoringTurnLimit=${scoringTurnLimitAfterMove}, triggering getGameResult`);
                     game.gameStatus = 'scoring';
                     await db.saveGame(game);
                     const { broadcastToGameParticipants } = await import('../socket.js');

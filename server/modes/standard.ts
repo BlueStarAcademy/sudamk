@@ -268,6 +268,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
                 if (payload.blackTimeLeft !== undefined) game.blackTimeLeft = payload.blackTimeLeft;
                 if (payload.whiteTimeLeft !== undefined) game.whiteTimeLeft = payload.whiteTimeLeft;
+                if (payload.captures && typeof payload.captures === 'object') {
+                    // 싱글플레이는 클라이언트에서 포획 수를 계산하므로, 자동계가 시점에 동기화가 필요
+                    game.captures = { ...(game.captures || {}), ...payload.captures };
+                }
                 
                 // 게임 캐시 업데이트 (계가 시작 전에 최신 상태 저장)
                 if (game.isSinglePlayer && game.id.startsWith('sp-game-')) {

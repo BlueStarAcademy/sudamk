@@ -257,7 +257,8 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                     src="/images/button/slow.png"
                     alt="슬로우"
                     label="슬로우"
-                    caption={`${slowCount}개${isSlowActive ? ' · 사용중' : ''}`}
+                    count={slowCount}
+                    caption={isSlowActive ? '사용중' : undefined}
                     onClick={() => useItem('slow')}
                     disabled={!canUse || slowCount <= 0 || isSlowActive}
                     title={`파워 게이지 속도를 50% 감소시킵니다. 남은 개수: ${slowCount}`}
@@ -266,7 +267,8 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                     src="/images/button/target.png"
                     alt="조준선"
                     label="조준선"
-                    caption={`${aimCount}개${isAimActive ? ' · 사용중' : ''}`}
+                    count={aimCount}
+                    caption={isAimActive ? '사용중' : undefined}
                     onClick={() => useItem('aimingLine')}
                     disabled={!canUse || aimCount <= 0 || isAimActive}
                     title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
@@ -290,7 +292,8 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                     src="/images/button/slow.png"
                     alt="슬로우"
                     label="슬로우"
-                    caption={`${slowCount}개${isSlowActive ? ' · 사용중' : ''}`}
+                    count={slowCount}
+                    caption={isSlowActive ? '사용중' : undefined}
                     onClick={() => useItem('slow')}
                     disabled={!canUse || slowCount <= 0 || isSlowActive}
                     title={`파워 게이지 속도를 50% 감소시킵니다. 남은 개수: ${slowCount}`}
@@ -299,7 +302,8 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                     src="/images/button/target.png"
                     alt="조준선"
                     label="조준선"
-                    caption={`${aimCount}개${isAimActive ? ' · 사용중' : ''}`}
+                    count={aimCount}
+                    caption={isAimActive ? '사용중' : undefined}
                     onClick={() => useItem('aimingLine')}
                     disabled={!canUse || aimCount <= 0 || isAimActive}
                     title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}

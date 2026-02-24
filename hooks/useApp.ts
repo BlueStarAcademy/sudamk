@@ -986,28 +986,31 @@ export const useApp = () => {
                     
                         if (totalTurns !== undefined && totalTurns !== null && autoScoringTurns) {
                             try {
-                                // AI 차례인지 확인 (싱글플레이에서만)
-                                const currentPlayerEnum = updateResult.updatedGame.currentPlayer;
-                                const isAiTurn = gameType === 'singleplayer' && 
-                                    ((currentPlayerEnum === Player.White && updateResult.updatedGame.whitePlayerId === aiUserId) ||
-                                     (currentPlayerEnum === Player.Black && updateResult.updatedGame.blackPlayerId === aiUserId));
-                                
+                                const nextPlayerEnum = updateResult.updatedGame.currentPlayer;
+                                // "AI 턴인지"는 "다음 차례" 기준으로 판단해야 함 (이 시점의 currentPlayer는 방금 착수 후 토글된 값)
+                                const isNextTurnAi = gameType === 'singleplayer' &&
+                                    ((nextPlayerEnum === Player.White && updateResult.updatedGame.whitePlayerId === aiUserId) ||
+                                     (nextPlayerEnum === Player.Black && updateResult.updatedGame.blackPlayerId === aiUserId));
+
                                 if (totalTurns >= autoScoringTurns) {
                                     // totalTurns를 업데이트
                                     updateResult.updatedGame.totalTurns = totalTurns;
+
                                     if (updateResult.updatedGame.gameStatus === 'playing') {
-                                        // AI 차례라면 자동 계가를 트리거하지 않고, AI가 수를 두도록 함
-                                        if (isAiTurn) {
-                                            console.log(`[handleAction] ${actionTypeName} - Auto-scoring reached but it's AI turn, waiting for AI move: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}, currentPlayer=${currentPlayerEnum === Player.White ? 'White' : 'Black'}`);
-                                            // 게임 상태를 playing으로 유지하여 AI가 수를 두도록 함
-                                            // shouldTriggerAutoScoring을 false로 유지 (기본값)
+                                        // 다음 차례가 AI면, AI가 실제 착수한 뒤 계가를 진행해야 하므로 여기서는 트리거하지 않음
+                                        if (isNextTurnAi) {
+                                            console.log(
+                                                `[handleAction] ${actionTypeName} - Auto-scoring reached but next turn is AI; waiting for AI move: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}, nextPlayer=${nextPlayerEnum === Player.White ? 'White' : 'Black'}`
+                                            );
                                         } else {
-                                            // 플레이어 차례라면 자동 계가 트리거
+                                            // 마지막 착수가 화면에 보이도록, scoring 전환/서버 요청은 짧게 지연시켜 1프레임 이상 렌더를 보장
                                             shouldTriggerAutoScoring = true;
                                             const gameTypeLabel = gameType === 'singleplayer' ? 'SinglePlayer' : 'AiGame';
-                                            console.log(`[handleAction] ${actionTypeName} - Auto-scoring triggered at ${updateResult.updatedGame.totalTurns} turns (${gameTypeLabel}, stageId: ${game.stageId || 'N/A'}) - IMMEDIATELY FREEZING GAME`);
-                                            
-                                            // 즉시 게임 상태를 보존하여 게임 초기화 방지 (동기적으로 처리)
+                                            console.log(
+                                                `[handleAction] ${actionTypeName} - Auto-scoring triggered at ${updateResult.updatedGame.totalTurns} turns (${gameTypeLabel}, stageId: ${game.stageId || 'N/A'}) - delaying scoring transition`
+                                            );
+
+                                            // 게임 상태를 보존 (빈 boardState/moveHistory 방지)
                                             const preservedBoardState = updateResult.updatedGame.boardState && updateResult.updatedGame.boardState.length > 0
                                                 ? updateResult.updatedGame.boardState
                                                 : (game.boardState || updateResult.updatedGame.boardState);
@@ -1017,45 +1020,24 @@ export const useApp = () => {
                                             const preservedTotalTurns = updateResult.updatedGame.totalTurns ?? game.totalTurns;
                                             const preservedBlackTimeLeft = updateResult.updatedGame.blackTimeLeft ?? game.blackTimeLeft;
                                             const preservedWhiteTimeLeft = updateResult.updatedGame.whiteTimeLeft ?? game.whiteTimeLeft;
-                                            
+                                            const preservedCaptures = updateResult.updatedGame.captures ?? game.captures;
+
                                             autoScoringPreservedState = {
                                                 boardState: preservedBoardState,
                                                 moveHistory: preservedMoveHistory,
                                                 totalTurns: preservedTotalTurns,
                                                 blackTimeLeft: preservedBlackTimeLeft,
                                                 whiteTimeLeft: preservedWhiteTimeLeft,
+                                                captures: preservedCaptures,
                                             };
-                                            
-                                            console.log(`[handleAction] IMMEDIATELY preserving game state for scoring: boardStateSize=${preservedBoardState?.length || 0}, moveHistoryLength=${preservedMoveHistory?.length || 0}, totalTurns=${preservedTotalTurns}, blackTimeLeft=${preservedBlackTimeLeft}, whiteTimeLeft=${preservedWhiteTimeLeft}`);
-                                            
-                                            // 게임 상태를 즉시 scoring으로 변경하여 반환값에 반영 (게임 초기화 방지)
-                                            updateResult.updatedGame.gameStatus = 'scoring' as const;
+
+                                            // 즉시 상태에는 보드/히스토리만 확정 반영하고, gameStatus는 playing 유지
                                             updateResult.updatedGame.boardState = preservedBoardState;
                                             updateResult.updatedGame.moveHistory = preservedMoveHistory;
                                             updateResult.updatedGame.totalTurns = preservedTotalTurns;
                                             updateResult.updatedGame.blackTimeLeft = preservedBlackTimeLeft;
                                             updateResult.updatedGame.whiteTimeLeft = preservedWhiteTimeLeft;
-                                            
-                                            // 게임 상태를 즉시 scoring으로 변경 (게임 초기화 방지)
-                                            updateGameState((currentGames) => {
-                                                const currentGame = currentGames[gameId];
-                                                if (currentGame && currentGame.gameStatus === 'playing') {
-                                                    return { 
-                                                        ...currentGames, 
-                                                        [gameId]: { 
-                                                            ...currentGame,
-                                                            ...updateResult.updatedGame, // 최신 업데이트 결과 포함 (gameStatus: 'scoring')
-                                                            // boardState, moveHistory, totalTurns, 시간 정보는 반드시 보존
-                                                            boardState: preservedBoardState,
-                                                            moveHistory: preservedMoveHistory,
-                                                            totalTurns: preservedTotalTurns,
-                                                            blackTimeLeft: preservedBlackTimeLeft,
-                                                            whiteTimeLeft: preservedWhiteTimeLeft,
-                                                        } 
-                                                    };
-                                                }
-                                                return currentGames;
-                                            });
+                                            updateResult.updatedGame.captures = preservedCaptures;
                                         }
                                     }
                                 }
@@ -1068,18 +1050,23 @@ export const useApp = () => {
                 
                 // 자동 계가 트리거가 필요한 경우 서버에 요청 (비동기로 처리)
                 if (shouldTriggerAutoScoring && autoScoringPreservedState) {
-                    let { totalTurns, moveHistory, boardState, blackTimeLeft, whiteTimeLeft } = autoScoringPreservedState;
+                    let { totalTurns, moveHistory, boardState, blackTimeLeft, whiteTimeLeft, captures } = autoScoringPreservedState;
                     const boardSize = game.settings?.boardSize || 9;
-                    const validMoves = moveHistory.filter((m: any) => m && m.x >= 0 && m.y >= 0 && m.x < boardSize && m.y < boardSize);
-                    const stoneCountOnBoard = Array.isArray(boardState) && boardState.length > 0
-                        ? boardState.flat().filter((c: any) => c !== 0 && c !== null && c !== undefined).length
-                        : 0;
-                    if (validMoves.length > stoneCountOnBoard && validMoves.length > 0) {
-                        const derived: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
-                        for (const move of validMoves) {
-                            derived[move.y][move.x] = move.player;
+                    // IMPORTANT: 포획이 있는 판에서 moveHistory로 보드를 "단순 복원"하면 잡힌 돌이 다시 살아나는 버그가 발생할 수 있음.
+                    // 자동계가에는 항상 현재 보드(boardState)를 우선 전달한다.
+                    const boardStateValid =
+                        Array.isArray(boardState) &&
+                        boardState.length === boardSize &&
+                        boardState.every((row: any) => Array.isArray(row) && row.length === boardSize);
+                    if (!boardStateValid) {
+                        const fallback = game.boardState;
+                        const fallbackValid =
+                            Array.isArray(fallback) &&
+                            fallback.length === boardSize &&
+                            fallback.every((row: any) => Array.isArray(row) && row.length === boardSize);
+                        if (fallbackValid) {
+                            boardState = fallback;
                         }
-                        boardState = derived;
                     }
                     console.log(`[handleAction] Auto-scoring triggered on client, sending to server: totalTurns=${totalTurns}, moveHistoryLength=${moveHistory.length}, boardStateSize=${boardState.length}, blackTimeLeft=${blackTimeLeft}, whiteTimeLeft=${whiteTimeLeft}, stage=${game.stageId}`);
                     const autoScoringAction = {
@@ -1093,16 +1080,30 @@ export const useApp = () => {
                             boardState: boardState,
                             blackTimeLeft: blackTimeLeft,
                             whiteTimeLeft: whiteTimeLeft,
+                            captures: captures,
                             triggerAutoScoring: true
                         }
                     } as any;
                     
-                    console.log(`[handleAction] Sending PLACE_STONE action to server for auto-scoring:`, { ...autoScoringAction, payload: { ...autoScoringAction.payload, moveHistory: `[${moveHistory.length} moves]` } });
-                    handleAction(autoScoringAction).then(result => {
-                        console.log(`[handleAction] Auto-scoring action sent successfully:`, result);
-                    }).catch(err => {
-                        console.error(`[handleAction] Failed to trigger auto-scoring on server:`, err);
-                    });
+                    // 마지막 착수가 렌더된 뒤 계가 화면으로 전환하고 서버에 계가 요청
+                    const scoringDelayRef = isTower ? towerScoringDelayTimeoutRef : singlePlayerScoringDelayTimeoutRef;
+                    if (scoringDelayRef.current[gameId] != null) {
+                        clearTimeout(scoringDelayRef.current[gameId]);
+                    }
+                    scoringDelayRef.current[gameId] = setTimeout(() => {
+                        updateGameState(prev => {
+                            const g = prev[gameId];
+                            if (!g) return prev;
+                            return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
+                        });
+                        console.log(`[handleAction] Sending PLACE_STONE action to server for auto-scoring:`, { ...autoScoringAction, payload: { ...autoScoringAction.payload, moveHistory: `[${moveHistory.length} moves]` } });
+                        handleAction(autoScoringAction).then(result => {
+                            console.log(`[handleAction] Auto-scoring action sent successfully:`, result);
+                        }).catch(err => {
+                            console.error(`[handleAction] Failed to trigger auto-scoring on server:`, err);
+                        });
+                        delete scoringDelayRef.current[gameId];
+                    }, 500);
                 }
                 
                 // 살리기 바둑 모드: 백이 수를 둔 경우 백의 남은 턴 체크
@@ -2865,44 +2866,24 @@ export const useApp = () => {
                                                 const existingMoveHistoryValid = existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0;
                                                 const finalMoveHistory = serverMoveHistoryValid ? game.moveHistory : (existingMoveHistoryValid ? existingGame.moveHistory : (game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0 ? game.moveHistory : existingGame.moveHistory));
 
-                                                // 서버가 boardState를 생략한 경우(계가 시 대역폭 절약): moveHistory로 보드 복원 → AI 수가 누락되거나 순서 이슈로 돌이 사라지는 버그 방지
-                                                const boardSize = game.settings?.boardSize || 9;
-                                                const deriveBoardFromMoveHistory = (moveHistory: any[]): number[][] | null => {
-                                                    if (!moveHistory || !Array.isArray(moveHistory) || moveHistory.length === 0) return null;
-                                                    const board: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
-                                                    for (const move of moveHistory) {
-                                                        if (move && move.x >= 0 && move.x < boardSize && move.y >= 0 && move.y < boardSize) {
-                                                            board[move.y][move.x] = move.player;
-                                                        }
-                                                    }
-                                                    return board;
-                                                };
-
                                                 const serverBoardStateValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]) && game.boardState[0].length > 0 &&
                                                     game.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((cell: any) => cell !== 0 && cell !== null && cell !== undefined));
                                                 const existingBoardStateValid = existingGame.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0 && existingGame.boardState[0] && Array.isArray(existingGame.boardState[0]) && existingGame.boardState[0].length > 0;
-                                                const existingBoardStateHasStones = existingBoardStateValid && existingGame.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((cell: any) => cell !== 0 && cell !== null && cell !== undefined));
-
+                                                // IMPORTANT: 계가 화면에서는 포획이 반영된 "실제 boardState"를 유지해야 함.
+                                                // moveHistory로 단순 복원하면 포획을 반영하지 못해 잡힌 돌이 다시 나타날 수 있다.
                                                 let finalBoardState: any;
                                                 if (serverBoardStateValid) {
                                                     finalBoardState = game.boardState;
-                                                } else if (existingBoardStateValid && existingBoardStateHasStones && finalMoveHistory && existingGame.boardState) {
-                                                    const moveCount = (finalMoveHistory as any[]).filter((m: any) => m && m.x >= 0 && m.y >= 0).length;
-                                                    const existingStoneCount = existingGame.boardState.flat().filter((c: any) => c !== 0 && c !== null && c !== undefined).length;
-                                                    if (moveCount > existingStoneCount) {
-                                                        const derived = deriveBoardFromMoveHistory(finalMoveHistory as any[]);
-                                                        finalBoardState = derived || existingGame.boardState;
-                                                    } else {
-                                                        finalBoardState = existingGame.boardState;
-                                                    }
-                                                } else if (finalMoveHistory && (finalMoveHistory as any[]).length > 0) {
-                                                    const derived = deriveBoardFromMoveHistory(finalMoveHistory as any[]);
-                                                    finalBoardState = derived || (existingBoardStateValid ? existingGame.boardState : existingGame.boardState);
+                                                } else if (existingBoardStateValid) {
+                                                    finalBoardState = existingGame.boardState;
                                                 } else {
-                                                    finalBoardState = (existingBoardStateValid ? existingGame.boardState : existingGame.boardState);
+                                                    finalBoardState = game.boardState || existingGame.boardState;
                                                 }
 
                                                 const finalTotalTurns = (game.totalTurns !== undefined && game.totalTurns !== null) ? game.totalTurns : (existingGame.totalTurns !== undefined && existingGame.totalTurns !== null ? existingGame.totalTurns : game.totalTurns);
+                                                const finalCaptures = (game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0)
+                                                    ? game.captures
+                                                    : (existingGame.captures && typeof existingGame.captures === 'object' ? existingGame.captures : game.captures);
 
                                                 const preservedGame = {
                                                     ...game,
@@ -2911,6 +2892,7 @@ export const useApp = () => {
                                                     totalTurns: finalTotalTurns,
                                                     blackTimeLeft: (game.blackTimeLeft !== undefined && game.blackTimeLeft !== null && game.blackTimeLeft > 0) ? game.blackTimeLeft : (existingGame.blackTimeLeft !== undefined && existingGame.blackTimeLeft !== null ? existingGame.blackTimeLeft : game.blackTimeLeft),
                                                     whiteTimeLeft: (game.whiteTimeLeft !== undefined && game.whiteTimeLeft !== null && game.whiteTimeLeft > 0) ? game.whiteTimeLeft : (existingGame.whiteTimeLeft !== undefined && existingGame.whiteTimeLeft !== null ? existingGame.whiteTimeLeft : game.whiteTimeLeft),
+                                                    captures: finalCaptures,
                                                 };
                                                 updatedGames[gameId] = preservedGame;
                                             } else {
@@ -3007,57 +2989,78 @@ export const useApp = () => {
                                                         }
                                                         
                                                         if (totalTurns !== undefined && totalTurns >= autoScoringTurns) {
-                                                        const preservedBoardState = game.boardState && game.boardState.length > 0
-                                                            ? game.boardState
-                                                            : (existingGame?.boardState || game.boardState);
-                                                        const preservedMoveHistory = game.moveHistory && game.moveHistory.length > 0
-                                                            ? game.moveHistory
-                                                            : (existingGame?.moveHistory || game.moveHistory);
-                                                        const preservedTotalTurns = totalTurns;
-                                                        const preservedBlackTimeLeft = game.blackTimeLeft ?? existingGame?.blackTimeLeft;
-                                                        const preservedWhiteTimeLeft = game.whiteTimeLeft ?? existingGame?.whiteTimeLeft;
-                                                        const autoScoringAction = {
-                                                            type: 'PLACE_STONE',
-                                                            payload: {
-                                                                gameId,
-                                                                x: -1,
-                                                                y: -1,
-                                                                totalTurns: preservedTotalTurns,
-                                                                moveHistory: preservedMoveHistory,
-                                                                boardState: preservedBoardState,
-                                                                blackTimeLeft: preservedBlackTimeLeft,
-                                                                whiteTimeLeft: preservedWhiteTimeLeft,
-                                                                triggerAutoScoring: true
-                                                            }
-                                                        } as any;
-                                                        // 마지막 AI 수가 바둑판에 보인 뒤 계가 진행: 먼저 'playing'으로 보드만 표시, 0.5초 후 scoring 전환
-                                                        if (singlePlayerScoringDelayTimeoutRef.current[gameId] != null) {
-                                                            clearTimeout(singlePlayerScoringDelayTimeoutRef.current[gameId]);
-                                                        }
-                                                        updatedGames[gameId] = {
-                                                            ...game,
-                                                            gameStatus: 'playing' as const,
-                                                            boardState: preservedBoardState,
-                                                            moveHistory: preservedMoveHistory,
-                                                            totalTurns: preservedTotalTurns,
-                                                            blackTimeLeft: preservedBlackTimeLeft,
-                                                            whiteTimeLeft: preservedWhiteTimeLeft,
-                                                        };
-                                                        singlePlayerScoringDelayTimeoutRef.current[gameId] = setTimeout(() => {
-                                                            setSinglePlayerGames(prev => {
-                                                                const g = prev[gameId];
-                                                                if (!g) return prev;
-                                                                return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
-                                                            });
-                                                            handleAction(autoScoringAction).then((result: any) => {
+                                                            // 마지막 수가 AI 차례라면 AI가 실제로 착수한 뒤 계가를 진행해야 함.
+                                                            // (클라이언트 AI 착수는 `Game.tsx`에서 처리되므로 여기서는 트리거하지 않고 대기)
+                                                            const isAiTurnForSinglePlayer =
+                                                                game.isSinglePlayer &&
+                                                                ((game.currentPlayer === Player.White && game.whitePlayerId === aiUserId) ||
+                                                                 (game.currentPlayer === Player.Black && game.blackPlayerId === aiUserId));
+                                                            if (isAiTurnForSinglePlayer) {
                                                                 if (process.env.NODE_ENV === 'development') {
-                                                                    console.log(`[WebSocket][SinglePlayer] Auto-scoring action sent successfully:`, result);
+                                                                    console.log(`[WebSocket][SinglePlayer] Auto-scoring reached but it's AI turn; waiting for AI move before scoring`, {
+                                                                        gameId,
+                                                                        totalTurns,
+                                                                        autoScoringTurns,
+                                                                        currentPlayer: game.currentPlayer,
+                                                                    });
                                                                 }
-                                                            }).catch((err: any) => {
-                                                                console.error(`[WebSocket][SinglePlayer] Failed to trigger auto-scoring on server:`, err);
-                                                            });
-                                                            delete singlePlayerScoringDelayTimeoutRef.current[gameId];
-                                                        }, 500);
+                                                            } else {
+                                                                const preservedBoardState = game.boardState && game.boardState.length > 0
+                                                                    ? game.boardState
+                                                                    : (existingGame?.boardState || game.boardState);
+                                                                const preservedMoveHistory = game.moveHistory && game.moveHistory.length > 0
+                                                                    ? game.moveHistory
+                                                                    : (existingGame?.moveHistory || game.moveHistory);
+                                                                const preservedTotalTurns = totalTurns;
+                                                                const preservedBlackTimeLeft = game.blackTimeLeft ?? existingGame?.blackTimeLeft;
+                                                                const preservedWhiteTimeLeft = game.whiteTimeLeft ?? existingGame?.whiteTimeLeft;
+                                                                const preservedCaptures = (game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0)
+                                                                    ? game.captures
+                                                                    : (existingGame?.captures && typeof existingGame.captures === 'object' ? existingGame.captures : game.captures);
+                                                                const autoScoringAction = {
+                                                                    type: 'PLACE_STONE',
+                                                                    payload: {
+                                                                        gameId,
+                                                                        x: -1,
+                                                                        y: -1,
+                                                                        totalTurns: preservedTotalTurns,
+                                                                        moveHistory: preservedMoveHistory,
+                                                                        boardState: preservedBoardState,
+                                                                        blackTimeLeft: preservedBlackTimeLeft,
+                                                                        whiteTimeLeft: preservedWhiteTimeLeft,
+                                                                        captures: preservedCaptures,
+                                                                        triggerAutoScoring: true
+                                                                    }
+                                                                } as any;
+                                                                // 마지막 AI 수가 바둑판에 보인 뒤 계가 진행: 먼저 'playing'으로 보드만 표시, 0.5초 후 scoring 전환
+                                                                if (singlePlayerScoringDelayTimeoutRef.current[gameId] != null) {
+                                                                    clearTimeout(singlePlayerScoringDelayTimeoutRef.current[gameId]);
+                                                                }
+                                                                updatedGames[gameId] = {
+                                                                    ...game,
+                                                                    gameStatus: 'playing' as const,
+                                                                    boardState: preservedBoardState,
+                                                                    moveHistory: preservedMoveHistory,
+                                                                    totalTurns: preservedTotalTurns,
+                                                                    blackTimeLeft: preservedBlackTimeLeft,
+                                                                    whiteTimeLeft: preservedWhiteTimeLeft,
+                                                                };
+                                                                singlePlayerScoringDelayTimeoutRef.current[gameId] = setTimeout(() => {
+                                                                    setSinglePlayerGames(prev => {
+                                                                        const g = prev[gameId];
+                                                                        if (!g) return prev;
+                                                                        return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
+                                                                    });
+                                                                    handleAction(autoScoringAction).then((result: any) => {
+                                                                        if (process.env.NODE_ENV === 'development') {
+                                                                            console.log(`[WebSocket][SinglePlayer] Auto-scoring action sent successfully:`, result);
+                                                                        }
+                                                                    }).catch((err: any) => {
+                                                                        console.error(`[WebSocket][SinglePlayer] Failed to trigger auto-scoring on server:`, err);
+                                                                    });
+                                                                    delete singlePlayerScoringDelayTimeoutRef.current[gameId];
+                                                                }, 500);
+                                                            }
                                                         }
                                                     }
                                                 } catch (err) {

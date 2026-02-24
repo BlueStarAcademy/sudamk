@@ -372,6 +372,10 @@ export type User = {
   dailyDonations?: { gold: number; diamond: number; date: number };
   guildCoins?: number;
   guildBossAttempts?: number;
+  /** KST 기준 마지막 보스전 참여일 'YYYY-MM-DD' (일일 2회 제한용) */
+  guildBossLastAttemptDayKST?: string;
+  /** 당일(KST) 사용한 보스전 참여 횟수 (0|1|2). 날짜가 바뀌면 0으로 리셋, 미사용 시 누적 없음 */
+  guildBossAttemptsUsedToday?: number;
   guildApplications?: Array<{ guildId: string; appliedAt: number }>;
 };
 

@@ -335,9 +335,9 @@ class KataGoManager {
             // 모델 파일이 없으면 런타임에 다운로드 시도
             if (!foundModel) {
                 console.log('[KataGo] Model file not found locally, attempting to download...');
-                const modelUrl = 'https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz';
                 const modelDir = path.resolve(PROJECT_ROOT, 'katago');
-                const modelPath = path.resolve(modelDir, 'kata1-b28c512nbt-s9853922560-d5031756885.bin.gz');
+                const modelFilename = path.basename(projectModelPath);
+                const modelPath = path.resolve(modelDir, modelFilename);
                 
                 // 모델 디렉토리 생성
                 if (!fs.existsSync(modelDir)) {
@@ -345,47 +345,125 @@ class KataGoManager {
                 }
                 
                 // 모델 파일 다운로드 (Promise 내부에서 동기적으로 import 사용)
-                // 403 방지: User-Agent 없으면 media.katagotraining.org가 차단함
+                // IMPORTANT:
+                // - KataGo Training의 모델 경로는 `/uploaded/networks/models/kata1/<file>.bin.gz` 형태입니다.
+                // - 단일 고정 URL은 시간이 지나면 없어질 수 있으므로, 실패 시 "Latest network"를 자동으로 추출해 fallback 합니다.
+                // - 403 방지: User-Agent 없으면 media.katagotraining.org가 차단하는 경우가 있음
                 import('https').then((https) => {
-                    console.log(`[KataGo] Downloading model from ${modelUrl}...`);
-                    const writeStream = fs.createWriteStream(modelPath);
                     const requestOptions = {
                         headers: {
                             'User-Agent': 'KataGo-NodeService/1.0 (https://github.com/lightvector/KataGo)',
-                            'Accept': 'application/octet-stream',
+                            'Accept': 'application/octet-stream,text/html',
+                            // 일부 환경에서 media.katagotraining.org가 직접 다운로드를 제한할 수 있어 referer/origin을 함께 설정
+                            'Referer': 'https://katagotraining.org/networks/',
+                            'Origin': 'https://katagotraining.org',
                         },
                     };
-                    https.get(modelUrl, requestOptions, (response) => {
-                        if (response.statusCode !== 200) {
-                            writeStream.close();
-                            if (fs.existsSync(modelPath)) fs.unlinkSync(modelPath);
-                            const errorMsg = `[KataGo] Model file not found and download failed. Tried paths:\n${modelPathsToTry.map(p => `  - ${p}`).join('\n')}\n\nDownload error: HTTP ${response.statusCode}\n\nPlease set KATAGO_MODEL_PATH environment variable or place the model file in one of the expected locations.`;
-                            console.error(errorMsg);
-                            this.isStarting = false;
-                            this.readyPromise = null;
-                            reject(new Error(errorMsg));
-                            return;
-                        }
-                        response.pipe(writeStream);
-                        writeStream.on('finish', () => {
-                            writeStream.close();
-                            actualModelPath = modelPath;
-                            foundModel = true;
-                            console.log('[KataGo] Model downloaded successfully');
-                            // 다운로드 완료 후 KataGo 시작 계속
-                            this.continueKataGoStart(actualKataGoPath, actualModelPath, resolve, reject);
+
+                    const extractLatestNetworkUrl = (html: string): string | null => {
+                        const m = html.match(/Latest network:\s*\[[^\]]+\]\((https:\/\/media\.katagotraining\.org\/uploaded\/networks\/models\/kata1\/[^)]+\.bin\.gz)\)/i);
+                        return m?.[1] ?? null;
+                    };
+
+                    const fetchLatestNetworkUrl = (): Promise<string | null> => {
+                        return new Promise((resolveLatest) => {
+                            const req = https.request('https://katagotraining.org/networks/', { method: 'GET', headers: requestOptions.headers }, (res) => {
+                                const chunks: Buffer[] = [];
+                                res.on('data', (d) => chunks.push(Buffer.isBuffer(d) ? d : Buffer.from(d)));
+                                res.on('end', () => {
+                                    try {
+                                        const html = Buffer.concat(chunks).toString('utf8');
+                                        resolveLatest(extractLatestNetworkUrl(html));
+                                    } catch {
+                                        resolveLatest(null);
+                                    }
+                                });
+                            });
+                            req.on('error', () => resolveLatest(null));
+                            req.end();
                         });
-                    }).on('error', (err) => {
-                        writeStream.close();
-                        if (fs.existsSync(modelPath)) {
-                            fs.unlinkSync(modelPath);
+                    };
+
+                    const downloadWithRedirects = (urlStr: string, redirectsLeft: number): Promise<void> => {
+                        return new Promise((resolveDl, rejectDl) => {
+                            let urlObj: URL;
+                            try {
+                                urlObj = new URL(urlStr);
+                            } catch (e: any) {
+                                rejectDl(new Error(`Invalid URL: ${urlStr}`));
+                                return;
+                            }
+
+                            const isHttps = urlObj.protocol === 'https:';
+                            const httpModule = isHttps ? https : http;
+                            const req = httpModule.request(
+                                urlObj,
+                                { method: 'GET', headers: requestOptions.headers },
+                                (res: any) => {
+                                    const status = res.statusCode ?? 0;
+                                    if ([301, 302, 303, 307, 308].includes(status) && redirectsLeft > 0 && res.headers?.location) {
+                                        res.resume();
+                                        const nextUrl = new URL(res.headers.location, urlObj).toString();
+                                        downloadWithRedirects(nextUrl, redirectsLeft - 1).then(resolveDl).catch(rejectDl);
+                                        return;
+                                    }
+                                    if (status !== 200) {
+                                        res.resume();
+                                        rejectDl(new Error(`HTTP ${status}`));
+                                        return;
+                                    }
+                                    const writeStream = fs.createWriteStream(modelPath);
+                                    res.pipe(writeStream);
+                                    writeStream.on('finish', () => {
+                                        writeStream.close();
+                                        resolveDl();
+                                    });
+                                    writeStream.on('error', (err) => {
+                                        writeStream.close();
+                                        rejectDl(err);
+                                    });
+                                }
+                            );
+                            req.on('error', rejectDl);
+                            req.end();
+                        });
+                    };
+
+                    const preferredModelUrlFromEnv = (process.env.KATAGO_MODEL_URL || '').trim();
+                    const preferredModelUrl = preferredModelUrlFromEnv !== ''
+                        ? preferredModelUrlFromEnv
+                        : `https://media.katagotraining.org/uploaded/networks/models/kata1/${encodeURIComponent(modelFilename)}`;
+
+                    (async () => {
+                        const candidateUrls: string[] = [preferredModelUrl];
+                        const latestUrl = await fetchLatestNetworkUrl();
+                        if (latestUrl && !candidateUrls.includes(latestUrl)) candidateUrls.push(latestUrl);
+
+                        let lastErr: any = null;
+                        for (const url of candidateUrls) {
+                            try {
+                                console.log(`[KataGo] Downloading model from ${url}...`);
+                                await downloadWithRedirects(url, 3);
+                                actualModelPath = modelPath;
+                                foundModel = true;
+                                console.log('[KataGo] Model downloaded successfully');
+                                this.continueKataGoStart(actualKataGoPath, actualModelPath, resolve, reject);
+                                return;
+                            } catch (e: any) {
+                                lastErr = e;
+                                if (fs.existsSync(modelPath)) {
+                                    try { fs.unlinkSync(modelPath); } catch {}
+                                }
+                                console.warn(`[KataGo] Model download failed from ${url}: ${e?.message || e}`);
+                            }
                         }
-                        const errorMsg = `[KataGo] Model file not found and download failed. Tried paths:\n${modelPathsToTry.map(p => `  - ${p}`).join('\n')}\n\nDownload error: ${err.message}\n\nPlease set KATAGO_MODEL_PATH environment variable or place the model file in one of the expected locations.`;
+
+                        const errorMsg = `[KataGo] Model file not found and download failed. Tried paths:\n${modelPathsToTry.map(p => `  - ${p}`).join('\n')}\n\nDownload error: ${lastErr?.message || String(lastErr)}\n\nPlease set KATAGO_MODEL_PATH or KATAGO_MODEL_URL, or place the model file in one of the expected locations.`;
                         console.error(errorMsg);
                         this.isStarting = false;
                         this.readyPromise = null;
                         reject(new Error(errorMsg));
-                    });
+                    })();
                 }).catch((importError: any) => {
                     const errorMsg = `[KataGo] Failed to import https module: ${importError.message}`;
                     console.error(errorMsg);

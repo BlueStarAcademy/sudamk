@@ -6,6 +6,9 @@ import Button from '../Button.js';
 import { GUILD_CHECK_IN_MILESTONE_REWARDS } from '../../constants/index.js';
 import { isSameDayKST, formatDateTimeKST } from '../../utils/timeUtils.js';
 import Avatar from '../Avatar.js';
+
+const ensureTimestamp = (v: number | string | undefined): number =>
+    typeof v === 'number' ? v : new Date((v as string) || 0).getTime();
 import { AVATAR_POOL, BORDER_POOL } from '../../constants/index.js';
 import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 
@@ -240,7 +243,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                             const sender = senderId ? userMap.get(senderId) : undefined;
                             const isSystem = msg.system || senderId === 'system';
                             const isBotMessage = isSystem && msg.user?.nickname === 'AI 보안관봇';
-                            const displayName = isSystem ? (isBotMessage ? 'AI 보안관봇' : '시스템') : (msg.user?.nickname || sender?.nickname || 'Unknown');
+                            const displayName = isSystem ? (isBotMessage ? 'AI 보안관봇' : '시스템') : (msg.user?.nickname || (senderId === ADMIN_USER_ID || sender?.isAdmin ? ADMIN_NICKNAME : sender?.nickname) || 'Unknown');
                             const avatarUrl = sender ? AVATAR_POOL.find(a => a.id === sender.avatarId)?.url : undefined;
                             const borderUrl = sender ? BORDER_POOL.find(b => b.id === sender.borderId)?.url : undefined;
                             return (
@@ -256,7 +259,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                                                 }`}>
                                                     {displayName}
                                                 </span>
-                                                <span className="text-xs text-tertiary">{formatDateTimeKST(msg.timestamp || msg.createdAt)}</span>
+                                                <span className="text-xs text-tertiary">{formatDateTimeKST(ensureTimestamp(msg.timestamp ?? msg.createdAt))}</span>
                                             </div>
                                         </div>
                                         <p className={`text-sm break-words whitespace-pre-wrap leading-relaxed ${
@@ -297,7 +300,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                                             }`}>
                                                 {displayName}
                                             </span>
-                                            <span className="text-xs text-tertiary">{formatDateTimeKST(msg.timestamp || msg.createdAt)}</span>
+                                            <span className="text-xs text-tertiary">{formatDateTimeKST(ensureTimestamp(msg.timestamp ?? msg.createdAt))}</span>
                                         </div>
                                         {(isMyMessage || canManage) && !msg.system && msg.id && (
                                             <button onClick={() => handleDelete(msg as ChatMessage)} className="text-xs text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity font-semibold px-2 py-1 rounded hover:bg-red-500/20" aria-label="Delete message" title="메시지 삭제">삭제</button>

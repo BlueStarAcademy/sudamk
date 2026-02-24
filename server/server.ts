@@ -544,6 +544,28 @@ const startServer = async () => {
     // === 중요: Express 미들웨어를 서버 리스닝 전에 설정 ===
     // 서버가 리스닝을 시작하기 전에 최소한의 미들웨어를 설정하여 요청이 처리되도록 함
     
+    // 프로덕션 허용 origin 목록 (에러 응답에도 CORS 헤더를 붙이기 위해 상수로 사용)
+    const PRODUCTION_ALLOWED_ORIGINS = [
+        process.env.FRONTEND_URL,
+        'https://sudam.up.railway.app',
+        'https://suadam.up.railway.app'
+    ].filter((o): o is string => typeof o === 'string' && o !== '');
+    
+    // CORS 헤더를 모든 응답에 먼저 붙이는 미들웨어 (preflight 및 에러 응답 대응)
+    app.use((req, res, next) => {
+        const origin = req.headers.origin;
+        if (origin && (process.env.NODE_ENV !== 'production' || PRODUCTION_ALLOWED_ORIGINS.some(allowed => origin === allowed || origin.startsWith(allowed)) || origin.includes('railway.app'))) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        }
+        if (req.method === 'OPTIONS') {
+            return res.status(204).end();
+        }
+        next();
+    });
+    
     // CORS 설정 - 프로덕션에서는 특정 origin만 허용
     const corsOptions: cors.CorsOptions = {
         origin: (origin, callback) => {
@@ -562,12 +584,10 @@ const startServer = async () => {
             
             // 허용할 origin 목록 (Railway 배포 시 FRONTEND_URL 미설정 대비)
             const allowedOrigins: (string | RegExp)[] = [
-                process.env.FRONTEND_URL,
-                'https://sudam.up.railway.app',
-                'https://suadam.up.railway.app',  // 오타 도메인 대비
+                ...PRODUCTION_ALLOWED_ORIGINS,
                 /\.railway\.app$/,
                 /\.up\.railway\.app$/
-            ].filter((o): o is string | RegExp => o !== undefined && o !== null && o !== '');
+            ];
             
             // 로깅은 개발 환경에서만 (프로덕션에서는 로그 스팸 방지)
             const nodeEnv = process.env.NODE_ENV as string | undefined;

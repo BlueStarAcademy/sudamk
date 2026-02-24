@@ -81,9 +81,8 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
         if (!point || (gameStatus !== 'alkkagi_placement' && gameStatus !== 'alkkagi_simultaneous_placement') || myPlayer === Player.None) return false;
 
         const stoneRadius = (localStones && localStones.length > 0 && localStones[0].radius) ? localStones[0].radius : (840 / 19) * 0.47;
-        
-        // 회전된 보드에서는 클릭 좌표를 서버 좌표계로 변환
-        const { x: svgX, y: svgY } = isRotated ? { x: boardSizePx - point.x, y: boardSizePx - point.y } : point;
+        // 배치 영역을 서버 좌표로 그리므로 클릭 좌표(SVG=서버) 그대로 사용
+        const { x: svgX, y: svgY } = point;
 
         if (svgX < stoneRadius || svgX > boardSizePx - stoneRadius || svgY < stoneRadius || svgY > boardSizePx - stoneRadius) {
             return false;
@@ -130,8 +129,8 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
         if ((gameStatus !== 'alkkagi_placement' && gameStatus !== 'alkkagi_simultaneous_placement') || !isMyTurn) return;
         const svgPoint = getSvgCoordinates(e);
         if (svgPoint && isPlacementValid(svgPoint)) {
-            // 회전된 보드에서는 클릭 좌표를 서버 좌표계로 변환
-            const serverPoint = isRotated ? { x: boardSizePx - svgPoint.x, y: boardSizePx - svgPoint.y } : svgPoint;
+            // 배치 영역을 서버 좌표로 그리므로, 회전 시에도 SVG 좌표가 서버 좌표와 일치 (상단=백=화면 하단)
+            const serverPoint = svgPoint;
             onPlacementClick(serverPoint);
         }
     };
@@ -148,6 +147,8 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
             style: { pointerEvents: 'none' } as React.CSSProperties
         };
 
+        // 바둑 컬링과 동일: 백(White)일 때는 보드를 180° 회전하므로 배치 영역은 서버 좌표 그대로 그림.
+        // 회전 시 상단(White 영역)이 화면 하단에 보이므로 별도 display 변환 없음.
         if (settings.alkkagiLayout === AlkkagiLayoutType.Battle) {
             const myZones = BATTLE_PLACEMENT_ZONES[myPlayer];
             const color = myPlayer === Player.Black ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.35)';
@@ -155,16 +156,13 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
             return (
                 <g>
                     {myZones.map((zone, i) => {
-                        // 회전된 보드에서는 배치 영역 위치를 변환
                         const zoneX = padding + (zone.x - 0.5) * cellSize;
                         const zoneY = padding + (zone.y - 0.5) * cellSize;
-                        const displayX = isRotated ? boardSizePx - zoneX - zone.width * cellSize : zoneX;
-                        const displayY = isRotated ? boardSizePx - zoneY - zone.height * cellSize : zoneY;
                         return (
                             <rect
                                 key={`zone-${i}`}
-                                x={displayX}
-                                y={displayY}
+                                x={zoneX}
+                                y={zoneY}
                                 width={zone.width * cellSize}
                                 height={zone.height * cellSize}
                                 fill={color}
@@ -176,7 +174,7 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
                 </g>
             );
         } else {
-             const whiteZoneMinY = boardSizePx * 0.15;
+            const whiteZoneMinY = boardSizePx * 0.15;
             const whiteZoneMaxY = boardSizePx * 0.35;
             const blackZoneMinY = boardSizePx * 0.65;
             const blackZoneMaxY = boardSizePx * 0.85;
@@ -186,13 +184,10 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
             const color = myPlayer === Player.Black ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.35)';
             const strokeColor = myPlayer === Player.Black ? 'rgba(50, 50, 50, 0.8)' : 'rgba(220, 220, 220, 0.8)';
 
-            // 회전된 보드에서는 배치 영역 위치를 변환
-            const displayY = isRotated ? boardSizePx - zoneY - zoneHeight : zoneY;
-
             return (
                 <rect
                     x={0}
-                    y={displayY}
+                    y={zoneY}
                     width={boardSizePx}
                     height={zoneHeight}
                     fill={color}
@@ -220,19 +215,12 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
 
         const dx = svgDragEnd.x - svgDragStart.x;
         const dy = svgDragEnd.y - svgDragStart.y;
-        
         const currentStone = selectedStone;
-        
         const svgStart = { x: currentStone.x, y: currentStone.y };
-        
-        // 회전된 보드에서는 화살표 방향도 반대로 표시해야 함
-        // 화면에서 위로 드래그 (dy < 0) = 서버 좌표계에서 아래로 발사 (vy > 0)
-        // 화면에서 아래로 드래그 (dy > 0) = 서버 좌표계에서 위로 발사 (vy < 0)
-        // 따라서 회전된 보드에서는 dx와 dy의 부호를 반대로 해야 함
-        const adjustedDx = isRotated ? -dx : dx;
-        const adjustedDy = isRotated ? -dy : dy;
-        
-        let svgEnd = { x: svgStart.x - adjustedDx, y: svgStart.y - adjustedDy };
+        // 바둑 컬링과 동일: 백(White)은 velocityY=dy, 흑(Black)은 velocityY=-dy, velocityX=-dx
+        const arrowDx = -dx;
+        const arrowDy = isRotated ? dy : -dy;
+        let svgEnd = { x: svgStart.x + arrowDx, y: svgStart.y + arrowDy };
         
         const myActiveItems = session.activeAlkkagiItems?.[currentUser.id] || [];
         const isAimingLineActive = myActiveItems.includes('aimingLine');
@@ -301,14 +289,7 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
 
                 {canPlaceStone && hoverPos && isHoverValid && (
                     <g opacity="0.5" style={{ pointerEvents: 'none' }}>
-                        {/* 회전된 보드에서는 호버 위치를 변환 */}
-                        {(() => {
-                            const displayX = isRotated ? boardSizePx - hoverPos.x : hoverPos.x;
-                            const displayY = isRotated ? boardSizePx - hoverPos.y : hoverPos.y;
-                            return (
-                                <circle cx={displayX} cy={displayY} r={(localStones && localStones[0] ? localStones[0].radius : (840/19)*0.47)} fill={myPlayer === Player.Black ? "#111827" : "#f9fafb"} />
-                            );
-                        })()}
+                        <circle cx={hoverPos.x} cy={hoverPos.y} r={(localStones && localStones[0] ? localStones[0].radius : (840/19)*0.47)} fill={myPlayer === Player.Black ? "#111827" : "#f9fafb"} />
                     </g>
                 )}
 

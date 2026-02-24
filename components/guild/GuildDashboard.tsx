@@ -21,7 +21,7 @@ import GuildWarRewardModal from './GuildWarRewardModal.js';
 import GuildWarMatchingModal from './GuildWarMatchingModal.js';
 import GuildWarCancelConfirmModal from './GuildWarCancelConfirmModal.js';
 import GuildWarApplicationDayOnlyModal from './GuildWarApplicationDayOnlyModal.js';
-import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getKSTDay } from '../../utils/timeUtils.js';
+import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getKSTDay, getTodayKSTDateString } from '../../utils/timeUtils.js';
 
 // 고급 버튼 스타일 (길드 패널용)
 const guildPanelBtnBase = 'inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold tracking-wide transition-all duration-200 px-4 py-2 text-sm border backdrop-blur-sm';
@@ -364,10 +364,10 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
     const hpPercent = (currentHp / currentBoss.maxHp) * 100;
     const [timeLeft, setTimeLeft] = useState('');
     
-    // 보스전 티켓 계산
-    const myBossTickets = currentUserWithStatus?.guildBossAttempts !== undefined 
-        ? GUILD_BOSS_MAX_ATTEMPTS - currentUserWithStatus.guildBossAttempts 
-        : GUILD_BOSS_MAX_ATTEMPTS;
+    // 보스전 티켓 계산 (일일 2회, KST 기준 날짜 변경 시 2/2 회복)
+    const bossTodayKST = getTodayKSTDateString();
+    const bossUsedToday = currentUserWithStatus?.guildBossLastAttemptDayKST === bossTodayKST ? (currentUserWithStatus?.guildBossAttemptsUsedToday ?? 0) : 0;
+    const myBossTickets = GUILD_BOSS_MAX_ATTEMPTS - bossUsedToday;
     const canEnter = myBossTickets > 0;
 
     useEffect(() => {
@@ -1653,7 +1653,9 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const xpForNextLevel = GUILD_XP_PER_LEVEL(currentGuild?.level || 1);
     const xpProgress = Math.min(((currentGuild?.xp ?? currentGuild?.experience ?? 0) / xpForNextLevel) * 100, 100);
     const myGuildCoins = currentUserWithStatus?.guildCoins ?? 0;
-    const myBossTickets = currentUserWithStatus?.guildBossAttempts !== undefined ? GUILD_BOSS_MAX_ATTEMPTS - currentUserWithStatus.guildBossAttempts : GUILD_BOSS_MAX_ATTEMPTS;
+    const dashboardBossTodayKST = getTodayKSTDateString();
+    const dashboardBossUsedToday = currentUserWithStatus?.guildBossLastAttemptDayKST === dashboardBossTodayKST ? (currentUserWithStatus?.guildBossAttemptsUsedToday ?? 0) : 0;
+    const myBossTickets = GUILD_BOSS_MAX_ATTEMPTS - dashboardBossUsedToday;
     
     const missionTabNotification = useMemo(() => {
         if (!currentUserWithStatus || !myMemberInfo || !guild.weeklyMissions) return false;

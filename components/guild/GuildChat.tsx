@@ -3,6 +3,8 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { GuildMessage } from '../../types/entities.js';
 import Button from '../Button.js';
 import Avatar from '../Avatar.js';
+import { formatDateTimeKST } from '../../utils/timeUtils.js';
+import { ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 
 interface GuildChatProps {
     guildId: string;
@@ -85,16 +87,18 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
             <div className="flex-1 overflow-y-auto space-y-2 mb-4">
                 {messages.map((message) => {
                     const author = allUsers?.find(u => u.id === message.authorId);
+                    const msgUser = (message as { user?: { id?: string; nickname?: string }; authorId?: string })?.user;
+                    const displayName = message.authorId === 'system' ? '시스템' : (msgUser?.nickname || (message.authorId === ADMIN_USER_ID || author?.isAdmin ? ADMIN_NICKNAME : author?.nickname) || 'Unknown');
                     return (
                         <div key={message.id} className="flex gap-3 p-2 hover:bg-gray-800/50 rounded">
-                            <Avatar userId={message.authorId} userName={message.authorId === 'system' ? '시스템' : (author?.nickname || 'Unknown')} size={32} />
+                            <Avatar userId={message.authorId} userName={displayName} size={32} />
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                     <span className={`text-sm font-semibold ${message.authorId === 'system' ? 'text-blue-400' : 'text-white'}`}>
-                                        {message.authorId === 'system' ? '시스템' : (author?.nickname || 'Unknown')}
+                                        {displayName}
                                     </span>
                                     <span className="text-xs text-gray-500">
-                                        {new Date(message.createdAt).toLocaleTimeString()}
+                                        {formatDateTimeKST(typeof message.createdAt === 'number' ? message.createdAt : new Date(message.createdAt).getTime())}
                                     </span>
                                 </div>
                                 <p className={`text-sm mt-1 ${message.authorId === 'system' ? 'text-blue-300' : 'text-white'}`}>{message.content}</p>

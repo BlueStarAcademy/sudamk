@@ -289,9 +289,8 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
 
                 const dx = svgDragEnd.x - svgDragStart.x;
                 const dy = svgDragEnd.y - svgDragStart.y;
-                
                 const velocityX = -dx;
-                const velocityY = -dy;
+                const velocityY = shouldRotate ? dy : -dy;
 
                 const launchStrength = finalPower / 100 * 25;
                 const mag = Math.hypot(velocityX, velocityY);
@@ -338,7 +337,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
                 cancelAnimationFrame(animationFrameRef.current);
             }
         };
-    }, [stopPowerGauge, cancelFlick]);
+    }, [stopPowerGauge, cancelFlick, shouldRotate]);
 
     useEffect(() => {
         const { session: currentSession } = latestProps.current;

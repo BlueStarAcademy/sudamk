@@ -28,12 +28,19 @@ Railway는 Linux 환경이므로 **Linux용 CPU-only binary**가 필요합니다
 Railway의 ephemeral 파일 시스템 때문에 모델 파일도 시작 시 다운로드해야 합니다.
 
 **현재 모델 파일:**
-- `kata1-b28c512nbt-s9853922560-d5031756885.bin.gz`
-- 다운로드 URL: `https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz`
+- 네트워크는 시간이 지나며 교체되므로, 특정 파일명(`...s9853922560...`)에 고정하면 403/404가 발생할 수 있습니다.
+- KataGo Training 공식 네트워크 목록: `https://katagotraining.org/networks/`
+- 모델 다운로드 URL 형식: `https://media.katagotraining.org/uploaded/networks/models/kata1/<network>.bin.gz`
 
 **구현 방법:**
 - 서버 시작 시 모델 파일이 없으면 자동 다운로드 (이미 구현되어 있음)
 - Railway Start Command에 다운로드 스크립트 포함
+
+**권장 환경 변수(중요)**:
+```
+KATAGO_MODEL_URL=https://media.katagotraining.org/uploaded/networks/models/kata1/<latest-network>.bin.gz
+```
+`KATAGO_MODEL_URL`을 지정하면 모델 다운로드가 안정화되고, 계가 시 `ownershipMap`(영토 네모 표시)이 항상 제공됩니다.
 
 ### 3️⃣ Railway 환경 변수 설정
 
@@ -43,6 +50,11 @@ Railway Dashboard에서 다음 환경 변수를 설정해야 합니다:
 KATAGO_PATH=/app/katago/katago
 KATAGO_MODEL_PATH=/app/katago/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz
 KATAGO_HOME_PATH=/app/server/katago_home
+```
+
+추가 권장:
+```
+KATAGO_MODEL_URL=https://media.katagotraining.org/uploaded/networks/models/kata1/<latest-network>.bin.gz
 ```
 
 또는 프로젝트 루트 기준:

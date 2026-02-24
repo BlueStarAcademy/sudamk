@@ -30,7 +30,7 @@ COPY tsconfig.base.json ./
 
 # KataGo service doesn't need Prisma (no database access)
 
-# Download KataGo Linux binary and model
+# Download KataGo Linux binary (model is downloaded at runtime)
 RUN echo "=== Starting KataGo download ===" && \
     mkdir -p /app/katago /tmp/katago_extract && \
     cd /tmp && \
@@ -45,19 +45,15 @@ RUN echo "=== Starting KataGo download ===" && \
     test -n "$KATAGO_BIN" && \
     cp "$KATAGO_BIN" /app/katago/katago && \
     chmod +x /app/katago/katago && \
-    echo "[4/4] Downloading KataGo model..." && \
-    cd /app/katago && \
-    (wget --progress=dot:giga --no-check-certificate --timeout=300 --tries=2 --read-timeout=300 --dns-timeout=20 --connect-timeout=120 \
-        https://media.katagotraining.org/uploaded/models/kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
-    test -f kata1-b28c512nbt-s9853922560-d5031756885.bin.gz && \
-    echo "=== KataGo binary and model installation complete ===" || \
-    echo "WARNING: KataGo model download failed.") && \
+    echo "[4/4] Skipping model download at build time (runtime download)..." && \
+    echo "=== KataGo binary installation complete ===" && \
     rm -rf /tmp/katago.zip /tmp/katago_extract) || \
     (echo "ERROR: KataGo binary download failed." && exit 1)
 
 FROM base AS runner
 WORKDIR /app
 ENV PORT=4001
+ENV KATAGO_MODEL_URL=https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b28c512nbt-s12524070656-d5742834759.bin.gz
 
 # Copy production dependencies
 COPY --from=deps /app/node_modules ./node_modules

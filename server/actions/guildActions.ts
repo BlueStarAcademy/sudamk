@@ -19,7 +19,7 @@ import { EquipmentSlot, ItemGrade } from '../../types/enums.js';
 import { generateNewItem } from './inventoryActions.js';
 import * as currencyService from '../currencyService.js';
 import * as guildService from '../guildService.js';
-import { isSameDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST, getNextGuildWarMatchDate } from '../../utils/timeUtils.js';
+import { isSameDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST, getNextGuildWarMatchDate, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { addItemsToInventory, getItemTemplateByName } from '../../utils/inventoryUtils.js';
 import { openGuildGradeBox } from '../shop.js';
 import { randomUUID } from 'crypto';
@@ -2224,6 +2224,16 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const freshUser = await db.getUser(user.id, { includeEquipment: true, includeInventory: true });
             if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
             
+            // 일일 2회 제한 (KST 기준, 날짜가 바뀌면 2/2로 회복, 미사용 시 누적 없음)
+            if (!freshUser.isAdmin) {
+                const todayKST = getTodayKSTDateString();
+                const lastDay = freshUser.guildBossLastAttemptDayKST;
+                const usedToday = lastDay === todayKST ? (freshUser.guildBossAttemptsUsedToday ?? 0) : 0;
+                if (usedToday >= 2) {
+                    return { error: '오늘의 참여 횟수를 모두 사용했습니다. 내일 0시(KST)에 2회로 초기화됩니다.' };
+                }
+            }
+            
             if (!guild.guildBossState) {
                 guild.guildBossState = {
                     currentBossId: bossId,
@@ -2242,6 +2252,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             if (!freshUser.isAdmin) {
                 freshUser.guildBossAttempts = (freshUser.guildBossAttempts || 0) + 1;
+                const todayKST = getTodayKSTDateString();
+                if (freshUser.guildBossLastAttemptDayKST !== todayKST) {
+                    freshUser.guildBossAttemptsUsedToday = 0;
+                    freshUser.guildBossLastAttemptDayKST = todayKST;
+                }
+                freshUser.guildBossAttemptsUsedToday = (freshUser.guildBossAttemptsUsedToday ?? 0) + 1;
             }
 
             // 딜량 등급별 기여도 계산 (1~5등급)
@@ -2415,7 +2431,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 필수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(freshUser, ['guildCoins', 'guildBossAttempts', 'gold', 'researchPoints', 'inventory', 'inventorySlots']);
+            broadcastUserUpdate(freshUser, ['guildCoins', 'guildBossAttempts', 'guildBossLastAttemptDayKST', 'guildBossAttemptsUsedToday', 'gold', 'researchPoints', 'inventory', 'inventorySlots']);
             
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
             

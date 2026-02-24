@@ -260,11 +260,22 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         
         // 싱글플레이 자동 계가 트리거 (PLACE_STONE with triggerAutoScoring) 처리
         if (type === 'PLACE_STONE' && (payload as any)?.triggerAutoScoring && gameId.startsWith('sp-game-')) {
-            // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기
-            const { getCachedGame } = await import('./gameCache.js');
+            // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기 (PVE는 종료 전까지 DB에 저장되지 않으므로 캐시/메모리만 사용)
+            const { getCachedGame, updateGameCache } = await import('./gameCache.js');
             let game = await getCachedGame(gameId);
             if (!game) {
-                const db = await import('./db.js');
+                // TTL 만료 시에도 캐시에 있으면 사용 (싱글플레이는 DB에 없을 수 있음)
+                const cache = volatileState.gameCache;
+                if (cache) {
+                    const cached = cache.get(gameId);
+                    if (cached) {
+                        console.log(`[handleAction] Found single player game in cache (expired TTL) for auto-scoring: gameId=${gameId}, gameStatus=${cached.game.gameStatus}`);
+                        game = cached.game;
+                        updateGameCache(game);
+                    }
+                }
+            }
+            if (!game) {
                 game = await db.getLiveGame(gameId);
             }
             if (!game || !game.isSinglePlayer) {

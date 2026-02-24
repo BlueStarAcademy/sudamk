@@ -1314,58 +1314,72 @@ export const makeAiMove = async (game: LiveGameSession) => {
 
     try {
         let moveExecuted = false;
-
-        // 새로운 바둑 AI 봇 시스템 사용 여부 확인
-        // 싱글플레이, 도전의탑, 전략바둑 AI 게임, 던전(월드챔피언십 등) 봇에서 사용
-        const isTower = game.gameCategory === 'tower';
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-        const isDungeonBot = currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-');
-        const useGoAiBot = game.isSinglePlayer ||
-                           isTower ||
-                           game.isAiGame ||
-                           isDungeonBot ||
-                           (game.settings as any)?.useGoAiBot === true ||
-                           (game.settings as any)?.goAiBotLevel !== undefined;
-        
-        // 바둑 모드인 경우에만 새로운 AI 봇 시스템 사용
-        const goModes: GameMode[] = [
-            types.GameMode.Standard,
-            types.GameMode.Capture,
-            types.GameMode.Speed,
-            types.GameMode.Base,
-            types.GameMode.Hidden,
-            types.GameMode.Missile,
-            types.GameMode.Mix
-        ];
 
-        if (useGoAiBot && goModes.includes(game.mode)) {
-            // AI 봇 단계 결정
-            let aiLevel = 1; // 기본값
-            
-            if (isDungeonBot && currentPlayerId) {
-                // 던전(월드챔피언십 등): 봇 ID에서 단계 파싱 (dungeon-bot-{type}-{stage}-{i}-{ts})
-                const parts = String(currentPlayerId).split('-');
-                const stageNum = parseInt(parts[3], 10);
-                aiLevel = !Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10 ? stageNum : 1;
-            } else if (game.isSinglePlayer || isTower) {
-                // 싱글플레이/도전의 탑: 게임 설정의 aiDifficulty를 사용 (katagoLevel 제거됨)
-                aiLevel = (game.settings.aiDifficulty || 1);
-            } else if ((game.settings as any)?.goAiBotLevel !== undefined) {
-                aiLevel = (game.settings as any).goAiBotLevel;
-            } else {
-                aiLevel = (game.settings.aiDifficulty || 1);
+        // 놀이바둑(알까기, 컬링 등)은 전략바둑 AI와 분리하여 우선 처리 (봇이 호출되지 않는 버그 방지)
+        if (!game.isSinglePlayer) {
+            switch (game.mode) {
+                case types.GameMode.Alkkagi:
+                    await makeAlkkagiAiMove(game);
+                    moveExecuted = true;
+                    break;
+                case types.GameMode.Curling:
+                    await makeCurlingAiMove(game);
+                    moveExecuted = true;
+                    break;
+                case types.GameMode.Dice:
+                    await makeDiceGoAiMove(game);
+                    moveExecuted = true;
+                    break;
+                case types.GameMode.Omok:
+                case types.GameMode.Ttamok:
+                    makeOmokAiMove(game);
+                    moveExecuted = true;
+                    break;
+                case types.GameMode.Thief:
+                    await makeThiefAiMove(game);
+                    moveExecuted = true;
+                    break;
             }
-
-            await makeGoAiBotMove(game, aiLevel);
-            moveExecuted = true;
         }
 
         if (!moveExecuted) {
-            // 기존 로직 유지
-            if (game.isSinglePlayer) {
-                makeSimpleCaptureAiMove(game);
+            // 새로운 바둑 AI 봇 시스템 사용 여부 확인
+            const isTower = game.gameCategory === 'tower';
+            const isDungeonBot = currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-');
+            const useGoAiBot = game.isSinglePlayer ||
+                               isTower ||
+                               game.isAiGame ||
+                               isDungeonBot ||
+                               (game.settings as any)?.useGoAiBot === true ||
+                               (game.settings as any)?.goAiBotLevel !== undefined;
+
+            const goModes: GameMode[] = [
+                types.GameMode.Standard,
+                types.GameMode.Capture,
+                types.GameMode.Speed,
+                types.GameMode.Base,
+                types.GameMode.Hidden,
+                types.GameMode.Missile,
+                types.GameMode.Mix
+            ];
+
+            if (useGoAiBot && goModes.includes(game.mode)) {
+                let aiLevel = 1;
+                if (isDungeonBot && currentPlayerId) {
+                    const parts = String(currentPlayerId).split('-');
+                    const stageNum = parseInt(parts[3], 10);
+                    aiLevel = !Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10 ? stageNum : 1;
+                } else if (game.isSinglePlayer || isTower) {
+                    aiLevel = (game.settings.aiDifficulty || 1);
+                } else if ((game.settings as any)?.goAiBotLevel !== undefined) {
+                    aiLevel = (game.settings as any).goAiBotLevel;
+                } else {
+                    aiLevel = (game.settings.aiDifficulty || 1);
+                }
+                await makeGoAiBotMove(game, aiLevel);
                 moveExecuted = true;
-            } else {
+            } else if (!game.isSinglePlayer) {
                 const strategicModes: GameMode[] = [
                     types.GameMode.Standard,
                     types.GameMode.Capture,
@@ -1375,35 +1389,13 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     types.GameMode.Missile,
                     types.GameMode.Mix
                 ];
-
                 if (strategicModes.includes(game.mode)) {
                     await makeStrategicAiMove(game);
                     moveExecuted = true;
-                } else {
-                    switch (game.mode) {
-                        case types.GameMode.Dice:
-                            await makeDiceGoAiMove(game);
-                            moveExecuted = true;
-                            break;
-                        case types.GameMode.Omok:
-                        case types.GameMode.Ttamok:
-                            makeOmokAiMove(game);
-                            moveExecuted = true;
-                            break;
-                        case types.GameMode.Alkkagi:
-                            await makeAlkkagiAiMove(game);
-                            moveExecuted = true;
-                            break;
-                        case types.GameMode.Curling:
-                            await makeCurlingAiMove(game);
-                            moveExecuted = true;
-                            break;
-                        case types.GameMode.Thief:
-                            await makeThiefAiMove(game);
-                            moveExecuted = true;
-                            break;
-                    }
                 }
+            } else if (game.isSinglePlayer) {
+                makeSimpleCaptureAiMove(game);
+                moveExecuted = true;
             }
         }
 

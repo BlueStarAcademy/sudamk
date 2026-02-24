@@ -38,12 +38,17 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
     const game = await db.getLiveGame(gameId);
     if (game) {
         cache.set(gameId, { game, lastUpdated: now });
-    } else if (cached) {
-        // 게임이 삭제된 경우 캐시에서도 제거
+        return game;
+    }
+    // PVE(싱글/탑)는 종료 전까지 DB에 없으므로 만료돼도 캐시 항목 유지·반환 (계가 요청 시 400 방지)
+    if (cached && (gameId.startsWith('sp-game-') || gameId.startsWith('tower-'))) {
+        cache.set(gameId, { game: cached.game, lastUpdated: now });
+        return cached.game;
+    }
+    if (cached) {
         cache.delete(gameId);
     }
-
-    return game;
+    return null;
 }
 
 /**
@@ -153,18 +158,57 @@ export function cleanupExpiredCache(): void {
 
     const gameCache = volatileState.gameCache;
     if (gameCache) {
+        const hasActiveViewer = (gameId: string): boolean => {
+            // userStatuses 형태는 여러 가지지만, gameId/spectatingGameId 필드는 공통적으로 사용됨
+            for (const status of Object.values(volatileState.userStatuses ?? {})) {
+                const s: any = status as any;
+                if (s?.gameId === gameId || s?.spectatingGameId === gameId) return true;
+            }
+            return false;
+        };
+
+        const isProtectedPveGame = (gameId: string, cached: { game: any; lastUpdated: number }): boolean => {
+            const game = cached?.game;
+            if (!game) return false;
+            const isPveId = gameId.startsWith('sp-game-') || gameId.startsWith('tower-');
+            const isPveCategory = game?.isSinglePlayer === true || game?.gameCategory === 'tower' || game?.gameCategory === 'singleplayer';
+            const isActive = game?.gameStatus !== 'ended' && game?.gameStatus !== 'no_contest';
+            if (!(isPveId || isPveCategory) || !isActive) return false;
+            return hasActiveViewer(gameId);
+        };
+
         for (const [gameId, cached] of gameCache.entries()) {
             if (now - cached.lastUpdated > CACHE_TTL_MS * 2) {
+                // 싱글플레이/타워는 DB에 저장되지 않는 구간이 길 수 있어, 진행 중인 게임은 캐시에서 제거하지 않음.
+                // (제거되면 auto scoring 트리거 시 서버가 게임을 못 찾아 400이 발생할 수 있음)
+                if (isProtectedPveGame(gameId, cached)) {
+                    gameCache.set(gameId, { game: cached.game, lastUpdated: now });
+                    continue;
+                }
                 gameCache.delete(gameId);
                 gamesCleaned++;
             }
         }
         if (gameCache.size > maxGameCacheSize) {
             const sorted = Array.from(gameCache.entries()).sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
-            const toRemove = sorted.slice(0, gameCache.size - maxGameCacheSize);
-            for (const [gameId] of toRemove) {
+            let over = gameCache.size - maxGameCacheSize;
+            for (const [gameId, cached] of sorted) {
+                if (over <= 0) break;
+                if (isProtectedPveGame(gameId, cached)) {
+                    continue;
+                }
                 gameCache.delete(gameId);
                 gamesCleaned++;
+                over--;
+            }
+            // 보호된 게임만 남아 상한을 넘는 경우에도 서버 안정성을 위해 최소한의 정리는 필요
+            if (gameCache.size > maxGameCacheSize) {
+                const stillSorted = Array.from(gameCache.entries()).sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
+                const forceRemove = stillSorted.slice(0, gameCache.size - maxGameCacheSize);
+                for (const [gameId] of forceRemove) {
+                    gameCache.delete(gameId);
+                    gamesCleaned++;
+                }
             }
         }
     }

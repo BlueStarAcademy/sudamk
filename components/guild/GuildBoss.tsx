@@ -7,6 +7,7 @@ import GuildHomePanel from './GuildHomePanel.js';
 import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
 import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
+import { getTodayKSTDateString } from '../../utils/timeUtils.js';
 import DraggableWindow from '../DraggableWindow.js';
 import GuildResearchPanel from './GuildResearchPanel.js';
 import GuildMissionsPanel from './GuildMissionsPanel.js';
@@ -530,7 +531,9 @@ const GuildBoss: React.FC = () => {
     const handleBattleStart = useCallback(() => {
         if (!currentUserWithStatus || !myGuild || simulationInFlight.current) return;
         
-        const attemptsLeft = GUILD_BOSS_MAX_ATTEMPTS - (currentUserWithStatus.guildBossAttempts || 0);
+        const todayKST = getTodayKSTDateString();
+        const usedToday = currentUserWithStatus.guildBossLastAttemptDayKST === todayKST ? (currentUserWithStatus.guildBossAttemptsUsedToday ?? 0) : 0;
+        const attemptsLeft = GUILD_BOSS_MAX_ATTEMPTS - usedToday;
         if (attemptsLeft <= 0) return;
 
         simulationInFlight.current = true;
@@ -727,8 +730,9 @@ const GuildBoss: React.FC = () => {
 
     const { gold, diamonds } = currentUserWithStatus;
     const guildCoins = currentUserWithStatus.guildCoins ?? 0;
-    const guildBossAttempts = currentUserWithStatus.guildBossAttempts ?? 0;
-    const attemptsLeft = GUILD_BOSS_MAX_ATTEMPTS - (guildBossAttempts || 0);
+    const todayKST = getTodayKSTDateString();
+    const usedToday = currentUserWithStatus.guildBossLastAttemptDayKST === todayKST ? (currentUserWithStatus.guildBossAttemptsUsedToday ?? 0) : 0;
+    const attemptsLeft = GUILD_BOSS_MAX_ATTEMPTS - usedToday;
     
     return (
         <div style={backgroundStyle} className="p-2 sm:p-4 lg:p-6 w-full max-w-[95%] xl:max-w-[98%] mx-auto h-full flex flex-col relative">
