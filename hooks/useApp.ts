@@ -21,6 +21,7 @@ import { calculateUserEffects } from '../services/effectService.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { aiUserId } from '../constants/auth.js';
 import { loadWasmGnuGo, getWasmGnuGoMove, isAvailable as isWasmGnuGoAvailable } from '../services/wasmGnuGo.js';
+import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 
 export const useApp = () => {
     // --- State Management ---
@@ -3731,6 +3732,15 @@ export const useApp = () => {
             window.location.hash = `#/game/${activeGame.id}`;
         } else if (!activeGame && isGamePage) {
             const urlGameId = currentHash.replace('#/game/', '');
+            // 나가기 버튼으로 설정된 대기실/탑/싱글 이동 경로가 있으면 우선 사용 (AI 대결 종료 후 대기실로 가야 함)
+            const postRedirect = sessionStorage.getItem('postGameRedirect');
+            if (postRedirect) {
+                sessionStorage.removeItem('postGameRedirect');
+                if (currentHash !== postRedirect) {
+                    window.location.hash = postRedirect;
+                }
+                return;
+            }
             // AI 게임 진입 직후: state 반영 전 레이스 컨디션으로 리다이렉트하지 않음 (3초 유예)
             const pending = pendingAiGameEntryRef.current;
             const isPendingAiEntry = pending?.gameId === urlGameId && Date.now() < pending.until;
@@ -3979,7 +3989,7 @@ export const useApp = () => {
         const win = typeof window !== 'undefined' ? (window as any).electron : undefined;
         const useElectron = !!win?.getGnuGoMove;
         const useWasm = !useElectron && isWasmGnuGoAvailable();
-        if (!useElectron && !useWasm) return;
+        const useLightAi = !useElectron && !useWasm; // web lightweight AI fallback
         const myPlayer = game.blackPlayerId === currentUser?.id ? Player.Black : (game.whitePlayerId === currentUser?.id ? Player.White : Player.None);
         if (myPlayer === Player.None) return;
         const isAiTurn = game.currentPlayer !== myPlayer && game.currentPlayer !== Player.None;
@@ -4002,12 +4012,15 @@ export const useApp = () => {
             moveHistory: moveHistoryForGnuGo,
             level: Math.min(10, Math.max(1, level))
         };
-        const promise = useElectron
+        const promise: Promise<{ move?: { x: number; y: number }; error?: string }> = useElectron
             ? (win.getGnuGoMove as (r: typeof request) => Promise<{ move?: { x: number; y: number }; error?: string }>)(request)
-            : getWasmGnuGoMove(request);
-        promise.then((result: { move?: { x: number; y: number }; error?: string }) => {
+            : useWasm
+                ? getWasmGnuGoMove(request)
+                : Promise.resolve({ move: getLightGoAiMove(game, level).move });
+        promise.then((result) => {
             if (result?.error || result?.move === undefined) {
-                console.warn('[useApp] Client-side GnuGo failed, requesting server AI move:', result?.error);
+                // For client-side AI games we must keep the game flowing; as a last resort ask server for AI move.
+                console.warn('[useApp] Client-side AI failed, requesting server AI move:', result?.error);
                 handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err) => {
                     console.error('[useApp] REQUEST_SERVER_AI_MOVE failed:', err);
                     delete lastClientSideAiSentRef.current[game.id];
@@ -4015,8 +4028,9 @@ export const useApp = () => {
                 return;
             }
             if (result.move.x === -1 && result.move.y === -1) {
-                handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err) => {
-                    console.error('[useApp] REQUEST_SERVER_AI_MOVE (pass) failed:', err);
+                // Pass: for client-side AI we can send PASS_TURN (server applies pass)
+                handleAction({ type: 'PASS_TURN', payload: { gameId: game.id } } as any).catch((err) => {
+                    console.error('[useApp] PASS_TURN (client-side AI pass) failed:', err);
                     delete lastClientSideAiSentRef.current[game.id];
                 });
                 return;
@@ -4034,7 +4048,7 @@ export const useApp = () => {
                 delete lastClientSideAiSentRef.current[game.id];
             });
         }).catch((err) => {
-            console.error('[useApp] Client-side GnuGo getGnuGoMove failed, requesting server AI move:', err);
+            console.error('[useApp] Client-side AI move generation failed, requesting server AI move:', err);
             handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err2) => {
                 console.error('[useApp] REQUEST_SERVER_AI_MOVE failed:', err2);
                 delete lastClientSideAiSentRef.current[game.id];

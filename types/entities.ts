@@ -562,6 +562,16 @@ export type AlkkagiRoundSummary = {
     refillsRemaining: { [playerId: string]: number };
 };
 
+/** 라운드별 기록 (결과 모달 표시용) */
+export type AlkkagiRoundHistoryEntry = {
+    round: number;
+    winnerId: string;
+    loserId: string;
+    /** 해당 라운드에서 상대 돌을 떨어뜨린 개수(넉아웃) */
+    blackKnockout: number;
+    whiteKnockout: number;
+};
+
 export type CurlingRoundSummary = {
     round: number;
     roundWinner?: Player | null; // Winner of the round
@@ -804,6 +814,8 @@ export type LiveGameSession = {
   alkkagiRefillsUsed?: { [playerId: string]: number };
   alkkagiStonesPlacedThisRound?: { [playerId: string]: number };
   alkkagiRoundSummary?: AlkkagiRoundSummary;
+  /** 라운드별 기록 (경기 종료 후 결과 모달 표시용) */
+  alkkagiRoundHistory?: AlkkagiRoundHistoryEntry[];
   curlingStones?: AlkkagiStone[];
   curlingTurnDeadline?: number;
   curlingScores?: { [key in Player]: number };

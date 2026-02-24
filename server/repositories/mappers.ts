@@ -242,6 +242,7 @@ export const rowToGame = (row: any): types.LiveGameSession | null => {
             alkkagiRefillsUsed: safeParse(row.alkkagiRefillsUsed, {}, row.id, 'alkkagiRefillsUsed'),
             alkkagiStonesPlacedThisRound: safeParse(row.alkkagiStonesPlacedThisRound, {}, row.id, 'alkkagiStonesPlacedThisRound'),
             alkkagiRoundSummary: safeParse(row.alkkagiRoundSummary, null, row.id, 'alkkagiRoundSummary'),
+            alkkagiRoundHistory: safeParse(row.alkkagiRoundHistory, null, row.id, 'alkkagiRoundHistory'),
             curlingStones: safeParse(row.curlingStones, null, row.id, 'curlingStones'),
             curlingTurnDeadline: safeParse(row.curlingTurnDeadline, null, row.id, 'curlingTurnDeadline'),
             curlingScores: safeParse(row.curlingScores, {}, row.id, 'curlingScores'),

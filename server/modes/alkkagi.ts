@@ -83,10 +83,21 @@ const checkAndEndRound = (game: types.LiveGameSession, now: number): boolean => 
 
     if (roundWinnerId) {
         const totalRounds = game.settings.alkkagiRounds || 1;
+        const loserId = roundWinnerId === game.player1.id ? game.player2.id : game.player1.id;
+        const stoneCount = game.settings.alkkagiStoneCount || 5;
+        const blackKnockout = roundWinnerId === game.blackPlayerId ? stoneCount : 0;
+        const whiteKnockout = roundWinnerId === game.whitePlayerId ? stoneCount : 0;
+        if (!game.alkkagiRoundHistory) game.alkkagiRoundHistory = [];
+        game.alkkagiRoundHistory.push({
+            round: game.alkkagiRound!,
+            winnerId: roundWinnerId,
+            loserId,
+            blackKnockout,
+            whiteKnockout
+        });
         if (game.alkkagiRound! >= totalRounds) {
             endGame(game, roundWinnerId === game.blackPlayerId ? types.Player.Black : types.Player.White, 'alkkagi_win');
         } else {
-            const loserId = roundWinnerId === game.player1.id ? game.player2.id : game.player1.id;
             game.alkkagiRoundSummary = {
                 round: game.alkkagiRound!,
                 winnerId: roundWinnerId,
@@ -371,8 +382,11 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                 game.currentPlayer = types.Player.Black;
                 game.alkkagiTurnDeadline = now + ALKKAGI_TURN_TIME_LIMIT * 1000;
                 game.turnStartTime = now;
+                game.alkkagiPlacementDeadline = undefined;
+                game.alkkagiRoundSummary = undefined;
+                game.roundEndConfirmations = undefined;
+                game.revealEndTime = undefined;
                 
-                // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                 if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {
@@ -457,22 +471,31 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                         game.gameStatus = 'alkkagi_placement';
                         game.currentPlayer = loserEnum; // Loser of the round places first
                         game.alkkagiPlacementDeadline = now + ALKKAGI_PLACEMENT_TIME_LIMIT * 1000;
+                        if (game.isAiGame && loserId === aiUserId) {
+                            game.aiTurnStartTime = now;
+                        } else if (game.isAiGame) {
+                            game.aiTurnStartTime = undefined;
+                        }
                     } else {
                         game.gameStatus = 'alkkagi_simultaneous_placement';
                         game.currentPlayer = types.Player.None;
                         game.alkkagiPlacementDeadline = now + ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT * 1000;
+                        if (game.isAiGame) game.aiTurnStartTime = undefined;
                     }
 
                     game.alkkagiStonesPlacedThisRound = { [p1Id]: 0, [p2Id]: 0 }; 
                     game.alkkagiStones_p1 = [];
                     game.alkkagiStones_p2 = [];
+                    game.roundEndConfirmations = undefined;
+                    game.alkkagiRoundSummary = undefined;
+                    game.revealEndTime = undefined;
                 }
             }
             break;
     }
 };
 
-const isPlacementValid = (game: types.LiveGameSession, point: types.Point, player: types.Player): boolean => {
+export const isPlacementValid = (game: types.LiveGameSession, point: types.Point, player: types.Player): boolean => {
     if (player === types.Player.None) return false;
 
     const { settings } = game;
@@ -572,6 +595,15 @@ export const handleAlkkagiAction = async (volatileState: types.VolatileState, ga
                 if (game.gameStatus === 'alkkagi_placement') {
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                     game.alkkagiPlacementDeadline = now + ALKKAGI_PLACEMENT_TIME_LIMIT * 1000;
+                    // 교대 배치: 다음 턴이 AI면 aiTurnStartTime 설정 → 메인 루프가 makeAlkkagiAiMove 호출
+                    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                        const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        if (nextPlayerId === aiUserId) {
+                            game.aiTurnStartTime = now;
+                        } else {
+                            game.aiTurnStartTime = undefined;
+                        }
+                    }
                 }
             } else {
                 return { error: '유효하지 않은 위치입니다.' };

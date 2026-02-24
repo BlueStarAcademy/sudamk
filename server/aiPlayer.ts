@@ -3,6 +3,7 @@ import { defaultStats, createDefaultInventory, createDefaultQuests, createDefaul
 import { getOmokLogic } from './omokLogic.js';
 import { getGoLogic, processMove } from './goLogic.js';
 import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, SPECIAL_GAME_MODES, SINGLE_PLAYER_STAGES, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES } from '../constants';
+import { isPlacementValid as isAlkkagiPlacementValid } from './modes/alkkagi.js';
 import * as types from '../types/index.js';
 // 카타고 제거: 우리가 만든 AI봇을 사용
 import * as summaryService from './summaryService.js';
@@ -896,46 +897,21 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
         const settings = game.settings || {};
         const layout = settings.alkkagiLayout;
 
-        // 항상 자신의 영역에만 배치 (바둑/컬링처럼: 흑=하단, 백=상단 → 화면에서 백은 180° 회전으로 내 영역=아래)
+        // 사용자와 동일한 배치 규칙 적용: 정해진 영역·겹침 검사는 isAlkkagiPlacementValid로 검증
         let bestPoint: types.Point;
-        if (layout === types.AlkkagiLayoutType.Battle) {
-            const zones = BATTLE_PLACEMENT_ZONES[aiPlayerEnum as keyof typeof BATTLE_PLACEMENT_ZONES];
-            const randomZone = zones[Math.floor(Math.random() * zones.length)];
-            const zoneXStart = padding + (randomZone.x - 0.5) * cellSize;
-            const zoneYStart = padding + (randomZone.y - 0.5) * cellSize;
-            const zoneXEnd = zoneXStart + randomZone.width * cellSize;
-            const zoneYEnd = zoneYStart + randomZone.height * cellSize;
-            bestPoint = {
-                x: zoneXStart + Math.random() * (zoneXEnd - zoneXStart),
-                y: zoneYStart + Math.random() * (zoneYEnd - zoneYStart)
-            };
-        } else {
-            const whiteZoneMinY = boardSizePx * 0.15;
-            const whiteZoneMaxY = boardSizePx * 0.35;
-            const blackZoneMinY = boardSizePx * 0.65;
-            const blackZoneMaxY = boardSizePx * 0.85;
-            const x = stoneRadius + Math.random() * (boardSizePx - stoneRadius * 2);
-            const y = aiPlayerEnum === types.Player.White
-                ? whiteZoneMinY + Math.random() * (whiteZoneMaxY - whiteZoneMinY)
-                : blackZoneMinY + Math.random() * (blackZoneMaxY - blackZoneMinY);
-            bestPoint = { x, y };
-        }
-
-        const allStones = [
-            ...(game.alkkagiStones || []),
-            ...(game.alkkagiStones_p1 || []),
-            ...(game.alkkagiStones_p2 || [])
-        ];
         let attempts = 0;
-        while (attempts < 50 && allStones.some(s => Math.hypot(bestPoint.x - s.x, bestPoint.y - s.y) < stoneRadius * 2)) {
+        const maxAttempts = 150;
+        do {
             if (layout === types.AlkkagiLayoutType.Battle) {
                 const zones = BATTLE_PLACEMENT_ZONES[aiPlayerEnum as keyof typeof BATTLE_PLACEMENT_ZONES];
                 const randomZone = zones[Math.floor(Math.random() * zones.length)];
                 const zoneXStart = padding + (randomZone.x - 0.5) * cellSize;
                 const zoneYStart = padding + (randomZone.y - 0.5) * cellSize;
+                const zoneXEnd = zoneXStart + randomZone.width * cellSize;
+                const zoneYEnd = zoneYStart + randomZone.height * cellSize;
                 bestPoint = {
-                    x: zoneXStart + Math.random() * randomZone.width * cellSize,
-                    y: zoneYStart + Math.random() * randomZone.height * cellSize
+                    x: zoneXStart + Math.random() * (zoneXEnd - zoneXStart),
+                    y: zoneYStart + Math.random() * (zoneYEnd - zoneYStart)
                 };
             } else {
                 const whiteZoneMinY = boardSizePx * 0.15;
@@ -950,6 +926,10 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
                 };
             }
             attempts++;
+        } while (attempts < maxAttempts && !isAlkkagiPlacementValid(game, bestPoint, aiPlayerEnum));
+
+        if (!isAlkkagiPlacementValid(game, bestPoint!, aiPlayerEnum)) {
+            return; // 유효한 위치를 찾지 못함 (드문 경우)
         }
 
         const newStone: types.AlkkagiStone = {
@@ -978,6 +958,15 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
         if (game.gameStatus === 'alkkagi_placement') {
             game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
             game.alkkagiPlacementDeadline = now + 30000;
+            // 교대 배치: 다음 턴이 사용자면 aiTurnStartTime 해제, AI면 설정
+            if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                if (nextPlayerId === aiUserId) {
+                    game.aiTurnStartTime = now;
+                } else {
+                    game.aiTurnStartTime = undefined;
+                }
+            }
         }
         
     } else if (game.gameStatus === 'alkkagi_playing') {

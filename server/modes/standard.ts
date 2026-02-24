@@ -374,7 +374,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
             const { x, y, isHidden, boardState: clientBoardState, moveHistory: clientMoveHistory } = payload;
             
-            // 치명적 버그 방지: 패 위치(-1, -1)에 돌을 놓으려는 시도 차단
+            // 치명적 버그 방지: 패 위치(-1, -1)에 PLACE_STONE을 보내는 것을 차단
+            // (클라이언트 AI 패스는 PASS_TURN 액션으로 처리)
             if (x === -1 || y === -1) {
                 console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone at pass position (${x}, ${y}), gameId=${game.id}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
                 return { error: '패 위치에는 돌을 놓을 수 없습니다. 패를 하려면 PASS_TURN 액션을 사용하세요.' };

@@ -138,7 +138,10 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
 
     const handleChallenge = () => {
         if (selectedGameMode) {
-            const useClientSideAi = shouldUseClientSideAi();
+            // Web에서도 "경량 클라이언트 AI"를 사용해 서버 AI 과부하를 방지.
+            // - Electron: 로컬 Gnugo 기반 client-side AI
+            // - Web: lightweight heuristic AI (client-side) + server validates moves
+            const useClientSideAi = shouldUseClientSideAi() || typeof (window as any).electron === 'undefined';
             onAction({ type: 'START_AI_GAME', payload: { mode: selectedGameMode, settings: { ...settings, useClientSideAi } } });
             onClose();
         }

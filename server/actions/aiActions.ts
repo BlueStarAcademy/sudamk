@@ -1,5 +1,5 @@
 import type { ServerAction, User, VolatileState } from '../../shared/types/index.js';
-import { Player } from '../../shared/types/enums.js';
+import { Player, GameMode } from '../../shared/types/enums.js';
 import * as db from '../db.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
 import { aiUserId } from '../aiPlayer.js';
@@ -92,6 +92,32 @@ export async function handleAiAction(
 
     const { broadcastToGameParticipants } = await import('../socket.js');
     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+
+    // 알까기 턴제 배치에서 흑(첫 턴)이 AI인 경우, 메인 루프 round-robin을 기다리지 않고 즉시 첫 배치 실행
+    const isAlkkagiPlacementAiFirst =
+      game.mode === GameMode.Alkkagi &&
+      game.gameStatus === 'alkkagi_placement' &&
+      game.currentPlayer === Player.Black &&
+      game.blackPlayerId === aiUserId;
+    if (isAlkkagiPlacementAiFirst) {
+      const { makeAiMove } = await import('../aiPlayer.js');
+      const gameId = game.id;
+      setImmediate(() => {
+        makeAiMove(game as any)
+          .then(async () => {
+            try {
+              updateGameCache(game as any);
+              await db.saveGame(game as any);
+              broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game as any);
+            } catch (e: any) {
+              console.error('[CONFIRM_AI_GAME_START] Deferred Alkkagi first AI placement save/broadcast failed:', e?.message);
+            }
+          })
+          .catch((err: any) => {
+            console.error('[CONFIRM_AI_GAME_START] Deferred Alkkagi first AI placement failed:', err?.message);
+          });
+      });
+    }
 
     let gameCopy: any;
     try {

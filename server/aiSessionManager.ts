@@ -52,12 +52,12 @@ function ensureSession(gameId: string): AiSession {
 /**
  * 현재 턴을 처리해야 하는지 여부를 반환
  * - 마지막으로 처리한 moveHistory 길이보다 현재 길이가 큰 경우에만 true
+ * - 단, 한 번도 처리한 적 없으면(lastProcessedMoveCount === 0) 허용 (알까기/컬링 등 배치 단계는 moveHistory가 0)
  */
 export function shouldProcessAiTurn(gameId: string, currentMoveCount: number): boolean {
     const session = ensureSession(gameId);
 
-    // 현재 상태가 마지막으로 처리된 턴 이하라면 이미 처리된 것으로 간주
-    if (currentMoveCount <= session.lastProcessedMoveCount) {
+    if (session.lastProcessedMoveCount > 0 && currentMoveCount <= session.lastProcessedMoveCount) {
         return false;
     }
 

@@ -292,9 +292,9 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
 
                 const dx = svgDragEnd.x - svgDragStart.x;
                 const dy = svgDragEnd.y - svgDragStart.y;
-                // 바둑 컬링과 동일: 백(White)은 아래→위 공격 시 dy 그대로, 흑(Black)은 -dy
+                // 발사 속도: X=-dx, Y=-dy (회전 보드에서도 상하 일치)
                 const velocityX = -dx;
-                const velocityY = shouldRotate ? dy : -dy;
+                const velocityY = -dy;
 
                 const launchStrength = finalPower / 100 * 25;
                 const mag = Math.hypot(velocityX, velocityY);

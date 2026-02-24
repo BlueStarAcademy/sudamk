@@ -15,6 +15,7 @@ import { useAppContext } from './hooks/useAppContext.js';
 import DisconnectionModal from './components/DisconnectionModal.js';
 // FIX: Import TimeoutFoulModal component to resolve 'Cannot find name' error.
 import TimeoutFoulModal from './components/TimeoutFoulModal.js';
+import AiChallengeModal from './components/waiting-room/AiChallengeModal.js';
 import SinglePlayerControls from './components/game/SinglePlayerControls.js';
 import SinglePlayerInfoPanel from './components/game/SinglePlayerInfoPanel.js';
 import SinglePlayerGameDescriptionModal from './components/SinglePlayerGameDescriptionModal.js';
@@ -72,6 +73,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const pauseCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [pauseButtonCooldown, setPauseButtonCooldown] = useState(0);
     const clientTimes = useClientTimer(session, (session.isSinglePlayer || (session.gameCategory === 'tower')) ? { isPaused } : {});
+    const [isAiRematchModalOpen, setIsAiRematchModalOpen] = useState(false);
     
     // 보드 잠금 메커니즘: AI가 돌을 둔 직후 최신 serverRevision을 받을 때까지 보드 잠금
     const [lastReceivedServerRevision, setLastReceivedServerRevision] = useState<number>(session.serverRevision ?? 0);
@@ -1225,6 +1227,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         resumeCountdown: isPausableAiGame ? resumeCountdown : undefined,
         pauseButtonCooldown: isPausableAiGame ? pauseButtonCooldown : undefined,
         onPauseToggle: isPausableAiGame ? handlePauseToggle : undefined,
+        onOpenRematchSettings: (session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer')
+            ? () => setIsAiRematchModalOpen(true)
+            : undefined,
     };
 
     if (isSinglePlayer) {
@@ -1488,6 +1493,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     return (
         <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full ${pvpBackgroundClass}`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
             {session.disconnectionState && <DisconnectionModal session={session} currentUser={currentUser} />}
+            {isAiRematchModalOpen && (
+                <AiChallengeModal
+                    lobbyType={SPECIAL_GAME_MODES.some(m => m.mode === mode) ? 'strategic' : 'playful'}
+                    onClose={() => setIsAiRematchModalOpen(false)}
+                    onAction={(action) => {
+                        // 기존 대국 상태를 깨끗하게 제거하고 새 대국 시작
+                        try {
+                            sessionStorage.removeItem(`gameState_${session.id}`);
+                        } catch {
+                            // ignore
+                        }
+                        setIsAiRematchModalOpen(false);
+                        handlers.handleAction(action);
+                    }}
+                />
+            )}
             {/* 전략·놀이바둑 경기장 상단 헤더 (행동력, 재화, 설정 등) */}
             <Header />
             {session.gameStatus === 'scoring' && !session.analysisResult?.['system'] && (

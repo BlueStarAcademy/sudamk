@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
-import { LiveGameSession, User, Player, WinReason, StatChange, AnalysisResult, GameMode, GameSummary, InventoryItem, AvatarInfo, BorderInfo, AlkkagiStone, ServerAction } from '../types.js';
+import { LiveGameSession, User, Player, WinReason, StatChange, AnalysisResult, GameMode, GameSummary, InventoryItem, AvatarInfo, BorderInfo, AlkkagiStone, ServerAction, AlkkagiRoundHistoryEntry } from '../types.js';
 import Avatar from './Avatar.js';
 import { audioService } from '../services/audioService.js';
 import Button from './Button.js';
@@ -366,6 +366,73 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
     );
 };
 
+const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isMobile?: boolean; mobileTextScale?: number }> = ({ gameSession, isMobile = false, mobileTextScale = 1 }) => {
+    const { player1, player2, blackPlayerId, whitePlayerId, winner, alkkagiRoundHistory, settings } = gameSession;
+    const blackPlayer = blackPlayerId === player1.id ? player1 : player2;
+    const whitePlayer = whitePlayerId === player1.id ? player1 : player2;
+    const totalRounds = settings?.alkkagiRounds || 1;
+    const history: AlkkagiRoundHistoryEntry[] = alkkagiRoundHistory || [];
+    const blackWins = history.filter((r: AlkkagiRoundHistoryEntry) => r.winnerId === blackPlayerId).length;
+    const whiteWins = history.filter((r: AlkkagiRoundHistoryEntry) => r.winnerId === whitePlayerId).length;
+
+    return (
+        <div className="text-center space-y-2 sm:space-y-3">
+            <div className={`overflow-x-auto ${isMobile ? 'text-[9px]' : 'text-xs'}`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
+                <table className="w-full border-collapse">
+                    <thead>
+                        <tr className="border-b-2 border-gray-600">
+                            <th className={`text-left ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}>라운드</th>
+                            <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={3}>{blackPlayer.nickname} (흑)</th>
+                            <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={3}>{whitePlayer.nickname} (백)</th>
+                        </tr>
+                        <tr className="border-b border-gray-600">
+                            <th className={`text-left ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}></th>
+                            <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30 border-l-2 border-gray-600`}>공격성공</th>
+                            <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30`}>넉아웃</th>
+                            <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30`}>점수</th>
+                            <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30 border-l-2 border-gray-600`}>공격성공</th>
+                            <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30`}>넉아웃</th>
+                            <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30`}>점수</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {Array.from({ length: totalRounds }, (_, i) => i + 1).map(roundNum => {
+                            const roundData = history.find((r: AlkkagiRoundHistoryEntry) => r.round === roundNum);
+                            const blackWin = roundData ? roundData.winnerId === blackPlayerId : false;
+                            const whiteWin = roundData ? roundData.winnerId === whitePlayerId : false;
+                            const blackKnockout = roundData?.blackKnockout ?? 0;
+                            const whiteKnockout = roundData?.whiteKnockout ?? 0;
+                            return (
+                                <tr key={roundNum} className="border-b border-gray-700/50">
+                                    <td className={`font-semibold ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/30`}>{roundNum}R</td>
+                                    <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20 border-l-2 border-gray-600 text-gray-500`}>-</td>
+                                    <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20`}>{blackKnockout}</td>
+                                    <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20`}>{blackWin ? 1 : 0}</td>
+                                    <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20 border-l-2 border-gray-600 text-gray-500`}>-</td>
+                                    <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20`}>{whiteKnockout}</td>
+                                    <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20`}>{whiteWin ? 1 : 0}</td>
+                                </tr>
+                            );
+                        })}
+                        <tr className="border-t-2 border-gray-500 font-bold">
+                            <td className={`${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}>최종</td>
+                            <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/30 border-l-2 border-gray-600 text-gray-500`} colSpan={2}>-</td>
+                            <td className={`text-center text-yellow-300 ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/30`}>{blackWins}승</td>
+                            <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/30 border-l-2 border-gray-600 text-gray-500`} colSpan={2}>-</td>
+                            <td className={`text-center text-yellow-300 ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/30`}>{whiteWins}승</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {winner !== null && winner !== Player.None && (
+                <p className={`${isMobile ? 'text-sm' : 'text-base'} font-bold text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>
+                    {winner === Player.Black ? blackPlayer.nickname : whitePlayer.nickname} 승리!
+                </p>
+            )}
+        </div>
+    );
+};
+
 
 const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUser, onConfirm, onAction }) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
@@ -545,21 +612,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
             }
         }
         if (session.mode === GameMode.Alkkagi) {
-            const myPlayerEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
-            const myStones = (session.alkkagiStones || []).filter((s: AlkkagiStone) => s.player === myPlayerEnum && s.onBoard).length;
-            const opponentStones = (session.alkkagiStones || []).filter((s: AlkkagiStone) => s.player !== myPlayerEnum && s.onBoard).length;
-        
-            if (isWinner) {
-                if (myStones > 0) {
-                    return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'}`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>{myStones}개의 돌을 남기고 승리했습니다.</p>;
-                }
-                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'}`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 돌을 모두 떨어뜨리고 승리했습니다.</p>;
-            } else { // isWinner is false, I lost.
-                if (opponentStones > 0) {
-                    return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'}`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>모든 돌이 판 밖으로 나가 패배했습니다. (상대방 돌 {opponentStones}개 남음)</p>;
-                }
-                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'}`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>아쉽게 패배했습니다.</p>;
-            }
+            return <AlkkagiScoreDetailsComponent gameSession={session} isMobile={isMobile} mobileTextScale={mobileTextScale} />;
         }
         return (
             <div className="flex flex-col gap-2 sm:gap-3">
@@ -605,9 +658,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         </div>
                     </div>
                     
-                    {/* Right Panel: My Results & Rewards */}
-                    {mySummary && (
-                        <div className={`w-1/2 flex flex-col gap-2 sm:gap-3`}>
+                    {/* Right Panel: 내 대국 결과 & 보상 (전략/놀이바둑 공통 항상 표시, 보상 없을 때도 동일 UI) */}
+                    <div className={`w-1/2 flex flex-col gap-2 sm:gap-3`}>
                             <div className={`bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg flex flex-col gap-1`}>
                                 <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-2 border-b border-gray-700 pb-1`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>내 대국 결과</h2>
                                 <div className="flex items-center gap-1.5 sm:gap-2">
@@ -615,11 +667,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     <div>
                                         <p className={`font-bold`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{currentUser.nickname}</p>
                                         <p className={`text-gray-400`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
-                                            {isPlayful ? '놀이' : '전략'} Lv.{mySummary.level ? mySummary.level.final : (isPlayful ? currentUser.playfulLevel : currentUser.strategyLevel)}
+                                            {isPlayful ? '놀이' : '전략'} Lv.{mySummary?.level ? mySummary.level.final : (isPlayful ? currentUser.playfulLevel : currentUser.strategyLevel)}
                                         </p>
                                     </div>
                                 </div>
-                                {mySummary.level ? (
+                                {mySummary?.level ? (
                                     <div className="flex-shrink-0">
                                         <XpBar
                                             initial={mySummary.level.progress.initial}
@@ -647,43 +699,58 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                         </div>
                                     </div>
                                 )}
-                                <div className={`grid grid-cols-2 gap-1 text-center`}>
-                                    <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                        <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>랭킹 점수</p>
-                                        <p className={`font-semibold text-white`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
-                                            {mySummary.rating.final}{' '}
-                                            <span className={mySummary.rating.change >= 0 ? 'text-green-400' : 'text-red-400'}>
-                                                ({mySummary.rating.change > 0 ? '+' : ''}{mySummary.rating.change})
-                                            </span>
-                                        </p>
+                                {mySummary ? (
+                                    <div className={`grid grid-cols-2 gap-1 text-center`}>
+                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
+                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>랭킹 점수</p>
+                                            <p className={`font-semibold text-white`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
+                                                {mySummary.rating.final}{' '}
+                                                <span className={mySummary.rating.change >= 0 ? 'text-green-400' : 'text-red-400'}>
+                                                    ({mySummary.rating.change > 0 ? '+' : ''}{mySummary.rating.change})
+                                                </span>
+                                            </p>
+                                        </div>
+                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
+                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>매너 점수 변동</p>
+                                            <p className={`font-semibold ${mySummary.manner.change === 0 ? 'text-white' : mySummary.manner.change > 0 ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
+                                                {mySummary.manner.change > 0 ? '+' : ''}{mySummary.manner.change}
+                                            </p>
+                                        </div>
+                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
+                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>통산 전적</p>
+                                            <p className={`font-semibold text-white`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>{mySummary.overallRecord?.wins}승 {mySummary.overallRecord?.losses}패</p>
+                                        </div>
+                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
+                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>매너 등급</p>
+                                            <p className={`font-semibold text-white`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>{initialMannerRank} &rarr; {finalMannerRank}</p>
+                                        </div>
                                     </div>
-                                    <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                        <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>매너 점수 변동</p>
-                                        <p className={`font-semibold ${mySummary.manner.change === 0 ? 'text-white' : mySummary.manner.change > 0 ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
-                                            {mySummary.manner.change > 0 ? '+' : ''}{mySummary.manner.change}
-                                        </p>
+                                ) : (
+                                    <div className={`grid grid-cols-2 gap-1 text-center opacity-70`}>
+                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
+                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>랭킹 점수</p>
+                                            <p className={`font-semibold text-gray-500`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>-</p>
+                                        </div>
+                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
+                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>매너 점수</p>
+                                            <p className={`font-semibold text-gray-500`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>-</p>
+                                        </div>
+                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight col-span-2`}>
+                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>통산 전적</p>
+                                            <p className={`font-semibold text-gray-500`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>-</p>
+                                        </div>
                                     </div>
-                                    <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                        <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>통산 전적</p>
-                                        <p className={`font-semibold text-white`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>{mySummary.overallRecord?.wins}승 {mySummary.overallRecord?.losses}패</p>
-                                    </div>
-                                    <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                        <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>매너 등급</p>
-                                        <p className={`font-semibold text-white`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>{initialMannerRank} &rarr; {finalMannerRank}</p>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                             <div className={`bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg space-y-2 flex-shrink-0`}>
                                 <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 border-b border-gray-700 pb-1 mb-2`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>획득 보상</h2>
                                 <div className={`flex gap-1.5 sm:gap-3 justify-center items-stretch`}>
-                                    {/* Gold Reward - Square */}
                                     <div className={`${isMobile ? 'w-16 h-16' : 'w-32 h-32'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
                                         <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-5 h-5' : 'w-12 h-12'} mb-0.5`} />
                                         <p className={`font-bold text-yellow-300 text-center`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>
                                             {(mySummary?.gold ?? 0).toLocaleString()}
                                         </p>
                                     </div>
-                                    {/* Items Reward - Multiple items support */}
                                     {mySummary?.items && mySummary.items.length > 0 ? (
                                         <div className={`flex flex-wrap gap-1 ${isMobile ? 'w-16' : 'w-32'} justify-center`}>
                                             {mySummary.items.slice(0, 3).map((item: InventoryItem, idx: number) => {
@@ -691,37 +758,29 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                                 return (
                                                     <div key={idx} className={`${isMobile ? 'w-14 h-14' : 'w-28 h-28'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
                                                         {itemTemplate?.image && (
-                                                            <img 
-                                                                src={itemTemplate.image} 
-                                                                alt={item.name} 
-                                                                className={`${isMobile ? 'w-6 h-6' : 'w-12 h-12'} mb-0.5 object-contain`}
-                                                            />
+                                                            <img src={itemTemplate.image} alt={item.name} className={`${isMobile ? 'w-6 h-6' : 'w-12 h-12'} mb-0.5 object-contain`} />
                                                         )}
-                                                        <p className={`font-semibold text-purple-300 text-center leading-tight`} style={{ fontSize: isMobile ? `${5 * mobileTextScale}px` : undefined }}>
-                                                            {item.name}
-                                                        </p>
+                                                        <p className={`font-semibold text-purple-300 text-center leading-tight`} style={{ fontSize: isMobile ? `${5 * mobileTextScale}px` : undefined }}>{item.name}</p>
                                                     </div>
                                                 );
                                             })}
                                             {mySummary.items.length > 3 && (
                                                 <div className={`${isMobile ? 'w-14 h-14' : 'w-28 h-28'} bg-gray-800/50 border-2 border-gray-700/50 rounded-lg flex items-center justify-center ${isMobile ? 'p-1' : 'p-2'}`}>
-                                                    <p className={`text-gray-400 text-center`} style={{ fontSize: isMobile ? `${5 * mobileTextScale}px` : undefined }}>
-                                                        +{mySummary.items.length - 3}
-                                                    </p>
+                                                    <p className={`text-gray-400 text-center`} style={{ fontSize: isMobile ? `${5 * mobileTextScale}px` : undefined }}>+{mySummary.items.length - 3}</p>
                                                 </div>
                                             )}
                                         </div>
                                     ) : (
-                                        <div className={`${isMobile ? 'w-16 h-16' : 'w-32 h-32'} bg-gray-800/50 border-2 border-gray-700/50 rounded-lg flex items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
-                                            <p className={`text-gray-500 text-center ${isMobile ? 'text-[6px]' : 'text-xs'}`} style={{ fontSize: isMobile ? `${6 * mobileTextScale}px` : undefined }}>
-                                                보상 없음
+                                        <div className={`${isMobile ? 'w-16 h-16' : 'w-32 h-32'} bg-gray-800/50 border-2 border-gray-700/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg gap-1`}>
+                                            <p className={`text-gray-500 text-center font-semibold ${isMobile ? 'text-[8px]' : 'text-xs'}`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>보상 없음</p>
+                                            <p className={`text-gray-500 text-center ${isMobile ? 'text-[6px]' : 'text-[10px]'}`} style={{ fontSize: isMobile ? `${6 * mobileTextScale}px` : undefined }}>
+                                                {(session.isAiGame || !session.gameCategory) ? 'AI 대국·친선전은 보상이 지급되지 않습니다.' : '이 경기에서는 보상이 없습니다.'}
                                             </p>
                                         </div>
                                     )}
                                 </div>
                             </div>
                         </div>
-                    )}
                 </div>
                  
                  {canSaveRecord && onAction && (

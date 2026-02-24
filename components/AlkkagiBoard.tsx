@@ -217,9 +217,9 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
         const dy = svgDragEnd.y - svgDragStart.y;
         const currentStone = selectedStone;
         const svgStart = { x: currentStone.x, y: currentStone.y };
-        // 바둑 컬링과 동일: 백(White)은 velocityY=dy, 흑(Black)은 velocityY=-dy, velocityX=-dx
+        // 화살표·발사 방향: X=-dx, Y=-dy (회전 보드에서도 상하 일치)
         const arrowDx = -dx;
-        const arrowDy = isRotated ? dy : -dy;
+        const arrowDy = -dy;
         let svgEnd = { x: svgStart.x + arrowDx, y: svgStart.y + arrowDy };
         
         const myActiveItems = session.activeAlkkagiItems?.[currentUser.id] || [];
@@ -295,16 +295,8 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
 
                 {dragLine && (
                      <g style={{ pointerEvents: 'none' }}>
-                        {/* 회전된 보드에서는 드래그 라인 위치를 변환 */}
-                        {(() => {
-                            const startX = isRotated ? boardSizePx - dragLine.start.x : dragLine.start.x;
-                            const startY = isRotated ? boardSizePx - dragLine.start.y : dragLine.start.y;
-                            const endX = isRotated ? boardSizePx - dragLine.end.x : dragLine.end.x;
-                            const endY = isRotated ? boardSizePx - dragLine.end.y : dragLine.end.y;
-                            return (
-                                <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="rgba(239, 68, 68, 0.7)" strokeWidth="4" strokeDasharray="8 4" markerEnd="url(#arrowhead-alkkagi)" />
-                            );
-                        })()}
+                        {/* 돌·보드는 서버 좌표로 그려지고, 백일 때는 부모 div가 rotate-180 적용. 화살표도 같은 서버 좌표로 그려야 돌 위에 맞고 방향이 맞음 */}
+                        <line x1={dragLine.start.x} y1={dragLine.start.y} x2={dragLine.end.x} y2={dragLine.end.y} stroke="rgba(239, 68, 68, 0.7)" strokeWidth="4" strokeDasharray="8 4" markerEnd="url(#arrowhead-alkkagi)" />
                     </g>
                 )}
             </svg>

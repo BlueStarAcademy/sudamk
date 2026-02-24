@@ -75,6 +75,7 @@ interface GameControlsProps {
     onAction: (action: ServerAction) => void;
     setShowResultModal: (show: boolean) => void;
     setConfirmModalType: (type: 'resign' | null) => void;
+    onOpenRematchSettings?: () => void;
     currentUser: GameProps['currentUser'];
     onlineUsers: GameProps['onlineUsers'];
     pendingMove: Point | null;
@@ -406,13 +407,14 @@ const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
 
 
 const GameControls: React.FC<GameControlsProps> = (props) => {
-    const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, onPauseToggle } = props;
+    const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, onOpenRematchSettings, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, onPauseToggle } = props;
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
     const isMixMode = mode === GameMode.Mix;
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
     const isGameActive = ACTIVE_GAME_STATUSES.includes(gameStatus);
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
+    const isAiLobbyGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
     // 일반 AI 대국(대기실 'AI와 대결하기')에서만 사용되는 수동 일시정지/재개 플래그
     const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
     // 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
@@ -730,6 +732,15 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         <Button onClick={handleShowResults} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap">
                             결과 확인
                         </Button>
+                        {isAiLobbyGame && onOpenRematchSettings && (
+                            <Button
+                                onClick={onOpenRematchSettings}
+                                colorScheme="none"
+                                className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-emerald-400/50 bg-gradient-to-r from-emerald-500/90 via-lime-400/85 to-green-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(74,222,128,0.75)] hover:from-emerald-300 hover:to-green-500 whitespace-nowrap"
+                            >
+                                재대결
+                            </Button>
+                        )}
                         <Button onClick={handleNextStage} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap" disabled={!canTryNextStage}>
                             다음 단계{canTryNextStage && nextStage ? `: ${nextStage.name}` : ''}{nextStageActionPointCost > 0 && ` (⚡${nextStageActionPointCost})`}
                         </Button>
@@ -883,7 +894,12 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">대국 기능</h3>
                     <div className="flex items-center justify-center gap-3 flex-wrap flex-grow">
                         {isGameEnded ? (
-                            <Button onClick={() => setShowResultModal(true)} colorScheme="none" className={getLuxuryButtonClasses('accent')}>결과 보기</Button>
+                            <>
+                                <Button onClick={() => setShowResultModal(true)} colorScheme="none" className={getLuxuryButtonClasses('accent')}>결과 보기</Button>
+                                {isAiLobbyGame && onOpenRematchSettings && (
+                                    <Button onClick={onOpenRematchSettings} colorScheme="none" className={getLuxuryButtonClasses('success')}>재대결</Button>
+                                )}
+                            </>
                         ) : (
                             <>
                                 {isStrategic && mode !== GameMode.Capture && (
