@@ -93,10 +93,9 @@ COPY --from=build /app/types ./types
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/tsconfig.base.json ./tsconfig.base.json
 
-# Copy KataGo binary and model
+# Copy KataGo binary (model is downloaded at runtime)
 RUN mkdir -p ./katago
 COPY --from=build /app/katago/katago ./katago/katago
-COPY --from=build /app/katago/*.bin.gz ./katago/
 RUN chmod +x ./katago/katago || true
 
 # Create non-root user (Debian: groupadd/useradd; Alpine would use addgroup -g 1001 -S / adduser -S -u 1001)

@@ -9,21 +9,67 @@ const MAX_ENGINE_RETRIES = 8;
 
 /** Windows 등에서 $connect() 직후에도 엔진이 준비되지 않을 수 있음. 연결 후 짧은 대기·프로브로 준비될 때까지 대기 */
 export async function ensurePrismaEngineReady(): Promise<void> {
-  for (let attempt = 0; attempt < MAX_ENGINE_RETRIES; attempt++) {
-    try {
-      await prisma.$connect();
-      await new Promise(r => setTimeout(r, ENGINE_READY_DELAY_MS));
-      await prisma.$queryRaw`SELECT 1`;
-      return;
-    } catch (e: unknown) {
-      const msg = (e as { message?: string })?.message ?? '';
-      if (msg.includes(ENGINE_NOT_CONNECTED) && attempt < MAX_ENGINE_RETRIES - 1) {
-        await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
-        continue;
-      }
-      throw e;
-    }
+  // Prevent thundering herd: 여러 호출이 동시에 들어오면 $connect/$queryRaw 레이스로
+  // "Engine is not yet connected"가 폭주할 수 있으므로, 단일 공유 Promise로 직렬화합니다.
+  const g = globalThis as any;
+  if (!g.__prismaEngineReadyState) {
+    g.__prismaEngineReadyState = {
+      inFlight: null as Promise<void> | null,
+      readyAt: 0,
+      lastFailAt: 0,
+      lastFailMsg: '',
+    };
   }
+  const state = g.__prismaEngineReadyState as {
+    inFlight: Promise<void> | null;
+    readyAt: number;
+    lastFailAt: number;
+    lastFailMsg: string;
+  };
+
+  const now = Date.now();
+  // 최근에 성공했으면 바로 통과 (짧은 TTL로 중복 probe 방지)
+  if (state.readyAt && (now - state.readyAt) < 10_000) return;
+
+  // 최근에 실패했으면 잠깐 쿨다운 (로그/재시도 폭주 방지)
+  if (state.lastFailAt && (now - state.lastFailAt) < 2000) {
+    throw new Error(state.lastFailMsg || ENGINE_NOT_CONNECTED);
+  }
+
+  if (state.inFlight) return state.inFlight;
+
+  state.inFlight = (async () => {
+    try {
+      for (let attempt = 0; attempt < MAX_ENGINE_RETRIES; attempt++) {
+        try {
+          await prisma.$connect();
+          await new Promise(r => setTimeout(r, ENGINE_READY_DELAY_MS + 50 * attempt));
+          await prisma.$queryRaw`SELECT 1`;
+          state.readyAt = Date.now();
+          state.lastFailAt = 0;
+          state.lastFailMsg = '';
+          return;
+        } catch (e: unknown) {
+          const msg = (e as { message?: string })?.message ?? '';
+          // 엔진 준비 race인 경우만 짧게 재시도. 그 외(잘못된 DATABASE_URL 등)는 빠르게 throw.
+          if (msg.includes(ENGINE_NOT_CONNECTED) && attempt < MAX_ENGINE_RETRIES - 1) {
+            await new Promise(r => setTimeout(r, 150 * (attempt + 1)));
+            continue;
+          }
+          throw e;
+        }
+      }
+      throw new Error(ENGINE_NOT_CONNECTED);
+    } catch (e: any) {
+      state.lastFailAt = Date.now();
+      state.lastFailMsg = e?.message || String(e);
+      throw e;
+    } finally {
+      state.inFlight = null;
+    }
+  })();
+
+  return state.inFlight;
 }
 
 const isRailwayOrProd = !!(process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway') || process.env.DATABASE_URL?.includes('rlwy'));
