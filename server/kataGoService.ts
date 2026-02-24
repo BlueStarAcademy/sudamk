@@ -521,7 +521,13 @@ maxVisits = ${KATAGO_MAX_VISITS}
                     '-model', actualModelPath, 
                     '-config', CONFIG_PATH,
                 ], {
-                    cwd: KATAGO_HOME_PATH
+                    cwd: KATAGO_HOME_PATH,
+                    env: {
+                        ...process.env,
+                        // Railway/컨테이너 환경에서는 FUSE(/dev/fuse, fusermount)가 없어 AppImage가 exit 127로 죽는 경우가 많음.
+                        // AppImage를 강제로 extract-and-run 모드로 실행해서 FUSE 의존성을 제거한다.
+                        APPIMAGE_EXTRACT_AND_RUN: process.env.APPIMAGE_EXTRACT_AND_RUN || '1',
+                    }
                 });
             } catch (e: any) {
                 const errorMsg = `[KataGo] Failed to spawn process: ${e.message}`;
