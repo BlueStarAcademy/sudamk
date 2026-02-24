@@ -7,6 +7,7 @@ import * as types from '../types/index.js';
 import { fileURLToPath } from 'url';
 import https from 'https';
 import http from 'http';
+import * as os from 'node:os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +19,27 @@ const PROJECT_ROOT = process.cwd();
 const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY || false;
 const isLinux = process.platform === 'linux';
 const isRailwayLinux = isRailway && isLinux;
+
+const CPU_COUNT = Math.max(1, os.cpus()?.length ?? 1);
+
+function parsePositiveIntEnv(name: string): number | undefined {
+    const raw = (process.env[name] ?? '').trim();
+    if (!raw) return undefined;
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n <= 0) return undefined;
+    return n;
+}
+
+function clampInt(n: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, Math.floor(n)));
+}
+
+function defaultBatchSizeForCpu(cpuCount: number): number {
+    if (cpuCount >= 64) return 64;
+    if (cpuCount >= 32) return 32;
+    if (cpuCount >= 16) return 16;
+    return 8;
+}
 
 // 환경 변수로 KataGo 경로 설정 가능
 // Railway Linux 환경에서는 Linux binary 우선 사용
@@ -31,11 +53,23 @@ const CONFIG_PATH = path.resolve(__dirname, './temp_katago_config.cfg');
 const KATAGO_HOME_PATH = process.env.KATAGO_HOME_PATH || path.resolve(__dirname, './katago_home');
 
 // KataGo 설정 - 환경 변수로 조정 가능
-// Railway 환경에 맞게 KataGo 설정 최적화
-const KATAGO_NUM_ANALYSIS_THREADS = parseInt(process.env.KATAGO_NUM_ANALYSIS_THREADS || (isRailway ? '2' : '4'), 10);
-const KATAGO_NUM_SEARCH_THREADS = parseInt(process.env.KATAGO_NUM_SEARCH_THREADS || (isRailway ? '4' : '8'), 10);
+// 정확도는 유지하면서 속도만 올리기 위해, 기본값은 CPU 코어 수 기반으로 자동 산정합니다.
+// (환경 변수로 명시하면 항상 그 값을 우선합니다)
+const KATAGO_NUM_ANALYSIS_THREADS =
+    parsePositiveIntEnv('KATAGO_NUM_ANALYSIS_THREADS') ??
+    clampInt(Math.floor(CPU_COUNT / 4), isRailway ? 2 : 1, 8);
+
+const KATAGO_NUM_SEARCH_THREADS =
+    parsePositiveIntEnv('KATAGO_NUM_SEARCH_THREADS') ??
+    clampInt(Math.floor(CPU_COUNT / 2), isRailway ? 4 : 2, 32);
+
 const KATAGO_MAX_VISITS = parseInt(process.env.KATAGO_MAX_VISITS || (isRailway ? '500' : '1000'), 10);
-const KATAGO_NN_MAX_BATCH_SIZE = parseInt(process.env.KATAGO_NN_MAX_BATCH_SIZE || (isRailway ? '8' : '16'), 10);
+
+const KATAGO_NN_MAX_BATCH_SIZE =
+    parsePositiveIntEnv('KATAGO_NN_MAX_BATCH_SIZE') ??
+    defaultBatchSizeForCpu(CPU_COUNT);
+
+console.log(`[KataGo] CPU tuning: CPU_COUNT=${CPU_COUNT}, NUM_ANALYSIS_THREADS=${KATAGO_NUM_ANALYSIS_THREADS}, NUM_SEARCH_THREADS=${KATAGO_NUM_SEARCH_THREADS}, NN_MAX_BATCH_SIZE=${KATAGO_NN_MAX_BATCH_SIZE}`);
 
 // KataGo HTTP API URL (Railway에서는 별도 KataGo 서비스 도메인을 여기에 설정)
 // 주의: Railway 멀티서비스 구조에서 "자동 도메인 추론"은 백엔드 자기 자신을 가리키는
@@ -1012,6 +1046,7 @@ export const analyzeGame = async (
         console.log(`[KataGo] Starting analysis query for game ${session.id}`);
         console.log(`[KataGo] Game details: isSinglePlayer=${session.isSinglePlayer}, stageId=${session.stageId}, mode=${session.mode}`);
         console.log(`[KataGo] Query details: boardSize=${query.boardXSize}x${query.boardYSize}, moves=${query.moves?.length || 0}, initialStones=${(query as any).initialStones?.length || 0}`);
+        console.log(`[KataGo] Limits: maxVisits=${query.maxVisits ?? 'n/a'}, maxTime=${query.overrideSettings?.maxTime ?? 'n/a'}s, includeOwnership=${!!query.includeOwnership}, includePolicy=${!!query.includePolicy}`);
         console.log(`[KataGo] Configuration: USE_HTTP_API=${USE_HTTP_API}, KATAGO_API_URL=${KATAGO_API_URL || 'not set'}, IS_LOCAL=${IS_LOCAL}`);
         console.log(`[KataGo] KataGo config: NUM_ANALYSIS_THREADS=${KATAGO_NUM_ANALYSIS_THREADS}, NUM_SEARCH_THREADS=${KATAGO_NUM_SEARCH_THREADS}, MAX_VISITS=${KATAGO_MAX_VISITS}, NN_MAX_BATCH_SIZE=${KATAGO_NN_MAX_BATCH_SIZE}`);
         console.log(`[KataGo] ========================================`);
