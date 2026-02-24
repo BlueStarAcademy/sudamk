@@ -99,9 +99,9 @@ COPY --from=build /app/katago/katago ./katago/katago
 COPY --from=build /app/katago/*.bin.gz ./katago/
 RUN chmod +x ./katago/katago || true
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Create non-root user (Debian: groupadd/useradd; Alpine would use addgroup -g 1001 -S / adduser -S -u 1001)
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --no-create-home --shell /usr/sbin/nologin nodejs
 
 # Change ownership
 RUN chown -R nodejs:nodejs /app
