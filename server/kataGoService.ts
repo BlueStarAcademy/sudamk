@@ -94,8 +94,10 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
         // Check if the returned ownership map is a perfect square and large enough.
         // This handles cases where KataGo might incorrectly return a 19x19 map for a smaller board.
         if (Number.isInteger(ownershipBoardSize) && ownershipBoardSize >= boardSize) {
+            // 영역 판정: 이 값 이상이면 해당 색의 확정 집으로 간주
             const TERRITORY_THRESHOLD = 0.75;
-            const DEAD_STONE_THRESHOLD = 0.75;
+            // 사석 판정: 상대 소유 확률이 이 값 이상이면 해당 돌을 사석으로 표시 (0.55 = 소유권 50% 이상일 때 사석 처리)
+            const DEAD_STONE_THRESHOLD = parseFloat(process.env.KATAGO_DEAD_STONE_THRESHOLD || '0.55');
             for (let y = 0; y < boardSize; y++) {
                 for (let x = 0; x < boardSize; x++) {
                     // Index into the (potentially larger) ownership grid from KataGo
@@ -813,7 +815,7 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
             komi: session.finalKomi ?? session.settings.komi,
             boardXSize: session.settings.boardSize,
             boardYSize: session.settings.boardSize,
-            maxVisits: options?.maxVisits ?? 1000,
+            maxVisits: options?.maxVisits ?? parseInt(process.env.KATAGO_MAX_VISITS || '800', 10),
             includePolicy: true,
             includeOwnership: true,
         };
@@ -872,7 +874,7 @@ export const analyzeGame = async (session: LiveGameSession, options?: { maxVisit
             komi: session.finalKomi ?? session.settings.komi,
             boardXSize: session.settings.boardSize,
             boardYSize: session.settings.boardSize,
-            maxVisits: options?.maxVisits ?? 1000,
+            maxVisits: options?.maxVisits ?? parseInt(process.env.KATAGO_MAX_VISITS || '800', 10),
             includePolicy: true,
             includeOwnership: true,
         };
