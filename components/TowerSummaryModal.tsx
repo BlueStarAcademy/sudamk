@@ -9,6 +9,7 @@ import { AvatarInfo, BorderInfo } from '../types.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
+import { ScoringOverlay } from './game/ScoringOverlay.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -393,11 +394,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                     )}
                                 </div>
                             )}
-                            {/* 계가 결과 */}
+                            {/* 계가 결과 — 전략바둑과 동일한 22초 진행 연출 */}
                             {isScoring && !analysisResult && (
-                                <div className="flex flex-col items-center justify-center flex-1">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mb-4"></div>
-                                    <p className="text-gray-400 text-center">계가 중...</p>
+                                <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+                                    <ScoringOverlay variant="inline" />
                                 </div>
                             )}
                             {(isScoring && analysisResult) || (isEnded && analysisResult) ? (

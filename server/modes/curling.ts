@@ -559,7 +559,7 @@ export const handleCurlingAction = async (volatileState: types.VolatileState, ga
                 onBoard: false,
             };
             
-            game.animation = { type: 'curling_flick', stone: newStone, velocity, startTime: now, duration: 3000 };
+            game.animation = { type: 'curling_flick', stone: newStone, velocity, startTime: now, duration: 2000 };
             game.gameStatus = 'curling_animating';
             if (game.activeCurlingItems) {
                 delete game.activeCurlingItems[user.id];

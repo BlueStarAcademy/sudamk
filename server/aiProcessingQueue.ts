@@ -148,8 +148,15 @@ class AiProcessingQueue {
             }
 
             // 게임이 종료되었거나 AI 차례가 아니면 무시
-            // 히든 돌 공개 애니메이션 중이면 무시
-            if ((game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_reveal_animating') || game.currentPlayer === undefined) {
+            // 전략바둑 playing + 놀이바둑 전체(알까기·컬링·주사위·오목·따목·도둑) AI 행동 가능 상태 허용
+            const allowedStatuses = [
+                'playing', 'hidden_reveal_animating',
+                'alkkagi_playing', 'alkkagi_placement', 'alkkagi_simultaneous_placement',
+                'curling_playing',
+                'dice_rolling', 'dice_placing', 'dice_turn_rolling', 'dice_turn_choice', 'dice_start_confirmation',
+                'thief_rolling', 'thief_placing',
+            ];
+            if (!allowedStatuses.includes(game.gameStatus) || game.currentPlayer === undefined) {
                 return;
             }
 

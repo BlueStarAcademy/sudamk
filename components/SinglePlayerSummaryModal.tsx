@@ -4,6 +4,7 @@ import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { SINGLE_PLAYER_STAGES, AVATAR_POOL, BORDER_POOL } from '../constants';
+import { ScoringOverlay } from './game/ScoringOverlay.js';
 
 interface SinglePlayerSummaryModalProps {
     session: LiveGameSession;
@@ -444,11 +445,10 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                     )}
                                 </div>
                             )}
-                            {/* 계가 결과 */}
+                            {/* 계가 결과 — 전략바둑과 동일한 22초 진행 연출 */}
                             {isScoring && !analysisResult && (
-                                <div className="flex flex-col items-center justify-center flex-1">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mb-4"></div>
-                                    <p className="text-gray-400 text-center">계가 중...</p>
+                                <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+                                    <ScoringOverlay variant="inline" />
                                 </div>
                             )}
                             {(isScoring && analysisResult) || (isEnded && analysisResult) ? (

@@ -1,0 +1,57 @@
+import React, { useState, useEffect } from 'react';
+
+/** 계가 예상 소요 시간(ms). 진행 막대 및 연출 길이에 사용 — 모든 계가 화면에서 동일 적용 */
+export const SCORING_PROGRESS_DURATION_MS = 22_000;
+
+/** 계가 중 오버레이: 스피너 + 텍스트 + 서브텍스트 + 숫자 카운트 + 22초 진행 막대(글로우) + 펄스 */
+export function ScoringOverlay({ variant = 'fullscreen' }: { variant?: 'fullscreen' | 'inline' }) {
+  const [progress, setProgress] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const p = Math.min(100, (elapsed / SCORING_PROGRESS_DURATION_MS) * 100);
+      setProgress(p);
+      setElapsedMs(elapsed);
+      if (p >= 100) clearInterval(interval);
+    }, 80);
+    return () => clearInterval(interval);
+  }, []);
+  const remainingSec = Math.max(0, Math.ceil((SCORING_PROGRESS_DURATION_MS - elapsedMs) / 1000));
+  const content = (
+    <>
+      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-gray-100 mb-4" />
+      <p className="text-xl font-bold text-white animate-pulse">계가 중...</p>
+      <p className="text-sm text-gray-300 mt-1">AI가 바둑판을 분석하고 있어요</p>
+      <p className="text-sm text-amber-200/90 mt-3 font-medium tabular-nums">
+        {remainingSec > 0 ? `약 ${remainingSec}초 남음` : '곧 완료...'}
+      </p>
+      <div className="w-full max-w-md mt-3 px-6">
+        <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-amber-400 rounded-full transition-[width] duration-75 ease-linear"
+            style={{
+              width: `${progress}%`,
+              boxShadow: '0 0 12px rgba(251, 191, 36, 0.6), 0 0 24px rgba(251, 191, 36, 0.3)',
+            }}
+          />
+        </div>
+      </div>
+    </>
+  );
+  if (variant === 'inline') {
+    return (
+      <div className="flex flex-col items-center justify-center py-6">
+        {content}
+      </div>
+    );
+  }
+  return (
+    <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-30 pointer-events-none">
+      {content}
+    </div>
+  );
+}
+
+export default ScoringOverlay;

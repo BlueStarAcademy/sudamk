@@ -605,7 +605,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 game.currentPlayer !== types.Player.None &&
                 currentPlayerId === aiUserId;
             if (isAlkkagiPlacementAiTurn) {
-                const { makeAiMove } = await import('./aiPlayer.js');
+                const { makeAiMove, aiUserId } = await import('./aiPlayer.js');
+                const { updatePlayfulGameState } = await import('./modes/playful.js');
                 const gameId = game.id;
                 setImmediate(() => {
                     makeAiMove(game)
@@ -615,6 +616,17 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                                 await db.saveGame(game);
                                 const { broadcastToGameParticipants } = await import('./socket.js');
                                 broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
+                                // 교차 배치: AI가 5번째 돌을 둔 뒤 공격 단계로 전환되면 즉시 AI 공격 1회 실행
+                                await updatePlayfulGameState(game, Date.now());
+                                if (game.gameStatus === 'alkkagi_playing' && game.currentPlayer !== types.Player.None) {
+                                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                                    if (currentPlayerId === aiUserId) {
+                                        await makeAiMove(game);
+                                        updateGameCache(game);
+                                        await db.saveGame(game);
+                                        broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
+                                    }
+                                }
                             } catch (e: any) {
                                 console.error('[GameActions] Alkkagi AI placement save/broadcast failed:', e?.message);
                             }
@@ -623,6 +635,46 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                             console.error('[GameActions] Alkkagi AI placement makeAiMove failed:', err?.message);
                         });
                 });
+            }
+
+            // 알까기 동시 배치: 유저가 돌을 둔 요청에서 AI도 5개까지 채우고, 둘 다 5개면 전환 후 AI 공격 (메인 루프 타임아웃 없이 처리)
+            if (type === 'ALKKAGI_PLACE_STONE' && game.mode === GameMode.Alkkagi && game.isAiGame && game.gameStatus === 'alkkagi_simultaneous_placement') {
+                const { updatePlayfulGameState } = await import('./modes/playful.js');
+                const { makeAiMove, aiUserId } = await import('./aiPlayer.js');
+                const targetStones = game.settings?.alkkagiStoneCount || 5;
+                const aiPlaced = game.alkkagiStonesPlacedThisRound?.[aiUserId] || 0;
+                // AI가 5개 미만이면 이 요청 안에서 AI 배치를 채움 (동시 배치 시 메인 루프에만 의존하지 않음)
+                for (let i = aiPlaced; i < targetStones; i++) {
+                    await makeAiMove(game);
+                    if ((game.alkkagiStonesPlacedThisRound?.[aiUserId] || 0) >= targetStones) break;
+                }
+                const now = Date.now();
+                await updatePlayfulGameState(game, now);
+                if (game.gameStatus === 'alkkagi_playing') {
+                    updateGameCache(game);
+                    await db.saveGame(game);
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    if (game.currentPlayer !== types.Player.None && currentPlayerId === aiUserId) {
+                        const gameId = game.id;
+                        setImmediate(() => {
+                            makeAiMove(game)
+                                .then(async () => {
+                                    try {
+                                        updateGameCache(game);
+                                        await db.saveGame(game);
+                                        const { broadcastToGameParticipants } = await import('./socket.js');
+                                        broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
+                                    } catch (e: any) {
+                                        console.error('[GameActions] Alkkagi post-placement attack save/broadcast failed:', e?.message);
+                                    }
+                                })
+                                .catch((err: any) => {
+                                    console.error('[GameActions] Alkkagi post-placement makeAiMove (attack) failed:', err?.message);
+                                });
+                        });
+                    }
+                }
             }
 
             // 알까기 공격 단계: 유저가 플릭한 직후, 애니메이션(5초) 종료 시점에 AI 공격을 스케줄 (메인 루프 round-robin 대기 없이 즉시 다음 턴 처리)

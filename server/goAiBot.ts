@@ -10,7 +10,6 @@ import * as types from '../types/index.js';
 import * as summaryService from './summaryService.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import * as db from './db.js';
-import { generateGnuGoMove, isGnuGoAvailable } from './gnugoService.js';
 import { hasTimeControl } from './modes/shared.js';
 
 /**
@@ -429,81 +428,10 @@ export async function makeGoAiBotMove(
         }
     }
     
-    // 도전의 탑: 1-19층은 goAiBot만 사용, 20층+는 그누고 사용 (Railway 배포 서버)
-    const isTower = game.gameCategory === 'tower';
-    const towerFloor = game.towerFloor ?? 0;
-    const gnuGoLevelForTower = isTower ? (await import('./actions/towerActions.js')).getGnuGoLevelFromTowerFloor(towerFloor) : null;
-    const shouldUseGnuGo = !isTower || gnuGoLevelForTower !== null; // 1-19층이면 false
-    
+    // NOTE: Gnugo(서버/로컬/WASM)는 더 이상 사용하지 않습니다.
+    // 모든 바둑 AI 수 생성은 goAiBot으로 통일합니다.
     let selectedMove: Point;
-    let useGnuGoMove = false;
-    
-    try {
-        if (shouldUseGnuGo && isGnuGoAvailable()) {
-            // AI가 볼 수 있는 보드 상태 (유저의 히든 돌 제거)
-            const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
-            
-            // GnuGo에 필요한 플레이어 문자열 변환 (Player.Black = 1, Player.White = 2)
-            const playerString = aiPlayerEnum === types.Player.Black ? 'black' : 'white';
-            
-            const moveRequest: Parameters<typeof generateGnuGoMove>[0] = {
-                boardState: aiBoardState,
-                boardSize: game.settings.boardSize,
-                player: playerString,
-                moveHistory: game.moveHistory || []
-            };
-            if (gnuGoLevelForTower !== null) {
-                moveRequest.level = gnuGoLevelForTower;
-            } else if (game.isAiGame) {
-                // 전략바둑 대기실 AI 대국: 설정된 난이도(1~10)를 Gnugo 레벨로 전달 (Railway Gnugo 서비스 사용)
-                const level = (game.settings as any)?.goAiBotLevel ?? (game.settings as any)?.aiDifficulty ?? 5;
-                moveRequest.level = Math.min(10, Math.max(1, level));
-            }
-            
-            // GnuGo로 수 생성 시도 (전략바둑/20층+ 시 Railway GNUGO_API_URL 사용)
-            // 3초 내 응답 없으면 즉시 goAiBot으로 폴백 (MainLoop 타임아웃 방지)
-            const gnuGoTimeout = new Promise<never>((_, reject) => 
-                setTimeout(() => reject(new Error('GnuGo request timeout (3s)')), 3000)
-            );
-            const gnuGoMove = await Promise.race([generateGnuGoMove(moveRequest), gnuGoTimeout]);
-            
-            // GnuGo가 생성한 수가 유효한지 확인
-            const { processMove } = await import('./goLogic.js');
-            const moveResult = processMove(
-                game.boardState,
-                { ...gnuGoMove, player: aiPlayerEnum },
-                game.koInfo,
-                game.moveHistory.length,
-                {
-                    ignoreSuicide: false,
-                    isSinglePlayer: game.isSinglePlayer || game.gameCategory === 'tower',
-                    opponentPlayer: (game.isSinglePlayer || game.gameCategory === 'tower') ? opponentPlayerEnum : undefined
-                }
-            );
-            
-            if (moveResult.isValid) {
-                // GnuGo 수가 유효하면 사용
-                console.log(`[GnuGo] Successfully generated move: (${gnuGoMove.x}, ${gnuGoMove.y})`);
-                selectedMove = gnuGoMove;
-                useGnuGoMove = true;
-            } else {
-                console.warn(`[GnuGo] Generated invalid move: (${gnuGoMove.x}, ${gnuGoMove.y}), falling back to goAiBot`);
-                throw new Error('GnuGo generated invalid move');
-            }
-        } else {
-            console.log('[GnuGo] Not available, using goAiBot');
-            throw new Error('GnuGo not available');
-        }
-    } catch (error: any) {
-        // GnuGo 실패 시 기존 로직으로 fallback
-        console.log(`[GoAiBot] Falling back to goAiBot: ${error.message}`);
-        // fallthrough to existing logic
-    }
-    
-    // GnuGo 수를 사용하지 않는 경우에만 goAiBot 로직 실행
-    if (!useGnuGoMove) {
-        // 기존 goAiBot 로직 (fallback 또는 GnuGo를 사용하지 않는 경우)
-        const profile = getGoAiBotProfile(aiLevel);
+    const profile = getGoAiBotProfile(aiLevel);
     
     // AI가 볼 수 있는 보드 상태 (유저의 히든 돌 제거)
     const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
@@ -1045,7 +973,6 @@ export async function makeGoAiBotMove(
                 console.log(`[GoAiBot][${gameType}] Auto-scoring condition not met: totalTurns=${totalTurns} < autoScoringTurns=${autoScoringTurns}`);
             }
         }
-    }
     }
     }
     

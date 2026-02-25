@@ -1,0 +1,19 @@
+--- a/gnugowrapper.c
++++ b/gnugowrapper.c
+@@ -218,6 +218,18 @@ int EMSCRIPTEN_KEEPALIVE moveTo(int i, int j) {
+    return 0;
+ }
+ 
++/* Play a pass for the current side (for replaying history that contains passes). */
++int EMSCRIPTEN_KEEPALIVE playPass(void) {
++   globalPasses++;
++   gnugo_play_move(PASS_MOVE, globalGameInfo.to_move);
++   sgftreeAddPlay(&globalSgfTree, globalGameInfo.to_move, -1, -1);
++   sgffile_output(&globalSgfTree);
++   globalGameInfo.to_move = OTHER_COLOR(globalGameInfo.to_move);
++   return 0;
++}
++
+ void EMSCRIPTEN_KEEPALIVE finalizeGoGame() {
+  // report_pattern_profiling();
+  sgfFreeNode(globalSgfTree.root);

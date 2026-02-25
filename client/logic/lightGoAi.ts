@@ -31,6 +31,32 @@ function getAllStones(board: number[][]): Point[] {
   return out;
 }
 
+// --- Level 10 focus memory (very small, per-game) ---
+// 목적: 레벨10에서 "끊은 뒤 공격 지속(약점 추적)"을 다음 2~3수까지 유지.
+type FocusMemory = {
+  /** Inclusive upper bound of moveIndex (valid-move count) */
+  untilMoveIndex: number;
+  /** Stored focus centers (typically opponent weak-group liberties) */
+  centers: Point[];
+  /** last seen moveIndex to detect rewinds/new games */
+  lastSeenMoveIndex: number;
+};
+
+const focusMemoryByGameId = new Map<string, FocusMemory>();
+
+function dedupePoints(points: Point[], limit: number): Point[] {
+  const seen = new Set<string>();
+  const out: Point[] = [];
+  for (const p of points) {
+    const k = uniqKey(p.x, p.y);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(p);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 type LightAiProfile = {
   level: number;
   /** Candidate generation around stones. */
@@ -92,6 +118,8 @@ type LightAiProfile = {
     maxExtraCandidates: number;
     /** When capping candidates, how strongly to prefer closeness to focus. */
     capFocusWeight: number;
+    /** Keep focus for N additional plies after creating weakness. */
+    persistPlies: number;
   };
 };
 
@@ -192,8 +220,44 @@ function getLightAiProfile(levelRaw: number, boardSize: number, moveIndex: numbe
       manhattanLimit: 4,
       maxExtraCandidates: 120,
       capFocusWeight: 0.55,
+      persistPlies: 3,
     },
   };
+}
+
+function deriveWeakLibertyCenters(
+  game: LiveGameSession,
+  boardState: number[][],
+  opponent: Player,
+  maxGroups: number,
+  maxCenters: number
+): Point[] {
+  const tmpGame: LiveGameSession = { ...game, boardState } as any;
+  const logic = getGoLogic(tmpGame);
+  const groups = logic.getAllGroups(opponent as any, boardState as any) as any[];
+  const weakGroups = (groups || [])
+    .filter((g) => (g.libertyPoints?.size ?? 99) <= 2)
+    .sort((a, b) => {
+      const al = a.libertyPoints?.size ?? 99;
+      const bl = b.libertyPoints?.size ?? 99;
+      if (al !== bl) return al - bl;
+      const asz = a.stones?.length ?? 0;
+      const bsz = b.stones?.length ?? 0;
+      return bsz - asz;
+    })
+    .slice(0, maxGroups);
+
+  const centers: Point[] = [];
+  for (const g of weakGroups) {
+    for (const key of Array.from(g.libertyPoints || [])) {
+      const [x, y] = String(key).split(',').map(Number);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      centers.push({ x, y });
+      if (centers.length >= maxCenters) break;
+    }
+    if (centers.length >= maxCenters) break;
+  }
+  return dedupePoints(centers, maxCenters);
 }
 
 function getCandidatePoints(game: LiveGameSession, profile: LightAiProfile, moveIndex: number, focusCenters?: Point[]): Point[] {
@@ -608,36 +672,28 @@ export function getLightGoAiMove(game: LiveGameSession, aiLevel: number): { move
   const moveIndex = (game.moveHistory || []).filter((m: any) => m.x >= 0 && m.y >= 0).length;
   const profile = getLightAiProfile(aiLevel, game.settings.boardSize ?? game.boardState.length, moveIndex);
 
-  // Level 10: derive focus centers from opponent groups with <=2 liberties.
+  // Level 10: derive focus centers from opponent weak groups + persist them for a few plies after a successful cut/pressure.
   let focusCenters: Point[] | undefined = undefined;
-  if (profile.focus.enabled) {
-    const logic = getGoLogic(game);
-    const groups = logic.getAllGroups(opponent as any, game.boardState as any) as any[];
-    const weakGroups = (groups || [])
-      .filter((g) => (g.libertyPoints?.size ?? 99) <= 2)
-      .sort((a, b) => {
-        const al = a.libertyPoints?.size ?? 99;
-        const bl = b.libertyPoints?.size ?? 99;
-        if (al !== bl) return al - bl; // atari first
-        const asz = a.stones?.length ?? 0;
-        const bsz = b.stones?.length ?? 0;
-        return bsz - asz; // larger group first
-      });
-    const centers: Point[] = [];
-    const seen = new Set<string>();
-    for (const g of weakGroups.slice(0, 8)) {
-      for (const key of Array.from(g.libertyPoints || [])) {
-        const [x, y] = String(key).split(',').map(Number);
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-        const k = uniqKey(x, y);
-        if (seen.has(k)) continue;
-        seen.add(k);
-        centers.push({ x, y });
-        if (centers.length >= 14) break;
-      }
-      if (centers.length >= 14) break;
+  const gameId = (game as any).id as string | undefined;
+  if (profile.focus.enabled && gameId) {
+    const mem = focusMemoryByGameId.get(gameId);
+    if (mem && moveIndex < mem.lastSeenMoveIndex) {
+      // Game rewound/new session reused same id; drop memory.
+      focusMemoryByGameId.delete(gameId);
+    } else if (mem) {
+      mem.lastSeenMoveIndex = moveIndex;
     }
-    if (centers.length > 0) focusCenters = centers;
+
+    const fromBoard = deriveWeakLibertyCenters(game, game.boardState as any, opponent, 8, 14);
+    const stillValidMem =
+      mem && moveIndex <= mem.untilMoveIndex && Array.isArray(mem.centers) && mem.centers.length > 0;
+
+    const combined = [
+      ...(stillValidMem ? mem!.centers : []),
+      ...fromBoard,
+    ];
+    const filtered = combined.filter((p) => game.boardState[p.y]?.[p.x] === Player.None);
+    if (filtered.length > 0) focusCenters = dedupePoints(filtered, 18);
   }
 
   const { legal, byKey } = getLegalMoves(game, aiPlayer, profile, moveIndex, focusCenters);
@@ -730,14 +786,66 @@ export function getLightGoAiMove(game: LiveGameSession, aiLevel: number): { move
       // Keep the original rest behind; choose from refined by profile randomness.
       refined.sort((a, b) => b.score - a.score);
       const picked2 = pickMoveByProfile(refined, profile);
+      // Update level10 focus memory after final selection.
+      if (profile.focus.enabled && gameId) {
+        const myRes = byKey.get(uniqKey(picked2.move.x, picked2.move.y));
+        if (myRes?.isValid) {
+          const cut = connectivityDelta(game, myRes.newBoardState as any, aiPlayer, opponent).cut;
+          const threats = createsAtari(game, myRes.newBoardState as any, opponent);
+          if (cut > 0 || threats > 0 || myRes.capturedStones.length > 0) {
+            const centers = deriveWeakLibertyCenters(game, myRes.newBoardState as any, opponent, 10, 16);
+            if (centers.length > 0) {
+              focusMemoryByGameId.set(gameId, {
+                untilMoveIndex: moveIndex + profile.focus.persistPlies,
+                centers,
+                lastSeenMoveIndex: moveIndex,
+              });
+            }
+          }
+        }
+      }
       return { move: picked2.move, debug: { top: refined.slice(0, 5) } };
     }
 
     const picked = pickMoveByProfile(reevaluated, profile);
+    if (profile.focus.enabled && gameId) {
+      const myRes = byKey.get(uniqKey(picked.move.x, picked.move.y));
+      if (myRes?.isValid) {
+        const cut = connectivityDelta(game, myRes.newBoardState as any, aiPlayer, opponent).cut;
+        const threats = createsAtari(game, myRes.newBoardState as any, opponent);
+        if (cut > 0 || threats > 0 || myRes.capturedStones.length > 0) {
+          const centers = deriveWeakLibertyCenters(game, myRes.newBoardState as any, opponent, 10, 16);
+          if (centers.length > 0) {
+            focusMemoryByGameId.set(gameId, {
+              untilMoveIndex: moveIndex + profile.focus.persistPlies,
+              centers,
+              lastSeenMoveIndex: moveIndex,
+            });
+          }
+        }
+      }
+    }
     return { move: picked.move, debug: { top: reevaluated.slice(0, 5) } };
   }
 
   const picked = pickMoveByProfile(scored, profile);
+  if (profile.focus.enabled && gameId) {
+    const myRes = byKey.get(uniqKey(picked.move.x, picked.move.y));
+    if (myRes?.isValid) {
+      const cut = connectivityDelta(game, myRes.newBoardState as any, aiPlayer, opponent).cut;
+      const threats = createsAtari(game, myRes.newBoardState as any, opponent);
+      if (cut > 0 || threats > 0 || myRes.capturedStones.length > 0) {
+        const centers = deriveWeakLibertyCenters(game, myRes.newBoardState as any, opponent, 10, 16);
+        if (centers.length > 0) {
+          focusMemoryByGameId.set(gameId, {
+            untilMoveIndex: moveIndex + profile.focus.persistPlies,
+            centers,
+            lastSeenMoveIndex: moveIndex,
+          });
+        }
+      }
+    }
+  }
   return { move: picked.move, debug: { top: scored.slice(0, 5) } };
 }
 

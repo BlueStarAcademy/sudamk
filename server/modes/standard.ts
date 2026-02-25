@@ -337,7 +337,14 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     const { hasTimeControl } = await import('./shared.js');
                     if (hasTimeControl(game.settings)) {
                         const nextTimeKey = humanPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        game.turnDeadline = now + (game[nextTimeKey] ?? 0) * 1000;
+                        const nextByoyomiKey = humanPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                        const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                        const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && (game.settings.byoyomiCount ?? 0) > 0 && (game[nextByoyomiKey] ?? 0) > 0 && !isFischer;
+                        if (isNextInByoyomi) {
+                            game.turnDeadline = now + (game.settings.byoyomiTime ?? 30) * 1000;
+                        } else {
+                            game.turnDeadline = now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
+                        }
                         game.turnStartTime = now;
                     } else {
                         game.turnDeadline = undefined;

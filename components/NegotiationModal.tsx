@@ -223,7 +223,17 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const onPropose = () => onAction({ type: 'UPDATE_NEGOTIATION', payload: { negotiationId: negotiation.id, settings } });
   const onSendChallenge = () => saveSettingsAndAct({ type: 'SEND_CHALLENGE', payload: { negotiationId: negotiation.id, settings } });
   const onStartAiGame = () => {
-    const useClientSideAi = shouldUseClientSideAi();
+    // Client-side AI is only used for Go(착수) modes.
+    const goModes = new Set<GameMode>([
+        GameMode.Standard,
+        GameMode.Capture,
+        GameMode.Speed,
+        GameMode.Base,
+        GameMode.Hidden,
+        GameMode.Missile,
+        GameMode.Mix,
+    ]);
+    const useClientSideAi = goModes.has(negotiation.mode) && shouldUseClientSideAi();
     saveSettingsAndAct({ type: 'START_AI_GAME', payload: { mode: negotiation.mode, settings: { ...settings, useClientSideAi } } });
   };
   

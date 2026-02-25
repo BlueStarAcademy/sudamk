@@ -391,6 +391,7 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {
                         game.aiTurnStartTime = now;
+                        (game as any).alkkagiTriggerAiAttack = true; // 배치→공격 전환 직후 메인 루프에서 AI 공격 1회 확실히 호출
                         console.log(`[updateAlkkagiState] AI turn after placement phase, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
                     } else {
                         game.aiTurnStartTime = undefined;
@@ -607,7 +608,7 @@ export const handleAlkkagiAction = async (volatileState: types.VolatileState, ga
             if (game.gameStatus !== 'alkkagi_playing' || !isMyTurn) return { error: "지금은 공격할 수 없습니다."};
             const { stoneId, vx, vy } = payload;
             
-            game.animation = { type: 'alkkagi_flick', stoneId, vx, vy, startTime: now, duration: 5000 };
+            game.animation = { type: 'alkkagi_flick', stoneId, vx, vy, startTime: now, duration: 2500 };
             game.gameStatus = 'alkkagi_animating';
             if (game.activeAlkkagiItems) {
                 delete game.activeAlkkagiItems[user.id];

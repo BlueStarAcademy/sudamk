@@ -21,8 +21,8 @@ import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { aiUserId } from '../constants/auth.js';
-import { loadWasmGnuGo, getWasmGnuGoMove, isAvailable as isWasmGnuGoAvailable } from '../services/wasmGnuGo.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
+import { getWasmGnuGoMove, isAvailable as isWasmGnuGoAvailable } from '../services/wasmGnuGo.js';
 
 export const useApp = () => {
     // --- State Management ---
@@ -261,6 +261,10 @@ export const useApp = () => {
     const liveGameSignaturesRef = useRef<Record<string, string>>({});
     const singlePlayerGameSignaturesRef = useRef<Record<string, string>>({});
     const towerGameSignaturesRef = useRef<Record<string, string>>({});
+    // CONFIRM_AI_GAME_START 직후 checkGame 폴링이 최신 게임 상태를 보도록 ref에 동기화
+    const liveGamesRef = useRef<Record<string, LiveGameSession>>({});
+    const singlePlayerGamesRef = useRef<Record<string, LiveGameSession>>({});
+    const towerGamesRef = useRef<Record<string, LiveGameSession>>({});
     // WebSocket GAME_UPDATE 메시지 쓰로틀링 (같은 게임에 대해 최대 100ms당 1회만 처리)
     const lastGameUpdateTimeRef = useRef<Record<string, number>>({});
     const lastGameUpdateMoveCountRef = useRef<Record<string, number>>({}); // AI 수 등 새 수가 있으면 쓰로틀 무시
@@ -539,6 +543,12 @@ export const useApp = () => {
     useEffect(() => {
         currentUserStatusRef.current = currentUserWithStatus;
     }, [currentUserWithStatus]);
+
+    useEffect(() => {
+        liveGamesRef.current = liveGames;
+        singlePlayerGamesRef.current = singlePlayerGames;
+        towerGamesRef.current = towerGames;
+    }, [liveGames, singlePlayerGames, towerGames]);
 
     const activeGame = useMemo(() => {
         if (!currentUserWithStatus) return null;
@@ -2711,9 +2721,12 @@ export const useApp = () => {
                                             const gameCategory = currentUserStatus.gameCategory;
                                             console.log('[WebSocket] Current user status updated to in-game:', gameId, 'gameCategory:', gameCategory);
                                             
-                                            // 모든 게임 카테고리에서 게임 찾기 (CONFIRM_AI_GAME_START 직후 state 미반영 시 ref에서 보강)
+                                            // 모든 게임 카테고리에서 게임 찾기. ref 사용해 최신 state 반영 (CONFIRM_AI_GAME_START HTTP 응답 후 폴링이 게임을 찾도록)
                                             const checkAllGames = () => {
-                                                let game = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+                                                const lg = liveGamesRef.current;
+                                                const sg = singlePlayerGamesRef.current;
+                                                const tg = towerGamesRef.current;
+                                                let game = lg[gameId] || sg[gameId] || tg[gameId];
                                                 if (game) {
                                                     console.log('[WebSocket] Game found, routing immediately');
                                                     setTimeout(() => {
@@ -3311,9 +3324,18 @@ export const useApp = () => {
                                             ? game.moveHistory
                                             : ((game.gameStatus === 'scoring' || game.gameStatus === 'ended') && existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0 ? existingGame.moveHistory : null);
 
+                                        // 낙관적 업데이트(유저 착수) 후 서버보다 오래된 GAME_UPDATE가 도착하면 보드/수순만 유지하고, 턴은 수순 기준으로 설정 (착수 위치 바뀜/사라짐 + 봇 턴 미인식 → 시간승 버그 방지)
+                                        const existingBoardValid = existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
+                                        if (incomingMoveCount < existingMoveCount && existingBoardValid && existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0) {
+                                            const lastMove = existingGame.moveHistory[existingGame.moveHistory.length - 1];
+                                            const nextPlayer = lastMove && (lastMove as any).player === Player.Black ? Player.White : Player.Black;
+                                            mergedGame = { ...game, boardState: existingGame.boardState, moveHistory: existingGame.moveHistory, currentPlayer: nextPlayer };
+                                            if ((existingGame as any).koInfo !== undefined) mergedGame.koInfo = (existingGame as any).koInfo;
+                                            if ((existingGame as any).lastMove !== undefined) mergedGame.lastMove = (existingGame as any).lastMove;
+                                        }
+
                                         // IMPORTANT: 서버가 boardState를 생략한 경우 moveHistory로 "단순 복원"하면 포획이 반영되지 않아 없던 돌이 생길 수 있음.
                                         // 가능한 한 기존 보드(boardState)를 보존하고, 기존 보드가 없을 때만 최후 수단으로 단순 복원을 사용.
-                                        const existingBoardValid = existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
                                         if (!hasServerBoard && existingBoardValid) {
                                             mergedGame = { ...game, boardState: existingGame!.boardState, moveHistory: existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0 ? existingGame.moveHistory : game.moveHistory };
                                         } else if (!hasServerBoard && moveHistoryToDerive && moveHistoryToDerive.length > 0 && game.settings?.boardSize) {
@@ -4010,23 +4032,36 @@ export const useApp = () => {
         return aggregated;
     }, [currentUserWithStatus]);
 
-    // 클라이언트 측 AI(Electron 또는 WASM GnuGo): useClientSideAi 게임에서 AI 차례일 때 로컬에서 수 계산 후 서버로 전송
+    // 클라이언트 측 AI(lightGoAi): useClientSideAi 게임에서 AI 차례일 때 로컬에서 수 계산 후 서버로 전송
     useEffect(() => {
         const game = activeGame;
         if (!game?.id || !game?.isAiGame || (game?.gameStatus !== 'playing' && game?.gameStatus !== 'hidden_placing')) return;
-        const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+        const goModes = new Set<GameMode>([
+            GameMode.Standard,
+            GameMode.Capture,
+            GameMode.Speed,
+            GameMode.Base,
+            GameMode.Hidden,
+            GameMode.Missile,
+            GameMode.Mix,
+        ]);
+        if (!goModes.has(game.mode as any)) return;
+        // 전략바둑 AI 대국: 설정에 useClientSideAi가 없어도(merge 등으로 누락) true로 간주해 클라이언트가 반드시 수를 두도록 함
+        const isStrategicGoAi = game.isAiGame && game.gameCategory !== 'tower' && !game.isSinglePlayer;
+        const useClientSideAi = isStrategicGoAi && ((game.settings as any)?.useClientSideAi === true || (game.settings as any)?.useClientSideAi !== false);
         if (!useClientSideAi) return;
-        const win = typeof window !== 'undefined' ? (window as any).electron : undefined;
-        const useElectron = !!win?.getGnuGoMove;
-        const useWasm = !useElectron && isWasmGnuGoAvailable();
-        const useLightAi = !useElectron && !useWasm; // web lightweight AI fallback
-        const myPlayer = game.blackPlayerId === currentUser?.id ? Player.Black : (game.whitePlayerId === currentUser?.id ? Player.White : Player.None);
+        // myPlayer: blackPlayerId/whitePlayerId 우선, 없으면 AI 대국에서 player1 = 인간으로 추론
+        let myPlayer = game.blackPlayerId === currentUser?.id ? Player.Black : (game.whitePlayerId === currentUser?.id ? Player.White : Player.None);
+        if (myPlayer === Player.None && game.player1 && currentUser?.id === game.player1.id) {
+            if (game.blackPlayerId === game.player1.id) myPlayer = Player.Black;
+            else if (game.whitePlayerId === game.player1.id) myPlayer = Player.White;
+            else myPlayer = Player.Black; // AI 대국 기본: 선수(흑) = 인간
+        }
         if (myPlayer === Player.None) return;
         const isAiTurn = game.currentPlayer !== myPlayer && game.currentPlayer !== Player.None;
         if (!isAiTurn) return;
         const moveCount = (game.moveHistory || []).filter((m: { x: number; y: number }) => m.x >= 0 && m.y >= 0).length;
         if (lastClientSideAiSentRef.current[game.id] === moveCount) return;
-        lastClientSideAiSentRef.current[game.id] = moveCount;
         const boardSize = game.settings?.boardSize ?? 19;
         const playerStr = game.currentPlayer === Player.Black ? 'black' : 'white';
         const moveHistoryForGnuGo = (game.moveHistory || []).map((m: { x: number; y: number; player: Player }) => ({
@@ -4035,56 +4070,87 @@ export const useApp = () => {
             player: m.player === Player.Black ? 1 : 2
         }));
         const level = (game.settings as any)?.goAiBotLevel ?? (game.settings as any)?.aiDifficulty ?? 5;
-        const request = {
-            boardState: game.boardState || [],
-            boardSize,
-            player: playerStr,
-            moveHistory: moveHistoryForGnuGo,
-            level: Math.min(10, Math.max(1, level))
+        // 클래식/스피드/믹스에서는 최소 6으로 해서 휴리스틱 AI가 너무 나쁜 수를 덜 두도록 함 (Gnugo 수준은 아님)
+        const effectiveLevel = (game.mode === GameMode.Standard || game.mode === GameMode.Speed || game.mode === GameMode.Mix) ? Math.max(6, level) : level;
+
+        const requestServerFallback = (reason?: unknown) => {
+            if (reason) console.warn('[useApp] Client-side AI submit failed; requesting server AI move:', reason);
+            // Allow future retries if game state doesn't change
+            delete lastClientSideAiSentRef.current[game.id];
+            handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err) => {
+                console.error('[useApp] REQUEST_SERVER_AI_MOVE failed:', err);
+                delete lastClientSideAiSentRef.current[game.id];
+            });
         };
-        const promise: Promise<{ move?: { x: number; y: number }; error?: string }> = useElectron
-            ? (win.getGnuGoMove as (r: typeof request) => Promise<{ move?: { x: number; y: number }; error?: string }>)(request)
-            : useWasm
-                ? getWasmGnuGoMove(request)
-                : Promise.resolve({ move: getLightGoAiMove(game, level).move });
-        promise.then((result) => {
-            if (result?.error || result?.move === undefined) {
-                // For client-side AI games we must keep the game flowing; as a last resort ask server for AI move.
-                console.warn('[useApp] Client-side AI failed, requesting server AI move:', result?.error);
-                handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err) => {
-                    console.error('[useApp] REQUEST_SERVER_AI_MOVE failed:', err);
-                    delete lastClientSideAiSentRef.current[game.id];
-                });
-                return;
-            }
-            if (result.move.x === -1 && result.move.y === -1) {
-                // Pass: for client-side AI we can send PASS_TURN (server applies pass)
-                handleAction({ type: 'PASS_TURN', payload: { gameId: game.id } } as any).catch((err) => {
-                    console.error('[useApp] PASS_TURN (client-side AI pass) failed:', err);
-                    delete lastClientSideAiSentRef.current[game.id];
-                });
-                return;
-            }
-            handleAction({
-                type: 'PLACE_STONE',
-                payload: {
-                    gameId: game.id,
-                    x: result.move.x,
-                    y: result.move.y,
-                    clientSideAiMove: true
+
+        // 착수 직후 텀(400ms): 서버가 유저 수를 반영한 GAME_UPDATE를 보낼 시간을 주어 "돌이 옮겨지는" 현상·시간패 방지
+        const CLIENT_AI_DELAY_MS = 400;
+        const gameId = game.id;
+        const currentMoveCount = moveCount;
+        const sendClientAiMove = () => {
+            const latestGame = liveGamesRef.current[gameId];
+            if (!latestGame || lastClientSideAiSentRef.current[gameId] === currentMoveCount) return;
+            const stillAiTurn = latestGame.currentPlayer !== (latestGame.blackPlayerId === currentUser?.id ? Player.Black : (latestGame.whitePlayerId === currentUser?.id ? Player.White : Player.None)) && latestGame.currentPlayer !== Player.None;
+            if (!stillAiTurn) return;
+
+            const applyMove = (move: { x: number; y: number }) => {
+                lastClientSideAiSentRef.current[gameId] = currentMoveCount;
+                if (move.x === -1 && move.y === -1) {
+                    handleAction({ type: 'PASS_TURN', payload: { gameId } } as any).catch((err) => { console.error('[useApp] PASS_TURN (client-side AI) failed:', err); requestServerFallback(err); });
+                } else {
+                    try { console.log('[useApp] Client-side AI: sending move for gameId=', gameId, 'WASM=', usedWasm); } catch (_) {}
+                    handleAction({ type: 'PLACE_STONE', payload: { gameId, x: move.x, y: move.y, clientSideAiMove: true } }).catch((err) => { console.error('[useApp] Client-side AI PLACE_STONE failed:', err); requestServerFallback(err); });
                 }
-            }).catch((err) => {
-                console.error('[useApp] Client-side AI PLACE_STONE failed:', err);
-                delete lastClientSideAiSentRef.current[game.id];
-            });
-        }).catch((err) => {
-            console.error('[useApp] Client-side AI move generation failed, requesting server AI move:', err);
-            handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err2) => {
-                console.error('[useApp] REQUEST_SERVER_AI_MOVE failed:', err2);
-                delete lastClientSideAiSentRef.current[game.id];
-            });
-        });
-    }, [activeGame?.id, activeGame?.currentPlayer, activeGame?.moveHistory?.length, activeGame?.gameStatus, currentUser?.id, handleAction]);
+            };
+
+            let usedWasm = false;
+            (async () => {
+                if (isWasmGnuGoAvailable()) {
+                    const boardSize = latestGame.settings?.boardSize ?? 19;
+                    const playerStr = latestGame.currentPlayer === Player.Black ? 'black' : 'white';
+                    const moveHistoryForWasm = (latestGame.moveHistory || []).map((m: { x: number; y: number; player: Player }) => ({
+                        x: m.x,
+                        y: m.y,
+                        player: (m as any).player === Player.Black ? 1 : 2
+                    }));
+                    const wasmResult = await getWasmGnuGoMove({
+                        boardState: latestGame.boardState || [],
+                        boardSize,
+                        player: playerStr,
+                        moveHistory: moveHistoryForWasm,
+                        level: effectiveLevel
+                    });
+                    if (!wasmResult?.error && wasmResult?.move != null) {
+                        usedWasm = true;
+                        applyMove(wasmResult.move);
+                        return;
+                    }
+                }
+                const result = getLightGoAiMove(latestGame, effectiveLevel);
+                if (result?.move == null) { requestServerFallback('no move'); return; }
+                applyMove(result.move);
+            })();
+        };
+
+        // 클라이언트가 수를 보내지 못할 경우(효과 미실행/실패) 대비: 2.5초 후 서버 AI 요청
+        const timeoutMs = 2500;
+        const timeoutId = setTimeout(() => {
+            if (lastClientSideAiSentRef.current[gameId] !== currentMoveCount) {
+                console.warn('[useApp] Client-side AI did not send in time; requesting server AI move');
+                delete lastClientSideAiSentRef.current[gameId];
+                handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId } }).catch((err) => {
+                    console.error('[useApp] REQUEST_SERVER_AI_MOVE (timeout fallback) failed:', err);
+                });
+            }
+        }, timeoutMs);
+
+        const delayId = setTimeout(sendClientAiMove, CLIENT_AI_DELAY_MS);
+
+        return () => {
+            clearTimeout(timeoutId);
+            clearTimeout(delayId);
+        };
+    }, [activeGame?.id, activeGame?.currentPlayer, activeGame?.moveHistory?.length, activeGame?.gameStatus, activeGame?.settings, currentUser?.id, handleAction]);
 
     return {
         currentUser,

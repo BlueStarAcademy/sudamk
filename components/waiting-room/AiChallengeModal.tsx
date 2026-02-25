@@ -12,7 +12,7 @@ import {
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS
 } from '../../constants/gameSettings.js';
 import Avatar from '../Avatar.js';
-import { loadWasmGnuGo, shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
+import { shouldUseClientSideAi, loadWasmGnuGo } from '../../services/wasmGnuGo.js';
 import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 interface AiChallengeModalProps {
@@ -131,17 +131,26 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         });
     };
 
-    // AI 대국 입장 시 WASM GnuGo 최초 1회 프리로드
+    // 전략바둑 AI 도전 시 WASM GnuGo 프리로드 (도전 클릭 전에 로드 시작해 두면 첫 수에서 WASM 사용 가능)
     useEffect(() => {
-        loadWasmGnuGo().catch(() => {});
-    }, []);
+        if (lobbyType === 'strategic') loadWasmGnuGo().catch(() => {});
+    }, [lobbyType]);
 
     const handleChallenge = () => {
         if (selectedGameMode) {
-            // Web에서도 "경량 클라이언트 AI"를 사용해 서버 AI 과부하를 방지.
-            // - Electron: 로컬 Gnugo 기반 client-side AI
-            // - Web: lightweight heuristic AI (client-side) + server validates moves
-            const useClientSideAi = shouldUseClientSideAi() || typeof (window as any).electron === 'undefined';
+            // Gnugo 대체 엔진(lightGoAi)을 브라우저에서 실행해 서버 부하를 줄임.
+            // 바둑(착수) 모드만 클라이언트 AI 사용. 놀이바둑은 서버만 사용.
+            const goModes: GameMode[] = [
+                GameMode.Standard,
+                GameMode.Capture,
+                GameMode.Speed,
+                GameMode.Base,
+                GameMode.Hidden,
+                GameMode.Missile,
+                GameMode.Mix,
+            ];
+            const isGoMode = goModes.includes(selectedGameMode);
+            const useClientSideAi = isGoMode && (shouldUseClientSideAi() || typeof (window as any).electron === 'undefined');
             onAction({ type: 'START_AI_GAME', payload: { mode: selectedGameMode, settings: { ...settings, useClientSideAi } } });
             onClose();
         }
@@ -180,7 +189,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
             <div className="h-full flex flex-col gap-2 overflow-y-auto pr-2">
                 {showGoAiLevel && (
                     <div className="grid grid-cols-2 gap-2 items-center">
-                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>AI 난이도 (Gnugo)</label>
+                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>AI 난이도</label>
                         <select 
                             value={settings.goAiBotLevel ?? 5} 
                             onChange={e => handleSettingChange('goAiBotLevel', parseInt(e.target.value, 10) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)}

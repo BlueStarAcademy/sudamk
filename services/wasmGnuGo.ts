@@ -3,10 +3,12 @@
  * AI 대국 입장 시 최초 1회 로드해 클라이언트에서만 수를 두도록 함.
  */
 
-const GNUGO_SCRIPT_URL =
+const GNUGO_CDN_URL = 'https://cdn.jsdelivr.net/gh/dna2ai/gnugo.js@main/dist/gnugo.js';
+/** Try local build first (public/gnugo/ or public/gnugo/dist/); fallback to CDN. Override with __GNUGO_WASM_URL (see docs/WASM_GNUGO_PASS.md). */
+const GNUGO_SCRIPT_URLS: string[] =
     typeof window !== 'undefined' && (window as any).__GNUGO_WASM_URL
-        ? (window as any).__GNUGO_WASM_URL
-        : 'https://cdn.jsdelivr.net/gh/dna2ai/gnugo.js@main/dist/gnugo.js';
+        ? [(window as any).__GNUGO_WASM_URL]
+        : ['/gnugo/gnugo.js', '/gnugo/dist/gnugo.js', GNUGO_CDN_URL];
 
 export interface WasmGnuGoRequest {
     boardState: number[][];
@@ -32,6 +34,8 @@ declare global {
             _isLastMove?: (i: number, j: number) => number;
             _genNextStep?: () => number;
             _moveTo?: (i: number, j: number) => number;
+            /** Optional: play a pass for current side (required to replay history that contains passes). */
+            _playPass?: () => number;
             then?: (cb: (mod: any) => void) => void;
         };
     }
@@ -46,40 +50,58 @@ function getModulePromise(): Promise<typeof window.Module> {
             reject(new Error('window not available'));
             return;
         }
-        const baseUrl = GNUGO_SCRIPT_URL.substring(0, GNUGO_SCRIPT_URL.lastIndexOf('/') + 1);
-        const prevModule = window.Module;
-        window.Module = {
-            ...(prevModule || {}),
-            locateFile(path: string, prefix: string): string {
-                if (path.endsWith('.wasm')) return baseUrl + path;
-                return prefix + path;
-            },
-            onRuntimeInitialized() {
-                if (window.Module && (window.Module._initializeGoGame || (window.Module as any)._initializeGoGame)) {
-                    resolve(window.Module);
-                } else {
-                    reject(new Error('GnuGo WASM init callback but API not found'));
+        const urls = [...GNUGO_SCRIPT_URLS];
+        let index = 0;
+        const tryNext = (): void => {
+            if (index >= urls.length) {
+                reject(new Error('Failed to load GnuGo WASM from any URL'));
+                return;
+            }
+            const scriptUrl = urls[index];
+            const baseUrl = scriptUrl.substring(0, scriptUrl.lastIndexOf('/') + 1);
+            const prevModule = window.Module;
+            window.Module = {
+                ...(prevModule || {}),
+                locateFile(path: string, prefix: string): string {
+                    if (path.endsWith('.wasm')) return baseUrl + path;
+                    return prefix + path;
+                },
+                onRuntimeInitialized() {
+                    if (window.Module && (window.Module._initializeGoGame || (window.Module as any)._initializeGoGame)) {
+                        resolve(window.Module);
+                    } else {
+                        index++;
+                        tryNext();
+                    }
+                },
+            };
+            const script = document.createElement('script');
+            script.src = scriptUrl;
+            script.async = true;
+            script.onerror = () => {
+                index++;
+                tryNext();
+            };
+            script.onload = () => {
+                const M = window.Module;
+                if (!M) {
+                    index++;
+                    tryNext();
+                    return;
                 }
-            },
+                if ((M as any).then != null) {
+                    (M as any).then(() => resolve(M));
+                    return;
+                }
+                if (M._initializeGoGame != null || (M as any).initializeGoGame != null) {
+                    resolve(M);
+                    return;
+                }
+                (M as any).onRuntimeInitialized = () => resolve(M);
+            };
+            document.head.appendChild(script);
         };
-        const script = document.createElement('script');
-        script.src = GNUGO_SCRIPT_URL;
-        script.async = true;
-        script.onerror = () => reject(new Error('Failed to load GnuGo WASM script'));
-        script.onload = () => {
-            const M = window.Module;
-            if (!M) return;
-            if ((M as any).then != null) {
-                (M as any).then(() => resolve(M));
-                return;
-            }
-            if (M._initializeGoGame != null || (M as any).initializeGoGame != null) {
-                resolve(M);
-                return;
-            }
-            (M as any).onRuntimeInitialized = () => resolve(M);
-        };
-        document.head.appendChild(script);
+        tryNext();
     });
     return moduleReady;
 }
@@ -89,17 +111,13 @@ export function isAvailable(): boolean {
     return typeof window !== 'undefined' && !!(window as any).__wasmGnuGoReady;
 }
 
-/** Electron 또는 WASM GnuGo가 있으면 클라이언트 측 AI 사용 가능 */
+/** Electron 또는 WASM GnuGo가 로드되면 클라이언트 측 AI 사용 가능 (WASM은 패 포함 국면에서 lightGoAi로 폴백) */
 export function shouldUseClientSideAi(): boolean {
     if (typeof window === 'undefined') return false;
-    // 기본 정책:
-    // - Electron(설치형)에서는 로컬 Gnugo 사용 가능 → 클라이언트 AI 허용
-    // - 브라우저 WASM(dna2ai/gnugo.js)은 pass/색지정 등 한계로 국면 재현이 완전하지 않아
-    //   기본적으로 서버 Gnugo(또는 서버 검증) 경로를 우선하도록 비활성화.
-    //   필요 시 디버그/실험 목적으로 전역 플래그로 강제 활성화 가능.
     const hasElectron = !!(window as any).electron;
-    const forceWasm = (window as any).__ENABLE_WASM_GNUGO_AI === true;
-    return hasElectron || (forceWasm && isAvailable());
+    // 브라우저: WASM 로드 시 클라이언트 AI 사용. 미로드 시에도 lightGoAi로 대국 가능하므로 웹에서는 항상 true (서버 부하 없음)
+    const webWantsClientAi = typeof (window as any).electron === 'undefined';
+    return hasElectron || (webWantsClientAi || isAvailable());
 }
 
 export function setWasmGnuGoReady(ready: boolean): void {
@@ -132,6 +150,7 @@ type GnuGoWasmModule = NonNullable<typeof window.Module> & {
     _isLastMove?: (i: number, j: number) => number;
     _genNextStep?: () => number;
     _moveTo?: (i: number, j: number) => number;
+    _playPass?: () => number;
 };
 
 // dna2ai/gnugo.js wrapper uses board[i][j] where i=row, j=col. In our app boardState[y][x].
@@ -148,21 +167,20 @@ function normalizePlayerStr(p: string): 'black' | 'white' {
 }
 
 /**
- * NOTE: dna2ai/gnugo.js wrapper does not expose "pass", "undo", nor explicit color-play.
+ * NOTE: Standard dna2ai/gnugo.js does not expose "pass"; if the wrapper exposes _playPass(),
+ * we can replay history that contains passes and keep WASM level.
  * - `_moveTo(i,j)` always plays for the internal `to_move` and then flips.
  * - `_genNextStep()` generates a move for the internal `to_move` and then flips.
- * Because of that limitation, we can only safely use WASM in positions that:
- * - have no pass in history,
- * - start from standard initial position (handicap=0),
- * - and have moveHistory with strictly alternating colors starting with Black.
- * Otherwise, the engine state cannot be reproduced reliably, which will desync with server rules.
+ * - When _playPass is present, we call it for each pass in history so the engine state matches.
+ * We require: handicap=0, moveHistory strictly alternating (Black first).
  */
-function canReplayExactlyWithWasm(moveHistory: Array<{ x: number; y: number; player: number }>): { ok: boolean; reason?: string } {
-    // No pass supported by wrapper (there is no API to push a pass into SGF/to_move).
-    if (moveHistory.some((m) => m.x === -1 && m.y === -1)) {
+function canReplayExactlyWithWasm(
+    moveHistory: Array<{ x: number; y: number; player: number }>,
+    hasPlayPass: boolean
+): { ok: boolean; reason?: string } {
+    if (moveHistory.some((m) => m.x === -1 && m.y === -1) && !hasPlayPass) {
         return { ok: false, reason: 'pass-not-supported' };
     }
-    // Require explicit alternating 1(B),2(W),1(B)...
     for (let k = 0; k < moveHistory.length; k++) {
         const expected = k % 2 === 0 ? 1 : 2;
         const actual = moveHistory[k]?.player;
@@ -178,21 +196,22 @@ function applyLevelIfPossible(_mod: GnuGoWasmModule, _level?: number): void {
 }
 
 /**
- * WASM GnuGo로 다음 수 계산. moveHistory에 패가 있으면 에러 반환(엔진이 패를 지원하지 않음).
+ * WASM GnuGo로 다음 수 계산. 패가 포함된 수순은 래퍼에 _playPass가 있을 때만 재현 가능.
  */
 export async function getWasmGnuGoMove(request: WasmGnuGoRequest): Promise<WasmGnuGoResult> {
     const { boardSize, moveHistory = [] } = request;
     const size = Math.max(9, Math.min(19, boardSize || 19));
     const komi = 0.5;
 
-    const replayCheck = canReplayExactlyWithWasm(moveHistory);
-    if (!replayCheck.ok) {
-        // Let caller fall back to server AI.
-        return { error: `WASM GnuGo cannot reproduce history reliably (${replayCheck.reason})` };
-    }
-
     try {
         const Mod = (await getModulePromise()) as GnuGoWasmModule;
+        const playPass = Mod._playPass ?? (Mod as any).playPass;
+        const hasPlayPass = typeof playPass === 'function';
+        const replayCheck = canReplayExactlyWithWasm(moveHistory, hasPlayPass);
+        if (!replayCheck.ok) {
+            return { error: `WASM GnuGo cannot reproduce history reliably (${replayCheck.reason})` };
+        }
+
         const init = Mod._initializeGoGame || (Mod as any).initializeGoGame;
         const moveTo = Mod._moveTo || (Mod as any).moveTo;
         const genNext = Mod._genNextStep || (Mod as any).genNextStep;
@@ -206,10 +225,6 @@ export async function getWasmGnuGoMove(request: WasmGnuGoRequest): Promise<WasmG
         init(size, komi, 0, Date.now());
         applyLevelIfPossible(Mod, request.level);
 
-        // Ensure the engine's to_move matches the requested genmove color.
-        // With strict alternating history (starting Black), to_move is:
-        // - Black if even number of moves played
-        // - White if odd number of moves played
         const desiredToMove = normalizePlayerStr(request.player);
         const engineToMoveAfterReplay = (moveHistory.length % 2 === 0) ? 'black' : 'white';
         if (desiredToMove !== engineToMoveAfterReplay) {
@@ -219,6 +234,12 @@ export async function getWasmGnuGoMove(request: WasmGnuGoRequest): Promise<WasmG
         }
 
         for (const m of moveHistory) {
+            if (m.x === -1 && m.y === -1) {
+                if (!hasPlayPass) return { error: 'WASM GnuGo cannot replay pass (no _playPass)' };
+                const ret = playPass!();
+                if (ret !== 0) return { error: `Replay pass failed: ${ret}` };
+                continue;
+            }
             if (m.x < 0 || m.y < 0 || m.x >= size || m.y >= size) continue;
             const { i, j } = toEngineIJ(m.x, m.y);
             const ret = moveTo(i, j);
@@ -254,8 +275,8 @@ export async function getWasmGnuGoMove(request: WasmGnuGoRequest): Promise<WasmG
             if (!changed) {
                 const finalize = Mod._finalizeGoGame || (Mod as any).finalizeGoGame;
                 if (typeof finalize === 'function') finalize();
-                // Wrapper doesn't support pass; if it made no change we treat as "no move".
-                return { error: 'WASM GnuGo returned no move (pass/unknown)' };
+                // Engine passed: return pass so caller keeps WASM level (PASS_TURN).
+                return { move: { x: -1, y: -1 } };
             }
         }
         const finalize = Mod._finalizeGoGame || (Mod as any).finalizeGoGame;

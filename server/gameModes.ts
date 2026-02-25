@@ -1099,20 +1099,54 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             const isAiPlayerTurn = currentPlayerIdForAi === aiUserId ||
                 (currentPlayerIdForAi && String(currentPlayerIdForAi).startsWith('dungeon-bot-'));
             const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+            const isGoMode =
+                game.mode === types.GameMode.Standard ||
+                game.mode === types.GameMode.Capture ||
+                game.mode === types.GameMode.Speed ||
+                game.mode === types.GameMode.Base ||
+                game.mode === types.GameMode.Hidden ||
+                game.mode === types.GameMode.Missile ||
+                game.mode === types.GameMode.Mix;
+            // 놀이바둑은 서버가 애니메이션/물리/랜덤 등을 처리해야 하므로 client-side AI를 사용하지 않음 (설정이 실수로 켜져도 무시)
+            const effectiveUseClientSideAi = useClientSideAi && isGoMode;
             const isAiTurn = (game.isAiGame || isAiPlayerTurn) && !isManuallyPaused && game.currentPlayer !== types.Player.None &&
                 isAiPlayerTurn &&
                 // 클라이언트 측 AI(Electron 로컬 GnuGo) 사용 시에만 서버에서 makeAiMove 호출하지 않음. useClientSideAi가 false면 탑/전략바둑 모두 서버 AI 사용.
-                !useClientSideAi;
+                !effectiveUseClientSideAi;
+
+            // 알까기: 배치→공격 전환 직후 AI 공격 1회 확실히 스케줄 (round-robin 등으로 놓치는 것 방지)
+            const didAlkkagiTriggerAiAttack = (game as any).alkkagiTriggerAiAttack === true &&
+                game.mode === types.GameMode.Alkkagi && game.gameStatus === 'alkkagi_playing' && isAiTurn;
+            if (didAlkkagiTriggerAiAttack) {
+                (game as any).alkkagiTriggerAiAttack = false;
+                const gameId = game.id;
+                setImmediate(() => {
+                    makeAiMove(game).then(async () => {
+                        try {
+                            const { updateGameCache } = await import('./gameCache.js');
+                            updateGameCache(game);
+                            db.saveGame(game).catch((err: any) => console.error(`[processGame] Alkkagi post-placement AI save failed ${gameId}:`, err?.message));
+                            const { broadcastToGameParticipants } = await import('./socket.js');
+                            broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
+                        } catch (e: any) {
+                            console.error(`[processGame] Alkkagi post-placement AI broadcast failed ${gameId}:`, e?.message);
+                        }
+                    }).catch((err: any) => {
+                        console.error(`[processGame] Alkkagi post-placement makeAiMove failed ${gameId}:`, err?.message);
+                    });
+                });
+            }
 
             // 멀티플레이 AI 게임의 경우에만 메인 루프에서 AI 수 처리
-            // 놀이바둑 모드의 경우 placement 상태에서도 AI가 동작해야 함
+            // 놀이바둑 모드별로 AI가 행동할 수 있는 gameStatus 모두 허용
             const playfulPlacementStatuses = ['alkkagi_placement', 'alkkagi_simultaneous_placement', 'thief_rolling', 'thief_placing'];
-            const animatingStatuses = ['missile_animating', 'hidden_reveal_animating', 'alkkagi_animating', 'curling_animating', 'thief_rolling_animating'];
+            const playfulPlayingStatuses = ['alkkagi_playing', 'curling_playing', 'dice_rolling', 'dice_placing', 'dice_turn_rolling', 'dice_turn_choice', 'dice_start_confirmation'];
+            const animatingStatuses = ['missile_animating', 'hidden_reveal_animating', 'alkkagi_animating', 'curling_animating', 'thief_rolling_animating', 'dice_rolling_animating', 'dice_turn_rolling_animating'];
             const canProcessAiTurn = isAiTurn && game.gameStatus !== 'ended' && 
                 !animatingStatuses.includes(game.gameStatus) &&
-                (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || game.gameStatus === 'alkkagi_playing' || game.gameStatus === 'curling_playing');
+                (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || playfulPlayingStatuses.includes(game.gameStatus));
             
-            if (canProcessAiTurn) {
+            if (canProcessAiTurn && !didAlkkagiTriggerAiAttack) {
                 if (!game.aiTurnStartTime || game.aiTurnStartTime === undefined) {
                     game.aiTurnStartTime = now;
                 }

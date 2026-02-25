@@ -2,6 +2,7 @@
 import React, { forwardRef, useImperativeHandle, useState, useEffect, useRef, useMemo, ReactNode, useCallback } from 'react';
 import { AlkkagiStone, GameStatus, Player, Point, LiveGameSession, UserWithStatus, GameProps } from '../../types.js';
 import CurlingBoard, { CurlingBoardHandle } from '../CurlingBoard.js';
+import { AttackToTurnGauge } from '../AttackToTurnGauge.js';
 import { CURLING_TURN_TIME_LIMIT } from '../../constants';
 import { audioService } from '../../services/audioService.js';
 import { PLAYFUL_GAME_MODES } from '../../constants/gameModes';
@@ -481,11 +482,20 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         return 'bg-primary';
     }, [session.mode]);
 
+    const showTurnPassGauge = session.gameStatus === 'curling_animating' && session.animation?.type === 'curling_flick' && session.animation.startTime != null && session.animation.duration != null;
+
     return (
         <div className={`relative w-full h-full flex items-center justify-center px-4 sm:px-6 lg:px-0 ${backgroundClass}`}>
-             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-3/4 max-w-md z-10 pointer-events-none">
+             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-3/4 max-w-md z-10 pointer-events-none flex flex-col items-center gap-3">
+                {showTurnPassGauge && (
+                    <AttackToTurnGauge
+                        startTime={session.animation!.startTime}
+                        durationMs={session.animation!.duration}
+                        label="턴 전환까지"
+                    />
+                )}
                 {shouldShowPowerGauge && (
-                    <div className={`bg-gray-900/50 rounded-full h-6 border-2 border-gray-500 ${flickPower !== null || (session.gameStatus === 'curling_animating' && session.animation?.type === 'curling_flick') ? 'animate-flick-power-pulse' : ''}`}>
+                    <div className={`relative w-full bg-gray-900/50 rounded-full h-6 border-2 border-gray-500 ${flickPower !== null || (session.gameStatus === 'curling_animating' && session.animation?.type === 'curling_flick') ? 'animate-flick-power-pulse' : ''}`}>
                         <div 
                             className="bg-gradient-to-r from-yellow-400 to-red-500 h-full rounded-full" 
                             style={{ width: `${displayedPower}%` }}

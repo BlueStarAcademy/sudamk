@@ -860,8 +860,14 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
 
 const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
     const now = Date.now();
-    const aiPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-    const aiPlayerEnum = game.currentPlayer;
+    // 동시 배치에서는 currentPlayer가 None이므로 AI 플레이어를 black/white로 직접 결정
+    const isSimultaneous = game.gameStatus === 'alkkagi_simultaneous_placement';
+    const aiPlayerId = isSimultaneous
+        ? (game.blackPlayerId === aiUserId ? game.blackPlayerId! : game.whitePlayerId!)
+        : (game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!);
+    const aiPlayerEnum = isSimultaneous
+        ? (game.blackPlayerId === aiUserId ? types.Player.Black : types.Player.White)
+        : game.currentPlayer;
     
     if (game.gameStatus === 'alkkagi_placement' || game.gameStatus === 'alkkagi_simultaneous_placement') {
         // 돌 배치: 자신의 영역에만 배치 (상하 반전 시 상대는 위→아래, 나는 아래→위 공격)
@@ -1000,7 +1006,7 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
             const vx = (dx / distance) * speed;
             const vy = (dy / distance) * speed;
             
-            game.animation = { type: 'alkkagi_flick', stoneId: bestStone.id, vx, vy, startTime: now, duration: 5000 };
+            game.animation = { type: 'alkkagi_flick', stoneId: bestStone.id, vx, vy, startTime: now, duration: 2500 };
             game.gameStatus = 'alkkagi_animating';
             game.alkkagiTurnDeadline = undefined;
             game.turnStartTime = undefined;
@@ -1280,7 +1286,7 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
             onBoard: false,
         };
         
-        game.animation = { type: 'curling_flick', stone: newStone, velocity: { x: vx, y: vy }, startTime: now, duration: 3000 };
+        game.animation = { type: 'curling_flick', stone: newStone, velocity: { x: vx, y: vy }, startTime: now, duration: 2000 };
         game.gameStatus = 'curling_animating';
         if (!game.stonesThrownThisRound) game.stonesThrownThisRound = {};
         game.stonesThrownThisRound[aiPlayerId] = (game.stonesThrownThisRound[aiPlayerId] || 0) + 1;
