@@ -72,5 +72,6 @@ EXPORTED_FUNCTIONS='[..., "_playPass", ...]'
 | **방법** | dna2ai/gnugo.js 포크에 `playPass()` C 함수 추가 후 재빌드·호스팅 |
 | **앱** | `__GNUGO_WASM_URL`로 해당 빌드 로드 시 자동으로 패 구간도 WASM 사용 |
 
-표준 CDN(dna2ai/gnugo.js) 빌드는 `_playPass`가 없으므로, 패가 있으면 기존처럼 lightGoAi로만 폴백됩니다.  
-패까지 WASM으로 두고 싶을 때만 위 커스텀 빌드를 사용하면 됩니다.
+표준 CDN(dna2ai/gnugo.js) 빌드는 `_playPass`가 없으므로, 패가 있으면 기존처럼 lightGoAi로만 폴백됩니다.
+
+**이 저장소**: GitHub Actions 워크플로 `Build GnuGo WASM (playPass)`가 빌드한 `public/gnugo/dist/gnugo.js`를 main에 커밋합니다. `git pull` 후 배포하면 배포 환경에서도 playPass 포함 버전이 사용됩니다.

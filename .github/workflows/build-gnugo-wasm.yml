@@ -7,9 +7,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'public/gnugo/gnugowrapper.c'
-      - 'public/gnugo/rebuild_gnugo_with_em.sh'
-      - 'public/gnugo/build_gnugo.sh'
+      - 'public/gnugo/**'
       - '.github/workflows/build-gnugo-wasm.yml'
 
 jobs:
@@ -24,23 +22,31 @@ jobs:
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v16
         with:
-          version: latest
+          version: "3.1.45"
 
-      - name: Download GnuGo 3.8 source
+      - name: Download GnuGo 3.8 source and generate config.h
         run: |
           cd public/gnugo
           mkdir -p local
           cd local
           curl -sL -o gnugo-3.8.tar.gz https://ftp.gnu.org/gnu/gnugo/gnugo-3.8.tar.gz
           tar zxf gnugo-3.8.tar.gz
-          # Rebuild script expects local/gnugo-3.8; we have it now
-          ls -la gnugo-3.8/
+          cd gnugo-3.8
+          ./configure --prefix=$PWD/dist --without-readline --without-curses
+          make
+          make install
+          ls -la
 
       - name: Build GnuGo WASM (playPass)
         run: |
           cd public/gnugo
           mkdir -p dist
           bash rebuild_gnugo_with_em.sh
+
+      - name: Verify build output
+        run: |
+          test -f public/gnugo/dist/gnugo.js && test $(stat -c%s public/gnugo/dist/gnugo.js) -gt 100000
+          echo "OK: gnugo.js built"
 
       - name: Upload gnugo.js (artifact)
         uses: actions/upload-artifact@v4
@@ -49,6 +55,7 @@ jobs:
           path: public/gnugo/dist/gnugo.js
 
       - name: Commit built gnugo.js to repo
+        if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
