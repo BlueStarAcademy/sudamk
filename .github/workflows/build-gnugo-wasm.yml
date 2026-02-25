@@ -31,9 +31,8 @@ jobs:
           tar zxf gnugo-3.8.tar.gz
           cd gnugo-3.8
           ./configure --prefix=$PWD/dist --without-readline --without-curses
-          make
-          make install
-          ls -la
+          # Only config.h is needed for emcc build; skip native make (patterns/mkpat has linker errors on newer GCC)
+          ls -la config.h
 
       - name: Build GnuGo WASM (playPass)
         run: |
