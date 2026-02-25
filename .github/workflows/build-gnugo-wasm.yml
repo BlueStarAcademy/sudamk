@@ -1,0 +1,56 @@
+# Build GnuGo WASM with playPass (for pass-in-history support).
+# Run manually from Actions tab, then download the gnugo artifact and place in public/gnugo/dist/
+name: Build GnuGo WASM (playPass)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'public/gnugo/gnugowrapper.c'
+      - 'public/gnugo/rebuild_gnugo_with_em.sh'
+      - 'public/gnugo/build_gnugo.sh'
+      - '.github/workflows/build-gnugo-wasm.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v16
+        with:
+          version: latest
+
+      - name: Download GnuGo 3.8 source
+        run: |
+          cd public/gnugo
+          mkdir -p local
+          cd local
+          curl -sL -o gnugo-3.8.tar.gz https://ftp.gnu.org/gnu/gnugo/gnugo-3.8.tar.gz
+          tar zxf gnugo-3.8.tar.gz
+          # Rebuild script expects local/gnugo-3.8; we have it now
+          ls -la gnugo-3.8/
+
+      - name: Build GnuGo WASM (playPass)
+        run: |
+          cd public/gnugo
+          mkdir -p dist
+          bash rebuild_gnugo_with_em.sh
+
+      - name: Upload gnugo.js (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnugo-wasm
+          path: public/gnugo/dist/gnugo.js
+
+      - name: Commit built gnugo.js to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f public/gnugo/dist/gnugo.js
+          git diff --staged --quiet && echo "No change to commit" || (git commit -m "chore: add built gnugo.js (playPass)" && git push)

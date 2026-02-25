@@ -16,7 +16,9 @@ generated/
 
 # KataGo binaries (too large for Git)
 katago/
-gnugo/
+# GnuGo: ignore build output and download; track scripts and gnugowrapper.c
+public/gnugo/dist/
+public/gnugo/local/
 
 # Logs and temporary files
 *.log
