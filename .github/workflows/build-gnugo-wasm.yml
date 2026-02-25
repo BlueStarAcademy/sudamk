@@ -56,8 +56,14 @@ jobs:
 
       - name: Commit built gnugo.js to repo
         if: github.ref == 'refs/heads/main'
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f public/gnugo/dist/gnugo.js
-          git diff --staged --quiet && echo "No change to commit" || (git commit -m "chore: add built gnugo.js (playPass)" && git push)
+          if git diff --staged --quiet; then
+            echo "No change to commit"
+          else
+            git commit -m "chore: add built gnugo.js (playPass)"
+            git push origin HEAD:main || echo "Push failed (e.g. branch protection). Download the 'gnugo-wasm' artifact and add public/gnugo/dist/gnugo.js manually."
+          fi
