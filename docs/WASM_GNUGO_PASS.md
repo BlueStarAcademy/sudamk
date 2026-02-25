@@ -74,4 +74,4 @@ EXPORTED_FUNCTIONS='[..., "_playPass", ...]'
 
 표준 CDN(dna2ai/gnugo.js) 빌드는 `_playPass`가 없으므로, 패가 있으면 기존처럼 lightGoAi로만 폴백됩니다.
 
-**이 저장소**: GitHub Actions 워크플로 `Build GnuGo WASM (playPass)`가 빌드한 `public/gnugo/dist/gnugo.js`를 main에 커밋합니다. `git pull` 후 배포하면 배포 환경에서도 playPass 포함 버전이 사용됩니다.
+**이 저장소**: GitHub Actions 워크플로 `Build GnuGo WASM (playPass)` 실행 후, Artifacts에서 **gnugo-wasm**을 받아 압축을 풀고 `gnugo.js`를 **public/gnugo/dist/gnugo.js**에 넣은 뒤 커밋·배포하면 playPass 포함 버전이 사용됩니다.

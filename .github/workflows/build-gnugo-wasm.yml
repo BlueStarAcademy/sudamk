@@ -1,5 +1,5 @@
 # Build GnuGo WASM with playPass (for pass-in-history support).
-# Run manually from Actions tab, then download the gnugo artifact and place in public/gnugo/dist/
+# After run: download artifact "gnugo-wasm", extract gnugo.js to public/gnugo/dist/
 name: Build GnuGo WASM (playPass)
 
 on:
@@ -13,8 +13,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,17 +51,3 @@ jobs:
         with:
           name: gnugo-wasm
           path: public/gnugo/dist/gnugo.js
-
-      - name: Commit built gnugo.js to repo
-        if: github.ref == 'refs/heads/main'
-        continue-on-error: true
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f public/gnugo/dist/gnugo.js
-          if git diff --staged --quiet; then
-            echo "No change to commit"
-          else
-            git commit -m "chore: add built gnugo.js (playPass)"
-            git push origin HEAD:main || echo "Push failed (e.g. branch protection). Download the 'gnugo-wasm' artifact and add public/gnugo/dist/gnugo.js manually."
-          fi
