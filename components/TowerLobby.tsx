@@ -348,23 +348,33 @@ const TowerLobby: React.FC = () => {
                             
                             {/* 보유 아이템 패널 (가로 배치) */}
                             <div className="bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 backdrop-blur-md">
-                                <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 mb-2 text-center drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                                    보유 아이템
-                                </h3>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
+                                        보유 아이템
+                                    </h3>
+                                    <Button
+                                        onClick={() => setIsItemShopOpen(true)}
+                                        colorScheme="none"
+                                        className="!py-1 !px-2 !min-w-0 text-xs font-semibold border border-amber-600/50 bg-amber-900/40 hover:bg-amber-800/60 text-amber-200"
+                                    >
+                                        구매하기
+                                    </Button>
+                                </div>
                                 <div className="flex flex-row gap-2 justify-center items-center">
                                     {(() => {
                                         const inventory = currentUserWithStatus?.inventory || [];
-                                        const getItemCount = (itemName: string): number => {
+                                        // 도전의 탑 전용 아이템: 이름/id 일치하는 모든 스택 합산 (상점·가방과 동일, source 무관)
+                                        const getItemCount = (namesOrIds: string[]): number => {
                                             return (inventory as any[])
-                                                .filter((inv: any) => (inv.name === itemName || inv.id === itemName) && inv.source === 'tower')
+                                                .filter((inv: any) => namesOrIds.some((n: string) => inv.name === n || inv.id === n))
                                                 .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
                                         };
                                         const items = [
-                                            { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount('턴 추가') || getItemCount('addturn') },
-                                            { name: '미사일', icon: '/images/button/missile.png', count: getItemCount('미사일') || getItemCount('missile') },
-                                            { name: '히든', icon: '/images/button/hidden.png', count: getItemCount('히든') || getItemCount('hidden') },
-                                            { name: '스캔', icon: '/images/button/scan.png', count: getItemCount('스캔') || getItemCount('scan') },
-                                            { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount('배치 새로고침') || getItemCount('배치변경') || getItemCount('reflesh') || getItemCount('refresh') }
+                                            { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(['턴 추가', 'addturn', '턴증가', 'turn_add', 'turn_add_item']) },
+                                            { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(['미사일', 'missile']) },
+                                            { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(['히든', 'hidden']) },
+                                            { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(['스캔', 'scan']) },
+                                            { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(['배치 새로고침', '배치변경', 'reflesh', 'refresh']) }
                                         ];
                                         return items.map((item, index) => (
                                             <button
@@ -426,6 +436,9 @@ const TowerLobby: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
+                                    )}
+                                    {!myRankingEntry && ((currentUserWithStatus as any).towerFloor ?? 0) < 10 && (
+                                        <p className="text-center text-amber-300/70 text-xs py-2 px-1">10층 클리어 시 랭킹에 표시됩니다.</p>
                                     )}
                                     {top100Users.length > 0 ? (
                                         top100Users.map((user, index) => {
@@ -723,6 +736,9 @@ const TowerLobby: React.FC = () => {
                                 </div>
                             </div>
                         )}
+                        {!myRankingEntry && ((currentUserWithStatus as any).towerFloor ?? 0) < 10 && (
+                            <p className="text-center text-amber-300/70 text-xs py-2 px-1">10층 클리어 시 랭킹에 표시됩니다.</p>
+                        )}
                         {/* Top 100 */}
                         {top100Users.length > 0 ? (
                             top100Users.map((user, index) => {
@@ -768,23 +784,33 @@ const TowerLobby: React.FC = () => {
 
                     {/* 보유 아이템 (랭킹 하단 별도 패널, 잘리지 않도록) */}
                     <div className="flex-shrink-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 backdrop-blur-md shadow-2xl shadow-amber-900/50">
-                        <h3 className="text-xs sm:text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 mb-2 text-center drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                            보유 아이템
-                        </h3>
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-xs sm:text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
+                                보유 아이템
+                            </h3>
+                            <Button
+                                onClick={() => setIsItemShopOpen(true)}
+                                colorScheme="none"
+                                className="!py-1 !px-2 !min-w-0 text-xs font-semibold border border-amber-600/50 bg-amber-900/40 hover:bg-amber-800/60 text-amber-200"
+                            >
+                                구매하기
+                            </Button>
+                        </div>
                         <div className="flex flex-row gap-1.5 justify-center items-center flex-wrap">
                             {(() => {
                                 const inventory = currentUserWithStatus?.inventory || [];
-                                const getItemCount = (itemName: string): number => {
+                                // 도전의 탑 전용 아이템: 이름/id 일치하는 모든 스택 합산 (상점·가방과 동일, source 무관)
+                                const getItemCount = (namesOrIds: string[]): number => {
                                     return (inventory as any[])
-                                        .filter((inv: any) => (inv.name === itemName || inv.id === itemName) && inv.source === 'tower')
+                                        .filter((inv: any) => namesOrIds.some((n: string) => inv.name === n || inv.id === n))
                                         .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
                                 };
                                 const items = [
-                                    { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount('턴 추가') || getItemCount('addturn') },
-                                    { name: '미사일', icon: '/images/button/missile.png', count: getItemCount('미사일') || getItemCount('missile') },
-                                    { name: '히든', icon: '/images/button/hidden.png', count: getItemCount('히든') || getItemCount('hidden') },
-                                    { name: '스캔', icon: '/images/button/scan.png', count: getItemCount('스캔') || getItemCount('scan') },
-                                    { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount('배치 새로고침') || getItemCount('배치변경') || getItemCount('reflesh') || getItemCount('refresh') }
+                                    { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(['턴 추가', 'addturn', '턴증가', 'turn_add', 'turn_add_item']) },
+                                    { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(['미사일', 'missile']) },
+                                    { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(['히든', 'hidden']) },
+                                    { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(['스캔', 'scan']) },
+                                    { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(['배치 새로고침', '배치변경', 'reflesh', 'refresh']) }
                                 ];
                                 return items.map((item, index) => (
                                     <button

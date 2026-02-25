@@ -90,7 +90,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         return currentPlayer === myPlayerEnum;
     }, [gameStatus, currentPlayer, myPlayerEnum, isSpectator]);
     
-    const shouldRotate = myPlayerEnum === Player.White;
+    const shouldRotate = isSpectator ? false : (myPlayerEnum === Player.White);
 
     const stonesForBoard = useMemo(() => {
         if (gameStatus === 'alkkagi_simultaneous_placement' || gameStatus === 'alkkagi_placement') {

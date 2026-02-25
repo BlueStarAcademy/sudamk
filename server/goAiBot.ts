@@ -1050,8 +1050,10 @@ export async function makeGoAiBotMove(
     }
     
     // 싱글플레이 따내기 바둑: 흑(유저) 턴 수 제한 도달 시 AI 수 후 계가 없이 미션 실패 처리
+    // (GnuGo 경로에서는 isItemMode가 위 블록에서 정의되지 않으므로 여기서 정의)
+    const isItemModeHere = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(game.gameStatus);
     const blackTurnLimit = (game.settings as any)?.blackTurnLimit;
-    if (!isItemMode && game.isSinglePlayer && game.stageId && blackTurnLimit !== undefined && aiPlayerEnum === types.Player.White) {
+    if (!isItemModeHere && game.isSinglePlayer && game.stageId && blackTurnLimit !== undefined && aiPlayerEnum === types.Player.White) {
         const blackMoves = game.moveHistory.filter(m => m.player === types.Player.Black && m.x !== -1 && m.y !== -1).length;
         if (blackMoves >= blackTurnLimit) {
             console.log(`[GoAiBot] SinglePlayer blackTurnLimit reached after AI move: blackMoves=${blackMoves}, limit=${blackTurnLimit}, mission fail (no scoring)`);

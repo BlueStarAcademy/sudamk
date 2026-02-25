@@ -83,22 +83,16 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
 
     return (
         <div className={`w-full h-full flex items-center justify-center ${backgroundClass} relative`}>
-            {/* 회전 버튼 */}
+            {/* 회전 버튼: 흑/백 입장 전환 (이모지로 표현) */}
             {onToggleBoardRotation && (
                 <button
                     onClick={onToggleBoardRotation}
                     className="absolute top-2 right-2 z-10 bg-gray-800/80 hover:bg-gray-700/80 rounded-lg p-2 border border-gray-600 transition-all"
-                    title="바둑판 180도 회전"
+                    title={props.isSpectator
+                        ? (isBoardRotated ? '흑의 입장으로 보기' : '백의 입장으로 보기')
+                        : '바둑판 180도 회전'}
                 >
-                    <svg 
-                        className="w-6 h-6 text-gray-300"
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                        style={{ transform: isBoardRotated ? 'rotate(180deg)' : 'none' }}
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
+                    <span className="text-xl leading-none" style={{ transform: isBoardRotated ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>🔄</span>
                 </button>
             )}
             <GoBoard

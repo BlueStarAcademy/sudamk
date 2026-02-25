@@ -463,12 +463,30 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         }
         case 'LEAVE_SPECTATING': {
             const userStatus = volatileState.userStatuses[user.id];
+            const leftGameId = userStatus?.spectatingGameId;
             if (userStatus && userStatus.status === UserStatus.Spectating) {
-                userStatus.status = UserStatus.Online; 
+                userStatus.status = UserStatus.Online;
                 delete userStatus.spectatingGameId;
-                delete userStatus.gameId; 
+                delete userStatus.gameId;
             }
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+
+            if (leftGameId) {
+                const game = await db.getLiveGame(leftGameId);
+                if (game) {
+                    const p1Status = volatileState.userStatuses[game.player1.id];
+                    const p2Status = volatileState.userStatuses[game.player2.id];
+                    const p1Left = !p1Status || p1Status.gameId !== leftGameId;
+                    const p2Left = !p2Status || p2Status.gameId !== leftGameId;
+                    const hasSpectators = Object.values(volatileState.userStatuses).some(s => s.spectatingGameId === leftGameId);
+                    if (p1Left && p2Left && !hasSpectators) {
+                        clearAiSession(leftGameId);
+                        await db.deleteGame(leftGameId);
+                        if (volatileState.gameChats) delete volatileState.gameChats[leftGameId];
+                        broadcast({ type: 'GAME_DELETED', payload: { gameId: leftGameId } });
+                    }
+                }
+            }
             return {};
         }
         case 'EMERGENCY_EXIT': {
@@ -761,8 +779,10 @@ export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: '
     });
     
     // 게임 정보 브로드캐스트
-    const { broadcastToGameParticipants } = await import('../socket.js');
+    const { broadcastToGameParticipants, broadcastLiveGameToList } = await import('../socket.js');
     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+    // PVP(랭크매칭)이므로 진행중인 대국 목록에 표시·관전 가능하도록 전체 브로드캐스트
+    broadcastLiveGameToList(game);
     broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
     broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
 };

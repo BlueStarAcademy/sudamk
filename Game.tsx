@@ -30,6 +30,48 @@ import { processMoveClient } from './client/goLogicClient.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
+/** 계가 예상 소요 시간(ms). 진행 막대 및 연출 길이에 사용 */
+const SCORING_PROGRESS_DURATION_MS = 22_000;
+
+/** 계가 중 오버레이: 스피너 + 텍스트 + 서브텍스트 + 숫자 카운트 + 22초 진행 막대(글로우) + 펄스 */
+function ScoringOverlay() {
+  const [progress, setProgress] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const p = Math.min(100, (elapsed / SCORING_PROGRESS_DURATION_MS) * 100);
+      setProgress(p);
+      setElapsedMs(elapsed);
+      if (p >= 100) clearInterval(interval);
+    }, 80);
+    return () => clearInterval(interval);
+  }, []);
+  const remainingSec = Math.max(0, Math.ceil((SCORING_PROGRESS_DURATION_MS - elapsedMs) / 1000));
+  return (
+    <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-30 pointer-events-none">
+      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-gray-100 mb-4" />
+      <p className="text-xl font-bold text-white animate-pulse">계가 중...</p>
+      <p className="text-sm text-gray-300 mt-1">AI가 바둑판을 분석하고 있어요</p>
+      <p className="text-sm text-amber-200/90 mt-3 font-medium tabular-nums">
+        {remainingSec > 0 ? `약 ${remainingSec}초 남음` : '곧 완료...'}
+      </p>
+      <div className="w-full max-w-md mt-3 px-6">
+        <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-amber-400 rounded-full transition-[width] duration-75 ease-linear"
+            style={{
+              width: `${progress}%`,
+              boxShadow: '0 0 12px rgba(251, 191, 36, 0.6), 0 0 24px rgba(251, 191, 36, 0.3)',
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
   useEffect(() => {
@@ -258,7 +300,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [gameStatus, prevGameStatus, session.analysisResult, prevAnalysisResult, isSinglePlayer, isTower]);
     
     const myPlayerEnum = useMemo(() => {
-        if (isSpectator) return Player.None;
+        if (isSpectator) {
+            // 놀이바둑 관전 시 흑 유저 입장 화면으로 통일 (알까기/컬링 등 좌표 겹침 방지)
+            if (PLAYFUL_GAME_MODES.some(m => m.mode === mode)) return Player.Black;
+            return Player.None;
+        }
         if (blackPlayerId === currentUser.id) return Player.Black;
         if (whitePlayerId === currentUser.id) return Player.White;
         if ((mode === GameMode.Base || (mode === GameMode.Mix && session.settings.mixedModes?.includes(GameMode.Base))) && gameStatus === 'base_placement') {
@@ -1512,10 +1558,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             {/* 전략·놀이바둑 경기장 상단 헤더 (행동력, 재화, 설정 등) */}
             <Header />
             {session.gameStatus === 'scoring' && !session.analysisResult?.['system'] && (
-                <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-30 pointer-events-none">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-gray-100 mb-4"></div>
-                    <p className="text-xl font-bold text-white">계가 중...</p>
-                </div>
+                <ScoringOverlay />
             )}
             <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0 overflow-hidden">
                 <main className="flex-1 flex items-center justify-center min-w-0 min-h-0">

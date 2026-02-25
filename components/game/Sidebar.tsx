@@ -280,7 +280,7 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
                 유저 목록
                 {onClose && <button onClick={onClose} className="text-xl font-bold text-gray-400 hover:text-white">×</button>}
             </h3>
-            <div className="space-y-0.5 overflow-y-auto pr-1 flex-grow">
+            <div className="space-y-0.5 overflow-y-auto pr-1 flex-grow min-h-0" style={{ maxHeight: '7.5rem' }}>
                 {playersInRoom.map(user => renderUser(user, user.id === blackPlayerId ? '흑' : '백'))}
                 {spectators.map(user => renderUser(user, '관전'))}
             </div>
@@ -623,6 +623,35 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
             <div className="flex-1 mt-2 min-h-0">
                 <ChatPanel {...props} />
             </div>
+            {isSpectator && props.currentUser?.isAdmin && !isGameEnded && (
+                <div className="flex-shrink-0 py-2 border-t border-gray-700">
+                    <h3 className="text-xs font-bold text-purple-300 mb-1.5">관리자 기능</h3>
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            onClick={() => {
+                                if (window.confirm(`${session.player2?.nickname}님 기권승(승자: ${session.player1?.nickname}) 처리하시겠습니까?`)) {
+                                    props.onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId: session.id, winnerId: session.player1?.id } });
+                                }
+                            }}
+                            colorScheme="red"
+                            className="!py-1 !px-2 text-xs"
+                        >
+                            {session.player2?.nickname} 기권승
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                if (window.confirm(`${session.player1?.nickname}님 기권승(승자: ${session.player2?.nickname}) 처리하시겠습니까?`)) {
+                                    props.onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId: session.id, winnerId: session.player2?.id } });
+                                }
+                            }}
+                            colorScheme="red"
+                            className="!py-1 !px-2 text-xs"
+                        >
+                            {session.player1?.nickname} 기권승
+                        </Button>
+                    </div>
+                </div>
+            )}
             <div className="flex-shrink-0 pt-2">
                 {isPausableAiGame && !isGameEnded && !isSpectator && onTogglePause ? (
                     <Button

@@ -224,7 +224,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
 
   if (!currentUserWithStatus) return null;
 
-  // 전략/놀이바둑 대기실에서는 해당 카테고리의 게임만 표시 (AI 봇 대국은 진행중인 대국 리스트에 제외)
+  // PVP만 표시. 진행 중이거나, 종료됐어도 대국실에 한 명이라도 있으면 목록 유지
   const ongoingGames = useMemo(() => {
     const allGames = Object.values(liveGames) as LiveGameSession[];
     const byCategory = (() => {
@@ -236,8 +236,14 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         return allGames.filter(g => g.mode === mode);
       }
     })();
-    return byCategory.filter(g => !g.isAiGame);
-  }, [liveGames, mode]);
+    const hasSomeoneInRoom = (gameId: string) =>
+      onlineUsers.some(u => (u.gameId === gameId || u.spectatingGameId === gameId) && (u.status === UserStatus.InGame || u.status === UserStatus.Spectating));
+    return byCategory.filter(g => {
+      if (g.isAiGame) return false;
+      const isOngoing = g.gameStatus !== 'ended' && g.gameStatus !== 'no_contest';
+      return isOngoing || hasSomeoneInRoom(g.id);
+    });
+  }, [liveGames, mode, onlineUsers]);
   
   const usersInThisRoom = useMemo(() => {
         const isStrategicLobby = mode === 'strategic';

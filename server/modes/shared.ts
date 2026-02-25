@@ -534,3 +534,33 @@ export const handleTimeoutFoul = (game: LiveGameSession, timedOutPlayerId: strin
     }
     return false; // Game continues
 };
+
+/** 알까기·컬링 공통: 시간 안에 공격하지 못했을 때 초읽기 1회 소모 후 상대 턴으로 전환. 초읽기 0이면 타임아웃 패배. */
+export const handlePlayfulTurnTimeoutByoyomi = (
+    game: LiveGameSession,
+    now: number
+): { gameEnded: boolean; nextDeadlineMs: number } => {
+    const timedOutPlayerEnum = game.currentPlayer!;
+    const timedOutPlayerId = timedOutPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
+    const byoyomiKey = timedOutPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+    const byoyomiTimeSec = Math.max(1, game.settings.byoyomiTime ?? 30);
+    const nextDeadlineMs = byoyomiTimeSec * 1000;
+
+    if (game[byoyomiKey] == null || game[byoyomiKey] < 0) {
+        game[byoyomiKey] = Math.max(MIN_BYOYOMI_COUNT, game.settings.byoyomiCount ?? 3);
+    }
+    game[byoyomiKey] = (game[byoyomiKey] as number) - 1;
+
+    if ((game[byoyomiKey] as number) <= 0) {
+        const winnerId = game.player1.id === timedOutPlayerId ? game.player2.id : game.player1.id;
+        const winnerEnum = winnerId === game.blackPlayerId ? types.Player.Black : types.Player.White;
+        summaryService.endGame(game, winnerEnum, 'timeout');
+        return { gameEnded: true, nextDeadlineMs };
+    }
+
+    const foulPlayer = game.player1.id === timedOutPlayerId ? game.player1 : game.player2;
+    game.foulInfo = { message: `타임오버! ${foulPlayer.nickname}님 초읽기 1회 소모.`, expiry: now + 4000 };
+    game.currentPlayer = timedOutPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+    game.turnStartTime = now;
+    return { gameEnded: false, nextDeadlineMs };
+};

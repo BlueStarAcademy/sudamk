@@ -17,6 +17,7 @@ import {
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
+import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { aiUserId } from '../constants/auth.js';
@@ -49,7 +50,8 @@ export const useApp = () => {
     const lastHttpHadUpdatedUser = useRef<boolean>(false); // HTTP 응답에 updatedUser가 있었는지 추적
     const HTTP_UPDATE_DEBOUNCE_MS = 2000; // HTTP 응답 후 2초 내 WebSocket 업데이트 무시 (더 긴 시간으로 확실하게 보호)
     // AI 게임 경기 시작 후 경기장 입장 시 state 반영 전 리다이렉트 방지 (레이스 컨디션)
-    const pendingAiGameEntryRef = useRef<{ gameId: string; until: number } | null>(null);
+    // CONFIRM_AI_GAME_START 응답의 게임을 보관해 'Game not found after max attempts' 시에도 라우팅 가능하게 함
+    const pendingAiGameEntryRef = useRef<{ gameId: string; until: number; game?: LiveGameSession } | null>(null);
     // 클라이언트 측 AI(Electron): 같은 턴에 중복 전송 방지
     const lastClientSideAiSentRef = useRef<Record<string, number>>({});
 
@@ -481,6 +483,10 @@ export const useApp = () => {
                     
                     if (pointsToAdd > 0) {
                         const newCurrent = Math.min(calculatedMaxAP, currentUser.actionPoints.current + pointsToAdd);
+                        // 다음 회복 시점을 반영: lastActionPointUpdate를 회복한 구간만큼 진행 (무한 1씩 회복 방지)
+                        const newLastUpdate = newCurrent >= calculatedMaxAP
+                            ? 0
+                            : lastUpdate + pointsToAdd * regenInterval;
                         setCurrentUser(prev => {
                             if (!prev || !prev.actionPoints) return prev;
                             return {
@@ -489,7 +495,8 @@ export const useApp = () => {
                                     ...prev.actionPoints,
                                     current: newCurrent,
                                     max: calculatedMaxAP
-                                }
+                                },
+                                lastActionPointUpdate: newLastUpdate
                             };
                         });
                         setActionPointUpdateTrigger(prev => prev + 1);
@@ -1129,15 +1136,20 @@ export const useApp = () => {
                     }
                 }
                 
-                // 싱글플레이 따내기 바둑: 흑(유저) 제한 턴이 0이면 계가 없이 미션 실패 처리
-                if (gameType === 'singleplayer' && game.stageId && game.gameStatus === 'playing') {
-                    const stage = SINGLE_PLAYER_STAGES.find((s: { id: string }) => s.id === game.stageId) as { blackTurnLimit?: number } | undefined;
+                // 싱글플레이/도전의 탑 따내기 바둑: 흑(유저) 제한 턴이 0이면 계가 없이 미션 실패 처리
+                if ((gameType === 'singleplayer' || gameType === 'tower') && game.stageId && game.gameStatus === 'playing') {
+                    const stages = gameType === 'tower' ? TOWER_STAGES : SINGLE_PLAYER_STAGES;
+                    const stage = stages.find((s: { id: string }) => s.id === game.stageId) as { blackTurnLimit?: number } | undefined;
                     const blackTurnLimit = stage?.blackTurnLimit;
                     if (blackTurnLimit !== undefined) {
                         const moveHistory = updateResult.updatedGame.moveHistory || [];
                         const blackMoves = moveHistory.filter((m: { player: Player; x: number; y: number }) => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
-                        if (blackMoves >= blackTurnLimit) {
-                            console.log(`[handleAction] ${actionTypeName} - Black turn limit reached (${blackMoves}/${blackTurnLimit}), mission fail - ENDING GAME`);
+                        // 도전의 탑: blackTurnLimitBonus 반영 (아이템 등으로 추가된 턴)
+                        const effectiveLimit = gameType === 'tower'
+                            ? blackTurnLimit + ((game as any).blackTurnLimitBonus ?? 0)
+                            : blackTurnLimit;
+                        if (blackMoves >= effectiveLimit) {
+                            console.log(`[handleAction] ${actionTypeName} - Black turn limit reached (${blackMoves}/${effectiveLimit}), mission fail - ENDING GAME`);
                             shouldEndGameTurnLimit = true;
                             endGameWinnerTurnLimit = Player.White;
                             return { ...currentGames, [gameId]: { ...updateResult.updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' } };
@@ -1218,17 +1230,18 @@ export const useApp = () => {
                 });
             }
             
-            // 싱글플레이 따내기 바둑 제한 턴 소진 시 미션 실패(서버에 종료 반영)
+            // 싱글플레이/도전의 탑 따내기 바둑 제한 턴 소진 시 미션 실패(서버에 종료 반영)
             if (shouldEndGameTurnLimit && endGameWinnerTurnLimit !== null && finalUpdatedGame) {
+                const endGameActionType = gameType === 'tower' ? 'END_TOWER_GAME' : 'END_SINGLE_PLAYER_GAME';
                 handleAction({
-                    type: 'END_SINGLE_PLAYER_GAME',
+                    type: endGameActionType,
                     payload: {
                         gameId,
                         winner: endGameWinnerTurnLimit,
                         winReason: 'timeout'
                     }
                 } as any).catch(err => {
-                    console.error(`[handleAction] Failed to end single player game (turn limit):`, err);
+                    console.error(`[handleAction] Failed to end ${gameType} game (turn limit):`, err);
                 });
             }
             
@@ -1967,7 +1980,11 @@ export const useApp = () => {
                         // AI 게임: state 반영 전 리다이렉트 방지를 위해 유예 시간 설정
                         // START_AI_GAME(대기실→규칙설명), CONFIRM_AI_GAME_START(경기시작→경기장) 모두 적용
                         if (action.type === 'START_AI_GAME' || action.type === 'CONFIRM_AI_GAME_START') {
-                            pendingAiGameEntryRef.current = { gameId: effectiveGameId, until: Date.now() + 3000 };
+                            pendingAiGameEntryRef.current = {
+                                gameId: effectiveGameId,
+                                until: Date.now() + 3000,
+                                ...(action.type === 'CONFIRM_AI_GAME_START' && game ? { game: game as LiveGameSession } : {}),
+                            };
                         }
                         // 즉시 라우팅 (지연 제거)
                         window.location.hash = targetHash;
@@ -2678,8 +2695,10 @@ export const useApp = () => {
                                         if (!updatedUsersMap[id]) updatedUsersMap[id] = user;
                                         return { ...user, ...statusInfo };
                                     }
-                                    // 새로 접속한 유저(usersMap에 없음): 최소 정보로 목록에 포함 → /api/users/brief로 닉네임 등 로드
-                                    const minimalUser = { id, ...statusInfo } as UserWithStatus;
+                                    // 새로 접속한 유저(usersMap에 없음): 본인이면 currentUser로 닉네임 즉시 표시, 아니면 최소 정보로 포함 후 /api/users/brief로 로드
+                                    const isCurrentUser = currentUser && id === currentUser.id;
+                                    const minimalUser = (isCurrentUser ? { ...currentUser, ...statusInfo } : { id, ...statusInfo }) as UserWithStatus;
+                                    if (isCurrentUser) updatedUsersMap[id] = minimalUser;
                                     return minimalUser;
                                 }).filter(Boolean) as UserWithStatus[];
                                 setOnlineUsers(onlineStatuses);
@@ -2692,11 +2711,20 @@ export const useApp = () => {
                                             const gameCategory = currentUserStatus.gameCategory;
                                             console.log('[WebSocket] Current user status updated to in-game:', gameId, 'gameCategory:', gameCategory);
                                             
-                                            // 모든 게임 카테고리에서 게임 찾기
+                                            // 모든 게임 카테고리에서 게임 찾기 (CONFIRM_AI_GAME_START 직후 state 미반영 시 ref에서 보강)
                                             const checkAllGames = () => {
-                                                const game = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+                                                let game = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
                                                 if (game) {
                                                     console.log('[WebSocket] Game found, routing immediately');
+                                                    setTimeout(() => {
+                                                        window.location.hash = `#/game/${gameId}`;
+                                                    }, 100);
+                                                    return true;
+                                                }
+                                                const pending = pendingAiGameEntryRef.current;
+                                                if (pending?.gameId === gameId && pending.game && Date.now() < pending.until) {
+                                                    setLiveGames(prev => ({ ...prev, [gameId]: { ...prev[gameId], ...pending.game } }));
+                                                    console.log('[WebSocket] Game found from CONFIRM_AI_GAME_START ref, merging and routing');
                                                     setTimeout(() => {
                                                         window.location.hash = `#/game/${gameId}`;
                                                     }, 100);
@@ -2813,7 +2841,9 @@ export const useApp = () => {
                                 const lastProcessedMoveCount = lastGameUpdateMoveCountRef.current[gameId] ?? 0;
                                 // 새 수(AI 수 등)가 있으면 반드시 처리 - 쓰로틀 무시 (바둑판에 돌이 안 보이는 버그 방지)
                                 const hasNewMoves = incomingMoveCount > lastProcessedMoveCount;
-                                if (!hasNewMoves && now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS) {
+                                // 알까기/컬링 등 놀이바둑은 moveHistory를 쓰지 않으므로, 이 경우 항상 업데이트 적용 (AI 배치가 스킵되는 버그 방지)
+                                const isPlayfulBoardUpdate = !!(game.alkkagiStones || game.curlingStones || (game.gameStatus && (String(game.gameStatus).startsWith('alkkagi_') || String(game.gameStatus).startsWith('curling_'))));
+                                if (!hasNewMoves && !isPlayfulBoardUpdate && now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS) {
                                     return;
                                 }
                                 lastGameUpdateTimeRef.current[gameId] = now;

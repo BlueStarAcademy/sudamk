@@ -1,6 +1,6 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
-import { handleSharedAction, updateSharedGameState, handleTimeoutFoul } from './shared.js';
+import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePlayfulTurnTimeoutByoyomi } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
 import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
@@ -406,20 +406,13 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                             (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
             
             if (game.alkkagiTurnDeadline && now > game.alkkagiTurnDeadline && !isAiTurn) {
-                const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-                
-                if (!game.timeoutFouls) game.timeoutFouls = {};
-                game.timeoutFouls[timedOutPlayerId] = (game.timeoutFouls[timedOutPlayerId] || 0) + 1;
-                game.foulInfo = { message: `타임오버 파울!`, expiry: now + 4000 };
-
-                if (game.timeoutFouls[timedOutPlayerId] >= PLAYFUL_MODE_FOUL_LIMIT) {
-                    const winnerId = game.player1.id === timedOutPlayerId ? game.player2.id : game.player1.id;
-                    const winnerEnum = winnerId === game.blackPlayerId ? types.Player.Black : types.Player.White;
-                    endGame(game, winnerEnum, 'timeout');
-                } else {
-                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                    game.alkkagiTurnDeadline = now + ALKKAGI_TURN_TIME_LIMIT * 1000;
-                    game.turnStartTime = now;
+                const { gameEnded, nextDeadlineMs } = handlePlayfulTurnTimeoutByoyomi(game, now);
+                if (gameEnded) break;
+                game.alkkagiTurnDeadline = now + nextDeadlineMs;
+                if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    if (nextPlayerId === aiUserId) game.aiTurnStartTime = now;
+                    else game.aiTurnStartTime = undefined;
                 }
             }
             break;

@@ -441,6 +441,22 @@ export const broadcastToGameParticipants = (gameId: string, message: any, game: 
     }
 };
 
+/** PVP 게임이 생성되었을 때 진행중인 대국 목록에 표시되도록 전체 클라이언트에 경량 GAME_UPDATE 브로드캐스트 (관전 입장 가능) */
+export const broadcastLiveGameToList = (game: any) => {
+    if (!game || !game.id || game.isAiGame) return;
+    if (!wss) return;
+    const slim = { ...game };
+    delete (slim as any).boardState;
+    delete (slim as any).moveHistory;
+    try {
+        broadcast({ type: 'GAME_UPDATE', payload: { [game.id]: slim } });
+    } catch (e) {
+        if (process.env.NODE_ENV === 'development') {
+            console.warn('[WebSocket] broadcastLiveGameToList failed:', (e as Error)?.message);
+        }
+    }
+};
+
 export const broadcast = (message: any) => {
     if (!wss) return;
     // 최적화: 메시지 직렬화를 한 번만 수행 (직렬화 실패 시 크래시 방지)

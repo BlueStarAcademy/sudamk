@@ -1,4 +1,14 @@
-import { Player, type LiveGameSession } from '../types/index.js';
+import { Player, type LiveGameSession, GameMode } from '../types/index.js';
+
+/** 놀이바둑: moveHistory를 사용하지 않으므로 syncAiSession에서 moveCount로 lastProcessedMoveCount를 덮어쓰면 다음 AI 턴이 막힘 */
+const PLAYFUL_MODES_NO_MOVE_HISTORY: GameMode[] = [
+    GameMode.Alkkagi,
+    GameMode.Curling,
+    GameMode.Dice,
+    GameMode.Omok,
+    GameMode.Ttamok,
+    GameMode.Thief,
+];
 
 interface AiSession {
     gameId: string;
@@ -133,6 +143,12 @@ export function syncAiSession(game: LiveGameSession, aiPlayerId: string, options
         // AI의 차례이면 현재 moveCount를 그대로 기록하지 않고 이전 턴까지만 처리한 것으로 유지
         const target = Math.max(-1, moveCount - 1);
         session.lastProcessedMoveCount = Math.min(session.lastProcessedMoveCount, target);
+        return;
+    }
+
+    // 놀이바둑(알까기, 컬링 등)은 moveHistory를 쓰지 않음. 여기서 moveCount(0)로 덮어쓰면
+    // shouldProcessAiTurn(gameId, 0)이 0 <= 0으로 false가 되어 AI가 영원히 호출되지 않음 → 동기화 생략
+    if (PLAYFUL_MODES_NO_MOVE_HISTORY.includes(game.mode)) {
         return;
     }
 

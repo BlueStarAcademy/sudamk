@@ -279,7 +279,8 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     game.gameStatus = 'scoring';
     game.winReason = 'score';
     game.isAnalyzing = true;
-    
+    const scoringTotalStart = Date.now(); // 계가 총 소요 시간 측정 (연출/로깅용)
+
     if (preservedGameState.boardState && Array.isArray(preservedGameState.boardState) && preservedGameState.boardState.length > 0) {
         game.boardState = preservedGameState.boardState;
     }
@@ -390,7 +391,8 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         await db.saveGame(freshGame);
         const { broadcastToGameParticipants } = await import('./socket.js');
         broadcastToGameParticipants(freshGame.id, { type: 'GAME_UPDATE', payload: { [freshGame.id]: gameToBroadcast } }, freshGame);
-        console.log(`[getGameResult] Broadcasted ${source} result for game ${freshGame.id}, scores: Black ${finalAnalysis.scoreDetails.black.total}, White ${finalAnalysis.scoreDetails.white.total}`);
+        const totalScoringMs = Date.now() - scoringTotalStart;
+        console.log(`[getGameResult] KataGo 계가 총 소요: ${(totalScoringMs / 1000).toFixed(2)}초 (${totalScoringMs}ms) — 게임 ${freshGame.id} 결과 브로드캐스트 완료 (Black ${finalAnalysis.scoreDetails.black.total}, White ${finalAnalysis.scoreDetails.white.total})`);
 
         // 승자 판정: 흑의 점수가 백의 점수보다 크면 흑 승리, 같거나 작으면 백 승리 (덤 때문에)
         const blackTotal = finalAnalysis.scoreDetails.black.total;
@@ -469,7 +471,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                 fallbackTimer = null;
             }
             const analysisDuration = Date.now() - analysisStartTime;
-            console.log(`[getGameResult] KataGo analysis completed for game ${game.id} in ${analysisDuration}ms, getting fresh game state...`);
+            console.log(`[getGameResult] KataGo 분석(API) 소요: ${(analysisDuration / 1000).toFixed(2)}초 (${analysisDuration}ms), game ${game.id} — fresh game state 조회 중...`);
             // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기 (DB에 저장되지 않을 수 있음)
             let freshGame = null;
             if (game.isSinglePlayer) {

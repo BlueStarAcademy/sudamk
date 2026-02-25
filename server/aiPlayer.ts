@@ -1305,8 +1305,10 @@ export const makeAiMove = async (game: LiveGameSession) => {
         let moveExecuted = false;
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
 
-        // 놀이바둑(알까기, 컬링 등)은 전략바둑 AI와 분리하여 우선 처리 (봇이 호출되지 않는 버그 방지)
-        if (!game.isSinglePlayer) {
+        // ========== 놀이바둑 전용 AI (전략바둑/goAiBot과 완전 분리) ==========
+        // 알까기·컬링·주사위·오목·따목·도둑은 여기서만 처리. 전략바둑 AI(goAiBot) 수정 시 이 블록은 건드리지 말 것.
+        // isAiGame인 경우에도 알까기/컬링 등은 서버 AI가 동작해야 하므로 포함
+        if (!game.isSinglePlayer || game.isAiGame) {
             switch (game.mode) {
                 case types.GameMode.Alkkagi:
                     await makeAlkkagiAiMove(game);
@@ -1332,8 +1334,9 @@ export const makeAiMove = async (game: LiveGameSession) => {
             }
         }
 
+        // ========== 전략바둑/도전의탑 AI (goAiBot, makeStrategicAiMove) ==========
+        // 놀이바둑은 위 switch에서 모두 처리되며, 여기에는 진입하지 않음
         if (!moveExecuted) {
-            // 새로운 바둑 AI 봇 시스템 사용 여부 확인
             const isTower = game.gameCategory === 'tower';
             const isDungeonBot = currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-');
             const useGoAiBot = game.isSinglePlayer ||
@@ -1388,7 +1391,19 @@ export const makeAiMove = async (game: LiveGameSession) => {
             }
         }
 
-        const finalMoveCount = game.moveHistory?.length ?? initialMoveCount;
+        // 놀이바둑(알까기, 컬링 등)은 moveHistory를 사용하지 않으므로, finishAiProcessing에 0을 넣으면
+        // 다음 턴에 shouldProcessAiTurn(0)이 lastProcessedMoveCount(0)와 같아서 false가 되어 AI가 영원히 호출되지 않는 버그가 발생함.
+        // 이 모드들은 -1을 넘겨 다음 AI 턴이 막히지 않도록 함.
+        const playfulModesNoMoveHistory: GameMode[] = [
+            types.GameMode.Alkkagi,
+            types.GameMode.Curling,
+            types.GameMode.Dice,
+            types.GameMode.Omok,
+            types.GameMode.Ttamok,
+            types.GameMode.Thief,
+        ];
+        const useMoveCountForSession = !(moveExecuted && playfulModesNoMoveHistory.includes(game.mode));
+        const finalMoveCount = useMoveCountForSession ? (game.moveHistory?.length ?? initialMoveCount) : -1;
         finishAiProcessing(game.id, finalMoveCount);
     } catch (error) {
         console.error(`[makeAiMove] Error processing AI move for game ${game.id}:`, error);

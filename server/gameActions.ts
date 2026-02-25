@@ -594,6 +594,73 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             // 게임 상태 변경 후 실시간 브로드캐스트 (게임 참가자에게만 전송)
             const { broadcastToGameParticipants } = await import('./socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+
+            // 알까기 턴제 배치: 흑(유저)이 둔 직후 백(AI) 턴이면 메인 루프를 기다리지 않고 즉시 AI 배치 실행 (백이 안 두는 버그 방지)
+            const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            const { aiUserId } = await import('./aiPlayer.js');
+            const isAlkkagiPlacementAiTurn =
+                game.mode === GameMode.Alkkagi &&
+                game.isAiGame &&
+                (game.gameStatus === 'alkkagi_placement' || game.gameStatus === 'alkkagi_simultaneous_placement') &&
+                game.currentPlayer !== types.Player.None &&
+                currentPlayerId === aiUserId;
+            if (isAlkkagiPlacementAiTurn) {
+                const { makeAiMove } = await import('./aiPlayer.js');
+                const gameId = game.id;
+                setImmediate(() => {
+                    makeAiMove(game)
+                        .then(async () => {
+                            try {
+                                updateGameCache(game);
+                                await db.saveGame(game);
+                                const { broadcastToGameParticipants } = await import('./socket.js');
+                                broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
+                            } catch (e: any) {
+                                console.error('[GameActions] Alkkagi AI placement save/broadcast failed:', e?.message);
+                            }
+                        })
+                        .catch((err: any) => {
+                            console.error('[GameActions] Alkkagi AI placement makeAiMove failed:', err?.message);
+                        });
+                });
+            }
+
+            // 알까기 공격 단계: 유저가 플릭한 직후, 애니메이션(5초) 종료 시점에 AI 공격을 스케줄 (메인 루프 round-robin 대기 없이 즉시 다음 턴 처리)
+            const ALKKAGI_FLICK_DURATION_MS = 5000;
+            const isAlkkagiHumanFlick =
+                type === 'ALKKAGI_FLICK_STONE' &&
+                game.mode === GameMode.Alkkagi &&
+                game.isAiGame &&
+                game.gameStatus === 'alkkagi_animating' &&
+                game.animation?.type === 'alkkagi_flick';
+            if (isAlkkagiHumanFlick) {
+                const gameId = game.id;
+                const { getCachedGame } = await import('./gameCache.js');
+                const { updatePlayfulGameState } = await import('./modes/playful.js');
+                const { makeAiMove, aiUserId } = await import('./aiPlayer.js');
+                setTimeout(async () => {
+                    try {
+                        const g = await getCachedGame(gameId);
+                        if (!g || g.gameStatus !== 'alkkagi_animating' || (g.animation?.type !== 'alkkagi_flick')) return;
+                        const now = Date.now();
+                        await updatePlayfulGameState(g, now);
+                        const { broadcastToGameParticipants } = await import('./socket.js');
+                        updateGameCache(g);
+                        await db.saveGame(g);
+                        broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: g } }, g);
+                        const currentPlayerId = g.currentPlayer === types.Player.Black ? g.blackPlayerId : g.whitePlayerId;
+                        if (g.gameStatus === 'alkkagi_playing' && g.currentPlayer !== types.Player.None && currentPlayerId === aiUserId) {
+                            await makeAiMove(g);
+                            updateGameCache(g);
+                            await db.saveGame(g);
+                            broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: g } }, g);
+                        }
+                    } catch (e: any) {
+                        console.error('[GameActions] Alkkagi post-flick AI move failed:', e?.message);
+                    }
+                }, ALKKAGI_FLICK_DURATION_MS + 500);
+            }
+
             return result;
         }
     }

@@ -269,8 +269,10 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             delete volatileState.negotiations[negotiationId];
             
             // 게임 생성 후 게임 정보를 먼저 브로드캐스트 (게임 참가자에게만 전송)
-            const { broadcastToGameParticipants } = await import('../socket.js');
+            const { broadcastToGameParticipants, broadcastLiveGameToList } = await import('../socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            // PVP 게임이면 진행중인 대국 목록에 표시·관전 가능하도록 전체 브로드캐스트
+            if (!game.isAiGame) broadcastLiveGameToList(game);
             // 그 다음 사용자 상태 브로드캐스트
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
             broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });

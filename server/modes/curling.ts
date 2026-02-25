@@ -1,6 +1,6 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
-import { handleSharedAction, updateSharedGameState, handleTimeoutFoul } from './shared.js';
+import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePlayfulTurnTimeoutByoyomi } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
 import { CURLING_TURN_TIME_LIMIT, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
@@ -322,33 +322,29 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
             break;
         }
         case 'curling_playing': {
-            // AI 게임에서는 타임아웃 체크를 하지 않음 (유저가 버튼을 누를 때까지 무제한 대기)
-            if (game.isAiGame) {
-                // AI 게임에서는 타임아웃이 발생하지 않도록 함
-                break;
-            }
-            
-            // 일반 게임에서만 타임아웃 체크
-            if (game.curlingTurnDeadline && now > game.curlingTurnDeadline) {
+            const isAiTurnCurling = game.isAiGame && game.currentPlayer !== types.Player.None &&
+                (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
+            if (game.curlingTurnDeadline && now > game.curlingTurnDeadline && !isAiTurnCurling) {
                 const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-                const gameEnded = handleTimeoutFoul(game, timedOutPlayerId, now);
+                const { gameEnded, nextDeadlineMs } = handlePlayfulTurnTimeoutByoyomi(game, now);
                 if (gameEnded) return;
 
                 if (!game.curlingStonesLostToFoul) game.curlingStonesLostToFoul = {};
                 game.curlingStonesLostToFoul[timedOutPlayerId] = (game.curlingStonesLostToFoul[timedOutPlayerId] || 0) + 1;
-
                 game.stonesThrownThisRound![timedOutPlayerId]++;
-                
-                const bothPlayersHaveThrownAllStones = 
+
+                game.curlingTurnDeadline = now + nextDeadlineMs;
+
+                const bothPlayersHaveThrownAllStones =
                     game.stonesThrownThisRound![p1Id] >= game.settings.curlingStoneCount! &&
                     game.stonesThrownThisRound![p2Id] >= game.settings.curlingStoneCount!;
-
                 if (bothPlayersHaveThrownAllStones) {
                     endCurlingRound(game, now);
-                } else {
-                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                    game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
-                    game.turnStartTime = now;
+                }
+                if (game.isAiGame && game.gameStatus === 'curling_playing' && game.currentPlayer !== types.Player.None) {
+                    const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    if (nextPlayerId === aiUserId) game.aiTurnStartTime = now;
+                    else game.aiTurnStartTime = undefined;
                 }
             }
             break;

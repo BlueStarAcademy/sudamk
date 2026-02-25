@@ -30,7 +30,9 @@ export const initializePlayfulGame = async (game: types.LiveGameSession, neg: ty
         case types.GameMode.Alkkagi:
             game.blackTimeLeft = ALKKAGI_TURN_TIME_LIMIT;
             game.whiteTimeLeft = ALKKAGI_TURN_TIME_LIMIT;
-            
+            game.blackByoyomiPeriodsLeft = game.blackByoyomiPeriodsLeft ?? Math.max(1, game.settings.byoyomiCount ?? 3);
+            game.whiteByoyomiPeriodsLeft = game.whiteByoyomiPeriodsLeft ?? Math.max(1, game.settings.byoyomiCount ?? 3);
+
             // Comprehensive initialization to prevent null values on DB load
             game.alkkagiStones = [];
             game.alkkagiStones_p1 = [];
@@ -59,6 +61,8 @@ export const initializePlayfulGame = async (game: types.LiveGameSession, neg: ty
         case types.GameMode.Curling:
             game.blackTimeLeft = CURLING_TURN_TIME_LIMIT;
             game.whiteTimeLeft = CURLING_TURN_TIME_LIMIT;
+            game.blackByoyomiPeriodsLeft = game.blackByoyomiPeriodsLeft ?? Math.max(1, game.settings.byoyomiCount ?? 3);
+            game.whiteByoyomiPeriodsLeft = game.whiteByoyomiPeriodsLeft ?? Math.max(1, game.settings.byoyomiCount ?? 3);
             initializeCurling(game, neg, now);
             break;
         case types.GameMode.Omok:

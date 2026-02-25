@@ -507,9 +507,11 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     }
     
     // 게임 종료 및 분석 결과 브로드캐스트 (게임 참가자에게만 전송, summary 포함)
-    const { broadcastToGameParticipants } = await import('./socket.js');
+    const { broadcastToGameParticipants, broadcastLiveGameToList } = await import('./socket.js');
     console.log(`[endGame] Broadcasting game ${freshGame.id} with summary: ${JSON.stringify(freshGame.summary)}`);
     broadcastToGameParticipants(freshGame.id, { type: 'GAME_UPDATE', payload: { [freshGame.id]: freshGame } }, freshGame);
+    // PVP 종료 시 진행중인 대국 목록에서 제거되도록 전체에 경량 업데이트
+    if (!freshGame.isAiGame) broadcastLiveGameToList(freshGame);
 };
 
 // 행동력 환불 함수
@@ -858,6 +860,10 @@ const processPlayerSummary = async (
     
     // Apply the multiplier to XP
     xpGain = Math.round(xpGain * rewardMultiplier);
+    // 랭킹전이 아닌 PVP(전략바둑·놀이바둑 친선전)에서는 경험치도 25%로 감소
+    if (!isNoContest && !game.isRankedGame && !isAiGame && (isStrategic || isPlayful)) {
+        xpGain = Math.round(xpGain * 0.25);
+    }
     // --- END NEW LOGIC ---
 
     let currentXp = initialXp + xpGain;
@@ -1010,9 +1016,9 @@ const processPlayerSummary = async (
         ? { gold: 0, items: [] }
         : calculateGameRewards(game, updatedPlayer, isWinner, isDraw, itemDropBonus, materialDropBonus, rewardMultiplier, effects);
 
-    // 친선전(랭킹전 제외)에서는 골드 보상만 절반으로 감소 (아이템 획득 확률은 유지)
+    // 랭킹전 매칭이 아닌 PVP(전략바둑·놀이바둑 친선전)에서는 보상을 25%로 감소. 랭킹전만 100% 보상.
     if (!isNoContest && !game.isRankedGame && !isAiGame) {
-        rewards.gold = Math.round(rewards.gold * 0.5);
+        rewards.gold = Math.round(rewards.gold * 0.25);
     }
 
     // PVP 게임에서 변경권 획득 로직 (전략바둑, 놀이바둑 PVP 모드만)

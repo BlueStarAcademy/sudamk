@@ -962,14 +962,18 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 return { error: '이미 수령한 보상입니다.' };
             }
 
-            
+            // 동시 요청 시 중복 수령 방지: 보상 지급 전에 즉시 수령 기록(await 없이)
+            guild.dailyCheckInRewardsClaimed.push({ userId: effectiveUserId, milestoneIndex });
+
             // 최신 사용자 데이터를 다시 로드하여 보스전 등에서 받은 길드코인을 반영
             const freshUser = await db.getUser(user.id);
-            if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
+            if (!freshUser) {
+                guild.dailyCheckInRewardsClaimed.pop(); // 수령 기록 롤백
+                return { error: '사용자를 찾을 수 없습니다.' };
+            }
             
             freshUser.guildCoins = (freshUser.guildCoins || 0) + milestone.reward.guildCoins;
             user.guildCoins = freshUser.guildCoins; // user 객체도 동기화
-            guild.dailyCheckInRewardsClaimed.push({ userId: effectiveUserId, milestoneIndex });
 
             await db.setKV('guilds', guilds);
             
@@ -1289,6 +1293,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 if (!user.isAdmin) { user.guildCoins = (user.guildCoins || 0) + itemToBuy.cost; } // Refund
                 return { error: '?�벤?�리 공간??부족합?�다.' };
             }
+            user.inventory = updatedInventory;
             
             // DB ?�데?�트�?비동기로 처리 (?�답 지??최소??
             db.updateUser(user).catch(err => {
@@ -1380,6 +1385,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 user.guildCoins = (user.guildCoins || 0) + totalCost; // Refund
                 return { error: '?�벤?�리 공간??부족합?�다.' };
             }
+            user.inventory = updatedInventory;
 
                 // DB ?�데?�트�?비동기로 처리 (?�답 지??최소??
                 db.updateUser(user).catch(err => {

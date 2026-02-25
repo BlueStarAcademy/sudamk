@@ -2560,11 +2560,11 @@ const startServer = async () => {
         try {
             const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false });
             
-            // 1층 이상 클리어한 사람만 필터링
+            // 10층 돌파(클리어)한 사람만 랭킹에 표시
             const eligibleUsers = allUsers
                 .filter(user => {
                     const towerFloor = (user as any).towerFloor ?? 0;
-                    return towerFloor > 0;
+                    return towerFloor >= 10;
                 })
                 .map(user => ({
                     id: user.id,

@@ -1072,10 +1072,10 @@ export const analyzeGame = async (
             try {
                 response = await queryKataGoViaHttp(query);
                 const duration = Date.now() - startTime;
-                console.log(`[KataGo] HTTP API request completed in ${duration}ms`);
+                console.log(`[KataGo] 계가 API 호출 소요: ${(duration / 1000).toFixed(2)}초 (${duration}ms)`);
             } catch (httpError: any) {
                 const duration = Date.now() - startTime;
-                console.error(`[KataGo] HTTP API request failed after ${duration}ms:`, httpError.message);
+                console.error(`[KataGo] HTTP API request failed after ${(duration / 1000).toFixed(2)}초 (${duration}ms):`, httpError.message);
                 throw httpError;
             }
         } else {
@@ -1085,13 +1085,18 @@ export const analyzeGame = async (
                 // 로컬 환경에서 KATAGO_API_URL이 설정되어 있으면 HTTP API 사용
                 if (KATAGO_API_URL) {
                     console.log(`[KataGo] Local environment detected. Using HTTP API: ${KATAGO_API_URL}`);
+                    const startTime = Date.now();
                     response = await queryKataGoViaHttp(query, KATAGO_API_URL);
+                    const duration = Date.now() - startTime;
+                    console.log(`[KataGo] 계가 API 호출 소요: ${(duration / 1000).toFixed(2)}초 (${duration}ms)`);
                 } else {
                     // 로컬 환경에서 KATAGO_API_URL이 없으면 로컬 프로세스 사용 시도
                     console.log(`[KataGo] Local environment detected. Attempting to use local KataGo process...`);
                     try {
+                        const startTime = Date.now();
                         response = await getKataGoManager().query(query);
-                        console.log(`[KataGo] Successfully used local KataGo process in local environment.`);
+                        const duration = Date.now() - startTime;
+                        console.log(`[KataGo] 계가 로컬 프로세스 소요: ${(duration / 1000).toFixed(2)}초 (${duration}ms)`);
                     } catch (localError: any) {
                         console.error(`[KataGo] Failed to use local KataGo process: ${localError.message}`);
                         console.error(`[KataGo] To use HTTP API instead, set KATAGO_API_URL environment variable.`);
@@ -1101,10 +1106,13 @@ export const analyzeGame = async (
             } else {
                 // 배포 환경에서 로컬 프로세스 사용
                 console.log(`[KataGo] Using local KataGo process (not HTTP API)`);
+                const startTime = Date.now();
                 response = await getKataGoManager().query(query);
+                const duration = Date.now() - startTime;
+                console.log(`[KataGo] 계가 로컬 프로세스 소요: ${(duration / 1000).toFixed(2)}초 (${duration}ms)`);
             }
         }
-        
+
         console.log(`[KataGo] Analysis query completed for game ${session.id}`);
         return kataGoResponseToAnalysisResult(session, response, isCurrentPlayerWhite);
     } catch (error) {
