@@ -656,7 +656,7 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
                     }
                 }
             }
-            return {};
+            return { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
         }
         case 'CONFIRM_ROUND_END': {
             if (game.gameStatus !== 'thief_round_end') return { error: "Not in round end confirmation phase." };

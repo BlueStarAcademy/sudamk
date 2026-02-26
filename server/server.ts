@@ -297,23 +297,6 @@ const startServer = async () => {
             }
         }
         
-        // DATABASE_URL이 있을 때만 데이터베이스 연결 상태 주기적 확인 (없으면 isDatabaseConnected 호출 시 Prisma 에러 반복 방지)
-        if (dbUrl) {
-            let lastDbConnectionStatus: boolean | null = null;
-            setInterval(async () => {
-                const connected = await db.isDatabaseConnected();
-                // 연결 상태가 변경되었을 때만 로그 출력 (스팸 방지)
-                if (lastDbConnectionStatus !== null && lastDbConnectionStatus !== connected) {
-                    if (!connected) {
-                        console.warn(`[Server Startup] Database connection status: DISCONNECTED (will retry in background)`);
-                    } else {
-                        console.log(`[Server Startup] Database connection status: CONNECTED`);
-                    }
-                }
-                lastDbConnectionStatus = connected;
-            }, 30000); // 30초마다 확인
-        }
-        
         // --- Initialize Database on Start ---
         try {
             // Railway 환경에서는 데이터베이스 연결이 더 오래 걸릴 수 있으므로 타임아웃 증가
@@ -326,6 +309,21 @@ const startServer = async () => {
             await Promise.race([db.initializeDatabase(), dbTimeout]);
             dbInitialized = true;
             console.log('[Server Startup] Database initialized successfully');
+            // DB 초기화 완료 후에만 연결 상태 주기 확인 시작 (Prisma 엔진 준비 전 호출 방지)
+            if (dbUrl) {
+                let lastDbConnectionStatus: boolean | null = null;
+                setInterval(async () => {
+                    const connected = await db.isDatabaseConnected();
+                    if (lastDbConnectionStatus !== null && lastDbConnectionStatus !== connected) {
+                        if (!connected) {
+                            console.warn(`[Server Startup] Database connection status: DISCONNECTED (will retry in background)`);
+                        } else {
+                            console.log(`[Server Startup] Database connection status: CONNECTED`);
+                        }
+                    }
+                    lastDbConnectionStatus = connected;
+                }, 30000);
+            }
             // 서버 시작 시 고아 게임 정리 (접속자가 없으므로 안전)
             try {
                 const cleaned = await db.cleanupOrphanedGamesInDb();

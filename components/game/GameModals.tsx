@@ -53,17 +53,15 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             return <NegotiationModal negotiation={activeNegotiation} currentUser={currentUser} onAction={onAction} onlineUsers={onlineUsers} />;
         }
 
-        // 싱글플레이: showResultModal이 true이거나 ended 상태일 때만 SinglePlayerSummaryModal 표시
-        // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지 (바둑판 초기화 방지)
-        // 확인 버튼을 눌렀을 때 모달이 닫히도록 하기 위해 showResultModal이 명시적으로 false일 때는 모달을 표시하지 않음
-        if (session.isSinglePlayer && showResultModal !== false && (showResultModal || gameStatus === 'ended')) {
+        // 싱글플레이: showResultModal이 true이거나 ended/scoring 상태일 때 SinglePlayerSummaryModal 표시
+        // scoring 상태에서도 모달을 열어 22초 계가 연출(진행 막대 등)을 모든 계가 중 화면에 동일 적용
+        if (session.isSinglePlayer && showResultModal !== false && (showResultModal || gameStatus === 'ended' || gameStatus === 'scoring')) {
             return <SinglePlayerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
 
-        // 도전의 탑: showResultModal이 true이거나 ended 상태일 때만 TowerSummaryModal 표시
-        // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지 (바둑판 초기화 방지)
-        // 확인 버튼을 눌렀을 때 모달이 닫히도록 하기 위해 showResultModal이 명시적으로 false일 때는 모달을 표시하지 않음
-        if (session.gameCategory === 'tower' && showResultModal !== false && (showResultModal || gameStatus === 'ended')) {
+        // 도전의 탑: showResultModal이 true이거나 ended/scoring 상태일 때 TowerSummaryModal 표시
+        // scoring 상태에서도 모달을 열어 22초 계가 연출을 모든 계가 중 화면에 동일 적용
+        if (session.gameCategory === 'tower' && showResultModal !== false && (showResultModal || gameStatus === 'ended' || gameStatus === 'scoring')) {
             return <TowerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
         

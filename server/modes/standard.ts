@@ -113,9 +113,9 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
             
             if (isInByoyomi && game.turnDeadline) {
                 // 초읽기 모드에서 수를 두었던 플레이어가 다시 차례가 오면, 초읽기 시간을 30초로 리셋
-                // (초읽기 모드에서 수를 두면 다음 턴에서 30초로 꽉 채워짐)
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 game.turnStartTime = now;
+                (game as any)._broadcastByoyomiStart = true; // 클라이언트 타이머가 풀 초부터 시작하도록 즉시 브로드캐스트
             }
         }
     }
@@ -131,17 +131,17 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
         } else if (game[timeKey] > 0) { // Main time expired -> enter byoyomi without consuming a period
             game[timeKey] = 0;
             if (game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0) {
-                // 초읽기 모드로 진입하되 횟수를 차감하지 않음 (그래프가 다시 회복되면서 초읽기 모드 시작)
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 game.turnStartTime = now;
+                (game as any)._broadcastByoyomiStart = true;
                 return;
             }
         } else { // Byoyomi expired
             if (game[byoyomiKey] > 1) {
-                // 2회 이상 남았을 때만 차감 후 추가 시간 부여; 1회 남은 상태에서 만료되면 즉시 패배
                 game[byoyomiKey]--;
                 game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                 game.turnStartTime = now;
+                (game as any)._broadcastByoyomiStart = true;
                 return;
             }
             // 초읽기 횟수가 0이 되는 순간(1회 남은 상태에서 시간 만료) 바로 패배 처리

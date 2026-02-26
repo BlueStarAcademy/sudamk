@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 // FIX: Import missing types from the centralized types file.
 import { LiveGameSession, Player, GameMode } from '../types/index.js';
 
@@ -13,6 +13,8 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
     const initialBlackTime = session.gameStatus === 'pending' && !session.blackTimeLeft ? defaultTime : coerce(session.blackTimeLeft);
     const initialWhiteTime = session.gameStatus === 'pending' && !session.whiteTimeLeft ? defaultTime : coerce(session.whiteTimeLeft);
     const [clientTimes, setClientTimes] = useState({ black: initialBlackTime, white: initialWhiteTime });
+    /** 현재 턴에서 사용 중인 마감 시각(ms). 서버 timeLeft가 더 작게 와도 뒤로 점프하지 않도록 유지 */
+    const deadlineRef = useRef<{ deadline: number; player: Player; gameId: string } | null>(null);
 
     useEffect(() => {
         const isGameEnded = ['ended', 'no_contest', 'scoring'].includes(session.gameStatus);
@@ -62,7 +64,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
         }
 
         // 아이템 사용시간은 선수패널에 표시하지 않음 (헷갈리지 않도록)
-        const baseDeadline = session.turnDeadline
+        let baseDeadline = session.turnDeadline
             || session.alkkagiTurnDeadline
             || session.curlingTurnDeadline
             || session.alkkagiPlacementDeadline
@@ -71,6 +73,56 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             || session.basePlacementDeadline
             || session.captureBidDeadline;
             // || session.itemUseDeadline; // 아이템 사용시간은 선수패널에 표시하지 않음
+
+        const playingStatuses = ['playing', 'hidden_placing'];
+        const now = Date.now();
+        const curPlayer = session.currentPlayer;
+
+        // 턴/게임이 바뀌면 이전 턴 기준 마감 ref 초기화
+        if (deadlineRef.current && (deadlineRef.current.gameId !== session.id || deadlineRef.current.player !== curPlayer)) {
+            deadlineRef.current = null;
+        }
+
+        const defaultTimeForTurn = session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0;
+        const serverTimeLeft = curPlayer === Player.Black
+            ? (session.blackTimeLeft != null ? coerce(session.blackTimeLeft) : defaultTimeForTurn)
+            : (session.whiteTimeLeft != null ? coerce(session.whiteTimeLeft) : defaultTimeForTurn);
+
+        // turnDeadline이 없을 때: 서버 timeLeft로 마감 시각 생성. 단, 이미 더 여유 있는 ref가 있으면 뒤로 점프하지 않음
+        if (!baseDeadline && playingStatuses.includes(session.gameStatus) && (curPlayer === Player.Black || curPlayer === Player.White)) {
+            if (serverTimeLeft > 0) {
+                const fromRef = deadlineRef.current?.gameId === session.id && deadlineRef.current?.player === curPlayer
+                    ? deadlineRef.current.deadline
+                    : null;
+                const refRemaining = fromRef != null && fromRef > now ? (fromRef - now) / 1000 : 0;
+                if (fromRef != null && fromRef > now && refRemaining > serverTimeLeft) {
+                    baseDeadline = fromRef; // 서버가 더 작게 와도 표시만 연속 유지
+                } else {
+                    baseDeadline = now + serverTimeLeft * 1000;
+                    deadlineRef.current = { deadline: baseDeadline, player: curPlayer, gameId: session.id };
+                }
+            }
+        }
+        // turnDeadline이 이미 지났을 때: 서버 timeLeft로 보정. 마찬가지로 뒤로 점프 방지
+        if (baseDeadline && baseDeadline < now && playingStatuses.includes(session.gameStatus) && (curPlayer === Player.Black || curPlayer === Player.White)) {
+            if (serverTimeLeft > 0) {
+                const fromRef = deadlineRef.current?.gameId === session.id && deadlineRef.current?.player === curPlayer
+                    ? deadlineRef.current.deadline
+                    : null;
+                const refRemaining = fromRef != null && fromRef > now ? (fromRef - now) / 1000 : 0;
+                if (fromRef != null && fromRef > now && refRemaining > serverTimeLeft) {
+                    baseDeadline = fromRef;
+                } else {
+                    baseDeadline = now + serverTimeLeft * 1000;
+                    deadlineRef.current = { deadline: baseDeadline, player: curPlayer, gameId: session.id };
+                }
+            }
+        }
+
+        // 서버에서 내려준 미래 turnDeadline이 있으면 그걸 기준으로 하고 ref 갱신 (풀 시간 반영)
+        if (baseDeadline && baseDeadline > now && (curPlayer === Player.Black || curPlayer === Player.White)) {
+            deadlineRef.current = { deadline: baseDeadline, player: curPlayer, gameId: session.id };
+        }
 
         if (!baseDeadline) {
             // deadline이 없으면 서버 시간 사용, 없으면 설정에서 기본값 사용

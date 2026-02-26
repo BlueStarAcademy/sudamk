@@ -1139,13 +1139,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const moveIndex = moveHistory ? findMoveIndexAt({ moveHistory } as LiveGameSession, x, y) : -1;
                     const isHiddenMove = hiddenMoves && moveIndex !== -1 && hiddenMoves[moveIndex];
                     const isPermanentlyRevealed = permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
-                    
+                    // 히든 돌 표시 규칙 (모든 히든 사용 경기 공통): 상대에게는 기본 비공개, 스캔 시 반투명, 착수/포착 시 전체 공개
                     let isVisible = true;
                     if (isHiddenMove) {
                         if (isSpectator) {
                             isVisible = isGameFinished || !!isPermanentlyRevealed;
                         } else {
-                            const isMyScanned = !isSpectator && myRevealedStones?.some(p => p.x === x && p.y === y);
+                            const isMyScanned = myRevealedStones?.some(p => p.x === x && p.y === y);
                             const isNewlyRevealed = newlyRevealed?.some(nr => nr.point.x === x && nr.point.y === y);
                             isVisible = isGameFinished || !!isPermanentlyRevealed || actualPlayer === myPlayerEnum || !!isMyScanned || !!isNewlyRevealed;
                         }
@@ -1163,8 +1163,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     }
                     
                     const isNewlyRevealedForAnim = newlyRevealed?.some(nr => nr.point.x === x && nr.point.y === y);
-                    // 싱글플레이어에서 유저의 히든 돌은 반투명으로 표시 (비공개 상태)
-                    // PVP에서는 스캔한 히든 돌만 반투명으로 표시
+                    // 반투명: 내가 둔 히든 돌(비공개 상태) 또는 스캔으로만 안 돌만. 영구 공개/방금 공개된 돌은 선명하게
                     const isFaint = !isSpectator && (
                         (myRevealedStones?.some(p => p.x === x && p.y === y) && !isPermanentlyRevealed) ||
                         (isHiddenMove && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
@@ -1274,32 +1273,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 {renderDeadStoneMarkers()}
                 {renderTerritoryMarkers()}
                 {showHintOverlay && !isBoardDisabled && analysisResult?.recommendedMoves?.map(move => ( <RecommendedMoveMarker key={`rec-${move.order}`} move={move} toSvgCoords={toSvgCoords} cellSize={cell_size} onClick={onBoardClick} /> ))}
-                {gameStatus === 'scoring' && !analysisResult && (
-                    <g>
-                        <rect 
-                            x={boardSizePx / 2 - 100} 
-                            y={boardSizePx / 2 - 30} 
-                            width={200} 
-                            height={60} 
-                            fill="rgba(0, 0, 0, 0.7)" 
-                            rx={10}
-                            stroke="rgba(255, 255, 255, 0.3)"
-                            strokeWidth="2"
-                        />
-                        <text 
-                            x={boardSizePx / 2} 
-                            y={boardSizePx / 2} 
-                            textAnchor="middle" 
-                            dominantBaseline="middle"
-                            fill="white"
-                            fontSize="24"
-                            fontWeight="bold"
-                            className="animate-pulse"
-                        >
-                            계가 중...
-                        </text>
-                    </g>
-                )}
             </svg>
             </div>
         </div>

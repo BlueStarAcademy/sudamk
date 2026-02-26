@@ -166,8 +166,12 @@ class AiProcessingQueue {
             }
 
             // 백(AI) 차례일 때 1초 생각하는 연출
-            if (game.currentPlayer === Player.White) {
-                // 1초 대기 (생각하는 연출)
+            const isPlacingStones = game.gameStatus === 'dice_placing' || game.gameStatus === 'thief_placing';
+            if (game.currentPlayer === Player.White && !isPlacingStones) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            // 주사위/도둑 착수 시에도 매 돌마다 1초 텀 (첫 돌·두 번째 돌 모두 1초 후에 두기)
+            if (isPlacingStones) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
@@ -182,6 +186,11 @@ class AiProcessingQueue {
             // 브로드캐스트 (게임 참가자에게만 전송)
             const { broadcastToGameParticipants } = await import('./socket.js');
             broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
+
+            // 주사위 바둑/도둑과 경찰: 남은 돌이 있으면 1초 후 한 개씩 두는 연출을 위해 재등록
+            if ((game.gameStatus === 'dice_placing' || game.gameStatus === 'thief_placing') && (game.stonesToPlace ?? 0) > 0) {
+                setTimeout(() => this.enqueue(gameId), 1000);
+            }
         } catch (error) {
             console.error(`[AI Queue] Error processing AI move for game ${gameId}:`, error);
         }

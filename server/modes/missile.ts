@@ -421,11 +421,14 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                 return { error: "Not your turn to use an item." };
             }
             
-            // 미사일 아이템 개수 확인 (인벤토리에서 확인)
-            // TODO: 인벤토리에서 미사일 아이템 개수 확인 로직 추가 필요
-            // 현재는 게임 모드의 미사일 개수로 확인
+            // 미사일 아이템 개수 확인 (게임별 missiles_p1/p2 또는 설정 상한)
             const missileKey = user.id === game.player1.id ? 'missiles_p1' : 'missiles_p2';
-            const myMissilesLeft = game[missileKey] ?? game.settings.missileCount ?? 0;
+            let myMissilesLeft = game[missileKey];
+            if (myMissilesLeft == null) {
+                // 도전의 탑 등: DB/캐시에서 미설정일 수 있음 → 설정 상한으로 허용
+                myMissilesLeft = game.settings.missileCount ?? 0;
+                (game as any)[missileKey] = myMissilesLeft;
+            }
             if (myMissilesLeft <= 0) {
                 console.warn(`[Missile Go] START_MISSILE_SELECTION failed: no missiles left, gameId=${game.id}`);
                 return { error: "No missiles left." };

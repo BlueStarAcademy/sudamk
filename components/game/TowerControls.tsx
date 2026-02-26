@@ -8,6 +8,7 @@ import { shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     showResultModal?: boolean;
     setShowResultModal?: (show: boolean) => void;
+    setConfirmModalType?: (type: 'resign' | null) => void;
 }
 
 interface ImageButtonProps {
@@ -41,8 +42,9 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
     );
 };
 
-const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, currentUser, showResultModal, setShowResultModal }) => {
+const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, currentUser, showResultModal, setShowResultModal, setConfirmModalType }) => {
     const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
+    const [passConfirmModal, setPassConfirmModal] = useState(false);
     const floor = session.towerFloor ?? 1;
     const stage = TOWER_STAGES.find(s => {
         const stageFloor = parseInt(s.id.replace('tower-', ''));
@@ -142,16 +144,51 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     };
 
     const handleForfeit = () => {
-        if (window.confirm('경기를 포기하시겠습니까?')) {
-            window.location.hash = '#/tower';
+        setConfirmModalType?.('resign');
+    };
+
+    const handlePassClick = () => {
+        if (floor > 20) return; // 21층 이상에서는 통과 비활성
+        setPassConfirmModal(true);
+    };
+
+    const handlePassConfirm = () => {
+        setPassConfirmModal(false);
+        const gameStatus = session.gameStatus;
+        if (gameStatus !== 'playing') return;
+        const currentPassCount = (session.passCount || 0) + 1;
+        if (currentPassCount >= 2) {
+            onAction({
+                type: 'REQUEST_SCORING',
+                payload: {
+                    gameId: session.id,
+                    boardState: session.boardState,
+                    moveHistory: session.moveHistory || [],
+                    settings: session.settings
+                }
+            } as any);
+        } else {
+            onAction({
+                type: 'TOWER_CLIENT_MOVE',
+                payload: {
+                    gameId: session.id,
+                    x: -1,
+                    y: -1,
+                    newBoardState: session.boardState,
+                    capturedStones: [],
+                    newKoInfo: session.koInfo,
+                    isPass: true
+                }
+            } as any);
         }
     };
 
-    // 도전의 탑 아이템: 인벤토리에서 도전의 탑 전용(source:'tower') 개수만 합산
+    // 도전의 탑 아이템: 로비·가방과 동일하게 이름/id 기준으로 보유 개수 합산 (source 무관)
     const inventory = currentUser?.inventory || [];
-    const getItemCount = (itemName: string): number => {
-        return inventory
-            .filter((inv: any) => (inv.name === itemName || inv.id === itemName) && inv.source === 'tower')
+    const getItemCount = (namesOrIds: string | string[]): number => {
+        const list = Array.isArray(namesOrIds) ? namesOrIds : [namesOrIds];
+        return (inventory as any[])
+            .filter((inv: any) => list.some((n: string) => inv.name === n || inv.id === n))
             .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
     };
 
@@ -159,9 +196,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const gameStatus = session.gameStatus;
     const showMissileAndHidden = floor >= 21;
     const showTurnAdd = floor <= 20; // 1~20층에서만 턴 추가 아이템 표시
+    // 21층부터는 AI가 통과를 쓰지 않음(턴 제한 자동 계가) → 사람도 통과 불가 (영토 메우기 비대칭 방지)
+    const passAllowed = floor <= 20;
 
-    // 턴 추가 아이템 (1~20층, 제한 없음) - 로비 인벤토리와 동기화
-    const turnAddCount = showTurnAdd ? getItemCount('턴 추가') || getItemCount('턴증가') || getItemCount('turn_add') || getItemCount('turn_add_item') : 0;
+    // 턴 추가 아이템 (1~20층, 제한 없음) - 로비·가방과 동기화
+    const turnAddCount = showTurnAdd ? getItemCount(['턴 추가', '턴증가', 'turn_add', 'turn_add_item']) : 0;
     const turnAddDisabled = gameStatus !== 'playing' || turnAddCount <= 0;
     
     const handleUseTurnAdd = () => {
@@ -171,8 +210,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         }
     };
 
-    // 미사일 아이템 (21층 이상, 최대 2개) - 로비 인벤토리와 동기화
-    const missileCount = showMissileAndHidden ? getItemCount('미사일') || getItemCount('missile') : 0;
+    // 미사일 아이템 (21층 이상, 최대 2개) - 로비·가방과 동기화
+    const missileCount = showMissileAndHidden ? getItemCount(['미사일', 'missile']) : 0;
     const missileMaxCount = 2;
     const myMissilesLeft = session.missiles_p1 ?? missileCount;
     const missileDisabled = !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
@@ -182,8 +221,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
     };
     
-    // 히든 아이템 (21층 이상, 최대 2개) - 로비 인벤토리와 동기화
-    const hiddenCount = showMissileAndHidden ? getItemCount('히든') || getItemCount('hidden') : 0;
+    // 히든 아이템 (21층 이상, 최대 2개) - 로비·가방과 동기화
+    const hiddenCount = showMissileAndHidden ? getItemCount(['히든', 'hidden']) : 0;
     const hiddenMaxCount = 2;
     // 히든 아이템 (스캔 아이템처럼 개수 기반)
     const hiddenLeft = session.hidden_stones_p1 ?? hiddenCount;
@@ -194,16 +233,15 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
     };
     
-    // 배치변경 아이템 (모든 층, 최대 5개) - 비용/제한 없이 보유 개수만 체크
-    // 첫 수를 두기 전에만 사용 가능
-    const refreshCount = getItemCount('배치 새로고침') || getItemCount('배치변경') || getItemCount('reflesh') || getItemCount('refresh');
+    // 배치변경 아이템 (모든 층, 최대 5개) - 로비·가방과 동기화
+    const refreshCount = getItemCount(['배치 새로고침', '배치변경', 'reflesh', 'refresh']);
     const refreshMaxCount = 5;
     const canUseRefresh = session.moveHistory && session.moveHistory.length === 0 && session.gameStatus === 'playing' && session.currentPlayer === Player.Black;
     const refreshDisabled = refreshCount <= 0 || !canUseRefresh;
 
 	return (
 		<footer className="responsive-controls flex-shrink-0 bg-stone-800/70 backdrop-blur-sm rounded-xl p-3 flex items-stretch justify-between gap-4 w-full min-h-[148px] border border-stone-700/50">
-			{/* Left group: 기권, 배치변경 (가운데 정렬) */}
+			{/* Left group: 기권, 통과, 배치변경 (가운데 정렬) */}
 			<div className="flex-1 flex items-center justify-center gap-6">
                 <div className="flex flex-col items-center gap-1">
                     <ImageButton
@@ -214,6 +252,18 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                     />
 					<span className="text-[11px] font-semibold text-red-300">기권</span>
                 </div>
+				{passAllowed && (
+                    <div className="flex flex-col items-center gap-1">
+                        <ImageButton
+                            src="/images/button/pass.png"
+                            alt="통과"
+                            onClick={handlePassClick}
+                            disabled={!isMyTurn || gameStatus !== 'playing'}
+                            title="한 수 쉬기"
+                        />
+                        <span className={`text-[11px] font-semibold ${!isMyTurn || gameStatus !== 'playing' ? 'text-gray-500' : 'text-amber-100'}`}>통과</span>
+                    </div>
+                )}
                 <div className="flex flex-col items-center gap-1">
                     <ImageButton
                         src="/images/button/reflesh.png"
@@ -233,7 +283,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             {refreshConfirmModal && (
                 <ConfirmModal
                     title="배치변경"
-                    message="이용 가격: 배치 새로고침 1개\n\n배치 새로고침 아이템 1개를 사용하여 배치를 다시 섞으시겠습니까?"
+                    message={`이용 가격: 배치 새로고침 1개
+배치 새로고침 아이템 1개를 사용하여 배치를 다시 섞으시겠습니까?`}
                     onConfirm={handleRefreshConfirm}
                     onCancel={() => setRefreshConfirmModal(false)}
                     confirmText="확인"
@@ -241,6 +292,21 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                     confirmColorScheme="red"
                     isTopmost={true}
                     windowId="tower-refresh-confirm-modal"
+                />
+            )}
+            {passConfirmModal && (
+                <ConfirmModal
+                    title="통과 확인"
+                    message={(session.passCount || 0) >= 1
+                        ? "양측 연속 통과 시 계가로 진행됩니다. 통과하시겠습니까?"
+                        : "한 수 쉬시겠습니까? 통과하면 상대(AI)에게 차례가 넘어갑니다."}
+                    onConfirm={handlePassConfirm}
+                    onCancel={() => setPassConfirmModal(false)}
+                    confirmText="통과"
+                    cancelText="취소"
+                    confirmColorScheme="accent"
+                    isTopmost={true}
+                    windowId="tower-pass-confirm-modal"
                 />
             )}
 

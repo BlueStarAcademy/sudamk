@@ -1,5 +1,5 @@
-import React from 'react';
-import { GameProps, Player, Point } from '../../types.js';
+import React, { useMemo } from 'react';
+import { GameProps, Player, Point, Move } from '../../types.js';
 import GoBoard from '../GoBoard.js';
 
 interface SinglePlayerArenaProps extends GameProps {
@@ -51,8 +51,23 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         permanentlyRevealedStones,
         newlyRevealed,
         moveHistory,
+        revealedHiddenMoves,
+        justCaptured,
+        baseStones,
+        baseStones_p1,
+        baseStones_p2,
     } = session;
-    
+
+    const myRevealedStones = useMemo(() => {
+        if (!moveHistory || !revealedHiddenMoves || !currentUser?.id) return [];
+        const indices = revealedHiddenMoves[currentUser.id];
+        if (!Array.isArray(indices)) return [];
+        return indices
+            .map((index: number) => moveHistory[index])
+            .filter((move: Move | undefined): move is Move => !!move)
+            .map((move: Move) => ({ x: move.x, y: move.y }));
+    }, [moveHistory, revealedHiddenMoves, currentUser?.id]);
+
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player2 : player1;
 
@@ -99,6 +114,11 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     moveHistory={moveHistory}
                     permanentlyRevealedStones={permanentlyRevealedStones}
                     newlyRevealed={newlyRevealed}
+                    myRevealedStones={myRevealedStones}
+                    justCaptured={justCaptured}
+                    baseStones={baseStones}
+                    baseStones_p1={gameStatus === 'base_placement' ? baseStones_p1 : undefined}
+                    baseStones_p2={gameStatus === 'base_placement' ? baseStones_p2 : undefined}
                     analysisResult={session.analysisResult?.[currentUser.id] ?? ((gameStatus === 'ended' || (gameStatus === 'scoring' && session.analysisResult?.['system'])) ? session.analysisResult?.['system'] : null)}
                     showTerritoryOverlay={showTerritoryOverlay}
                     isSinglePlayer={true}

@@ -1,5 +1,6 @@
 // 랭킹 데이터 캐싱 시스템
 import * as db from './db.js';
+import { ensurePrismaEngineReady } from './prisma/gameService.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/index.js';
 
 interface RankingEntry {
@@ -86,6 +87,8 @@ export async function buildRankingCache(): Promise<RankingCache> {
             });
             
             const buildPromise = (async () => {
+                // Prisma 엔진이 준비될 때까지 대기 (Windows 등에서 "Engine is not yet connected" 방지)
+                await ensurePrismaEngineReady();
                 // inventory/equipment 없이 사용자 목록 가져오기 (더 빠름)
                 // 타임아웃 추가 (30초)
                 const usersTimeout = new Promise<any[]>((_, reject) => {

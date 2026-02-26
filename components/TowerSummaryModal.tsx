@@ -361,11 +361,6 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         {isWinner ? '도전 성공' : '도전 실패'}
                     </h1>
                 )}
-                {isScoring && !analysisResult && (
-                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-blue-300`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
-                        계가 중...
-                    </h1>
-                )}
                 {!isScoring && !isEnded && !analysisResult && session.winner === null && (
                     <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-gray-300`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
                         게임 결과
@@ -396,7 +391,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             )}
                             {/* 계가 결과 — 전략바둑과 동일한 22초 진행 연출 */}
                             {isScoring && !analysisResult && (
-                                <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+                                <div className="flex-1 flex flex-col items-center justify-center min-h-[200px]">
                                     <ScoringOverlay variant="inline" />
                                 </div>
                             )}

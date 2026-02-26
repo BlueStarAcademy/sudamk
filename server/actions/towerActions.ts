@@ -416,6 +416,19 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             // currentPlayer를 Black으로 설정 (유저가 항상 Black으로 시작)
             game.currentPlayer = Player.Black;
             
+            // 21층 이상: 미사일/히든 개수를 로비·가방 인벤토리와 동기화 (스테이지 상한 적용)
+            const floor = game.towerFloor ?? 1;
+            if (floor >= 21) {
+                const inv = user.inventory || [];
+                const countItems = (namesOrIds: string[]) =>
+                    inv.filter((item: any) => namesOrIds.some((n: string) => item.name === n || item.id === n))
+                        .reduce((sum: number, item: any) => sum + (item.quantity ?? 0), 0);
+                const missileCap = (game.settings as any).missileCount ?? 2;
+                const hiddenCap = (game.settings as any).hiddenStoneCount ?? 2;
+                (game as any).missiles_p1 = Math.min(missileCap, countItems(['미사일', 'missile']));
+                (game as any).hidden_stones_p1 = Math.min(hiddenCap, countItems(['히든', 'hidden']));
+            }
+            
             if (game.settings.timeLimit > 0) {
                 const blackTimeLeft = game.settings.timeLimit * 60;
                 const whiteTimeLeft = game.settings.timeLimit * 60;
@@ -458,43 +471,46 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
         }
         case 'TOWER_REFRESH_PLACEMENT': {
             const { gameId } = payload;
-            const game = await db.getLiveGame(gameId);
+            const { getCachedGame, updateGameCache } = await import('../gameCache.js');
+            let game = await getCachedGame(gameId);
+            if (!game) {
+                game = await db.getLiveGame(gameId);
+            }
             if (!game) {
                 return { error: 'Game not found.' };
             }
-            
+
             if (game.gameCategory !== 'tower') {
                 return { error: 'Not a tower game.' };
             }
-            
+
             // 첫 수를 두기 전에만 배치변경 가능
             if (game.gameStatus !== 'playing' || game.currentPlayer !== Player.Black || (game.moveHistory && game.moveHistory.length > 0)) {
                 return { error: '배치는 첫 수 전에만 새로고침할 수 있습니다.' };
             }
-            
-            // 배치변경 아이템 사용 가능 여부 확인 및 소모 (도전의 탑 전용 아이템만 사용)
-            const itemName = '배치 새로고침';
+
+            // 배치변경 아이템 사용 가능 여부 확인 및 소모 (로비·가방과 동일: 이름/id 일치 시 사용, source는 tower 또는 미지정)
             const inventory = user.inventory || [];
-            const itemIndex = inventory.findIndex((item: any) => 
-                (item.name === itemName || item.name === '배치변경' || item.id === 'reflesh' || item.id === 'refresh') && item.source === 'tower'
+            const itemIndex = inventory.findIndex((item: any) =>
+                (item.name === '배치 새로고침' || item.name === '배치변경' || item.id === 'reflesh' || item.id === 'refresh') && (item.source === 'tower' || item.source == null)
             );
-            
+
             if (itemIndex === -1) {
                 return { error: '배치 새로고침 아이템이 없습니다.' };
             }
-            
+
             const item = inventory[itemIndex];
             if ((item.quantity || 1) <= 0) {
                 return { error: '배치 새로고침 아이템이 없습니다.' };
             }
-            
+
             // 아이템 개수 감소
             if ((item.quantity || 1) > 1) {
                 item.quantity = (item.quantity || 1) - 1;
             } else {
                 inventory.splice(itemIndex, 1);
             }
-            
+
             const stage = TOWER_STAGES.find(s => s.id === game.stageId);
             if (!stage) {
                 return { error: 'Stage data not found for refresh.' };
@@ -505,14 +521,38 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             game.blackPatternStones = blackPattern;
             game.whitePatternStones = whitePattern;
 
+            // 시간/턴 정보 보존: DB만 로드된 경우 값이 없을 수 있으므로 CONFIRM과 동일하게 복구
+            const timeLimit = (game.settings as any)?.timeLimit ?? 0;
+            if (timeLimit > 0 && (game.blackTimeLeft == null || game.blackTimeLeft <= 0 || game.whiteTimeLeft == null || game.whiteTimeLeft <= 0)) {
+                const secs = timeLimit * 60;
+                game.blackTimeLeft = secs;
+                game.whiteTimeLeft = secs;
+                game.turnStartTime = Date.now();
+                game.turnDeadline = Date.now() + secs * 1000;
+                const byoyomi = (game.settings as any)?.byoyomiCount ?? 3;
+                game.blackByoyomiPeriodsLeft = byoyomi;
+                game.whiteByoyomiPeriodsLeft = byoyomi;
+            }
+            if (game.totalTurns == null && game.moveHistory?.length === 0) {
+                (game as any).totalTurns = 0;
+            }
+
+            updateGameCache(game);
             await db.saveGame(game);
             await db.updateUser(user);
 
             const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
-            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            // 배치변경 후 클라이언트가 보드/문양을 확실히 반영하도록 boardState·문양 배열 포함하여 브로드캐스트
+            const gameToSend = {
+                ...game,
+                boardState: game.boardState && Array.isArray(game.boardState) ? game.boardState.map((row: number[]) => [...row]) : game.boardState,
+                blackPatternStones: Array.isArray(game.blackPatternStones) ? game.blackPatternStones.map((p: Point) => ({ ...p })) : (game.blackPatternStones ?? []),
+                whitePatternStones: Array.isArray(game.whitePatternStones) ? game.whitePatternStones.map((p: Point) => ({ ...p })) : (game.whitePatternStones ?? []),
+            };
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToSend } }, game);
             broadcastUserUpdate(user, ['actionPoints', 'towerFloor']);
-            
-            return { clientResponse: { updatedUser: user, gameId: game.id, game } };
+            // HTTP 응답에도 동일하게 포함해 클라이언트가 즉시 반영하도록 함
+            return { clientResponse: { updatedUser: user, gameId: game.id, game: gameToSend } };
         }
         case 'TOWER_ADD_TURNS': {
             const { gameId } = payload;
@@ -535,11 +575,10 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: '게임이 진행 중이 아닙니다.' };
             }
             
-            // 턴 추가 아이템 사용 가능 여부 확인 및 소모 (도전의 탑 전용 아이템만 사용)
-            const itemName = '턴 추가';
+            // 턴 추가 아이템 사용 가능 여부 확인 및 소모 (로비·가방과 동일: 이름/id 일치 시 사용, source는 tower 또는 미지정)
             const inventory = user.inventory || [];
             const itemIndex = inventory.findIndex((item: any) => 
-                (item.name === itemName || item.name === '턴증가' || item.id === 'turn_add' || item.id === 'turn_add_item') && item.source === 'tower'
+                (item.name === '턴 추가' || item.name === '턴증가' || item.id === 'turn_add' || item.id === 'turn_add_item') && (item.source === 'tower' || item.source == null)
             );
             
             if (itemIndex === -1) {

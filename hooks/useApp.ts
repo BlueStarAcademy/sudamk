@@ -1868,6 +1868,24 @@ export const useApp = () => {
                     }
                 }
                 
+                // 주사위/도둑 착수: 한 개 놓을 때마다 화면에 바로 반영 (HTTP 응답 game으로 liveGames 갱신)
+                const placementGameId = (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') ? ((action.payload as any)?.gameId || game?.id) : null;
+                if (game && placementGameId && (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                    setLiveGames(currentGames => {
+                        const existing = currentGames[placementGameId];
+                        const next = existing ? { ...existing, ...game, boardState: game.boardState && Array.isArray(game.boardState) ? game.boardState.map((row: number[]) => [...row]) : game.boardState } : game;
+                        return { ...currentGames, [placementGameId]: next };
+                    });
+                }
+                // 주사위 굴리기: HTTP 응답에 game 있으면 즉시 반영 (두 번째 턴부터 굴리기 애니가 안 나오는 버그 방지)
+                const rollGameId = (action.type === 'DICE_ROLL') ? ((action.payload as any)?.gameId || game?.id) : null;
+                if (game && rollGameId && action.type === 'DICE_ROLL' && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                    setLiveGames(currentGames => {
+                        const existing = currentGames[rollGameId];
+                        const next = existing ? { ...existing, ...game, boardState: game.boardState && Array.isArray(game.boardState) ? game.boardState.map((row: number[]) => [...row]) : game.boardState } : game;
+                        return { ...currentGames, [rollGameId]: next };
+                    });
+                }
                 if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'TOWER_REFRESH_PLACEMENT')) {
                     console.log(`[handleAction] ${action.type} - gameId received:`, effectiveGameId, 'hasGame:', !!game, 'result keys:', Object.keys(result), 'clientResponse keys:', result.clientResponse ? Object.keys(result.clientResponse) : []);
                     
@@ -2856,7 +2874,9 @@ export const useApp = () => {
                                 const hasNewMoves = incomingMoveCount > lastProcessedMoveCount;
                                 // 알까기/컬링 등 놀이바둑은 moveHistory를 쓰지 않으므로, 이 경우 항상 업데이트 적용 (AI 배치가 스킵되는 버그 방지)
                                 const isPlayfulBoardUpdate = !!(game.alkkagiStones || game.curlingStones || (game.gameStatus && (String(game.gameStatus).startsWith('alkkagi_') || String(game.gameStatus).startsWith('curling_'))));
-                                if (!hasNewMoves && !isPlayfulBoardUpdate && now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS) {
+                                // 주사위/도둑 굴리기 애니메이션: moveHistory가 안 바뀌어도 반영 (두 번째 턴부터 애니 안 나오는 버그 방지)
+                                const isDiceRollAnimationUpdate = game.gameStatus === 'dice_rolling_animating' || game.gameStatus === 'thief_rolling_animating' || game.animation?.type === 'dice_roll_main';
+                                if (!hasNewMoves && !isPlayfulBoardUpdate && !isDiceRollAnimationUpdate && now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS) {
                                     return;
                                 }
                                 lastGameUpdateTimeRef.current[gameId] = now;
@@ -3238,6 +3258,12 @@ export const useApp = () => {
                                             if (existingGame.blackPatternStones?.length) mergedGame.blackPatternStones = existingGame.blackPatternStones;
                                             if (existingGame.whitePatternStones?.length) mergedGame.whitePatternStones = existingGame.whitePatternStones;
                                         }
+                                        // 21층 이상 자동계가: totalTurns를 moveHistory에서 항상 계산해 남은 턴 표시가 줄어들도록 함
+                                        const autoScoringTurns = (mergedGame.settings as any)?.autoScoringTurns;
+                                        if (autoScoringTurns && Array.isArray(mergedGame.moveHistory)) {
+                                            const validMoves = mergedGame.moveHistory.filter((m: any) => m.x !== -1 && m.y !== -1);
+                                            mergedGame = { ...mergedGame, totalTurns: validMoves.length };
+                                        }
                                         updatedGames[gameId] = mergedGame;
 
                                         // 그누고(AI) 수: 1초 지연 후 표시 (유저 수는 클라이언트에서 즉시 반영됨)
@@ -3352,6 +3378,25 @@ export const useApp = () => {
                                             mergedGame = { ...game, boardState: existingGame.boardState };
                                             if (existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0) {
                                                 mergedGame.moveHistory = existingGame.moveHistory;
+                                            }
+                                        }
+                                        // 전략바둑 AI 대국: 같은 수인데 서버가 낡은 GAME_UPDATE인 경우 보드/수순/턴 유지 (돌 위치 바뀜·시간승 버그 방지)
+                                        if (game.isAiGame && incomingMoveCount === existingMoveCount && existingBoardValid && existingGame?.moveHistory?.length > 0) {
+                                            const lastExisting = existingGame.moveHistory[existingGame.moveHistory.length - 1];
+                                            const lastIncoming = game.moveHistory?.[game.moveHistory.length - 1];
+                                            const sameLastMove = lastExisting && lastIncoming &&
+                                                (lastExisting as any).x === (lastIncoming as any).x &&
+                                                (lastExisting as any).y === (lastIncoming as any).y &&
+                                                (lastExisting as any).player === (lastIncoming as any).player;
+                                            const aiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
+                                            const nextAfterLast = lastExisting && (lastExisting as any).player === Player.Black ? Player.White : Player.Black;
+                                            const serverTurnStale = nextAfterLast === aiPlayerEnum && game.currentPlayer !== aiPlayerEnum;
+                                            if (sameLastMove && (serverTurnStale || !hasServerBoard)) {
+                                                mergedGame = { ...game, boardState: existingGame.boardState, moveHistory: existingGame.moveHistory, currentPlayer: serverTurnStale ? existingGame.currentPlayer : game.currentPlayer };
+                                                if ((existingGame as any).koInfo !== undefined) mergedGame.koInfo = (existingGame as any).koInfo;
+                                                if ((existingGame as any).lastMove !== undefined) mergedGame.lastMove = (existingGame as any).lastMove;
+                                            } else if (serverTurnStale) {
+                                                mergedGame = { ...mergedGame, currentPlayer: existingGame.currentPlayer };
                                             }
                                         }
                                         updatedGames[gameId] = mergedGame;

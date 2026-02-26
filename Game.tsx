@@ -1131,18 +1131,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const globalChat = useMemo(() => waitingRoomChats['global'] || [], [waitingRoomChats]);
     
     const handleCloseResults = useCallback(() => {
-        // AI 게임의 경우 결과창 확인 시 모달만 닫고, 홈화면으로 이동하지 않음
-        // 나가기 버튼을 통해 대기실로 이동할 수 있음
         setShowResultModal(false);
-        // 계가가 완료된 경우(analysisResult가 있는 경우) 영토 표시는 유지
-        // 계가가 완료되지 않은 경우에만 영토 표시를 숨김
         if (!session.analysisResult?.['system']) {
             setShowFinalTerritory(false);
         }
-        // 도전의 탑이나 싱글플레이어의 경우, 확인 버튼을 눌렀을 때 모달이 닫히도록 하기 위해
-        // showResultModal을 false로 설정했지만, gameStatus === 'ended' 조건 때문에 모달이 계속 표시될 수 있음
-        // 이를 방지하기 위해 추가 상태 관리가 필요할 수 있지만, 일단 showResultModal만 false로 설정
-    }, [session.analysisResult]);
+        // 경기 종료 후 결과 모달을 닫을 때 서버에 퇴장 알림 → 해당 게임에 대한 통신 중단
+        if ((gameStatus === 'ended' || gameStatus === 'no_contest') && gameId) {
+            const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
+            handlers.handleAction({ type: actionType, payload: { gameId } });
+        }
+    }, [session.analysisResult, gameStatus, gameId, session.isAiGame, handlers.handleAction]);
 
     // 싱글플레이 게임 설명창 표시 여부
     const showGameDescription = isSinglePlayer && gameStatus === 'pending';
@@ -1521,9 +1519,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             )}
             {/* 전략·놀이바둑 경기장 상단 헤더 (행동력, 재화, 설정 등) */}
             <Header />
-            {session.gameStatus === 'scoring' && !session.analysisResult?.['system'] && (
-                <ScoringOverlay />
-            )}
             <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0 overflow-hidden">
                 <main className="flex-1 flex items-center justify-center min-w-0 min-h-0">
                     <div className="w-full h-full max-h-full max-w-full lg:max-w-[calc(100vh-8rem)] flex flex-col items-center gap-1 lg:gap-2">
@@ -1560,6 +1555,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     </div>
                                 )}
                             </div>
+                            {/* 계가 중: 바둑판 영역 중앙에만 표시 (싱글/탑은 모달에서 22초 연출) */}
+                            {session.gameStatus === 'scoring' && !session.analysisResult?.['system'] && !session.isSinglePlayer && session.gameCategory !== 'tower' && (
+                                <ScoringOverlay />
+                            )}
                         </div>
                         <div className="flex-shrink-0 w-full flex flex-col gap-1">
                             <TurnDisplay

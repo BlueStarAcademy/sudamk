@@ -2,6 +2,7 @@ import prisma from "../prismaClient.js";
 import type { Prisma } from "@prisma/client";
 import type { User } from "../../types/index.js";
 import { deserializeUser, serializeUser, PrismaUserWithStatus } from "./userAdapter.js";
+import { ensurePrismaEngineReady } from "./gameService.js";
 
 const toBigInt = (value: number | undefined): bigint => {
   if (typeof value === "bigint") return value;
@@ -78,6 +79,14 @@ export async function listUsers(options?: { includeEquipment?: boolean; includeI
     });
     return rows.map(mapUser);
   } catch (error: any) {
+    // Prisma 엔진 미연결 시 준비 후 재시도
+    if (error?.message?.includes('Engine is not yet connected')) {
+      await ensurePrismaEngineReady();
+      const rows = await prisma.user.findMany({
+        include: { guildMember: true }
+      });
+      return rows.map(mapUser);
+    }
     // equipment/inventory 로드 실패 시 없이 재시도
     const rows = await prisma.user.findMany({
       include: { guildMember: true }
@@ -101,6 +110,15 @@ export async function getUserById(id: string, options?: { includeEquipment?: boo
     });
     return row ? mapUser(row) : null;
   } catch (error: any) {
+    // Prisma 엔진 미연결 시 준비 후 재시도
+    if (error?.message?.includes('Engine is not yet connected')) {
+      await ensurePrismaEngineReady();
+      const row = await prisma.user.findUnique({ 
+        where: { id },
+        include: { guildMember: true }
+      });
+      return row ? mapUser(row) : null;
+    }
     // equipment/inventory 로드 실패 시 없이 재시도
     const row = await prisma.user.findUnique({ 
       where: { id },

@@ -401,9 +401,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             };
         }
         
-        // 자동계가: 자동계가까지 남은 턴
+        // 자동계가: 자동계가까지 남은 턴 (유효 수만 카운트, 서버와 동일: x/y !== -1)
         if (stage.autoScoringTurns) {
-            const totalTurns = session.totalTurns ?? moveHistory.filter(m => m.x !== -1 && m.player !== Player.None).length;
+            const validMovesCount = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
+            const totalTurns = session.totalTurns ?? validMovesCount;
             const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
             return {
                 type: 'auto_scoring' as const,
@@ -449,7 +450,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     isMobile={isMobile}
                 />
             </div>
-            {isSinglePlayer && turnInfo && (
+            {((isSinglePlayer || session.gameCategory === 'tower') && turnInfo) && (
                 <div className={`flex items-center justify-center ${turnInfoSize} flex-shrink-0 bg-stone-800/95 rounded-lg border-2 border-stone-500 shadow-xl`}>
                     <div className="flex flex-col items-center justify-center text-center px-1">
                         <span className={`${turnInfoLabelSize} text-stone-300 ${isMobile ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{turnInfo.label}</span>

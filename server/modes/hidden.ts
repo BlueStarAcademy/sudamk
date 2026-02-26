@@ -145,11 +145,19 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
     const isMyTurn = myPlayerEnum === game.currentPlayer;
 
     switch(type) {
-        case 'START_HIDDEN_PLACEMENT':
+        case 'START_HIDDEN_PLACEMENT': {
             if (!isMyTurn || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
+            // Mix/타워: 히든 개수 확인 (없으면 진입 불가)
+            const isMixOrHidden = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+            if (isMixOrHidden) {
+                const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+                const left = game[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;
+                if (left <= 0) return { error: "No hidden stones left." };
+            }
             game.gameStatus = 'hidden_placing';
             pauseGameTimer(game, now, 30000);
             return {};
+        }
         case 'START_SCANNING':
             if (!isMyTurn || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
             game.gameStatus = 'scanning';

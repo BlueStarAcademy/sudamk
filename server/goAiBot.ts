@@ -456,7 +456,56 @@ export async function makeGoAiBotMove(
         ? findAllValidMovesFast(aiGame, logic, aiPlayerEnum)
         : findAllValidMoves(aiGame, logic, aiPlayerEnum);
     
+    // 통과가 없는 바둑(따내기, 싱글플레이, 도전의 탑): AI가 둘 곳이 없으면 서버에서 통과로 턴만 넘김 (시간패 방지)
+    const isNoPassMode = game.isSinglePlayer || (game as any).gameCategory === 'tower' || game.mode === types.GameMode.Capture;
     if (allValidMoves.length === 0) {
+        if (isNoPassMode) {
+            console.log('[GoAiBot] No valid moves available (no-pass mode). AI passes to avoid time forfeit.');
+            game.passCount = (game.passCount ?? 0) + 1;
+            game.lastMove = { x: -1, y: -1 };
+            game.lastTurnStones = null;
+            game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
+            if (hasTimeControl(game.settings)) {
+                const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                if (game.turnDeadline) {
+                    game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
+                }
+            }
+            game.currentPlayer = opponentPlayerEnum;
+            if (hasTimeControl(game.settings)) {
+                const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
+                if (isNextInByoyomi) {
+                    game.turnDeadline = now + (game.settings.byoyomiTime ?? 30) * 1000;
+                } else {
+                    game.turnDeadline = now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
+                }
+                game.turnStartTime = now;
+            } else {
+                game.turnDeadline = undefined;
+                game.turnStartTime = undefined;
+            }
+            if (game.passCount >= 2) {
+                game.gameStatus = 'scoring';
+                game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                const gameToBroadcast = { ...game };
+                delete (gameToBroadcast as any).boardState;
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                const { getGameResult } = await import('./gameModes.js');
+                await getGameResult(game);
+            } else {
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                const gameToBroadcast = { ...game };
+                delete (gameToBroadcast as any).boardState;
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+            }
+            return;
+        }
         console.log('[GoAiBot] No valid moves available. AI resigns.');
         await summaryService.endGame(game, opponentPlayerEnum, 'resign');
         return;
@@ -528,6 +577,48 @@ export async function makeGoAiBotMove(
             });
             
             if (filteredMoves.length === 0) {
+                // 통과 없는 모드: 통과로 턴만 넘김 (시간패 방지)
+                if (isNoPassMode) {
+                    console.log('[GoAiBot] No valid moves after filtering user stones (no-pass mode). AI passes.');
+                    game.passCount = (game.passCount ?? 0) + 1;
+                    game.lastMove = { x: -1, y: -1 };
+                    game.lastTurnStones = null;
+                    game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
+                    if (hasTimeControl(game.settings)) {
+                        const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                        if (game.turnDeadline) game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
+                    }
+                    game.currentPlayer = opponentPlayerEnum;
+                    if (hasTimeControl(game.settings)) {
+                        const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                        const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                        const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                        const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
+                        game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
+                        game.turnStartTime = now;
+                    } else {
+                        game.turnDeadline = undefined;
+                        game.turnStartTime = undefined;
+                    }
+                    if (game.passCount >= 2) {
+                        game.gameStatus = 'scoring';
+                        game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('./socket.js');
+                        const g = { ...game };
+                        delete (g as any).boardState;
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
+                        const { getGameResult } = await import('./gameModes.js');
+                        await getGameResult(game);
+                    } else {
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('./socket.js');
+                        const g = { ...game };
+                        delete (g as any).boardState;
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
+                    }
+                    return;
+                }
                 console.error('[GoAiBot] No valid moves after filtering user stones. AI resigns.');
                 await summaryService.endGame(game, opponentPlayerEnum, 'resign');
                 return;

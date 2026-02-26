@@ -351,12 +351,12 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     const overshotPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
                     const overshotPlayer = game.player1.id === overshotPlayerId ? game.player1 : game.player2;
                     game.foulInfo = { message: `${overshotPlayer.nickname}님의 오버샷! 턴이 넘어갑니다.`, expiry: now + 4000 };
-                    const previousPlayer = game.currentPlayer;
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                     game.gameStatus = 'dice_rolling';
+                    game.stonesToPlace = 0;
+                    // 유저 턴으로 넘어갈 때 새 턴 데드라인 설정 (타임파울/주사위 굴리기 불가 방지)
                     game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                     game.turnStartTime = now;
-                    game.stonesToPlace = 0;
                     
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
@@ -390,9 +390,11 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             }
             break;
         case 'dice_rolling': {
-            // turnDeadline이 없으면 설정 (게임 로드 시나 상태 불일치 시 대비)
-            if (!game.turnDeadline) {
-                console.log(`[updateDiceGoState] Setting turnDeadline for dice_rolling: gameId=${game.id}, currentPlayer=${game.currentPlayer}`);
+            // turnDeadline이 없거나 이미 지났으면 설정 (오버샷 직후 유저 턴·캐시 만료 등으로 꼬인 경우 방지)
+            if (!game.turnDeadline || now > game.turnDeadline) {
+                if (now > (game.turnDeadline || 0)) {
+                    console.log(`[updateDiceGoState] Resetting stale turnDeadline for dice_rolling: gameId=${game.id}, currentPlayer=${game.currentPlayer}`);
+                }
                 game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                 game.turnStartTime = now;
             }
@@ -417,7 +419,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 const dice1 = Math.floor(Math.random() * 6) + 1;
                 const logic = getGoLogic(game);
                 const liberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
-                const isOvershot = liberties.length > 0 && dice1 > liberties.length;
+                const isOvershot = liberties.length === 0 || dice1 > liberties.length;
                 
                 console.log(`[updateDiceGoState] Auto-rolling dice due to timeout: dice1=${dice1}, isOvershot=${isOvershot}, liberties=${liberties.length}`);
                 
@@ -434,7 +436,16 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             }
             break;
         }
-        case 'dice_placing':
+        case 'dice_placing': {
+            // 유효자리 개수 전광판: 매 틱 현재 보드 기준으로 갱신 (처음 6개 이하일 때 잘못 표시되는 현상 방지)
+            const logicPlacing = getGoLogic(game);
+            const allWhiteLibertiesPlacing = logicPlacing.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
+            const whiteStoneCountPlacing = game.boardState.flat().filter(s => s === types.Player.White).length;
+            if (whiteStoneCountPlacing > 0) {
+                game.lastWhiteGroupInfo = { size: whiteStoneCountPlacing, liberties: allWhiteLibertiesPlacing.length };
+            } else {
+                game.lastWhiteGroupInfo = null;
+            }
             // AI 턴일 때는 타임아웃 체크를 건너뛰기
             const isAiTurnPlacing = game.isAiGame && game.currentPlayer !== types.Player.None && 
                                    (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
@@ -475,6 +486,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 finishPlacingTurn(game, timedOutPlayerId);
             }
             break;
+        }
         case 'dice_round_end':
             if (game.isAiGame) {
                 if (!game.roundEndConfirmations) game.roundEndConfirmations = {};
@@ -612,7 +624,8 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
 
             const logic = getGoLogic(game);
             const liberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
-            const isOvershot = liberties.length > 0 && dice1 > liberties.length;
+            // 유효 자리 0개(마지막 돌 잡은 직후)이거나, 나온 수가 유효 자리보다 크면 오버샷 → 턴 넘김
+            const isOvershot = liberties.length === 0 || dice1 > liberties.length;
             
             game.animation = { type: 'dice_roll_main', dice: { dice1, dice2: 0, dice3: 0 }, startTime: now, duration: 1500 };
             game.gameStatus = 'dice_rolling_animating';
@@ -623,7 +636,7 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
             game.stonesToPlace = isOvershot ? -1 : dice1;
             if (game.diceRollHistory) game.diceRollHistory[user.id].push(dice1);
             await db.saveGame(game);
-            return {};
+            return { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
         }
         case 'DICE_PLACE_STONE': {
             if (game.gameStatus !== 'dice_placing' || !isMyTurn) return { error: '상대방의 차례입니다.' };
@@ -697,7 +710,7 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
                 finishPlacingTurn(game, user.id);
             }
             await db.saveGame(game);
-            return {};
+            return { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
         }
         case 'CONFIRM_ROUND_END': {
             if (game.gameStatus !== 'dice_round_end') return { error: "Not in round end confirmation phase." };

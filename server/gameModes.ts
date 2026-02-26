@@ -973,6 +973,14 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             return game;
         }
 
+        // PLACE_STONE 직후 같은 메인루프 사이클에서 스냅샷(이전 상태)으로 처리되면
+        // currentPlayer가 아직 human이라 시간패가 잘못 적용되는 버그 방지: 캐시에서 최신 게임 사용
+        const { getCachedGame } = await import('./gameCache.js');
+        const cached = await getCachedGame(game.id);
+        if (cached) {
+            game = cached;
+        }
+
         try {
             if (game.disconnectionState && (now - game.disconnectionState.timerStartedAt > 90000)) {
                 // 90초 내에 재접속하지 못하면 시간패배 처리
@@ -1091,6 +1099,18 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                         (global as any).lastProcessGameErrorLog = Date.now();
                     }
                     // 에러 발생 시 게임 상태 업데이트 스킵하고 계속 진행
+                }
+                // 초읽기 진입/리셋 시 클라이언트가 풀 초부터 표시하도록 즉시 브로드캐스트
+                if ((game as any)._broadcastByoyomiStart) {
+                    delete (game as any)._broadcastByoyomiStart;
+                    try {
+                        const { broadcastToGameParticipants } = await import('./socket.js');
+                        const payload = { ...game };
+                        delete (payload as any).boardState;
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: payload } }, game);
+                    } catch (e: any) {
+                        console.warn(`[processGame] Byoyomi start broadcast failed for ${game.id}:`, e?.message);
+                    }
                 }
             }
 

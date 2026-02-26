@@ -376,7 +376,7 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
             dice1 = Math.floor(Math.random() * 6) + 1;
         }
         
-        const isOvershot = liberties.length > 0 && dice1 > liberties.length;
+        const isOvershot = liberties.length === 0 || dice1 > liberties.length;
         
         game.animation = { type: 'dice_roll_main', dice: { dice1, dice2: 0, dice3: 0 }, startTime: now, duration: 1500 };
         game.gameStatus = 'dice_rolling_animating';
@@ -434,6 +434,8 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
                 game.stonesPlacedThisTurn.push(bestMove);
                 stonesToPlace--;
                 game.stonesToPlace = stonesToPlace;
+                // AI 연출: 한 번에 한 개만 두고, 1초 후 다음 돌을 두기 위해 여기서 종료
+                break;
             } else {
                 break;
             }
@@ -444,14 +446,16 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
             if (liberties.length === 0) break;
         }
         
-        game.stonesToPlace = 0;
-        
         game.diceCapturesThisTurn = totalCaptures;
         game.diceLastCaptureStones = lastCaptureStones;
         
-        // finishPlacingTurn 호출
-        const finishPlacingTurn = (await import('./modes/diceGo.js')).finishPlacingTurn;
-        finishPlacingTurn(game, aiPlayerId);
+        // 남은 돌이 없거나 둘 곳이 없을 때만 턴 종료 (한 개씩 두는 연출을 위해 그 외에는 재호출 시 계속 둠)
+        const libertiesNow = getGoLogic(game).getAllLibertiesOfPlayer(types.Player.White, game.boardState);
+        if (stonesToPlace <= 0 || libertiesNow.length === 0) {
+            game.stonesToPlace = 0;
+            const finishPlacingTurn = (await import('./modes/diceGo.js')).finishPlacingTurn;
+            finishPlacingTurn(game, aiPlayerId);
+        }
     }
 };
 const makeOmokAiMove = (game: types.LiveGameSession) => {
@@ -785,6 +789,8 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                     if (allThievesCaptured) {
                         game.stonesToPlace = 0;
                     }
+                    // AI 연출: 한 번에 한 개만 두고, 1초 후 다음 돌을 두기 위해 여기서 종료
+                    break;
                 }
             } else {
                 // 착수 가능한 자리가 없으면 남은 돌 수를 0으로 하고 턴 종료

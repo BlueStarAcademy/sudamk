@@ -244,17 +244,38 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     // Game Actions (require gameId)
     // 도전의 탑은 클라이언트에서만 실행되므로 서버에서 착수 액션을 처리하지 않음
     if (gameId && type !== 'LEAVE_AI_GAME') {
-        // 싱글플레이 미사일 액션은 먼저 처리 (게임이 캐시에 없을 수 있음)
+        // 싱글플레이·도전의 탑 미사일 액션 처리 (게임이 캐시에 없을 수 있음)
         if (type === 'START_MISSILE_SELECTION' || type === 'LAUNCH_MISSILE' || type === 'CANCEL_MISSILE_SELECTION' || type === 'MISSILE_INVALID_SELECTION' || type === 'MISSILE_ANIMATION_COMPLETE') {
-            // 게임 ID가 sp-game-으로 시작하면 싱글플레이 게임으로 간주
             if (gameId.startsWith('sp-game-')) {
                 const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
                 const result = await handleSinglePlayerAction(volatileState, action, userData);
-                // singlePlayerActions에서 이미 저장 및 브로드캐스트를 처리하므로 여기서는 결과만 반환
-                if (result && (result as any).error) {
-                    return result;
-                }
+                if (result && (result as any).error) return result;
                 return result || { error: 'Failed to process single player missile action.' };
+            }
+            if (gameId.startsWith('tower-game-')) {
+                const { getCachedGame, updateGameCache } = await import('./gameCache.js');
+                let game = await getCachedGame(gameId);
+                if (!game) {
+                    const cache = volatileState.gameCache;
+                    if (cache) {
+                        const cached = cache.get(gameId);
+                        if (cached) game = cached.game;
+                    }
+                }
+                if (!game) game = await db.getLiveGame(gameId);
+                if (!game) return { error: 'Game not found.' };
+                if (game.gameCategory !== 'tower') return { error: 'Not a tower game.' };
+                if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                    const { handleStrategicGameAction } = await import('./modes/strategic.js');
+                    const result = await handleStrategicGameAction(volatileState, game, action, userData);
+                    if (result && !(result as any).error) {
+                        updateGameCache(game);
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('./socket.js');
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                    }
+                    return result || {};
+                }
             }
         }
         
@@ -287,38 +308,27 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             return result || {};
         }
         
-        // 싱글플레이 게임의 히든바둑 액션은 먼저 처리 (게임을 찾기 전에)
+        // 싱글플레이·도전의 탑 히든/스캔 액션 먼저 처리 (게임을 찾기 전에)
         const actionTypeStr = type as string;
         if (actionTypeStr === 'START_HIDDEN_PLACEMENT' || actionTypeStr === 'START_SCANNING' || actionTypeStr === 'SCAN_BOARD') {
-            // 싱글플레이 게임은 캐시에서 직접 찾기 (DB에 저장되지 않을 수 있음)
-            const { getCachedGame } = await import('./gameCache.js');
+            const { getCachedGame, updateGameCache } = await import('./gameCache.js');
             let game = await getCachedGame(gameId);
-            
-            // 싱글플레이어 게임의 경우 캐시에서 직접 확인 (TTL 무시)
-            if (!game && gameId.startsWith('sp-game-')) {
+            // PVE 게임(싱글·탑) 캐시에서 직접 확인 (TTL 무시)
+            if (!game && (gameId.startsWith('sp-game-') || gameId.startsWith('tower-game-'))) {
                 const cache = volatileState.gameCache;
                 if (cache) {
                     const cached = cache.get(gameId);
                     if (cached) {
-                        console.log(`[handleAction] Found single player game in cache (expired TTL): gameId=${gameId}, gameStatus=${cached.game.gameStatus}`);
                         game = cached.game;
-                        // 캐시 갱신
-                        const { updateGameCache } = await import('./gameCache.js');
                         updateGameCache(game);
                     }
                 }
             }
-            
-            // 여전히 없으면 DB에서 찾기
-            if (!game) {
-                game = await db.getLiveGame(gameId);
-            }
-            
+            if (!game) game = await db.getLiveGame(gameId);
             if (!game) {
                 console.error(`[handleAction] Game not found: gameId=${gameId}, type=${type}`);
                 return { error: 'Game not found.' };
             }
-            
             if (game.isSinglePlayer) {
                 // PLACE_STONE은 히든 아이템 사용 시 서버에서 처리해야 함
                 const actionType = type as string;
@@ -341,18 +351,66 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 console.log(`[handleAction] Processing single player action: type=${type}, gameId=${gameId}, gameStatus=${game.gameStatus}`);
                 const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
                 const singlePlayerResult = await handleSinglePlayerAction(volatileState, action, userData);
-                console.log(`[handleAction] Single player action result:`, singlePlayerResult);
-                // singlePlayerActions.ts에서 이미 저장 및 브로드캐스트를 처리하므로 여기서는 결과만 반환
                 return singlePlayerResult || {};
+            }
+            if (game.gameCategory === 'tower' && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                const { handleStrategicGameAction } = await import('./modes/strategic.js');
+                const result = await handleStrategicGameAction(volatileState, game, action, userData);
+                if (result && !(result as any).error) {
+                    updateGameCache(game);
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                }
+                return result || {};
+            }
+        }
+        
+        // PLACE_STONE (히든 아이템 사용) 도전의 탑 처리
+        if (type === 'PLACE_STONE' && (payload as any)?.isHidden && gameId.startsWith('tower-game-')) {
+            const { getCachedGame, updateGameCache } = await import('./gameCache.js');
+            let game = await getCachedGame(gameId);
+            if (!game) {
+                const cache = volatileState.gameCache;
+                if (cache) { const c = cache.get(gameId); if (c) game = c.game; }
+            }
+            if (!game) game = await db.getLiveGame(gameId);
+            if (game && game.gameCategory === 'tower' && (game.gameStatus === 'hidden_placing' || (payload as any)?.isHidden)) {
+                if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                    const { handleStrategicGameAction } = await import('./modes/strategic.js');
+                    const result = await handleStrategicGameAction(volatileState, game, action, userData);
+                    if (result && !(result as any).error) {
+                        updateGameCache(game);
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('./socket.js');
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                    }
+                    return result || {};
+                }
             }
         }
         
         // 캐시를 사용하여 DB 조회 최소화
         const { getCachedGame, updateGameCache } = await import('./gameCache.js');
-        const game = await getCachedGame(gameId);
+        let game = await getCachedGame(gameId);
+        if (!game) {
+            game = await db.getLiveGame(gameId);
+            if (game) updateGameCache(game);
+        }
         if (!game) {
             console.error(`[handleAction] Game not found: gameId=${gameId}, type=${type}`);
             return { error: 'Game not found.' };
+        }
+        
+        // 도전의 탑 21층+: DB/캐시에서 불러온 게임에 missiles_p1/hidden_stones_p1이 없으면 설정값으로 초기화 (미사일/히든 사용 가능하도록)
+        if (game.gameCategory === 'tower' && (game as any).towerFloor >= 21 && game.settings) {
+            const s = game.settings as any;
+            if ((game as any).missiles_p1 == null && s.missileCount != null) {
+                (game as any).missiles_p1 = s.missileCount;
+            }
+            if ((game as any).hidden_stones_p1 == null && s.hiddenStoneCount != null) {
+                (game as any).hidden_stones_p1 = s.hiddenStoneCount;
+            }
         }
         
         console.log(`[handleAction] Game found: gameId=${gameId}, type=${type}, isSinglePlayer=${game.isSinglePlayer}, gameStatus=${game.gameStatus}`);
