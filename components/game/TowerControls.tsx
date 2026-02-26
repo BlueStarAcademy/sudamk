@@ -45,6 +45,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
 const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, currentUser, showResultModal, setShowResultModal, setConfirmModalType }) => {
     const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
     const [passConfirmModal, setPassConfirmModal] = useState(false);
+    const [turnAddConfirmModal, setTurnAddConfirmModal] = useState(false);
     const floor = session.towerFloor ?? 1;
     const stage = TOWER_STAGES.find(s => {
         const stageFloor = parseInt(s.id.replace('tower-', ''));
@@ -148,7 +149,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     };
 
     const handlePassClick = () => {
-        if (floor > 20) return; // 21층 이상에서는 통과 비활성
+        if (!passAllowed) return;
         setPassConfirmModal(true);
     };
 
@@ -196,8 +197,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const gameStatus = session.gameStatus;
     const showMissileAndHidden = floor >= 21;
     const showTurnAdd = floor <= 20; // 1~20층에서만 턴 추가 아이템 표시
-    // 21층부터는 AI가 통과를 쓰지 않음(턴 제한 자동 계가) → 사람도 통과 불가 (영토 메우기 비대칭 방지)
-    const passAllowed = floor <= 20;
+    // 도전의 탑 전체(1~100층)에서 통과 비활성: 1~20층 따내기 턴 제한, 21층+ 자동 계가
+    const passAllowed = false;
 
     // 턴 추가 아이템 (1~20층, 제한 없음) - 로비·가방과 동기화
     const turnAddCount = showTurnAdd ? getItemCount(['턴 추가', '턴증가', 'turn_add', 'turn_add_item']) : 0;
@@ -205,9 +206,13 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     
     const handleUseTurnAdd = () => {
         if (gameStatus !== 'playing' || turnAddCount <= 0) return;
-        if (window.confirm('턴 추가 아이템을 사용하여 남은 턴을 3턴 추가하시겠습니까?')) {
-            onAction({ type: 'TOWER_ADD_TURNS', payload: { gameId: session.id } });
-        }
+        setTurnAddConfirmModal(true);
+    };
+
+    const handleTurnAddConfirm = () => {
+        setTurnAddConfirmModal(false);
+        if (session.gameStatus !== 'playing') return;
+        onAction({ type: 'TOWER_ADD_TURNS', payload: { gameId: session.id } });
     };
 
     // 미사일 아이템 (21층 이상, 최대 2개) - 로비·가방과 동기화
@@ -307,6 +312,19 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                     confirmColorScheme="accent"
                     isTopmost={true}
                     windowId="tower-pass-confirm-modal"
+                />
+            )}
+            {turnAddConfirmModal && (
+                <ConfirmModal
+                    title="턴 추가"
+                    message="턴 추가 아이템 1개를 사용하여 흑의 제한 턴을 3턴 늘리시겠습니까? 확인 시 바로 적용됩니다."
+                    onConfirm={handleTurnAddConfirm}
+                    onCancel={() => setTurnAddConfirmModal(false)}
+                    confirmText="사용"
+                    cancelText="취소"
+                    confirmColorScheme="accent"
+                    isTopmost={true}
+                    windowId="tower-turn-add-confirm-modal"
                 />
             )}
 

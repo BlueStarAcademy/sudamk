@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 
 interface AttackToTurnGaugeProps {
     /** 애니메이션 시작 시각 (서버/클라이언트 공통 기준) */
@@ -21,33 +21,63 @@ export const AttackToTurnGauge: React.FC<AttackToTurnGaugeProps> = ({
     label = '턴 전환까지',
     barClassName = 'bg-gradient-to-r from-cyan-400 to-blue-500',
 }) => {
-    const [progress, setProgress] = useState(0);
+    const [remainingSec, setRemainingSec] = useState(() => {
+        const now = Date.now();
+        const progress = Math.min(1, (now - startTime) / (durationMs || 1));
+        return Math.max(0, (1 - progress) * (durationMs / 1000));
+    });
+    const barRef = useRef<HTMLDivElement>(null);
     const rafRef = useRef<number | null>(null);
+    const lastTextUpdateRef = useRef(0);
+
+    useLayoutEffect(() => {
+        const now = Date.now();
+        const endTime = startTime + durationMs;
+        const initialProgress = Math.min(1, (now - startTime) / durationMs);
+        if (barRef.current) {
+            barRef.current.style.width = `${initialProgress * 100}%`;
+        }
+    }, [startTime, durationMs]);
 
     useEffect(() => {
         const endTime = startTime + durationMs;
+        const TEXT_UPDATE_INTERVAL_MS = 100;
 
         const tick = () => {
             const now = Date.now();
+            const elapsed = now - startTime;
+            const progress = Math.min(1, elapsed / durationMs);
+
+            if (barRef.current) {
+                barRef.current.style.width = `${progress * 100}%`;
+            }
+
             if (now >= endTime) {
-                setProgress(1);
+                setRemainingSec(0);
                 if (rafRef.current) cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
                 return;
             }
-            const elapsed = now - startTime;
-            setProgress(Math.min(1, elapsed / durationMs));
+
+            if (now - lastTextUpdateRef.current >= TEXT_UPDATE_INTERVAL_MS) {
+                lastTextUpdateRef.current = now;
+                setRemainingSec((1 - progress) * (durationMs / 1000));
+            }
             rafRef.current = requestAnimationFrame(tick);
         };
 
         const now = Date.now();
         if (now >= endTime) {
-            setProgress(1);
+            setRemainingSec(0);
+            if (barRef.current) barRef.current.style.width = '100%';
             return () => {
                 if (rafRef.current) cancelAnimationFrame(rafRef.current);
             };
         }
-        setProgress(Math.min(1, (now - startTime) / durationMs));
+        const initialProgress = Math.min(1, (now - startTime) / durationMs);
+        if (barRef.current) barRef.current.style.width = `${initialProgress * 100}%`;
+        setRemainingSec((1 - initialProgress) * (durationMs / 1000));
+        lastTextUpdateRef.current = now;
         rafRef.current = requestAnimationFrame(tick);
 
         return () => {
@@ -56,20 +86,19 @@ export const AttackToTurnGauge: React.FC<AttackToTurnGaugeProps> = ({
         };
     }, [startTime, durationMs]);
 
-    const remainingSec = Math.max(0, (1 - progress) * (durationMs / 1000));
-
     return (
         <div className="flex flex-col gap-1 w-full min-w-[140px] max-w-[240px]">
             <div className="flex justify-between items-center text-xs text-gray-300">
                 <span>{label}</span>
                 <span className="tabular-nums font-medium">
-                    {progress >= 1 ? '0.0초' : `${remainingSec.toFixed(1)}초`}
+                    {remainingSec <= 0 ? '0.0초' : `${remainingSec.toFixed(1)}초`}
                 </span>
             </div>
             <div className="h-2.5 bg-gray-800 rounded-full border border-gray-600 overflow-hidden">
                 <div
-                    className={`h-full rounded-full transition-[width] duration-75 ease-linear ${barClassName}`}
-                    style={{ width: `${progress * 100}%` }}
+                    ref={barRef}
+                    className={`h-full rounded-full ${barClassName}`}
+                    style={{ willChange: 'width' }}
                 />
             </div>
         </div>

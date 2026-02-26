@@ -97,66 +97,76 @@ const wouldBeImmediatelyCaptured = (board: BoardState, x: number, y: number, pla
     return false;
 };
 
-// Helper function to place stones randomly without overlap and without immediate capture
+// 빈 칸 목록을 랜덤 셔플 (Fisher-Yates)
+const shufflePoints = (points: Point[]): Point[] => {
+    const out = [...points];
+    for (let i = out.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+};
+
+// Helper function to place stones randomly without overlap and without immediate capture — 층별 흑/백 개수 정확히 맞춤
 const placeStonesOnBoard = (board: BoardState, boardSize: number, count: number, player: Player): Point[] => {
-    const placedStones: Point[] = [];
-    let placedCount = 0;
-    let attempts = 0;
-    while (placedCount < count && attempts < 200) {
-        attempts++;
-        const x = Math.floor(Math.random() * boardSize);
-        const y = Math.floor(Math.random() * boardSize);
-        if (board[y][x] === Player.None) {
-            // Check if this placement would result in immediate capture
-            if (wouldBeImmediatelyCaptured(board, x, y, player)) {
-                continue; // Skip this position
-            }
-            board[y][x] = player;
-            placedStones.push({ x, y });
-            placedCount++;
+    const empty: Point[] = [];
+    for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+            if (board[y][x] === Player.None) empty.push({ x, y });
         }
+    }
+    const shuffled = shufflePoints(empty);
+    const placedStones: Point[] = [];
+    for (const { x, y } of shuffled) {
+        if (placedStones.length >= count) break;
+        if (board[y][x] !== Player.None) continue;
+        if (wouldBeImmediatelyCaptured(board, x, y, player)) continue;
+        board[y][x] = player;
+        placedStones.push({ x, y });
     }
     return placedStones;
 };
 
-// Helper function to place pattern stones randomly without overlap
-const placePatternStonesOnBoard = (board: BoardState, boardSize: number, count: number, player: Player, existingStones: Point[]): Point[] => {
-    const placedStones: Point[] = [];
-    let placedCount = 0;
-    let attempts = 0;
-    while (placedCount < count && attempts < 200) {
-        attempts++;
-        const x = Math.floor(Math.random() * boardSize);
-        const y = Math.floor(Math.random() * boardSize);
-        if (board[y][x] === Player.None && !existingStones.some(s => s.x === x && s.y === y)) {
-            placedStones.push({ x, y });
-            placedCount++;
+// Helper function to place pattern stones randomly without overlap — 층별 문양돌 개수 정확히 맞춤
+const placePatternStonesOnBoard = (board: BoardState, boardSize: number, count: number, _player: Player, existingStones: Point[]): Point[] => {
+    const empty: Point[] = [];
+    for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+            if (board[y][x] === Player.None && !existingStones.some(s => s.x === x && s.y === y)) {
+                empty.push({ x, y });
+            }
         }
     }
-    return placedStones;
+    const shuffled = shufflePoints(empty);
+    return shuffled.slice(0, Math.min(count, shuffled.length));
 };
 
 const generateTowerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
     const board = Array(stage.boardSize).fill(null).map(() => Array(stage.boardSize).fill(Player.None));
-    
-    // 흑돌 배치
-    const blackStones = placeStonesOnBoard(board, stage.boardSize, stage.placements.black, Player.Black);
-    
-    // 백돌 배치
-    const whiteStones = placeStonesOnBoard(board, stage.boardSize, stage.placements.white, Player.White);
-    
-    // 흑 문양돌 배치 (빈 칸에 개수만큼 랜덤 위치 선정 후 보드에도 표시)
-    const blackPattern = placePatternStonesOnBoard(board, stage.boardSize, stage.placements.blackPattern, Player.Black, blackStones);
+    const placements = stage.placements ?? { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
+    const blackCount = placements.black ?? 0;
+    const whiteCount = placements.white ?? 0;
+    const blackPatternCount = placements.blackPattern ?? 0;
+    const whitePatternCount = placements.whitePattern ?? 0;
+
+    // 흑돌 배치 (층별 정해진 개수만큼)
+    const blackStones = placeStonesOnBoard(board, stage.boardSize, blackCount, Player.Black);
+
+    // 백돌 배치 (층별 정해진 개수만큼)
+    const whiteStones = placeStonesOnBoard(board, stage.boardSize, whiteCount, Player.White);
+
+    // 흑 문양돌 배치 (빈 칸에 개수만큼 랜덤 위치, 정확히 blackPatternCount개)
+    const blackPattern = placePatternStonesOnBoard(board, stage.boardSize, blackPatternCount, Player.Black, blackStones);
     for (const p of blackPattern) {
         board[p.y][p.x] = Player.Black;
     }
-    
-    // 백 문양돌 배치
-    const whitePattern = placePatternStonesOnBoard(board, stage.boardSize, stage.placements.whitePattern, Player.White, whiteStones);
+
+    // 백 문양돌 배치 (빈 칸에 개수만큼 랜덤 위치, 정확히 whitePatternCount개)
+    const whitePattern = placePatternStonesOnBoard(board, stage.boardSize, whitePatternCount, Player.White, whiteStones);
     for (const p of whitePattern) {
         board[p.y][p.x] = Player.White;
     }
-    
+
     return { board, blackPattern, whitePattern };
 };
 
@@ -511,7 +521,14 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 inventory.splice(itemIndex, 1);
             }
 
-            const stage = TOWER_STAGES.find(s => s.id === game.stageId);
+            // 스테이지 조회: stageId 우선, 없으면 towerFloor로 층 번호 매칭 (DB/캐시 차이 대응)
+            let stage = TOWER_STAGES.find(s => s.id === game.stageId);
+            if (!stage && game.towerFloor != null) {
+                const floor = Number(game.towerFloor);
+                if (!Number.isNaN(floor)) {
+                    stage = TOWER_STAGES.find(s => parseInt(s.id.replace('tower-', ''), 10) === floor);
+                }
+            }
             if (!stage) {
                 return { error: 'Stage data not found for refresh.' };
             }
@@ -602,20 +619,21 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 (game as any).blackTurnLimitBonus = 0;
             }
             
-            // 3턴 추가
+            // 3턴 추가 (흑의 남은 턴 = effectiveBlackTurnLimit - blackMoves 에서 limit이 +3 됨)
             (game as any).blackTurnLimitBonus += 3;
 
+            const { updateGameCache } = await import('../gameCache.js');
+            updateGameCache(game);
             await db.saveGame(game);
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
             db.updateUser(user).catch(err => {
-                console.error(`[TOWER_REWARD] Failed to save user ${user.id}:`, err);
+                console.error(`[TOWER_ADD_TURNS] Failed to save user ${user.id}:`, err);
             });
 
             const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'towerFloor']);
-            
-            return { clientResponse: { updatedUser: user, game } };
+            // HTTP 응답에 game 포함해 클라이언트가 남은 턴 UI 즉시 갱신
+            return { clientResponse: { updatedUser: user, gameId: game.id, game } };
         }
         case 'END_TOWER_GAME': {
             const { gameId, winner, winReason } = payload;

@@ -13,7 +13,7 @@ import QuickAccessSidebar from './QuickAccessSidebar.js';
 import TowerItemShopModal from './TowerItemShopModal.js';
 
 const TowerLobby: React.FC = () => {
-        const { currentUser, currentUserWithStatus, allUsers, handlers } = useAppContext();
+        const { currentUser, currentUserWithStatus, allUsers, handlers, towerRankingsRefetchTrigger } = useAppContext();
     const isMobile = useIsMobileLayout(1024);
     const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
@@ -100,12 +100,32 @@ const TowerLobby: React.FC = () => {
                 setTowerRankingsLoading(false);
             }
         };
-        
+
         fetchTowerRankings();
         // 10초마다 랭킹 갱신
         const interval = setInterval(fetchTowerRankings, 10000);
         return () => clearInterval(interval);
     }, []);
+
+    // 도전의 탑 클리어 직후 랭킹 즉시 갱신 (대기실 복귀 시 바로 반영)
+    useEffect(() => {
+        if (towerRankingsRefetchTrigger > 0) {
+            (async () => {
+                try {
+                    setTowerRankingsLoading(true);
+                    const response = await fetch('/api/ranking/tower');
+                    if (response.ok) {
+                        const data = await response.json();
+                        setTowerRankings(data.rankings || []);
+                    }
+                } catch (error) {
+                    console.error('[TowerLobby] Error refetching tower rankings:', error);
+                } finally {
+                    setTowerRankingsLoading(false);
+                }
+            })();
+        }
+    }, [towerRankingsRefetchTrigger]);
     
     // 랭킹 계산: 서버에서 받은 랭킹 데이터 사용
     const { myRankingEntry, top100Users } = useMemo(() => {

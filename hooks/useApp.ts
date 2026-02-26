@@ -54,6 +54,9 @@ export const useApp = () => {
     const pendingAiGameEntryRef = useRef<{ gameId: string; until: number; game?: LiveGameSession } | null>(null);
     // 클라이언트 측 AI(Electron): 같은 턴에 중복 전송 방지
     const lastClientSideAiSentRef = useRef<Record<string, number>>({});
+    // 새로고침(F5) 후 재입장: 재입장 API 실패 시에만 게임 페이지에서 나가기
+    const [rejoinFailedForGameId, setRejoinFailedForGameId] = useState<string | null>(null);
+    const rejoinRequestedRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         currentUserRef.current = currentUser;
@@ -258,6 +261,7 @@ export const useApp = () => {
     const [liveGames, setLiveGames] = useState<Record<string, LiveGameSession>>({});  // 일반 게임만
     const [singlePlayerGames, setSinglePlayerGames] = useState<Record<string, LiveGameSession>>({});  // 싱글플레이 게임
     const [towerGames, setTowerGames] = useState<Record<string, LiveGameSession>>({});  // 도전의 탑 게임
+    const [towerRankingsRefetchTrigger, setTowerRankingsRefetchTrigger] = useState(0);   // 도전의 탑 클리어 시 대기실 랭킹 즉시 갱신용
     const liveGameSignaturesRef = useRef<Record<string, string>>({});
     const singlePlayerGameSignaturesRef = useRef<Record<string, string>>({});
     const towerGameSignaturesRef = useRef<Record<string, string>>({});
@@ -571,8 +575,16 @@ export const useApp = () => {
                 return game;
             }
         }
+        // 새로고침(F5) 후 재입장: URL이 #/game/:id 이고 해당 게임이 스토어에 있으면(재입장 API로 로드) 참가자일 때 activeGame으로 사용
+        const urlGameId = currentRoute?.view === 'game' ? (currentRoute.params?.id ?? '') : '';
+        if (urlGameId && currentUser) {
+            const gameFromUrl = liveGames[urlGameId] || singlePlayerGames[urlGameId] || towerGames[urlGameId];
+            if (gameFromUrl && (gameFromUrl.player1?.id === currentUser.id || gameFromUrl.player2?.id === currentUser.id)) {
+                return gameFromUrl;
+            }
+        }
         return null;
-    }, [currentUserWithStatus, liveGames, singlePlayerGames, towerGames]);
+    }, [currentUserWithStatus, liveGames, singlePlayerGames, towerGames, currentUser, currentRoute]);
 
     const activeNegotiation = useMemo(() => {
         if (!currentUserWithStatus) return null;
@@ -1351,6 +1363,22 @@ export const useApp = () => {
                         }
                     }
                 }
+                // SPECTATE_GAME 성공 시 서버가 반환한 전체 게임 데이터를 상태에 넣고 게임 페이지로 이동 (중립 관전)
+                if (action.type === 'SPECTATE_GAME') {
+                    const spectateGame = result.clientResponse?.game || (result as any).game;
+                    if (spectateGame?.id) {
+                        const category = spectateGame.gameCategory || (spectateGame.isSinglePlayer ? 'singleplayer' : 'normal');
+                        if (category === 'tower') {
+                            setTowerGames(prev => ({ ...prev, [spectateGame.id]: spectateGame }));
+                        } else {
+                            setLiveGames(prev => ({ ...prev, [spectateGame.id]: spectateGame }));
+                        }
+                        const targetHash = `#/game/${spectateGame.id}`;
+                        if (window.location.hash !== targetHash) {
+                            setTimeout(() => { window.location.hash = targetHash; }, 100);
+                        }
+                    }
+                }
                 // COMPLETE_DUNGEON_STAGE: 서버가 { success, ...clientResponse } 형태로 보내므로 clientResponse 없이 flat하게 옴. updatedUser를 먼저 적용해 dungeonProgress(unlockedStages, stageResults 등) 반영 후 반환.
                 if (action.type === 'COMPLETE_DUNGEON_STAGE' && result && result.userRank != null) {
                     const updatedUser = result.updatedUser || (result as any).clientResponse?.updatedUser;
@@ -1569,6 +1597,10 @@ export const useApp = () => {
                                 return prev;
                             });
                         });
+                    }
+                    // 도전의 탑 클리어 시 대기실 랭킹 즉시 갱신 (10초 대기 없이)
+                    if (action.type === 'END_TOWER_GAME') {
+                        setTowerRankingsRefetchTrigger(prev => prev + 1);
                     }
                 } else {
                     // HTTP 응답에 updatedUser가 없었음을 기록 (타임스탬프는 업데이트하지 않음)
@@ -1886,7 +1918,7 @@ export const useApp = () => {
                         return { ...currentGames, [rollGameId]: next };
                     });
                 }
-                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'TOWER_REFRESH_PLACEMENT')) {
+                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS')) {
                     console.log(`[handleAction] ${action.type} - gameId received:`, effectiveGameId, 'hasGame:', !!game, 'result keys:', Object.keys(result), 'clientResponse keys:', result.clientResponse ? Object.keys(result.clientResponse) : []);
                     
                     // 응답에 게임 데이터가 있으면 즉시 상태에 추가 (WebSocket 업데이트를 기다리지 않음)
@@ -1897,6 +1929,12 @@ export const useApp = () => {
                         
                         // 게임 카테고리 확인
                         if (game.isSinglePlayer) {
+                            // 배치변경 시 sessionStorage의 이전 보드를 제거해 Game.tsx가 서버의 새 boardState를 사용하도록 함
+                            if (action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT') {
+                                try {
+                                    sessionStorage.removeItem(`gameState_${effectiveGameId}`);
+                                } catch (_) { /* ignore */ }
+                            }
                             setSinglePlayerGames(currentGames => {
                                 // CONFIRM 액션·배치변경(SINGLE_PLAYER_REFRESH_PLACEMENT)의 경우 게임 상태가 업데이트되었으므로 항상 업데이트
                                 if (action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || !currentGames[effectiveGameId]) {
@@ -1911,8 +1949,8 @@ export const useApp = () => {
                             });
                         } else if (isTowerGame) {
                             setTowerGames(currentGames => {
-                                // CONFIRM·배치변경(TOWER_REFRESH_PLACEMENT) 시 게임 상태가 바뀌었으므로 항상 업데이트
-                                if (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'TOWER_REFRESH_PLACEMENT' || !currentGames[effectiveGameId]) {
+                                // CONFIRM·배치변경(TOWER_REFRESH_PLACEMENT)·턴 추가(TOWER_ADD_TURNS) 시 게임 상태가 바뀌었으므로 항상 업데이트
+                                if (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || !currentGames[effectiveGameId]) {
                                     console.log('[handleAction] Updating tower game:', effectiveGameId, 'gameStatus:', game.gameStatus, 'action type:', action.type, 'existing game status:', currentGames[effectiveGameId]?.gameStatus);
                                     const isRefresh = action.type === 'TOWER_REFRESH_PLACEMENT';
                                     const nextGame = isRefresh && game.boardState
@@ -2781,7 +2819,7 @@ export const useApp = () => {
                                                 };
                                                 setTimeout(checkGame, 200);
                                             }
-                                        } else if (currentUserStatus.status === 'waiting' && currentUserStatus.mode && !currentUserStatus.gameId) {
+                                        } else if ((currentUserStatus.status === 'waiting' || currentUserStatus.status === 'resting') && !currentUserStatus.gameId) {
                                             const currentHash = window.location.hash;
                                             const isGamePage = currentHash.startsWith('#/game/');
                                             if (isGamePage) {
@@ -3509,13 +3547,16 @@ export const useApp = () => {
                                 removeFromGames(setTowerGames, towerGameSignaturesRef.current);
                             }
 
-                            // 삭제된 대국실 페이지에 있으면 홈으로 리다이렉트 (AI 대국 로그아웃/삭제, 싱글·탑·일반 모두)
+                            // 삭제된 대국실 페이지에 있으면 적절한 목적지로 리다이렉트 (도전의 탑 → 탑 로비, 싱글 → 싱글, 그 외 → 홈)
                             const currentHash = window.location.hash;
                             const isOnDeletedGamePage = currentHash.startsWith('#/game/') && currentHash.includes(deletedGameId);
                             if (isOnDeletedGamePage) {
-                                console.log(`[WebSocket] Game deleted (category: ${serverGameCategory ?? 'unknown'}), routing to home`);
+                                let redirectHash = '#/';
+                                if (serverGameCategory === 'tower') redirectHash = '#/tower';
+                                else if (serverGameCategory === 'singleplayer') redirectHash = '#/singleplayer';
+                                console.log(`[WebSocket] Game deleted (category: ${serverGameCategory ?? 'unknown'}), routing to ${redirectHash}`);
                                 setTimeout(() => {
-                                    window.location.hash = '#/';
+                                    window.location.hash = redirectHash;
                                 }, 100);
                             }
                             return;
@@ -3828,8 +3869,13 @@ export const useApp = () => {
             console.log('[useApp] Routing to game:', activeGame.id);
             window.location.hash = `#/game/${activeGame.id}`;
         } else if (!activeGame && isGamePage) {
-            const urlGameId = currentHash.replace('#/game/', '');
-            // 나가기 버튼으로 설정된 대기실/탑/싱글 이동 경로가 있으면 우선 사용 (AI 대결 종료 후 대기실로 가야 함)
+            const urlGameId = currentHash.replace('#/game/', '').split('/')[0];
+            const gameInStore = liveGames[urlGameId] || singlePlayerGames[urlGameId] || towerGames[urlGameId];
+            // 경기 종료(ended/no_contest/scoring) 후 새로고침 시 경기장 화면 유지: 해당 게임이 스토어에 있으면 리다이렉트하지 않음
+            if (gameInStore && ['ended', 'no_contest', 'scoring'].includes(gameInStore.gameStatus || '')) {
+                return;
+            }
+            // 나가기 버튼으로 설정된 대기실/탑/싱글 이동 경로가 있으면 우선 사용 (나가기 클릭 시 대기실로 이동)
             const postRedirect = sessionStorage.getItem('postGameRedirect');
             if (postRedirect) {
                 sessionStorage.removeItem('postGameRedirect');
@@ -3838,12 +3884,8 @@ export const useApp = () => {
                 }
                 return;
             }
-            // AI 게임 진입 직후: state 반영 전 레이스 컨디션으로 리다이렉트하지 않음 (3초 유예)
-            const pending = pendingAiGameEntryRef.current;
-            const isPendingAiEntry = pending?.gameId === urlGameId && Date.now() < pending.until;
-            // AI 게임의 경우, 게임이 종료되어도 결과창을 확인할 수 있도록 게임 페이지에 머물 수 있음
-            const isAiGame = liveGames[urlGameId]?.isAiGame;
-            if (!isAiGame && !isPendingAiEntry) {
+            // 새로고침(F5) 후 재입장 API 실패 시에만 리다이렉트 (AI/PVP 공통, 성공 시 activeGame 폴백으로 이어하기)
+            if (rejoinFailedForGameId === urlGameId) {
                 let targetHash = '#/profile';
                 if (currentUserWithStatus?.status === 'waiting' && currentUserWithStatus?.mode) {
                     targetHash = `#/waiting/${encodeURIComponent(currentUserWithStatus.mode)}`;
@@ -3851,10 +3893,74 @@ export const useApp = () => {
                 if (currentHash !== targetHash) {
                     window.location.hash = targetHash;
                 }
+                return;
             }
+            // AI 게임 진입 직후: state 반영 전 레이스 컨디션으로 리다이렉트하지 않음 (3초 유예)
+            const pending = pendingAiGameEntryRef.current;
+            const isPendingAiEntry = pending?.gameId === urlGameId && Date.now() < pending.until;
+            const isAiGame = liveGames[urlGameId]?.isAiGame;
+            // gameInStore는 위에서 이미 선언됨
+            // 게임이 이미 스토어에 있으면 activeGame 폴백이 처리하므로 리다이렉트 불필요
+            // 스토어에 없으면 재입장 effect가 시도할 때까지 리다이렉트하지 않음
+            if (!gameInStore && !isAiGame && !isPendingAiEntry) {
+                // 재입장 대기 중: 리다이렉트하지 않음
+                return;
+            }
+            if (!isAiGame && !isPendingAiEntry && gameInStore) {
+                // 게임이 스토어에 있으면 URL 기반 activeGame 폴백으로 표시됨
+                return;
+            }
+            // 기존: AI 게임이거나 pending entry면 리다이렉트하지 않음 (게임 페이지 유지)
         }
-    }, [currentUser, activeGame, currentUserWithStatus, liveGames]);
-    
+    }, [currentUser, activeGame, currentUserWithStatus, liveGames, singlePlayerGames, towerGames, rejoinFailedForGameId]);
+
+    // 새로고침(F5) 후 게임 페이지에서 재입장 API 호출 - AI/PVP 공통 (INITIAL_STATE 대기 후)
+    useEffect(() => {
+        const view = currentRoute?.view;
+        const gameId = currentRoute?.view === 'game' ? (currentRoute.params?.id ?? '') : '';
+        if (!currentUser || view !== 'game' || !gameId) {
+            if (gameId) setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+            return;
+        }
+        const gameInStore = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+        if (gameInStore) {
+            setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+            return;
+        }
+        if (rejoinRequestedRef.current.has(gameId)) return;
+        rejoinRequestedRef.current.add(gameId);
+        const t = setTimeout(async () => {
+            try {
+                const res = await fetch(getApiUrl('/api/game/rejoin'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id, gameId }),
+                    credentials: 'omit',
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.game) {
+                    const g = data.game as LiveGameSession;
+                    const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+                    if (category === 'singleplayer') {
+                        setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
+                    } else if (category === 'tower') {
+                        setTowerGames(prev => ({ ...prev, [g.id]: g }));
+                    } else {
+                        setLiveGames(prev => ({ ...prev, [g.id]: g }));
+                    }
+                    setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+                    return;
+                }
+                setRejoinFailedForGameId(gameId);
+            } catch {
+                setRejoinFailedForGameId(gameId);
+            } finally {
+                rejoinRequestedRef.current.delete(gameId);
+            }
+        }, 2500);
+        return () => clearTimeout(t);
+    }, [currentUser, currentRoute?.view, currentRoute?.params?.id, liveGames, singlePlayerGames, towerGames]);
+
     // --- Misc UseEffects ---
     useEffect(() => {
         const setVh = () => document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
@@ -4210,6 +4316,7 @@ export const useApp = () => {
         liveGames,
         singlePlayerGames,
         towerGames,
+        towerRankingsRefetchTrigger,
         negotiations,
         waitingRoomChats,
         gameChats,

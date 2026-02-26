@@ -14,6 +14,8 @@ export interface ClientMovePayload {
     newBoardState: any[][];
     capturedStones: Point[];
     newKoInfo: any;
+    /** 도전의 탑 21층+ 히든 아이템 착수 시 true (gameStatus → playing, hiddenMoves 기록, hidden_stones_p1 감소) */
+    isHidden?: boolean;
 }
 
 export interface GameStateUpdateResult {
@@ -35,7 +37,7 @@ export function updateGameStateAfterMove(
     payload: ClientMovePayload & { isPass?: boolean },
     gameType: GameType
 ): GameStateUpdateResult {
-    const { x, y, newBoardState, capturedStones, newKoInfo, isPass } = payload;
+    const { x, y, newBoardState, capturedStones, newKoInfo, isPass, isHidden } = payload;
     
     // 패스 처리
     if (isPass && x === -1 && y === -1) {
@@ -229,12 +231,13 @@ export function updateGameStateAfterMove(
     let finalKoInfo = newKoInfo || null;
     
     // 게임 상태 업데이트
+    const newMoveHistory = [...(game.moveHistory || []), { x, y, player: movePlayer }];
     const updatedGame: LiveGameSession = {
         ...game,
         boardState: newBoardState,
         koInfo: finalKoInfo,
         lastMove: { x, y },
-        moveHistory: [...(game.moveHistory || []), { x, y, player: movePlayer }],
+        moveHistory: newMoveHistory,
         captures: newCaptures,
         blackPatternStones: updatedBlackPatternStones,
         whitePatternStones: updatedWhitePatternStones,
@@ -249,7 +252,17 @@ export function updateGameStateAfterMove(
         ...(updatedWhiteTurnsPlayed !== undefined ? { whiteTurnsPlayed: updatedWhiteTurnsPlayed } as any : {}),
         ...(updatedTotalTurns !== undefined ? { totalTurns: updatedTotalTurns } as any : {}),
     };
-    
+
+    // 도전의 탑 21층+ 히든 아이템: playing 전환, hiddenMoves 기록, hidden_stones_p1 감소
+    if (gameType === 'tower' && isHidden) {
+        (updatedGame as any).gameStatus = 'playing';
+        (updatedGame as any).hiddenMoves = { ...(game.hiddenMoves || {}), [newMoveHistory.length - 1]: true };
+        const p1Id = game.player1?.id;
+        const hiddenKey = 'hidden_stones_p1';
+        const current = (game as any)[hiddenKey] ?? (game.settings as any)?.hiddenStoneCount ?? 0;
+        (updatedGame as any)[hiddenKey] = Math.max(0, current - 1);
+    }
+
     return {
         updatedGame,
         shouldCheckVictory: !!checkInfo,

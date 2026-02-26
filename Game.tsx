@@ -125,6 +125,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         console.warn(`[Game] Server has more moves but no boardState; keeping stored boardState to avoid capture desync (server moves: ${serverMoveCount}, stored: ${storedMoveCount}) for game ${gameId}`);
                         return parsed.boardState;
                     }
+                    // 아직 한 수도 두지 않았을 때(배치변경 직후 등)는 서버 boardState 우선 → 새로 랜덤 배치가 바로 반영되도록
+                    if (serverMoveCount === 0 && storedMoveCount === 0 && session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0) {
+                        return session.boardState;
+                    }
                     // 진행 중이거나 종료/계가 중일 때 모두 sessionStorage 보드 사용 → 결과 모달 시에도 바둑판 유지
                     console.log(`[Game] Restored boardState from sessionStorage for game ${gameId} (gameStatus: ${gameStatus})`);
                     return parsed.boardState;
@@ -202,6 +206,46 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [restoredBoardState, session.moveHistory, session.captures, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, session.totalTurns, gameId, gameStatus]);
     
+    // 도전의 탑/싱글: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
+    const sessionWithRestoredPatternStones = useMemo(() => {
+        if (!isSinglePlayer && !isTower) return session;
+        let next = session;
+        try {
+            const stored = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
+            if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed.gameId === gameId) {
+            const hasPattern = (session.blackPatternStones?.length ?? 0) > 0 || (session.whitePatternStones?.length ?? 0) > 0;
+            if (!hasPattern) {
+                const storedBlack = Array.isArray(parsed.blackPatternStones) ? parsed.blackPatternStones : null;
+                const storedWhite = Array.isArray(parsed.whitePatternStones) ? parsed.whitePatternStones : null;
+                if (storedBlack || storedWhite) {
+                    next = { ...next, blackPatternStones: storedBlack ?? next.blackPatternStones, whitePatternStones: storedWhite ?? next.whitePatternStones };
+                }
+            }
+            // 턴 제한 경기: totalTurns가 없거나 0이면 sessionStorage 값으로 복원 (남은 턴이 Max로 초기화되는 현상 방지)
+            const serverTotalTurns = next.totalTurns;
+            if ((serverTotalTurns === undefined || serverTotalTurns === null || serverTotalTurns === 0) && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0) {
+                next = { ...next, totalTurns: parsed.totalTurns };
+            }
+            // INITIAL_STATE 등에서 moveHistory가 생략된 경우 복원 (남은 턴 계산에 사용)
+            const serverMoveCount = next.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
+            if (serverMoveCount === 0 && Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0) {
+                next = { ...next, moveHistory: parsed.moveHistory };
+            }
+            }
+            }
+            // totalTurns가 0이거나 없는데 moveHistory에 유효 수가 있으면 moveHistory 기준으로 설정 (sessionStorage 유무와 관계없이, 한 수 둔 뒤 턴이 Max로 돌아가는 버그 방지)
+            const validCount = next.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
+            if (validCount > 0 && (next.totalTurns === undefined || next.totalTurns === null || next.totalTurns === 0)) {
+                next = { ...next, totalTurns: validCount };
+            }
+            return next;
+        } catch {
+            return session;
+        }
+    }, [session, isSinglePlayer, isTower, gameId]);
+    
     // --- Mobile UI State (가로 모드에서는 PC와 동일 UI) ---
     const isMobile = useIsMobileLayout(1024);
     const isMobileSafeArea = useIsMobileLayout(768);
@@ -236,10 +280,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const currentAnalysisResult = session.analysisResult?.['system'];
         const analysisResultJustArrived = currentAnalysisResult && !prevAnalysisResult;
         const isImmediateEnd = gameHasJustEnded && (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
+        // 싱글/탑: 계가 진입 시에도 모달을 열어 22초 연출(ScoringOverlay)이 모달 안에서 표시되도록 함
+        const justEnteredScoring = gameStatus === 'scoring' && prevGameStatus !== 'scoring' && prevGameStatus !== 'ended';
         const shouldShowModal = gameHasJustEnded || 
             ((isSinglePlayer || isTower)
                 ? (isImmediateEnd || (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
-                   (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived))
+                   (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived) ||
+                   (justEnteredScoring))
                 : ((gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
                    (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived)));
 
@@ -397,7 +444,59 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const myStones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
             if ((myStones?.length || 0) < (session.settings.baseStones || 4)) actionType = 'PLACE_BASE_STONE';
         } else if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn) {
-            // 도전의 탑과 싱글플레이 게임은 클라이언트에서만 처리 (서버로 전송하지 않음, 검증 없이 무조건 실행)
+            // 도전의 탑 21층+ 히든 아이템: 서버에 PLACE_STONE(isHidden) 전송 후 로컬에도 반영 (전략바둑 히든과 동일)
+            if (isTower && gameStatus === 'hidden_placing') {
+                const boardStateToUse = restoredBoardState || session.boardState;
+                if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return;
+                if (x === -1 || y === -1) return;
+                const boardSize = session.settings.boardSize;
+                if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
+                const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+                const stoneAtTarget = boardStateToUse[y][x];
+                if (stoneAtTarget === opponentPlayerEnum) return;
+                let moveResult;
+                try {
+                    moveResult = processMoveClient(
+                        boardStateToUse,
+                        { x, y, player: myPlayerEnum },
+                        session.koInfo,
+                        session.moveHistory?.length || 0,
+                        { ignoreSuicide: false, isSinglePlayer: true, opponentPlayer: opponentPlayerEnum }
+                    );
+                } catch (e) {
+                    console.error('[Game] Tower hidden placement processMoveClient error:', e);
+                    return;
+                }
+                if (!moveResult.isValid) return;
+                // 로컬 즉시 반영 (히든 표시 및 playing 전환)
+                handlers.handleAction({
+                    type: 'TOWER_CLIENT_MOVE',
+                    payload: {
+                        gameId,
+                        x,
+                        y,
+                        newBoardState: moveResult.newBoardState,
+                        capturedStones: moveResult.capturedStones,
+                        newKoInfo: moveResult.newKoInfo,
+                        isHidden: true,
+                    }
+                } as any);
+                // 서버에 히든 착수 전송 (서버가 hiddenMoves 기록·AI에 비공개)
+                handlers.handleAction({
+                    type: 'PLACE_STONE',
+                    payload: {
+                        gameId,
+                        x,
+                        y,
+                        isHidden: true,
+                        boardState: boardStateToUse,
+                        moveHistory: session.moveHistory || [],
+                    }
+                } as ServerAction);
+                if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                return;
+            }
+            // 도전의 탑·싱글플레이 일반 착수: 클라이언트에서만 처리 (서버로 전송하지 않음)
             if (isTower || isSinglePlayer) {
                 // 클라이언트에서 직접 게임 상태 업데이트 (검증 없이 무조건 실행)
                 console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} game - processing move client-side (no validation):`, { x, y, gameId, currentPlayer: myPlayerEnum });
@@ -1135,12 +1234,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (!session.analysisResult?.['system']) {
             setShowFinalTerritory(false);
         }
-        // 경기 종료 후 결과 모달을 닫을 때 서버에 퇴장 알림 → 해당 게임에 대한 통신 중단
+        // 도전의 탑·싱글플레이는 "확인"은 모달만 닫고 경기장에 머물고, "나가기"에서만 퇴장 처리함 → 여기서는 퇴장 보내지 않음
+        const isTowerOrSingle = session.gameCategory === 'tower' || session.isSinglePlayer;
+        if (isTowerOrSingle) return;
+        // 그 외(일반 AI 대국 등): 경기 종료 후 결과 모달을 닫을 때 서버에 퇴장 알림
         if ((gameStatus === 'ended' || gameStatus === 'no_contest') && gameId) {
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
             handlers.handleAction({ type: actionType, payload: { gameId } });
         }
-    }, [session.analysisResult, gameStatus, gameId, session.isAiGame, handlers.handleAction]);
+    }, [session.analysisResult, session.gameCategory, session.isSinglePlayer, gameStatus, gameId, session.isAiGame, handlers.handleAction]);
 
     // 싱글플레이 게임 설명창 표시 여부
     const showGameDescription = isSinglePlayer && gameStatus === 'pending';
@@ -1202,21 +1304,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // 도전의 탑: 싱글플레이와 동일하게 시작 모달에서 시작 버튼을 눌러 확정
     
-    // 싱글플레이어 게임의 경우 restoredBoardState를 포함한 session 객체 생성
-    // session 객체의 참조가 변경되지 않을 수 있으므로, moveHistory.length와 boardState를 의존성으로 사용
+    // 싱글플레이어/도전의 탑: restoredBoardState + totalTurns/moveHistory 복원을 포함한 표시용 session (PlayerPanel 남은 턴 등에 사용)
     const sessionWithRestoredBoard = useMemo(() => {
         if (!isSinglePlayer && !isTower) {
             return session;
         }
-        // restoredBoardState가 있고 session.boardState와 다르면 업데이트된 boardState 사용
-        if (restoredBoardState && restoredBoardState !== session.boardState) {
-            return {
-                ...session,
-                boardState: restoredBoardState
-            };
+        // totalTurns·moveHistory·문양돌이 복원된 세션을 베이스로 사용 (새로고침 후 남은 턴이 Max로 초기화되는 버그 방지)
+        const base = sessionWithRestoredPatternStones;
+        // restoredBoardState가 있으면 보드만 추가로 반영
+        if (restoredBoardState && restoredBoardState !== base.boardState) {
+            return { ...base, boardState: restoredBoardState };
         }
-        return session;
-    }, [isSinglePlayer, isTower, session, restoredBoardState, session.moveHistory?.length, session.boardState]);
+        return base;
+    }, [isSinglePlayer, isTower, sessionWithRestoredPatternStones, restoredBoardState]);
     
     const gameProps: GameProps = {
         session: sessionWithRestoredBoard, onAction: handlers.handleAction, currentUser: currentUserWithStatus, waitingRoomChat: globalChat,
@@ -1245,7 +1345,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full bg-single-player-background text-stone-200`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
                 {showGameDescription && (
                     <SinglePlayerGameDescriptionModal 
-                        session={session}
+                        session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
                     />
                 )}
@@ -1280,7 +1380,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
                                 <TurnDisplay
-                                    session={session}
+                                    session={sessionWithRestoredPatternStones}
                                     isPaused={isPaused}
                                     isMobile={isMobile}
                                     onOpenSidebar={() => setIsMobileSidebarOpen(true)}
@@ -1311,7 +1411,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             {!isRightSidebarCollapsed && (
                                 <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
                                     <SinglePlayerSidebar
-                                        session={session}
+                                        session={sessionWithRestoredPatternStones}
                                         gameChat={gameChat}
                                         onAction={handlers.handleAction}
                                         currentUser={currentUserWithStatus}
@@ -1329,7 +1429,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         <>
                             <div className={`fixed top-0 right-0 h-full w-[280px] bg-secondary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                                 <SinglePlayerSidebar 
-                                    session={session}
+                                    session={sessionWithRestoredPatternStones}
                                     gameChat={gameChat}
                                     onAction={handlers.handleAction}
                                     currentUser={currentUserWithStatus}
@@ -1374,7 +1474,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             >
                 {showTowerGameDescription && (
                     <SinglePlayerGameDescriptionModal 
-                        session={session}
+                        session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
                     />
                 )}
@@ -1407,7 +1507,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
                                 <TurnDisplay
-                                    session={session}
+                                    session={sessionWithRestoredPatternStones}
                                     isPaused={isPaused}
                                     isMobile={isMobile}
                                     onOpenSidebar={() => setIsMobileSidebarOpen(true)}
@@ -1438,7 +1538,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             {!isRightSidebarCollapsed && (
                                 <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
                                     <TowerSidebar
-                                        session={session}
+                                        session={sessionWithRestoredPatternStones}
                                         gameChat={gameChat}
                                         onAction={handlers.handleAction}
                                         currentUser={currentUserWithStatus}
@@ -1456,7 +1556,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         <>
                             <div className={`fixed top-0 right-0 h-full w-[280px] bg-secondary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                                 <TowerSidebar 
-                                    session={session}
+                                    session={sessionWithRestoredPatternStones}
                                     gameChat={gameChat}
                                     onAction={handlers.handleAction}
                                     currentUser={currentUserWithStatus}
@@ -1562,7 +1662,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         </div>
                         <div className="flex-shrink-0 w-full flex flex-col gap-1">
                             <TurnDisplay
-                                session={session}
+                                session={sessionWithRestoredPatternStones}
                                 isMobile={isMobile}
                                 onOpenSidebar={isMobile ? openMobileSidebar : undefined}
                                 sidebarNotification={hasNewMessage}

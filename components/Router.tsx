@@ -20,35 +20,34 @@ import GuildHome from './guild/GuildHome.js';
 import GuildBoss from './guild/GuildBoss.js';
 import GuildWar from './guild/GuildWar.js';
 
-// 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기)
+// 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
-    const { activeGame, singlePlayerGames, towerGames, liveGames } = useAppContext();
+    const { activeGame, singlePlayerGames, towerGames, liveGames, currentUser } = useAppContext();
     const [hasTimedOut, setHasTimedOut] = useState(false);
-    const maxWaitTime = 2000; // 최대 2초 대기 (handleAction에서 즉시 추가하므로 짧게 설정)
+    // 새로고침(F5) 시 재입장 API 대기(2.5초) + 응답 시간을 위해 6초로 설정
+    const maxWaitTime = 6000;
     
-    // activeGame이 로드되면 즉시 렌더링
+    // activeGame이 로드되면 즉시 렌더링 (status 기반 또는 URL 폴백)
     if (activeGame && activeGame.id === gameId) {
         return <Game session={activeGame} />;
     }
     
-    // 타임아웃 처리 (scoring 상태의 게임은 제외)
+    // 재입장으로 스토어에만 있고 activeGame 폴백 전에 올 수 있는 경우: 스토어에서 직접 세션 사용
+    const allGames = { ...(liveGames || {}), ...(singlePlayerGames || {}), ...(towerGames || {}) };
+    const currentGame = allGames[gameId];
+    if (currentGame && currentUser && (currentGame.player1?.id === currentUser.id || currentGame.player2?.id === currentUser.id)) {
+        return <Game session={currentGame} />;
+    }
+    
+    // 타임아웃 처리 (게임이 스토어에 있고 참가자면 경기장 유지 — 종료/계가 후 새로고침 시에도 화면 유지)
     useEffect(() => {
         const timeout = setTimeout(() => {
             if (!activeGame || activeGame.id !== gameId) {
-                // scoring 상태의 게임은 리다이렉트하지 않음 (계가 진행 중)
-                // activeGame이 없어도 게임이 scoring 상태일 수 있으므로 확인
-                const allGames = { 
-                    ...(liveGames || {}), 
-                    ...(singlePlayerGames || {}), 
-                    ...(towerGames || {}) 
-                };
-                const currentGame = allGames[gameId];
-                if (currentGame && currentGame.gameStatus === 'scoring') {
-                    console.log(`[Router] Game ${gameId} is in scoring state, keeping user on game page`);
+                const allGamesCheck = { ...(liveGames || {}), ...(singlePlayerGames || {}), ...(towerGames || {}) };
+                const game = allGamesCheck[gameId];
+                if (game && currentUser && (game.player1?.id === currentUser.id || game.player2?.id === currentUser.id)) {
                     return;
                 }
-                
-                console.warn(`[Router] Game ${gameId} not found after ${maxWaitTime}ms, redirecting to profile.`);
                 setHasTimedOut(true);
                 setTimeout(() => {
                     if (window.location.hash !== '#/profile') {
@@ -59,14 +58,12 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
         }, maxWaitTime);
         
         return () => clearTimeout(timeout);
-    }, [gameId, activeGame, maxWaitTime, singlePlayerGames, towerGames, liveGames]);
+    }, [gameId, activeGame, singlePlayerGames, towerGames, liveGames, currentUser]);
     
-    // 타임아웃이 발생했으면 에러 메시지 표시
     if (hasTimedOut) {
         return <div className="flex items-center justify-center h-full">게임을 찾을 수 없습니다. 프로필로 이동합니다...</div>;
     }
     
-    // 게임이 아직 로드되지 않았으면 대기 메시지 표시
     return <div className="flex items-center justify-center h-full">게임 정보 동기화 중...</div>;
 };
 

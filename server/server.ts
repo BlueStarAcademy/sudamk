@@ -3746,6 +3746,61 @@ const startServer = async () => {
         }
     });
 
+    /** 새로고침(F5) 후 AI/PVP 대국 이어하기: 참가 중인 게임을 조회하여 클라이언트에 전달 */
+    app.post('/api/game/rejoin', async (req, res) => {
+        try {
+            const { userId, gameId } = req.body;
+            if (!userId || !gameId) {
+                return res.status(400).json({ error: 'userId와 gameId가 필요합니다.' });
+            }
+            const { getCachedUser } = await import('./gameCache.js');
+            const user = await getCachedUser(userId);
+            if (!user) {
+                return res.status(401).json({ error: '유효하지 않은 사용자입니다.' });
+            }
+            const { getCachedGame } = await import('./gameCache.js');
+            let game = await getCachedGame(gameId);
+            if (!game) {
+                game = await db.getLiveGame(gameId);
+            }
+            if (!game) {
+                return res.status(404).json({ error: '게임을 찾을 수 없습니다.' });
+            }
+            const isParticipant = game.player1?.id === userId || game.player2?.id === userId;
+            if (!isParticipant) {
+                return res.status(403).json({ error: '해당 게임의 참가자가 아닙니다.' });
+            }
+            // 진행 중이거나 종료/계가 중인 게임만 재입장 허용
+            if (!['pending', 'playing', 'scoring', 'ended', 'no_contest'].includes(game.gameStatus || '')) {
+                return res.status(400).json({ error: '이어하기할 수 없는 게임 상태입니다.' });
+            }
+            // PVP: 새로고침으로 끊긴 플레이어가 90초 내 재접속 시 disconnectionState 해제하여 경기 재개
+            if (game.disconnectionState?.disconnectedPlayerId === userId) {
+                const now = Date.now();
+                const timeSinceDisconnect = now - game.disconnectionState.timerStartedAt;
+                if (timeSinceDisconnect <= 90000) {
+                    game.disconnectionState = null;
+                    const otherPlayerId = game.player1?.id === userId ? game.player2?.id : game.player1?.id;
+                    if (otherPlayerId && game.canRequestNoContest?.[otherPlayerId]) {
+                        delete game.canRequestNoContest[otherPlayerId];
+                    }
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                }
+            }
+            // 서버 상태 복원: 재접속한 유저를 in-game으로 설정 (새로고침 후 라우팅/activeGame 일치)
+            volatileState.userConnections[userId] = Date.now();
+            volatileState.userStatuses[userId] = { status: types.UserStatus.InGame, mode: game.mode, gameId: game.id };
+            // 전체 게임 객체 반환 (boardState, moveHistory 포함 - 클라이언트 복원용)
+            const sanitized = JSON.parse(JSON.stringify(game)) as types.LiveGameSession;
+            return res.status(200).json({ game: sanitized });
+        } catch (error: any) {
+            console.error('[/api/game/rejoin] Error:', error?.message || error);
+            return res.status(500).json({ error: '재입장 처리 중 오류가 발생했습니다.' });
+        }
+    });
+
     app.post('/api/state', async (req, res) => {
         // 프로덕션에서 성능 향상을 위해 로깅 최소화
         const isDev = process.env.NODE_ENV === 'development';

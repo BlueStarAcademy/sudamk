@@ -320,7 +320,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             let serverBoardState = game.boardState;
             let serverMoveHistory = game.moveHistory;
             
-            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
+            // 도전의 탑 21층+ 히든 착수: 클라이언트가 보낸 boardState/moveHistory 사용 (일반 착수는 클라이언트만 반영하므로 서버와 동기화)
+            const payloadBoardState = (payload as any).boardState;
+            const payloadMoveHistory = (payload as any).moveHistory;
+            if (game.gameCategory === 'tower' && Array.isArray(payloadBoardState) && payloadBoardState.length > 0 && Array.isArray(payloadMoveHistory)) {
+                serverBoardState = payloadBoardState;
+                serverMoveHistory = payloadMoveHistory;
+            } else if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
                 // 싱글플레이, 도전의 탑, 전략바둑 AI 대국에서는 서버의 실제 boardState를 사용
                 const { getLiveGame } = await import('../db.js');
                 const freshGame = await getLiveGame(game.id);

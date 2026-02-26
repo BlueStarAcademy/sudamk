@@ -459,7 +459,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (!game) return { error: 'Game not found.' };
             volatileState.userStatuses[user.id] = { status: UserStatus.Spectating, spectatingGameId: gameId, mode: game.mode };
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
-            return {};
+            // 관전자가 게임 화면을 바로 볼 수 있도록 전체 게임 데이터 반환 (중립 관전)
+            return { clientResponse: { game } };
         }
         case 'LEAVE_SPECTATING': {
             const userStatus = volatileState.userStatuses[user.id];
