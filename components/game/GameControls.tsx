@@ -654,10 +654,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const canRefreshNow = !isGameEnded && isPlayingState && moveCount === 0 && remainingRefreshes > 0;
         const canAffordRefresh = currentGold >= nextCost;
         const isPaused = isSinglePlayerPaused;
-        const refreshDisabled = !canRefreshNow || !canAffordRefresh || isPaused;
+        // 미사일 바둑에서 첫 턴에 미사일을 사용한 경우에만 배치변경 비활성화
+        const isMissileOnlyMode = missileCountSetting > 0 && hiddenCountSetting === 0 && scanCountSetting === 0;
+        const myMissilesLeftForRefresh = session.missiles_p1 ?? missileCountSetting;
+        const usedMissileBeforeFirstMove = isMissileOnlyMode && moveCount === 0 && (missileCountSetting - myMissilesLeftForRefresh) > 0;
+        const refreshDisabled = !canRefreshNow || !canAffordRefresh || isPaused || usedMissileBeforeFirstMove;
 
         let refreshHelperMessage = '';
-        if (remainingRefreshes <= 0) {
+        if (usedMissileBeforeFirstMove) {
+            refreshHelperMessage = '첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.';
+        } else if (remainingRefreshes <= 0) {
             refreshHelperMessage = '재배치 횟수를 모두 사용했습니다.';
         } else if (!isPlayingState) {
             refreshHelperMessage = '게임이 시작되면 재배치할 수 있습니다.';

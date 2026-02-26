@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { GameProps, Player, Point, Move } from '../../types.js';
 import GoBoard from '../GoBoard.js';
+import { ScoringOverlay } from '../game/ScoringOverlay.js';
 
 interface SinglePlayerArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -73,6 +74,8 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
 
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-center">
+            {/* 계가 중: 바둑판 위 오버레이 (완료 후 결과 모달 표시) */}
+            {gameStatus === 'scoring' && <ScoringOverlay variant="fullscreen" />}
             <div className={`w-full h-full transition-opacity duration-500 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                 <GoBoard
                     boardState={boardState}

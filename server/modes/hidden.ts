@@ -60,6 +60,32 @@ export const updateHiddenState = (game: types.LiveGameSession, now: number) => {
         case 'hidden_reveal_animating':
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
                 const { pendingCapture } = game;
+                // 히든 돌만 공개(따냄 없음): 상대가 내 히든 위에 두려 한 경우 — 타이머만 재개
+                if (!pendingCapture) {
+                    game.animation = null;
+                    game.gameStatus = 'playing';
+                    game.revealAnimationEndTime = undefined;
+                    game.pendingCapture = null;
+                    const cur = game.currentPlayer;
+                    if (game.settings?.timeLimit > 0 && game.pausedTurnTimeLeft !== undefined) {
+                        const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                        game[timeKey] = game.pausedTurnTimeLeft;
+                        const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                        const byoyomiTime = game.settings.byoyomiTime ?? 0;
+                        const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
+                        if (isNextInByoyomi && byoyomiTime > 0) {
+                            game.turnDeadline = now + byoyomiTime * 1000;
+                        } else {
+                            game.turnDeadline = now + (game[timeKey] ?? 0) * 1000;
+                        }
+                        game.turnStartTime = now;
+                    } else {
+                        game.turnDeadline = undefined;
+                        game.turnStartTime = undefined;
+                    }
+                    game.pausedTurnTimeLeft = undefined;
+                    break;
+                }
                 if (pendingCapture) {
                     const myPlayerEnum = pendingCapture.move.player;
                     const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
@@ -72,18 +98,20 @@ export const updateHiddenState = (game: types.LiveGameSession, now: number) => {
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
                         const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+                        const wasAiInitialHidden = game.isSinglePlayer && (game as any).aiInitialHiddenStone &&
+                            (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
                         
                         let points = 1;
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
-                        } else if (wasHidden) {
-                            game.hiddenStoneCaptures[myPlayerEnum]++;
+                        } else if (wasHidden || wasAiInitialHidden) {
+                            game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
                             points = 5;
                         }
                         game.captures[myPlayerEnum] += points;
         
-                        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden });
+                        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden: wasHidden || wasAiInitialHidden });
                     }
                     
                     if (!game.newlyRevealed) game.newlyRevealed = [];

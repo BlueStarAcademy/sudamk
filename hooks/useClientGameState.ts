@@ -253,11 +253,10 @@ export function updateGameStateAfterMove(
         ...(updatedTotalTurns !== undefined ? { totalTurns: updatedTotalTurns } as any : {}),
     };
 
-    // 도전의 탑 21층+ 히든 아이템: playing 전환, hiddenMoves 기록, hidden_stones_p1 감소
-    if (gameType === 'tower' && isHidden) {
+    // 도전의 탑 21층+ / 싱글플레이 히든 아이템: playing 전환, hiddenMoves 기록, hidden_stones_p1 감소
+    if ((gameType === 'tower' || gameType === 'singleplayer') && isHidden) {
         (updatedGame as any).gameStatus = 'playing';
         (updatedGame as any).hiddenMoves = { ...(game.hiddenMoves || {}), [newMoveHistory.length - 1]: true };
-        const p1Id = game.player1?.id;
         const hiddenKey = 'hidden_stones_p1';
         const current = (game as any)[hiddenKey] ?? (game.settings as any)?.hiddenStoneCount ?? 0;
         (updatedGame as any)[hiddenKey] = Math.max(0, current - 1);

@@ -350,7 +350,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     return (
         <DraggableWindow 
             title={modalTitle}
-            onClose={() => handleClose(session, onClose)} 
+            onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="tower-summary-redesigned"
             initialWidth={900}
         >
@@ -544,11 +544,12 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                 <div className={`mt-1.5 sm:mt-2 flex-shrink-0 grid ${isMobile ? 'grid-cols-2 gap-1.5' : 'grid-cols-4 gap-1.5'}`}>
                     <Button
                         onClick={() => {
-                            // 확인: 모달 닫기
+                            if (isScoring) return;
                             handleClose(session, onClose);
                         }}
                         colorScheme="none"
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border border-blue-400/50 bg-gradient-to-r from-blue-500/90 via-cyan-500/90 to-teal-500/90 text-white shadow-[0_12px_32px_-18px_rgba(59,130,246,0.85)] hover:from-blue-400 hover:to-teal-400`}
+                        disabled={isScoring}
+                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${isScoring ? 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed' : 'border-blue-400/50 bg-gradient-to-r from-blue-500/90 via-cyan-500/90 to-teal-500/90 text-white shadow-[0_12px_32px_-18px_rgba(59,130,246,0.85)] hover:from-blue-400 hover:to-teal-400'}`}
                     >
                         확인
                     </Button>

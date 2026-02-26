@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { GameProps, Player, Point, GameStatus, Move, GameMode } from '../../types.js';
 import GoBoard from '../GoBoard.js';
+import { ScoringOverlay } from '../game/ScoringOverlay.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes';
 
 interface GoGameArenaProps extends GameProps {
@@ -83,6 +84,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
 
     return (
         <div className={`w-full h-full flex items-center justify-center ${backgroundClass} relative`}>
+            {/* 계가 중: 바둑판 위 오버레이 (완료 후 결과 모달 표시) */}
+            {gameStatus === 'scoring' && <ScoringOverlay variant="fullscreen" />}
             {/* 회전 버튼: 흑/백 입장 전환 (이모지로 표현) */}
             {onToggleBoardRotation && (
                 <button

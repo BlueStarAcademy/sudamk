@@ -386,14 +386,20 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                 game.permanentlyRevealedStones.push({ x, y });
 
-                game.animation = { 
-                    type: 'hidden_reveal', 
-                    stones: [{ point: { x, y }, player: opponentPlayerEnum }], 
-                    startTime: now, 
-                    duration: 2000 
+                game.animation = {
+                    type: 'hidden_reveal',
+                    stones: [{ point: { x, y }, player: opponentPlayerEnum }],
+                    startTime: now,
+                    duration: 2000
                 };
                 game.revealAnimationEndTime = now + 2000;
-                
+                game.gameStatus = 'hidden_reveal_animating';
+                // 제한시간·초읽기 일시정지 (애니메이션 종료 후 재개)
+                if (game.turnDeadline) {
+                    game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+                    game.turnDeadline = undefined;
+                    game.turnStartTime = undefined;
+                }
                 return {};
             }
 
@@ -509,6 +515,17 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         }
                     }
                 }
+                // 싱글플레이: AI 초기 히든돌이 따낸 경우 공개 애니메이션 대상에 포함
+                if (game.isSinglePlayer && (game as any).aiInitialHiddenStone) {
+                    const aiHidden = (game as any).aiInitialHiddenStone;
+                    const isCaptured = result.capturedStones.some(s => s.x === aiHidden.x && s.y === aiHidden.y);
+                    if (isCaptured) {
+                        const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === aiHidden.x && p.y === aiHidden.y);
+                        if (!isPermanentlyRevealed) {
+                            capturedHiddenStones.push({ point: { x: aiHidden.x, y: aiHidden.y }, player: opponentPlayerEnum });
+                        }
+                    }
+                }
             }
             
             const allStonesToReveal = [...contributingHiddenStones, ...capturedHiddenStones];
@@ -538,14 +555,19 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         }
                     });
                     
-                    // 캡처 처리
+                    // 캡처 처리 (히든 돌 5점)
                     if (result.capturedStones.length > 0) {
                         if (!game.justCaptured) game.justCaptured = [];
                         for (const stone of result.capturedStones) {
                             const capturedPlayerEnum = opponentPlayerEnum;
                             let points = 1;
-                            
-                            if (game.isSinglePlayer) {
+                            const moveIdx = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
+                            const wasHidden = moveIdx !== -1 && !!game.hiddenMoves?.[moveIdx];
+                            const wasAiInitial = (game as any).aiInitialHiddenStone && (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
+                            if (wasHidden || wasAiInitial) {
+                                points = 5;
+                                game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
+                            } else if (game.isSinglePlayer) {
                                 const patternStones = capturedPlayerEnum === types.Player.Black ? game.blackPatternStones : game.whitePatternStones;
                                 if (patternStones) {
                                     const patternIndex = patternStones.findIndex(p => p.x === stone.x && p.y === stone.y);
@@ -555,9 +577,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                                     }
                                 }
                             }
-                            
                             game.captures[myPlayerEnum] += points;
-                            game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: true });
+                            game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHidden || wasAiInitial });
                         }
                     }
                     
@@ -599,18 +620,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         game.turnDeadline = undefined;
                         game.turnStartTime = undefined;
                     }
-                    
-                    // 히든 아이템 사용 후 게임 상태 복원 (싱글플레이어)
+                    // 히든 아이템 사용 후 itemUseDeadline만 초기화 (타이머는 애니메이션 종료 시 재개)
                     if (game.isSinglePlayer && game.gameStatus === 'hidden_reveal_animating') {
-                        // 애니메이션 후 playing으로 변경되지만, itemUseDeadline은 지금 초기화
                         game.itemUseDeadline = undefined;
-                        if (game.pausedTurnTimeLeft) {
-                            const currentPlayerTimeKey = myPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                            game[currentPlayerTimeKey] = game.pausedTurnTimeLeft;
-                            game.pausedTurnTimeLeft = undefined;
-                        }
                     }
-                    
                     return {};
                 }
             }
@@ -645,6 +658,19 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                                 points = 2; // Pattern stones are worth 2 points
                                 // Remove the pattern from the list so it's a one-time bonus
                                 patternStones.splice(patternIndex, 1);
+                            }
+                        }
+                        // 싱글플레이: 따낸 돌이 히든(또는 AI 초기 히든)이면 영구 공개 및 5점
+                        const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
+                        const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+                        const wasAiInitialHidden = (game as any).aiInitialHiddenStone && (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
+                        if (wasHidden || wasAiInitialHidden) {
+                            game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
+                            points = 5;
+                            wasHiddenForJustCaptured = true;
+                            if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                            if (!game.permanentlyRevealedStones.some(p => p.x === stone.x && p.y === stone.y)) {
+                                game.permanentlyRevealedStones.push(stone);
                             }
                         }
                     } else { // PvP logic

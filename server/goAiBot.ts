@@ -349,29 +349,19 @@ function getBoardStateForAi(
     // 보드 상태 복사
     const aiBoardState: types.BoardState = game.boardState.map(row => [...row]);
     
-    // 유저의 히든 돌을 빈 공간으로 처리 (단, AI가 아는 히든돌만 처리)
-    // aiKnownHiddenStones가 있으면 그것만 확인, 없으면 기존 로직 사용 (하위 호환성)
-    const aiKnownHiddenStones = (game as any).aiKnownHiddenStones;
+    // 유저의 히든 돌은 AI에게 비공개: 보드에서 빈 칸으로 보이게 함 (유저가 둔 히든 위치를 AI가 알 수 없음)
     if (game.hiddenMoves && game.moveHistory) {
         for (let moveIndex = 0; moveIndex < game.moveHistory.length; moveIndex++) {
             if (game.hiddenMoves[moveIndex]) {
                 const move = game.moveHistory[moveIndex];
                 if (move && move.player === userPlayerEnum) {
-                    // aiKnownHiddenStones가 있고 이 히든돌이 포함되어 있으면 AI가 알고 있는 히든돌
-                    // aiKnownHiddenStones가 없으면 기존 로직대로 모든 히든돌을 처리 (하위 호환성)
-                    const isAiKnown = aiKnownHiddenStones ? aiKnownHiddenStones[moveIndex] : true;
-                    
-                    if (isAiKnown) {
-                        const { x, y } = move;
-                        // 공개되지 않은 히든 돌만 빈 공간으로 처리
-                        const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(
-                            p => p.x === x && p.y === y
-                        );
-                        if (!isPermanentlyRevealed && aiBoardState[y]?.[x] === userPlayerEnum) {
-                            aiBoardState[y][x] = Player.None;
-                        }
+                    const { x, y } = move;
+                    const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(
+                        p => p.x === x && p.y === y
+                    );
+                    if (!isPermanentlyRevealed && aiBoardState[y]?.[x] === userPlayerEnum) {
+                        aiBoardState[y][x] = Player.None;
                     }
-                    // isAiKnown이 false면 유저가 히든 아이템으로 놓은 히든돌이므로 AI는 모름 (처리하지 않음)
                 }
             }
         }
@@ -900,7 +890,10 @@ export async function makeGoAiBotMove(
                 hiddenContributors: contributingHiddenStones.map(c => c.point),
                 capturedHiddenStones: capturedHiddenStones.map(c => c.point)
             };
-            
+            // 애니메이션 동안 따낸 돌을 보드에 다시 표시 (공개 애니메이션 후 제거)
+            for (const stone of result.capturedStones) {
+                game.boardState[stone.y][stone.x] = opponentPlayerEnum;
+            }
             // permanentlyRevealedStones에 추가
             if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
             uniqueStonesToReveal.forEach(s => {
@@ -909,7 +902,7 @@ export async function makeGoAiBotMove(
                 }
             });
             
-            // 보드 상태는 일단 유지 (애니메이션 종료 후 제거)
+            // 보드 상태는 애니메이션 종료 후 제거
             await db.saveGame(game);
             return; // 애니메이션 종료 후 updateHiddenState에서 처리
         }

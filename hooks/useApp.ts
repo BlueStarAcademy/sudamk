@@ -3054,10 +3054,14 @@ export const useApp = () => {
                                                     ? existingGame.moveHistory
                                                     : (serverMoveHistoryValid ? game.moveHistory : existingGame?.moveHistory);
                                                 
+                                                // 서버의 permanentlyRevealedStones 우선 (히든 따냄/따임·상대 착수 시도 시 영구 공개 반영)
+                                                const serverRevealed = game.permanentlyRevealedStones && game.permanentlyRevealedStones.length > 0 ? game.permanentlyRevealedStones : null;
+                                                const mergedRevealed = serverRevealed ?? existingGame?.permanentlyRevealedStones ?? game.permanentlyRevealedStones ?? [];
                                                 updatedGames[gameId] = {
                                                     ...game,
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
+                                                    permanentlyRevealedStones: mergedRevealed,
                                                     // totalTurns와 captures 보존 (애니메이션 중 초기화 방지)
                                                     totalTurns: preservedTotalTurns,
                                                     captures: preservedCaptures,
@@ -3170,15 +3174,18 @@ export const useApp = () => {
                                                 }
                                             } else {
                                                 // 일반 상태에서는 서버에서 온 게임 상태 사용
-                                                // 애니메이션 중이거나 기존 게임이 있으면 totalTurns와 captures 보존
+                                                // 애니메이션 중이거나 기존 게임이 있으면 totalTurns와 captures 보존, 서버의 permanentlyRevealedStones 우선
+                                                const serverRevealed = game.permanentlyRevealedStones && game.permanentlyRevealedStones.length > 0 ? game.permanentlyRevealedStones : null;
+                                                const mergedRevealed = serverRevealed ?? existingGame?.permanentlyRevealedStones ?? game.permanentlyRevealedStones ?? [];
                                                 if (isAnimating || existingGame) {
                                                     updatedGames[gameId] = {
                                                         ...game,
+                                                        permanentlyRevealedStones: mergedRevealed,
                                                         totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
                                                         captures: preservedCaptures
                                                     };
                                                 } else {
-                                                    updatedGames[gameId] = game;
+                                                    updatedGames[gameId] = { ...game, permanentlyRevealedStones: mergedRevealed };
                                                 }
                                             }
                                         }

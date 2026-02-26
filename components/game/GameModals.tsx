@@ -53,15 +53,13 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             return <NegotiationModal negotiation={activeNegotiation} currentUser={currentUser} onAction={onAction} onlineUsers={onlineUsers} />;
         }
 
-        // 싱글플레이: showResultModal이 true이거나 ended/scoring 상태일 때 SinglePlayerSummaryModal 표시
-        // scoring 상태에서도 모달을 열어 22초 계가 연출(진행 막대 등)을 모든 계가 중 화면에 동일 적용
-        if (session.isSinglePlayer && showResultModal !== false && (showResultModal || gameStatus === 'ended' || gameStatus === 'scoring')) {
+        // 싱글플레이: 계가 완료(ended) 후에만 결과 모달 표시. 계가 중(scoring)에는 바둑판 오버레이로 표시
+        if (session.isSinglePlayer && showResultModal !== false && (showResultModal || gameStatus === 'ended')) {
             return <SinglePlayerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
 
-        // 도전의 탑: showResultModal이 true이거나 ended/scoring 상태일 때 TowerSummaryModal 표시
-        // scoring 상태에서도 모달을 열어 22초 계가 연출을 모든 계가 중 화면에 동일 적용
-        if (session.gameCategory === 'tower' && showResultModal !== false && (showResultModal || gameStatus === 'ended' || gameStatus === 'scoring')) {
+        // 도전의 탑: 계가 완료(ended) 후에만 결과 모달 표시. 계가 중(scoring)에는 바둑판 오버레이로 표시
+        if (session.gameCategory === 'tower' && showResultModal !== false && (showResultModal || gameStatus === 'ended')) {
             return <TowerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
         

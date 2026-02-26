@@ -81,15 +81,17 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     const costs = [0, 50, 75, 100, 200]; // 서버와 일치
     const nextCost = costs[refreshesUsed] || 0;
     const canAfford = currentUser.gold >= nextCost;
-    const refreshDisabled = !canRefresh || !canAfford;
-    
     const hiddenCountSetting = session.settings.hiddenStoneCount ?? 0;
     const scanCountSetting = session.settings.scanCount ?? 0;
     const missileCountSetting = session.settings.missileCount ?? 0;
-    
     const isHiddenMode = session.isSinglePlayer && hiddenCountSetting > 0;
     const isMissileMode = session.isSinglePlayer && missileCountSetting > 0;
-    
+    const isMissileOnlyMode = isMissileMode && hiddenCountSetting === 0 && scanCountSetting === 0;
+    const moveCount = session.moveHistory?.length ?? 0;
+    const myMissilesLeftForRefresh = session.missiles_p1 ?? missileCountSetting;
+    const usedMissileBeforeFirstMove = isMissileOnlyMode && moveCount === 0 && (missileCountSetting - myMissilesLeftForRefresh) > 0;
+    const refreshDisabled = !canRefresh || !canAfford || usedMissileBeforeFirstMove;
+
     const isMyTurn = session.currentPlayer === Player.Black; // 싱글플레이어에서는 유저가 항상 흑
     const gameStatus = session.gameStatus;
     
@@ -292,7 +294,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                         alt="배치 새로고침"
                         onClick={handleRefresh}
                         disabled={refreshDisabled}
-                        title={refreshDisabled ? (!canAfford ? '골드가 부족합니다.' : '배치 새로고침 불가') : `배치 새로고침 (비용: ${nextCost}골드, 남은 횟수: ${remainingRefreshes}/5)`}
+                        title={refreshDisabled ? (usedMissileBeforeFirstMove ? '첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.' : !canAfford ? '골드가 부족합니다.' : '배치 새로고침 불가') : `배치 새로고침 (비용: ${nextCost}골드, 남은 횟수: ${remainingRefreshes}/5)`}
                         count={remainingRefreshes}
                     />
                     <span className={`text-[11px] font-semibold ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>

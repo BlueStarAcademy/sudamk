@@ -625,9 +625,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 return handleSinglePlayerAction(volatileState, action, userData);
             }
             // PVE 게임 관련 특수 액션만 서버에서 처리 (TOWER_REFRESH_PLACEMENT, TOWER_ADD_TURNS 등은 이미 위에서 처리됨)
-            // 착수 액션(PLACE_STONE 등)은 클라이언트에서만 처리하므로 여기서는 조용히 무시
-            // 기권(RESIGN_GAME)은 handleSharedAction에서 처리하므로 아래 strategic/playful 핸들러로 넘김
-            if (type !== 'RESIGN_GAME') {
+            // 착수 액션(PLACE_STONE 등)은 일반적으로 클라이언트에서만 처리하므로 무시
+            // 단, 히든바둑 등 전략 모드는 서버에서 착수 검증 및 히든 공개(따냄 관여 시 애니메이션·permanentlyRevealedStones) 처리 필요
+            const isStrategicPVE = SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
+            const shouldHandlePlaceStoneOnServer = type === 'PLACE_STONE' && isStrategicPVE;
+            if (type !== 'RESIGN_GAME' && !shouldHandlePlaceStoneOnServer) {
                 return {};
             }
         }

@@ -233,6 +233,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (serverMoveCount === 0 && Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0) {
                 next = { ...next, moveHistory: parsed.moveHistory };
             }
+            // 히든 영구 공개 목록: 서버에 없거나 비어있으면 sessionStorage에서 복원 (따냄/따임·상대 착수 시도 후 새로고침 시 반영)
+            const serverRevealed = next.permanentlyRevealedStones?.length ?? 0;
+            if (serverRevealed === 0 && Array.isArray(parsed.permanentlyRevealedStones) && parsed.permanentlyRevealedStones.length > 0) {
+                next = { ...next, permanentlyRevealedStones: parsed.permanentlyRevealedStones };
+            }
             }
             }
             // totalTurns가 0이거나 없는데 moveHistory에 유효 수가 있으면 moveHistory 기준으로 설정 (sessionStorage 유무와 관계없이, 한 수 둔 뒤 턴이 Max로 돌아가는 버그 방지)
@@ -491,6 +496,56 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         isHidden: true,
                         boardState: boardStateToUse,
                         moveHistory: session.moveHistory || [],
+                    }
+                } as ServerAction);
+                if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                return;
+            }
+            // 싱글플레이 히든 아이템 착수: 클라이언트에 히든 반영 후 서버로 PLACE_STONE(isHidden) 전송
+            if (isSinglePlayer && gameStatus === 'hidden_placing') {
+                const boardStateToUse = restoredBoardState || session.boardState;
+                if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return;
+                if (x === -1 || y === -1) return;
+                const boardSize = session.settings.boardSize;
+                if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
+                const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+                const stoneAtTarget = boardStateToUse[y][x];
+                if (stoneAtTarget === opponentPlayerEnum) return;
+                let moveResult;
+                try {
+                    moveResult = processMoveClient(
+                        boardStateToUse,
+                        { x, y, player: myPlayerEnum },
+                        session.koInfo,
+                        session.moveHistory?.length || 0,
+                        { ignoreSuicide: false, isSinglePlayer: true, opponentPlayer: opponentPlayerEnum }
+                    );
+                } catch (e) {
+                    console.error('[Game] Single player hidden placement processMoveClient error:', e);
+                    return;
+                }
+                if (!moveResult.isValid) return;
+                handlers.handleAction({
+                    type: 'SINGLE_PLAYER_CLIENT_MOVE',
+                    payload: {
+                        gameId,
+                        x,
+                        y,
+                        newBoardState: moveResult.newBoardState,
+                        capturedStones: moveResult.capturedStones,
+                        newKoInfo: moveResult.newKoInfo,
+                        isHidden: true,
+                    }
+                } as any);
+                handlers.handleAction({
+                    type: 'PLACE_STONE',
+                    payload: {
+                        gameId,
+                        x,
+                        y,
+                        isHidden: true,
+                        boardState: moveResult.newBoardState,
+                        moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
                     }
                 } as ServerAction);
                 if (gameStatus === 'hidden_placing') audioService.stopScanBgm();

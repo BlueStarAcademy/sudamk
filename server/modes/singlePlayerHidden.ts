@@ -77,7 +77,33 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
                 const { pendingCapture } = game;
                 const isAiTurnCancelled = (game as any).isAiTurnCancelledAfterReveal;
-                
+                // 히든 돌만 공개(따냄 없음): AI가 유저 히든 위에 두려 한 경우 — 타이머만 재개, 턴 유지
+                if (!pendingCapture) {
+                    game.animation = null;
+                    game.gameStatus = 'playing';
+                    game.revealAnimationEndTime = undefined;
+                    game.pendingCapture = null;
+                    (game as any).isAiTurnCancelledAfterReveal = undefined;
+                    const cur = game.currentPlayer;
+                    if (game.settings?.timeLimit > 0 && game.pausedTurnTimeLeft !== undefined) {
+                        const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                        game[timeKey] = game.pausedTurnTimeLeft;
+                        const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                        const byoyomiTime = game.settings.byoyomiTime ?? 0;
+                        const isInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
+                        if (isInByoyomi && byoyomiTime > 0) {
+                            game.turnDeadline = now + byoyomiTime * 1000;
+                        } else {
+                            game.turnDeadline = now + (game[timeKey] ?? 0) * 1000;
+                        }
+                        game.turnStartTime = now;
+                    } else {
+                        game.turnDeadline = undefined;
+                        game.turnStartTime = undefined;
+                    }
+                    game.pausedTurnTimeLeft = undefined;
+                    break;
+                }
                 // 히든 아이템 사용 후 게임 상태 복원
                 game.gameStatus = 'playing';
                 const myPlayerEnum = pendingCapture?.move.player || game.currentPlayer;
@@ -95,18 +121,21 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
                         const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+                        const wasAiInitialHidden = (game as any).aiInitialHiddenStone &&
+                            (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
+                        if (wasAiInitialHidden) (game as any).aiInitialHiddenStone = undefined;
                         
                         let points = 1;
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
-                        } else if (wasHidden) {
-                            game.hiddenStoneCaptures[myPlayerEnum]++;
+                        } else if (wasHidden || wasAiInitialHidden) {
+                            game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
                             points = 5;
                         }
                         game.captures[myPlayerEnum] += points;
             
-                        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden });
+                        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden: wasHidden || wasAiInitialHidden });
                     }
                     
                     if (!game.newlyRevealed) game.newlyRevealed = [];
@@ -118,9 +147,8 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 game.pendingCapture = null;
                 (game as any).isAiTurnCancelledAfterReveal = undefined;
                 
-                // AI 턴이 취소된 경우 (히든돌 공개만 하고 실제 수는 두지 않음)
+                // AI 턴이 취소된 경우 (히든돌 공개만 하고 실제 수는 두지 않음) — 바둑판 갱신 후 AI가 다시 수를 두도록 함
                 if (isAiTurnCancelled) {
-                    // AI 턴 유지 (다시 한 수를 두도록)
                     game.gameStatus = 'playing';
                     if (game.settings.timeLimit > 0) {
                         const aiTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
@@ -132,7 +160,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                         if (isInByoyomi) {
                             game.turnDeadline = now + game.settings.byoyomiTime * 1000;
                         } else {
-                            game.turnDeadline = now + game[aiTimeKey] * 1000;
+                            game.turnDeadline = now + (game[aiTimeKey] ?? 0) * 1000;
                         }
                         game.turnStartTime = now;
                     } else {
@@ -140,7 +168,26 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                         game.turnStartTime = undefined;
                     }
                     game.pausedTurnTimeLeft = undefined;
-                    return; // AI가 다시 수를 두도록 함
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('../socket.js');
+                    const { updateGameCache } = await import('../gameCache.js');
+                    updateGameCache(game);
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                    const { makeAiMove } = await import('../aiPlayer.js');
+                    setImmediate(() => {
+                        makeAiMove(game).then(async () => {
+                            try {
+                                updateGameCache(game);
+                                await db.saveGame(game);
+                                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                            } catch (e: any) {
+                                console.error(`[updateSinglePlayerHiddenState] AI move after hidden reveal failed for ${game.id}:`, e?.message);
+                            }
+                        }).catch((err: any) => {
+                            console.error(`[updateSinglePlayerHiddenState] makeAiMove after hidden reveal failed for ${game.id}:`, err?.message);
+                        });
+                    });
+                    return;
                 }
                 
                 // 일반적인 경우: 다음 플레이어로 턴 전환
