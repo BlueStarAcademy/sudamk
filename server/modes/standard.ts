@@ -825,20 +825,31 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             
             // After move logic
             if (game.mode === types.GameMode.Capture || game.isSinglePlayer) {
-                const target = game.effectiveCaptureTargets![myPlayerEnum];
-                if (game.captures[myPlayerEnum] >= target) {
+                const target = game.effectiveCaptureTargets?.[myPlayerEnum];
+                if (target !== undefined && target !== 999 && game.captures[myPlayerEnum] >= target) {
+                    // 따낸 돌 미션을 먼저 적용하여 성공/실패를 확정하고,
+                    // 이후 턴 제한(blackTurnLimit 등)은 더 이상 적용하지 않는다.
                     await summaryService.endGame(game, myPlayerEnum, 'capture_limit');
+                    return {};
                 }
             }
             
-            // 싱글플레이 따내기 바둑: 흑(유저) 턴 수 제한(blackTurnLimit) 도달 시 계가 없이 미션 실패 처리
+            // 싱글플레이 따내기 바둑: 흑(유저) 턴 수 제한(blackTurnLimit) 도달 시,
+            // "아직 따낸 돌 미션을 완수하지 못했을 때만" 미션 실패 처리
             const blackTurnLimit = (game.settings as any)?.blackTurnLimit;
-            if (game.isSinglePlayer && game.stageId && blackTurnLimit !== undefined && myPlayerEnum === types.Player.Black) {
+            if (game.isSinglePlayer && game.stageId && blackTurnLimit !== undefined && myPlayerEnum === types.Player.Black && game.gameStatus !== 'ended') {
                 const blackMoves = game.moveHistory.filter(m => m.player === types.Player.Black && m.x !== -1 && m.y !== -1).length;
                 if (blackMoves >= blackTurnLimit) {
-                    console.log(`[handleStandardAction] SinglePlayer blackTurnLimit reached: blackMoves=${blackMoves}, limit=${blackTurnLimit}, mission fail (no scoring)`);
-                    await summaryService.endGame(game, types.Player.White, 'timeout');
-                    return {};
+                    const blackTarget = game.effectiveCaptureTargets?.[types.Player.Black];
+                    const hasBlackTarget = blackTarget !== undefined && blackTarget !== 999;
+                    const blackCaptures = game.captures[types.Player.Black] ?? 0;
+
+                    // 흑이 목표 따낸 돌을 이미 달성했다면 턴 제한 패배를 적용하지 않는다.
+                    if (!(hasBlackTarget && blackCaptures >= blackTarget)) {
+                        console.log(`[handleStandardAction] SinglePlayer blackTurnLimit reached: blackMoves=${blackMoves}, limit=${blackTurnLimit}, mission fail (no scoring)`);
+                        await summaryService.endGame(game, types.Player.White, 'timeout');
+                        return {};
+                    }
                 }
             }
             

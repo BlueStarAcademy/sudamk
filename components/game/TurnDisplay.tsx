@@ -276,19 +276,19 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     
     if (session.mode === GameMode.Dice && session.gameStatus === 'dice_placing' && session.dice) {
         return wrapContent(
-            `${baseClasses} ${themeClasses} px-4 gap-1`,
+            `${baseClasses} ${themeClasses} px-3 gap-1 min-w-0`,
             <>
-                <div className="flex items-center gap-2">
-                    <span className={`font-bold text-tertiary text-[clamp(0.8rem,2.5vmin,1rem)]`}>
-                        주사위: <span className={`${textClass} text-[clamp(0.9rem,3vmin,1.1rem)]`}>{session.dice.dice1}</span>
+                <div className="flex items-center gap-1.5 flex-nowrap min-w-0 overflow-hidden">
+                    <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap shrink-0`}>
+                        주사위: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{session.dice.dice1}</span>
                     </span>
-                    <div className={`w-px h-5 ${isSinglePlayer ? 'bg-stone-600' : 'bg-border-color'}`}></div>
-                    <span className={`font-bold text-tertiary text-[clamp(0.8rem,2.5vmin,1rem)]`}>
-                        남은 돌: <span className={`${textClass} text-[clamp(0.9rem,3vmin,1.1rem)]`}>{session.stonesToPlace}</span>
+                    <span className={`text-tertiary/70 shrink-0 ${isSinglePlayer ? 'text-stone-500' : ''}`}>·</span>
+                    <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap shrink-0`}>
+                        남은 돌: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{session.stonesToPlace}</span>
                     </span>
                 </div>
                 {isPlayfulTurn && (
-                    <div className="w-full h-1 bg-tertiary rounded-full mt-1">
+                    <div className="w-full h-1 bg-tertiary rounded-full mt-1 flex-shrink-0">
                         <div className="h-1 bg-red-500 rounded-full" style={{ width: `${percentage}%` }} />
                     </div>
                 )}
@@ -300,16 +300,16 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         const { dice1, dice2 } = session.dice;
         const diceDisplay = dice2 > 0 ? `${dice1}, ${dice2}` : `${dice1}`;
         return wrapContent(
-            `${baseClasses} ${themeClasses} px-4 gap-2`,
-            <>
-                <span className={`font-bold text-tertiary text-[clamp(0.8rem,2.5vmin,1rem)]`}>
-                    주사위: <span className={`${textClass} text-[clamp(0.9rem,3vmin,1.1rem)]`}>{diceDisplay}</span>
+            `${baseClasses} ${themeClasses} px-3 gap-1 min-w-0`,
+            <div className="flex items-center gap-1.5 flex-nowrap min-w-0 overflow-hidden">
+                <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap shrink-0`}>
+                    주사위: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{diceDisplay}</span>
                 </span>
-                <div className={`w-px h-5 ${isSinglePlayer ? 'bg-stone-600' : 'bg-border-color'}`}></div>
-                <span className={`font-bold text-tertiary text-[clamp(0.8rem,2.5vmin,1rem)]`}>
-                    남은 착수: <span className={`${textClass} text-[clamp(0.9rem,3vmin,1.1rem)]`}>{session.stonesToPlace}</span>
+                <span className={`text-tertiary/70 shrink-0 ${isSinglePlayer ? 'text-stone-500' : ''}`}>·</span>
+                <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap shrink-0`}>
+                    남은 착수: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{session.stonesToPlace}</span>
                 </span>
-            </>
+            </div>
         );
     }
 

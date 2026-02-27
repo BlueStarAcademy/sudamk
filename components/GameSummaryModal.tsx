@@ -506,18 +506,24 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     
     const analysisResult = session.analysisResult?.['system']; // System analysis is used for final scores
 
-    const renderGameContent = () => {
-        const totalMoves = session.moveHistory?.length ?? 0;
-        const startTime = session.gameStartTime ?? session.createdAt;
-        const inferredEndTime = session.gameStatus === 'ended' || session.gameStatus === 'no_contest'
-            ? (session.turnStartTime ?? Date.now())
+    // 경기 결과 모달이 열린 뒤에는 경기장 쪽 시간 초기화나 상태 변경이 있더라도
+    // "경기 시간/소요 시간"이 변하지 않도록, 처음 계산한 값을 ref에 고정한다.
+    const gameDurationRef = useRef<string | null>(null);
+    if (gameDurationRef.current === null) {
+        const startTime = session.gameStartTime ?? (session as any).startTime ?? session.createdAt;
+        const inferredEndTime = (session.gameStatus === 'ended' || session.gameStatus === 'no_contest')
+            ? ((session as any).endTime ?? session.turnStartTime ?? Date.now())
             : Date.now();
         const elapsedMs = Math.max(0, inferredEndTime - startTime);
         const totalSeconds = Math.floor(elapsedMs / 1000);
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;
+        gameDurationRef.current = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
 
-        const formattedElapsed = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    const renderGameContent = () => {
+        const totalMoves = session.moveHistory?.length ?? 0;
+        const formattedElapsed = gameDurationRef.current!;
         const isAiOrPve = !!session.isAiGame || !!session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer';
         const timeLabel = isAiOrPve ? '소요 시간' : '경기 시간';
         const blackPlayer = player1.id === blackPlayerId ? player1 : player2;

@@ -196,6 +196,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     permanentlyRevealedStones: session.permanentlyRevealedStones || [],
                     blackPatternStones: session.blackPatternStones,
                     whitePatternStones: session.whitePatternStones,
+                    hiddenMoves: session.hiddenMoves || {},
+                    hidden_stones_p1: (session as any).hidden_stones_p1,
+                    hidden_stones_p2: (session as any).hidden_stones_p2,
                     totalTurns: session.totalTurns,
                     timestamp: Date.now()
                 };
@@ -213,32 +216,44 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         try {
             const stored = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
             if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed.gameId === gameId) {
-            const hasPattern = (session.blackPatternStones?.length ?? 0) > 0 || (session.whitePatternStones?.length ?? 0) > 0;
-            if (!hasPattern) {
-                const storedBlack = Array.isArray(parsed.blackPatternStones) ? parsed.blackPatternStones : null;
-                const storedWhite = Array.isArray(parsed.whitePatternStones) ? parsed.whitePatternStones : null;
-                if (storedBlack || storedWhite) {
-                    next = { ...next, blackPatternStones: storedBlack ?? next.blackPatternStones, whitePatternStones: storedWhite ?? next.whitePatternStones };
+                const parsed = JSON.parse(stored);
+                if (parsed.gameId === gameId) {
+                    const hasPattern = (session.blackPatternStones?.length ?? 0) > 0 || (session.whitePatternStones?.length ?? 0) > 0;
+                    if (!hasPattern) {
+                        const storedBlack = Array.isArray(parsed.blackPatternStones) ? parsed.blackPatternStones : null;
+                        const storedWhite = Array.isArray(parsed.whitePatternStones) ? parsed.whitePatternStones : null;
+                        if (storedBlack || storedWhite) {
+                            next = { ...next, blackPatternStones: storedBlack ?? next.blackPatternStones, whitePatternStones: storedWhite ?? next.whitePatternStones };
+                        }
+                    }
+                    // 턴 제한 경기: totalTurns가 없거나 0이면 sessionStorage 값으로 복원 (남은 턴이 Max로 초기화되는 현상 방지)
+                    const serverTotalTurns = next.totalTurns;
+                    if ((serverTotalTurns === undefined || serverTotalTurns === null || serverTotalTurns === 0) && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0) {
+                        next = { ...next, totalTurns: parsed.totalTurns };
+                    }
+                    // INITIAL_STATE 등에서 moveHistory가 생략된 경우 복원 (남은 턴 계산에 사용)
+                    const serverMoveCount = next.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
+                    if (serverMoveCount === 0 && Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0) {
+                        next = { ...next, moveHistory: parsed.moveHistory };
+                    }
+                    // 히든 영구 공개 목록: 서버에 없거나 비어있으면 sessionStorage에서 복원 (따냄/따임·상대 착수 시도 후 새로고침 시 반영)
+                    const serverRevealed = next.permanentlyRevealedStones?.length ?? 0;
+                    if (serverRevealed === 0 && Array.isArray(parsed.permanentlyRevealedStones) && parsed.permanentlyRevealedStones.length > 0) {
+                        next = { ...next, permanentlyRevealedStones: parsed.permanentlyRevealedStones };
+                    }
+                    // 히든 착수 정보: 서버에 없거나 비어있으면 sessionStorage에서 복원 (히든 돌이 일반 돌로 보이는 현상 방지)
+                    const hasServerHiddenMoves = next.hiddenMoves && Object.keys(next.hiddenMoves).length > 0;
+                    if (!hasServerHiddenMoves && parsed.hiddenMoves && Object.keys(parsed.hiddenMoves).length > 0) {
+                        next = { ...next, hiddenMoves: parsed.hiddenMoves };
+                    }
+                    // 히든 아이템 개수: 서버에 없으면 sessionStorage 값 사용
+                    if ((next as any).hidden_stones_p1 == null && typeof parsed.hidden_stones_p1 === 'number') {
+                        next = { ...next, hidden_stones_p1: parsed.hidden_stones_p1 } as any;
+                    }
+                    if ((next as any).hidden_stones_p2 == null && typeof parsed.hidden_stones_p2 === 'number') {
+                        next = { ...next, hidden_stones_p2: parsed.hidden_stones_p2 } as any;
+                    }
                 }
-            }
-            // 턴 제한 경기: totalTurns가 없거나 0이면 sessionStorage 값으로 복원 (남은 턴이 Max로 초기화되는 현상 방지)
-            const serverTotalTurns = next.totalTurns;
-            if ((serverTotalTurns === undefined || serverTotalTurns === null || serverTotalTurns === 0) && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0) {
-                next = { ...next, totalTurns: parsed.totalTurns };
-            }
-            // INITIAL_STATE 등에서 moveHistory가 생략된 경우 복원 (남은 턴 계산에 사용)
-            const serverMoveCount = next.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
-            if (serverMoveCount === 0 && Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0) {
-                next = { ...next, moveHistory: parsed.moveHistory };
-            }
-            // 히든 영구 공개 목록: 서버에 없거나 비어있으면 sessionStorage에서 복원 (따냄/따임·상대 착수 시도 후 새로고침 시 반영)
-            const serverRevealed = next.permanentlyRevealedStones?.length ?? 0;
-            if (serverRevealed === 0 && Array.isArray(parsed.permanentlyRevealedStones) && parsed.permanentlyRevealedStones.length > 0) {
-                next = { ...next, permanentlyRevealedStones: parsed.permanentlyRevealedStones };
-            }
-            }
             }
             // totalTurns가 0이거나 없는데 moveHistory에 유효 수가 있으면 moveHistory 기준으로 설정 (sessionStorage 유무와 관계없이, 한 수 둔 뒤 턴이 Max로 돌아가는 버그 방지)
             const validCount = next.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
@@ -1289,15 +1304,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (!session.analysisResult?.['system']) {
             setShowFinalTerritory(false);
         }
-        // 도전의 탑·싱글플레이는 "확인"은 모달만 닫고 경기장에 머물고, "나가기"에서만 퇴장 처리함 → 여기서는 퇴장 보내지 않음
+        // 도전의 탑·싱글플레이·놀이바둑 AI: "확인"은 모달만 닫고 경기장에 머물고, "나가기"에서만 퇴장 후 대기실로 이동
         const isTowerOrSingle = session.gameCategory === 'tower' || session.isSinglePlayer;
-        if (isTowerOrSingle) return;
-        // 그 외(일반 AI 대국 등): 경기 종료 후 결과 모달을 닫을 때 서버에 퇴장 알림
+        const isPlayfulAiStayOnConfirm = session.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === session.mode);
+        if (isTowerOrSingle || isPlayfulAiStayOnConfirm) return;
+        // 그 외(전략/놀이바둑 AI 대국 등): 경기 종료 후 결과 모달 "확인" 시 퇴장 + 해당 대기실로 이동
         if ((gameStatus === 'ended' || gameStatus === 'no_contest') && gameId) {
+            const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const
+                : PLAYFUL_GAME_MODES.some(m => m.mode === session.mode) ? 'playful' as const
+                : null;
+            if (waitingRoomMode) {
+                sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
+            }
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
             handlers.handleAction({ type: actionType, payload: { gameId } });
         }
-    }, [session.analysisResult, session.gameCategory, session.isSinglePlayer, gameStatus, gameId, session.isAiGame, handlers.handleAction]);
+    }, [session.analysisResult, session.gameCategory, session.isSinglePlayer, session.mode, gameStatus, gameId, session.isAiGame, handlers.handleAction]);
 
     // 싱글플레이 게임 설명창 표시 여부
     const showGameDescription = isSinglePlayer && gameStatus === 'pending';

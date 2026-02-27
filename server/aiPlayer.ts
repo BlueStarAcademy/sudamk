@@ -809,11 +809,8 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
             game.lastMove = null;
             
             game.turnInRound = (game.turnInRound || 0) + 1;
-            const totalTurnsInRound = 10;
-            const blackStonesLeft = game.boardState.flat().filter(s => s === types.Player.Black).length;
-            const allThievesCaptured = blackStonesLeft === 0 && myRole === 'police';
-    
-            if (game.turnInRound > totalTurnsInRound || allThievesCaptured) {
+            const THIEF_TURNS_PER_ROUND = 10; // 5밤(도둑 5회 + 경찰 5회)
+            if (game.turnInRound > THIEF_TURNS_PER_ROUND) {
                 const finalThiefStonesLeft = game.boardState.flat().filter(s => s === types.Player.Black).length;
                 const capturesThisRound = game.thiefCapturesThisRound || 0;
                 
@@ -1292,7 +1289,8 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
             onBoard: false,
         };
         
-        game.animation = { type: 'curling_flick', stone: newStone, velocity: { x: vx, y: vy }, startTime: now, duration: 2000 };
+        // 애니메이션 시간: 2초 → 3초 (턴 전환까지 실제 시간을 1초 늘림)
+        game.animation = { type: 'curling_flick', stone: newStone, velocity: { x: vx, y: vy }, startTime: now, duration: 3000 };
         game.gameStatus = 'curling_animating';
         if (!game.stonesThrownThisRound) game.stonesThrownThisRound = {};
         game.stonesThrownThisRound[aiPlayerId] = (game.stonesThrownThisRound[aiPlayerId] || 0) + 1;

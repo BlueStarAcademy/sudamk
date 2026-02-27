@@ -569,7 +569,8 @@ export const handleCurlingAction = async (volatileState: types.VolatileState, ga
                 onBoard: false,
             };
             
-            game.animation = { type: 'curling_flick', stone: newStone, velocity, startTime: now, duration: 2000 };
+            // 애니메이션 시간: 2초 → 3초 (턴 전환까지 실제 시간을 1초 늘림)
+            game.animation = { type: 'curling_flick', stone: newStone, velocity, startTime: now, duration: 3000 };
             game.gameStatus = 'curling_animating';
             if (game.activeCurlingItems) {
                 delete game.activeCurlingItems[user.id];

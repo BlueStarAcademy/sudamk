@@ -6,6 +6,10 @@ import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_MAIN_PLACE_TIME } from '../../constants
 import { endGame } from '../summaryService.js';
 import { aiUserId } from '../aiPlayer.js';
 
+/** 1라운드당 밤 수. 1밤 = 도둑 1회 + 경찰 1회. 라운드 종료 시 도둑 점수=살아남은 돌, 경찰 점수=따낸 돌. */
+export const THIEF_NIGHTS_PER_ROUND = 5;
+const THIEF_TURNS_PER_ROUND = THIEF_NIGHTS_PER_ROUND * 2; // 한 밤당 2턴(도둑→경찰)
+
 export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
     const p1 = game.player1;
     const p2 = game.player2;
@@ -332,14 +336,11 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                 game.lastMove = null;
                 
                 game.turnInRound = (game.turnInRound || 0) + 1;
-                const totalTurnsInRound = 10;
-                const blackStonesLeft = game.boardState.flat().filter(s => s === types.Player.Black).length;
-                const allThievesCaptured = blackStonesLeft === 0 && myRole === 'police';
+                const fiveNightsComplete = game.turnInRound > THIEF_TURNS_PER_ROUND;
         
-                if (game.turnInRound > totalTurnsInRound || allThievesCaptured) {
+                if (fiveNightsComplete) {
                     const finalThiefStonesLeft = game.boardState.flat().filter(s => s === types.Player.Black).length;
                     const capturesThisRound = game.thiefCapturesThisRound || 0;
-                    
                     game.scores[game.thiefPlayerId!] = (game.scores[game.thiefPlayerId!] || 0) + finalThiefStonesLeft;
                     game.scores[game.policePlayerId!] = (game.scores[game.policePlayerId!] || 0) + capturesThisRound;
                     
@@ -596,6 +597,8 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
             const allThievesCaptured = blackStonesLeft === 0 && myRole === 'police';
 
             if (allThievesCaptured) {
+                // 도둑 돌이 모두 잡히면 해당 밤의 경찰 턴만 조기 종료하지만,
+                // 라운드는 5밤(10턴)을 모두 채운 뒤에만 종료한다.
                 game.stonesToPlace = 0;
             }
 
@@ -605,12 +608,11 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
                 game.lastMove = null;
                 
                 game.turnInRound = (game.turnInRound || 0) + 1;
-                const totalTurnsInRound = 10;
+                const fiveNightsComplete = game.turnInRound > THIEF_TURNS_PER_ROUND;
         
-                if (game.turnInRound > totalTurnsInRound || allThievesCaptured) {
+                if (fiveNightsComplete) {
                     const finalThiefStonesLeft = game.boardState.flat().filter(s => s === types.Player.Black).length;
                     const capturesThisRound = game.thiefCapturesThisRound || 0;
-                    
                     game.scores[game.thiefPlayerId!] = (game.scores[game.thiefPlayerId!] || 0) + finalThiefStonesLeft;
                     game.scores[game.policePlayerId!] = (game.scores[game.policePlayerId!] || 0) + capturesThisRound;
                     

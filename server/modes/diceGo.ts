@@ -7,6 +7,23 @@ import * as effectService from '../effectService.js';
 import { endGame } from '../summaryService.js';
 import { aiUserId } from '../aiPlayer.js';
 
+/** 턴이 넘어간 뒤 현재 보드 기준으로 백의 유효자리 수를 세고, 6 이하일 때만 lastWhiteGroupInfo 설정 (안내용) */
+function updateLastWhiteGroupInfoAfterTurnTransition(game: types.LiveGameSession) {
+    const logic = getGoLogic(game);
+    const allWhiteLiberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
+    const whiteStoneCount = game.boardState.flat().filter(s => s === types.Player.White).length;
+    if (whiteStoneCount === 0) {
+        game.lastWhiteGroupInfo = null;
+        return;
+    }
+    const liberties = allWhiteLiberties.length;
+    if (liberties <= 6) {
+        game.lastWhiteGroupInfo = { size: whiteStoneCount, liberties };
+    } else {
+        game.lastWhiteGroupInfo = null;
+    }
+}
+
 export function finishPlacingTurn(game: types.LiveGameSession, playerId: string) {
     const now = Date.now();
     const humanPlayerId = game.player1.id === aiUserId ? game.player2.id : game.player1.id;
@@ -98,6 +115,8 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
                 console.log(`[finishPlacingTurn] User turn after placement, game ${game.id}, clearing aiTurnStartTime`);
             }
         }
+        // 턴 넘긴 뒤 현재 보드 기준으로 유효자리 수 계산, 6 이하일 때만 안내용 설정
+        updateLastWhiteGroupInfoAfterTurnTransition(game);
     }
     
     game.diceCapturesThisTurn = 0;
@@ -377,6 +396,8 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                             console.log(`[updateDiceGoState] User turn after overshot, game ${game.id}, clearing aiTurnStartTime`);
                         }
                     }
+                    // 턴 넘긴 뒤 현재 보드 기준으로 유효자리 수 계산, 6 이하일 때만 안내용 설정
+                    updateLastWhiteGroupInfoAfterTurnTransition(game);
                 } else {
                     game.gameStatus = 'dice_placing';
                     if (shouldEnforceTimeControl(game)) {
@@ -386,16 +407,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     game.diceCapturesThisTurn = 0;
                     game.diceLastCaptureStones = [];
                     game.stonesPlacedThisTurn = [];
-                    
-                    const logic = getGoLogic(game);
-                    const allWhiteLiberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
-                    const whiteStoneCount = game.boardState.flat().filter(s => s === types.Player.White).length;
-
-                    if (whiteStoneCount > 0) {
-                        game.lastWhiteGroupInfo = { size: whiteStoneCount, liberties: allWhiteLiberties.length };
-                    } else {
-                        game.lastWhiteGroupInfo = null;
-                    }
+                    // 같은 플레이어가 착수하는 단계이므로 유효자리 안내는 턴이 넘어갈 때만 설정 (여기서는 설정하지 않음)
                 }
             }
             break;
@@ -447,15 +459,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             break;
         }
         case 'dice_placing': {
-            // 유효자리 개수 전광판: 매 틱 현재 보드 기준으로 갱신 (처음 6개 이하일 때 잘못 표시되는 현상 방지)
-            const logicPlacing = getGoLogic(game);
-            const allWhiteLibertiesPlacing = logicPlacing.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
-            const whiteStoneCountPlacing = game.boardState.flat().filter(s => s === types.Player.White).length;
-            if (whiteStoneCountPlacing > 0) {
-                game.lastWhiteGroupInfo = { size: whiteStoneCountPlacing, liberties: allWhiteLibertiesPlacing.length };
-            } else {
-                game.lastWhiteGroupInfo = null;
-            }
+            // 유효자리 안내는 턴이 넘어간 뒤(dice_rolling 전환 시)에만 설정하므로 여기서는 갱신하지 않음
             // AI 턴일 때는 타임아웃 체크를 건너뛰기
             const isAiTurnPlacing = game.isAiGame && game.currentPlayer !== types.Player.None && 
                                    (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
@@ -701,16 +705,6 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
 
             game.boardState = result.newBoardState;
             game.lastMove = { x, y };
-            
-            const logicForWhiteGroup = getGoLogic(game);
-            const allWhiteLiberties = logicForWhiteGroup.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
-            const whiteStoneCount = game.boardState.flat().filter(s => s === types.Player.White).length;
-
-            if (whiteStoneCount > 0) {
-                game.lastWhiteGroupInfo = { size: whiteStoneCount, liberties: allWhiteLiberties.length };
-            } else {
-                game.lastWhiteGroupInfo = null;
-            }
 
             game.stonesToPlace = (game.stonesToPlace ?? 1) - 1;
             const whiteStonesLeft = game.boardState.flat().filter(s => s === types.Player.White).length;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameMode } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -292,15 +292,19 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         };
     }, [currentStage, session.effectiveCaptureTargets, session.captures]);
 
-    const gameDuration = useMemo(() => {
-        const startTime = session.gameStartTime ?? session.createdAt;
-        const endTime = session.turnStartTime ?? Date.now();
+    // 경기 결과 모달이 열린 뒤에는 경기장 상태 업데이트로 시간이 바뀌어도
+    // "총 걸린 시간"이 변하지 않도록, 처음 계산한 값을 ref에 고정한다.
+    const gameDurationRef = useRef<string | null>(null);
+    if (gameDurationRef.current === null) {
+        const startTime = session.gameStartTime ?? (session as any).startTime ?? session.createdAt;
+        const endTime = (session as any).endTime ?? session.turnStartTime ?? Date.now();
         const elapsedMs = Math.max(0, endTime - startTime);
         const totalSeconds = Math.floor(elapsedMs / 1000);
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }, [session.gameStartTime, session.createdAt, session.turnStartTime]);
+        gameDurationRef.current = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    const gameDuration = gameDurationRef.current;
 
     const handleRetry = async () => {
         if (isProcessing) return;

@@ -897,6 +897,9 @@ export const useApp = () => {
                         permanentlyRevealedStones: updatedGame.permanentlyRevealedStones || [],
                         blackPatternStones: updatedGame.blackPatternStones,
                         whitePatternStones: updatedGame.whitePatternStones,
+                        hiddenMoves: updatedGame.hiddenMoves || {},
+                        hidden_stones_p1: (updatedGame as any).hidden_stones_p1,
+                        hidden_stones_p2: (updatedGame as any).hidden_stones_p2,
                         totalTurns: updatedGame.totalTurns,
                         timestamp: Date.now()
                     };
@@ -931,8 +934,20 @@ export const useApp = () => {
             setLiveGames((currentGames) => {
                 const game = currentGames[gameId];
                 if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') return currentGames;
+
                 const movePlayer = game.currentPlayer;
-                const newCaptures = { ...game.captures, [movePlayer]: (game.captures[movePlayer] || 0) + (capturedStones?.length || 0) };
+                const newCaptures = {
+                    ...game.captures,
+                    [movePlayer]: (game.captures[movePlayer] || 0) + (capturedStones?.length || 0),
+                };
+
+                // hidden_placing 상태에서의 수라면 클라이언트에서도 히든 돌로 표시
+                const wasHiddenPlacing = game.gameStatus === 'hidden_placing';
+                const nextMoveIndex = (game.moveHistory?.length || 0);
+                const updatedHiddenMoves = wasHiddenPlacing
+                    ? { ...(game.hiddenMoves || {}), [nextMoveIndex]: true }
+                    : game.hiddenMoves;
+
                 const updatedGame: LiveGameSession = {
                     ...game,
                     boardState: newBoardState,
@@ -941,6 +956,9 @@ export const useApp = () => {
                     moveHistory: [...(game.moveHistory || []), { x, y, player: movePlayer }],
                     captures: newCaptures,
                     currentPlayer: movePlayer === Player.Black ? Player.White : Player.Black,
+                    hiddenMoves: updatedHiddenMoves,
+                    // 히든 아이템 사용 후에는 playing 상태로 복원 (서버와 동일하게)
+                    gameStatus: wasHiddenPlacing ? 'playing' : game.gameStatus,
                 };
                 return { ...currentGames, [gameId]: updatedGame };
             });
@@ -1136,45 +1154,91 @@ export const useApp = () => {
                     }, 500);
                 }
                 
-                // 살리기 바둑 모드: 백이 수를 둔 경우 백의 남은 턴 체크
+                // 살리기 바둑 모드: 백이 수를 둔 경우 목표 돌/남은 턴 체크
                 const movePlayer = game.currentPlayer; // 수를 둔 플레이어
                 
                 if (gameType === 'singleplayer' && movePlayer === Player.White) {
                     // game.settings에서 survivalTurns를 직접 확인 (동기적으로 접근 가능)
                     const survivalTurns = (game.settings as any)?.survivalTurns;
                     if (survivalTurns) {
-                        const whiteTurnsPlayed = (updateResult.updatedGame as any).whiteTurnsPlayed || 0;
+                        const updatedGame = updateResult.updatedGame as LiveGameSession;
+                        const whiteTurnsPlayed = (updatedGame as any).whiteTurnsPlayed || 0;
                         const remainingTurns = survivalTurns - whiteTurnsPlayed;
+
+                        const whiteTarget = updatedGame.effectiveCaptureTargets?.[Player.White];
+                        const hasWhiteTarget = whiteTarget !== undefined && whiteTarget !== 999;
+                        const whiteCaptures = updatedGame.captures?.[Player.White] ?? 0;
                         
-                        console.log(`[handleAction] ${actionTypeName} - Survival Go check: whiteTurnsPlayed=${whiteTurnsPlayed}, survivalTurns=${survivalTurns}, remaining=${remainingTurns}`);
-                        
-                        if (remainingTurns <= 0 && game.gameStatus === 'playing') {
-                            console.log(`[handleAction] ${actionTypeName} - White ran out of turns (${whiteTurnsPlayed}/${survivalTurns}), Black wins - ENDING GAME`);
+                        console.log(`[handleAction] ${actionTypeName} - Survival Go check: whiteTurnsPlayed=${whiteTurnsPlayed}, survivalTurns=${survivalTurns}, remaining=${remainingTurns}, whiteCaptures=${whiteCaptures}, whiteTarget=${whiteTarget}`);
+
+                        // 1) 백이 목표 돌을 이미 따낸 경우 → 백 승리(유저 미션 실패)
+                        if (hasWhiteTarget && whiteCaptures >= whiteTarget && updatedGame.gameStatus === 'playing') {
+                            console.log(`[handleAction] ${actionTypeName} - White reached capture target (${whiteCaptures}/${whiteTarget}), White wins - ENDING GAME`);
                             shouldEndGameSurvival = true;
-                            endGameWinnerSurvival = Player.Black;
-                            // 게임 상태를 즉시 ended로 업데이트
-                            return { ...currentGames, [gameId]: { ...updateResult.updatedGame, gameStatus: 'ended' as const, winner: Player.Black, winReason: 'capture_limit' } };
+                            endGameWinnerSurvival = Player.White;
+                            return {
+                                ...currentGames,
+                                [gameId]: {
+                                    ...updatedGame,
+                                    gameStatus: 'ended' as const,
+                                    winner: Player.White,
+                                    winReason: 'capture_limit'
+                                }
+                            };
+                        }
+
+                        // 2) 백이 목표를 못 채운 채로 턴이 모두 소진된 경우 → 흑 승리
+                        if (remainingTurns <= 0 && game.gameStatus === 'playing') {
+                            // 백이 따낸 돌 미션을 이미 완수한 경우에는
+                            // 살리기 턴 제한 패배를 적용하지 않고 위의 capture_limit 결과를 그대로 따른다.
+                            if (!(hasWhiteTarget && whiteCaptures >= whiteTarget)) {
+                                console.log(`[handleAction] ${actionTypeName} - White ran out of turns (${whiteTurnsPlayed}/${survivalTurns}), Black wins - ENDING GAME`);
+                                shouldEndGameSurvival = true;
+                                endGameWinnerSurvival = Player.Black;
+                                // 게임 상태를 즉시 ended로 업데이트
+                                return {
+                                    ...currentGames,
+                                    [gameId]: {
+                                        ...updatedGame,
+                                        gameStatus: 'ended' as const,
+                                        winner: Player.Black,
+                                        winReason: 'capture_limit'
+                                    }
+                                };
+                            }
                         }
                     }
                 }
                 
-                // 싱글플레이/도전의 탑 따내기 바둑: 흑(유저) 제한 턴이 0이면 계가 없이 미션 실패 처리
+                // 싱글플레이/도전의 탑 따내기 바둑:
+                // 흑(유저) 제한 턴이 0이 되더라도, 같은 수에서 따낸 돌 미션을 완수했다면
+                // 미션 성공(흑 승리)을 우선 적용하고 턴 제한 패배는 적용하지 않는다.
                 if ((gameType === 'singleplayer' || gameType === 'tower') && game.stageId && game.gameStatus === 'playing') {
                     const stages = gameType === 'tower' ? TOWER_STAGES : SINGLE_PLAYER_STAGES;
                     const stage = stages.find((s: { id: string }) => s.id === game.stageId) as { blackTurnLimit?: number } | undefined;
                     const blackTurnLimit = stage?.blackTurnLimit;
                     if (blackTurnLimit !== undefined) {
-                        const moveHistory = updateResult.updatedGame.moveHistory || [];
+                        const updatedGame = updateResult.updatedGame as LiveGameSession;
+                        const moveHistory = updatedGame.moveHistory || [];
                         const blackMoves = moveHistory.filter((m: { player: Player; x: number; y: number }) => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
                         // 도전의 탑: blackTurnLimitBonus 반영 (아이템 등으로 추가된 턴)
                         const effectiveLimit = gameType === 'tower'
                             ? blackTurnLimit + ((game as any).blackTurnLimitBonus ?? 0)
                             : blackTurnLimit;
+
                         if (blackMoves >= effectiveLimit) {
-                            console.log(`[handleAction] ${actionTypeName} - Black turn limit reached (${blackMoves}/${effectiveLimit}), mission fail - ENDING GAME`);
-                            shouldEndGameTurnLimit = true;
-                            endGameWinnerTurnLimit = Player.White;
-                            return { ...currentGames, [gameId]: { ...updateResult.updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' } };
+                            const blackTarget = updatedGame.effectiveCaptureTargets?.[Player.Black];
+                            const hasBlackTarget = blackTarget !== undefined && blackTarget !== 999;
+                            const blackCaptures = updatedGame.captures?.[Player.Black] ?? 0;
+
+                            // 흑이 목표 따낸 돌을 이미 달성한 경우에는 턴 제한 패배를 적용하지 않고,
+                            // 아래의 승리 조건 체크(checkVictoryCondition)를 통해 미션 성공을 처리한다.
+                            if (!(hasBlackTarget && blackCaptures >= blackTarget)) {
+                                console.log(`[handleAction] ${actionTypeName} - Black turn limit reached (${blackMoves}/${effectiveLimit}), mission fail - ENDING GAME`);
+                                shouldEndGameTurnLimit = true;
+                                endGameWinnerTurnLimit = Player.White;
+                                return { ...currentGames, [gameId]: { ...updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' } };
+                            }
                         }
                     }
                 }
@@ -1227,6 +1291,9 @@ export const useApp = () => {
                         permanentlyRevealedStones: game.permanentlyRevealedStones || [],
                         blackPatternStones: game.blackPatternStones,
                         whitePatternStones: game.whitePatternStones,
+                        hiddenMoves: game.hiddenMoves || {},
+                        hidden_stones_p1: (game as any).hidden_stones_p1,
+                        hidden_stones_p2: (game as any).hidden_stones_p2,
                         totalTurns: game.totalTurns,
                         timestamp: Date.now()
                     };
@@ -4204,9 +4271,10 @@ export const useApp = () => {
             GameMode.Mix,
         ]);
         if (!goModes.has(game.mode as any)) return;
-        // 전략바둑 AI 대국: 설정에 useClientSideAi가 없어도(merge 등으로 누락) true로 간주해 클라이언트가 반드시 수를 두도록 함
+        // 전략바둑 AI 대국: 이제 기본은 서버 AI(그누고/서버 goAiBot) 사용.
+        // 클라이언트 측 AI는 명시적으로 useClientSideAi === true 인 경우에만 사용한다.
         const isStrategicGoAi = game.isAiGame && game.gameCategory !== 'tower' && !game.isSinglePlayer;
-        const useClientSideAi = isStrategicGoAi && ((game.settings as any)?.useClientSideAi === true || (game.settings as any)?.useClientSideAi !== false);
+        const useClientSideAi = isStrategicGoAi && (game.settings as any)?.useClientSideAi === true;
         if (!useClientSideAi) return;
         // myPlayer: blackPlayerId/whitePlayerId 우선, 없으면 AI 대국에서 player1 = 인간으로 추론
         let myPlayer = game.blackPlayerId === currentUser?.id ? Player.Black : (game.whitePlayerId === currentUser?.id ? Player.White : Player.None);

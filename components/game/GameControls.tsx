@@ -177,14 +177,26 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
 };
 
 
+const DICE_ROLL_ANIMATION_MS = 1500;
+
 const DicePanel: React.FC<{ session: LiveGameSession, isMyTurn: boolean, onAction: (a: ServerAction) => void, currentUser: User }> = ({ session, isMyTurn, onAction, currentUser }) => {
     const { id: gameId, gameStatus } = session;
+    const [localRollEndTime, setLocalRollEndTime] = React.useState<number>(0);
 
-    const isRolling = gameStatus === 'dice_rolling_animating';
-    
+    const isRollingByStatus = gameStatus === 'dice_rolling_animating';
+    const isRollingByLocal = localRollEndTime > 0 && Date.now() < localRollEndTime;
+    const isRolling = isRollingByStatus || isRollingByLocal;
+
+    React.useEffect(() => {
+        if (localRollEndTime <= 0) return;
+        const t = setTimeout(() => setLocalRollEndTime(0), Math.max(0, localRollEndTime - Date.now()));
+        return () => clearTimeout(t);
+    }, [localRollEndTime]);
+
     const handleRoll = (itemType?: 'odd' | 'even') => {
         if (isMyTurn && gameStatus === 'dice_rolling') {
             audioService.rollDice(1);
+            setLocalRollEndTime(Date.now() + DICE_ROLL_ANIMATION_MS);
             onAction({ type: 'DICE_ROLL', payload: { gameId, itemType } });
         }
     };
@@ -717,8 +729,35 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
         const handleCloseResults = () => {
             setShowResultModal(false);
-            sessionStorage.setItem('postGameRedirect', '#/singleplayer');
-            onAction({ type: 'LEAVE_AI_GAME', payload: { gameId } });
+
+            // 게임 종류에 따라 적절한 로비/대기실로 라우팅
+            let redirectHash: string | null = null;
+
+            if (session.gameCategory === 'tower') {
+                // 도전의 탑
+                redirectHash = '#/tower';
+            } else if (session.gameCategory === 'singleplayer' || session.isSinglePlayer) {
+                // 싱글플레이 미션
+                redirectHash = '#/singleplayer';
+            } else {
+                // 전략바둑 / 놀이바둑 AI 대국 (일반 대기실 AI)
+                let waitingRoomMode: 'strategic' | 'playful' | null = null;
+                if (SPECIAL_GAME_MODES.some(m => m.mode === session.mode)) {
+                    waitingRoomMode = 'strategic';
+                } else if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {
+                    waitingRoomMode = 'playful';
+                }
+                if (waitingRoomMode) {
+                    redirectHash = `#/waiting/${waitingRoomMode}`;
+                }
+            }
+
+            if (redirectHash) {
+                sessionStorage.setItem('postGameRedirect', redirectHash);
+            }
+
+            const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
+            onAction({ type: actionType as any, payload: { gameId } });
         };
 
         if (isGameEnded) {

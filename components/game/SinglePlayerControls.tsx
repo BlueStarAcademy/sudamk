@@ -109,12 +109,25 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     // 스캔 가능 여부 확인: 상대방(백)의 히든 스톤이 있고 아직 영구적으로 공개되지 않은 것이 있는지
     // AI 초기 히든 돌도 확인 (미리 배치된 히든 돌)
     const canScan = React.useMemo(() => {
+        // 보드 상태가 유효하지 않으면 스캔 불가
+        const board = session.boardState;
+        if (!Array.isArray(board) || board.length === 0) {
+            return false;
+        }
+
         // AI 초기 히든 돌이 있고 아직 공개되지 않았는지 확인
         const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
         if (aiInitialHiddenStone) {
             const { x, y } = aiInitialHiddenStone;
-            // 돌이 여전히 보드에 있고 영구적으로 공개되지 않았는지 확인
-            if (session.boardState[y]?.[x] === Player.White) {
+            const inBounds =
+                typeof x === 'number' &&
+                typeof y === 'number' &&
+                y >= 0 &&
+                y < board.length &&
+                x >= 0 &&
+                x < board[y].length;
+
+            if (inBounds && board[y][x] === Player.White) {
                 const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
                 if (!isPermanentlyRevealed) {
                     return true; // AI 초기 히든 돌이 있으면 스캔 가능
@@ -132,8 +145,17 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             const move = session.moveHistory[parseInt(moveIndexStr)];
             if (!move || move.player !== Player.White) return false;
             const { x, y } = move;
+
+            const inBounds =
+                typeof x === 'number' &&
+                typeof y === 'number' &&
+                y >= 0 &&
+                y < board.length &&
+                x >= 0 &&
+                x < board[y].length;
+
             // 돌이 여전히 보드에 있고 영구적으로 공개되지 않았는지 확인
-            if (session.boardState[y]?.[x] !== Player.White) return false;
+            if (!inBounds || board[y][x] !== Player.White) return false;
             const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });

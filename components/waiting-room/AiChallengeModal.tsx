@@ -150,8 +150,32 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                 GameMode.Mix,
             ];
             const isGoMode = goModes.includes(selectedGameMode);
-            const useClientSideAi = isGoMode && (shouldUseClientSideAi() || typeof (window as any).electron === 'undefined');
-            onAction({ type: 'START_AI_GAME', payload: { mode: selectedGameMode, settings: { ...settings, useClientSideAi } } });
+            // 전략바둑 대기실에서 시작하는 AI 대국은 항상 서버 AI(그누고/서버 goAiBot)를 사용한다.
+            // 클라이언트 측 AI(WASM/로컬 GnuGo)는 놀이바둑 등 다른 컨텐츠에서만 사용.
+            const useClientSideAi = lobbyType === 'strategic'
+                ? false
+                : (isGoMode && (shouldUseClientSideAi() || typeof (window as any).electron === 'undefined'));
+
+            // AI 대국은 모두 시간 무제한으로 고정:
+            // - timeLimit: 0, byoyomiTime: 0, byoyomiCount: 0, timeIncrement: 0
+            const timeUnlimitedSettings: Partial<GameSettings> = {
+                timeLimit: 0,
+                byoyomiTime: 0,
+                byoyomiCount: 0,
+                timeIncrement: 0,
+            };
+
+            onAction({ 
+                type: 'START_AI_GAME', 
+                payload: { 
+                    mode: selectedGameMode, 
+                    settings: { 
+                        ...settings, 
+                        ...timeUnlimitedSettings, 
+                        useClientSideAi 
+                    } 
+                } 
+            });
             onClose();
         }
     };
@@ -168,7 +192,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
 
         const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(selectedGameMode);
         const showKomi = ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base].includes(selectedGameMode);
-        const showTimeControls = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(selectedGameMode);
+        // AI 대국은 모두 시간 무제한이므로, 제한시간/초읽기 관련 UI는 항상 숨긴다.
+        const showTimeControls = false;
         const showCaptureTarget = selectedGameMode === GameMode.Capture;
         const showTtamokCaptureTarget = selectedGameMode === GameMode.Ttamok;
         const showBaseStones = selectedGameMode === GameMode.Base;
