@@ -212,8 +212,8 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             const remaining = Math.max(0, Math.ceil((session.itemUseDeadline! - now) / 1000));
             const clampedRemaining = Math.min(30, Math.max(0, remaining)); // 0-30초 범위로 제한
             
-            // 0초가 되면 초읽기 효과음 재생
-            if (clampedRemaining === 0 && prevTimeLeft.current > 0) {
+            // 0초가 되면 초읽기 효과음 재생 (싱글플레이·AI 대국은 초읽기 소리 없음)
+            if (clampedRemaining === 0 && prevTimeLeft.current > 0 && !session.isSinglePlayer && !session.isAiGame) {
                 audioService.timerWarning();
             }
             prevTimeLeft.current = clampedRemaining;

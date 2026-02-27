@@ -309,6 +309,14 @@ const startServer = async () => {
             await Promise.race([db.initializeDatabase(), dbTimeout]);
             dbInitialized = true;
             console.log('[Server Startup] Database initialized successfully');
+            // Prisma 엔진이 모든 쿼리 경로에서 준비되도록 gameService 쪽 probe 실행 후 잠시 대기
+            try {
+                const { ensurePrismaEngineReady } = await import('./prisma/gameService.js');
+                await ensurePrismaEngineReady();
+                await new Promise(r => setTimeout(r, 500));
+            } catch (engineErr: any) {
+                console.warn('[Server Startup] ensurePrismaEngineReady (non-fatal):', engineErr?.message);
+            }
             // DB 초기화 완료 후에만 연결 상태 주기 확인 시작 (Prisma 엔진 준비 전 호출 방지)
             if (dbUrl) {
                 let lastDbConnectionStatus: boolean | null = null;

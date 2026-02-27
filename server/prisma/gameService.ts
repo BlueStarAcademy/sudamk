@@ -4,13 +4,13 @@ import type { LiveGameSession, GameStatus } from "../../types/index.js";
 const ENDED_STATUSES: GameStatus[] = ["ended", "no_contest"];
 
 const ENGINE_NOT_CONNECTED = 'Engine is not yet connected';
-const ENGINE_READY_DELAY_MS = 200;
-const MAX_ENGINE_RETRIES = 8;
+const ENGINE_READY_DELAY_MS = 350;
+const MAX_ENGINE_RETRIES = 15;
+const COOLDOWN_MS = 2500;
+const READY_TTL_MS = 15_000;
 
 /** Windows 등에서 $connect() 직후에도 엔진이 준비되지 않을 수 있음. 연결 후 짧은 대기·프로브로 준비될 때까지 대기 */
 export async function ensurePrismaEngineReady(): Promise<void> {
-  // Prevent thundering herd: 여러 호출이 동시에 들어오면 $connect/$queryRaw 레이스로
-  // "Engine is not yet connected"가 폭주할 수 있으므로, 단일 공유 Promise로 직렬화합니다.
   const g = globalThis as any;
   if (!g.__prismaEngineReadyState) {
     g.__prismaEngineReadyState = {
@@ -28,12 +28,12 @@ export async function ensurePrismaEngineReady(): Promise<void> {
   };
 
   const now = Date.now();
-  // 최근에 성공했으면 바로 통과 (짧은 TTL로 중복 probe 방지)
-  if (state.readyAt && (now - state.readyAt) < 10_000) return;
+  if (state.readyAt && (now - state.readyAt) < READY_TTL_MS) return;
 
-  // 최근에 실패했으면 잠깐 쿨다운 (로그/재시도 폭주 방지)
-  if (state.lastFailAt && (now - state.lastFailAt) < 2000) {
-    throw new Error(state.lastFailMsg || ENGINE_NOT_CONNECTED);
+  // 최근 실패 후 쿨다운: 재시도 대기 후 한 번 더 시도 (바로 throw하지 않음)
+  if (state.lastFailAt && (now - state.lastFailAt) < COOLDOWN_MS) {
+    await new Promise(r => setTimeout(r, COOLDOWN_MS - (now - state.lastFailAt)));
+    if (state.readyAt && (Date.now() - state.readyAt) < READY_TTL_MS) return;
   }
 
   if (state.inFlight) return state.inFlight;
@@ -43,17 +43,17 @@ export async function ensurePrismaEngineReady(): Promise<void> {
       for (let attempt = 0; attempt < MAX_ENGINE_RETRIES; attempt++) {
         try {
           await prisma.$connect();
-          await new Promise(r => setTimeout(r, ENGINE_READY_DELAY_MS + 50 * attempt));
+          await new Promise(r => setTimeout(r, ENGINE_READY_DELAY_MS + 80 * attempt));
           await prisma.$queryRaw`SELECT 1`;
+          await new Promise(r => setTimeout(r, 150));
           state.readyAt = Date.now();
           state.lastFailAt = 0;
           state.lastFailMsg = '';
           return;
         } catch (e: unknown) {
           const msg = (e as { message?: string })?.message ?? '';
-          // 엔진 준비 race인 경우만 짧게 재시도. 그 외(잘못된 DATABASE_URL 등)는 빠르게 throw.
           if (msg.includes(ENGINE_NOT_CONNECTED) && attempt < MAX_ENGINE_RETRIES - 1) {
-            await new Promise(r => setTimeout(r, 150 * (attempt + 1)));
+            await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
             continue;
           }
           throw e;
@@ -323,29 +323,31 @@ export async function getAllEndedGames(): Promise<LiveGameSession[]> {
   };
   try {
     await ensurePrismaEngineReady();
-    return await run();
+    try {
+      return await run();
+    } catch (runErr: unknown) {
+      const runMsg = (runErr as { message?: string })?.message ?? '';
+      if (runMsg.includes(ENGINE_NOT_CONNECTED)) return [];
+      throw runErr;
+    }
   } catch (error: unknown) {
     const err = error as { code?: string; message?: string };
+    if (err.message?.includes(ENGINE_NOT_CONNECTED)) {
+      // Windows/startup: 엔진 미연결 시 재시도 없이 [] 반환 (로그 스팸 방지)
+      return [];
+    }
     const isConnectionError =
       err.code === 'P1017' ||
-      err.message?.includes('closed the connection') ||
-      err.message?.includes(ENGINE_NOT_CONNECTED);
+      err.message?.includes('closed the connection');
     if (isConnectionError) {
-      if (err.message?.includes(ENGINE_NOT_CONNECTED)) {
-        console.warn('[gameService] Prisma engine not ready, connecting and retrying...');
-      } else {
-        console.warn('[gameService] Database connection lost, retrying...');
-      }
+      console.warn('[gameService] Database connection lost, retrying...');
       for (let retry = 0; retry < 3; retry++) {
         try {
-          await new Promise(r => setTimeout(r, 150 * (retry + 1)));
+          await new Promise(r => setTimeout(r, 300 * (retry + 1)));
           await ensurePrismaEngineReady();
           return await run();
         } catch (retryError) {
-          if (retry === 2) {
-            console.error('[gameService] Retry failed:', retryError);
-            return [];
-          }
+          if (retry === 2) return [];
         }
       }
     }

@@ -133,7 +133,14 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
 
     const levelToDisplay = isStrategic ? user.strategyLevel : user.playfulLevel;
     const levelLabel = isStrategic ? '전략' : '놀이';
-    const levelText = `${levelLabel} Lv.${levelToDisplay}`;
+    let levelText = `${levelLabel} Lv.${levelToDisplay}`;
+
+    // 전략바둑 AI 대국: 상단 패널에서 봇 이름 옆에 AI 난이도(레벨 1~10) 표시
+    const isStrategicAiGame = session.isAiGame && isStrategic && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+    const goAiLevel = (session.settings as any)?.goAiBotLevel ?? (session.settings as any)?.aiDifficulty;
+    if (isStrategicAiGame && isAiPlayer && typeof goAiLevel === 'number') {
+        levelText = `${levelText} · AI Lv.${goAiLevel}`;
+    }
 
     const orderClass = isLeft ? 'flex-row' : 'flex-row-reverse';
     const textAlignClass = isLeft ? 'text-left' : 'text-right';

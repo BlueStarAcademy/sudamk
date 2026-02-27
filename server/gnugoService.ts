@@ -394,7 +394,6 @@ export async function generateGnuGoMove(request: GenerateMoveRequest): Promise<P
                 console.warn('[GnuGo Service] GnuGo 서비스 연결 실패. GNUGO_API_URL 확인: ' + (GNUGO_API_URL ? '설정됨' : '미설정'));
             }
             // Fall through to local process (로컬 없으면 goAiBot fallback으로 전달)
-            throw error;
         }
     }
     

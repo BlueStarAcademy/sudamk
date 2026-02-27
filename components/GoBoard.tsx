@@ -455,6 +455,8 @@ interface GoBoardProps {
   isMobile?: boolean;
   isSinglePlayer?: boolean;
   isRotated?: boolean; // 180도 회전 여부
+  // 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌
+  pendingMove?: { x: number; y: number; player: Player } | null;
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
@@ -464,7 +466,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         myPlayerEnum, gameStatus, highlightedPoints, highlightStyle = 'circle', myRevealedStones, allRevealedStones, newlyRevealed, isSpectator,
         analysisResult, showTerritoryOverlay = false, showHintOverlay = false, currentUser, blackPlayerNickname, whitePlayerNickname,
         currentPlayer, isItemModeActive, animation, mode, mixedModes, justCaptured, permanentlyRevealedStones, onAction, gameId,
-        showLastMoveMarker, blackPatternStones, whitePatternStones, isSinglePlayer = false, isRotated = false
+        showLastMoveMarker, blackPatternStones, whitePatternStones, isSinglePlayer = false, isRotated = false, pendingMove = null
     } = props;
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const [selectedMissileStone, setSelectedMissileStone] = useState<Point | null>(null);
@@ -1197,6 +1199,22 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     );
                 })}
                 {winningLine && winningLine.length > 0 && ( <path d={`M ${toSvgCoords(winningLine[0]).cx} ${toSvgCoords(winningLine[0]).cy} L ${toSvgCoords(winningLine[winningLine.length - 1]).cx} ${toSvgCoords(winningLine[winningLine.length - 1]).cy}`} stroke="rgba(239, 68, 68, 0.8)" strokeWidth="10" strokeLinecap="round" className="animate-fade-in" /> )}
+                
+                {/* 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌 */}
+                {pendingMove && (() => {
+                    const { cx, cy } = toSvgCoords({ x: pendingMove.x, y: pendingMove.y });
+                    return (
+                        <g opacity={0.7}>
+                            <Stone
+                                player={pendingMove.player}
+                                cx={cx}
+                                cy={cy}
+                                radius={stone_radius}
+                                isLastMove={false}
+                            />
+                        </g>
+                    );
+                })()}
                 
                 {highlightedPoints && highlightedPoints.map((p, i) => {
                     const { cx, cy } = toSvgCoords(p);

@@ -248,32 +248,50 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
         case 'PLACE_STONE': {
             // triggerAutoScoring 플래그가 있으면 계가를 트리거
             if (payload.triggerAutoScoring) {
-                // 계가 시 클라이언트가 보낸 보드/수순을 최우선 사용 (캐시나 서버 상태가 지연되면 잘못된 보드로 계가되는 버그 방지)
-                const payloadHasBoard = payload.boardState && Array.isArray(payload.boardState) && payload.boardState.length > 0;
-                const payloadHasMoves = payload.moveHistory && Array.isArray(payload.moveHistory) && payload.moveHistory.length > 0;
-                if (payloadHasMoves) {
-                    game.moveHistory = payload.moveHistory;
-                    if (payload.totalTurns !== undefined) game.totalTurns = payload.totalTurns;
-                }
-                if (payloadHasBoard) {
-                    game.boardState = payload.boardState;
-                } else if (game.isSinglePlayer && game.id.startsWith('sp-game-')) {
-                    const { getCachedGame } = await import('../gameCache.js');
-                    const cachedGame = await getCachedGame(game.id);
-                    if (cachedGame?.boardState?.length && cachedGame?.moveHistory?.length) {
-                        game.boardState = cachedGame.boardState;
-                        if (!payloadHasMoves) game.moveHistory = cachedGame.moveHistory;
-                        if (cachedGame.totalTurns != null) game.totalTurns = cachedGame.totalTurns;
+                // 온라인 전략바둑/PVP/AI 대국에서는 항상 서버의 게임 상태를 기준으로 계가해야 함
+                // (클라이언트가 새로고침 후 잘못된 boardState를 보내면 오계가 발생할 수 있음)
+                const isClientAuthoritative =
+                    game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
+
+                if (isClientAuthoritative) {
+                    // 싱글플레이/도전의 탑: 클라이언트가 보낸 최종 보드/수순을 우선 사용
+                    const payloadHasBoard =
+                        payload.boardState && Array.isArray(payload.boardState) && payload.boardState.length > 0;
+                    const payloadHasMoves =
+                        payload.moveHistory && Array.isArray(payload.moveHistory) && payload.moveHistory.length > 0;
+
+                    if (payloadHasMoves) {
+                        game.moveHistory = payload.moveHistory;
+                        if (payload.totalTurns !== undefined) game.totalTurns = payload.totalTurns;
                     }
-                }
-                if (payload.blackTimeLeft !== undefined) game.blackTimeLeft = payload.blackTimeLeft;
-                if (payload.whiteTimeLeft !== undefined) game.whiteTimeLeft = payload.whiteTimeLeft;
-                if (payload.captures && typeof payload.captures === 'object') {
-                    // 싱글플레이는 클라이언트에서 포획 수를 계산하므로, 자동계가 시점에 동기화가 필요
-                    game.captures = { ...(game.captures || {}), ...payload.captures };
+
+                    if (payloadHasBoard) {
+                        game.boardState = payload.boardState;
+                    } else if (game.isSinglePlayer && game.id.startsWith('sp-game-')) {
+                        const { getCachedGame } = await import('../gameCache.js');
+                        const cachedGame = await getCachedGame(game.id);
+                        if (cachedGame?.boardState?.length && cachedGame?.moveHistory?.length) {
+                            game.boardState = cachedGame.boardState;
+                            if (!payloadHasMoves) game.moveHistory = cachedGame.moveHistory;
+                            if (cachedGame.totalTurns != null) game.totalTurns = cachedGame.totalTurns;
+                        }
+                    }
+
+                    if (payload.blackTimeLeft !== undefined) game.blackTimeLeft = payload.blackTimeLeft;
+                    if (payload.whiteTimeLeft !== undefined) game.whiteTimeLeft = payload.whiteTimeLeft;
+
+                    if (payload.captures && typeof payload.captures === 'object') {
+                        // 싱글플레이는 클라이언트에서 포획 수를 계산하므로, 자동계가 시점에 동기화가 필요
+                        game.captures = { ...(game.captures || {}), ...payload.captures };
+                    }
+                } else {
+                    // 온라인 대국: 클라이언트가 보낸 보드/수순은 신뢰하지 않고 서버 상태를 유지
+                    // 단, 남은 시간 정보는 참고용으로만 업데이트
+                    if (payload.blackTimeLeft !== undefined) game.blackTimeLeft = payload.blackTimeLeft;
+                    if (payload.whiteTimeLeft !== undefined) game.whiteTimeLeft = payload.whiteTimeLeft;
                 }
                 
-                // 게임 캐시 업데이트 (계가 시작 전에 최신 상태 저장)
+                // 게임 캐시 업데이트 (계가 시작 전에 최신 상태 저장 - 싱글플레이 전용)
                 if (game.isSinglePlayer && game.id.startsWith('sp-game-')) {
                     const { updateGameCache } = await import('../gameCache.js');
                     updateGameCache(game);

@@ -218,39 +218,97 @@ const CaptureScoreDetailsComponent: React.FC<{ session: LiveGameSession, isMobil
     const blackWon = winner === Player.Black;
     const whiteWon = winner === Player.White;
     
-    // 돌 이미지 경로 (흑돌, 백돌)
-    const blackStoneImage = '/images/single/BlackDouble.png';
-    const whiteStoneImage = '/images/single/WhiteDouble.png';
-    
     return (
         <div className="text-center space-y-3 sm:space-y-4">
-            <p className={`text-gray-300 mb-2 sm:mb-4 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>최종 스코어</p>
+            <p
+                className={`text-gray-300 mb-2 sm:mb-4 ${isMobile ? 'text-sm' : 'text-base'}`}
+                style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}
+            >
+                최종 스코어
+            </p>
             <div className="flex items-center justify-center gap-2 sm:gap-4">
-                <div className={`flex flex-col items-center gap-1 sm:gap-2 ${isMobile ? 'w-20' : 'w-32'} flex-shrink-0`}>
-                    <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={isMobile ? Math.round(40 * mobileImageScale) : 64} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
-                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : ''}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{blackPlayer.nickname} (흑)</span>
+                <div
+                    className={`flex flex-col items-center gap-1 sm:gap-2 ${
+                        isMobile ? 'w-20' : 'w-32'
+                    } flex-shrink-0`}
+                >
+                    <Avatar
+                        userId={blackPlayer.id}
+                        userName={blackPlayer.nickname}
+                        size={isMobile ? Math.round(40 * mobileImageScale) : 64}
+                        avatarUrl={blackAvatarUrl}
+                        borderUrl={blackBorderUrl}
+                    />
+                    <span
+                        className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${
+                            isMobile ? 'text-[10px]' : ''
+                        }`}
+                        style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
+                    >
+                        {blackPlayer.nickname} (흑)
+                    </span>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-4 flex-grow justify-center">
-                    <div className="flex flex-col items-center gap-1 sm:gap-2">
-                        <img src={blackStoneImage} alt="흑돌" className={isMobile ? 'w-8 h-8' : 'w-12 h-12'} style={{ width: isMobile ? `${32 * mobileImageScale}px` : undefined, height: isMobile ? `${32 * mobileImageScale}px` : undefined }} />
-                        <span className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'} ${blackWon ? 'text-green-400' : 'text-white'}`} style={{ fontSize: isMobile ? `${18 * mobileTextScale}px` : undefined }}>{blackCaptures}</span>
-                    </div>
-                    <span className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold`} style={{ fontSize: isMobile ? `${20 * mobileTextScale}px` : undefined }}>vs</span>
-                    <div className="flex flex-col items-center gap-1 sm:gap-2">
-                        <img src={whiteStoneImage} alt="백돌" className={isMobile ? 'w-8 h-8' : 'w-12 h-12'} style={{ width: isMobile ? `${32 * mobileImageScale}px` : undefined, height: isMobile ? `${32 * mobileImageScale}px` : undefined }} />
-                        <span className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'} ${whiteWon ? 'text-green-400' : 'text-white'}`} style={{ fontSize: isMobile ? `${18 * mobileTextScale}px` : undefined }}>{whiteCaptures}</span>
-                    </div>
+                    <span
+                        className={`font-mono font-bold ${
+                            isMobile ? 'text-3xl' : 'text-5xl'
+                        } ${blackWon ? 'text-green-400' : 'text-white'}`}
+                        style={{ fontSize: isMobile ? `${26 * mobileTextScale}px` : undefined }}
+                    >
+                        {blackCaptures}
+                    </span>
+                    <span
+                        className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-gray-400`}
+                        style={{ fontSize: isMobile ? `${22 * mobileTextScale}px` : undefined }}
+                    >
+                        :
+                    </span>
+                    <span
+                        className={`font-mono font-bold ${
+                            isMobile ? 'text-3xl' : 'text-5xl'
+                        } ${whiteWon ? 'text-green-400' : 'text-white'}`}
+                        style={{ fontSize: isMobile ? `${26 * mobileTextScale}px` : undefined }}
+                    >
+                        {whiteCaptures}
+                    </span>
                 </div>
-                <div className={`flex flex-col items-center gap-1 sm:gap-2 ${isMobile ? 'w-20' : 'w-32'} flex-shrink-0`}>
-                    <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={isMobile ? Math.round(40 * mobileImageScale) : 64} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl}/>
-                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : ''}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{whitePlayer.nickname} (백)</span>
+                <div
+                    className={`flex flex-col items-center gap-1 sm:gap-2 ${
+                        isMobile ? 'w-20' : 'w-32'
+                    } flex-shrink-0`}
+                >
+                    <Avatar
+                        userId={whitePlayer.id}
+                        userName={whitePlayer.nickname}
+                        size={isMobile ? Math.round(40 * mobileImageScale) : 64}
+                        avatarUrl={whiteAvatarUrl}
+                        borderUrl={whiteBorderUrl}
+                    />
+                    <span
+                        className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${
+                            isMobile ? 'text-[10px]' : ''
+                        }`}
+                        style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
+                    >
+                        {whitePlayer.nickname} (백)
+                    </span>
                 </div>
             </div>
             {blackWon && (
-                <p className={`${isMobile ? 'text-sm' : 'text-lg'} font-bold text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>{blackPlayer.nickname} 승리!</p>
+                <p
+                    className={`${isMobile ? 'text-base' : 'text-xl'} font-bold text-green-400`}
+                    style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}
+                >
+                    {blackPlayer.nickname} 승리!
+                </p>
             )}
             {whiteWon && (
-                <p className={`${isMobile ? 'text-sm' : 'text-lg'} font-bold text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>{whitePlayer.nickname} 승리!</p>
+                <p
+                    className={`${isMobile ? 'text-base' : 'text-xl'} font-bold text-green-400`}
+                    style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}
+                >
+                    {whitePlayer.nickname} 승리!
+                </p>
             )}
         </div>
     );

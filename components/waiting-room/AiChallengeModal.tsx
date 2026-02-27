@@ -209,6 +209,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         const showTtamokForbiddenRules = selectedGameMode === GameMode.Ttamok;
 
         const showGoAiLevel = lobbyType === 'strategic';
+        const showScoringTurnLimit = showGoAiLevel && selectedGameMode !== GameMode.Capture;
 
         return (
             <div className="h-full flex flex-col gap-2 overflow-y-auto pr-2">
@@ -228,7 +229,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                     </div>
                 )}
 
-                {showGoAiLevel && (
+                {showScoringTurnLimit && (
                     <div className="grid grid-cols-2 gap-2 items-center">
                         <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>계가까지 턴</label>
                         <select 

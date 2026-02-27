@@ -277,12 +277,11 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             // 살리기 바둑 모드 확인 (survivalTurns > 0일 때만 살리기 바둑 모드)
             const isSurvivalMode = stage.survivalTurns !== undefined && stage.survivalTurns > 0;
 
-            // 시간룰 설정: 스피드바둑은 피셔, 나머지는 5분+초읽기30초 3회로 고정
-            // 싱글플레이 비스피드 모드는 항상 5분 + 30초 초읽기 3회로 고정
-            const enforcedMainTimeMinutes = isSpeedMode ? (stage.timeControl.mainTime ?? 5) : 5;
-            const enforcedByoyomiTimeSeconds = isSpeedMode ? (stage.timeControl.byoyomiTime ?? 0) : 30;
-            const enforcedByoyomiCount = isSpeedMode ? 0 : 3;
-            const enforcedIncrement = isSpeedMode ? (stage.timeControl.increment ?? 0) : 0;
+            // 시간룰 설정: 스피드바둑은 피셔, 비스피드 싱글플레이는 무제한(제한시간/초읽기 없음, 소리 없음)
+            const enforcedMainTimeMinutes = isSpeedMode ? (stage.timeControl?.mainTime ?? 5) : 0;
+            const enforcedByoyomiTimeSeconds = isSpeedMode ? (stage.timeControl?.byoyomiTime ?? 0) : 0;
+            const enforcedByoyomiCount = isSpeedMode ? 0 : 0;
+            const enforcedIncrement = isSpeedMode ? (stage.timeControl?.increment ?? 0) : 0;
 
 
             const gameId = `sp-game-${randomUUID()}`;
@@ -445,28 +444,27 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             game.turnStartTime = now;
             const isSpeedMode = game.mode === GameMode.Speed;
             
-            // 싱글플레이 시간 설정: 비스피드 모드는 항상 5분 + 30초 초읽기 3회로 고정
-            const enforcedMainTimeMinutes = isSpeedMode ? (game.settings.timeLimit || 5) : 5;
-            const enforcedByoyomiCount = isSpeedMode ? 0 : 3;
-            const enforcedByoyomiTimeSeconds = isSpeedMode ? (game.settings.byoyomiTime ?? 0) : 30;
+            // 싱글플레이 시간 설정: 비스피드 모드는 무제한(제한시간/초읽기 0, 초읽기 소리 없음)
+            const enforcedMainTimeMinutes = isSpeedMode ? (game.settings.timeLimit || 5) : 0;
+            const enforcedByoyomiCount = isSpeedMode ? 0 : 0;
+            const enforcedByoyomiTimeSeconds = isSpeedMode ? (game.settings.byoyomiTime ?? 0) : 0;
             
             // 스테이지 정보 가져오기 (timeIncrement 설정용)
             const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
             const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
             const enforcedIncrement = isSpeedMode && stage ? (stage.timeControl?.increment ?? game.settings.timeIncrement ?? 0) : 0;
 
-            // 비스피드 모드는 고정된 시간 제어를 강제 적용
+            // 비스피드 모드는 무제한(시간/초읽기 소리 없음)
             if (!isSpeedMode) {
-                game.settings.timeLimit = 5; // 항상 5분
-                game.settings.byoyomiCount = 3; // 항상 3회
-                game.settings.byoyomiTime = 30; // 항상 30초
+                game.settings.timeLimit = 0;
+                game.settings.byoyomiCount = 0;
+                game.settings.byoyomiTime = 0;
                 game.settings.timeIncrement = 0;
             } else {
-                // 스피드 모드는 timeIncrement를 스테이지 설정에서 가져옴
                 game.settings.timeIncrement = enforcedIncrement;
             }
 
-            // 싱글플레이는 시간 제한 없음 (제한시간/초읽기 미적용, 결과까지 소요 시간만 표시용)
+            // 싱글플레이 비스피드: 시간 제한 없음 (제한시간/초읽기 미적용, 결과까지 소요 시간만 표시, 초읽기 소리 없음)
             game.turnDeadline = undefined;
             game.blackTimeLeft = 0;
             game.whiteTimeLeft = 0;

@@ -795,7 +795,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         }
                         return {};
                     }
-                    
+                    // totalTurns만 갱신된 경우에도 DB 저장 (F5 새로고침 후 재입장 시 자동계가까지 남은 턴이 Max로 초기화되는 버그 방지)
+                    await db.saveGame(game);
                     if (newTotalTurns === autoScoringTurns - 1) {
                         console.log(`[handleStrategicAction] Last turn reached: totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, next turn will trigger auto-scoring after AI move`);
                     }

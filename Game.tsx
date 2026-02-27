@@ -73,6 +73,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const pauseStartedAtRef = useRef<number | null>(null);
     const pauseCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [pauseButtonCooldown, setPauseButtonCooldown] = useState(0);
+    // 연속 클릭 방지: 수 처리 중에는 추가 클릭 무시
+    const [isMoveInFlight, setIsMoveInFlight] = useState(false);
     const clientTimes = useClientTimer(session, (session.isSinglePlayer || (session.gameCategory === 'tower')) ? { isPaused } : {});
     const [isAiRematchModalOpen, setIsAiRematchModalOpen] = useState(false);
     
@@ -425,6 +427,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         
         if (isMyTurn && !isGameOver) {
+            const hasTimeControl = (session.settings?.timeLimit ?? 0) > 0 || ((session.settings?.byoyomiCount ?? 0) > 0 && (session.settings?.byoyomiTime ?? 0) > 0);
+            const noCountdownSound = !hasTimeControl || session.isAiGame; // 싱글/AI 대국: 초읽기 소리 없음
+            if (noCountdownSound) return;
             const myTime = myPlayerEnum === Player.Black ? clientTimes.clientTimes.black : clientTimes.clientTimes.white;
             if (myTime <= 10 && myTime > 0 && !warningSoundPlayedForTurn.current) {
                 audioService.timerWarning();
@@ -432,6 +437,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
         }
     }, [isMyTurn, clientTimes.clientTimes, myPlayerEnum, session.moveHistory, prevMoveCount, gameStatus]);
+
+    // 한 수가 실제로 반영되었거나 상태가 바뀌면 클릭 잠금 해제
+    useEffect(() => {
+        if (!isMoveInFlight) return;
+        const currentMoveCount = session.moveHistory?.length ?? 0;
+        const moveIncreased = prevMoveCount !== undefined && currentMoveCount > prevMoveCount;
+        const statusChanged = prevGameStatus !== undefined && prevGameStatus !== gameStatus;
+        if (moveIncreased || statusChanged) {
+            setIsMoveInFlight(false);
+        }
+    }, [isMoveInFlight, session.moveHistory?.length, prevMoveCount, gameStatus, prevGameStatus]);
 
 
     const isItemModeActive = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(gameStatus);
@@ -443,6 +459,37 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if ((session.isSinglePlayer || isTower || isPausableAiGame) && isPaused) return;
         if ((session.isSinglePlayer || isTower) && isBoardLocked) {
             console.log('[Game] Board is locked, ignoring click', { isBoardLocked, serverRevision: session.serverRevision });
+            return;
+        }
+
+        // 새로고침 직후: 서버에서 아직 boardState가 동기화되지 않은 상태에서는 클릭을 막아
+        // "빈 판에서 클릭 후 돌이 한꺼번에 보이는" 현상을 방지
+        const effectiveBoard = restoredBoardState || session.boardState;
+        const moveCount = session.moveHistory?.length ?? 0;
+        if (!isSinglePlayer && !isTower && moveCount > 0) {
+            const hasValidBoard =
+                effectiveBoard &&
+                Array.isArray(effectiveBoard) &&
+                effectiveBoard.length > 0 &&
+                effectiveBoard.some(
+                    (row: Player[]) =>
+                        row &&
+                        Array.isArray(row) &&
+                        row.some((cell: Player) => cell !== Player.None && cell != null)
+                );
+            if (!hasValidBoard) {
+                console.log('[Game] Board state not yet synced from server; ignoring click to avoid desync', {
+                    gameId,
+                    moveCount,
+                    hasBoardState: !!session.boardState
+                });
+                return;
+            }
+        }
+
+        // 이미 한 수가 처리 중이면 추가 클릭 무시
+        if (isMoveInFlight) {
+            console.log('[Game] Move in flight, ignoring additional click');
             return;
         }
 
@@ -643,56 +690,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 } as any);
                 return;
             }
-            // 전략바둑 AI(그누고): 유저 수를 클라이언트에 먼저 표시한 뒤 서버로 전송
-            const isStrategicAiGame = session.isAiGame && !isSinglePlayer && !isTower && !PLAYFUL_GAME_MODES.some(m => m.mode === mode);
-            if (isStrategicAiGame) {
-                const boardStateToUse = restoredBoardState || session.boardState;
-                if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return;
-                if (x === -1 || y === -1) return;
-                const boardSize = session.settings.boardSize;
-                if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
-                const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
-                const stoneAtTarget = boardStateToUse[y][x];
-                if (stoneAtTarget === opponentPlayerEnum) return;
-                let moveResult;
-                try {
-                    moveResult = processMoveClient(
-                        boardStateToUse,
-                        { x, y, player: myPlayerEnum },
-                        session.koInfo,
-                        session.moveHistory?.length || 0,
-                        { ignoreSuicide: false, isSinglePlayer: false, opponentPlayer: opponentPlayerEnum }
-                    );
-                } catch (e) {
-                    console.error('[Game] Strategic AI game - processMoveClient error:', e);
-                    return;
-                }
-                if (!moveResult.isValid) return;
-                handlers.handleAction({
-                    type: 'AI_GAME_CLIENT_MOVE',
-                    payload: {
-                        gameId,
-                        x,
-                        y,
-                        newBoardState: moveResult.newBoardState,
-                        capturedStones: moveResult.capturedStones,
-                        newKoInfo: moveResult.newKoInfo,
-                    }
-                } as any);
-                handlers.handleAction({
-                    type: 'PLACE_STONE',
-                    payload: {
-                        gameId,
-                        x,
-                        y,
-                        isHidden: gameStatus === 'hidden_placing',
-                        boardState: moveResult.newBoardState,
-                        moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
-                    }
-                } as ServerAction);
-                if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
-                return;
-            }
+            // 전략바둑 AI 대국 포함: 모든 온라인 게임은 서버에서만 검증/반영
             actionType = 'PLACE_STONE'; 
             payload.isHidden = gameStatus === 'hidden_placing';
             // 클라이언트의 boardState와 moveHistory를 서버로 전송하여 정확한 검증 가능하도록 함
@@ -703,6 +701,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if (actionType) {
             console.log('[Game] Sending action:', { actionType, payload, isMyTurn, myPlayerEnum, currentPlayer, gameStatus });
+            setIsMoveInFlight(true);
             handlers.handleAction({ type: actionType, payload } as ServerAction);
         } else {
             console.log('[Game] No action type determined', { 
@@ -716,52 +715,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 currentUser: currentUser.id
             });
         }
-    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory]);
+    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, isMoveInFlight, isTower, isSinglePlayer]);
 
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
         if (!pendingMove) return;
         const x = pendingMove.x;
         const y = pendingMove.y;
-        const isStrategicAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && !PLAYFUL_GAME_MODES.some(m => m.mode === mode);
-        if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn && isStrategicAiGame) {
-            const boardStateToUse = restoredBoardState || session.boardState;
-            if (boardStateToUse && Array.isArray(boardStateToUse) && boardStateToUse.length > 0 && x >= 0 && y >= 0) {
-                const boardSize = session.settings.boardSize;
-                if (x < boardSize && y < boardSize) {
-                    const opponentPlayerEnum = (session.currentPlayer === Player.Black ? Player.White : Player.Black) as Player;
-                    const stoneAtTarget = boardStateToUse[y][x];
-                    if (stoneAtTarget !== opponentPlayerEnum) {
-                        try {
-                            const moveResult = processMoveClient(
-                                boardStateToUse,
-                                { x, y, player: session.currentPlayer as Player },
-                                session.koInfo,
-                                session.moveHistory?.length || 0,
-                                { ignoreSuicide: false, isSinglePlayer: false, opponentPlayer: opponentPlayerEnum }
-                            );
-                            if (moveResult.isValid) {
-                                handlers.handleAction({
-                                    type: 'AI_GAME_CLIENT_MOVE',
-                                    payload: { gameId, x, y, newBoardState: moveResult.newBoardState, capturedStones: moveResult.capturedStones, newKoInfo: moveResult.newKoInfo }
-                                } as any);
-                                handlers.handleAction({
-                                    type: 'PLACE_STONE',
-                                    payload: {
-                                        gameId, x, y,
-                                        isHidden: gameStatus === 'hidden_placing',
-                                        boardState: moveResult.newBoardState,
-                                        moveHistory: [...(session.moveHistory || []), { x, y, player: session.currentPlayer }],
-                                    }
-                                } as ServerAction);
-                                setPendingMove(null);
-                                return;
-                            }
-                        } catch (_e) { /* fall through to normal PLACE_STONE */ }
-                    }
-                }
-            }
+
+        // 이미 한 수가 처리 중이면 추가 확정 무시
+        if (isMoveInFlight) {
+            console.log('[Game] Move in flight, ignoring confirm');
+            return;
         }
+
         let actionType: ServerAction['type'] | null = null;
         let payload: any = { gameId, x, y };
 
@@ -774,9 +741,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             payload.moveHistory = session.moveHistory || [];
         }
 
-        if (actionType) handlers.handleAction({ type: actionType, payload } as ServerAction);
+        if (actionType) {
+            setIsMoveInFlight(true);
+            handlers.handleAction({ type: actionType, payload } as ServerAction);
+        }
         setPendingMove(null);
-    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, session.isAiGame, session.isSinglePlayer, session.gameCategory, session.boardState, session.koInfo, session.moveHistory, session.currentPlayer, session.settings.boardSize, restoredBoardState]);
+    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, session.boardState, session.moveHistory, restoredBoardState, isMoveInFlight]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
 
@@ -1470,35 +1440,37 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     
                     {!isMobile && (
                         <div
-                            className={`flex flex-shrink-0 items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden transition-[width] duration-200 ${
-                                isRightSidebarCollapsed ? 'w-9' : 'w-[320px] xl:w-[360px]'
+                            className={`relative flex-shrink-0 transition-[width] duration-200 ${
+                                isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                             }`}
                         >
-                            <div className="flex-shrink-0 w-9 flex items-center justify-center py-2 border-r border-gray-600/80">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                                    className="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700/90 hover:bg-gray-600/90 text-gray-300 hover:text-white transition-colors border border-gray-600/80"
-                                    title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                                    aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                                >
-                                    <span className="text-sm font-bold leading-none">{isRightSidebarCollapsed ? '>' : '<'}</span>
-                                </button>
-                            </div>
                             {!isRightSidebarCollapsed && (
-                                <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-                                    <SinglePlayerSidebar
-                                        session={sessionWithRestoredPatternStones}
-                                        gameChat={gameChat}
-                                        onAction={handlers.handleAction}
-                                        currentUser={currentUserWithStatus}
-                                        isPaused={isPaused}
-                                        resumeCountdown={resumeCountdown}
-                                        pauseButtonCooldown={pauseButtonCooldown}
-                                        onTogglePause={handlePauseToggle}
-                                    />
+                                <div className="flex h-full items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
+                                    <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                                        <SinglePlayerSidebar
+                                            session={sessionWithRestoredPatternStones}
+                                            gameChat={gameChat}
+                                            onAction={handlers.handleAction}
+                                            currentUser={currentUserWithStatus}
+                                            isPaused={isPaused}
+                                            resumeCountdown={resumeCountdown}
+                                            pauseButtonCooldown={pauseButtonCooldown}
+                                            onTogglePause={handlePauseToggle}
+                                        />
+                                    </div>
                                 </div>
                             )}
+                            <button
+                                type="button"
+                                onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
+                                className="absolute top-1/2 -left-6 -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
+                                title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                                aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                            >
+                                <span className="text-sm font-bold leading-none">
+                                    {isRightSidebarCollapsed ? '<' : '>'}
+                                </span>
+                            </button>
                         </div>
                     )}
                     
@@ -1597,35 +1569,37 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     
                     {!isMobile && (
                         <div
-                            className={`flex flex-shrink-0 items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden transition-[width] duration-200 ${
-                                isRightSidebarCollapsed ? 'w-9' : 'w-[320px] xl:w-[360px]'
+                            className={`relative flex-shrink-0 transition-[width] duration-200 ${
+                                isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                             }`}
                         >
-                            <div className="flex-shrink-0 w-9 flex items-center justify-center py-2 border-r border-gray-600/80">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                                    className="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700/90 hover:bg-gray-600/90 text-gray-300 hover:text-white transition-colors border border-gray-600/80"
-                                    title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                                    aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                                >
-                                    <span className="text-sm font-bold leading-none">{isRightSidebarCollapsed ? '>' : '<'}</span>
-                                </button>
-                            </div>
                             {!isRightSidebarCollapsed && (
-                                <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-                                    <TowerSidebar
-                                        session={sessionWithRestoredPatternStones}
-                                        gameChat={gameChat}
-                                        onAction={handlers.handleAction}
-                                        currentUser={currentUserWithStatus}
-                                        onTogglePause={handlePauseToggle}
-                                        isPaused={isPaused}
-                                        resumeCountdown={resumeCountdown}
-                                        pauseButtonCooldown={pauseButtonCooldown}
-                                    />
+                                <div className="flex h-full items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
+                                    <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                                        <TowerSidebar
+                                            session={sessionWithRestoredPatternStones}
+                                            gameChat={gameChat}
+                                            onAction={handlers.handleAction}
+                                            currentUser={currentUserWithStatus}
+                                            onTogglePause={handlePauseToggle}
+                                            isPaused={isPaused}
+                                            resumeCountdown={resumeCountdown}
+                                            pauseButtonCooldown={pauseButtonCooldown}
+                                        />
+                                    </div>
                                 </div>
                             )}
+                            <button
+                                type="button"
+                                onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
+                                className="absolute top-1/2 -left-6 -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
+                                title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                                aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                            >
+                                <span className="text-sm font-bold leading-none">
+                                    {isRightSidebarCollapsed ? '<' : '>'}
+                                </span>
+                            </button>
                         </div>
                     )}
                     
@@ -1752,35 +1726,37 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 
                 {!isMobile && (
                     <div
-                        className={`flex flex-shrink-0 items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden transition-[width] duration-200 ${
-                            isRightSidebarCollapsed ? 'w-9' : 'w-[320px] xl:w-[360px]'
+                        className={`relative flex-shrink-0 transition-[width] duration-200 ${
+                            isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                         }`}
                     >
-                        <div className="flex-shrink-0 w-9 flex items-center justify-center py-2 border-r border-gray-600/80">
-                            <button
-                                type="button"
-                                onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                                className="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700/90 hover:bg-gray-600/90 text-gray-300 hover:text-white transition-colors border border-gray-600/80"
-                                title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                                aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                            >
-                                <span className="text-sm font-bold leading-none">{isRightSidebarCollapsed ? '>' : '<'}</span>
-                            </button>
-                        </div>
                         {!isRightSidebarCollapsed && (
-                            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-                                <Sidebar
-                                    {...gameProps}
-                                    onLeaveOrResign={handleLeaveOrResignClick}
-                                    isNoContestLeaveAvailable={isNoContestLeaveAvailable}
-                                    onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
-                                    isPaused={effectivePaused}
-                                    resumeCountdown={resumeCountdown}
-                                    pauseButtonCooldown={pauseButtonCooldown}
-                                    pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
-                                />
+                            <div className="flex h-full items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
+                                <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                                    <Sidebar
+                                        {...gameProps}
+                                        onLeaveOrResign={handleLeaveOrResignClick}
+                                        isNoContestLeaveAvailable={isNoContestLeaveAvailable}
+                                        onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                                        isPaused={effectivePaused}
+                                        resumeCountdown={resumeCountdown}
+                                        pauseButtonCooldown={pauseButtonCooldown}
+                                        pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
+                                    />
+                                </div>
                             </div>
                         )}
+                        <button
+                            type="button"
+                            onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
+                            className="absolute top-1/2 -left-6 -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
+                            title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                            aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                        >
+                            <span className="text-sm font-bold leading-none">
+                                {isRightSidebarCollapsed ? '<' : '>'}
+                            </span>
+                        </button>
                     </div>
                 )}
                 

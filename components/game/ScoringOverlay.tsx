@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 /** 계가 예상 소요 시간(ms). 진행 막대 및 연출 길이에 사용 — 모든 계가 화면에서 동일 적용 */
 export const SCORING_PROGRESS_DURATION_MS = 22_000;
+const SCAN_CYCLE_MS = 4_000; // 좌→우 스캔 1회 주기
 
 /** 계가 중 오버레이: 스피너 + 텍스트 + 서브텍스트 + 숫자 카운트 + 22초 진행 막대(글로우) + 펄스 */
 export function ScoringOverlay({ variant = 'fullscreen' }: { variant?: 'fullscreen' | 'inline' }) {
@@ -19,6 +20,10 @@ export function ScoringOverlay({ variant = 'fullscreen' }: { variant?: 'fullscre
     return () => clearInterval(interval);
   }, []);
   const remainingSec = Math.max(0, Math.ceil((SCORING_PROGRESS_DURATION_MS - elapsedMs) / 1000));
+  const scanPhase = (elapsedMs % SCAN_CYCLE_MS) / SCAN_CYCLE_MS;
+  // -10%에서 110%까지 이동하면서 좌측→우측 스캔 느낌을 줌
+  const scanLeftPercent = scanPhase * 120 - 10;
+
   const content = (
     <>
       <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-gray-100 mb-4" />
@@ -48,7 +53,21 @@ export function ScoringOverlay({ variant = 'fullscreen' }: { variant?: 'fullscre
     );
   }
   return (
-    <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-30 pointer-events-none">
+    <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-30 pointer-events-none overflow-hidden">
+      {/* 좌측에서 우측으로 움직이는 스캔 광선 연출 (뒷 배경 바둑판 위에 얇게 덮여 보이도록) */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute top-0 bottom-0 w-1/3"
+          style={{
+            left: `${scanLeftPercent}%`,
+            background:
+              'linear-gradient(to right, rgba(56,189,248,0.0), rgba(56,189,248,0.55), rgba(56,189,248,0.0))',
+            mixBlendMode: 'screen',
+            opacity: 0.4,
+            filter: 'blur(2px)',
+          }}
+        />
+      </div>
       {content}
     </div>
   );

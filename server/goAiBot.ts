@@ -11,6 +11,7 @@ import * as summaryService from './summaryService.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import * as db from './db.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
+import { generateGnuGoMove, isGnuGoAvailable } from './gnugoService.js';
 
 /**
  * AI 봇 단계별 특성 정의
@@ -418,37 +419,77 @@ export async function makeGoAiBotMove(
         }
     }
     
-    // NOTE: Gnugo(서버/로컬/WASM)는 더 이상 사용하지 않습니다.
-    // 모든 바둑 AI 수 생성은 goAiBot으로 통일합니다.
-    let selectedMove: Point;
-    const profile = getGoAiBotProfile(aiLevel);
-    
-    // AI가 볼 수 있는 보드 상태 (유저의 히든 돌 제거)
-    const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
-    
-    // AI 보드 상태를 사용하는 게임 객체 생성
-    const aiGame: types.LiveGameSession = {
-        ...game,
-        boardState: aiBoardState
-    };
-    
-    const logic = getGoLogic(aiGame);
-    
-    // 살리기 바둑 모드 확인
-    const isSurvivalMode = (game.settings as any)?.isSurvivalMode === true;
+    let selectedMove: Point | null = null;
 
-    // 낮은 난이도(1-3)는 간단한 휴리스틱 사용으로 성능 최적화
-    const useFastHeuristic = aiLevel <= 3;
+    // 1) 전략바둑 AI 대국: Railway에 배포된 GnuGo 서비스(또는 로컬 GnuGo)를 우선 사용
+    const isStrategicAiGame =
+        game.isAiGame &&
+        !game.isSinglePlayer &&
+        (game as any).gameCategory !== 'tower' &&
+        (game as any).gameCategory !== 'singleplayer';
 
-    // 1. 모든 유효한 수 찾기 (KataGo 사용 안함)
-    // 낮은 난이도는 샘플링으로 유효한 수 찾기 (성능 최적화)
-    const allValidMoves = useFastHeuristic 
-        ? findAllValidMovesFast(aiGame, logic, aiPlayerEnum)
-        : findAllValidMoves(aiGame, logic, aiPlayerEnum);
+    if (isStrategicAiGame && isGnuGoAvailable()) {
+        try {
+            const boardSize = game.settings.boardSize || 19;
+            const moveHistory = (game.moveHistory || []).map(m => ({
+                x: m.x,
+                y: m.y,
+                player: m.player
+            }));
+
+            // 전략바둑에서는 서버 game.boardState가 항상 진실 소스이므로 그대로 사용
+            const boardState = (game.boardState || []) as unknown as number[][];
+
+            const playerStr = aiPlayerEnum === types.Player.White ? 'white' : 'black';
+            console.log(
+                `[makeGoAiBotMove] Requesting move from GnuGo service (level=${aiLevel}) for game ${game.id}, boardSize=${boardSize}, player=${playerStr}`
+            );
+
+            const gnugoMove = await generateGnuGoMove({
+                boardState,
+                boardSize,
+                player: playerStr,
+                moveHistory,
+                level: aiLevel
+            });
+
+            selectedMove = { x: gnugoMove.x, y: gnugoMove.y };
+        } catch (err: any) {
+            console.error(
+                `[makeGoAiBotMove] GnuGo service failed for game ${game.id}, falling back to internal goAiBot:`,
+                err?.message || String(err)
+            );
+        }
+    }
+
+    // 2) GnuGo 사용에 실패했거나 GnuGo를 사용할 수 없는 경우: 기존 goAiBot 휴리스틱 사용
+    if (!selectedMove) {
+        const profile = getGoAiBotProfile(aiLevel);
+
+        // AI가 볼 수 있는 보드 상태 (유저의 히든 돌 제거)
+        const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
+        const aiGame: types.LiveGameSession = {
+            ...game,
+            boardState: aiBoardState
+        };
+
+        const logic = getGoLogic(aiGame);
     
-    // 통과가 없는 바둑(따내기, 싱글플레이, 도전의 탑): AI가 둘 곳이 없으면 서버에서 통과로 턴만 넘김 (시간패 방지)
-    const isNoPassMode = game.isSinglePlayer || (game as any).gameCategory === 'tower' || game.mode === types.GameMode.Capture;
-    if (allValidMoves.length === 0) {
+        // 살리기 바둑 모드 확인
+        const isSurvivalMode = (game.settings as any)?.isSurvivalMode === true;
+    
+        // 낮은 난이도(1-3)는 간단한 휴리스틱 사용으로 성능 최적화
+        const useFastHeuristic = aiLevel <= 3;
+    
+        // 1. 모든 유효한 수 찾기 (KataGo 사용 안함)
+        // 낮은 난이도는 샘플링으로 유효한 수 찾기 (성능 최적화)
+        const allValidMoves = useFastHeuristic 
+            ? findAllValidMovesFast(aiGame, logic, aiPlayerEnum)
+            : findAllValidMoves(aiGame, logic, aiPlayerEnum);
+    
+        // 통과가 없는 바둑(따내기, 싱글플레이, 도전의 탑): AI가 둘 곳이 없으면 서버에서 통과로 턴만 넘김 (시간패 방지)
+        const isNoPassMode = game.isSinglePlayer || (game as any).gameCategory === 'tower' || game.mode === types.GameMode.Capture;
+        if (allValidMoves.length === 0) {
         if (isNoPassMode) {
             console.log('[GoAiBot] No valid moves available (no-pass mode). AI passes to avoid time forfeit.');
             game.passCount = (game.passCount ?? 0) + 1;
@@ -495,10 +536,11 @@ export async function makeGoAiBotMove(
                 broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
             }
             return;
+        } else {
+            console.log('[GoAiBot] No valid moves available. AI resigns.');
+            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+            return;
         }
-        console.log('[GoAiBot] No valid moves available. AI resigns.');
-        await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-        return;
     }
 
     // 2. 살리기 바둑 모드일 때는 공격적인 로직 사용
@@ -3817,4 +3859,5 @@ function canGroupBeSaved(
 
     // 기본적으로 살릴 수 있다고 판단
     return true;
+}
 }
