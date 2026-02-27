@@ -1,6 +1,6 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
-import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePlayfulTurnTimeoutByoyomi } from './shared.js';
+import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePlayfulTurnTimeoutByoyomi, shouldEnforceTimeControl } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
 import { CURLING_TURN_TIME_LIMIT, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
@@ -264,8 +264,10 @@ export const initializeCurling = (game: types.LiveGameSession, neg: types.Negoti
         game.curlingScores = { [types.Player.Black]: 0, [types.Player.White]: 0, [types.Player.None]: 0 };
         (game as any).curlingKnockoutScores = { [types.Player.Black]: 0, [types.Player.White]: 0 };
         game.stonesThrownThisRound = { [game.player1.id]: 0, [game.player2.id]: 0 };
-        game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
-        game.turnStartTime = now;
+        if (shouldEnforceTimeControl(game)) {
+            game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
+            game.turnStartTime = now;
+        }
         
         // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
@@ -303,8 +305,10 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                 game.curlingScores = { [types.Player.Black]: 0, [types.Player.White]: 0, [types.Player.None]: 0 };
                 (game as any).curlingKnockoutScores = { [types.Player.Black]: 0, [types.Player.White]: 0 };
                 game.stonesThrownThisRound = { [p1Id]: 0, [p2Id]: 0 };
-                game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
-                game.turnStartTime = now;
+                if (shouldEnforceTimeControl(game)) {
+                    game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
+                    game.turnStartTime = now;
+                }
                 
                 game.preGameConfirmations = {};
                 game.revealEndTime = undefined;
@@ -324,7 +328,7 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
         case 'curling_playing': {
             const isAiTurnCurling = game.isAiGame && game.currentPlayer !== types.Player.None &&
                 (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
-            if (game.curlingTurnDeadline && now > game.curlingTurnDeadline && !isAiTurnCurling) {
+            if (shouldEnforceTimeControl(game) && game.curlingTurnDeadline && now > game.curlingTurnDeadline && !isAiTurnCurling) {
                 const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
                 const { gameEnded, nextDeadlineMs } = handlePlayfulTurnTimeoutByoyomi(game, now);
                 if (gameEnded) return;
@@ -363,8 +367,10 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                     game.gameStatus = 'curling_playing';
                     const previousPlayer = game.currentPlayer;
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                    game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
-                    game.turnStartTime = now;
+                    if (shouldEnforceTimeControl(game)) {
+                        game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
+                        game.turnStartTime = now;
+                    }
                     console.log(`[updateCurlingState] Turn switched from ${previousPlayer} to ${game.currentPlayer} (no animation), game ${game.id}`);
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
@@ -411,8 +417,10 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                     game.gameStatus = 'curling_playing';
                     const previousPlayer = game.currentPlayer;
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                    game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
-                    game.turnStartTime = now;
+                    if (shouldEnforceTimeControl(game)) {
+                        game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
+                        game.turnStartTime = now;
+                    }
                     console.log(`[updateCurlingState] Turn switched from ${previousPlayer} to ${game.currentPlayer} immediately after animation (${animationDuration}ms elapsed), game ${game.id}`);
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
@@ -487,8 +495,10 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                     game.currentPlayer = game.hammerPlayerId === game.blackPlayerId ? types.Player.White : types.Player.Black;
                     
                     game.gameStatus = 'curling_playing';
-                    game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
-                    game.turnStartTime = now;
+                    if (shouldEnforceTimeControl(game)) {
+                        game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
+                        game.turnStartTime = now;
+                    }
                     
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) &&

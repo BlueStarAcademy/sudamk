@@ -713,6 +713,9 @@ export type LiveGameSession = {
   whiteTimeLeft: number;
   blackByoyomiPeriodsLeft: number;
   whiteByoyomiPeriodsLeft: number;
+  /** 스피드바둑 PVP 계가용: 게임 시작 시 각 플레이어의 기본 시간(초) */
+  blackInitialTimeLeft?: number;
+  whiteInitialTimeLeft?: number;
   turnDeadline?: number;
   turnStartTime?: number;
   nigiriStartTime?: number;

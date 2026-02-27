@@ -1,7 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { getGoLogic, processMove } from '../goLogic.js';
-import { handleSharedAction, updateSharedGameState } from './shared.js';
+import { handleSharedAction, updateSharedGameState, shouldEnforceTimeControl } from './shared.js';
 import { DICE_GO_INITIAL_WHITE_STONES_BY_ROUND, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, DICE_GO_TURN_CHOICE_TIME, DICE_GO_TURN_ROLL_TIME, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import * as effectService from '../effectService.js';
 import { endGame } from '../summaryService.js';
@@ -82,8 +82,10 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
         const previousPlayer = game.currentPlayer;
         game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
         game.gameStatus = 'dice_rolling';
-        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-        game.turnStartTime = now;
+        if (shouldEnforceTimeControl(game)) {
+            game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+            game.turnStartTime = now;
+        }
         
         // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
         if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
@@ -234,8 +236,10 @@ export const initializeDiceGo = (game: types.LiveGameSession, neg: types.Negotia
         
         game.currentPlayer = types.Player.Black;
         game.gameStatus = 'dice_rolling';
-        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-        game.turnStartTime = now;
+        if (shouldEnforceTimeControl(game)) {
+            game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+            game.turnStartTime = now;
+        }
         
         // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
@@ -338,8 +342,10 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             if ((game.preGameConfirmations?.[p1Id] && game.preGameConfirmations?.[p2Id]) || (game.revealEndTime && now > game.revealEndTime)) {
                 game.gameStatus = 'dice_rolling';
                 game.currentPlayer = types.Player.Black;
-                game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-                game.turnStartTime = now;
+                if (shouldEnforceTimeControl(game)) {
+                    game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                    game.turnStartTime = now;
+                }
             }
             break;
         case 'dice_rolling_animating':
@@ -354,9 +360,11 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                     game.gameStatus = 'dice_rolling';
                     game.stonesToPlace = 0;
-                    // 유저 턴으로 넘어갈 때 새 턴 데드라인 설정 (타임파울/주사위 굴리기 불가 방지)
-                    game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-                    game.turnStartTime = now;
+                    // 유저 턴으로 넘어갈 때 새 턴 데드라인 설정 (타임파울/주사위 굴리기 불가 방지) — PVP에만
+                    if (shouldEnforceTimeControl(game)) {
+                        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                        game.turnStartTime = now;
+                    }
                     
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
@@ -371,8 +379,10 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     }
                 } else {
                     game.gameStatus = 'dice_placing';
-                    game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
-                    game.turnStartTime = now;
+                    if (shouldEnforceTimeControl(game)) {
+                        game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
+                        game.turnStartTime = now;
+                    }
                     game.diceCapturesThisTurn = 0;
                     game.diceLastCaptureStones = [];
                     game.stonesPlacedThisTurn = [];
@@ -390,8 +400,8 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             }
             break;
         case 'dice_rolling': {
-            // turnDeadline이 없거나 이미 지났으면 설정 (오버샷 직후 유저 턴·캐시 만료 등으로 꼬인 경우 방지)
-            if (!game.turnDeadline || now > game.turnDeadline) {
+            // turnDeadline이 없거나 이미 지났으면 설정 (오버샷 직후 유저 턴·캐시 만료 등으로 꼬인 경우 방지) — PVP에만
+            if (shouldEnforceTimeControl(game) && (!game.turnDeadline || now > game.turnDeadline)) {
                 if (now > (game.turnDeadline || 0)) {
                     console.log(`[updateDiceGoState] Resetting stale turnDeadline for dice_rolling: gameId=${game.id}, currentPlayer=${game.currentPlayer}`);
                 }
@@ -403,8 +413,8 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             const isAiTurn = game.isAiGame && game.currentPlayer !== types.Player.None && 
                             (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
             
-            // 타임아웃 체크 및 자동 주사위 굴리기
-            if (game.turnDeadline && now > game.turnDeadline && !isAiTurn) {
+            // 타임아웃 체크 및 자동 주사위 굴리기 (PVP에만)
+            if (shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline && !isAiTurn) {
                 const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
                 const timeOver = now - game.turnDeadline;
                 console.log(`[updateDiceGoState] Timeout detected: gameId=${game.id}, timedOutPlayerId=${timedOutPlayerId}, timeOver=${timeOver}ms`);
@@ -450,7 +460,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             const isAiTurnPlacing = game.isAiGame && game.currentPlayer !== types.Player.None && 
                                    (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
             
-            if (game.turnDeadline && now > game.turnDeadline && !isAiTurnPlacing) {
+            if (shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline && !isAiTurnPlacing) {
                 const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
                 const gameEnded = handleTimeoutFoul(game, timedOutPlayerId, now);
                 if (gameEnded) return;
@@ -506,8 +516,10 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                         game.boardState[center][center] = types.Player.White;
                         game.gameStatus = 'dice_rolling';
                         game.currentPlayer = types.Player.Black;
-                        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-                        game.turnStartTime = now;
+                        if (shouldEnforceTimeControl(game)) {
+                            game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                            game.turnStartTime = now;
+                        }
                         game.diceRoundSummary = undefined;
                         game.roundEndConfirmations = {};
                         game.lastWhiteGroupInfo = null;
@@ -538,8 +550,10 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 }
                 game.gameStatus = 'dice_rolling';
                 game.currentPlayer = types.Player.Black; // Black (first player) always starts the round
-                game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-                game.turnStartTime = now;
+                if (shouldEnforceTimeControl(game)) {
+                    game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                    game.turnStartTime = now;
+                }
                 game.diceRoundSummary = undefined;
                 game.roundEndConfirmations = {};
                 game.lastWhiteGroupInfo = null; // Clear info for the new round

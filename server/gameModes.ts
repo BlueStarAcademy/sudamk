@@ -32,7 +32,7 @@ function cleanupScoringPrecompute(nowMs: number): void {
     }
 }
 
-export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, session: types.LiveGameSession, preservedTimeInfo?: { blackTimeLeft?: number, whiteTimeLeft?: number }): types.AnalysisResult => {
+export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, session: types.LiveGameSession, preservedTimeInfo?: { blackTimeLeft?: number, whiteTimeLeft?: number, blackInitialTimeLeft?: number, whiteInitialTimeLeft?: number }): types.AnalysisResult => {
     const finalAnalysis = JSON.parse(JSON.stringify(baseAnalysis)); // Deep copy
 
     // 사석 점수 동기화: deadStones 배열과 scoreDetails가 항상 일치하도록 (보드 마커와 모달 점수 불일치 방지)
@@ -52,13 +52,22 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     finalAnalysis.scoreDetails.black.hiddenStoneBonus = 0;
     finalAnalysis.scoreDetails.white.hiddenStoneBonus = 0;
     
-    // Time bonus: 보존된 시간 정보를 우선 사용 (게임이 재시작되어 시간이 초기화된 경우 대비)
-    if (session.mode === types.GameMode.Speed || (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Speed))) {
+    // Time bonus: 스피드바둑 PVP만 기본시간 대비 ± 5초당 1점. AI/싱글/탑은 0.
+    const isSpeedMode = session.mode === types.GameMode.Speed || (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Speed));
+    if (isSpeedMode) {
+        const blackInitial = preservedTimeInfo?.blackInitialTimeLeft ?? session.blackInitialTimeLeft;
+        const whiteInitial = preservedTimeInfo?.whiteInitialTimeLeft ?? session.whiteInitialTimeLeft;
         const blackTime = preservedTimeInfo?.blackTimeLeft ?? session.blackTimeLeft ?? 0;
         const whiteTime = preservedTimeInfo?.whiteTimeLeft ?? session.whiteTimeLeft ?? 0;
-        finalAnalysis.scoreDetails.black.timeBonus = Math.floor(blackTime / TIME_BONUS_SECONDS_PER_POINT);
-        finalAnalysis.scoreDetails.white.timeBonus = Math.floor(whiteTime / TIME_BONUS_SECONDS_PER_POINT);
-        console.log(`[finalizeAnalysisResult] Time bonus calculation: blackTime=${blackTime}, whiteTime=${whiteTime}, blackBonus=${finalAnalysis.scoreDetails.black.timeBonus}, whiteBonus=${finalAnalysis.scoreDetails.white.timeBonus}, preservedTimeInfo=${preservedTimeInfo ? 'yes' : 'no'}`);
+        if (blackInitial != null && whiteInitial != null) {
+            // PVP 스피드: 기본시간 대비 ± 초를 5초당 1점으로
+            finalAnalysis.scoreDetails.black.timeBonus = Math.floor((blackTime - blackInitial) / TIME_BONUS_SECONDS_PER_POINT);
+            finalAnalysis.scoreDetails.white.timeBonus = Math.floor((whiteTime - whiteInitial) / TIME_BONUS_SECONDS_PER_POINT);
+        } else {
+            finalAnalysis.scoreDetails.black.timeBonus = 0;
+            finalAnalysis.scoreDetails.white.timeBonus = 0;
+        }
+        console.log(`[finalizeAnalysisResult] Speed time bonus: blackTime=${blackTime}, whiteTime=${whiteTime}, blackInitial=${blackInitial}, whiteInitial=${whiteInitial}, blackBonus=${finalAnalysis.scoreDetails.black.timeBonus}, whiteBonus=${finalAnalysis.scoreDetails.white.timeBonus}`);
     } else {
         finalAnalysis.scoreDetails.black.timeBonus = 0;
         finalAnalysis.scoreDetails.white.timeBonus = 0;
@@ -271,7 +280,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     // 시간 정보 보존 (게임이 재시작되어 시간이 초기화되는 것을 방지)
     const preservedTimeInfo = {
         blackTimeLeft: game.blackTimeLeft,
-        whiteTimeLeft: game.whiteTimeLeft
+        whiteTimeLeft: game.whiteTimeLeft,
+        blackInitialTimeLeft: game.blackInitialTimeLeft,
+        whiteInitialTimeLeft: game.whiteInitialTimeLeft
     };
     (game as any).preservedTimeInfo = preservedTimeInfo;
     

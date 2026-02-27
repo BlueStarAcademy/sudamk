@@ -508,7 +508,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
 
     const renderGameContent = () => {
         const totalMoves = session.moveHistory?.length ?? 0;
-        const startTime = session.createdAt;
+        const startTime = session.gameStartTime ?? session.createdAt;
         const inferredEndTime = session.gameStatus === 'ended' || session.gameStatus === 'no_contest'
             ? (session.turnStartTime ?? Date.now())
             : Date.now();
@@ -518,6 +518,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         const seconds = totalSeconds % 60;
 
         const formattedElapsed = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        const isAiOrPve = !!session.isAiGame || !!session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer';
+        const timeLabel = isAiOrPve ? '소요 시간' : '경기 시간';
         const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
         const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
 
@@ -630,7 +632,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         <span className="font-semibold" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{totalMoves}수</span>
                     </div>
                     <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center">
-                        <span className="text-gray-300" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>경기 시간</span>
+                        <span className="text-gray-300" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{timeLabel}</span>
                         <span className="font-semibold" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{formattedElapsed}</span>
                     </div>
                 </div>

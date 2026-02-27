@@ -1,7 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { getGoLogic, processMove } from '../goLogic.js';
-import { handleSharedAction, updateSharedGameState, handleTimeoutFoul } from './shared.js';
+import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, shouldEnforceTimeControl } from './shared.js';
 import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_MAIN_PLACE_TIME } from '../../constants';
 import { endGame } from '../summaryService.js';
 import { aiUserId } from '../aiPlayer.js';
@@ -31,8 +31,10 @@ export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiat
         // Directly start the game
         game.gameStatus = 'thief_rolling';
         game.currentPlayer = types.Player.Black; // Thief always starts
-        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-        game.turnStartTime = now;
+        if (shouldEnforceTimeControl(game)) {
+            game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+            game.turnStartTime = now;
+        }
         game.round = 1; // Initialize round
         game.scores = { [p1.id]: 0, [p2.id]: 0 }; // Initialize scores
         game.turnInRound = 1; // Initialize turn in round
@@ -145,8 +147,10 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
         if (bothConfirmed || deadlinePassed) {
             game.gameStatus = 'thief_rolling';
             game.currentPlayer = types.Player.Black; // Thief always starts
-            game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-            game.turnStartTime = now;
+            if (shouldEnforceTimeControl(game)) {
+                game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                game.turnStartTime = now;
+            }
             game.round = 1; // Initialize round
             game.scores = { [p1Id]: 0, [p2Id]: 0 }; // Initialize scores
             game.turnInRound = 1; // Initialize turn in round
@@ -167,8 +171,8 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             }
         }
     } else if (game.gameStatus === 'thief_rolling') {
-        // turnDeadline이 없으면 설정 (게임 로드 시나 상태 불일치 시 대비)
-        if (!game.turnDeadline) {
+        // turnDeadline이 없으면 설정 (게임 로드 시나 상태 불일치 시 대비) — PVP에만
+        if (shouldEnforceTimeControl(game) && !game.turnDeadline) {
             console.log(`[updateThiefState] Setting turnDeadline for thief_rolling: gameId=${game.id}, currentPlayer=${game.currentPlayer}`);
             game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
             game.turnStartTime = now;
@@ -178,8 +182,8 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
         const isAiTurn = game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) && 
                         (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
         
-        // 타임아웃 체크 및 자동 주사위 굴리기
-        if (game.turnDeadline && now > game.turnDeadline && !isAiTurn) {
+        // 타임아웃 체크 및 자동 주사위 굴리기 (PVP에만)
+        if (shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline && !isAiTurn) {
             const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
             const timeOver = now - game.turnDeadline;
             console.log(`[updateThiefState] Timeout detected in thief_rolling: gameId=${game.id}, timedOutPlayerId=${timedOutPlayerId}, timeOver=${timeOver}ms`);
@@ -222,12 +226,14 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             game.animation = null;
             game.gameStatus = 'thief_placing';
             game.stonesPlacedThisTurn = []; // Initialize for the new turn
-            game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
-            game.turnStartTime = now;
+            if (shouldEnforceTimeControl(game)) {
+                game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
+                game.turnStartTime = now;
+            }
         }
     } else if (game.gameStatus === 'thief_placing') {
-        // turnDeadline이 없으면 설정 (게임 로드 시나 상태 불일치 시 대비)
-        if (!game.turnDeadline) {
+        // turnDeadline이 없으면 설정 (게임 로드 시나 상태 불일치 시 대비) — PVP에만
+        if (shouldEnforceTimeControl(game) && !game.turnDeadline) {
             console.log(`[updateThiefState] Setting turnDeadline for thief_placing: gameId=${game.id}, currentPlayer=${game.currentPlayer}`);
             game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
             game.turnStartTime = now;
@@ -237,8 +243,8 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
         const isAiTurnPlacing = game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) && 
                                (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
         
-        // 타임아웃 체크 및 자동 착점
-        if (game.turnDeadline && now > game.turnDeadline && !isAiTurnPlacing) {
+        // 타임아웃 체크 및 자동 착점 (PVP에만)
+        if (shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline && !isAiTurnPlacing) {
             const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
             const timeOver = now - game.turnDeadline;
             console.log(`[updateThiefState] Timeout detected in thief_placing: gameId=${game.id}, timedOutPlayerId=${timedOutPlayerId}, timeOver=${timeOver}ms`);
@@ -370,8 +376,10 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                     const previousPlayer = game.currentPlayer;
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                     game.gameStatus = 'thief_rolling';
-                    game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-                    game.turnStartTime = now;
+                    if (shouldEnforceTimeControl(game)) {
+                        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                        game.turnStartTime = now;
+                    }
                     
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
@@ -428,8 +436,10 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                  game.whitePlayerId = game.policePlayerId;
                  game.currentPlayer = types.Player.Black;
                  game.gameStatus = 'thief_rolling';
-                 game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-                 game.turnStartTime = now;
+                 if (shouldEnforceTimeControl(game)) {
+                     game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                     game.turnStartTime = now;
+                 }
                  
                  // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                  if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
@@ -640,8 +650,10 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
                     const previousPlayer = game.currentPlayer;
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                     game.gameStatus = 'thief_rolling';
-                    game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-                    game.turnStartTime = now;
+                    if (shouldEnforceTimeControl(game)) {
+                        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                        game.turnStartTime = now;
+                    }
                     
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 // FIX: Import missing types from the centralized types file.
 import { Player, GameProps, GameMode, User, AlkkagiPlacementType, GameSettings, GameStatus, UserWithStatus } from '../../types/index.js';
 import Avatar from '../Avatar.js';
@@ -91,6 +91,11 @@ const TimeBar: React.FC<{ timeLeft: number; totalTime: number; byoyomiTime: numb
     );
 };
 
+/** PVP 실시간 대국만 시간 제어 적용; AI/싱글/탑은 경과 시간만 표시 */
+const showTimeControl = (session: GameProps['session']): boolean => {
+    return !!(session && !session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer');
+};
+
 interface SinglePlayerPanelProps {
     user: User; playerEnum: Player; score: number; isActive: boolean;
     timeLeft: number; totalTime: number; mainTimeLeft: number; byoyomiPeriodsLeft: number;
@@ -101,10 +106,14 @@ interface SinglePlayerPanelProps {
     // FIX: Add isSinglePlayer prop to handle different UI themes
     isSinglePlayer?: boolean;
     isMobile?: boolean;
+    /** AI/싱글/탑: 제한시간 대신 경과 시간만 표시 (카운트다운/초읽기 숨김) */
+    showElapsedOnly?: boolean;
+    /** 경과 시간을 표시할지 여부 (유저 패널에만 true로 전달) */
+    isCurrentUser?: boolean;
 }
 
 const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
-    const { user, playerEnum, score, isActive, timeLeft, totalTime, mainTimeLeft, byoyomiPeriodsLeft, totalByoyomi, byoyomiTime, isLeft, session, captureTarget, role, isAiPlayer, mode, isSinglePlayer, isMobile = false } = props;
+    const { user, playerEnum, score, isActive, timeLeft, totalTime, mainTimeLeft, byoyomiPeriodsLeft, totalByoyomi, byoyomiTime, isLeft, session, captureTarget, role, isAiPlayer, mode, isSinglePlayer, isMobile = false, showElapsedOnly = false, isCurrentUser = false } = props;
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
@@ -212,34 +221,44 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     </div>
                 </div>
                 <div className={isMobile ? 'mt-0.5' : 'mt-1'}>
-                    <TimeBar timeLeft={timeLeft} totalTime={totalTime} byoyomiTime={effectiveByoyomiTime} byoyomiPeriods={effectiveByoyomiPeriodsLeft} totalByoyomi={effectiveTotalByoyomi} isActive={isActive && !isGameEnded} isInByoyomi={isInByoyomi} isFoulMode={isFoulMode} />
+                    {!showElapsedOnly && (
+                        <TimeBar timeLeft={timeLeft} totalTime={totalTime} byoyomiTime={effectiveByoyomiTime} byoyomiPeriods={effectiveByoyomiPeriodsLeft} totalByoyomi={effectiveTotalByoyomi} isActive={isActive && !isGameEnded} isInByoyomi={isInByoyomi} isFoulMode={isFoulMode} />
+                    )}
+                    {(showElapsedOnly ? isCurrentUser : true) && (
                     <div className={`flex items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-1`}>
-                        <span className={`font-mono font-bold ${isInByoyomi || (isFoulMode && timeLeft < 10) ? 'text-red-400' : timeTextClasses} ${timeTextSize}`}>{formatTime(timeLeft)}</span>
-                        {showByoyomiStatus && (
-                            isFoulMode ? (
-                                <div className="flex items-center gap-0.5">
-                                    {Array.from({ length: effectiveByoyomiPeriodsLeft }).map((_, i) => (
-                                        <img
-                                            key={i}
-                                            src="/images/icon/timer.png"
-                                            alt="남은 기회"
-                                            title={`남은 기회 ${effectiveByoyomiPeriodsLeft}회`}
-                                            className="w-4 h-4 object-contain"
-                                        />
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-1 text-yellow-300">
-                                    <img
-                                        src="/images/icon/timer.png"
-                                        alt="초읽기"
-                                        className="w-4 h-4 object-contain"
-                                    />
-                                    <span className="text-xs font-semibold">{effectiveByoyomiPeriodsLeft}</span>
-                                </div>
-                            )
+                        {showElapsedOnly ? (
+                            <span className={`font-mono font-bold ${timeTextClasses} ${timeTextSize}`}>{formatTime(timeLeft)}</span>
+                        ) : (
+                            <>
+                                <span className={`font-mono font-bold ${isInByoyomi || (isFoulMode && timeLeft < 10) ? 'text-red-400' : timeTextClasses} ${timeTextSize}`}>{formatTime(timeLeft)}</span>
+                                {showByoyomiStatus && (
+                                    isFoulMode ? (
+                                        <div className="flex items-center gap-0.5">
+                                            {Array.from({ length: effectiveByoyomiPeriodsLeft }).map((_, i) => (
+                                                <img
+                                                    key={i}
+                                                    src="/images/icon/timer.png"
+                                                    alt="남은 기회"
+                                                    title={`남은 기회 ${effectiveByoyomiPeriodsLeft}회`}
+                                                    className="w-4 h-4 object-contain"
+                                                />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1 text-yellow-300">
+                                            <img
+                                                src="/images/icon/timer.png"
+                                                alt="초읽기"
+                                                className="w-4 h-4 object-contain"
+                                            />
+                                            <span className="text-xs font-semibold">{effectiveByoyomiPeriodsLeft}</span>
+                                        </div>
+                                    )
+                                )}
+                            </>
                         )}
                     </div>
+                    )}
                 </div>
             </div>
             <CapturedStones count={score} target={captureTarget} panelType={panelType} mode={mode} isMobile={isMobile} />
@@ -286,8 +305,25 @@ const getTurnDuration = (mode: GameMode, gameStatus: GameStatus, settings: GameS
 
 
 const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
-    const { session, clientTimes, isSinglePlayer, isMobile = false } = props;
+    const { session, clientTimes, isSinglePlayer, isMobile = false, currentUser } = props;
     const { player1, player2, blackPlayerId, whitePlayerId, captures, mode, settings, effectiveCaptureTargets, scores, currentPlayer } = session;
+
+    const enforceTime = showTimeControl(session);
+    const gameStart = session.gameStartTime ?? session.createdAt;
+    const [elapsedSec, setElapsedSec] = useState(0);
+    const isEnded = session.gameStatus === 'ended' || session.gameStatus === 'no_contest';
+    useEffect(() => {
+        if (enforceTime || !gameStart) return;
+        if (isEnded) {
+            const endMs = session.turnStartTime ?? Date.now();
+            setElapsedSec(Math.max(0, Math.floor((endMs - gameStart) / 1000)));
+            return;
+        }
+        const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - gameStart) / 1000)));
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [enforceTime, gameStart, session.gameStatus, isEnded, session.turnStartTime]);
 
     const isScoreMode = [GameMode.Dice, GameMode.Thief, GameMode.Curling].includes(mode);
 
@@ -313,9 +349,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : captures[rightPlayerEnum];
 
 
-    const leftPlayerTime = leftPlayerEnum === Player.Black ? clientTimes.black : (leftPlayerEnum === Player.White ? clientTimes.white : (settings.timeLimit * 60));
-    const rightPlayerTime = rightPlayerEnum === Player.Black ? clientTimes.black : (rightPlayerEnum === Player.White ? clientTimes.white : (settings.timeLimit * 60));
-    
+    const leftPlayerTime = enforceTime
+        ? (leftPlayerEnum === Player.Black ? clientTimes.black : (leftPlayerEnum === Player.White ? clientTimes.white : (settings.timeLimit * 60)))
+        : elapsedSec;
+    const rightPlayerTime = enforceTime
+        ? (rightPlayerEnum === Player.Black ? clientTimes.black : (rightPlayerEnum === Player.White ? clientTimes.white : (settings.timeLimit * 60)))
+        : elapsedSec;
+
     const leftPlayerMainTime = leftPlayerEnum === Player.Black ? session.blackTimeLeft : (leftPlayerEnum === Player.White ? session.whiteTimeLeft : (settings.timeLimit * 60));
     const rightPlayerMainTime = rightPlayerEnum === Player.Black ? session.blackTimeLeft : (rightPlayerEnum === Player.White ? session.whiteTimeLeft : (settings.timeLimit * 60));
 
@@ -451,6 +491,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     mode={mode}
                     isSinglePlayer={isSinglePlayer}
                     isMobile={isMobile}
+                    showElapsedOnly={!enforceTime}
+                    isCurrentUser={leftPlayerUser.id === currentUser?.id}
                 />
             </div>
             {((isSinglePlayer || session.gameCategory === 'tower') && turnInfo) && (
@@ -499,6 +541,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 mode={mode}
                 isSinglePlayer={isSinglePlayer}
                 isMobile={isMobile}
+                showElapsedOnly={!enforceTime}
+                isCurrentUser={rightPlayerUser.id === currentUser?.id}
             />
             </div>
         </div>

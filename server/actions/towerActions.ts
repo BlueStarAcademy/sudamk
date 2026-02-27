@@ -439,20 +439,13 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 (game as any).hidden_stones_p1 = Math.min(hiddenCap, countItems(['히든', 'hidden']));
             }
             
-            if (game.settings.timeLimit > 0) {
-                const blackTimeLeft = game.settings.timeLimit * 60;
-                const whiteTimeLeft = game.settings.timeLimit * 60;
-                game.blackTimeLeft = blackTimeLeft;
-                game.whiteTimeLeft = whiteTimeLeft;
-                // 초읽기 횟수 초기화
-                game.blackByoyomiPeriodsLeft = game.settings.byoyomiCount ?? 3;
-                game.whiteByoyomiPeriodsLeft = game.settings.byoyomiCount ?? 3;
-                game.turnStartTime = now;
-                game.turnDeadline = now + blackTimeLeft * 1000;
-            } else {
-                // 시간 제한이 없어도 turnStartTime은 설정
-                game.turnStartTime = now;
-            }
+            // 도전의 탑은 시간 제한 없음 (제한시간/초읽기 미적용)
+            game.turnDeadline = undefined;
+            game.blackTimeLeft = 0;
+            game.whiteTimeLeft = 0;
+            game.blackByoyomiPeriodsLeft = 0;
+            game.whiteByoyomiPeriodsLeft = 0;
+            game.turnStartTime = now;
             
             // 게임 캐시 업데이트 (다음 요청에서 빠른 응답)
             updateGameCache(game);
@@ -538,18 +531,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             game.blackPatternStones = blackPattern;
             game.whitePatternStones = whitePattern;
 
-            // 시간/턴 정보 보존: DB만 로드된 경우 값이 없을 수 있으므로 CONFIRM과 동일하게 복구
-            const timeLimit = (game.settings as any)?.timeLimit ?? 0;
-            if (timeLimit > 0 && (game.blackTimeLeft == null || game.blackTimeLeft <= 0 || game.whiteTimeLeft == null || game.whiteTimeLeft <= 0)) {
-                const secs = timeLimit * 60;
-                game.blackTimeLeft = secs;
-                game.whiteTimeLeft = secs;
-                game.turnStartTime = Date.now();
-                game.turnDeadline = Date.now() + secs * 1000;
-                const byoyomi = (game.settings as any)?.byoyomiCount ?? 3;
-                game.blackByoyomiPeriodsLeft = byoyomi;
-                game.whiteByoyomiPeriodsLeft = byoyomi;
-            }
+            // 도전의 탑은 시간 제한 미적용이므로 turnDeadline 복구하지 않음
+            game.turnDeadline = undefined;
+            game.turnStartTime = game.turnStartTime ?? Date.now();
             if (game.totalTurns == null && game.moveHistory?.length === 0) {
                 (game as any).totalTurns = 0;
             }

@@ -293,14 +293,14 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     }, [currentStage, session.effectiveCaptureTargets, session.captures]);
 
     const gameDuration = useMemo(() => {
-        const startTime = session.createdAt;
+        const startTime = session.gameStartTime ?? session.createdAt;
         const endTime = session.turnStartTime ?? Date.now();
         const elapsedMs = Math.max(0, endTime - startTime);
         const totalSeconds = Math.floor(elapsedMs / 1000);
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }, [session.createdAt, session.turnStartTime]);
+    }, [session.gameStartTime, session.createdAt, session.turnStartTime]);
 
     const handleRetry = async () => {
         if (isProcessing) return;

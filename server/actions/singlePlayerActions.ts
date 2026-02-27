@@ -466,21 +466,12 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 game.settings.timeIncrement = enforcedIncrement;
             }
 
-            game.turnDeadline = now + (enforcedMainTimeMinutes * 60 * 1000);
-            
-            // 시간 관련 필드 초기화 (pending 상태에서는 시간이 흐르지 않았으므로 처음부터 시작)
-            // 비스피드 모드는 항상 5분(300초)으로 초기화
-            game.blackTimeLeft = enforcedMainTimeMinutes * 60;
-            game.whiteTimeLeft = enforcedMainTimeMinutes * 60;
-            
-            // 초읽기 기간 초기화: 비스피드 모드는 항상 3회
-            if (!isSpeedMode) {
-                game.blackByoyomiPeriodsLeft = 3;
-                game.whiteByoyomiPeriodsLeft = 3;
-            } else {
-                game.blackByoyomiPeriodsLeft = game.settings.byoyomiCount ?? 0;
-                game.whiteByoyomiPeriodsLeft = game.settings.byoyomiCount ?? 0;
-            }
+            // 싱글플레이는 시간 제한 없음 (제한시간/초읽기 미적용, 결과까지 소요 시간만 표시용)
+            game.turnDeadline = undefined;
+            game.blackTimeLeft = 0;
+            game.whiteTimeLeft = 0;
+            game.blackByoyomiPeriodsLeft = 0;
+            game.whiteByoyomiPeriodsLeft = 0;
 
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('../socket.js');

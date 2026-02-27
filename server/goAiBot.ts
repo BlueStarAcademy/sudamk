@@ -10,7 +10,7 @@ import * as types from '../types/index.js';
 import * as summaryService from './summaryService.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import * as db from './db.js';
-import { hasTimeControl } from './modes/shared.js';
+import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
 
 /**
  * AI 봇 단계별 특성 정의
@@ -462,7 +462,7 @@ export async function makeGoAiBotMove(
                 }
             }
             game.currentPlayer = opponentPlayerEnum;
-            if (hasTimeControl(game.settings)) {
+            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                 const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                 const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
@@ -574,12 +574,12 @@ export async function makeGoAiBotMove(
                     game.lastMove = { x: -1, y: -1 };
                     game.lastTurnStones = null;
                     game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
-                    if (hasTimeControl(game.settings)) {
+                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                         const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         if (game.turnDeadline) game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
                     }
                     game.currentPlayer = opponentPlayerEnum;
-                    if (hasTimeControl(game.settings)) {
+                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                         const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                         const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
@@ -1095,7 +1095,7 @@ export async function makeGoAiBotMove(
             }
         }
         
-        if (hasTimeControl(game.settings)) {
+        if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
             const timeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
             const byoyomiKey = game.currentPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
             const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));

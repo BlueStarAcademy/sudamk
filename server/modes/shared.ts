@@ -29,6 +29,13 @@ const MIN_BYOYOMI_COUNT = 1;
 export const hasTimeControl = (s: { timeLimit?: number; byoyomiCount?: number; byoyomiTime?: number }) =>
     (s.timeLimit ?? 0) > 0 || ((s.byoyomiCount ?? 0) > 0 && (s.byoyomiTime ?? 0) > 0);
 
+/** PVP 실시간 대국에만 시간 제어 적용. AI/싱글/탑에서는 false. */
+export const shouldEnforceTimeControl = (game: types.LiveGameSession): boolean =>
+    !game.isAiGame &&
+    !game.isSinglePlayer &&
+    game.gameCategory !== 'tower' &&
+    game.gameCategory !== 'singleplayer';
+
 export const transitionToPlaying = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'playing';
     game.currentPlayer = types.Player.Black;
@@ -37,11 +44,12 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
     if (!game.gameStartTime) {
         game.gameStartTime = now;
     }
+    const enforceTime = hasTimeControl(game.settings) && shouldEnforceTimeControl(game);
     const timeLimitMinutes = game.settings.timeLimit ?? 0;
     const byoyomiCount = Math.max(MIN_BYOYOMI_COUNT, game.settings.byoyomiCount ?? 0);
     const byoyomiTimeSec = game.settings.byoyomiTime ?? 30;
 
-    if (timeLimitMinutes > 0) {
+    if (enforceTime && timeLimitMinutes > 0) {
         // 제한시간 있음: 메인 시간으로 시작
         const secondsPerPlayer = timeLimitMinutes * 60;
         if (!(game.blackTimeLeft != null && game.blackTimeLeft > 0)) {
@@ -51,7 +59,13 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
             game.whiteTimeLeft = secondsPerPlayer;
         }
         game.turnDeadline = now + game.blackTimeLeft * 1000;
-    } else if (byoyomiCount >= MIN_BYOYOMI_COUNT && byoyomiTimeSec > 0) {
+        // 스피드바둑 PVP: 기본시간 대비 ± 5초당 1점 계가용
+        const isSpeed = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+        if (isSpeed) {
+            game.blackInitialTimeLeft = secondsPerPlayer;
+            game.whiteInitialTimeLeft = secondsPerPlayer;
+        }
+    } else if (enforceTime && byoyomiCount >= MIN_BYOYOMI_COUNT && byoyomiTimeSec > 0) {
         // 제한시간 0: 즉시 초읽기 모드로 시작 (메인 시간 없음)
         game.blackTimeLeft = 0;
         game.whiteTimeLeft = 0;
@@ -95,7 +109,7 @@ export const pauseGameTimer = (game: types.LiveGameSession, now: number, itemUse
     let pausedTimeLeft = 0;
     if (game.turnDeadline) {
         pausedTimeLeft = Math.max(0, (game.turnDeadline - now) / 1000);
-    } else if (hasTimeControl(game.settings)) {
+    } else if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
         // turnDeadline이 없으면 현재 플레이어의 남은 시간 사용
         const currentPlayerTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
         pausedTimeLeft = game[currentPlayerTimeKey] ?? 0;
@@ -130,7 +144,7 @@ export const resumeGameTimer = (game: types.LiveGameSession, now: number, player
     game[currentPlayerTimeKey] = game.pausedTurnTimeLeft;
     
     // 타이머 재설정
-    if (hasTimeControl(game.settings)) {
+    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
         const timeLeft = game[currentPlayerTimeKey] ?? 0;
         if (timeLeft > 0) {
             game.turnDeadline = now + timeLeft * 1000;

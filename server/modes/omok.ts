@@ -4,7 +4,7 @@ import { getOmokLogic } from '../omokLogic.js';
 import { handleSharedAction, updateSharedGameState } from './shared.js';
 import { initializeNigiri, updateNigiriState, handleNigiriAction } from './nigiri.js';
 // FIX: Changed import path to avoid circular dependency
-import { transitionToPlaying } from './shared.js';
+import { transitionToPlaying, shouldEnforceTimeControl } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
 
 
@@ -34,7 +34,7 @@ export const updateOmokState = (game: types.LiveGameSession, now: number) => {
     const isAiTurn = game.isAiGame && game.currentPlayer !== types.Player.None && 
                     (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
     
-    if (game.gameStatus === 'playing' && game.turnDeadline && now > game.turnDeadline && !isAiTurn) {
+    if (game.gameStatus === 'playing' && shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline && !isAiTurn) {
          const timedOutPlayer = game.currentPlayer;
         game.winner = timedOutPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
         game.winReason = 'timeout';
@@ -127,7 +127,7 @@ export const handleOmokAction = async (volatileState: types.VolatileState, game:
                     }
                 } else {
                     const playerWhoMoved = myPlayerEnum;
-                    if (game.settings.timeLimit > 0) {
+                    if (game.settings.timeLimit > 0 && shouldEnforceTimeControl(game)) {
                         const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         
                         if (game.turnDeadline) {
@@ -138,7 +138,7 @@ export const handleOmokAction = async (volatileState: types.VolatileState, game:
 
                     game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
                     
-                    if (game.settings.timeLimit > 0) {
+                    if (game.settings.timeLimit > 0 && shouldEnforceTimeControl(game)) {
                         const nextPlayer = game.currentPlayer;
                         const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                          const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));

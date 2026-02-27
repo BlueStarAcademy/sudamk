@@ -8,7 +8,7 @@ import { initializeBase, updateBaseState, handleBaseAction } from './base.js';
 import { initializeCapture, updateCaptureState, handleCaptureAction } from './capture.js';
 import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
-import { handleSharedAction, transitionToPlaying, hasTimeControl } from './shared.js';
+import { handleSharedAction, transitionToPlaying, hasTimeControl, shouldEnforceTimeControl } from './shared.js';
 
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
@@ -99,7 +99,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
     
     // 플레이어가 차례를 시작할 때 초읽기 모드인지 확인하고, 초읽기 시간을 30초로 리셋
     // (초읽기 모드에서 수를 두면 다음 턴에서 30초로 꽉 채워짐)
-    if (game.gameStatus === 'playing' && hasTimeControl(game.settings) && game.turnStartTime) {
+    if (game.gameStatus === 'playing' && hasTimeControl(game.settings) && shouldEnforceTimeControl(game) && game.turnStartTime) {
         const timeSinceTurnStart = now - game.turnStartTime;
         // 턴이 시작된 직후 (100ms 이내)에만 체크하여 중복 방지
         if (timeSinceTurnStart >= 0 && timeSinceTurnStart < 100) {
@@ -120,7 +120,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
         }
     }
     
-    if (game.gameStatus === 'playing' && game.turnDeadline && now > game.turnDeadline) {
+    if (game.gameStatus === 'playing' && shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline) {
         const timedOutPlayer = game.currentPlayer;
         const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
         const byoyomiKey = timedOutPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
@@ -334,8 +334,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.currentPlayer = humanPlayerEnum;
                     game.gameStatus = 'playing';
                     game.aiTurnStartTime = undefined;
-                    const { hasTimeControl } = await import('./shared.js');
-                    if (hasTimeControl(game.settings)) {
+                    const { hasTimeControl, shouldEnforceTimeControl } = await import('./shared.js');
+                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                         const nextTimeKey = humanPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         const nextByoyomiKey = humanPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                         const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
@@ -726,7 +726,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 수를 둔 플레이어가 초읽기 모드에서 수를 두었는지 기록 (다음 턴에서 30초로 리셋하기 위해)
             let movedPlayerWasInByoyomi = false;
             
-            if (hasTimeControl(game.settings)) {
+            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                 const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                 const fischerIncrement = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed)) ? (game.settings.timeIncrement || 0) : 0;
@@ -761,7 +761,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             game.pausedTurnTimeLeft = undefined;
 
 
-            if (hasTimeControl(game.settings)) {
+            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                 const nextPlayer = game.currentPlayer;
                 const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
@@ -904,7 +904,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             } else {
                 const playerWhoMoved = myPlayerEnum;
-                if (hasTimeControl(game.settings)) {
+                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     
                     if (game.turnDeadline) {
@@ -913,7 +913,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
                 }
                 game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-                if (hasTimeControl(game.settings)) {
+                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                     const nextPlayer = game.currentPlayer;
                     const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';

@@ -10,7 +10,7 @@ import { initializeBase, updateBaseState, handleBaseAction } from './base.js';
 import { initializeCapture, updateCaptureState, handleCaptureAction } from './capture.js';
 import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
-import { handleSharedAction, transitionToPlaying, hasTimeControl } from './shared.js';
+import { handleSharedAction, transitionToPlaying, hasTimeControl, shouldEnforceTimeControl } from './shared.js';
 
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
@@ -74,7 +74,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
 
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
     // This is the core update logic for all Go-based games.
-    if (game.gameStatus === 'playing' && game.turnDeadline && now > game.turnDeadline) {
+    if (game.gameStatus === 'playing' && shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline) {
         const timedOutPlayer = game.currentPlayer;
         const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
         const byoyomiKey = timedOutPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
@@ -239,8 +239,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.currentPlayer = humanPlayerEnum;
                     game.gameStatus = 'playing';
                     game.aiTurnStartTime = undefined;
-                    const { hasTimeControl } = await import('./shared.js');
-                    if (hasTimeControl(game.settings)) {
+                    const { hasTimeControl, shouldEnforceTimeControl } = await import('./shared.js');
+                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                         const nextTimeKey = humanPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         game.turnDeadline = now + (game[nextTimeKey] ?? 0) * 1000;
                         game.turnStartTime = now;
@@ -696,7 +696,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             const playerWhoMoved = myPlayerEnum;
-            if (hasTimeControl(game.settings)) {
+            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                 const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                 const fischerIncrement = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed)) ? (game.settings.timeIncrement || 0) : 0;
@@ -744,7 +744,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
 
-            if (hasTimeControl(game.settings)) {
+            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                 const nextPlayer = game.currentPlayer;
                 const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
@@ -896,7 +896,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             } else {
                 const playerWhoMoved = myPlayerEnum;
-                if (hasTimeControl(game.settings)) {
+                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     
                     if (game.turnDeadline) {
@@ -905,7 +905,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
                 }
                 game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-                if (hasTimeControl(game.settings)) {
+                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                     const nextPlayer = game.currentPlayer;
                     const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
