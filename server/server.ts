@@ -3778,8 +3778,12 @@ const startServer = async () => {
             if (!isParticipant) {
                 return res.status(403).json({ error: '해당 게임의 참가자가 아닙니다.' });
             }
-            // 진행 중이거나 종료/계가 중인 게임만 재입장 허용
-            if (!['pending', 'playing', 'scoring', 'ended', 'no_contest'].includes(game.gameStatus || '')) {
+            // 진행 중이거나 종료/계가 중인 게임만 재입장 허용 (미사일/히든/스캔 아이템 사용 중 상태 포함)
+            const rejoinableStatuses = [
+                'pending', 'playing', 'scoring', 'ended', 'no_contest',
+                'hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating',
+            ];
+            if (!rejoinableStatuses.includes(game.gameStatus || '')) {
                 return res.status(400).json({ error: '이어하기할 수 없는 게임 상태입니다.' });
             }
             // PVP: 새로고침으로 끊긴 플레이어가 90초 내 재접속 시 disconnectionState 해제하여 경기 재개

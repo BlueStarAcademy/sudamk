@@ -814,9 +814,11 @@ export const useApp = () => {
                 // 애니메이션 완료 시에는 보드 상태를 변경하지 않고 그대로 유지
                 // (서버에서 이미 원래 자리 제거, 목적지 배치가 완료됨)
                 // 단, 보드 상태가 제대로 동기화되지 않은 경우를 대비해 확인만 수행
-                if (animationFrom && animationTo) {
-                    const stoneAtTo = game.boardState[animationTo.y]?.[animationTo.x];
-                    const stoneAtFrom = game.boardState[animationFrom.y]?.[animationFrom.x];
+                // 새로고침 직후 등 boardState가 아직 없을 수 있음 → 옵셔널 체이닝 및 배열 검사
+                const boardState = game.boardState;
+                if (animationFrom && animationTo && Array.isArray(boardState)) {
+                    const stoneAtTo = boardState[animationTo.y]?.[animationTo.x];
+                    const stoneAtFrom = boardState[animationFrom.y]?.[animationFrom.x];
                     
                     // 목적지에 돌이 없으면 배치 (서버 동기화 문제 대비)
                     if (stoneAtTo !== playerWhoMoved) {
@@ -827,7 +829,7 @@ export const useApp = () => {
                             stoneAtTo,
                             playerWhoMoved
                         });
-                        const newBoardState = game.boardState.map((row, y) => 
+                        const newBoardState = boardState.map((row, y) => 
                             row.map((cell, x) => {
                                 if (x === animationTo.x && y === animationTo.y) {
                                     return playerWhoMoved;
@@ -846,7 +848,7 @@ export const useApp = () => {
                             from: animationFrom,
                             to: animationTo
                         });
-                        const newBoardState = game.boardState.map((row, y) => 
+                        const newBoardState = boardState.map((row, y) => 
                             row.map((cell, x) => 
                                 (x === animationFrom.x && y === animationFrom.y && cell === playerWhoMoved) ? Player.None : cell
                             )
@@ -885,42 +887,62 @@ export const useApp = () => {
                 }
                 
                 // sessionStorage에 저장 (restoredBoardState가 최신 상태를 읽을 수 있도록)
-                try {
-                    const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
-                    const gameStateToSave = {
-                        gameId,
-                        boardState: updatedGame.boardState,
-                        moveHistory: updatedGame.moveHistory || [],
-                        captures: updatedGame.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
-                        baseStoneCaptures: updatedGame.baseStoneCaptures,
-                        hiddenStoneCaptures: updatedGame.hiddenStoneCaptures,
-                        permanentlyRevealedStones: updatedGame.permanentlyRevealedStones || [],
-                        blackPatternStones: updatedGame.blackPatternStones,
-                        whitePatternStones: updatedGame.whitePatternStones,
-                        hiddenMoves: updatedGame.hiddenMoves || {},
-                        hidden_stones_p1: (updatedGame as any).hidden_stones_p1,
-                        hidden_stones_p2: (updatedGame as any).hidden_stones_p2,
-                        totalTurns: updatedGame.totalTurns,
-                        timestamp: Date.now()
-                    };
-                    sessionStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(gameStateToSave));
-                    console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Saved game state to sessionStorage for game ${gameId}`);
-                } catch (e) {
-                    console.error(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Failed to save game state to sessionStorage:`, e);
+                // 새로고침 직후 등 boardState가 없으면 저장하지 않음 — 기존 저장된 보드를 덮어쓰지 않아 흰돌/돌 사라짐 방지
+                const boardToSave = updatedGame.boardState ?? game.boardState;
+                if (Array.isArray(boardToSave) && boardToSave.length > 0) {
+                    try {
+                        const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
+                        const gameStateToSave = {
+                            gameId,
+                            boardState: boardToSave,
+                            moveHistory: updatedGame.moveHistory ?? game.moveHistory ?? [],
+                            captures: updatedGame.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+                            baseStoneCaptures: updatedGame.baseStoneCaptures,
+                            hiddenStoneCaptures: updatedGame.hiddenStoneCaptures,
+                            permanentlyRevealedStones: updatedGame.permanentlyRevealedStones || [],
+                            blackPatternStones: updatedGame.blackPatternStones,
+                            whitePatternStones: updatedGame.whitePatternStones,
+                            hiddenMoves: updatedGame.hiddenMoves || {},
+                            hidden_stones_p1: (updatedGame as any).hidden_stones_p1,
+                            hidden_stones_p2: (updatedGame as any).hidden_stones_p2,
+                            totalTurns: updatedGame.totalTurns,
+                            timestamp: Date.now()
+                        };
+                        sessionStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(gameStateToSave));
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Saved game state to sessionStorage for game ${gameId}`);
+                        }
+                    } catch (e) {
+                        console.error(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Failed to save game state to sessionStorage:`, e);
+                    }
                 }
                 
                 console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Updated game state:`, {
                     gameId,
                     gameStatus: updatedGame.gameStatus,
                     animation: updatedGame.animation,
-                    moveHistoryLength: updatedGame.moveHistory.length,
+                    moveHistoryLength: updatedGame.moveHistory?.length,
                     totalTurns: updatedGame.totalTurns,
                     captures: updatedGame.captures
                 });
                 
+                // 새로고침 직후 등 moveHistory/boardState/턴 정보가 없을 수 있음 — 반환 객체는 기존 game 값 보존
+                const safeGame: LiveGameSession = {
+                    ...updatedGame,
+                    moveHistory: updatedGame.moveHistory ?? game.moveHistory ?? [],
+                    boardState: updatedGame.boardState ?? game.boardState,
+                    currentPlayer: updatedGame.currentPlayer ?? game.currentPlayer,
+                    totalTurns: updatedGame.totalTurns ?? game.totalTurns,
+                    captures: updatedGame.captures ?? game.captures,
+                    lastMove: updatedGame.lastMove ?? game.lastMove,
+                    blackTimeLeft: updatedGame.blackTimeLeft ?? game.blackTimeLeft,
+                    whiteTimeLeft: updatedGame.whiteTimeLeft ?? game.whiteTimeLeft,
+                    turnDeadline: updatedGame.turnDeadline ?? game.turnDeadline,
+                    turnStartTime: updatedGame.turnStartTime ?? game.turnStartTime,
+                };
                 return {
                     ...currentGames,
-                    [gameId]: updatedGame
+                    [gameId]: safeGame
                 };
             });
             
@@ -2472,8 +2494,66 @@ export const useApp = () => {
             if (otherData) {
                 if (otherData.onlineUsers !== undefined) setOnlineUsers(otherData.onlineUsers || []);
                 if (otherData.liveGames !== undefined) setLiveGames(otherData.liveGames || {});
-                if (otherData.singlePlayerGames !== undefined) setSinglePlayerGames(otherData.singlePlayerGames || {});
-                if (otherData.towerGames !== undefined) setTowerGames(otherData.towerGames || {});
+                // singlePlayerGames: rejoin으로 이미 받은 보드/수순/턴 정보가 있으면 유지 (INITIAL_STATE가 덮어써 흰돌·돌 사라짐·턴 초기화 방지)
+                if (otherData.singlePlayerGames !== undefined) {
+                    const incoming = otherData.singlePlayerGames || {};
+                    setSinglePlayerGames(prev => {
+                        const next = { ...incoming };
+                        for (const id of Object.keys(prev)) {
+                            const existing = prev[id];
+                            const fromPayload = next[id];
+                            if (fromPayload && existing?.boardState != null && Array.isArray(existing.boardState) && existing.boardState.length > 0) {
+                                const payloadHasBoard = Array.isArray(fromPayload.boardState) && fromPayload.boardState.length > 0;
+                                if (!payloadHasBoard) {
+                                    next[id] = {
+                                        ...fromPayload,
+                                        boardState: existing.boardState,
+                                        moveHistory: existing.moveHistory ?? fromPayload.moveHistory,
+                                        currentPlayer: existing.currentPlayer ?? fromPayload.currentPlayer,
+                                        totalTurns: existing.totalTurns ?? fromPayload.totalTurns,
+                                        captures: existing.captures ?? fromPayload.captures,
+                                        lastMove: existing.lastMove ?? fromPayload.lastMove,
+                                        blackTimeLeft: existing.blackTimeLeft ?? fromPayload.blackTimeLeft,
+                                        whiteTimeLeft: existing.whiteTimeLeft ?? fromPayload.whiteTimeLeft,
+                                        turnDeadline: existing.turnDeadline ?? fromPayload.turnDeadline,
+                                        turnStartTime: existing.turnStartTime ?? fromPayload.turnStartTime,
+                                    };
+                                }
+                            }
+                        }
+                        return next;
+                    });
+                }
+                // towerGames: rejoin으로 이미 받은 보드/수순/턴 정보가 있으면 유지
+                if (otherData.towerGames !== undefined) {
+                    const incoming = otherData.towerGames || {};
+                    setTowerGames(prev => {
+                        const next = { ...incoming };
+                        for (const id of Object.keys(prev)) {
+                            const existing = prev[id];
+                            const fromPayload = next[id];
+                            if (fromPayload && existing?.boardState != null && Array.isArray(existing.boardState) && existing.boardState.length > 0) {
+                                const payloadHasBoard = Array.isArray(fromPayload.boardState) && fromPayload.boardState.length > 0;
+                                if (!payloadHasBoard) {
+                                    next[id] = {
+                                        ...fromPayload,
+                                        boardState: existing.boardState,
+                                        moveHistory: existing.moveHistory ?? fromPayload.moveHistory,
+                                        currentPlayer: existing.currentPlayer ?? fromPayload.currentPlayer,
+                                        totalTurns: existing.totalTurns ?? fromPayload.totalTurns,
+                                        captures: existing.captures ?? fromPayload.captures,
+                                        lastMove: existing.lastMove ?? fromPayload.lastMove,
+                                        blackTimeLeft: existing.blackTimeLeft ?? fromPayload.blackTimeLeft,
+                                        whiteTimeLeft: existing.whiteTimeLeft ?? fromPayload.whiteTimeLeft,
+                                        turnDeadline: existing.turnDeadline ?? fromPayload.turnDeadline,
+                                        turnStartTime: existing.turnStartTime ?? fromPayload.turnStartTime,
+                                    };
+                                }
+                            }
+                        }
+                        return next;
+                    });
+                }
                 if (otherData.negotiations !== undefined) setNegotiations(otherData.negotiations || {});
                 if (otherData.waitingRoomChats !== undefined) setWaitingRoomChats(otherData.waitingRoomChats || {});
                 if (otherData.gameChats !== undefined) setGameChats(otherData.gameChats || {});

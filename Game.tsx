@@ -297,18 +297,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             prevGameStatus !== 'rematch_pending';
 
         // 분석 결과가 도착했을 때만 모달 표시 (바둑판 초기화 방지)
-        // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지
+        // scoring 상태일 때는 모달을 열지 않고, 바둑판 위 22초 연출(ScoringOverlay)만 표시. 연출 후 계가 결과가 나올 때 결과 모달 표시
         // 기권/접속 끊김 등 즉시 종료되는 경우에는 analysisResult 없이도 모달 표시
         const currentAnalysisResult = session.analysisResult?.['system'];
         const analysisResultJustArrived = currentAnalysisResult && !prevAnalysisResult;
         const isImmediateEnd = gameHasJustEnded && (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
-        // 싱글/탑: 계가 진입 시에도 모달을 열어 22초 연출(ScoringOverlay)이 모달 안에서 표시되도록 함
-        const justEnteredScoring = gameStatus === 'scoring' && prevGameStatus !== 'scoring' && prevGameStatus !== 'ended';
         const shouldShowModal = gameHasJustEnded || 
             ((isSinglePlayer || isTower)
                 ? (isImmediateEnd || (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
-                   (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived) ||
-                   (justEnteredScoring))
+                   (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived))
                 : ((gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
                    (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived)));
 
@@ -1706,7 +1703,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     </div>
                                 )}
                             </div>
-                            {/* 계가 중: 바둑판 영역 중앙에만 표시 (싱글/탑은 모달에서 22초 연출) */}
+                            {/* 계가 중: 바둑판 위 22초 연출만 표시 (모달 없음). 싱글/탑은 Arena에서 fullscreen 오버레이 표시 */}
                             {session.gameStatus === 'scoring' && !session.analysisResult?.['system'] && !session.isSinglePlayer && session.gameCategory !== 'tower' && (
                                 <ScoringOverlay />
                             )}
