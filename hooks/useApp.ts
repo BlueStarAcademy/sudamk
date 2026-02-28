@@ -2493,30 +2493,98 @@ export const useApp = () => {
             }
             if (otherData) {
                 if (otherData.onlineUsers !== undefined) setOnlineUsers(otherData.onlineUsers || []);
-                if (otherData.liveGames !== undefined) setLiveGames(otherData.liveGames || {});
+                // liveGames: 전략/놀이바둑 수순 제한 또는 AI봇 대결 시 totalTurns·moveHistory·currentPlayer를 sessionStorage에서 복원 (싱글/탑과 동일)
+                if (otherData.liveGames !== undefined) {
+                    const incomingLive = otherData.liveGames || {};
+                    setLiveGames(prev => {
+                        const next = { ...incomingLive };
+                        for (const id of Object.keys(next)) {
+                            const g = next[id];
+                            if (!g) continue;
+                            const limit = (g.settings as any)?.scoringTurnLimit ?? (g.settings as any)?.autoScoringTurns;
+                            const isTurnLimitGame = (limit != null && limit > 0);
+                            const isAiGame = !!(g as any).isAiGame;
+                            const needsRestore = (isTurnLimitGame || isAiGame) && (g.totalTurns == null || g.totalTurns === 0);
+                            const needsCurrentPlayerRestore = isTurnLimitGame || isAiGame;
+                            if (needsRestore || needsCurrentPlayerRestore) {
+                                try {
+                                    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`gameState_${id}`) : null;
+                                    if (stored) {
+                                        const parsed = JSON.parse(stored);
+                                        if (parsed.gameId === id) {
+                                            const storedTotal = needsRestore && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0 ? parsed.totalTurns : null;
+                                            const storedMoves = Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0 ? parsed.moveHistory : null;
+                                            const inferredCurrentPlayer = needsCurrentPlayerRestore && storedMoves && storedMoves.length > 0
+                                                ? ((last: { player?: number }) => last && (last.player === Player.Black ? Player.White : Player.Black))(storedMoves[storedMoves.length - 1])
+                                                : null;
+                                            if (storedTotal != null || storedMoves != null || inferredCurrentPlayer != null) {
+                                                next[id] = {
+                                                    ...g,
+                                                    ...(storedTotal != null ? { totalTurns: storedTotal } : {}),
+                                                    ...(storedMoves != null ? { moveHistory: storedMoves } : {}),
+                                                    ...(inferredCurrentPlayer != null ? { currentPlayer: inferredCurrentPlayer } : {}),
+                                                };
+                                            }
+                                        }
+                                    }
+                                } catch { /* ignore */ }
+                            }
+                        }
+                        return next;
+                    });
+                }
                 // singlePlayerGames: rejoin으로 이미 받은 보드/수순/턴 정보가 있으면 유지 (INITIAL_STATE가 덮어써 흰돌·돌 사라짐·턴 초기화 방지)
+                // 새로고침 직후 prev가 비어 있으므로, totalTurns/moveHistory가 없으면 sessionStorage에서 복원해 state에 넣음 (한 수 둔 뒤 턴이 Max로 리셋되는 버그 방지)
+                // moveHistory 기준 currentPlayer 복원으로 AI 차례에 새로고침 시에도 흑 차례로 넘어가지 않도록 함
                 if (otherData.singlePlayerGames !== undefined) {
                     const incoming = otherData.singlePlayerGames || {};
                     setSinglePlayerGames(prev => {
                         const next = { ...incoming };
-                        for (const id of Object.keys(prev)) {
-                            const existing = prev[id];
+                        for (const id of Object.keys(next)) {
                             const fromPayload = next[id];
-                            if (fromPayload && existing?.boardState != null && Array.isArray(existing.boardState) && existing.boardState.length > 0) {
+                            if (!fromPayload) continue;
+                            const isSingleOrTowerStage = (fromPayload.isSinglePlayer || fromPayload.gameCategory === 'tower') && (fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
+                            const needsRestore = isSingleOrTowerStage && (fromPayload.totalTurns == null || fromPayload.totalTurns === 0);
+                            const needsCurrentPlayerRestore = isSingleOrTowerStage;
+                            if (needsRestore || needsCurrentPlayerRestore) {
+                                try {
+                                    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`gameState_${id}`) : null;
+                                    if (stored) {
+                                        const parsed = JSON.parse(stored);
+                                        if (parsed.gameId === id) {
+                                            const storedTotal = needsRestore && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0 ? parsed.totalTurns : null;
+                                            const storedMoves = Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0 ? parsed.moveHistory : null;
+                                            const inferredCurrentPlayer = needsCurrentPlayerRestore && storedMoves && storedMoves.length > 0
+                                                ? ((last: { player?: number }) => last && (last.player === Player.Black ? Player.White : Player.Black))(storedMoves[storedMoves.length - 1])
+                                                : null;
+                                            if (storedTotal != null || storedMoves != null || inferredCurrentPlayer != null) {
+                                                next[id] = {
+                                                    ...fromPayload,
+                                                    ...(storedTotal != null ? { totalTurns: storedTotal } : {}),
+                                                    ...(storedMoves != null ? { moveHistory: storedMoves } : {}),
+                                                    ...(inferredCurrentPlayer != null ? { currentPlayer: inferredCurrentPlayer } : {}),
+                                                };
+                                            }
+                                        }
+                                    }
+                                } catch { /* ignore */ }
+                            }
+                            const existing = prev[id];
+                            if (existing?.boardState != null && Array.isArray(existing.boardState) && existing.boardState.length > 0) {
                                 const payloadHasBoard = Array.isArray(fromPayload.boardState) && fromPayload.boardState.length > 0;
                                 if (!payloadHasBoard) {
                                     next[id] = {
-                                        ...fromPayload,
+                                        ...(next[id] || fromPayload),
                                         boardState: existing.boardState,
-                                        moveHistory: existing.moveHistory ?? fromPayload.moveHistory,
-                                        currentPlayer: existing.currentPlayer ?? fromPayload.currentPlayer,
-                                        totalTurns: existing.totalTurns ?? fromPayload.totalTurns,
-                                        captures: existing.captures ?? fromPayload.captures,
-                                        lastMove: existing.lastMove ?? fromPayload.lastMove,
-                                        blackTimeLeft: existing.blackTimeLeft ?? fromPayload.blackTimeLeft,
-                                        whiteTimeLeft: existing.whiteTimeLeft ?? fromPayload.whiteTimeLeft,
-                                        turnDeadline: existing.turnDeadline ?? fromPayload.turnDeadline,
-                                        turnStartTime: existing.turnStartTime ?? fromPayload.turnStartTime,
+                                        moveHistory: existing.moveHistory ?? (next[id] || fromPayload).moveHistory,
+                                        currentPlayer: existing.currentPlayer ?? (next[id] || fromPayload).currentPlayer,
+                                        totalTurns: existing.totalTurns ?? (next[id] || fromPayload).totalTurns,
+                                        captures: existing.captures ?? (next[id] || fromPayload).captures,
+                                        lastMove: existing.lastMove ?? (next[id] || fromPayload).lastMove,
+                                        blackTimeLeft: existing.blackTimeLeft ?? (next[id] || fromPayload).blackTimeLeft,
+                                        whiteTimeLeft: existing.whiteTimeLeft ?? (next[id] || fromPayload).whiteTimeLeft,
+                                        turnDeadline: existing.turnDeadline ?? (next[id] || fromPayload).turnDeadline,
+                                        turnStartTime: existing.turnStartTime ?? (next[id] || fromPayload).turnStartTime,
                                     };
                                 }
                             }
@@ -2524,29 +2592,56 @@ export const useApp = () => {
                         return next;
                     });
                 }
-                // towerGames: rejoin으로 이미 받은 보드/수순/턴 정보가 있으면 유지
+                // towerGames: rejoin으로 이미 받은 보드/수순/턴 정보가 있으면 유지. 새로고침 직후 totalTurns/moveHistory/currentPlayer를 sessionStorage에서 복원
                 if (otherData.towerGames !== undefined) {
                     const incoming = otherData.towerGames || {};
                     setTowerGames(prev => {
                         const next = { ...incoming };
-                        for (const id of Object.keys(prev)) {
-                            const existing = prev[id];
+                        for (const id of Object.keys(next)) {
                             const fromPayload = next[id];
-                            if (fromPayload && existing?.boardState != null && Array.isArray(existing.boardState) && existing.boardState.length > 0) {
+                            if (!fromPayload) continue;
+                            const isTowerStage = fromPayload.gameCategory === 'tower' && (fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
+                            const needsRestore = isTowerStage && (fromPayload.totalTurns == null || fromPayload.totalTurns === 0);
+                            const needsCurrentPlayerRestore = isTowerStage;
+                            if (needsRestore || needsCurrentPlayerRestore) {
+                                try {
+                                    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`gameState_${id}`) : null;
+                                    if (stored) {
+                                        const parsed = JSON.parse(stored);
+                                        if (parsed.gameId === id) {
+                                            const storedTotal = needsRestore && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0 ? parsed.totalTurns : null;
+                                            const storedMoves = Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0 ? parsed.moveHistory : null;
+                                            const inferredCurrentPlayer = needsCurrentPlayerRestore && storedMoves && storedMoves.length > 0
+                                                ? ((last: { player?: number }) => last && (last.player === Player.Black ? Player.White : Player.Black))(storedMoves[storedMoves.length - 1])
+                                                : null;
+                                            if (storedTotal != null || storedMoves != null || inferredCurrentPlayer != null) {
+                                                next[id] = {
+                                                    ...fromPayload,
+                                                    ...(storedTotal != null ? { totalTurns: storedTotal } : {}),
+                                                    ...(storedMoves != null ? { moveHistory: storedMoves } : {}),
+                                                    ...(inferredCurrentPlayer != null ? { currentPlayer: inferredCurrentPlayer } : {}),
+                                                };
+                                            }
+                                        }
+                                    }
+                                } catch { /* ignore */ }
+                            }
+                            const existing = prev[id];
+                            if (existing?.boardState != null && Array.isArray(existing.boardState) && existing.boardState.length > 0) {
                                 const payloadHasBoard = Array.isArray(fromPayload.boardState) && fromPayload.boardState.length > 0;
                                 if (!payloadHasBoard) {
                                     next[id] = {
-                                        ...fromPayload,
+                                        ...(next[id] || fromPayload),
                                         boardState: existing.boardState,
-                                        moveHistory: existing.moveHistory ?? fromPayload.moveHistory,
-                                        currentPlayer: existing.currentPlayer ?? fromPayload.currentPlayer,
-                                        totalTurns: existing.totalTurns ?? fromPayload.totalTurns,
-                                        captures: existing.captures ?? fromPayload.captures,
-                                        lastMove: existing.lastMove ?? fromPayload.lastMove,
-                                        blackTimeLeft: existing.blackTimeLeft ?? fromPayload.blackTimeLeft,
-                                        whiteTimeLeft: existing.whiteTimeLeft ?? fromPayload.whiteTimeLeft,
-                                        turnDeadline: existing.turnDeadline ?? fromPayload.turnDeadline,
-                                        turnStartTime: existing.turnStartTime ?? fromPayload.turnStartTime,
+                                        moveHistory: existing.moveHistory ?? (next[id] || fromPayload).moveHistory,
+                                        currentPlayer: existing.currentPlayer ?? (next[id] || fromPayload).currentPlayer,
+                                        totalTurns: existing.totalTurns ?? (next[id] || fromPayload).totalTurns,
+                                        captures: existing.captures ?? (next[id] || fromPayload).captures,
+                                        lastMove: existing.lastMove ?? (next[id] || fromPayload).lastMove,
+                                        blackTimeLeft: existing.blackTimeLeft ?? (next[id] || fromPayload).blackTimeLeft,
+                                        whiteTimeLeft: existing.whiteTimeLeft ?? (next[id] || fromPayload).whiteTimeLeft,
+                                        turnDeadline: existing.turnDeadline ?? (next[id] || fromPayload).turnDeadline,
+                                        turnStartTime: existing.turnStartTime ?? (next[id] || fromPayload).turnStartTime,
                                     };
                                 }
                             }
@@ -2970,16 +3065,20 @@ export const useApp = () => {
                                             const currentHash = window.location.hash;
                                             const isGamePage = currentHash.startsWith('#/game/');
                                             if (isGamePage) {
-                                                // 게임 페이지에 있을 때, 현재 게임이 scoring 상태인지 확인
                                                 const gameIdFromHash = currentHash.replace('#/game/', '');
                                                 const currentGame = liveGames[gameIdFromHash] || singlePlayerGames[gameIdFromHash] || towerGames[gameIdFromHash];
-                                                
+
+                                                // 계가 중 새로고침: INITIAL_STATE가 아직 안 왔으면 게임이 없을 수 있음 → 리다이렉트하지 않고 대기
+                                                if (!currentGame) {
+                                                    console.log('[WebSocket] On game page but game not in state yet (e.g. after refresh), keeping user on game page:', gameIdFromHash);
+                                                    return updatedUsersMap;
+                                                }
                                                 // scoring 상태의 게임은 리다이렉트하지 않음 (계가 진행 중)
-                                                if (currentGame && currentGame.gameStatus === 'scoring') {
+                                                if (currentGame.gameStatus === 'scoring') {
                                                     console.log('[WebSocket] Game is in scoring state, keeping user on game page:', gameIdFromHash);
                                                     return updatedUsersMap;
                                                 }
-                                                
+
                                                 const postGameRedirect = sessionStorage.getItem('postGameRedirect');
                                                 if (postGameRedirect) {
                                                     console.log('[WebSocket] Current user status updated to waiting, routing to postGameRedirect:', postGameRedirect);

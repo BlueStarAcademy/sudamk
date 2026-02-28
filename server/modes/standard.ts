@@ -193,7 +193,10 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
             }
             // 싱글플레이 게임의 경우 서버 루프에서 브로드캐스트하지 않으므로, 여기서 직접 브로드캐스트
             const { broadcastToGameParticipants } = await import('../socket.js');
+            const { updateGameCache } = await import('../gameCache.js');
             const db = await import('../db.js');
+            // 히든/스캔 타임아웃 후 캐시 갱신 — AI·클라이언트가 본경기(playing) 보드를 제대로 인식하도록
+            updateGameCache(game);
             await db.saveGame(game);
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
         }

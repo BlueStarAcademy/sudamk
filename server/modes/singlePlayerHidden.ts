@@ -25,15 +25,16 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
 
     if (isItemMode && game.itemUseDeadline && now > game.itemUseDeadline) {
-        // Item use timed out. 아이템 소멸하고 턴 유지
+        // Item use timed out. 아이템만 1개 소모하고 턴 유지한 채 본경기(playing)로 복귀
         const timedOutPlayerEnum = game.currentPlayer;
         const timedOutPlayerId = timedOutPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-        const currentItemMode = game.gameStatus; // 현재 아이템 모드 저장 (hidden_placing 또는 scanning)
+        const currentItemMode = game.gameStatus; // hidden_placing 또는 scanning
         
         console.log(`[updateSinglePlayerHiddenState] Item use timeout: mode=${currentItemMode}, player=${timedOutPlayerId}, gameId=${game.id}`);
         
         game.foulInfo = { message: `${game.player1.id === timedOutPlayerId ? game.player1.nickname : game.player2.nickname}님의 아이템 시간 초과!`, expiry: now + 4000 };
         game.gameStatus = 'playing';
+        game.currentPlayer = timedOutPlayerEnum; // 턴 그대로 유지
         
         // 아이템 소멸 처리
         if (currentItemMode === 'hidden_placing') {
@@ -67,9 +68,11 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
     switch (game.gameStatus) {
         case 'scanning_animating':
             if (game.animation && now > game.animation.startTime + game.animation.duration) {
+                // 스캔 사용 후 턴이 넘어가지 않도록, 스캔을 사용한 플레이어가 그대로 턴을 유지
+                const scanUserId = (game.animation as { type: 'scan'; playerId: string }).playerId;
+                const scanPlayerEnum = scanUserId === game.blackPlayerId ? types.Player.Black : (scanUserId === game.whitePlayerId ? types.Player.White : game.currentPlayer);
+                game.currentPlayer = scanPlayerEnum;
                 game.animation = null;
-                // After animation, the game is already in 'playing' state with timer running for the correct player.
-                // We just need to ensure the status is clean.
                 game.gameStatus = 'playing';
             }
             break;
@@ -345,12 +348,14 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             }
             game.animation = { type: 'scan', point: { x, y }, success, startTime: now, duration: 2000, playerId: user.id };
             game.gameStatus = 'scanning_animating';
+            // 스캔 아이템 사용 후 턴이 넘어가지 않도록 현재 플레이어 유지
+            game.currentPlayer = myPlayerEnum;
 
             // After using the item, restore my time, reset timers and KEEP THE TURN
             resumeGameTimer(game, now, myPlayerEnum);
-            
+
             // The `updateSinglePlayerHiddenState` will transition from 'scanning_animating' to 'playing'
-            // after the animation, but the timer is already correctly running for the current player.
+            // after the animation, without switching the turn.
             return {};
     }
 

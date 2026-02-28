@@ -130,13 +130,33 @@ export function updateGameStateAfterMove(
         );
     }
     
-    // 싱글플레이: totalTurns 업데이트 (흑/백 모두 카운팅)
+    // 싱글플레이/도전의 탑: totalTurns 업데이트 (흑/백 모두 카운팅)
     let updatedTotalTurns = game.totalTurns;
-    if (gameType === 'singleplayer' && game.stageId) {
+    if ((gameType === 'singleplayer' || gameType === 'tower') && game.stageId) {
         const newMoveHistory = [...(game.moveHistory || []), { x, y, player: movePlayer }];
         // validMoves: x !== -1인 수만 카운팅 (패스 제외)
         const validMoves = newMoveHistory.filter(m => m.x !== -1 && m.y !== -1);
-        updatedTotalTurns = validMoves.length;
+        if (!isPass) {
+            // 새로고침 직후 state에 totalTurns가 없을 수 있으므로, 있으면 +1만 하고 없으면 sessionStorage에서 복원 후 +1 (한 수 둔 뒤 남은 턴이 Max로 리셋되는 버그 방지)
+            if (game.totalTurns != null && game.totalTurns >= 0) {
+                updatedTotalTurns = game.totalTurns + 1;
+            } else {
+                let storedTotal: number | null = null;
+                try {
+                    const key = `gameState_${game.id}`;
+                    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) : null;
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        if (parsed.gameId === game.id && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0) {
+                            storedTotal = parsed.totalTurns;
+                        }
+                    }
+                } catch { /* ignore */ }
+                updatedTotalTurns = storedTotal != null ? storedTotal + 1 : validMoves.length;
+            }
+        } else {
+            updatedTotalTurns = validMoves.length;
+        }
     }
     
     // 피셔 방식 시간 연장: 스피드 바둑 모드에서 착수한 플레이어의 시간에 increment 추가

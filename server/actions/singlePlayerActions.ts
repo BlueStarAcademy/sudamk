@@ -123,9 +123,8 @@ const placeStonesOnBoard = (board: BoardState, boardSize: number, count: number,
  * 스테이지 ID로부터 AI 레벨 계산
  * 입문1~10: 1단계, 입문11~20: 2단계
  * 초급1~10: 3단계, 초급11~20: 4단계
- * 중급1~10: 5단계, 중급11~20: 6단계
- * 고급1~10: 7단계, 고급11~20: 8단계
- * 유단자1~10: 9단계, 유단자11~20: 10단계
+ * 중급·고급: Gnugo 1단계 사용 (미사일/히든/스캔 아이템 대응)
+ * 유단자: Gnugo 2단계 사용
  */
 const getAiLevelFromStageId = (stageId: string): number => {
     const [levelName, stageNumStr] = stageId.split('-');
@@ -143,11 +142,10 @@ const getAiLevelFromStageId = (stageId: string): number => {
         case '초급':
             return isFirstHalf ? 3 : 4;
         case '중급':
-            return isFirstHalf ? 5 : 6;
         case '고급':
-            return isFirstHalf ? 7 : 8;
+            return 1; // Gnugo 1단계 (미사일/히든/스캔 아이템 사용 가능 스테이지)
         case '유단자':
-            return isFirstHalf ? 9 : 10;
+            return 2; // Gnugo 2단계
         default:
             return 1; // 기본값
     }
@@ -395,7 +393,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
 
             await db.saveGame(game);
-            
+            const { updateGameCache } = await import('../gameCache.js');
+            updateGameCache(game);
+
             // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
             db.updateUser(user).catch(err => {
                 console.error(`[START_SINGLE_PLAYER_GAME] Failed to save user ${user.id}:`, err);
@@ -420,7 +420,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             console.log(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START received:`, { gameId, userId: user.id });
             
             // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기 (DB에 저장되지 않음)
-            const { getCachedGame } = await import('../gameCache.js');
+            const { getCachedGame, updateGameCache } = await import('../gameCache.js');
             let game = await getCachedGame(gameId);
             
             // 캐시에서 못 찾으면 DB에서 찾기 (게임 종료 후 저장된 경우)
@@ -472,6 +472,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             game.whiteByoyomiPeriodsLeft = 0;
 
             await db.saveGame(game);
+            updateGameCache(game);
             const { broadcastToGameParticipants } = await import('../socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
 

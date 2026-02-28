@@ -224,6 +224,24 @@ export const createWebSocketServer = (server: Server) => {
                     try {
                         const category = game.gameCategory || (game.isSinglePlayer ? 'singleplayer' : 'normal');
                         const optimizedGame = { ...game };
+                        // 싱글/탑: moveHistory 제거 전에 totalTurns가 없으면 유효 수 기준으로 설정 (F5 후 자동계가까지 남은 턴이 Max로 초기화되는 버그 방지)
+                        if ((category === 'singleplayer' || category === 'tower') && (optimizedGame.totalTurns == null || optimizedGame.totalTurns === 0)) {
+                            const moves = (optimizedGame as any).moveHistory;
+                            if (Array.isArray(moves) && moves.length > 0) {
+                                const validCount = moves.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length;
+                                if (validCount > 0) (optimizedGame as any).totalTurns = validCount;
+                            }
+                        }
+                        // 전략바둑 AI/PVP 수순 제한: liveGames도 moveHistory 제거하므로 totalTurns가 없으면 유효 수 기준으로 설정 (새로고침 후 수순 0/N 되는 버그 방지)
+                        const scoringLimit = (optimizedGame.settings as any)?.scoringTurnLimit;
+                        const autoScoring = (optimizedGame.settings as any)?.autoScoringTurns;
+                        if ((scoringLimit > 0 || (autoScoring != null && autoScoring > 0)) && (optimizedGame.totalTurns == null || optimizedGame.totalTurns === 0)) {
+                            const moves = (optimizedGame as any).moveHistory;
+                            if (Array.isArray(moves) && moves.length > 0) {
+                                const validCount = moves.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length;
+                                if (validCount > 0) (optimizedGame as any).totalTurns = validCount;
+                            }
+                        }
                         delete (optimizedGame as any).boardState; // 대역폭 절약
                         delete (optimizedGame as any).moveHistory; // 대역폭 절약 (100명 동시 사용자 대응)
                         

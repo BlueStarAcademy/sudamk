@@ -399,13 +399,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const strategicLobbyTurnInfo = useMemo(() => {
         if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower' || session.stageId) return null;
         const moveHistory = session.moveHistory ?? [];
-        const current = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
+        const validFromHistory = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
+        // 새로고침 직후 moveHistory가 비어 있을 수 있으므로 totalTurns로 대체 (수순 0/N 되는 버그 방지)
+        const current = validFromHistory > 0 ? validFromHistory : (session.totalTurns ?? 0);
         const limit = settings.scoringTurnLimit;
         if (limit != null && limit > 0) {
             return { type: 'scoring_limit' as const, label: '수순', current, total: limit };
         }
         return { type: 'moves_only' as const, label: '수순', current };
-    }, [isStrategicMode, isSinglePlayer, session.gameCategory, session.stageId, settings.scoringTurnLimit, session.moveHistory, mode]);
+    }, [isStrategicMode, isSinglePlayer, session.gameCategory, session.stageId, settings.scoringTurnLimit, session.moveHistory, session.totalTurns, mode]);
 
     // 싱글플레이/도전의 탑 턴 안내 패널 계산
     const turnInfo = useMemo(() => {

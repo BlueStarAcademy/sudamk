@@ -69,56 +69,71 @@ export function calculateSimpleAiMove(
         }
     }
 
-    // 2. 각 후보 수에 대한 간단한 점수 계산
-    for (const candidate of candidates) {
-        // Ko 체크
-        if (koInfo && koInfo.point.x === candidate.x && koInfo.point.y === candidate.y && koInfo.turn === moveHistoryLength) {
-            continue;
+    // 살릴 수 있는 아타리 그룹 판단 (살릴 수 없는 돌은 살리지 않도록)
+    const groupsInAtari = getMyGroupsInAtari(boardState, aiPlayer, boardSize);
+    const savableSet = new Set<string>();
+    for (const g of groupsInAtari) {
+        if (isGroupSavable(boardState, g, aiPlayer, opponentPlayer, boardSize, koInfo, moveHistoryLength)) {
+            savableSet.add(g.stones.map(s => `${s.x},${s.y}`).sort().join('|'));
         }
+    }
 
-        // 자살수 체크: 자유도가 0이고 상대 돌을 따낼 수 없는 경우 자살수
+    // 2. 각 후보 수에 대한 점수 계산
+    for (const candidate of candidates) {
+        if (koInfo && koInfo.point.x === candidate.x && koInfo.point.y === candidate.y && koInfo.turn === moveHistoryLength) continue;
+
         const libertyCount = countLiberties(boardState, candidate, aiPlayer, boardSize);
         const captureScore = checkCaptureOpportunity(boardState, candidate, aiPlayer, opponentPlayer, boardSize);
-        
-        // 자유도가 0이고 상대 돌을 따낼 수 없으면 자살수이므로 제외
-        if (libertyCount === 0 && captureScore === 0) {
-            continue; // 자살수 필터링
-        }
+        if (libertyCount === 0 && captureScore === 0) continue;
 
         let score = 0;
 
-        // 즉시 따내기 기회 확인 (최우선)
-        if (captureScore > 0) {
-            score += 8000 + captureScore * 800; // 매우 높은 점수 (더 공격적)
+        // 0) 내 돌 살리기: 살릴 수 있는 그룹을 살리는 수는 최우선. 살릴 수 없는 그룹에 쓸데없이 두는 수는 감점
+        const { saves, wastedSave } = checkSaveOwnAtari(
+            boardState, candidate, aiPlayer, opponentPlayer, boardSize,
+            groupsInAtari, savableSet, koInfo, moveHistoryLength
+        );
+        if (saves > 0 && !wastedSave) {
+            score += 9000 + saves * 1000; // 살릴 수 있는 돌 살리기 최우선
+        } else if (wastedSave) {
+            score -= 4000; // 살릴 수 없는 돌 살리려다 낭비하는 수 감점
         }
 
-        // 아타리(단수) 기회 확인
+        // 1) 즉시 따내기 (캡처)
+        if (captureScore > 0) {
+            score += 8000 + captureScore * 800;
+        }
+
+        // 2) 아타리(단수)·축: 상대 자유도 2→1 로 만드는 수 (다음 수에 잡을 수 있음)
         const atariScore = checkAtariOpportunity(boardState, candidate, aiPlayer, opponentPlayer, boardSize);
         if (atariScore > 0) {
-            score += 3500 + atariScore * 350; // 높은 점수 (더 공격적)
+            score += 4000 + atariScore * 400;
         }
 
-        // 연결과 안정성 확인 (생사 개념)
+        // 3) 연결·안정성 (다른 약한 그룹과 연결해 살리기)
         const connectionScore = checkConnectionAndStability(boardState, candidate, aiPlayer, boardSize);
-        score += connectionScore * 250; // 연결과 안정성에 높은 점수
+        score += connectionScore * 350;
 
-        // 유저 돌 근처로 접근 (공격적 접근)
+        // 4) 유저 돌 근처 접근 (공격·압박)
         const proximityScore = checkProximityToOpponent(boardState, candidate, opponentPlayer, boardSize);
-        score += proximityScore * 400; // 유저 돌 근처로 가는 수에 높은 점수 (더 공격적)
+        score += proximityScore * 450;
 
-        // 유저 그룹 위협 (자유도 감소)
+        // 5) 유저 그룹 위협 (자유도 감소, 장문·그물에 유리한 위치)
         const threatScore = checkThreatToOpponent(boardState, candidate, aiPlayer, opponentPlayer, boardSize);
-        score += threatScore * 500; // 유저 그룹을 위협하는 수에 높은 점수 (더 공격적)
+        score += threatScore * 550;
 
-        // 기본 안전성 (간단한 자유도 체크) - 낮은 가중치
-        if (libertyCount >= 3) score += 50;
-        else if (libertyCount >= 2) score += 30;
-        else if (libertyCount >= 1) score += 15;
-
-        // 난이도에 따른 랜덤성 추가
-        if (difficulty <= 3 && Math.random() < 0.3) {
-            score *= 0.5; // 낮은 난이도는 가끔 나쁜 수 선택
+        // 5-1) 불리한 끊기 감점: 상대를 끊었는데 내 돌이 약하면(자유도 1~2) 끊지 않는 게 나음
+        const { cutsOpponent, myLibertiesAfter } = getCutAndLibertyAfter(boardState, candidate, aiPlayer, opponentPlayer, boardSize);
+        if (cutsOpponent && myLibertiesAfter <= 2) {
+            score -= 4500; // 끊으면 내가 불리한 수는 두지 않음
         }
+
+        // 6) 기본 안전성
+        if (libertyCount >= 3) score += 80;
+        else if (libertyCount >= 2) score += 50;
+        else if (libertyCount >= 1) score += 20;
+
+        if (difficulty <= 3 && Math.random() < 0.3) score *= 0.5;
 
         validMoves.push({ move: candidate, score });
     }
@@ -280,6 +295,7 @@ function checkThreatToOpponent(
 
 /**
  * 연결과 안정성 확인 (생사 개념)
+ * 이미 잘 연결되어 끊어지지 않는 곳을 연결하는 수는 보너스 없음. 약한 그룹을 살리거나 끊김 위험이 있을 때만 연결 가치.
  */
 function checkConnectionAndStability(
     boardState: BoardState,
@@ -287,47 +303,46 @@ function checkConnectionAndStability(
     aiPlayer: Player,
     boardSize: number
 ): number {
-    // 임시로 돌을 놓고 연결 상태 확인
     const tempBoard = boardState.map(row => [...row]);
     tempBoard[point.y][point.x] = aiPlayer;
 
     const neighbors = getNeighbors(point.x, point.y, boardSize);
-    let connectionScore = 0;
-    let connectedGroups: Array<{ stones: Point[]; liberties: number }> = [];
+    const connectedGroups: Array<{ stones: Point[]; liberties: number }> = [];
 
-    // 인접한 AI 그룹 찾기
     for (const neighbor of neighbors) {
         if (tempBoard[neighbor.y][neighbor.x] === aiPlayer) {
             const group = findGroup(tempBoard, neighbor.x, neighbor.y, aiPlayer, boardSize);
             if (group) {
-                // 중복 그룹 체크
-                const isNewGroup = !connectedGroups.some(g => 
+                const isNewGroup = !connectedGroups.some(g =>
                     g.stones.some(s => group.stones.some(gs => gs.x === s.x && gs.y === s.y))
                 );
-                if (isNewGroup) {
-                    connectedGroups.push(group);
-                }
+                if (isNewGroup) connectedGroups.push(group);
             }
         }
     }
 
-    // 연결된 그룹이 있으면 안정성 증가
-    if (connectedGroups.length > 0) {
-        const totalStones = connectedGroups.reduce((sum, g) => sum + g.stones.length, 0);
-        const minLiberties = Math.min(...connectedGroups.map(g => g.liberties));
-        
-        // 연결된 그룹이 많을수록, 자유도가 많을수록 안정적
-        connectionScore += connectedGroups.length * 2.0;
-        connectionScore += totalStones * 0.3;
-        connectionScore += minLiberties * 1.5;
-    }
-
-    // 고립된 돌이 되지 않도록 (단독 돌은 위험)
     if (connectedGroups.length === 0) {
-        connectionScore -= 1.0; // 고립된 돌은 약간 감점
+        return Math.max(0, -1.0); // 고립된 돌은 약간 감점
     }
 
-    return Math.max(0, connectionScore);
+    const minLiberties = Math.min(...connectedGroups.map(g => g.liberties));
+    const maxLiberties = Math.max(...connectedGroups.map(g => g.liberties));
+    const totalStones = connectedGroups.reduce((sum, g) => sum + g.stones.length, 0);
+
+    // 이미 잘 연결되어 끊어지지 않는 곳: 두 그룹 모두 자유도 3 이상이면 불필요한 연결 → 보너스 거의 없음
+    const bothSafe = connectedGroups.length >= 2 && minLiberties >= 3 && maxLiberties >= 3;
+    if (bothSafe) {
+        return 0;
+    }
+
+    // 끊김 위험이 있거나 약한 그룹을 살리는 연결만 가치 있음 (자유도 1~2인 그룹이 있을 때)
+    if (minLiberties <= 2) {
+        let connectionScore = connectedGroups.length * 2.0 + totalStones * 0.3 + minLiberties * 1.5;
+        return Math.max(0, connectionScore);
+    }
+
+    // 한 그룹만 접한 경우 (확장/안정화): 보통 보너스
+    return connectedGroups.length * 1.0 + minLiberties * 0.5;
 }
 
 /**
@@ -365,19 +380,20 @@ function countLiberties(
     return group ? group.liberties : 0;
 }
 
+/** 그룹 정보 (자유도 좌표 포함) */
+type GroupInfo = { stones: Point[]; liberties: number; libertyPoints: Point[] };
+
 /**
- * 그룹 찾기 (간단한 버전)
+ * 그룹 찾기 (자유도 좌표 포함)
  */
-function findGroup(
+function findGroupWithLibertyPoints(
     boardState: BoardState,
     startX: number,
     startY: number,
     player: Player,
     boardSize: number
-): { stones: Point[]; liberties: number } | null {
-    if (boardState[startY][startX] !== player) {
-        return null;
-    }
+): GroupInfo | null {
+    if (boardState[startY][startX] !== player) return null;
 
     const stones: Point[] = [];
     const visited = new Set<string>();
@@ -386,33 +402,202 @@ function findGroup(
     while (queue.length > 0) {
         const current = queue.shift()!;
         const key = `${current.x},${current.y}`;
-
         if (visited.has(key)) continue;
         visited.add(key);
-
         if (boardState[current.y][current.x] === player) {
             stones.push(current);
-            const neighbors = getNeighbors(current.x, current.y, boardSize);
-            for (const neighbor of neighbors) {
-                const neighborKey = `${neighbor.x},${neighbor.y}`;
-                if (!visited.has(neighborKey)) {
-                    queue.push(neighbor);
+            for (const n of getNeighbors(current.x, current.y, boardSize)) {
+                if (!visited.has(`${n.x},${n.y}`)) queue.push(n);
+            }
+        }
+    }
+
+    const libertySet = new Set<string>();
+    const libertyPoints: Point[] = [];
+    for (const stone of stones) {
+        for (const n of getNeighbors(stone.x, stone.y, boardSize)) {
+            if (boardState[n.y][n.x] === Player.None) {
+                const k = `${n.x},${n.y}`;
+                if (!libertySet.has(k)) {
+                    libertySet.add(k);
+                    libertyPoints.push({ x: n.x, y: n.y });
                 }
             }
         }
     }
+    return { stones, liberties: libertySet.size, libertyPoints };
+}
 
-    // 자유도 계산
-    const libertySet = new Set<string>();
-    for (const stone of stones) {
-        const neighbors = getNeighbors(stone.x, stone.y, boardSize);
-        for (const neighbor of neighbors) {
-            if (boardState[neighbor.y][neighbor.x] === Player.None) {
-                libertySet.add(`${neighbor.x},${neighbor.y}`);
+function findGroup(
+    boardState: BoardState,
+    startX: number,
+    startY: number,
+    player: Player,
+    boardSize: number
+): { stones: Point[]; liberties: number } | null {
+    const g = findGroupWithLibertyPoints(boardState, startX, startY, player, boardSize);
+    return g ? { stones: g.stones, liberties: g.liberties } : null;
+}
+
+/**
+ * 내 돌 중 아타리(자유도 1)인 그룹들 반환 (살릴 수 있는지 판단용)
+ */
+function getMyGroupsInAtari(
+    boardState: BoardState,
+    aiPlayer: Player,
+    boardSize: number
+): GroupInfo[] {
+    const seen = new Set<string>();
+    const result: GroupInfo[] = [];
+    for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+            if (boardState[y][x] !== aiPlayer) continue;
+            const key = `${x},${y}`;
+            if (seen.has(key)) continue;
+            const g = findGroupWithLibertyPoints(boardState, x, y, aiPlayer, boardSize);
+            if (g && g.liberties === 1) {
+                result.push(g);
+                for (const s of g.stones) seen.add(`${s.x},${s.y}`);
+            }
+        }
+    }
+    return result;
+}
+
+/**
+ * 이 수가 자살수인지 (돌을 놓은 뒤 내 그룹 자유도가 0이고 따낸 돌이 없으면 자살)
+ */
+function isSelfAtari(
+    boardState: BoardState,
+    point: Point,
+    aiPlayer: Player,
+    opponentPlayer: Player,
+    boardSize: number
+): boolean {
+    const libs = countLiberties(boardState, point, aiPlayer, boardSize);
+    const captureScore = checkCaptureOpportunity(boardState, point, aiPlayer, opponentPlayer, boardSize);
+    return libs === 0 && captureScore === 0;
+}
+
+/**
+ * 이 그룹을 살릴 수 있는지 판단: 탈출 수(자유도 칸) 중 하나라도 두면 자유도 2 이상이 되고 자살이 아니면 살릴 수 있음
+ */
+function isGroupSavable(
+    boardState: BoardState,
+    group: GroupInfo,
+    aiPlayer: Player,
+    opponentPlayer: Player,
+    boardSize: number,
+    koInfo: { point: Point; turn: number } | null,
+    moveHistoryLength: number
+): boolean {
+    for (const lib of group.libertyPoints) {
+        if (koInfo && koInfo.point.x === lib.x && koInfo.point.y === lib.y && koInfo.turn === moveHistoryLength) continue;
+        if (isSelfAtari(boardState, lib, aiPlayer, opponentPlayer, boardSize)) continue;
+        const tempBoard = boardState.map(row => [...row]);
+        tempBoard[lib.y][lib.x] = aiPlayer;
+        const opp = aiPlayer === Player.Black ? Player.White : Player.Black;
+        for (const n of getNeighbors(lib.x, lib.y, boardSize)) {
+            if (tempBoard[n.y][n.x] === opp) {
+                const og = findGroup(tempBoard, n.x, n.y, opp, boardSize);
+                if (og && og.liberties === 0) {
+                    for (const s of og.stones) tempBoard[s.y][s.x] = Player.None;
+                    break;
+                }
+            }
+        }
+        const myGroup = findGroup(tempBoard, lib.x, lib.y, aiPlayer, boardSize);
+        if (myGroup && myGroup.liberties >= 2) return true;
+    }
+    return false;
+}
+
+/**
+ * 이 수가 상대를 끊는 수인지, 그리고 끊은 뒤 내 돌의 자유도 (불리한 끊기 판단용)
+ */
+function getCutAndLibertyAfter(
+    boardState: BoardState,
+    point: Point,
+    aiPlayer: Player,
+    opponentPlayer: Player,
+    boardSize: number
+): { cutsOpponent: boolean; myLibertiesAfter: number } {
+    const tempBoard = boardState.map(row => [...row]);
+    tempBoard[point.y][point.x] = aiPlayer;
+
+    for (const n of getNeighbors(point.x, point.y, boardSize)) {
+        if (tempBoard[n.y][n.x] === opponentPlayer) {
+            const og = findGroup(tempBoard, n.x, n.y, opponentPlayer, boardSize);
+            if (og && og.liberties === 0) {
+                for (const s of og.stones) tempBoard[s.y][s.x] = Player.None;
             }
         }
     }
 
-    return { stones, liberties: libertySet.size };
+    const adjacentOpponentGroups: Array<{ stones: Point[] }> = [];
+    for (const n of getNeighbors(point.x, point.y, boardSize)) {
+        if (tempBoard[n.y][n.x] === opponentPlayer) {
+            const g = findGroup(tempBoard, n.x, n.y, opponentPlayer, boardSize);
+            if (g) {
+                const isNew = !adjacentOpponentGroups.some(ag =>
+                    ag.stones.some(as => g.stones.some(gs => gs.x === as.x && gs.y === as.y))
+                );
+                if (isNew) adjacentOpponentGroups.push(g);
+            }
+        }
+    }
+
+    const myGroup = findGroup(tempBoard, point.x, point.y, aiPlayer, boardSize);
+    const myLibertiesAfter = myGroup ? myGroup.liberties : 0;
+    const cutsOpponent = adjacentOpponentGroups.length >= 2;
+
+    return { cutsOpponent, myLibertiesAfter };
+}
+
+/**
+ * 이 수가 내 아타리 그룹을 살리는 수인지, 그리고 그 그룹이 살릴 수 있는 그룹인지
+ */
+function checkSaveOwnAtari(
+    boardState: BoardState,
+    point: Point,
+    aiPlayer: Player,
+    opponentPlayer: Player,
+    boardSize: number,
+    groupsInAtari: GroupInfo[],
+    savableSet: Set<string>,
+    koInfo: { point: Point; turn: number } | null,
+    moveHistoryLength: number
+): { saves: number; wastedSave: boolean } {
+    let saves = 0;
+    let wastedSave = false;
+    const tempBoard = boardState.map(row => [...row]);
+    tempBoard[point.y][point.x] = aiPlayer;
+    const opp = aiPlayer === Player.Black ? Player.White : Player.Black;
+    for (const n of getNeighbors(point.x, point.y, boardSize)) {
+        if (tempBoard[n.y][n.x] === opp) {
+            const og = findGroup(tempBoard, n.x, n.y, opp, boardSize);
+            if (og && og.liberties === 0) {
+                for (const s of og.stones) tempBoard[s.y][s.x] = Player.None;
+            }
+        }
+    }
+    for (const g of groupsInAtari) {
+        const hasStoneHere = g.stones.some(s => s.x === point.x && s.y === point.y);
+        const libertyHere = g.libertyPoints.some(l => l.x === point.x && l.y === point.y);
+        if (!libertyHere && !hasStoneHere) continue;
+        const merged = findGroup(tempBoard, point.x, point.y, aiPlayer, boardSize);
+        if (!merged) continue;
+        const stillHasGroupStones = g.stones.some(s => merged.stones.some(m => m.x === s.x && m.y === s.y));
+        if (!stillHasGroupStones) continue;
+        if (merged.liberties >= 2) {
+            saves++;
+            const key = g.stones.map(s => `${s.x},${s.y}`).sort().join('|');
+            if (!savableSet.has(key)) wastedSave = true;
+        } else if (merged.liberties === 1) {
+            const key = g.stones.map(s => `${s.x},${s.y}`).sort().join('|');
+            if (!savableSet.has(key)) wastedSave = true;
+        }
+    }
+    return { saves, wastedSave };
 }
 

@@ -103,6 +103,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
     const isSinglePlayer = session.isSinglePlayer;
     const isTower = session.gameCategory === 'tower';
+    // 전략바둑 AI/PVP 수순 제한: 새로고침 후 totalTurns·moveHistory 복원/저장에 포함
+    const hasStrategicTurnLimit = (session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0;
     
     // 클라이언트에서 게임 상태 저장/복원 (새로고침 시 바둑판 복원)
     const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
@@ -188,6 +190,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (['ended', 'no_contest', 'scoring'].includes(gameStatus)) return;
         if (restoredBoardState && Array.isArray(restoredBoardState) && restoredBoardState.length > 0) {
             try {
+                // totalTurns: 서버가 비워 보낸 경우(새로고침 직후) 기존 sessionStorage 값 유지 (자동계가까지 남은 턴이 Max로 초기화되는 버그 방지)
+                let totalTurnsToSave = session.totalTurns;
+                if ((totalTurnsToSave == null || totalTurnsToSave === 0) && (isSinglePlayer || session.gameCategory === 'tower' || hasStrategicTurnLimit)) {
+                    try {
+                        const stored = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
+                        if (stored) {
+                            const parsed = JSON.parse(stored);
+                            if (parsed.gameId === gameId && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0) {
+                                totalTurnsToSave = parsed.totalTurns;
+                            }
+                        }
+                    } catch { /* ignore */ }
+                    if (totalTurnsToSave == null || totalTurnsToSave === 0) {
+                        const validCount = (session.moveHistory || []).filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length;
+                        if (validCount > 0) totalTurnsToSave = validCount;
+                    }
+                }
                 const gameStateToSave = {
                     gameId,
                     boardState: restoredBoardState,
@@ -201,7 +220,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     hiddenMoves: session.hiddenMoves || {},
                     hidden_stones_p1: (session as any).hidden_stones_p1,
                     hidden_stones_p2: (session as any).hidden_stones_p2,
-                    totalTurns: session.totalTurns,
+                    totalTurns: totalTurnsToSave,
                     timestamp: Date.now()
                 };
                 sessionStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(gameStateToSave));
@@ -209,11 +228,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 console.error(`[Game] Failed to save game state to sessionStorage:`, e);
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, session.totalTurns, gameId, gameStatus]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, session.totalTurns, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit]);
     
-    // 도전의 탑/싱글: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
+    // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
-        if (!isSinglePlayer && !isTower) return session;
+        if (!isSinglePlayer && !isTower && !hasStrategicTurnLimit) return session;
         let next = session;
         try {
             const stored = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
@@ -266,7 +285,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         } catch {
             return session;
         }
-    }, [session, isSinglePlayer, isTower, gameId]);
+    }, [session, isSinglePlayer, isTower, hasStrategicTurnLimit, gameId]);
     
     // --- Mobile UI State (가로 모드에서는 PC와 동일 UI) ---
     const isMobile = useIsMobileLayout(1024);
@@ -1348,9 +1367,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // 도전의 탑: 싱글플레이와 동일하게 시작 모달에서 시작 버튼을 눌러 확정
     
-    // 싱글플레이어/도전의 탑: restoredBoardState + totalTurns/moveHistory 복원을 포함한 표시용 session (PlayerPanel 남은 턴 등에 사용)
+    // 싱글플레이어/도전의 탑/전략바둑 수순 제한: restoredBoardState + totalTurns/moveHistory 복원을 포함한 표시용 session (PlayerPanel 남은 턴 등에 사용)
     const sessionWithRestoredBoard = useMemo(() => {
-        if (!isSinglePlayer && !isTower) {
+        if (!isSinglePlayer && !isTower && !hasStrategicTurnLimit) {
             return session;
         }
         // totalTurns·moveHistory·문양돌이 복원된 세션을 베이스로 사용 (새로고침 후 남은 턴이 Max로 초기화되는 버그 방지)
@@ -1360,7 +1379,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return { ...base, boardState: restoredBoardState };
         }
         return base;
-    }, [isSinglePlayer, isTower, sessionWithRestoredPatternStones, restoredBoardState]);
+    }, [isSinglePlayer, isTower, hasStrategicTurnLimit, sessionWithRestoredPatternStones, restoredBoardState]);
     
     const gameProps: GameProps = {
         session: sessionWithRestoredBoard, onAction: handlers.handleAction, currentUser: currentUserWithStatus, waitingRoomChat: globalChat,

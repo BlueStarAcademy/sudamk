@@ -329,6 +329,32 @@ export function getGoAiBotProfile(level: number): GoAiBotProfile {
  * @param aiLevel AI 봇 단계 (1~10)
  */
 /**
+ * AI에게 전달할 수순: 유저의 히든 수는 통과(-1,-1)로 치환하여, AI가 히든 위치를 알 수 없도록 함
+ */
+function getMoveHistoryForAi(
+    game: types.LiveGameSession,
+    aiPlayerEnum: Player
+): Array<{ x: number; y: number; player: number }> {
+    const isHiddenMode = game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    if (!isHiddenMode || !game.isSinglePlayer || !game.moveHistory?.length) {
+        return (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+    }
+    const userPlayerEnum = aiPlayerEnum === Player.White ? Player.Black : Player.White;
+    return (game.moveHistory || []).map((m, moveIndex) => {
+        const isHidden = game.hiddenMoves?.[moveIndex];
+        const isUserHidden = isHidden && m.player === userPlayerEnum;
+        const isRevealed = isUserHidden && game.permanentlyRevealedStones?.some(
+            p => p.x === m.x && p.y === m.y
+        );
+        if (isUserHidden && !isRevealed) {
+            return { x: -1, y: -1, player: m.player };
+        }
+        return { x: m.x, y: m.y, player: m.player };
+    });
+}
+
+/**
  * AI가 보드 상태를 볼 때 유저의 히든 돌을 빈 공간으로 처리하는 헬퍼 함수
  * 싱글플레이 히든바둑 모드에서만 적용
  */
@@ -421,28 +447,41 @@ export async function makeGoAiBotMove(
     
     let selectedMove: Point | null = null;
 
-    // 1) 전략바둑 AI 대국: Railway에 배포된 GnuGo 서비스(또는 로컬 GnuGo)를 우선 사용
+    // 1) 전략바둑 AI 대국 또는 싱글플레이 중급/고급: GnuGo 서비스 우선 사용
     const isStrategicAiGame =
         game.isAiGame &&
         !game.isSinglePlayer &&
         (game as any).gameCategory !== 'tower' &&
         (game as any).gameCategory !== 'singleplayer';
+    const stageIdStr = typeof game.stageId === 'string' ? game.stageId.trim() : '';
+    const isSinglePlayerGnugoStage =
+        !!game.isSinglePlayer &&
+        !!stageIdStr &&
+        (stageIdStr.startsWith('중급') || stageIdStr.startsWith('고급') || stageIdStr.startsWith('유단자'));
 
-    if (isStrategicAiGame && isGnuGoAvailable()) {
+    const wantGnuGo = isStrategicAiGame || isSinglePlayerGnugoStage;
+    const gnuGoAvailable = isGnuGoAvailable();
+    if (isSinglePlayerGnugoStage && !gnuGoAvailable) {
+        console.log(
+            `[makeGoAiBotMove] Single player Gnugo stage (${stageIdStr}) but GnuGo not available — set GNUGO_API_URL or run local Gnugo. Using internal goAiBot level=${aiLevel}.`
+        );
+    }
+    if (wantGnuGo && gnuGoAvailable) {
         try {
             const boardSize = game.settings.boardSize || 19;
-            const moveHistory = (game.moveHistory || []).map(m => ({
-                x: m.x,
-                y: m.y,
-                player: m.player
-            }));
+            // 싱글플레이 히든바둑: 유저의 히든 수는 수순에서 통과로 치환해 AI가 위치를 알 수 없게 함
+            const moveHistory = isSinglePlayerGnugoStage
+                ? getMoveHistoryForAi(game, aiPlayerEnum)
+                : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
 
-            // 전략바둑에서는 서버 game.boardState가 항상 진실 소스이므로 그대로 사용
-            const boardState = (game.boardState || []) as unknown as number[][];
+            // 싱글플레이(중급/고급): 히든·미사일·스캔 등 아이템 대응 — AI가 볼 보드는 getBoardStateForAi 사용(유저 히든 돌 비공개)
+            const boardState = isSinglePlayerGnugoStage
+                ? (getBoardStateForAi(game, aiPlayerEnum) || []) as unknown as number[][]
+                : (game.boardState || []) as unknown as number[][];
 
             const playerStr = aiPlayerEnum === types.Player.White ? 'white' : 'black';
             console.log(
-                `[makeGoAiBotMove] Requesting move from GnuGo service (level=${aiLevel}) for game ${game.id}, boardSize=${boardSize}, player=${playerStr}`
+                `[makeGoAiBotMove] Requesting move from GnuGo service (level=${aiLevel}) for game ${game.id}, boardSize=${boardSize}, player=${playerStr}${isSinglePlayerGnugoStage ? ', singlePlayer(중급/고급)' : ''}`
             );
 
             const gnugoMove = await generateGnuGoMove({
@@ -454,6 +493,9 @@ export async function makeGoAiBotMove(
             });
 
             selectedMove = { x: gnugoMove.x, y: gnugoMove.y };
+            if (isSinglePlayerGnugoStage) {
+                console.log(`[makeGoAiBotMove] GnuGo move used for single player stage ${game.stageId}`);
+            }
         } catch (err: any) {
             console.error(
                 `[makeGoAiBotMove] GnuGo service failed for game ${game.id}, falling back to internal goAiBot:`,

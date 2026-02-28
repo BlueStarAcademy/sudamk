@@ -819,20 +819,16 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
         // PVE 게임 완전 제외 (싱글플레이어, 도전의 탑)
         // PVE 게임은 클라이언트에서 실행되므로 서버 루프에서 처리 불필요
         const multiPlayerGames: LiveGameSession[] = [];
-        
         for (const game of games) {
-            if (!game || !game.id) continue; // 유효하지 않은 게임 스킵
-            // PVE 게임 제외: 싱글플레이어, 도전의 탑만 메인 루프에서 처리하지 않음
-            // AI 게임은 서버에서 진행(타이머/AI 수 포함)하므로 멀티플레이 루프에 포함
+            if (!game || !game.id) continue;
             const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
             if (!isPVEGame) {
                 multiPlayerGames.push(game);
             }
         }
 
-        // 멀티플레이 게임만 처리 (배치 처리로 최적화)
         if (multiPlayerGames.length === 0) {
-            return games; // PVE 게임만 있으면 원본 반환
+            return games;
         }
 
         // 주기당 1게임만 처리 → 사이클당 ~4초 이내 완료, 25초 타임아웃 방지

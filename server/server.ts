@@ -1948,6 +1948,7 @@ const startServer = async () => {
                         if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
                             console.error(`[MainLoop] CRITICAL: ${consecutiveTimeouts} consecutive timeouts detected. Server may be unstable. Exiting for restart.`);
                             process.stderr.write(`[CRITICAL] Too many consecutive timeouts (${consecutiveTimeouts}) - exiting for restart\n`);
+                            process.stderr.write(`[CRASH_REASON] main_loop_consecutive_timeouts count=${consecutiveTimeouts}\n`, () => {});
                             setTimeout(() => {
                                 process.exit(1);
                             }, 2000);
@@ -1965,6 +1966,7 @@ const startServer = async () => {
                     consecutiveTimeouts++;
                     if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
                         console.error(`[MainLoop] CRITICAL: ${consecutiveTimeouts} consecutive errors/timeouts. Exiting for restart.`);
+                        process.stderr.write(`[CRASH_REASON] main_loop_consecutive_errors_or_timeouts count=${consecutiveTimeouts}\n`, () => {});
                         setTimeout(() => {
                             process.exit(1);
                         }, 2000);
@@ -2298,6 +2300,7 @@ const startServer = async () => {
                                 if (mainLoopConsecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
                                     console.error(`[FATAL] Main loop failed ${mainLoopConsecutiveFailures} times consecutively. Exiting for Railway restart.`);
                                     process.stderr.write(`[CRITICAL] Main loop repeated failures (${mainLoopConsecutiveFailures}x) - exiting\n`);
+                                    process.stderr.write(`[CRASH_REASON] main_loop_consecutive_failures count=${mainLoopConsecutiveFailures}\n`, () => {});
                                     // 메모리 정리 시도
                                     try {
                                         const { cleanupExpiredCache } = await import('./gameCache.js');
@@ -2333,6 +2336,7 @@ const startServer = async () => {
                                     // Railway 환경에서만 프로세스 종료 (재시작을 위해)
                                     if (process.env.RAILWAY_ENVIRONMENT) {
                                         console.error('[FATAL] Exiting for Railway restart after memory cleanup.');
+                                        process.stderr.write(`[CRASH_REASON] out_of_memory_enomem\n`, () => {});
                                         setTimeout(() => {
                                             process.exit(1);
                                         }, 1000);
@@ -4597,6 +4601,7 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
     if (reason && typeof reason === 'object' && 'code' in reason && reason.code === 'ENOMEM') {
         console.error('[Server] Out of memory error detected. Exiting for Railway restart.');
         process.stderr.write('[CRITICAL] Out of memory - exiting\n');
+        process.stderr.write('[CRASH_REASON] unhandled_rejection_enomem\n', () => {});
         // 메모리 정리 시도
         try {
             if (global.gc) {
@@ -4686,6 +4691,7 @@ process.on('uncaughtException', (error: Error) => {
     if ((error as any)?.code === 'ENOMEM' || error.message?.includes('out of memory')) {
         console.error('[Server] Out of memory error detected. Exiting for Railway restart.');
         process.stderr.write('[CRITICAL] Out of memory - exiting\n');
+        process.stderr.write('[CRASH_REASON] uncaught_exception_enomem\n', () => {});
         // 메모리 정리 시도
         try {
             if (global.gc) {
@@ -4729,6 +4735,7 @@ process.on('uncaughtException', (error: Error) => {
     if (isFatalError) {
         console.error('[Server] Fatal error detected. Exiting for Railway restart.');
         process.stderr.write('[CRITICAL] Fatal error - exiting for restart\n');
+        process.stderr.write(`[CRASH_REASON] uncaught_exception_fatal name=${error.name} message=${error.message?.substring(0, 80)}\n`, () => {});
         // 메모리 정리 시도
         try {
             if (global.gc) {
@@ -4749,6 +4756,7 @@ process.on('uncaughtException', (error: Error) => {
     if ((global as any).uncaughtExceptionCount[errorKey] >= 5) {
         console.error(`[Server] Same error occurred 5 times consecutively. Exiting for Railway restart.`);
         process.stderr.write(`[CRITICAL] Repeated error (5x) - exiting for restart\n`);
+        process.stderr.write(`[CRASH_REASON] uncaught_exception_repeated_5x key=${errorKey}\n`, () => {});
         process.exit(1);
     }
     
@@ -4804,6 +4812,10 @@ if (process.env.RAILWAY_ENVIRONMENT) {
             }
         } else {
             console.log(`[Server] Memory usage: RSS=${memUsageMB.rss}MB, Heap=${memUsageMB.heapUsed}/${memUsageMB.heapTotal}MB`);
+        }
+        // Railway: 주기 로그로 "살아있음" 확인 가능. 이 로그가 갑자기 끊기면 OOM 등 외부 kill 가능성
+        if (process.env.RAILWAY_ENVIRONMENT && memUsageMB.rss > 200) {
+            process.stderr.write(`[Server] heartbeat uptime=${Math.round(process.uptime())}s rss=${memUsageMB.rss}MB\n`);
         }
         
         // 메모리 사용량이 너무 높으면 경고

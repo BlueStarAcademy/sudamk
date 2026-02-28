@@ -104,10 +104,8 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
     }, [gameStatus, session.id, onAction]);
     
-    // 스캔 아이템
+    // 스캔 아이템: 상대(백)에 미공개 히든돌이 1개라도 있으면 활성화, 없으면 비활성화
     const myScansLeft = session.scans_p1 ?? scanCountSetting;
-    // 스캔 가능 여부 확인: 상대방(백)의 히든 스톤이 있고 아직 영구적으로 공개되지 않은 것이 있는지
-    // AI 초기 히든 돌도 확인 (미리 배치된 히든 돌)
     const canScan = React.useMemo(() => {
         // 보드 상태가 유효하지 않으면 스캔 불가
         const board = session.boardState;
@@ -159,7 +157,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });
-    }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones]);
+    }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone]);
     
     const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan;
     
