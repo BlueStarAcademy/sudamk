@@ -422,6 +422,106 @@ export async function makeGoAiBotMove(
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
 
+    const isHiddenMode = game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+    const isStrategicAiGame =
+        game.isAiGame &&
+        !game.isSinglePlayer &&
+        (game as any).gameCategory !== 'tower' &&
+        (game as any).gameCategory !== 'singleplayer';
+
+    // AI 히든 아이템 연출 종료 후 실제 히든 수 두기
+    if (game.aiHiddenItemAnimationEndTime != null && now >= game.aiHiddenItemAnimationEndTime) {
+        game.aiHiddenItemAnimationEndTime = undefined;
+        game.animation = null;
+        const aiHiddenLeft = (game as any).hidden_stones_p2 ?? 0;
+        if (aiHiddenLeft > 0 && isHiddenMode) {
+            const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
+            const aiGameForMove: types.LiveGameSession = { ...game, boardState: aiBoardState };
+            const logic = getGoLogic(aiGameForMove);
+            const allValidMoves = findAllValidMoves(aiGameForMove, logic, aiPlayerEnum);
+            if (allValidMoves.length > 0) {
+                const hiddenMove = allValidMoves[Math.floor(Math.random() * allValidMoves.length)];
+                const result = processMove(
+                    game.boardState,
+                    { ...hiddenMove, player: aiPlayerEnum },
+                    game.koInfo,
+                    game.moveHistory.length
+                );
+                if (result.isValid) {
+                    game.boardState = result.newBoardState;
+                    game.lastMove = { x: hiddenMove.x, y: hiddenMove.y };
+                    game.moveHistory.push({ player: aiPlayerEnum, x: hiddenMove.x, y: hiddenMove.y });
+                    game.koInfo = result.newKoInfo;
+                    game.passCount = 0;
+                    if (!game.hiddenMoves) game.hiddenMoves = {};
+                    game.hiddenMoves[game.moveHistory.length - 1] = true;
+                    (game as any).hidden_stones_p2 = aiHiddenLeft - 1;
+                    if (game.isSinglePlayer) {
+                        (game as any).aiInitialHiddenStone = { x: hiddenMove.x, y: hiddenMove.y };
+                        (game as any).aiInitialHiddenStoneIsPrePlaced = false;
+                    }
+                    if (game.isSinglePlayer && game.stageId) {
+                        const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
+                        game.totalTurns = validMoves.length;
+                    }
+                    game.currentPlayer = opponentPlayerEnum;
+                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                        const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                        const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                        const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                        const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
+                        game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
+                        game.turnStartTime = now;
+                    } else {
+                        game.turnDeadline = undefined;
+                        game.turnStartTime = undefined;
+                    }
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    const gameToBroadcast = { ...game };
+                    delete (gameToBroadcast as any).boardState;
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                    return;
+                }
+            }
+        }
+    }
+
+    // 전략바둑 AI 히든 모드: hidden_stones_p2 / aiHiddenItemTurn 미설정 시 초기화
+    if (isHiddenMode && isStrategicAiGame) {
+        const cap = (game.settings as any)?.hiddenStoneCount ?? 0;
+        if (cap > 0 && (game as any).hidden_stones_p2 === undefined) {
+            (game as any).hidden_stones_p2 = cap;
+            (game as any).aiHiddenItemTurn = 2 + Math.floor(Math.random() * 11);
+        }
+    }
+
+    // AI 히든 아이템 사용 연출 시작 (실제 수는 다음 호출에서 히든으로 둠)
+    if (isHiddenMode && !game.aiHiddenItemUsed && (game.aiHiddenItemTurn != null && totalTurns >= game.aiHiddenItemTurn)) {
+        const aiHiddenLeft = (game as any).hidden_stones_p2 ?? 0;
+        const appliesToAi = game.isSinglePlayer || (game as any).gameCategory === 'tower' || isStrategicAiGame;
+        if (aiHiddenLeft > 0 && appliesToAi) {
+            game.aiHiddenItemUsed = true;
+            const aiPlayerId = aiPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
+            game.foulInfo = { message: 'AI봇이 히든 아이템을 사용했습니다!', expiry: now + 5000 };
+            game.animation = {
+                type: 'ai_thinking',
+                startTime: now,
+                duration: 5000,
+                playerId: aiPlayerId
+            };
+            game.aiHiddenItemAnimationEndTime = now + 5000;
+            await db.saveGame(game);
+            const { broadcastToGameParticipants } = await import('./socket.js');
+            const gameToBroadcast = { ...game };
+            delete (gameToBroadcast as any).boardState;
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+            return;
+        }
+    }
+
     // 전략바둑 로비 턴 제한: 이미 제한 수순에 도달했으면 수를 두지 않고 즉시 계가 진행 (그누고/계속 진행 방지)
     const scoringTurnLimit = (game.settings as any)?.scoringTurnLimit;
     if (scoringTurnLimit != null && scoringTurnLimit > 0 && !game.isSinglePlayer && (game as any).gameCategory !== 'tower') {
@@ -448,11 +548,6 @@ export async function makeGoAiBotMove(
     let selectedMove: Point | null = null;
 
     // 1) 전략바둑 AI 대국 또는 싱글플레이 중급/고급: GnuGo 서비스 우선 사용
-    const isStrategicAiGame =
-        game.isAiGame &&
-        !game.isSinglePlayer &&
-        (game as any).gameCategory !== 'tower' &&
-        (game as any).gameCategory !== 'singleplayer';
     const stageIdStr = typeof game.stageId === 'string' ? game.stageId.trim() : '';
     const isSinglePlayerGnugoStage =
         !!game.isSinglePlayer &&
@@ -461,9 +556,10 @@ export async function makeGoAiBotMove(
 
     const wantGnuGo = isStrategicAiGame || isSinglePlayerGnugoStage;
     const gnuGoAvailable = isGnuGoAvailable();
-    if (isSinglePlayerGnugoStage && !gnuGoAvailable) {
+    if (wantGnuGo && !gnuGoAvailable) {
+        const reason = process.env.GNUGO_API_URL ? 'GnuGo API URL set but local process pool not ready' : 'GNUGO_API_URL not set (deploy backend with GNUGO_API_URL pointing to your GnuGo service)';
         console.log(
-            `[makeGoAiBotMove] Single player Gnugo stage (${stageIdStr}) but GnuGo not available — set GNUGO_API_URL or run local Gnugo. Using internal goAiBot level=${aiLevel}.`
+            `[makeGoAiBotMove] ${isStrategicAiGame ? '전략바둑 AI' : 'Single player'} — GnuGo 미사용. ${reason}. 내부 goAiBot(휴리스틱) 사용 level=${aiLevel}.`
         );
     }
     if (wantGnuGo && gnuGoAvailable) {
@@ -493,13 +589,15 @@ export async function makeGoAiBotMove(
             });
 
             selectedMove = { x: gnugoMove.x, y: gnugoMove.y };
+            if (isStrategicAiGame) {
+                console.log(`[makeGoAiBotMove] 전략바둑 AI: GnuGo 수 적용 완료 game=${game.id} (${gnugoMove.x},${gnugoMove.y})`);
+            }
             if (isSinglePlayerGnugoStage) {
                 console.log(`[makeGoAiBotMove] GnuGo move used for single player stage ${game.stageId}`);
             }
         } catch (err: any) {
             console.error(
-                `[makeGoAiBotMove] GnuGo service failed for game ${game.id}, falling back to internal goAiBot:`,
-                err?.message || String(err)
+                `[makeGoAiBotMove] GnuGo 서비스 실패 → 내부 goAiBot(휴리스틱)으로 대체. game=${game.id}, error=${err?.message || String(err)}`
             );
         }
     }
@@ -508,11 +606,13 @@ export async function makeGoAiBotMove(
     if (!selectedMove) {
         const profile = getGoAiBotProfile(aiLevel);
 
-        // AI가 볼 수 있는 보드 상태 (유저의 히든 돌 제거)
+        // AI가 볼 수 있는 보드·수순 (유저의 미공개 히든은 빈 칸/통과로만 인식, 공개 시 재인식)
         const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
+        const aiMoveHistory = (isHiddenMode && game.isSinglePlayer) ? getMoveHistoryForAi(game, aiPlayerEnum) : (game.moveHistory || []);
         const aiGame: types.LiveGameSession = {
             ...game,
-            boardState: aiBoardState
+            boardState: aiBoardState,
+            moveHistory: aiMoveHistory as types.Move[]
         };
 
         const logic = getGoLogic(aiGame);
@@ -705,9 +805,6 @@ export async function makeGoAiBotMove(
     }
     
     // 4-1. 히든 돌 위에 착점하는지 확인 (히든바둑 모드)
-    const isHiddenMode = game.mode === types.GameMode.Hidden || 
-                        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
-    
     if (isHiddenMode && game.isSinglePlayer) {
         const { x, y } = selectedMove;
         const stoneAtTarget = game.boardState[y][x];

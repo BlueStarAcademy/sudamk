@@ -3249,6 +3249,8 @@ export const useApp = () => {
                                         } else {
                                             // hidden_placing, scanning 등 아이템 모드에서는 boardState를 보존해야 함
                                             const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(game.gameStatus);
+                                            // 미사일 애니메이션 중에는 서버가 따낸 돌을 반영한 boardState를 적용해야 함
+                                            const isMissileAnimating = game.gameStatus === 'missile_animating';
                                             
                                             // 애니메이션 중에는 totalTurns와 captures를 보존해야 함
                                             const isAnimating = game.animation !== null && game.animation !== undefined;
@@ -3267,7 +3269,6 @@ export const useApp = () => {
                                                     : existingGame?.captures || game.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 });
                                             
                                             if (isItemMode) {
-                                                // 아이템 모드에서는 기존 boardState를 보존
                                                 const existingBoardStateValid = existingGame?.boardState && 
                                                     Array.isArray(existingGame.boardState) && 
                                                     existingGame.boardState.length > 0 && 
@@ -3282,10 +3283,15 @@ export const useApp = () => {
                                                     Array.isArray(game.boardState[0]) && 
                                                     game.boardState[0].length > 0;
                                                 
-                                                // 기존 boardState가 유효하면 보존, 아니면 서버에서 온 것 사용
-                                                const finalBoardState = existingBoardStateValid
-                                                    ? existingGame.boardState
-                                                    : (serverBoardStateValid ? game.boardState : existingGame?.boardState);
+                                                // missile_animating일 때는 서버의 boardState/captures 적용 (미사일로 따낸 돌이 즉시 반영되도록)
+                                                const finalBoardState = isMissileAnimating && serverBoardStateValid
+                                                    ? game.boardState
+                                                    : (existingBoardStateValid && !isMissileAnimating
+                                                        ? existingGame.boardState
+                                                        : (serverBoardStateValid ? game.boardState : existingGame?.boardState));
+                                                const finalCapturesForItemMode = isMissileAnimating && game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0
+                                                    ? game.captures
+                                                    : preservedCaptures;
                                                 
                                                 // moveHistory도 보존
                                                 const existingMoveHistoryValid = existingGame?.moveHistory && 
@@ -3308,9 +3314,9 @@ export const useApp = () => {
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
                                                     permanentlyRevealedStones: mergedRevealed,
-                                                    // totalTurns와 captures 보존 (애니메이션 중 초기화 방지)
+                                                    // totalTurns와 captures 보존 (미사일 애니메이션 중에는 서버 captures 적용)
                                                     totalTurns: preservedTotalTurns,
-                                                    captures: preservedCaptures,
+                                                    captures: finalCapturesForItemMode,
                                                     // 시간 정보도 보존
                                                     blackTimeLeft: (game.blackTimeLeft !== undefined && game.blackTimeLeft !== null && game.blackTimeLeft > 0) 
                                                         ? game.blackTimeLeft 

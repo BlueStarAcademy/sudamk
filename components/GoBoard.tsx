@@ -43,11 +43,13 @@ const OwnershipOverlay: React.FC<{
         <g style={{ pointerEvents: 'none' }} className="animate-fade-in">
             {ownershipMap.map((row, y) => row.map((value, x) => {
                 // value is from -10 to 10. Corresponds to -1.0 to 1.0 probability.
+                // 공배(중립 빈 점)는 표시하지 않음 — 7 이상/-7 이하만 확정 영토로 표시 (일본식 계가 느낌)
+                const TERRITORY_THRESHOLD = 7;
+                if (Math.abs(value) < TERRITORY_THRESHOLD) return null;
+
                 const { cx, cy } = toSvgCoords({ x, y });
                 const absValue = Math.abs(value);
                 const prob = absValue / 10; // Probability from 0 to 1
-
-                if (prob < 0.3) return null; // Don't render low probabilities to reduce clutter
 
                 // 더 작고 고급스러운 사각형 (60% 크기, 더 작은 모서리 반경)
                 const size = cellSize * prob * 0.6; // Max size is 60% of the cell (더 작게)
@@ -527,8 +529,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const padding = cell_size / 2;
     const stone_radius = cell_size * 0.47;
     
-    // 히든 돌 미사일 애니메이션 소리 재생 (애니메이션은 보이지 않음)
+    // 히든 돌 미사일 애니메이션 소리 재생 (애니메이션은 보이지 않음). 계가/종료 중에는 재생 안 함.
+    const isScoringOrEnded = gameStatus === 'scoring' || gameStatus === 'ended' || gameStatus === 'no_contest';
     useEffect(() => {
+        if (isScoringOrEnded) return;
         if (animation && (animation.type === 'missile' || animation.type === 'hidden_missile')) {
             if (!moveHistory || !hiddenMoves) return;
             const moveIndex = moveHistory.findIndex(m => m.x === animation.from.x && m.y === animation.from.y);
@@ -541,7 +545,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 audioService.launchMissile();
             }
         }
-    }, [animation, moveHistory, hiddenMoves, permanentlyRevealedStones]);
+    }, [animation, moveHistory, hiddenMoves, permanentlyRevealedStones, isScoringOrEnded]);
 
     // 미사일 애니메이션 완료 감지 및 처리
     useEffect(() => {
@@ -1248,7 +1252,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                 {showHoverPreview && hoverPos && ( <g opacity="0.5"> <Stone player={stoneColor} cx={toSvgCoords(hoverPos).cx} cy={toSvgCoords(hoverPos).cy} radius={stone_radius} /> </g> )}
                 {renderMissileLaunchPreview()}
-                {animation && (() => {
+                {/* 계가/결과 모달 중에는 미사일 등 애니메이션 미표시 — 최종 보드만 표시 */}
+                {animation && !isScoringOrEnded && (() => {
                     // 히든 돌인지 확인 (공개되지 않은 히든 돌)
                     const isHiddenStone = (animation.type === 'missile' || animation.type === 'hidden_missile') && (() => {
                         if (!moveHistory || !hiddenMoves) return false;

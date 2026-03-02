@@ -537,16 +537,12 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             const moveAtTo = game.moveHistory.find(m => m.x === to.x && m.y === to.y);
             const isOpponentMoveAtTo = moveAtTo && moveAtTo.player === opponentEnum;
             
-            // boardState에 상대방 돌이 있거나, moveHistory에 상대방 돌이 있는 경우 확인
             if (stoneAtTo === opponentEnum || isOpponentMoveAtTo) {
-                // 상대방 돌이 있는 경우, 히든 돌이 아닌지 확인
                 const moveIndexAtTo = game.moveHistory.findIndex(m => m.x === to.x && m.y === to.y);
                 const isHiddenStoneAtTo = moveIndexAtTo !== -1 && !!game.hiddenMoves?.[moveIndexAtTo];
                 const isPermanentlyRevealedAtTo = game.permanentlyRevealedStones?.some(p => p.x === to.x && p.y === to.y);
-                
-                // 히든 돌이 아니거나 이미 공개된 돌이면 에러 반환
                 if (!isHiddenStoneAtTo || isPermanentlyRevealedAtTo) {
-                    console.warn(`[Missile Go] LAUNCH_MISSILE failed: destination has opponent stone, to=${JSON.stringify(to)}, stoneAtTo=${stoneAtTo}, isOpponentMoveAtTo=${isOpponentMoveAtTo}, gameId=${game.id}`);
+                    console.warn(`[Missile Go] LAUNCH_MISSILE failed: destination has opponent stone, to=${JSON.stringify(to)}, gameId=${game.id}`);
                     return { error: "Cannot move to a position occupied by opponent stone." };
                 }
             }

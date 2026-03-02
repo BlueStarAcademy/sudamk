@@ -1140,6 +1140,22 @@ const startServer = async () => {
                         }
 
                         isProcessingMainLoop = true;
+
+                        // Prisma 엔진 연결 확인 ("Engine is not yet connected" 방지)
+                        try {
+                            const prismaClient = await import('./prismaClient.js');
+                            if (prismaClient.ensurePrismaConnected && !(await prismaClient.ensurePrismaConnected())) {
+                                console.warn('[MainLoop] Prisma engine not ready, skipping this cycle...');
+                                isProcessingMainLoop = false;
+                                scheduleMainLoop(5000);
+                                return;
+                            }
+                        } catch (connErr: any) {
+                            console.warn('[MainLoop] ensurePrismaConnected failed:', connErr?.message);
+                            isProcessingMainLoop = false;
+                            scheduleMainLoop(5000);
+                            return;
+                        }
                         
                         // 첫 실행 확인 (전역 플래그 사용)
                         const isFirstRun = !hasCompletedFirstRun;

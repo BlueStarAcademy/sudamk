@@ -60,14 +60,23 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     } = session;
 
     const myRevealedStones = useMemo(() => {
-        if (!moveHistory || !revealedHiddenMoves || !currentUser?.id) return [];
-        const indices = revealedHiddenMoves[currentUser.id];
-        if (!Array.isArray(indices)) return [];
-        return indices
-            .map((index: number) => moveHistory[index])
-            .filter((move: Move | undefined): move is Move => !!move)
-            .map((move: Move) => ({ x: move.x, y: move.y }));
-    }, [moveHistory, revealedHiddenMoves, currentUser?.id]);
+        const points: Point[] = [];
+        if (moveHistory && revealedHiddenMoves && currentUser?.id) {
+            const indices = revealedHiddenMoves[currentUser.id];
+            if (Array.isArray(indices)) {
+                indices
+                    .map((index: number) => moveHistory[index])
+                    .filter((move: Move | undefined): move is Move => !!move)
+                    .forEach((move: Move) => points.push({ x: move.x, y: move.y }));
+            }
+        }
+        const aiInitial = (session as { aiInitialHiddenStone?: Point }).aiInitialHiddenStone;
+        const scannedByMe = (session as { scannedAiInitialHiddenByUser?: Record<string, boolean> }).scannedAiInitialHiddenByUser?.[currentUser?.id ?? ''];
+        if (aiInitial && scannedByMe && !points.some(p => p.x === aiInitial.x && p.y === aiInitial.y)) {
+            points.push({ x: aiInitial.x, y: aiInitial.y });
+        }
+        return points;
+    }, [moveHistory, revealedHiddenMoves, currentUser?.id, session]);
 
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player2 : player1;

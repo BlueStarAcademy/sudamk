@@ -286,10 +286,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     };
     (game as any).preservedTimeInfo = preservedTimeInfo;
     
-    // 게임 상태를 scoring으로 변경
+    // 게임 상태를 scoring으로 변경 (계가 연출 중 미사일 애니메이션 재생 방지를 위해 animation 제거)
     game.gameStatus = 'scoring';
     game.winReason = 'score';
     game.isAnalyzing = true;
+    game.animation = null;
     const scoringTotalStart = Date.now(); // 계가 총 소요 시간 측정 (연출/로깅용)
 
     if (preservedGameState.boardState && Array.isArray(preservedGameState.boardState) && preservedGameState.boardState.length > 0) {
@@ -302,10 +303,13 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     if (preservedGameState.whiteTimeLeft !== undefined) game.whiteTimeLeft = preservedGameState.whiteTimeLeft;
 
     // 보드가 수순보다 돌 수가 적으면 moveHistory로 보드 복원 (불완전한 보드로 계가되는 버그 방지)
+    // 단, 미사일/따내기 등 포획이 있는 모드에서는 돌 수가 수순보다 적은 것이 정상이므로 복원하지 않음 (최종 boardState로 계가)
     const boardSize = game.settings?.boardSize ?? 19;
     const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x >= 0 && m.y >= 0 && m.x < boardSize && m.y < boardSize);
     const stoneCount = game.boardState && Array.isArray(game.boardState) ? game.boardState.flat().filter((c: number) => c !== types.Player.None && c != null).length : 0;
-    if (validMoves.length > stoneCount && validMoves.length > 0) {
+    const hasCaptureMode = (game.captures && (game.captures[types.Player.Black] > 0 || game.captures[types.Player.White] > 0));
+    const shouldNotDeriveFromMoves = isMissileMode || hasCaptureMode;
+    if (!shouldNotDeriveFromMoves && validMoves.length > stoneCount && validMoves.length > 0) {
         const derived: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(types.Player.None));
         for (const move of validMoves) {
             derived[move.y][move.x] = move.player;
@@ -324,6 +328,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     // scoring 상태로 변경될 때는 클라이언트에서 이미 boardState를 보존하고 있으므로 전송 불필요
     const gameToBroadcast = {
         ...game,
+        animation: null,
         // boardState는 제외 (클라이언트에서 보존)
         moveHistory: preservedGameState.moveHistory || game.moveHistory,
         totalTurns: preservedGameState.totalTurns ?? game.totalTurns,

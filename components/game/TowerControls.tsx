@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { GameProps, Player } from '../../types.js';
 import Button from '../Button.js';
 import ConfirmModal from '../ConfirmModal.js';
@@ -237,7 +237,43 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         if (gameStatus !== 'playing') return;
         onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
     };
-    
+
+    // 스캔 아이템 (21층 이상): 상대(AI)에 미공개 히든돌이 있을 때만 사용 가능
+    const scanCountSetting = showMissileAndHidden ? ((session.settings as any)?.scanCount ?? (stage?.scanCount ?? 0)) : 0;
+    const myScansLeft = session.scans_p1 ?? scanCountSetting;
+    const canScan = React.useMemo(() => {
+        if (!showMissileAndHidden || myScansLeft <= 0) return false;
+        const board = session.boardState;
+        if (!Array.isArray(board) || board.length === 0) return false;
+        const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
+        const aiHiddenIsPrePlaced = (session as any).aiInitialHiddenStoneIsPrePlaced;
+        if (aiInitialHiddenStone && !aiHiddenIsPrePlaced) {
+            const { x, y } = aiInitialHiddenStone;
+            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
+            if (inBounds && board[y][x] === Player.White) {
+                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
+                if (!isPermanentlyRevealed) return true;
+            }
+        }
+        if (!session.hiddenMoves || !session.moveHistory) return false;
+        return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
+            if (!isHidden) return false;
+            const move = session.moveHistory![parseInt(moveIndexStr, 10)];
+            if (!move || move.player !== Player.White) return false;
+            const { x, y } = move;
+            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
+            if (!inBounds || board[y][x] !== Player.White) return false;
+            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
+            return !isPermanentlyRevealed;
+        });
+    }, [showMissileAndHidden, myScansLeft, session.boardState, session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
+    const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan;
+
+    const handleUseScan = () => {
+        if (gameStatus !== 'playing') return;
+        onAction({ type: 'START_SCANNING', payload: { gameId: session.id } });
+    };
+
     // 배치변경 아이템 (모든 층, 최대 5개) - 로비·가방과 동기화
     const refreshCount = getItemCount(['배치 새로고침', '배치변경', 'reflesh', 'refresh']);
     const refreshMaxCount = 5;
@@ -374,6 +410,22 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                         />
 						<span className={`text-[11px] font-semibold ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
                             히든
+                        </span>
+                    </div>
+                )}
+                {showMissileAndHidden && (
+                    <div className="flex flex-col items-center gap-1">
+                        <ImageButton
+                            src="/images/button/scan.png"
+                            alt="스캔"
+                            onClick={handleUseScan}
+                            disabled={scanDisabled}
+                            title="스캔"
+                            count={myScansLeft}
+                            maxCount={scanCountSetting}
+                        />
+						<span className={`text-[11px] font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
+                            스캔
                         </span>
                     </div>
                 )}

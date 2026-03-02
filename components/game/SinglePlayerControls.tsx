@@ -104,60 +104,39 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
     }, [gameStatus, session.id, onAction]);
     
-    // 스캔 아이템: 상대(백)에 미공개 히든돌이 1개라도 있으면 활성화, 없으면 비활성화
+    // 스캔 아이템: 상대(백/AI)에 미공개 히든돌이 1개라도 있을 때만 활성화
     const myScansLeft = session.scans_p1 ?? scanCountSetting;
     const canScan = React.useMemo(() => {
-        // 보드 상태가 유효하지 않으면 스캔 불가
         const board = session.boardState;
-        if (!Array.isArray(board) || board.length === 0) {
-            return false;
-        }
+        if (!Array.isArray(board) || board.length === 0) return false;
 
-        // AI 초기 히든 돌이 있고 아직 공개되지 않았는지 확인
+        // AI가 히든 아이템으로 둔 돌만 스캔 대상 (미리 배치된 돌은 제외)
         const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
-        if (aiInitialHiddenStone) {
+        const aiHiddenIsPrePlaced = (session as any).aiInitialHiddenStoneIsPrePlaced;
+        if (aiInitialHiddenStone && !aiHiddenIsPrePlaced) {
             const { x, y } = aiInitialHiddenStone;
-            const inBounds =
-                typeof x === 'number' &&
-                typeof y === 'number' &&
-                y >= 0 &&
-                y < board.length &&
-                x >= 0 &&
-                x < board[y].length;
-
+            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
             if (inBounds && board[y][x] === Player.White) {
-                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
-                if (!isPermanentlyRevealed) {
-                    return true; // AI 초기 히든 돌이 있으면 스캔 가능
-                }
+                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
+                if (!isPermanentlyRevealed) return true;
             }
         }
-        
-        // 기존 로직: moveHistory의 히든 스톤 확인
-        if (!session.hiddenMoves || !session.moveHistory) {
-            return false;
-        }
-        // 상대방(백)의 히든 스톤 중 아직 영구적으로 공개되지 않은 것이 있는지 확인
-        return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
+
+        // moveHistory 상의 백(봇) 히든 스톤이 하나라도 있어야 스캔 가능
+        if (!session.hiddenMoves || typeof session.hiddenMoves !== 'object' || !session.moveHistory?.length) return false;
+        const hasOpponentUnrevealedHidden = Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
             if (!isHidden) return false;
-            const move = session.moveHistory[parseInt(moveIndexStr)];
+            const idx = parseInt(moveIndexStr, 10);
+            const move = session.moveHistory![idx];
             if (!move || move.player !== Player.White) return false;
             const { x, y } = move;
-
-            const inBounds =
-                typeof x === 'number' &&
-                typeof y === 'number' &&
-                y >= 0 &&
-                y < board.length &&
-                x >= 0 &&
-                x < board[y].length;
-
-            // 돌이 여전히 보드에 있고 영구적으로 공개되지 않았는지 확인
+            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
             if (!inBounds || board[y][x] !== Player.White) return false;
-            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
+            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });
-    }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone]);
+        return hasOpponentUnrevealedHidden;
+    }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
     
     const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan;
     

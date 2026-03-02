@@ -412,9 +412,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => {
         const anim = session.animation;
+        const skipSound = ['scoring', 'ended', 'no_contest'].includes(session.gameStatus ?? '');
         if (anim && anim.type !== prevAnimationType) { 
             switch(anim.type) {
-                case 'missile': case 'hidden_missile': audioService.launchMissile(); break;
+                case 'missile': case 'hidden_missile': if (!skipSound) audioService.launchMissile(); break;
                 case 'hidden_reveal': if (!justScanned) audioService.revealHiddenStone(); break;
                 case 'scan':
                     setJustScanned(true); setTimeout(() => setJustScanned(false), 1000);
@@ -422,7 +423,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     break;
             }
         }
-    }, [session.animation, prevAnimationType, justScanned]);
+    }, [session.animation, session.gameStatus, prevAnimationType, justScanned]);
 
     useEffect(() => {
         const activeStartStatuses: GameStatus[] = [ 'playing', 'alkkagi_placement', 'alkkagi_simultaneous_placement', 'curling_playing', 'dice_rolling', 'thief_rolling' ];

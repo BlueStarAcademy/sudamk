@@ -22,6 +22,11 @@ const LETTERS = "ABCDEFGHJKLMNOPQRST";
 const GNUGO_PATH = process.env.GNUGO_PATH || 'gnugo';
 const GNUGO_LEVEL = parseInt(process.env.GNUGO_LEVEL || '10', 10); // Level 1-10 (10 is strongest)
 
+/** GTP setup/play 명령 타임아웃(ms). 수순이 길 때 play가 느려질 수 있음. */
+const GTP_PLAY_TIMEOUT_MS = Math.max(2000, parseInt(process.env.GNUGO_PLAY_TIMEOUT_MS || '6000', 10));
+/** GTP genmove 타임아웃(ms). */
+const GTP_GENMOVE_TIMEOUT_MS = Math.max(10000, parseInt(process.env.GNUGO_GENMOVE_TIMEOUT_MS || '20000', 10));
+
 // HTTP API URL for GnuGo service (Railway deployment)
 // 주의: Railway 멀티서비스 구조에서 자동 도메인 추론은 백엔드 자기 자신을 가리킬 수 있어
 // 반드시 GNUGO_API_URL을 명시적으로 설정하는 것을 권장합니다.
@@ -116,34 +121,34 @@ function pointToGtpCoord(point: Point, boardSize: number): string {
 }
 
 /**
- * Convert GTP coordinate to point
+ * Convert GTP coordinate to point.
+ * boardSize가 9인데 row 16 등이 오면 GnuGo가 boardsize를 안 쓴 것이므로 에러를 던져 호출자가 폴백하도록 함.
  */
 function gtpCoordToPoint(coord: string, boardSize: number): Point {
     const normalized = coord.trim().toUpperCase();
     if (normalized === 'PASS' || normalized === '') {
         return { x: -1, y: -1 };
     }
-    
     const letter = normalized.charAt(0);
     const x = LETTERS.indexOf(letter);
     if (x === -1) {
-        console.warn(`[GnuGo Service] Invalid GTP coordinate letter: ${letter}`);
-        return { x: -1, y: -1 };
+        throw new Error(`Invalid GTP coordinate letter: ${letter} (boardSize=${boardSize})`);
     }
-    
     const rowStr = normalized.substring(1);
     const row = parseInt(rowStr, 10);
     if (isNaN(row) || row < 1 || row > boardSize) {
-        console.warn(`[GnuGo Service] Invalid GTP coordinate row: ${rowStr}`);
-        return { x: -1, y: -1 };
+        throw new Error(`Invalid GTP coordinate row: ${rowStr} for boardSize=${boardSize} (GnuGo may not have received boardsize ${boardSize})`);
     }
-    
-    const y = boardSize - row; // Convert from GTP row (1-19 bottom-up) to our y (0-18 top-down)
+    if (x >= boardSize) {
+        throw new Error(`Invalid GTP column: ${letter} for boardSize=${boardSize}`);
+    }
+    const y = boardSize - row;
     return { x, y };
 }
 
 /**
- * Convert board state and move history to GTP commands
+ * Convert board state and move history to GTP commands.
+ * 9x9 등 19가 아닌 크기에서는 반드시 boardsize를 먼저 보내야 GnuGo가 올바른 좌표로 응답함.
  */
 function boardStateToGtpCommands(
     boardState: number[][],
@@ -152,8 +157,7 @@ function boardStateToGtpCommands(
     currentPlayer: 'black' | 'white' | string
 ): string[] {
     const commands: string[] = [];
-    
-    // Clear board
+    commands.push(`boardsize ${boardSize}`);
     commands.push('clear_board');
     
     // Play moves from history
@@ -407,14 +411,14 @@ export async function generateGnuGoMove(request: GenerateMoveRequest): Promise<P
         const color = player.toLowerCase() === 'white' ? 'white' : 'black';
         const setupCommands = boardStateToGtpCommands(boardState, boardSize, moveHistory, color);
         for (const cmd of setupCommands) {
-            await sendGtpCommand(process, cmd, 2000);
+            await sendGtpCommand(process, cmd, GTP_PLAY_TIMEOUT_MS);
         }
         const levelToUse = (request as GenerateMoveRequest).level;
         if (levelToUse !== undefined && levelToUse >= 1 && levelToUse <= 10) {
-            await sendGtpCommand(process, `level ${levelToUse}`, 2000);
+            await sendGtpCommand(process, `level ${levelToUse}`, GTP_PLAY_TIMEOUT_MS);
         }
-        const genMoveResponse = await sendGtpCommand(process, `genmove ${color}`, 10000);
-        const match = genMoveResponse.match(/^=\s*([A-T]\d+|pass)/i);
+        const genMoveResponse = await sendGtpCommand(process, `genmove ${color}`, GTP_GENMOVE_TIMEOUT_MS);
+        const match = genMoveResponse.match(/^=\s*([A-T]\d+|pass)/im);
         if (!match) throw new Error(`Invalid genmove response: ${genMoveResponse}`);
         const point = gtpCoordToPoint(match[1], boardSize);
         return point;
@@ -436,9 +440,27 @@ export function getGnuGoManager(): GnuGoManager {
 
 /**
  * Check if GnuGo is available (HTTP API or local process pool)
+ * 전략바둑 대기실 AI봇: GNUGO_API_URL이 설정되어 있으면 원격 GnuGo 서비스를 사용하고,
+ * 설정이 없거나 API 호출이 실패하면 내부 goAiBot(휴리스틱)으로 자동 대체됩니다.
  */
 export function isGnuGoAvailable(): boolean {
     if (USE_HTTP_API && GNUGO_API_URL) return true;
     return gnuGoManager.isReady && processPool.length > 0 && processPool.some(p => !p.killed);
+}
+
+/** 전략바둑/싱글플레이에서 GnuGo 사용 가능 여부 요약 (로그·디버깅용) */
+export function getGnuGoStatusSummary(): { available: boolean; reason: string } {
+    if (USE_HTTP_API && GNUGO_API_URL) {
+        return { available: true, reason: `HTTP API 사용: ${GNUGO_API_URL}` };
+    }
+    if (gnuGoManager.isReady && processPool.length > 0) {
+        return { available: true, reason: '로컬 GnuGo 프로세스 풀 사용' };
+    }
+    return {
+        available: false,
+        reason: process.env.GNUGO_API_URL
+            ? 'GNUGO_API_URL 설정됐으나 서비스 연결 실패 가능성 (타임아웃/다운 시 내부 AI로 대체)'
+            : 'GNUGO_API_URL 미설정 — 전략바둑 AI는 내부 goAiBot(휴리스틱)만 사용',
+    };
 }
 

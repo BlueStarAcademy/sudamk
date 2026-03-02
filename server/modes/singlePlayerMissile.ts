@@ -1,5 +1,6 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
+import { processMove } from '../goLogic.js';
 import { resumeGameTimer, pauseGameTimer } from './shared.js';
 
 type HandleActionResult = types.HandleActionResult;
@@ -851,54 +852,34 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 }
             }
             
-            // 목적지에 상대방 돌이 있는지 확인 (미사일로 따내기)
-            const stoneAtTo = game.boardState[to.y]?.[to.x];
-            // opponentEnum은 이미 위에서 선언됨 (918번째 줄)
-            const moveAtTo = game.moveHistory.find(m => m.x === to.x && m.y === to.y);
-            const isOpponentMoveAtTo = moveAtTo && moveAtTo.player === opponentEnum;
-            
-            // 목적지에 상대방 돌이 있는 경우 따내기 처리
-            let capturedStones: types.Point[] = [];
-            if (stoneAtTo === opponentEnum || isOpponentMoveAtTo) {
-                // 상대방 돌이 있는 경우, 히든 돌인지 확인
-                const moveIndexAtTo = game.moveHistory.findIndex(m => m.x === to.x && m.y === to.y);
-                const isHiddenStoneAtTo = moveIndexAtTo !== -1 && !!game.hiddenMoves?.[moveIndexAtTo];
-                const isPermanentlyRevealedAtTo = game.permanentlyRevealedStones?.some(p => p.x === to.x && p.y === to.y);
-                
-                // 히든 돌이고 아직 공개되지 않은 경우만 통과 (이미 경로 계산에서 처리됨)
-                // 공개된 상대방 돌이면 따내기
-                if (isHiddenStoneAtTo && !isPermanentlyRevealedAtTo) {
-                    // 히든 돌은 이미 처리되었으므로 여기서는 추가 처리 없음
-                } else {
-                    // 공개된 상대방 돌을 따내기
-                    capturedStones.push({ x: to.x, y: to.y });
-                    console.log(`[SinglePlayer Missile] LAUNCH_MISSILE: Capturing opponent stone at (${to.x}, ${to.y}), gameId=${game.id}`);
-                    
-                    // 점수 추가 (기본 점수 1점, 배치돌이면 5점)
-                    const isBaseStone = (game.baseStones?.some(bs => bs.x === to.x && bs.y === to.y)) ||
-                                       ((game as any).baseStones_p1?.some((bs: types.Point) => bs.x === to.x && bs.y === to.y)) ||
-                                       ((game as any).baseStones_p2?.some((bs: types.Point) => bs.x === to.x && bs.y === to.y));
-                    if (isBaseStone) {
-                        if (!game.baseStoneCaptures) {
-                            game.baseStoneCaptures = { [types.Player.Black]: 0, [types.Player.White]: 0, [types.Player.None]: 0 };
-                        }
-                        game.baseStoneCaptures[myPlayerEnum]++;
-                        game.captures[myPlayerEnum] += 5;
-                    } else {
-                        game.captures[myPlayerEnum]++;
-                    }
-                    
-                    // justCaptured에 추가
-                    if (!game.justCaptured) game.justCaptured = [];
-                    game.justCaptured.push({ point: { x: to.x, y: to.y }, player: opponentEnum, wasHidden: false });
-                }
-            }
-            
-            // 보드 상태 변경: 원래 자리의 돌 제거, 목적지에 돌 배치 (상대방 돌이 있으면 제거 후 배치)
-            // 원래 자리의 돌 제거
+            // 보드 상태 변경: 원래 자리의 돌 제거, 목적지(빈 칸)에 돌 배치
             game.boardState[from.y][from.x] = types.Player.None;
-            // 목적지에 돌 배치 (상대방 돌이 있었으면 이미 제거됨)
             game.boardState[to.y][to.x] = myPlayerEnum;
+            
+            // 미사일 이동 후 바둑 규칙 따내기: 목적지에 돌을 둔 뒤 숨이 0인 상대 돌을 즉시 제거
+            const boardForCapture = game.boardState.map(row => [...row]);
+            boardForCapture[to.y][to.x] = types.Player.None;
+            const captureResult = processMove(
+                boardForCapture,
+                { x: to.x, y: to.y, player: myPlayerEnum },
+                game.koInfo ?? null,
+                game.moveHistory.length,
+                { isSinglePlayer: true, opponentPlayer: opponentEnum }
+            );
+            if (captureResult.isValid && captureResult.capturedStones.length > 0) {
+                game.boardState = captureResult.newBoardState;
+                if (!game.captures) game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
+                game.captures[myPlayerEnum] = (game.captures[myPlayerEnum] ?? 0) + captureResult.capturedStones.length;
+                if (!game.justCaptured) game.justCaptured = [];
+                for (const pt of captureResult.capturedStones) {
+                    game.justCaptured.push({ point: pt, player: opponentEnum, wasHidden: false });
+                }
+                game.koInfo = captureResult.newKoInfo ?? undefined;
+                console.log(`[SinglePlayer Missile] LAUNCH_MISSILE: Captured ${captureResult.capturedStones.length} stone(s) by liberty rule at (${to.x}, ${to.y}), gameId=${game.id}`);
+            } else if (captureResult.isValid) {
+                game.boardState = captureResult.newBoardState;
+                game.koInfo = captureResult.newKoInfo ?? undefined;
+            }
             
             // 배치돌 업데이트: 원래 자리의 배치돌을 목적지로 이동
             if (game.baseStones) {

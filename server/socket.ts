@@ -420,6 +420,7 @@ export const createWebSocketServer = (server: Server) => {
 };
 
 // 게임 참가자에게만 GAME_UPDATE 전송 (1000명 규모: 전체 클라이언트 순회 대신 참가자만 전송)
+// GAME_UPDATE인 경우 revealedHiddenMoves를 수신자별로 필터링: 본인은 자신의 스캔 정보만, 상대/관전자는 스캔 정보 미수신
 export const broadcastToGameParticipants = (gameId: string, message: any, game: any) => {
     if (!wss || !game) return;
     const participantIds = new Set<string>();
@@ -431,16 +432,34 @@ export const broadcastToGameParticipants = (gameId: string, message: any, game: 
         if (status.status === 'spectating' && status.spectatingGameId === gameId) participantIds.add(userId);
     });
 
-    let messageString: string;
-    try {
-        messageString = JSON.stringify(message);
-    } catch (serializeError: any) {
-        console.error('[WebSocket] broadcastToGameParticipants: JSON serialization failed', { gameId, error: (serializeError as Error)?.message });
-        return;
-    }
     let sentCount = 0;
     let errorCount = 0;
     for (const uid of participantIds) {
+        let payloadToSend = message;
+        if (message?.type === 'GAME_UPDATE' && message.payload && typeof message.payload === 'object') {
+            const filteredPayload: Record<string, any> = {};
+            for (const [gid, g] of Object.entries(message.payload)) {
+                const gameObj = g as Record<string, any>;
+                let gameCopy = { ...gameObj };
+                if (gameCopy.revealedHiddenMoves && typeof gameCopy.revealedHiddenMoves === 'object') {
+                    const myRevealed = gameCopy.revealedHiddenMoves[uid];
+                    gameCopy = { ...gameCopy, revealedHiddenMoves: (myRevealed !== undefined && myRevealed !== null) ? { [uid]: myRevealed } : {} };
+                }
+                if (gameCopy.scannedAiInitialHiddenByUser && typeof gameCopy.scannedAiInitialHiddenByUser === 'object') {
+                    const myScanned = gameCopy.scannedAiInitialHiddenByUser[uid];
+                    gameCopy = { ...gameCopy, scannedAiInitialHiddenByUser: (myScanned !== undefined && myScanned !== null) ? { [uid]: myScanned } : {} };
+                }
+                filteredPayload[gid] = gameCopy;
+            }
+            payloadToSend = { type: 'GAME_UPDATE', payload: filteredPayload };
+        }
+        let messageString: string;
+        try {
+            messageString = JSON.stringify(payloadToSend);
+        } catch (serializeError: any) {
+            console.error('[WebSocket] broadcastToGameParticipants: JSON serialization failed', { gameId, error: (serializeError as Error)?.message });
+            continue;
+        }
         const clients = userIdToClients.get(uid);
         if (!clients) continue;
         for (const client of clients) {

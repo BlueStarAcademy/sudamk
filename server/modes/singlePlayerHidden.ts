@@ -13,6 +13,9 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
         game.hidden_stones_p2 = (game.settings.hiddenStoneCount || 0);
         game.hidden_stones_used_p1 = 0;
         game.hidden_stones_used_p2 = 0;
+        if ((game.hidden_stones_p2 ?? 0) > 0 && game.aiHiddenItemTurn === undefined) {
+            game.aiHiddenItemTurn = 2 + Math.floor(Math.random() * 11);
+        }
     }
 };
 
@@ -74,6 +77,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 game.currentPlayer = scanPlayerEnum;
                 game.animation = null;
                 game.gameStatus = 'playing';
+                (game as any)._itemTimeoutStateChanged = true;
             }
             break;
         case 'hidden_reveal_animating':
@@ -309,7 +313,7 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             pauseGameTimer(game, now, 30000);
             console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT: SUCCESS - gameStatus=${game.gameStatus}, itemUseDeadline=${game.itemUseDeadline}, ${hiddenKey}=${currentHidden}`);
             return {};
-        case 'START_SCANNING':
+        case 'START_SCANNING': {
             console.log(`[handleSinglePlayerHiddenAction] START_SCANNING: isMyTurn=${isMyTurn}, gameStatus=${game.gameStatus}, userId=${user.id}, currentPlayer=${game.currentPlayer}, blackPlayerId=${game.blackPlayerId}, whitePlayerId=${game.whitePlayerId}`);
             if (!isMyTurn) {
                 console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: Not my turn - isMyTurn=${isMyTurn}, myPlayerEnum=${myPlayerEnum}, currentPlayer=${game.currentPlayer}`);
@@ -319,11 +323,31 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
                 console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: Wrong game status - gameStatus=${game.gameStatus}`);
                 return { error: "Not your turn to use an item." };
             }
+            const scanKeyStart = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
+            if ((game[scanKeyStart] ?? 0) <= 0) {
+                console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: No scans left - ${scanKeyStart}=${game[scanKeyStart]}`);
+                return { error: "No scans left." };
+            }
+            // 상대(AI)의 미공개 히든돌이 있을 때만 스캔 허용 (미리 배치된 돌은 제외)
+            const opponentHasUnrevealedHidden =
+                (game.hiddenMoves && game.moveHistory && game.moveHistory.some((m, idx) => {
+                    if (m.x === -1 && m.y === -1) return false;
+                    const isOpponent = m.player !== myPlayerEnum;
+                    const isHidden = !!game.hiddenMoves?.[idx];
+                    const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === m.x && p.y === m.y);
+                    return isOpponent && isHidden && !isRevealed;
+                })) ||
+                (!!(game as any).aiInitialHiddenStone && !(game as any).aiInitialHiddenStoneIsPrePlaced);
+            if (!opponentHasUnrevealedHidden) {
+                console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: No unrevealed opponent hidden stones on board`);
+                return { error: "No hidden stones to scan." };
+            }
             console.log(`[handleSinglePlayerHiddenAction] START_SCANNING: Changing gameStatus from ${game.gameStatus} to scanning`);
             game.gameStatus = 'scanning';
             pauseGameTimer(game, now, 30000);
             console.log(`[handleSinglePlayerHiddenAction] START_SCANNING: SUCCESS - gameStatus=${game.gameStatus}, itemUseDeadline=${game.itemUseDeadline}`);
             return {};
+        }
         case 'SCAN_BOARD':
             if (game.gameStatus !== 'scanning') return { error: "Not in scanning mode." };
             const { x, y } = payload;
@@ -342,8 +366,12 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             if (success) {
                 if (!game.revealedHiddenMoves) game.revealedHiddenMoves = {};
                 if (!game.revealedHiddenMoves[user.id]) game.revealedHiddenMoves[user.id] = [];
-                if (!game.revealedHiddenMoves[user.id].includes(moveIndex)) {
+                if (moveIndex !== -1 && !game.revealedHiddenMoves[user.id].includes(moveIndex)) {
                     game.revealedHiddenMoves[user.id].push(moveIndex);
+                }
+                if (isAiInitialHiddenStone) {
+                    if (!(game as any).scannedAiInitialHiddenByUser) (game as any).scannedAiInitialHiddenByUser = {};
+                    (game as any).scannedAiInitialHiddenByUser[user.id] = true;
                 }
             }
             game.animation = { type: 'scan', point: { x, y }, success, startTime: now, duration: 2000, playerId: user.id };

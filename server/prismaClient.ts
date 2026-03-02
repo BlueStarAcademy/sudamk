@@ -157,7 +157,11 @@ const getDatabaseUrl = () => {
 
 const _databaseUrl = getDatabaseUrl();
 const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  // error는 이벤트로만 받아 "Engine is not yet connected" 스팸 억제
+  log: [
+    { level: 'error', emit: 'event' },
+    ...(process.env.NODE_ENV === 'development' ? [{ level: 'warn', emit: 'stdout' }] : []),
+  ],
   datasources: {
     db: {
       url: _databaseUrl,
@@ -165,8 +169,12 @@ const prisma = new PrismaClient({
   },
 });
 
-// 연결 오류 처리
+const ENGINE_NOT_CONNECTED_MSG = 'Engine is not yet connected';
+
+// 연결 오류 처리 (Engine is not yet connected 반복 로그 억제)
 prisma.$on('error' as never, (e: any) => {
+  const msg = typeof e?.message === 'string' ? e.message : String(e?.message ?? e);
+  if (msg.includes(ENGINE_NOT_CONNECTED_MSG)) return;
   console.error('[Prisma] Database error:', e);
 });
 
@@ -204,6 +212,28 @@ const reconnectPrisma = async (): Promise<boolean> => {
     return false;
   } finally {
     isReconnecting = false;
+  }
+};
+
+/**
+ * Prisma 엔진이 쿼리를 받을 수 있는지 확인. "Engine is not yet connected" 시 $connect() 후 한 번 재시도.
+ * MainLoop 등 DB 사용 전에 호출하여 오류 방지.
+ */
+export const ensurePrismaConnected = async (): Promise<boolean> => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch (error: any) {
+    if (!error?.message?.includes?.('Engine is not yet connected')) {
+      return false;
+    }
+    try {
+      await prisma.$connect();
+      await prisma.$queryRaw`SELECT 1`;
+      return true;
+    } catch (retryErr: any) {
+      return false;
+    }
   }
 };
 

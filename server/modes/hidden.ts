@@ -186,11 +186,23 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             pauseGameTimer(game, now, 30000);
             return {};
         }
-        case 'START_SCANNING':
+        case 'START_SCANNING': {
             if (!isMyTurn || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
+            const scanKeyStart = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
+            if ((game[scanKeyStart] ?? 0) <= 0) return { error: "No scans left." };
+            const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+            const opponentHasUnrevealedHidden = game.hiddenMoves && game.moveHistory && game.moveHistory.some((m, idx) => {
+                if (m.x === -1 && m.y === -1) return false;
+                const isOpponent = m.player === opponentPlayerEnum;
+                const isHidden = !!game.hiddenMoves?.[idx];
+                const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === m.x && p.y === m.y);
+                return isOpponent && isHidden && !isRevealed;
+            });
+            if (!opponentHasUnrevealedHidden) return { error: "No hidden stones to scan." };
             game.gameStatus = 'scanning';
             pauseGameTimer(game, now, 30000);
             return {};
+        }
         case 'SCAN_BOARD':
             if (game.gameStatus !== 'scanning') return { error: "Not in scanning mode." };
             const { x, y } = payload;
