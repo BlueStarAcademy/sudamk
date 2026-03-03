@@ -6,6 +6,8 @@ import dotenv from 'dotenv';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.resolve(__dirname, '..', '.env');
 dotenv.config({ path: envPath });
+// 즉시 stderr 출력 (크래시 시 로그에 아무것도 안 남는 경우 원인 파악용)
+process.stderr.write(`[Server] Bootstrap: pid=${process.pid} cwd=${process.cwd()} env_loaded\n`);
 
 import express from 'express';
 import cors from 'cors';
@@ -762,6 +764,7 @@ const startServer = async () => {
     serverInstance = server;
     
     // 서버 리스닝 시작 (Express 미들웨어가 이미 설정되어 있음)
+    process.stderr.write(`[Server] Bootstrap: about to listen port=${port}\n`);
     console.log('[Server] Starting server listen...');
     server.listen(port, '0.0.0.0', () => {
         console.log(`[Server] ========================================`);
@@ -1936,16 +1939,19 @@ const startServer = async () => {
             if (gamesWithOnlinePlayers.length > 0) {
                 try {
                     let timeoutOccurred = false;
+                    const updateGamesTimeoutMs = gamesWithOnlinePlayers.length === 1
+                        ? Math.max(MAINLOOP_UPDATE_GAMES_TIMEOUT_MS, 14000)
+                        : MAINLOOP_UPDATE_GAMES_TIMEOUT_MS;
                     const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                         setTimeout(() => {
                             timeoutOccurred = true;
                             const shouldLog = !(global as any).lastUpdateGamesTimeout || (Date.now() - (global as any).lastUpdateGamesTimeout > 30000);
                             if (shouldLog) {
-                                console.warn(`[MainLoop] updateGameStates timeout (${MAINLOOP_UPDATE_GAMES_TIMEOUT_MS}ms) for ${gamesWithOnlinePlayers.length} games, using original state`);
+                                console.warn(`[MainLoop] updateGameStates timeout (${updateGamesTimeoutMs}ms) for ${gamesWithOnlinePlayers.length} games, using original state`);
                                 (global as any).lastUpdateGamesTimeout = Date.now();
                             }
                             resolve(gamesWithOnlinePlayers);
-                        }, MAINLOOP_UPDATE_GAMES_TIMEOUT_MS);
+                        }, updateGamesTimeoutMs);
                     });
                     const updatedSubset = await Promise.race([
                         updateGameStates(gamesWithOnlinePlayers, now).then((result) => {
