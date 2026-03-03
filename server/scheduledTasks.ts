@@ -209,10 +209,10 @@ export async function processWeeklyResetAndRematch(force: boolean = false): Prom
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
-    const isMondayMidnight = kstDay === 1 && kstHours === 0 && kstMinutes < 5;
+    const isMondayFirstHour = kstDay === 1 && kstHours === 0;
 
-    // 월요일 0시 또는 force일 때 길드 미션·보스 리셋 (던전 시스템으로 경쟁상대 매칭은 제거되었지만 길드 리셋은 유지)
-    if (force || isMondayMidnight) {
+    // 월요일 0시대(0:00~0:59 KST) 또는 force일 때 길드 미션·보스 리셋 (실행 누락 방지를 위해 한 시간 구간 사용)
+    if (force || isMondayFirstHour) {
         try {
             const { resetWeeklyGuildMissions } = await import('./guildService.js');
             const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
@@ -238,7 +238,7 @@ export async function processWeeklyResetAndRematch(force: boolean = false): Prom
     return;
     
     // force가 false이고 월요일 0시가 아니면 실행하지 않음
-    if (!force && !isMondayMidnight) {
+    if (!force && !isMondayFirstHour) {
         return;
     }
     
@@ -2264,6 +2264,84 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     
     lastGuildWarMatchTimestamp = now;
     console.log(`[GuildWarMatch] Matched ${activeWars.length} guild wars, ${newQueue.length} guilds remaining in queue`);
+}
+
+/** 데모 모드: 플레이어 길드를 봇 길드와 즉시 매칭하여 전쟁 생성 (테스트용) */
+export async function createAndStartDemoGuildWar(guildId: string): Promise<{ activeWar: any; guilds: Record<string, types.Guild> } | null> {
+    const { GUILD_WAR_BOT_GUILD_ID } = await import('../shared/constants/auth.js');
+    const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
+    const guild = guilds[guildId];
+    if (!guild) return null;
+
+    const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
+    const botGuildId = await getOrCreateBotGuildForWar();
+
+    const now = Date.now();
+    const warType = 'tue_wed';
+    const durationMs = 47 * 60 * 60 * 1000;
+    const maxAttemptsPerGuild = 2;
+
+    const dbWar = await createGuildWar(guildId, botGuildId);
+    const boardIds = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'];
+    const gameModes: ('capture' | 'hidden' | 'missile')[] = ['capture', 'hidden', 'missile'];
+    const boards: Record<string, any> = {};
+    for (const boardId of boardIds) {
+        const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
+        const botStars = Math.floor(Math.random() * 2) + 2;
+        const botScoreDiff = Math.floor(Math.random() * 11) + 5;
+        boards[boardId] = {
+            boardSize: 13,
+            gameMode: gameMode,
+            guild1Stars: 0,
+            guild2Stars: botStars,
+            guild1BestResult: null,
+            guild2BestResult: {
+                userId: botGuildId,
+                stars: botStars,
+                captures: Math.floor(Math.random() * 10) + 5,
+                score: 100 + Math.floor(Math.random() * 50),
+                scoreDiff: botScoreDiff,
+            },
+            guild1Attempts: 0,
+            guild2Attempts: maxAttemptsPerGuild,
+        };
+    }
+
+    const war: any = {
+        id: dbWar.id,
+        guild1Id: guildId,
+        guild2Id: botGuildId,
+        status: 'active',
+        startTime: now,
+        endTime: now + durationMs,
+        warType,
+        maxAttemptsPerGuild,
+        guild1TotalAttempts: 0,
+        guild2TotalAttempts: maxAttemptsPerGuild,
+        result: undefined,
+        boards,
+        isBotGuild: true,
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    (guilds as Record<string, any>)[botGuildId] = {
+        id: botGuildId,
+        name: '[데모]길드전AI',
+        level: 1,
+        members: [],
+        leaderId: botGuildId,
+    };
+
+    const existingActiveWars = await db.getKV<any[]>('activeGuildWars') || [];
+    const allActiveWars = [...existingActiveWars.filter((w: any) => w.status === 'active'), war];
+    await db.setKV('activeGuildWars', allActiveWars);
+    await db.setKV('guilds', guilds);
+
+    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+    await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
+    console.log(`[GuildWarDemo] Created demo war: ${guild.name} (${guildId}) vs bot guild`);
+    return { activeWar: war, guilds };
 }
 
 // 전쟁 종료 체크 및 결과 계산

@@ -111,8 +111,11 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
         }
         
         // singlePlayerProgress는 순차 진행 여부를 추적 (다음 스테이지 언락용)
-        if (currentProgress === stageIndex) {
-            user.singlePlayerProgress = currentProgress + 1;
+        // 미션 성공 시(남은 턴 0 포함) 항상 다음 단계가 열리도록 Math.max 사용 (캐시/경계 조건 보정)
+        const nextProgress = stageIndex + 1;
+        if (currentProgress <= stageIndex) {
+            user.singlePlayerProgress = Math.max(currentProgress, nextProgress);
+            console.log(`[SP Summary] singlePlayerProgress updated: ${currentProgress} -> ${user.singlePlayerProgress} (stage ${stage.id} cleared)`);
         }
 
         // 골드와 경험치는 항상 지급 (아이템과 독립적)

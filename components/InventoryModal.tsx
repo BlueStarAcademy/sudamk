@@ -408,7 +408,19 @@ const LocalItemDetailDisplay: React.FC<{
         }
     });
 
-    const sortedOptionTypes = Array.from(optionMap.keys()).sort();
+    const getOptionCategoryOrder = (type: ItemOptionType): number => {
+        if (Object.values(CoreStat).includes(type as CoreStat)) return 0;      // 부옵션 (전투 스탯)
+        if (Object.values(SpecialStat).includes(type as SpecialStat)) return 1; // 특수옵션
+        if (Object.values(MythicStat).includes(type as MythicStat)) return 2;  // 신화/더블신화 옵션
+        return 3;
+    };
+
+    const sortedOptionTypes = Array.from(optionMap.keys()).sort((a, b) => {
+        const catA = getOptionCategoryOrder(a);
+        const catB = getOptionCategoryOrder(b);
+        if (catA !== catB) return catA - catB;
+        return String(a).localeCompare(String(b));
+    });
 
     return (
         <div className="flex flex-col h-full" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>

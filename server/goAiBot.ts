@@ -355,6 +355,73 @@ function getMoveHistoryForAi(
 }
 
 /**
+ * (x,y)가 유저의 미공개 히든 돌 위치인지 여부
+ * 싱글플레이 히든바둑: AI가 해당 칸에 착수하지 않도록 판별용
+ */
+function isUserUnrevealedHiddenPosition(
+    game: types.LiveGameSession,
+    x: number,
+    y: number,
+    aiPlayerEnum: Player
+): boolean {
+    const isHiddenMode = game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    if (!isHiddenMode || !game.isSinglePlayer || !game.hiddenMoves || !game.moveHistory) return false;
+    const userPlayerEnum = aiPlayerEnum === Player.White ? Player.Black : Player.White;
+    for (let moveIndex = 0; moveIndex < game.moveHistory.length; moveIndex++) {
+        if (!game.hiddenMoves[moveIndex]) continue;
+        const move = game.moveHistory[moveIndex];
+        if (!move || move.player !== userPlayerEnum || move.x !== x || move.y !== y) continue;
+        const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
+        return !isRevealed;
+    }
+    return false;
+}
+
+/**
+ * 유저의 미공개 히든 돌 좌표 목록 (AI가 "유저 통과"로만 인식해야 하므로 해당 칸·인접 칸 착수 금지)
+ */
+function getUserUnrevealedHiddenPoints(
+    game: types.LiveGameSession,
+    aiPlayerEnum: Player
+): Array<{ x: number; y: number }> {
+    const points: Array<{ x: number; y: number }> = [];
+    const isHiddenMode = game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    if (!isHiddenMode || !game.isSinglePlayer || !game.hiddenMoves || !game.moveHistory) return points;
+    const userPlayerEnum = aiPlayerEnum === Player.White ? Player.Black : Player.White;
+    for (let moveIndex = 0; moveIndex < game.moveHistory.length; moveIndex++) {
+        if (!game.hiddenMoves[moveIndex]) continue;
+        const move = game.moveHistory[moveIndex];
+        if (!move || move.player !== userPlayerEnum || move.x < 0 || move.y < 0) continue;
+        const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === move.x && p.y === move.y);
+        if (!isRevealed) points.push({ x: move.x, y: move.y });
+    }
+    return points;
+}
+
+/**
+ * (x,y)가 유저 미공개 히든 돌 위치이거나 그 인접 칸인지 (AI가 "유저 통과"로만 인식하므로 이 구역 착수 금지)
+ */
+function isOnOrAdjacentToUserUnrevealedHidden(
+    game: types.LiveGameSession,
+    x: number,
+    y: number,
+    aiPlayerEnum: Player
+): boolean {
+    if (isUserUnrevealedHiddenPosition(game, x, y, aiPlayerEnum)) return true;
+    const hiddenPoints = getUserUnrevealedHiddenPoints(game, aiPlayerEnum);
+    if (hiddenPoints.length === 0) return false;
+    const boardSize = game.settings?.boardSize ?? 19;
+    for (const p of hiddenPoints) {
+        const dx = Math.abs(x - p.x);
+        const dy = Math.abs(y - p.y);
+        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) return true;
+    }
+    return false;
+}
+
+/**
  * AI가 보드 상태를 볼 때 유저의 히든 돌을 빈 공간으로 처리하는 헬퍼 함수
  * 싱글플레이 히든바둑 모드에서만 적용
  */
@@ -565,13 +632,14 @@ export async function makeGoAiBotMove(
     if (wantGnuGo && gnuGoAvailable) {
         try {
             const boardSize = game.settings.boardSize || 19;
-            // 싱글플레이 히든바둑: 유저의 히든 수는 수순에서 통과로 치환해 AI가 위치를 알 수 없게 함
-            const moveHistory = isSinglePlayerGnugoStage
+            // 싱글플레이 히든바둑: 유저의 히든 수는 수순에서 통과(-1,-1)로 치환해 AI가 위치를 알 수 없게 함 (유저 통과로 인식)
+            const useHiddenMaskForGnuGo = (isHiddenMode && game.isSinglePlayer);
+            const moveHistory = useHiddenMaskForGnuGo
                 ? getMoveHistoryForAi(game, aiPlayerEnum)
                 : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
 
-            // 싱글플레이(중급/고급): 히든·미사일·스캔 등 아이템 대응 — AI가 볼 보드는 getBoardStateForAi 사용(유저 히든 돌 비공개)
-            const boardState = isSinglePlayerGnugoStage
+            // 싱글플레이 히든바둑: AI가 볼 보드는 유저 미공개 히든 돌을 빈 칸으로 처리
+            const boardState = useHiddenMaskForGnuGo
                 ? (getBoardStateForAi(game, aiPlayerEnum) || []) as unknown as number[][]
                 : (game.boardState || []) as unknown as number[][];
 
@@ -589,7 +657,13 @@ export async function makeGoAiBotMove(
             });
 
             selectedMove = { x: gnugoMove.x, y: gnugoMove.y };
-            if (isStrategicAiGame) {
+            // 싱글플레이 히든: 유저 통과로만 인식 — GnuGo가 유저 미공개 히든 칸 또는 그 인접 칸을 반환하면 휴리스틱으로 대체
+            if (isHiddenMode && game.isSinglePlayer && selectedMove &&
+                isOnOrAdjacentToUserUnrevealedHidden(game, selectedMove.x, selectedMove.y, aiPlayerEnum)) {
+                console.log(`[makeGoAiBotMove] GnuGo returned move on/near user's unrevealed hidden (${selectedMove.x},${selectedMove.y}), falling back to heuristic`);
+                selectedMove = null;
+            }
+            if (isStrategicAiGame && selectedMove) {
                 console.log(`[makeGoAiBotMove] 전략바둑 AI: GnuGo 수 적용 완료 game=${game.id} (${gnugoMove.x},${gnugoMove.y})`);
             }
             if (isSinglePlayerGnugoStage) {
@@ -625,9 +699,16 @@ export async function makeGoAiBotMove(
     
         // 1. 모든 유효한 수 찾기 (KataGo 사용 안함)
         // 낮은 난이도는 샘플링으로 유효한 수 찾기 (성능 최적화)
-        const allValidMoves = useFastHeuristic 
+        let allValidMoves = useFastHeuristic 
             ? findAllValidMovesFast(aiGame, logic, aiPlayerEnum)
             : findAllValidMoves(aiGame, logic, aiPlayerEnum);
+
+        // 싱글플레이 히든: 유저 통과로만 인식 — 유저 미공개 히든 돌 위치와 그 인접 칸은 유효수에서 제외
+        if (isHiddenMode && game.isSinglePlayer && allValidMoves.length > 0) {
+            allValidMoves = allValidMoves.filter(
+                m => !isOnOrAdjacentToUserUnrevealedHidden(game, m.x, m.y, aiPlayerEnum)
+            );
+        }
     
         // 통과가 없는 바둑(따내기, 싱글플레이, 도전의 탑): AI가 둘 곳이 없으면 서버에서 통과로 턴만 넘김 (시간패 방지)
         const isNoPassMode = game.isSinglePlayer || (game as any).gameCategory === 'tower' || game.mode === types.GameMode.Capture;
@@ -1248,16 +1329,29 @@ export async function makeGoAiBotMove(
     if (!isItemModeHere && game.isSinglePlayer && game.stageId && blackTurnLimit !== undefined && aiPlayerEnum === types.Player.White && game.gameStatus === 'playing') {
         const blackMoves = game.moveHistory.filter(m => m.player === types.Player.Black && m.x !== -1 && m.y !== -1).length;
         if (blackMoves >= blackTurnLimit) {
-            const targetForBlack = getCaptureTarget(game, Player.Black);
-            const hasBlackTarget = targetForBlack !== undefined && targetForBlack !== NO_CAPTURE_TARGET;
-            const blackCaptures = game.captures[Player.Black] ?? 0;
+            // 자동 계가 스테이지에서 총 턴 수가 이미 도달했으면 계가로 승패가 갈리므로 턴 제한 패배 적용 안 함
+            let skipTurnLimitFail = false;
+            if (game.stageId) {
+                const { SINGLE_PLAYER_STAGES } = await import('../constants/singlePlayerConstants.js');
+                const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+                const autoScoringTurns = stage?.autoScoringTurns;
+                if (autoScoringTurns != null) {
+                    const totalTurnsNow = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
+                    if (totalTurnsNow >= autoScoringTurns) skipTurnLimitFail = true;
+                }
+            }
+            if (!skipTurnLimitFail) {
+                const targetForBlack = getCaptureTarget(game, Player.Black);
+                const hasBlackTarget = targetForBlack !== undefined && targetForBlack !== NO_CAPTURE_TARGET;
+                const blackCaptures = game.captures[Player.Black] ?? 0;
 
-            // 흑이 이미 목표 따낸 돌을 달성했다면 턴 제한 패배를 적용하지 않고,
-            // 이전에 처리된 capture_limit 결과(또는 이후 계가 결과)를 그대로 따른다.
-            if (!(hasBlackTarget && blackCaptures >= (targetForBlack as number))) {
-                console.log(`[GoAiBot] SinglePlayer blackTurnLimit reached after AI move: blackMoves=${blackMoves}, limit=${blackTurnLimit}, mission fail (no scoring)`);
-                await summaryService.endGame(game, types.Player.White, 'timeout');
-                return;
+                // 흑이 이미 목표 따낸 돌을 달성했다면 턴 제한 패배를 적용하지 않고,
+                // 이전에 처리된 capture_limit 결과(또는 이후 계가 결과)를 그대로 따른다.
+                if (!(hasBlackTarget && blackCaptures >= (targetForBlack as number))) {
+                    console.log(`[GoAiBot] SinglePlayer blackTurnLimit reached after AI move: blackMoves=${blackMoves}, limit=${blackTurnLimit}, mission fail (no scoring)`);
+                    await summaryService.endGame(game, types.Player.White, 'timeout');
+                    return;
+                }
             }
         }
     }

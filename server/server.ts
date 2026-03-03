@@ -1520,15 +1520,27 @@ const startServer = async () => {
                 const kstDay = getKSTDay(now);
                 const kstHours = getKSTHours(now);
                 const kstMinutes = getKSTMinutes(now);
-                const isMondayMidnight = kstDay === 1 && kstHours === 0 && kstMinutes < 5;
+                // 월요일 0시(KST): 0:00~0:59 전체 구간으로 넓혀 실행 누락 방지 (길드 보스/미션 주간 리셋 포함)
+                const isMondayFirstHour = kstDay === 1 && kstHours === 0;
+                const isMondayMidnightNarrow = kstDay === 1 && kstHours === 0 && kstMinutes < 5;
                 
                 // 디버깅: 현재 KST 시간 정보 로그 (0시 근처에만)
                 if (process.env.NODE_ENV === 'development' && (kstHours === 0 || (kstHours === 23 && kstMinutes >= 55))) {
-                    console.log(`[Server] Daily task check: KST Day=${kstDay}, Hours=${kstHours}, Minutes=${kstMinutes}, isMondayMidnight=${isMondayMidnight}`);
+                    console.log(`[Server] Daily task check: KST Day=${kstDay}, Hours=${kstHours}, Minutes=${kstMinutes}, isMondayFirstHour=${isMondayFirstHour}`);
                 }
                 
-                // 중복 실행 방지: 이번 월요일 0시에 이미 처리했는지 확인
-                if (isMondayMidnight) {
+                // 길드 보스/미션 주간 리셋: 월요일 0시대(0:00~0:59)마다 실행. 리그 업데이트와 분리하여 누락 방지.
+                if (isMondayFirstHour) {
+                    try {
+                        const { processWeeklyResetAndRematch } = await import('./scheduledTasks.js');
+                        await processWeeklyResetAndRematch(true);
+                    } catch (guildResetErr: any) {
+                        console.error('[MainLoop] Error in weekly guild (boss/mission) reset:', guildResetErr?.message);
+                    }
+                }
+                
+                // 리그 업데이트·경쟁상대 매칭·점수 리셋: 중복 실행 방지 후 1회만 실행 (기존 0:00~0:05 구간 유지)
+                if (isMondayMidnightNarrow) {
                     const { getLastWeeklyLeagueUpdateTimestamp, setLastWeeklyLeagueUpdateTimestamp, processWeeklyResetAndRematch } = await import('./scheduledTasks.js');
                     const { getStartOfDayKST } = await import('../utils/timeUtils.js');
                     const lastUpdateTimestamp = getLastWeeklyLeagueUpdateTimestamp();
@@ -1586,16 +1598,14 @@ const startServer = async () => {
                             }
                             console.log(`[WeeklyLeagueUpdate] Updated ${usersUpdated} users, sent ${mailsSent} mails`);
                         }
-                        
-                        // 2. 티어변동 후 새로운 경쟁상대 매칭 및 모든 점수 리셋
-                        // force=true로 호출하여 월요일 0시 체크를 건너뛰고 강제 실행
+                        // 경쟁상대 매칭·점수 리셋은 processWeeklyResetAndRematch에서 처리 (이미 위에서 길드 리셋만 먼저 호출함)
                         await processWeeklyResetAndRematch(true);
                     }
                 }
                 
                     // Handle weekly tournament reset (Monday 0:00 KST) - 이제 processWeeklyResetAndRematch에서 처리됨
                     // 기존 함수는 호환성을 위해 유지하지만 실제 처리는 processWeeklyResetAndRematch에서 수행
-                    if (!isMondayMidnight) {
+                    if (!isMondayMidnightNarrow) {
                         try {
                             await processWeeklyTournamentReset();
                         } catch (error: any) {

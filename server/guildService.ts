@@ -119,11 +119,20 @@ export const resetWeeklyGuildMissions = (guild: Guild, now: number) => {
         epicGearAcquisitions: 0,
     };
     guild.lastMissionReset = now;
+
+    // 길드원 주간 기여도 0으로 초기화 (월요일 0시 KST 리셋)
+    if (guild.members?.length) {
+        for (const member of guild.members) {
+            member.weeklyContribution = 0;
+        }
+        (guild as any).lastWeeklyContributionReset = now;
+    }
     
     // 길드 보스 주간 리셋: 새로운 보스 선택 및 HP 초기화
     if (guild.guildBossState) {
         // 현재 보스가 마지막 보스가 아니면 다음 보스로, 마지막 보스면 첫 번째 보스로
-        const currentBossIndex = GUILD_BOSSES.findIndex(b => b.id === guild.guildBossState!.currentBossId);
+        const currentBossId = guild.guildBossState.currentBossId ?? guild.guildBossState.bossId;
+        const currentBossIndex = GUILD_BOSSES.findIndex(b => b.id === currentBossId);
         const nextBossIndex = currentBossIndex >= 0 && currentBossIndex < GUILD_BOSSES.length - 1 
             ? currentBossIndex + 1 
             : 0;

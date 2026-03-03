@@ -140,7 +140,7 @@ export const generateNewItem = (grade: ItemGrade, slot: EquipmentSlot, isDivineM
                 type: subType,
                 value,
                 isPercentage: false,
-                display: `${subType}`,
+            display: subDef.shortDescription || subDef.description,
             });
             existingSubTypes.add(subType);
         }

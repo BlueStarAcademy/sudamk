@@ -8,7 +8,7 @@ import Button from '../Button.js';
 import GuildHomePanel, { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
 import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
-import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
+import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, DEMO_GUILD_WAR } from '../../constants/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import GuildResearchPanel from './GuildResearchPanel.js';
 import GuildMissionsPanel from './GuildMissionsPanel.js';
@@ -905,7 +905,10 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     }, [warActionCooldown]);
     
     const myWarTickets = GUILD_WAR_MAX_ATTEMPTS - myWarAttempts;
-    const canEnterWar = myWarTickets > 0 && activeWar && !isMatching;
+    // 데모 모드(DEMO_GUILD_WAR)에서는 공격권/매칭 상태와 관계없이 activeWar만 있으면 입장 가능하게 허용
+    const canEnterWar = DEMO_GUILD_WAR
+        ? !!activeWar
+        : myWarTickets > 0 && !!activeWar && !isMatching;
 
     const handleClaimReward = async () => {
         try {
@@ -932,7 +935,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
         if (!canStartWar) return;
         const kstDay = getKSTDay(Date.now());
         const isApplicationDay = kstDay === 1 || kstDay === 4;
-        if (!isApplicationDay) {
+        if (!DEMO_GUILD_WAR && !isApplicationDay) {
             const dayBeforeMatch = nextMatchTime != null ? nextMatchTime - 24 * 60 * 60 * 1000 : null;
             const dayBeforeKst = dayBeforeMatch != null ? getKSTDay(dayBeforeMatch) : null;
             const label = dayBeforeKst === 1 ? '월요일 0:00 ~ 23:00' : dayBeforeKst === 4 ? '목요일 0:00 ~ 23:00' : '월요일 또는 목요일 0:00 ~ 23:00';
@@ -983,6 +986,16 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                 setMatchingModalMessage(cr?.message || '매칭 신청이 완료되었습니다. 화요일·금요일 0시에 매칭됩니다.');
                 setMatchingModalWarStartTime(cr?.nextMatchTime ?? undefined);
                 setShowMatchingModal(true);
+                // 데모 매칭 시 즉시 activeWar/guilds 반영
+                if (cr?.matched === true && cr?.activeWar && cr?.guilds) {
+                    setActiveWar(cr.activeWar);
+                    const oppId = cr.activeWar.guild1Id === guild.id ? cr.activeWar.guild2Id : cr.activeWar.guild1Id;
+                    setOpponentGuild(cr.guilds[oppId] ?? null);
+                    // 데모 모드에서는 자동으로 길드 전쟁 화면으로 이동
+                    if (DEMO_GUILD_WAR) {
+                        window.location.hash = '#/guildwar';
+                    }
+                }
                 // guilds 병합을 위해 GET_GUILD_WAR_DATA 호출 (guildWarMatching 동기화)
                 const fetchResult = await handlers.handleAction({ type: 'GET_GUILD_WAR_DATA' }) as any;
                 if (fetchResult?.clientResponse) {
@@ -999,6 +1012,10 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                         const allGuilds = fr.guilds || {};
                         const oppId = fr.activeWar.guild1Id === guild.id ? fr.activeWar.guild2Id : fr.activeWar.guild1Id;
                         setOpponentGuild(allGuilds[oppId] ?? null);
+                        // fetch 결과로도 전쟁이 활성화된 것이 확인되면, 데모 모드에서는 자동 입장
+                        if (DEMO_GUILD_WAR) {
+                            window.location.hash = '#/guildwar';
+                        }
                     }
                 }
             }
@@ -1282,6 +1299,12 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                             )}
                         </div>
                         
+                        {/* 데모 모드 안내 */}
+                        {DEMO_GUILD_WAR && !activeWar && (
+                            <div className="flex-shrink-0 text-center">
+                                <span className="text-amber-400/90 text-xs">데모: 참여 시 봇 길드와 즉시 매칭</span>
+                            </div>
+                        )}
                         {/* 입장 + 전쟁 참여 + 전쟁 취소 버튼 - 하단 고정 */}
                         <div className={`flex-shrink-0 ${isMobile ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'} border-t border-stone-600/40 flex flex-wrap justify-center gap-2`}>
                             <button
@@ -1293,7 +1316,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                                 <span>{myWarTickets}/{GUILD_WAR_MAX_ATTEMPTS}</span>
                                 <span>입장</span>
                             </button>
-                            {canStartWar && !activeWar && !isMatching && !isPastApplicationDeadline && (
+                            {canStartWar && !activeWar && !isMatching && (DEMO_GUILD_WAR || !isPastApplicationDeadline) && (
                                 <button
                                     onClick={handleStartWar}
                                     disabled={isStarting || (warActionCooldown !== null && Date.now() < warActionCooldown)}
@@ -1317,7 +1340,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                                     )}
                                 </button>
                             )}
-                            {canStartWar && !activeWar && !isMatching && isPastApplicationDeadline && (
+                            {canStartWar && !activeWar && !isMatching && !DEMO_GUILD_WAR && isPastApplicationDeadline && (
                                 <button disabled className={guildPanelBtn.disabled} title="매칭 1시간 전(23시)부터 참여 불가">
                                     <span className="text-xs">🔒</span>
                                     <span>참여 마감</span>

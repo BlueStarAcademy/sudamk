@@ -14,7 +14,7 @@ import {
 } from '../../types/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
-import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID } from '../../shared/constants/index.js';
+import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR } from '../../shared/constants/index.js';
 import { EquipmentSlot, ItemGrade } from '../../types/enums.js';
 import { generateNewItem } from './inventoryActions.js';
 import * as currencyService from '../currencyService.js';
@@ -1415,14 +1415,52 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 return { error: '길드장 또는 부길드장만 전쟁을 시작할 수 있습니다.' };
             }
             
-            // 이미 활성 전쟁이 있는지 확인
+            const now = Date.now();
             const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
             const existingWar = activeWars.find(w => 
                 (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && 
                 w.status === 'active'
             );
+
+            // 데모 모드: 이미 진행 중인 전쟁이 있으면 해당 전쟁으로 입장 가능하도록 반환 (에러 없이)
+            if (DEMO_GUILD_WAR && existingWar) {
+                const guildsForResponse = await db.getKV<Record<string, Guild>>('guilds') || {};
+                const oppId = existingWar.guild1Id === user.guildId ? existingWar.guild2Id : existingWar.guild1Id;
+                if (oppId === GUILD_WAR_BOT_GUILD_ID && !guildsForResponse[oppId]) {
+                    (guildsForResponse as Record<string, any>)[oppId] = { id: oppId, name: '[데모]길드전AI', level: 1, members: [], leaderId: oppId };
+                }
+                return {
+                    clientResponse: {
+                        matched: true,
+                        message: '진행 중인 전쟁이 있습니다. 입장 버튼으로 참여하세요.',
+                        activeWar: existingWar,
+                        guilds: guildsForResponse,
+                        isMatching: false,
+                    },
+                };
+            }
+
+            // (일반 모드) 이미 활성 전쟁이 있으면 에러
             if (existingWar) {
                 return { error: '이미 진행 중인 전쟁이 있습니다.' };
+            }
+
+            // 데모 모드: 봇 길드와 즉시 매칭 (테스트용)
+            if (DEMO_GUILD_WAR) {
+                const { createAndStartDemoGuildWar } = await import('../scheduledTasks.js');
+                const demoResult = await createAndStartDemoGuildWar(user.guildId);
+                if (demoResult) {
+                    return {
+                        clientResponse: {
+                            matched: true,
+                            message: '데모: 봇 길드와 매칭되었습니다. 전쟁을 체험해 보세요.',
+                            activeWar: demoResult.activeWar,
+                            guilds: demoResult.guilds,
+                            isMatching: false,
+                        },
+                    };
+                }
+                return { error: '데모 매칭 생성에 실패했습니다.' };
             }
             
             // 이미 매칭 중인지 확인
@@ -1431,7 +1469,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             
             // 쿨타임 확인 (취소 후 1시간 동안 재신청 불가)
-            const now = Date.now();
             const lastWarAction = (guild as any).lastWarActionTime || 0;
             const cooldownTime = 60 * 60 * 1000; // 1시간
             if (lastWarAction && (now - lastWarAction) < cooldownTime) {
