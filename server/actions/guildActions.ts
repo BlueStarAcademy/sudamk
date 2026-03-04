@@ -1445,22 +1445,35 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 return { error: '이미 진행 중인 전쟁이 있습니다.' };
             }
 
-            // 데모 모드: 봇 길드와 즉시 매칭 (테스트용)
+            // 데모 모드: 매칭 큐에 넣은 뒤 즉시 매칭 실행 → 화/금 0시 매칭과 동일 경로로 봇과 매칭 (테스트용)
             if (DEMO_GUILD_WAR) {
-                const { createAndStartDemoGuildWar } = await import('../scheduledTasks.js');
-                const demoResult = await createAndStartDemoGuildWar(user.guildId);
-                if (demoResult) {
-                    return {
-                        clientResponse: {
-                            matched: true,
-                            message: '데모: 봇 길드와 매칭되었습니다. 전쟁을 체험해 보세요.',
-                            activeWar: demoResult.activeWar,
-                            guilds: demoResult.guilds,
-                            isMatching: false,
-                        },
-                    };
+                const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
+                if (!matchingQueue.includes(user.guildId)) {
+                    matchingQueue.push(user.guildId);
+                    (guild as any).guildWarMatching = true;
+                    (guild as any).lastWarActionTime = now;
+                    await db.setKV('guildWarMatchingQueue', matchingQueue);
+                    await db.setKV('guilds', guilds);
+                    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
                 }
-                return { error: '데모 매칭 생성에 실패했습니다.' };
+                const { processGuildWarMatching } = await import('../scheduledTasks.js');
+                await processGuildWarMatching(true);
+                const updatedWars = await db.getKV<any[]>('activeGuildWars') || [];
+                const guildsForResponse = await db.getKV<Record<string, Guild>>('guilds') || {};
+                const createdWar = updatedWars.find((w: any) => w.status === 'active' && (w.guild1Id === user.guildId || w.guild2Id === user.guildId));
+                const oppId = createdWar ? (createdWar.guild1Id === user.guildId ? createdWar.guild2Id : createdWar.guild1Id) : null;
+                if (oppId === GUILD_WAR_BOT_GUILD_ID && !guildsForResponse[oppId]) {
+                    (guildsForResponse as Record<string, any>)[oppId] = { id: oppId, name: '[데모]길드전AI', level: 1, members: [], leaderId: oppId };
+                }
+                return {
+                    clientResponse: {
+                        matched: !!createdWar,
+                        message: createdWar ? '데모: 봇 길드와 매칭되었습니다. 입장 버튼으로 전쟁을 체험해 보세요.' : '매칭 처리 중입니다. 잠시 후 다시 조회해 주세요.',
+                        activeWar: createdWar ?? undefined,
+                        guilds: guildsForResponse,
+                        isMatching: false,
+                    },
+                };
             }
             
             // 이미 매칭 중인지 확인
@@ -1721,7 +1734,16 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 myRecordInCurrentWar = { attempts, maxAttempts, contributedStars };
             }
 
-            return { clientResponse: { activeWar, guilds, isMatching, nextMatchTime, cancelDeadline, applicationDeadline, warActionCooldown, warStats, myRecordInCurrentWar, myRecordInLastWar } };
+            // 데모/테스트: 상대가 봇 길드일 때 guilds에 봇 길드가 없으면 추가해 입장 버튼·상대명 표시 가능하도록
+            const guildsForResponse = { ...guilds };
+            if (activeWar) {
+                const oppId = activeWar.guild1Id === myGuildId ? activeWar.guild2Id : activeWar.guild1Id;
+                if (oppId === GUILD_WAR_BOT_GUILD_ID && !guildsForResponse[oppId]) {
+                    (guildsForResponse as Record<string, any>)[oppId] = { id: oppId, name: '[데모]길드전AI', level: 1, members: [], leaderId: oppId };
+                }
+            }
+
+            return { clientResponse: { activeWar, guilds: guildsForResponse, isMatching, nextMatchTime, cancelDeadline, applicationDeadline, warActionCooldown, warStats, myRecordInCurrentWar, myRecordInLastWar } };
         }
         
         case 'START_GUILD_WAR_GAME': {

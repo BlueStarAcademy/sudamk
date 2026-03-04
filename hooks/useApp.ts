@@ -3247,8 +3247,8 @@ export const useApp = () => {
                                                 updatedGames[gameId] = game;
                                             }
                                         } else {
-                                            // hidden_placing, scanning 등 아이템 모드에서는 boardState를 보존해야 함
-                                            const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(game.gameStatus);
+                                            // hidden_placing, scanning, hidden_reveal_animating 등에서는 boardState·permanentlyRevealedStones 보존/병합
+                                            const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating', 'hidden_reveal_animating'].includes(game.gameStatus);
                                             // 미사일 애니메이션 중에는 서버가 따낸 돌을 반영한 boardState를 적용해야 함
                                             const isMissileAnimating = game.gameStatus === 'missile_animating';
                                             

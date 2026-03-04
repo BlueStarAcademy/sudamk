@@ -184,14 +184,16 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
     
     return (
         <DraggableWindow title="전투 결과" onClose={onClose} windowId="guild-boss-battle-result" initialWidth={600} initialHeight={700} isTopmost={isTopmost}>
-            <div className="flex flex-col h-full min-h-0">
-                <div className="text-center mb-4 flex-shrink-0">
-                    <h2 className="text-2xl font-bold mb-2">{result.bossName} 전투 결과</h2>
-                    <div className="flex items-center justify-center gap-3">
-                        <div className={`px-4 py-1 rounded-full bg-gradient-to-r ${getTierColor(tier)} text-white font-bold text-lg shadow-lg`}>
+            <div className="flex flex-col h-full min-h-0 bg-gradient-to-b from-stone-950 via-neutral-900 to-stone-950 rounded-b-lg border-t border-amber-500/30">
+                <div className="text-center mb-4 flex-shrink-0 pt-2">
+                    <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 bg-clip-text text-transparent" style={{ textShadow: '0 0 20px rgba(251,191,36,0.3)' }}>
+                        {result.bossName} 전투 결과
+                    </h2>
+                    <div className="flex items-center justify-center gap-3 flex-wrap">
+                        <div className={`px-4 py-1.5 rounded-full bg-gradient-to-r ${getTierColor(tier)} text-white font-bold text-lg shadow-lg border border-amber-400/40`}>
                             {getTierName(tier)}
                         </div>
-                        <span className="text-gray-300">총 피해량: <span className="font-bold text-yellow-300">{result.damageDealt.toLocaleString()}</span></span>
+                        <span className="text-amber-100/90">총 피해량: <span className="font-bold text-amber-300">{result.damageDealt.toLocaleString()}</span></span>
                     </div>
                 </div>
                 
@@ -305,29 +307,29 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                     </div>
                 </div>
                 
-                <div className="space-y-2 bg-gray-900/50 p-4 rounded-lg text-sm flex-shrink-0">
+                <div className="space-y-2 bg-black/40 border border-amber-500/20 p-4 rounded-lg text-sm flex-shrink-0">
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-300">생존 턴:</span>
-                        <span className="font-bold text-white">{result.turnsSurvived} 턴</span>
+                        <span className="text-amber-200/80">생존 턴:</span>
+                        <span className="font-bold text-amber-100">{result.turnsSurvived} 턴</span>
                     </div>
-                    <div className="pt-2 border-t border-gray-700">
-                        <p className="text-xs text-gray-300 mb-1">보스 남은 체력 ({hpPercentAfter.toFixed(1)}%)</p>
-                        <div className="w-full bg-tertiary rounded-full h-3 border-2 border-color relative">
-                            <div className="bg-gradient-to-r from-red-500 to-red-700 h-full rounded-full" style={{ width: `${hpPercentAfter}%` }}></div>
+                    <div className="pt-2 border-t border-amber-500/30">
+                        <p className="text-xs text-amber-200/70 mb-1">보스 남은 체력 ({hpPercentAfter.toFixed(1)}%)</p>
+                        <div className="w-full bg-stone-900/80 rounded-full h-3 border border-amber-600/40 relative overflow-hidden">
+                            <div className="bg-gradient-to-r from-red-600 to-red-800 h-full rounded-full shadow-[0_0_8px_rgba(220,38,38,0.5)]" style={{ width: `${hpPercentAfter}%` }}></div>
                             <span className="absolute inset-0 text-xs font-bold text-white flex items-center justify-center" style={{textShadow: '1px 1px 2px black'}}>
                                 {result.bossHpAfter.toLocaleString()} / {result.bossMaxHp.toLocaleString()}
                             </span>
                         </div>
                     </div>
                     {result.previousRank !== undefined && result.currentRank !== undefined && (
-                        <div className="pt-2 border-t border-gray-700">
+                        <div className="pt-2 border-t border-amber-500/30">
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-300">순위:</span>
+                                <span className="text-amber-200/80">순위:</span>
                                 <div className="flex items-center gap-2">
                                     {result.previousRank && (
-                                        <span className="text-gray-400 text-xs">이전: {result.previousRank}위</span>
+                                        <span className="text-amber-300/70 text-xs">이전: {result.previousRank}위</span>
                                     )}
-                                    <span className="font-bold text-yellow-300">
+                                    <span className="font-bold text-amber-300">
                                         {result.currentRank ? `${result.currentRank}위` : '-'}
                                     </span>
                                     {result.previousRank && result.currentRank && result.previousRank !== result.currentRank && (
@@ -341,8 +343,10 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                     )}
                 </div>
                 
-                <div className="flex-shrink-0 mt-4">
-                    <Button onClick={onClose} className="w-auto mx-auto py-2 px-8">확인</Button>
+                <div className="flex-shrink-0 mt-4 flex justify-center">
+                    <Button onClick={onClose} className="py-2.5 px-10 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 border border-amber-400/50 text-white font-semibold shadow-lg">
+                        확인
+                    </Button>
                 </div>
             </div>
             

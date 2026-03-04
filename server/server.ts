@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -11,6 +12,7 @@ process.stderr.write(`[Server] Bootstrap: pid=${process.pid} cwd=${process.cwd()
 
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { randomUUID } from 'crypto';
 import process from 'process';
 import http from 'http';
@@ -212,27 +214,33 @@ const processSinglePlayerMissions = (user: types.User): types.User => {
 const LOBBY_TIMEOUT_MS = 90 * 1000;
 const GAME_DISCONNECT_TIMEOUT_MS = 90 * 1000;
 
-const startServer = async () => {
-    // 서버 시작 즉시 로그 출력 (헬스체크가 서버가 시작 중임을 알 수 있도록)
-    console.log('[Server] ========================================');
-    console.log('[Server] Starting server...');
-    console.log('[Server] Node version:', process.version);
-    console.log('[Server] Process PID:', process.pid);
-    console.log('[Server] Railway environment:', process.env.RAILWAY_ENVIRONMENT || 'not set');
-    console.log('[Server] PORT:', process.env.PORT || '4000');
-    console.log('[Server] ========================================');
-    
-    // 전역 에러 핸들러 등록 확인 로그
-    console.log('[Server] Global error handlers registered:');
-    console.log('[Server] - unhandledRejection: registered');
-    console.log('[Server] - uncaughtException: registered');
-    console.log('[Server] - SIGTERM/SIGINT: registered');
-    console.log('[Server] - Express error handler: will be registered after routes');
-    
-    // 서버 리스닝을 최우선으로 하기 위해 데이터베이스 초기화를 비동기로 처리
-    // 타임아웃 추가 (5초) - 서버 시작 속도 향상
+/** Testability: refs passed into createApp so health/root handlers can read server state without closing over startServer locals. */
+export interface ServerRef {
+    serverInstance: http.Server | null;
+    isServerReady: boolean;
+}
+
+/** Optional ref for DB init state (used by root handler). */
+export interface DbInitializedRef {
+    value: boolean;
+}
+
+/**
+ * Creates the Express application with all middleware and routes.
+ * Exported for integration tests (supertest) without starting listen or WebSocket.
+ * When testMode is true, skips DB init and server ref setup (caller passes serverRef/dbInitializedRef).
+ */
+export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitializedRef, options?: { testMode?: boolean }): express.Application {
+    let app: express.Application;
+    let dbInitPromise: Promise<void> | undefined;
+    let serverInstance: http.Server | null = null;
+    let isServerReady = false;
+    let port = 4000;
+    if (options?.testMode) {
+        app = express();
+    } else {
     let dbInitialized = false;
-    const dbInitPromise = (async () => {
+    dbInitPromise = (async () => {
         // --- Debug: Check DATABASE_URL ---
         // Railway는 때때로 다른 이름으로 DATABASE_URL을 제공합니다 (예: RAILWAY_SERVICE_POSTGRES_URL)
         // 모든 DATABASE 관련 환경 변수 확인 및 로깅
@@ -310,6 +318,7 @@ const startServer = async () => {
             console.log(`[Server Startup] Attempting database initialization (timeout: ${timeoutDuration}ms)...`);
             await Promise.race([db.initializeDatabase(), dbTimeout]);
             dbInitialized = true;
+            if (dbInitializedRef) dbInitializedRef.value = true;
             console.log('[Server Startup] Database initialized successfully');
             // Prisma 엔진이 모든 쿼리 경로에서 준비되도록 gameService 쪽 probe 실행 후 잠시 대기
             try {
@@ -384,6 +393,7 @@ const startServer = async () => {
                         try {
                             await db.initializeDatabase();
                             dbInitialized = true;
+                            if (dbInitializedRef) dbInitializedRef.value = true;
                             console.log("[Server] Database connection established after retry!");
                         } catch (retryError: any) {
                             retries--;
@@ -523,11 +533,10 @@ const startServer = async () => {
     // }
     // console.log(`[Server Startup] Bot scores update complete. ${botScoreUpdateCount} user(s) had their bot scores updated.`);
 
-    const app = express();
+    app = express();
     
-    // 포트 검증 및 설정
+    // 포트 검증 및 설정 (port 선언은 createApp 상단에 있음)
     const portEnv = process.env.PORT;
-    let port: number;
     if (portEnv) {
         port = parseInt(portEnv, 10);
         if (isNaN(port) || port < 1 || port > 65535) {
@@ -545,9 +554,10 @@ const startServer = async () => {
     // Railway의 경우 process.env.PORT를 사용해야 함
     console.log(`[Server] Server will listen on port: ${port}`);
     
-    // 서버 리스닝 상태를 전역으로 저장 (헬스체크용)
-    let isServerReady = false;
-    let serverInstance: http.Server | null = null; // 서버 객체를 전역으로 저장
+    // 서버 리스닝 상태를 전역으로 저장 (헬스체크용) - 선언은 createApp 상단에 있음
+    isServerReady = false;
+    serverInstance = null;
+    }
     
     // === 중요: Express 미들웨어를 서버 리스닝 전에 설정 ===
     // 서버가 리스닝을 시작하기 전에 최소한의 미들웨어를 설정하여 요청이 처리되도록 함
@@ -681,13 +691,13 @@ const startServer = async () => {
         
         try {
             // 서버 객체가 있으면 실제 리스닝 상태 확인, 없으면 false
-            const isListening = serverInstance ? serverInstance.listening : false;
+            const isListening = serverRef.serverInstance ? serverRef.serverInstance.listening : false;
             const response = {
                 status: 'ok',
                 timestamp: new Date().toISOString(),
                 uptime: process.uptime(),
                 listening: isListening,
-                ready: isServerReady,
+                ready: serverRef.isServerReady,
                 pid: process.pid,
                 message: isListening ? 'Server is running' : 'Server starting up'
             };
@@ -711,6 +721,8 @@ const startServer = async () => {
     
     console.log('[Server] Health check endpoint registered (before server listen)');
     
+    if (!options?.testMode) {
+    const listenPort = (typeof port !== 'undefined' && port != null) ? port : (Number(process.env.PORT) || 4000);
     // 서버를 생성하고 리스닝 시작 (Express 미들웨어가 이미 설정됨)
     const server = http.createServer((req, res) => {
         // Health check는 매우 빠르게 처리 (Railway health check 대응)
@@ -744,10 +756,10 @@ const startServer = async () => {
                 status: 'ok',
                 timestamp: new Date().toISOString(),
                 uptime: process.uptime(),
-                listening: server.listening,
-                ready: isServerReady,
+                listening: serverRef.serverInstance?.listening ?? false,
+                ready: serverRef.isServerReady,
                 pid: process.pid,
-                database: dbInitialized ? 'connected' : 'initializing'
+                database: (dbInitializedRef?.value ?? false) ? 'connected' : 'initializing'
             };
             res.status(200).json(response);
         } catch (error: any) {
@@ -762,19 +774,21 @@ const startServer = async () => {
     
     // 서버 객체를 전역 변수에 저장 (헬스체크에서 사용)
     serverInstance = server;
+    serverRef.serverInstance = server;
     
     // 서버 리스닝 시작 (Express 미들웨어가 이미 설정되어 있음)
-    process.stderr.write(`[Server] Bootstrap: about to listen port=${port}\n`);
+    process.stderr.write(`[Server] Bootstrap: about to listen port=${listenPort}\n`);
     console.log('[Server] Starting server listen...');
-    server.listen(port, '0.0.0.0', () => {
+    server.listen(listenPort, '0.0.0.0', () => {
         console.log(`[Server] ========================================`);
-        console.log(`[Server] Server listening on port ${port}`);
+        console.log(`[Server] Server listening on port ${listenPort}`);
         console.log(`[Server] Process PID: ${process.pid}`);
         console.log(`[Server] Health check endpoint is available at /api/health`);
         console.log(`[Server] ========================================`);
         
         // 서버 준비 상태 설정
         isServerReady = true;
+        serverRef.isServerReady = true;
         
         // 헬스체크 엔드포인트는 이미 등록되어 있고, serverInstance를 통해 리스닝 상태를 확인함
         // Railway health check를 위해 매우 빠르고 안정적으로 응답
@@ -839,7 +853,7 @@ const startServer = async () => {
             errorCode: error.code,
             errorMessage: error.message,
             errorStack: error.stack,
-            port: port,
+            port: listenPort,
             pid: process.pid,
             uptime: process.uptime(),
             memory: process.memoryUsage(),
@@ -868,9 +882,9 @@ const startServer = async () => {
         process.stderr.write(`Memory: ${JSON.stringify(errorInfo.memory)}\n\n`);
         
         if (error.code === 'EADDRINUSE') {
-            console.error(`[Server] Port ${port} is already in use. Please stop the process using this port or use a different port.`);
-            console.error(`[Server] To find and kill the process: netstat -ano | findstr ":${port}"`);
-            process.stderr.write(`[SERVER ERROR] Port ${port} is already in use\n`);
+            console.error(`[Server] Port ${listenPort} is already in use. Please stop the process using this port or use a different port.`);
+            console.error(`[Server] To find and kill the process: netstat -ano | findstr ":${listenPort}"`);
+            process.stderr.write(`[SERVER ERROR] Port ${listenPort} is already in use\n`);
             // Railway 환경에서는 포트 충돌 시에도 프로세스를 종료하지 않음
             // Railway가 자동으로 재시작하는 것을 방지
             if (!process.env.RAILWAY_ENVIRONMENT) {
@@ -887,7 +901,7 @@ const startServer = async () => {
             }
         }
     });
-
+    }
 
     // Serve static files from public directory with optimized caching
     const __filename = fileURLToPath(import.meta.url);
@@ -932,7 +946,6 @@ const startServer = async () => {
         const distPath = path.join(__dirname, '..', 'dist');
         
         // dist 디렉토리 존재 여부 확인 및 로깅
-        const fs = await import('fs');
         const distExists = fs.existsSync(distPath);
         if (!distExists) {
             console.error(`[Server] ERROR: dist directory not found at ${distPath}. Frontend files may not be available.`);
@@ -980,9 +993,8 @@ const startServer = async () => {
         console.log('[Server] Frontend serving is disabled. Frontend should be served by a separate service.');
     }
     
-    // 응답 압축 미들웨어 (네트워크 전송량 감소)
-    const compression = (await import('compression')).default;
-    app.use(compression({
+      // 응답 압축 미들웨어 (네트워크 전송량 감소)
+      app.use(compression({
         filter: (req, res) => {
             // JSON 응답과 텍스트만 압축 (이미지 등은 제외)
             if (req.headers['x-no-compression']) {
@@ -1032,18 +1044,28 @@ const startServer = async () => {
     // SIGTERM, SIGINT 시그널 처리 (Railway에서 컨테이너 종료 시)
     process.on('SIGTERM', () => {
         console.log('[Server] SIGTERM received. Initiating graceful shutdown...');
-        gracefulShutdown(server).catch(err => {
-            console.error('[Server] Error during graceful shutdown:', err);
-            process.exit(1);
-        });
+        const s = serverRef.serverInstance;
+        if (s) {
+            gracefulShutdown(s).catch(err => {
+                console.error('[Server] Error during graceful shutdown:', err);
+                process.exit(1);
+            });
+        } else {
+            process.exit(0);
+        }
     });
 
     process.on('SIGINT', () => {
         console.log('[Server] SIGINT received. Initiating graceful shutdown...');
-        gracefulShutdown(server).catch(err => {
-            console.error('[Server] Error during graceful shutdown:', err);
-            process.exit(1);
-        });
+        const s = serverRef.serverInstance;
+        if (s) {
+            gracefulShutdown(s).catch(err => {
+                console.error('[Server] Error during graceful shutdown:', err);
+                process.exit(1);
+            });
+        } else {
+            process.exit(0);
+        }
     });
 
 
@@ -1131,7 +1153,7 @@ const startServer = async () => {
                 (async () => {
                     try {
                         // 첫 실행 전에 데이터베이스 연결 확인
-                        if (!dbInitialized) {
+                        if (!(dbInitializedRef?.value ?? false)) {
                             console.log('[MainLoop] Database not initialized yet, skipping first run...');
                             scheduleMainLoop(Math.min(delay * 2, 10000)); // 10초 후 재시도
                             return;
@@ -1164,7 +1186,7 @@ const startServer = async () => {
                         const isFirstRun = !hasCompletedFirstRun;
                         if (isFirstRun) {
                             console.log('[MainLoop] ========== FIRST RUN STARTING ==========');
-                            console.log('[MainLoop] Database initialized:', dbInitialized);
+                            console.log('[MainLoop] Database initialized:', dbInitializedRef?.value ?? false);
                             console.log('[MainLoop] Memory:', JSON.stringify(process.memoryUsage()));
                         }
                         
@@ -1657,6 +1679,14 @@ const startServer = async () => {
                         await processGuildWarEnd();
                     } catch (error: any) {
                         console.error('[MainLoop] Error in processGuildWarEnd:', error?.message);
+                    }
+
+                    // 데모 모드: 0시(KST)에 길드전 공격 횟수 회복 (테스트용)
+                    try {
+                        const { resetGuildWarAttemptsAtMidnightForDemo } = await import('./scheduledTasks.js');
+                        await resetGuildWarAttemptsAtMidnightForDemo(now);
+                    } catch (error: any) {
+                        console.error('[MainLoop] Error in resetGuildWarAttemptsAtMidnightForDemo:', error?.message);
                     }
 
                     lastDailyTaskCheckAt = now;
@@ -2470,13 +2500,15 @@ const startServer = async () => {
         }
     };
 
-    // DB 초기화가 끝난 뒤에만 메인 루프 시작 (초기화 실패 시에도 5초 후 재시도로 루프 예약)
-    dbInitPromise.then(() => {
-        setTimeout(startMainLoopWhenReady, 2000); // 엔진 안정화 2초 후 시작
-    }).catch(() => {
-        // DB 초기화 실패 시에도 scheduleMainLoop는 dbInitialized 체크로 스킵 후 재예약하므로 루프는 나중에 시작됨
-        setTimeout(startMainLoopWhenReady, 5000);
-    });
+    // DB 초기화가 끝난 뒤에만 메인 루프 시작 (초기화 실패 시에도 5초 후 재시도로 루프 예약). testMode일 때는 스킵.
+    if (dbInitPromise) {
+        dbInitPromise.then(() => {
+            setTimeout(startMainLoopWhenReady, 2000); // 엔진 안정화 2초 후 시작
+        }).catch(() => {
+            // DB 초기화 실패 시에도 scheduleMainLoop는 dbInitialized 체크로 스킵 후 재예약하므로 루프는 나중에 시작됨
+            setTimeout(startMainLoopWhenReady, 5000);
+        });
+    }
     
     // --- API Endpoints ---
     // Health check endpoint는 server 생성 직후에 정의됨 (위 참조)
@@ -4577,7 +4609,8 @@ const startServer = async () => {
         }
     });
 
-};
+    return app;
+}
 
 // 전역 에러 핸들러 추가 (처리되지 않은 Promise rejection 및 예외 처리)
 // 전역 에러 핸들러: 프로세스가 절대 크래시되지 않도록 보장
@@ -4858,9 +4891,17 @@ if (process.env.RAILWAY_ENVIRONMENT) {
 }
 // 메모리 사용량 모니터링은 메인 루프에서도 처리됨 (중복 방지)
 
-// Start server with error handling
+/** Starts the server: creates refs, then createApp (which runs DB init and listen when not in testMode). */
+async function startServer(): Promise<void> {
+    const serverRef: ServerRef = { serverInstance: null, isServerReady: false };
+    const dbInitializedRef: DbInitializedRef = { value: false };
+    createApp(serverRef, dbInitializedRef);
+}
+
+// Start server with error handling (skip when running under Vitest so tests can import createApp without starting listen)
 // 서버가 반드시 리스닝을 시작하도록 보장
 // 실패해도 재시도
+if (!process.env.VITEST) {
 (async () => {
     let retryCount = 0;
     const maxRetries = 5;
@@ -4908,6 +4949,7 @@ if (process.env.RAILWAY_ENVIRONMENT) {
     // Railway 환경에서는 헬스체크가 실패하면 자동 재시작됨
     console.log('[Server] Startup wrapper completed. Process will continue running.');
 })();
+}
 
 // Keep-alive는 startServer 내부의 server.listen 콜백에서 이미 처리됨
 // 여기서는 추가 keep-alive가 필요 없음

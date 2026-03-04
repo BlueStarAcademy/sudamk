@@ -488,6 +488,28 @@ const GuildBoss: React.FC = () => {
     const userLogs = useMemo(() => battleLog.filter(e => e.isUserAction), [battleLog]);
     const bossLogs = useMemo(() => battleLog.filter(e => !e.isUserAction), [battleLog]);
 
+    // 입장 시(공격 전) 표시할 유저 최대 체력 — 시뮬레이터와 동일한 식
+    const initialMaxUserHp = useMemo(() => {
+        if (!currentUserWithStatus || !myGuild) return 0;
+        const totalStats = calculateTotalStats(currentUserWithStatus, myGuild);
+        let hp = 20000 + (totalStats[CoreStat.Concentration] * 10);
+        const hpIncreaseLevel = myGuild.research?.boss_hp_increase?.level || 0;
+        if (hpIncreaseLevel > 0) {
+            const project = GUILD_RESEARCH_PROJECTS[GuildResearchId.boss_hp_increase];
+            if (project) hp *= (1 + (project.baseEffect * hpIncreaseLevel) / 100);
+        }
+        return Math.round(hp);
+    }, [currentUserWithStatus, myGuild]);
+
+    // 공격 전에도 유저 체력 표시: 입장 시 초기 HP 설정
+    useEffect(() => {
+        if (isSimulating || !currentUserWithStatus || !myGuild || initialMaxUserHp <= 0) return;
+        if (maxUserHp === 0 && userHp === 0) {
+            setMaxUserHp(initialMaxUserHp);
+            setUserHp(initialMaxUserHp);
+        }
+    }, [initialMaxUserHp, isSimulating, currentUserWithStatus, myGuild, maxUserHp, userHp]);
+
     // 데스크톱 스크롤 자동 이동
     useEffect(() => { 
         if (userLogContainerRef.current) {

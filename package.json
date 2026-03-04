@@ -46,7 +46,12 @@
     "start-frontend": "serve -s dist -l 3000",
     "start-katago": "cross-env PORT=4001 npx tsx --tsconfig server/tsconfig.json server/katagoServer.ts",
     "electron": "electron electron/main.js",
-    "electron:dev": "cross-env NODE_ENV=development electron electron/main.js"
+    "electron:dev": "cross-env NODE_ENV=development electron electron/main.js",
+    "test": "vitest run",
+    "test:unit": "vitest run server/__tests__/unit",
+    "test:integration": "vitest run server/__tests__/integration",
+    "test:e2e": "playwright test",
+    "test:ci": "npm run test:unit && npm run test:integration && npm run test:e2e"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.936.0",
@@ -90,6 +95,12 @@
     "tsx": "^4.16.2",
     "typescript": "^5.4.5",
     "vite": "^5.2.0",
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "vitest": "^2.1.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2",
+    "@playwright/test": "^1.49.0",
+    "wait-on": "^8.0.1"
   }
 }

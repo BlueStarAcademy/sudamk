@@ -1144,7 +1144,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     
                     const moveIndex = moveHistory ? findMoveIndexAt({ moveHistory } as LiveGameSession, x, y) : -1;
                     const isHiddenMove = hiddenMoves && moveIndex !== -1 && hiddenMoves[moveIndex];
-                    const isPermanentlyRevealed = permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
+                    // 서버의 영구 공개 목록 또는 현재 히든 공개 애니메이션에 포함된 돌은 공개된 것으로 표시 (반투명 해제)
+                    const isInRevealAnimation = animation?.type === 'hidden_reveal' && animation.stones?.some((s: { point: Point }) => s.point.x === x && s.point.y === y);
+                    const isPermanentlyRevealed = permanentlyRevealedStones?.some(p => p.x === x && p.y === y) || !!isInRevealAnimation;
                     // 히든 돌 표시 규칙 (모든 히든 사용 경기 공통): 상대에게는 기본 비공개, 스캔 시 반투명, 착수/포착 시 전체 공개
                     let isVisible = true;
                     if (isHiddenMove) {

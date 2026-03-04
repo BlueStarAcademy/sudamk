@@ -328,6 +328,13 @@ export function getGoAiBotProfile(level: number): GoAiBotProfile {
  * @param game 현재 게임 상태
  * @param aiLevel AI 봇 단계 (1~10)
  */
+/** 싱글플레이 또는 도전의 탑(인간 vs AI)에서 유저 히든을 AI에게 숨길지 여부 */
+function shouldMaskUserHiddenFromAi(game: types.LiveGameSession): boolean {
+    const isHiddenMode = game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    return !!(isHiddenMode && (game.isSinglePlayer || (game as any).gameCategory === 'tower'));
+}
+
 /**
  * AI에게 전달할 수순: 유저의 히든 수는 통과(-1,-1)로 치환하여, AI가 히든 위치를 알 수 없도록 함
  */
@@ -337,7 +344,7 @@ function getMoveHistoryForAi(
 ): Array<{ x: number; y: number; player: number }> {
     const isHiddenMode = game.mode === types.GameMode.Hidden ||
         (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
-    if (!isHiddenMode || !game.isSinglePlayer || !game.moveHistory?.length) {
+    if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game) || !game.moveHistory?.length) {
         return (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
     }
     const userPlayerEnum = aiPlayerEnum === Player.White ? Player.Black : Player.White;
@@ -366,7 +373,7 @@ function isUserUnrevealedHiddenPosition(
 ): boolean {
     const isHiddenMode = game.mode === types.GameMode.Hidden ||
         (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
-    if (!isHiddenMode || !game.isSinglePlayer || !game.hiddenMoves || !game.moveHistory) return false;
+    if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game) || !game.hiddenMoves || !game.moveHistory) return false;
     const userPlayerEnum = aiPlayerEnum === Player.White ? Player.Black : Player.White;
     for (let moveIndex = 0; moveIndex < game.moveHistory.length; moveIndex++) {
         if (!game.hiddenMoves[moveIndex]) continue;
@@ -388,7 +395,7 @@ function getUserUnrevealedHiddenPoints(
     const points: Array<{ x: number; y: number }> = [];
     const isHiddenMode = game.mode === types.GameMode.Hidden ||
         (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
-    if (!isHiddenMode || !game.isSinglePlayer || !game.hiddenMoves || !game.moveHistory) return points;
+    if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game) || !game.hiddenMoves || !game.moveHistory) return points;
     const userPlayerEnum = aiPlayerEnum === Player.White ? Player.Black : Player.White;
     for (let moveIndex = 0; moveIndex < game.moveHistory.length; moveIndex++) {
         if (!game.hiddenMoves[moveIndex]) continue;
@@ -423,17 +430,17 @@ function isOnOrAdjacentToUserUnrevealedHidden(
 
 /**
  * AI가 보드 상태를 볼 때 유저의 히든 돌을 빈 공간으로 처리하는 헬퍼 함수
- * 싱글플레이 히든바둑 모드에서만 적용
+ * 싱글플레이·도전의 탑(인간 vs AI) 히든바둑 모드에서 적용
  */
 function getBoardStateForAi(
     game: types.LiveGameSession,
     aiPlayerEnum: Player
 ): types.BoardState {
-    const isHiddenMode = game.mode === types.GameMode.Hidden || 
-                        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
-    
-    // 싱글플레이 히든바둑 모드가 아니면 원본 반환
-    if (!isHiddenMode || !game.isSinglePlayer) {
+    const isHiddenMode = game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+
+    // 싱글플레이 또는 도전의 탑이 아니면 원본 반환 (AI가 유저 히든을 볼 수 없게 할 때만 마스킹)
+    if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game)) {
         return game.boardState;
     }
     
@@ -632,8 +639,8 @@ export async function makeGoAiBotMove(
     if (wantGnuGo && gnuGoAvailable) {
         try {
             const boardSize = game.settings.boardSize || 19;
-            // 싱글플레이 히든바둑: 유저의 히든 수는 수순에서 통과(-1,-1)로 치환해 AI가 위치를 알 수 없게 함 (유저 통과로 인식)
-            const useHiddenMaskForGnuGo = (isHiddenMode && game.isSinglePlayer);
+            // 싱글플레이·도전의 탑 히든바둑: 유저의 히든 수는 수순에서 통과(-1,-1)로 치환해 AI가 위치를 알 수 없게 함 (유저 통과로 인식)
+            const useHiddenMaskForGnuGo = (isHiddenMode && shouldMaskUserHiddenFromAi(game));
             const moveHistory = useHiddenMaskForGnuGo
                 ? getMoveHistoryForAi(game, aiPlayerEnum)
                 : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
@@ -657,8 +664,8 @@ export async function makeGoAiBotMove(
             });
 
             selectedMove = { x: gnugoMove.x, y: gnugoMove.y };
-            // 싱글플레이 히든: 유저 통과로만 인식 — GnuGo가 유저 미공개 히든 칸 또는 그 인접 칸을 반환하면 휴리스틱으로 대체
-            if (isHiddenMode && game.isSinglePlayer && selectedMove &&
+            // 싱글플레이·탑 히든: 유저 통과로만 인식 — GnuGo가 유저 미공개 히든 칸 또는 그 인접 칸을 반환하면 휴리스틱으로 대체
+            if (isHiddenMode && shouldMaskUserHiddenFromAi(game) && selectedMove &&
                 isOnOrAdjacentToUserUnrevealedHidden(game, selectedMove.x, selectedMove.y, aiPlayerEnum)) {
                 console.log(`[makeGoAiBotMove] GnuGo returned move on/near user's unrevealed hidden (${selectedMove.x},${selectedMove.y}), falling back to heuristic`);
                 selectedMove = null;
@@ -682,7 +689,7 @@ export async function makeGoAiBotMove(
 
         // AI가 볼 수 있는 보드·수순 (유저의 미공개 히든은 빈 칸/통과로만 인식, 공개 시 재인식)
         const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
-        const aiMoveHistory = (isHiddenMode && game.isSinglePlayer) ? getMoveHistoryForAi(game, aiPlayerEnum) : (game.moveHistory || []);
+        const aiMoveHistory = (isHiddenMode && shouldMaskUserHiddenFromAi(game)) ? getMoveHistoryForAi(game, aiPlayerEnum) : (game.moveHistory || []);
         const aiGame: types.LiveGameSession = {
             ...game,
             boardState: aiBoardState,
@@ -703,8 +710,8 @@ export async function makeGoAiBotMove(
             ? findAllValidMovesFast(aiGame, logic, aiPlayerEnum)
             : findAllValidMoves(aiGame, logic, aiPlayerEnum);
 
-        // 싱글플레이 히든: 유저 통과로만 인식 — 유저 미공개 히든 돌 위치와 그 인접 칸은 유효수에서 제외
-        if (isHiddenMode && game.isSinglePlayer && allValidMoves.length > 0) {
+        // 싱글플레이·탑 히든: 유저 통과로만 인식 — 유저 미공개 히든 돌 위치와 그 인접 칸은 유효수에서 제외
+        if (isHiddenMode && shouldMaskUserHiddenFromAi(game) && allValidMoves.length > 0) {
             allValidMoves = allValidMoves.filter(
                 m => !isOnOrAdjacentToUserUnrevealedHidden(game, m.x, m.y, aiPlayerEnum)
             );
@@ -885,8 +892,8 @@ export async function makeGoAiBotMove(
         }
     }
     
-    // 4-1. 히든 돌 위에 착점하는지 확인 (히든바둑 모드)
-    if (isHiddenMode && game.isSinglePlayer) {
+    // 4-1. 히든 돌 위에 착점하는지 확인 (히든바둑 모드: 싱글플레이·탑)
+    if (isHiddenMode && shouldMaskUserHiddenFromAi(game)) {
         const { x, y } = selectedMove;
         const stoneAtTarget = game.boardState[y][x];
         const moveIndexAtTarget = game.moveHistory.findIndex(m => m.x === x && m.y === y);

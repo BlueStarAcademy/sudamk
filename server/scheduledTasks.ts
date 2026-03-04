@@ -6,6 +6,7 @@ import type { WeeklyCompetitor, InventoryItem } from '../shared/types/index.js';
 import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, SEASONAL_TIER_BORDERS, DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL } from '../shared/constants';
 import { randomUUID } from 'crypto';
 import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate } from '../shared/utils/timeUtils.js';
+import { DEMO_GUILD_WAR } from '../shared/constants/auth.js';
 import { resetAndGenerateQuests } from './gameActions.js';
 import * as tournamentService from './tournamentService.js';
 import { calculateTotalStats } from './statService.js';
@@ -2091,7 +2092,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     const maxAttemptsPerGuild = warType === 'tue_wed' ? 2 : 3;
     const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
     const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
-    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} at 23:00 KST (${kstDay === 1 ? 'Mon→Tue' : 'Thu→Fri'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${matchingQueue.length}`);
+    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} at 23:00 KST (${kstDay === 1 ? 'Mon→Tue' : 'Thu→Fri'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${matchingQueue.length}, DEMO=${DEMO_GUILD_WAR}`);
     
     if (matchingQueue.length === 0) {
         console.log(`[GuildWarMatch] No guilds in matching queue`);
@@ -2101,6 +2102,81 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     
     const activeWars: any[] = [];
     const matchedGuildIds: string[] = [];
+    
+    // 데모 모드: 큐에 있는 모든 길드를 봇 길드와 1:1 매칭 (화/금 매칭 테스트용)
+    if (DEMO_GUILD_WAR) {
+        const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
+        const botGuildId = await getOrCreateBotGuildForWar();
+        const boardIds = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'];
+        const gameModes: ('capture' | 'hidden' | 'missile')[] = ['capture', 'hidden', 'missile'];
+        (guilds as Record<string, any>)[botGuildId] = (guilds as Record<string, any>)[botGuildId] || {
+            id: botGuildId,
+            name: '[시스템]길드전AI',
+            level: 1,
+            members: [],
+            leaderId: botGuildId,
+        };
+        for (const guildId of matchingQueue) {
+            const g = guilds[guildId];
+            if (!g) continue;
+            const dbWar = await createGuildWar(guildId, botGuildId);
+            const boards: Record<string, any> = {};
+            for (const boardId of boardIds) {
+                const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
+                const botStars = Math.floor(Math.random() * 2) + 2;
+                const botScoreDiff = Math.floor(Math.random() * 11) + 5;
+                boards[boardId] = {
+                    boardSize: 13,
+                    gameMode,
+                    guild1Stars: 0,
+                    guild2Stars: botStars,
+                    guild1BestResult: null,
+                    guild2BestResult: {
+                        userId: botGuildId,
+                        stars: botStars,
+                        captures: Math.floor(Math.random() * 10) + 5,
+                        score: 100 + Math.floor(Math.random() * 50),
+                        scoreDiff: botScoreDiff,
+                    },
+                    guild1Attempts: 0,
+                    guild2Attempts: maxAttemptsPerGuild,
+                };
+            }
+            const war: any = {
+                id: dbWar.id,
+                guild1Id: guildId,
+                guild2Id: botGuildId,
+                status: 'active',
+                startTime: now,
+                endTime: now + durationMs,
+                warType,
+                maxAttemptsPerGuild,
+                guild1TotalAttempts: 0,
+                guild2TotalAttempts: maxAttemptsPerGuild,
+                result: undefined,
+                boards,
+                isBotGuild: true,
+                createdAt: now,
+                updatedAt: now,
+            };
+            activeWars.push(war);
+            matchedGuildIds.push(guildId);
+            delete (g as any).guildWarMatching;
+            console.log(`[GuildWarMatch] [DEMO] Matched ${g.name} (${guildId}) vs bot guild`);
+        }
+        const newQueue = matchingQueue.filter(id => !matchedGuildIds.includes(id));
+        const existingActiveWars = await db.getKV<any[]>('activeGuildWars') || [];
+        const allActiveWars = [...existingActiveWars.filter((w: any) => w.status === 'active'), ...activeWars];
+        await db.setKV('activeGuildWars', allActiveWars);
+        await db.setKV('guildWarMatchingQueue', newQueue);
+        await db.setKV('guilds', guilds);
+        const { broadcast } = await import('./socket.js');
+        await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+        await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
+        lastGuildWarMatchTimestamp = now;
+        console.log(`[GuildWarMatch] [DEMO] Matched ${activeWars.length} guild(s) vs bot, ${newQueue.length} remaining in queue`);
+        return;
+    }
     
     // 짝수 개의 길드 매칭
     const matchedPairs = Math.floor(matchingQueue.length / 2);
@@ -2264,6 +2340,28 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     
     lastGuildWarMatchTimestamp = now;
     console.log(`[GuildWarMatch] Matched ${activeWars.length} guild wars, ${newQueue.length} guilds remaining in queue`);
+}
+
+/** 데모 모드 전용: 매일 0시(KST)에 진행 중인 길드전 공격 횟수를 0으로 리셋하여 다음 날 테스트 가능하도록 함 */
+export async function resetGuildWarAttemptsAtMidnightForDemo(now: number = Date.now()): Promise<void> {
+    if (!DEMO_GUILD_WAR) return;
+    const kstHours = getKSTHours(now);
+    const kstMinutes = getKSTMinutes(now);
+    if (kstHours !== 0 || kstMinutes >= 60) return;
+    const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
+    let updated = false;
+    for (const war of activeWars) {
+        if (war.status !== 'active') continue;
+        war.guild1TotalAttempts = 0;
+        war.guild2TotalAttempts = 0;
+        updated = true;
+    }
+    if (updated) {
+        await db.setKV('activeGuildWars', activeWars);
+        const { broadcast } = await import('./socket.js');
+        await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });
+        console.log('[GuildWarMatch] [DEMO] Reset guild war attempts at midnight KST for', activeWars.filter((w: any) => w.status === 'active').length, 'active war(s)');
+    }
 }
 
 /** 데모 모드: 플레이어 길드를 봇 길드와 즉시 매칭하여 전쟁 생성 (테스트용) */

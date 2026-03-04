@@ -328,6 +328,9 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
         if (tooltipHideTimeoutRef.current) clearTimeout(tooltipHideTimeoutRef.current);
     }, []);
 
+    // 서버와 동일한 키 사용(관리자는 ADMIN_USER_ID로 저장됨) — 나의 기록 갱신 정확도
+    const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
+
     // 나의 기록 계산
     const { myDamage, myRank, totalParticipants } = useMemo(() => {
         if (!guild.guildBossState?.totalDamageLog || !currentUserWithStatus) {
@@ -346,7 +349,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
             })
             .sort((a, b) => b.damage - a.damage);
         
-        const myRankIndex = fullRanking.findIndex(r => r.userId === currentUserWithStatus.id);
+        const myRankIndex = fullRanking.findIndex(r => r.userId === effectiveUserId);
         const myData = myRankIndex !== -1 ? { ...fullRanking[myRankIndex], rank: myRankIndex + 1 } : null;
         
         return {
@@ -354,7 +357,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
             myRank: myData?.rank || null,
             totalParticipants: fullRanking.length,
         };
-    }, [guild.guildBossState?.totalDamageLog, guild.members, currentUserWithStatus]);
+    }, [guild.guildBossState?.totalDamageLog, guild.members, currentUserWithStatus, effectiveUserId]);
     const currentBoss = useMemo(() => {
         if (!guild.guildBossState) return GUILD_BOSSES[0];
         return GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId) || GUILD_BOSSES[0];
@@ -574,11 +577,15 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                                     ))}
                                     </div>
                                 )}
+                                {/* 남은 시간: 보스 이미지 패널 너비만큼만 사용 (모바일 6rem / 데스크 9rem) */}
+                                <div className={`${isMobile ? 'mt-1 w-24' : 'mt-2 w-36'} flex shrink-0 justify-center`}>
+                                    <p className={`w-full ${isMobile ? 'text-[10px]' : 'text-sm'} text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
+                                </div>
                             </div>
                         </div>
                         
-                        {/* 오른쪽: 내 기록 */}
-                        <div className={`flex flex-col ${isMobile ? 'w-full' : 'flex-1 min-w-0'} justify-center`}>
+                        {/* 오른쪽: 내 기록 + 입장 버튼(하단 중앙) */}
+                        <div className={`flex flex-col ${isMobile ? 'w-full' : 'flex-1 min-w-0'} justify-center gap-2`}>
                             <div className={`bg-stone-800/50 rounded-lg ${isMobile ? 'px-1.5 py-0.5' : 'px-3 py-2'}`}>
                                 <div className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 ${isMobile ? 'mb-0.5' : 'mb-2'} font-semibold`}>나의 기록</div>
                                 <div className={`flex flex-col ${isMobile ? 'gap-0.5' : 'gap-1.5'}`}>
@@ -601,10 +608,22 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                                     <div className="flex items-center justify-between">
                                         <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>역대 최고 기록</span>
                                         <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-yellow-300`}>
-                                            {(guild.guildBossState?.maxDamageLog?.[currentUserWithStatus?.id || ''] || 0).toLocaleString()}
+                                            {(guild.guildBossState?.maxDamageLog?.[effectiveUserId || ''] || 0).toLocaleString()}
                                         </span>
                                     </div>
                                 </div>
+                            </div>
+                            {/* 입장 버튼: 나의 기록 하단 중앙배열 */}
+                            <div className={`flex justify-center ${isMobile ? 'mt-0.5' : 'mt-1'}`}>
+                                <button
+                                    onClick={() => window.location.hash = '#/guildboss'}
+                                    disabled={!canEnter}
+                                    className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}`}
+                                >
+                                    <img src="/images/guild/ticket.png" alt="보스전 티켓" className="w-4 h-4" />
+                                    <span>{myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}</span>
+                                    <span>입장</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -638,20 +657,6 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                             </div>
                         </div>
                     )}
-                    
-                    {/* 남은 시간(보스 스킬 아래 폭만 사용) + 보스전 입장 버튼(옆에 배치) */}
-                    <div className={`flex flex-row items-center gap-2 w-full ${isMobile ? 'mt-0.5 mb-0.5' : 'mt-2 mb-2'}`}>
-                        <p className={`flex-1 min-w-0 ${isMobile ? 'text-[10px]' : 'text-sm'} text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
-                        <button
-                            onClick={() => window.location.hash = '#/guildboss'}
-                            disabled={!canEnter}
-                            className={`flex-shrink-0 ${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}`}
-                        >
-                            <img src="/images/guild/ticket.png" alt="보스전 티켓" className="w-4 h-4" />
-                            <span>{myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}</span>
-                            <span>입장</span>
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
