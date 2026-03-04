@@ -216,24 +216,30 @@ const reconnectPrisma = async (): Promise<boolean> => {
 };
 
 /**
- * Prisma 엔진이 쿼리를 받을 수 있는지 확인. "Engine is not yet connected" 시 $connect() 후 한 번 재시도.
- * MainLoop 등 DB 사용 전에 호출하여 오류 방지.
+ * Prisma 엔진이 쿼리를 받을 수 있는지 확인.
+ * 실패 시 연결 관련 오류면 $connect() 후 한 번 재시도 (재연결 직후 MainLoop가 "engine not ready"로 무한 스킵하는 버그 방지).
  */
 export const ensurePrismaConnected = async (): Promise<boolean> => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
-  } catch (error: any) {
-    if (!error?.message?.includes?.('Engine is not yet connected')) {
-      return false;
-    }
+  const probe = async (): Promise<boolean> => {
     try {
-      await prisma.$connect();
-      await prisma.$queryRaw`SELECT 1`;
+      await Promise.race([
+        prisma.$queryRaw`SELECT 1`,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+      ]);
       return true;
-    } catch (retryErr: any) {
+    } catch (e) {
       return false;
     }
+  };
+
+  if (await probe()) return true;
+
+  try {
+    await prisma.$connect();
+    await new Promise((r) => setTimeout(r, 200));
+    return await probe();
+  } catch (_) {
+    return false;
   }
 };
 

@@ -49,6 +49,12 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             return <AiGameDescriptionModal session={session} onAction={onAction} />;
         }
 
+        // 전략바둑 PVP(히든바둑 등) 돌가리기: 게임이 이미 시작된 경우 협상 모달보다 돌가리기 창을 우선 표시
+        // (수락 직후 activeNegotiation이 아직 남아 있으면 NegotiationModal이 가려버리는 버그 방지)
+        if (!isSpectator && ['nigiri_choosing', 'nigiri_guessing', 'nigiri_reveal'].includes(gameStatus) && session.nigiri) {
+            return <NigiriModal session={session} currentUser={currentUser} onAction={onAction} />;
+        }
+
         if (activeNegotiation) {
             return <NegotiationModal negotiation={activeNegotiation} currentUser={currentUser} onAction={onAction} onlineUsers={onlineUsers} />;
         }

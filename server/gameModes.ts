@@ -849,8 +849,8 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 return [...a, ...b];
             })();
 
-        // 게임 수가 적을 때는 바둑 AI 등 느린 처리 완료 허용 (MainLoop 타임아웃 10초 이하로 유지)
-        const OUTER_DEADLINE_MS = toProcess.length <= 2 ? 9000 : toProcess.length <= 3 ? 6000 : 2500;
+        // 게임 수가 적을 때는 바둑 AI 등 느린 처리 완료 허용 (MainLoop 타임아웃과 조화)
+        const OUTER_DEADLINE_MS = toProcess.length === 1 ? 12000 : toProcess.length <= 2 ? 9000 : toProcess.length <= 3 ? 6000 : 2500;
         const outerTimeout = new Promise<LiveGameSession[]>((resolve) => {
             setTimeout(() => {
                 // 로그를 덜 자주 출력 (30초마다 한 번만)
