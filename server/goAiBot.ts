@@ -1284,6 +1284,8 @@ export async function makeGoAiBotMove(
                 if (game.gameStatus === 'playing' || (game.gameStatus as string) === 'hidden_placing') {
                     const gameType = game.isSinglePlayer ? 'SinglePlayer' : 'AiGame';
                     console.log(`[GoAiBot][${gameType}] Auto-scoring triggered at ${totalTurns} turns (stageId: ${game.stageId || 'N/A'}, validMovesLength: ${validMoves.length}, gameStatus: ${game.gameStatus})`);
+                    // 계가 진입 시점에 종료 시각 고정 → 타이머 정지, 총 걸린 시간에 계가 연출 구간 제외
+                    game.endTime = Date.now();
                     // 게임 상태를 먼저 scoring으로 변경하여 다른 로직이 게임을 재시작하지 않도록 함
                     game.gameStatus = 'scoring';
                     await db.saveGame(game);
@@ -1304,6 +1306,7 @@ export async function makeGoAiBotMove(
                 } else {
                     const gameType = game.isSinglePlayer ? 'SinglePlayer' : 'AiGame';
                     console.warn(`[GoAiBot][${gameType}] Auto-scoring condition met but gameStatus is not 'playing' or 'hidden_placing': ${game.gameStatus} (totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}) - FORCING TRIGGER`);
+                    game.endTime = Date.now();
                     // 조건이 만족되었는데 gameStatus가 다른 경우 강제로 트리거
                     game.gameStatus = 'scoring';
                     await db.saveGame(game);

@@ -61,7 +61,10 @@ const getWinConditions = (session: LiveGameSession): string[] => {
     case GameMode.Missile:
       return ['미사일 아이템으로 돌을 이동할 수 있습니다. 집(점수)으로 승패를 결정합니다.'];
     case GameMode.Speed:
-      return ['피셔(시간 추가) 방식입니다. 집(점수)으로 승패를 결정합니다.'];
+      return [
+        '피셔(시간 추가) 방식입니다. 집(점수)으로 승패를 결정합니다.',
+        '시간 보너스: 기본 20점에서, 사용한 누적 시간 5초당 1점이 차감됩니다. (빠르게 두면 더 많은 보너스를 받습니다.)',
+      ];
     case GameMode.Mix:
       return ['여러 규칙이 섞인 바둑입니다. 집(점수)으로 승패를 결정합니다.'];
     case GameMode.Standard:

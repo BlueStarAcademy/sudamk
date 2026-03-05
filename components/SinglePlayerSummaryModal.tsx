@@ -294,11 +294,17 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
 
     // 경기 결과 모달이 열린 뒤에는 경기장 상태 업데이트로 시간이 바뀌어도
     // "총 걸린 시간"이 변하지 않도록, 처음 계산한 값을 ref에 고정한다.
+    // 계가 진입 시 서버가 설정한 endTime을 쓰면 연출 구간이 포함되지 않음.
     const gameDurationRef = useRef<string | null>(null);
     if (gameDurationRef.current === null) {
-        const startTime = session.gameStartTime ?? (session as any).startTime ?? session.createdAt;
-        const endTime = (session as any).endTime ?? session.turnStartTime ?? Date.now();
-        const elapsedMs = Math.max(0, endTime - startTime);
+        const startTime = session.gameStartTime ?? (session as any).startTime ?? session.createdAt ?? Date.now();
+        const isEnded = session.gameStatus === 'ended' || session.gameStatus === 'no_contest';
+        const isScoring = session.gameStatus === 'scoring';
+        const serverEndTime = (session as any).endTime;
+        const rawEnd = serverEndTime ?? session.turnStartTime ?? Date.now();
+        const useFixedEnd = (isEnded || (isScoring && serverEndTime != null)) && typeof rawEnd === 'number' && rawEnd > 0;
+        const endTime = useFixedEnd ? rawEnd : Date.now();
+        const elapsedMs = Math.max(0, endTime - (startTime || 0));
         const totalSeconds = Math.floor(elapsedMs / 1000);
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;

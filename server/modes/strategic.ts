@@ -184,6 +184,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 
                 console.log(`[handleStrategicGameAction] Game state updated: totalTurns=${game.totalTurns}, moveHistoryLength=${game.moveHistory?.length || 0}, boardStateSize=${game.boardState?.length || 0}`);
                 
+                // 계가 진입 시점에 종료 시각 고정 (타이머 정지, 총 걸린 시간에 계가 연출 제외)
+                if (game.endTime == null) game.endTime = Date.now();
                 // 게임 상태를 scoring으로 변경하고 계가 처리
                 game.gameStatus = 'scoring';
                 await db.saveGame(game);
@@ -197,6 +199,18 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     console.error(`[handleStrategicGameAction] Error in getGameResult for game ${game.id}:`, error);
                     throw error;
                 }
+                return {};
+            }
+
+            // 다음 턴이 AI인 경우: 클라이언트가 계가 직전 유저 소요시간만 동기화 (계가 시 서버가 시간 보너스 계산용으로 사용)
+            if (payload.syncTimeAndStateForScoring && (game.isSinglePlayer || game.gameCategory === 'tower')) {
+                if (payload.moveHistory && Array.isArray(payload.moveHistory)) game.moveHistory = payload.moveHistory;
+                if (payload.boardState && Array.isArray(payload.boardState)) game.boardState = payload.boardState;
+                if (payload.totalTurns !== undefined) game.totalTurns = payload.totalTurns;
+                if (payload.blackTimeLeft !== undefined) game.blackTimeLeft = payload.blackTimeLeft;
+                if (payload.whiteTimeLeft !== undefined) game.whiteTimeLeft = payload.whiteTimeLeft;
+                if (payload.captures && typeof payload.captures === 'object') game.captures = { ...(game.captures || {}), ...payload.captures };
+                await db.saveGame(game);
                 return {};
             }
 
@@ -275,6 +289,14 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
             if (!isMyTurn || (game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_placing')) {
                 return { error: '내 차례가 아닙니다.' };
+            }
+
+            // 싱글플레이/도전의 탑 스피드: 서버는 시간을 강제하지 않으므로, 매 착수 시 클라이언트가 보낸 남은 시간으로 동기화 (시간 보너스 계산용)
+            if ((game.isSinglePlayer || game.gameCategory === 'tower') && (payload as any).blackTimeLeft !== undefined) {
+                game.blackTimeLeft = (payload as any).blackTimeLeft;
+            }
+            if ((game.isSinglePlayer || game.gameCategory === 'tower') && (payload as any).whiteTimeLeft !== undefined) {
+                game.whiteTimeLeft = (payload as any).whiteTimeLeft;
             }
 
             // 전략바둑 로비 턴 제한: 이미 제한 수순에 도달했으면 착수 거부 후 계가 진행 (수순 초과 방지)

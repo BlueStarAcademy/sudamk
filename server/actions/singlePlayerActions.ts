@@ -423,10 +423,20 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 game.settings.timeIncrement = enforcedIncrement;
             }
 
-            // 싱글플레이 비스피드: 시간 제한 없음 (제한시간/초읽기 미적용, 결과까지 소요 시간만 표시, 초읽기 소리 없음)
-            game.turnDeadline = undefined;
-            game.blackTimeLeft = 0;
-            game.whiteTimeLeft = 0;
+            // 싱글플레이 스피드: 초기 시간 설정 (시간 보너스 20 - 사용초/5 적용을 위해 blackInitialTimeLeft 등 설정)
+            // 비스피드: 시간 제한 없음 (제한시간/초읽기 미적용, 결과까지 소요 시간만 표시)
+            if (isSpeedMode) {
+                const initialSec = enforcedMainTimeMinutes * 60;
+                game.blackTimeLeft = initialSec;
+                game.whiteTimeLeft = initialSec;
+                (game as any).blackInitialTimeLeft = initialSec;
+                (game as any).whiteInitialTimeLeft = initialSec;
+                game.turnDeadline = now + initialSec * 1000;
+            } else {
+                game.turnDeadline = undefined;
+                game.blackTimeLeft = 0;
+                game.whiteTimeLeft = 0;
+            }
             game.blackByoyomiPeriodsLeft = 0;
             game.whiteByoyomiPeriodsLeft = 0;
 

@@ -52,7 +52,8 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     finalAnalysis.scoreDetails.black.hiddenStoneBonus = 0;
     finalAnalysis.scoreDetails.white.hiddenStoneBonus = 0;
     
-    // Time bonus: 스피드바둑 PVP만 기본시간 대비 ± 5초당 1점. AI/싱글/탑은 0.
+    // Time bonus: 스피드바둑 PVP는 기본시간 대비 ± 5초당 1점. AI 대결은 기본 20점 - (누적시간 5초당 1점 차감).
+    const SPEED_AI_BASE_TIME_BONUS = 20;
     const isSpeedMode = session.mode === types.GameMode.Speed || (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Speed));
     if (isSpeedMode) {
         const blackInitial = preservedTimeInfo?.blackInitialTimeLeft ?? session.blackInitialTimeLeft;
@@ -60,9 +61,24 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
         const blackTime = preservedTimeInfo?.blackTimeLeft ?? session.blackTimeLeft ?? 0;
         const whiteTime = preservedTimeInfo?.whiteTimeLeft ?? session.whiteTimeLeft ?? 0;
         if (blackInitial != null && whiteInitial != null) {
-            // PVP 스피드: 기본시간 대비 ± 초를 5초당 1점으로
-            finalAnalysis.scoreDetails.black.timeBonus = Math.floor((blackTime - blackInitial) / TIME_BONUS_SECONDS_PER_POINT);
-            finalAnalysis.scoreDetails.white.timeBonus = Math.floor((whiteTime - whiteInitial) / TIME_BONUS_SECONDS_PER_POINT);
+            const isAiOrSinglePlayer = !!session.isAiGame || !!session.isSinglePlayer;
+            if (isAiOrSinglePlayer) {
+                // 스피드 바둑 AI/싱글플레이: 기본 20점, 총 누적 사용시간 5초당 1점 차감 (인간 측만 적용, AI는 0)
+                const blackUsedSec = Math.max(0, blackInitial - blackTime);
+                const whiteUsedSec = Math.max(0, whiteInitial - whiteTime);
+                const blackIsHuman = session.blackPlayerId !== aiUserId;
+                const whiteIsHuman = session.whitePlayerId !== aiUserId;
+                finalAnalysis.scoreDetails.black.timeBonus = blackIsHuman
+                    ? Math.max(0, SPEED_AI_BASE_TIME_BONUS - Math.floor(blackUsedSec / TIME_BONUS_SECONDS_PER_POINT))
+                    : 0;
+                finalAnalysis.scoreDetails.white.timeBonus = whiteIsHuman
+                    ? Math.max(0, SPEED_AI_BASE_TIME_BONUS - Math.floor(whiteUsedSec / TIME_BONUS_SECONDS_PER_POINT))
+                    : 0;
+            } else {
+                // PVP 스피드: 기본시간 대비 ± 초를 5초당 1점으로
+                finalAnalysis.scoreDetails.black.timeBonus = Math.floor((blackTime - blackInitial) / TIME_BONUS_SECONDS_PER_POINT);
+                finalAnalysis.scoreDetails.white.timeBonus = Math.floor((whiteTime - whiteInitial) / TIME_BONUS_SECONDS_PER_POINT);
+            }
         } else {
             finalAnalysis.scoreDetails.black.timeBonus = 0;
             finalAnalysis.scoreDetails.white.timeBonus = 0;
@@ -287,6 +303,8 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     (game as any).preservedTimeInfo = preservedTimeInfo;
     
     // 게임 상태를 scoring으로 변경 (계가 연출 중 미사일 애니메이션 재생 방지를 위해 animation 제거)
+    // 계가 진입 시점에 종료 시각 고정 → 총 걸린 시간에 계가 연출 구간 포함되지 않도록
+    if (game.endTime == null) game.endTime = Date.now();
     game.gameStatus = 'scoring';
     game.winReason = 'score';
     game.isAnalyzing = true;

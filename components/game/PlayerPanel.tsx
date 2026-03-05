@@ -319,10 +319,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const gameStart = session.gameStartTime ?? session.createdAt;
     const [elapsedSec, setElapsedSec] = useState(0);
     const isEnded = session.gameStatus === 'ended' || session.gameStatus === 'no_contest';
+    const isScoring = session.gameStatus === 'scoring';
+    const scoringEndTime = isScoring ? (session as { endTime?: number }).endTime : undefined;
     useEffect(() => {
         if (enforceTime || !gameStart) return;
-        if (isEnded) {
-            const endMs = session.turnStartTime ?? Date.now();
+        // 계가 중이면 타이머 정지: 서버에서 내려준 endTime 기준으로만 표시
+        if (isEnded || (isScoring && scoringEndTime != null)) {
+            const endMs = isEnded ? (session.turnStartTime ?? Date.now()) : scoringEndTime!;
             setElapsedSec(Math.max(0, Math.floor((endMs - gameStart) / 1000)));
             return;
         }
@@ -330,7 +333,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         tick();
         const id = setInterval(tick, 1000);
         return () => clearInterval(id);
-    }, [enforceTime, gameStart, session.gameStatus, isEnded, session.turnStartTime]);
+    }, [enforceTime, gameStart, session.gameStatus, isEnded, isScoring, scoringEndTime, session.turnStartTime]);
 
     const isScoreMode = [GameMode.Dice, GameMode.Thief, GameMode.Curling].includes(mode);
 

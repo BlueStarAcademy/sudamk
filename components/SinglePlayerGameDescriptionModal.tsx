@@ -79,9 +79,9 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             }
         }
         
-        // 스피드 바둑 (피셔 타이머)
+        // 스피드 바둑 (피셔 타이머) — AI 대국: 기본 20점, 사용한 누적 시간 5초당 1점 차감
         if (isSpeedMode) {
-            return '계가 시 최종 점수가 더 높은 플레이어가 승리합니다. 남은 시간 5초마다 1점 보너스가 추가됩니다.';
+            return '계가 시 최종 점수가 더 높은 플레이어가 승리합니다. 시간 보너스는 기본 20점에서, 사용한 누적 시간 5초당 1점이 차감됩니다.';
         }
         
         // 따내기 바둑: 턴 제한과 목표 점수가 모두 있는 경우
@@ -211,13 +211,13 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                 </h3>
                                 <div className="bg-gray-700/50 rounded-lg p-3 space-y-2">
                                     <p className="text-gray-200">
-                                        각 플레이어는 수를 둘 때마다 <span className="text-blue-300 font-semibold">피셔 타이머</span>가 적용되어 일정 시간(증가 시간)이 추가됩니다.
+                                        수를 둘 때마다 <span className="text-blue-300 font-semibold">피셔 타이머</span>가 적용되어 일정 시간이 추가됩니다.
                                     </p>
                                     <p className="text-gray-200">
-                                        경기 종료 시 <span className="text-green-300 font-semibold">남은 시간 5초마다 1점</span>이 추가되어 최종 점수를 결정합니다.
+                                        <span className="text-green-300 font-semibold">시간 보너스</span>: 기본 20점에서, 사용한 누적 시간 <span className="text-yellow-300 font-semibold">5초당 1점</span>이 차감됩니다. 빠르게 두면 더 많은 보너스를 받습니다.
                                     </p>
                                     <p className="text-gray-300 text-sm">
-                                        목표 따냄 수는 없으며, 최종 점수가 더 높은 쪽이 승리합니다.
+                                        최종 점수가 더 높은 쪽이 승리합니다.
                                     </p>
                                 </div>
                             </div>

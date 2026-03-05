@@ -1067,11 +1067,25 @@ export const useApp = () => {
                                     updateResult.updatedGame.totalTurns = totalTurns;
 
                                     if (updateResult.updatedGame.gameStatus === 'playing') {
-                                        // 다음 차례가 AI면, AI가 실제 착수한 뒤 계가를 진행해야 하므로 여기서는 트리거하지 않음
+                                        // 다음 차례가 AI면, AI가 실제 착수한 뒤 서버가 계가를 트리거함 → 계가 직전에 유저 소요시간만 서버에 한 번 전달
                                         if (isNextTurnAi) {
                                             console.log(
-                                                `[handleAction] ${actionTypeName} - Auto-scoring reached but next turn is AI; waiting for AI move: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}, nextPlayer=${nextPlayerEnum === Player.White ? 'White' : 'Black'}`
+                                                `[handleAction] ${actionTypeName} - Next turn is AI; syncing state and time for server scoring: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}`
                                             );
+                                            const g = updateResult.updatedGame as LiveGameSession;
+                                            handleAction({
+                                                type: 'PLACE_STONE',
+                                                payload: {
+                                                    gameId,
+                                                    syncTimeAndStateForScoring: true,
+                                                    moveHistory: g.moveHistory || [],
+                                                    boardState: g.boardState,
+                                                    totalTurns: g.totalTurns ?? totalTurns,
+                                                    blackTimeLeft: g.blackTimeLeft,
+                                                    whiteTimeLeft: g.whiteTimeLeft,
+                                                    captures: g.captures,
+                                                }
+                                            } as ServerAction);
                                         } else {
                                             // 마지막 착수가 화면에 보이도록, scoring 전환/서버 요청은 짧게 지연시켜 1프레임 이상 렌더를 보장
                                             shouldTriggerAutoScoring = true;
