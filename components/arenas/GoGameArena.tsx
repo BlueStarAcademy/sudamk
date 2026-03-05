@@ -87,8 +87,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
 
     return (
         <div className={`w-full h-full flex items-center justify-center ${backgroundClass} relative`}>
-            {/* 계가 중: 바둑판 위 오버레이 (완료 후 결과 모달 표시) */}
-            {gameStatus === 'scoring' && <ScoringOverlay variant="fullscreen" />}
+            {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
+            {gameStatus === 'scoring' && !session.analysisResult?.['system'] && <ScoringOverlay variant="fullscreen" />}
             {/* 회전 버튼: 흑/백 입장 전환 (이모지로 표현) */}
             {onToggleBoardRotation && (
                 <button

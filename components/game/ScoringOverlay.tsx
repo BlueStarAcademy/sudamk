@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 
-/** 계가 예상 소요 시간(ms). 진행 막대 및 연출 길이에 사용 — 모든 계가 화면에서 동일 적용 */
-export const SCORING_PROGRESS_DURATION_MS = 22_000;
+/** 계가 예상 소요 시간(ms). 진행 막대 및 "약 N초 남음"에 사용. 결과 수신 시 연출 즉시 종료되므로 최대 표시 시간만 의미함 */
+export const SCORING_PROGRESS_DURATION_MS = 12_000;
 const SCAN_CYCLE_MS = 4_000; // 좌→우 스캔 1회 주기
 
-/** 계가 중 오버레이: 스피너 + 텍스트 + 서브텍스트 + 숫자 카운트 + 22초 진행 막대(글로우) + 펄스 */
+/** 계가 중 오버레이: 스피너 + 텍스트 + 진행 막대. 결과 수신 시 부모에서 언마운트되어 즉시 종료 */
 export function ScoringOverlay({ variant = 'fullscreen' }: { variant?: 'fullscreen' | 'inline' }) {
   const [progress, setProgress] = useState(0);
   const [elapsedMs, setElapsedMs] = useState(0);

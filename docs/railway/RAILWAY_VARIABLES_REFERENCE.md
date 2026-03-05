@@ -77,11 +77,16 @@ KATAGO_NUM_ANALYSIS_THREADS=4
 KATAGO_NUM_SEARCH_THREADS=8
 KATAGO_MAX_VISITS=1000
 KATAGO_NN_MAX_BATCH_SIZE=16
+
+# 계가 전용 한도 (선택) — 설정 시 계가 시에만 적용, 분석 시간 8~12초대 목표
+KATAGO_SCORING_MAX_VISITS=300
+KATAGO_SCORING_MAX_TIME_SEC=10
 ```
 
 **설명:**
 - KataGo AI 엔진 실행에 필요한 설정들
 - 모델 파일 경로와 성능 튜닝 파라미터
+- `KATAGO_SCORING_*`: 계가 시에만 적용. 적용 후 몇 판으로 승자·점수 일치 여부 확인 권장 ([계가 성능 옵션](../troubleshooting/SCORING_PERFORMANCE_OPTIONS.md) 참고)
 
 ---
 

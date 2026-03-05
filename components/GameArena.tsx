@@ -19,6 +19,8 @@ interface GameArenaProps extends GameProps {
     myRevealedMoves: number[];
     showLastMoveMarker: boolean;
     isSinglePlayerPaused?: boolean;
+    /** 히든 아이템 사용 시 또는 AI 히든 연출 시 바둑판 패널 테두리 빛나는 효과 */
+    showBoardGlow?: boolean;
     resumeCountdown?: number;
     isBoardLocked?: boolean;
     isBoardRotated?: boolean;
@@ -28,13 +30,13 @@ interface GameArenaProps extends GameProps {
 }
 
 const GameArena: React.FC<GameArenaProps> = (props) => {
-    const { session, isSinglePlayerPaused, resumeCountdown, isBoardLocked, isBoardRotated, onToggleBoardRotation, pendingMove, ...restProps } = props;
-    const sharedProps = { ...restProps, session, isBoardRotated, onToggleBoardRotation, pendingMove };
+    const { session, isSinglePlayerPaused, showBoardGlow, resumeCountdown, isBoardLocked, isBoardRotated, onToggleBoardRotation, pendingMove, ...restProps } = props;
+    const sharedProps = { ...restProps, session, isBoardRotated, onToggleBoardRotation, pendingMove, showBoardGlow };
     const { mode, isSinglePlayer, gameCategory } = session;
     
     // 도전의 탑 게임도 싱글플레이어 아레나와 동일하게 처리 (바둑 게임이므로)
     if (isSinglePlayer || gameCategory === 'tower') {
-        return <SinglePlayerArena {...sharedProps} isPaused={isSinglePlayerPaused} resumeCountdown={resumeCountdown} isBoardLocked={isBoardLocked} />;
+        return <SinglePlayerArena {...sharedProps} isPaused={isSinglePlayerPaused} showBoardGlow={showBoardGlow} resumeCountdown={resumeCountdown} isBoardLocked={isBoardLocked} />;
     }
 
     // This component is now a simple dispatcher.

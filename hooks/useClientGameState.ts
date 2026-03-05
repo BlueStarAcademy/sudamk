@@ -273,13 +273,24 @@ export function updateGameStateAfterMove(
         ...(updatedTotalTurns !== undefined ? { totalTurns: updatedTotalTurns } as any : {}),
     };
 
-    // 도전의 탑 21층+ / 싱글플레이 히든 아이템: playing 전환, hiddenMoves 기록, hidden_stones_p1 감소
-    if ((gameType === 'tower' || gameType === 'singleplayer') && isHidden) {
+    // 도전의 탑 21층+ / 싱글플레이 유저(흑) 히든 아이템: playing 전환, hiddenMoves 기록, hidden_stones_p1 감소
+    if ((gameType === 'tower' || gameType === 'singleplayer') && isHidden && movePlayer === Player.Black) {
         (updatedGame as any).gameStatus = 'playing';
         (updatedGame as any).hiddenMoves = { ...(game.hiddenMoves || {}), [newMoveHistory.length - 1]: true };
         const hiddenKey = 'hidden_stones_p1';
         const current = (game as any)[hiddenKey] ?? (game.settings as any)?.hiddenStoneCount ?? 0;
         (updatedGame as any)[hiddenKey] = Math.max(0, current - 1);
+    }
+
+    // 싱글플레이 AI(백) 히든 아이템: hiddenMoves, aiInitialHiddenStone, hidden_stones_p2 감소, aiHiddenItemUsed
+    if (gameType === 'singleplayer' && isHidden && movePlayer === Player.White) {
+        (updatedGame as any).gameStatus = 'playing';
+        (updatedGame as any).hiddenMoves = { ...(game.hiddenMoves || {}), [newMoveHistory.length - 1]: true };
+        (updatedGame as any).aiInitialHiddenStone = { x, y };
+        (updatedGame as any).aiInitialHiddenStoneIsPrePlaced = false;
+        const p2Hidden = (game as any).hidden_stones_p2 ?? (game.settings as any)?.hiddenStoneCount ?? 0;
+        (updatedGame as any).hidden_stones_p2 = Math.max(0, p2Hidden - 1);
+        (updatedGame as any).aiHiddenItemUsed = true;
     }
 
     return {

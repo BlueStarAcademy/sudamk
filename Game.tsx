@@ -77,6 +77,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [isMoveInFlight, setIsMoveInFlight] = useState(false);
     const clientTimes = useClientTimer(session, (session.isSinglePlayer || (session.gameCategory === 'tower')) ? { isPaused } : {});
     const [isAiRematchModalOpen, setIsAiRematchModalOpen] = useState(false);
+    // 싱글플레이 고급 히든: AI 히든 아이템 연출 종료 시각 (이 시각까지 바둑판 테두리 빛 + 일시정지)
+    const [aiHiddenItemEffectEndTime, setAiHiddenItemEffectEndTime] = useState<number | null>(null);
+    const aiHiddenMoveExecutedRef = useRef(false);
+    // 연출 중 시간 경과로 빛/일시정지 갱신용 (0.5초마다)
+    const [effectTick, setEffectTick] = useState(0);
     
     // 보드 잠금 메커니즘: AI가 돌을 둔 직후 최신 serverRevision을 받을 때까지 보드 잠금
     const [lastReceivedServerRevision, setLastReceivedServerRevision] = useState<number>(session.serverRevision ?? 0);
@@ -431,6 +436,58 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [gameStatus, prevGameStatus]);
 
     useEffect(() => { return () => audioService.stopScanBgm(); }, []);
+
+    // 싱글플레이 고급 히든: AI 히든 연출 중 0.5초마다 갱신 (테두리 빛/일시정지 표시)
+    useEffect(() => {
+        if (aiHiddenItemEffectEndTime == null) return;
+        const id = setInterval(() => setEffectTick((t) => t + 1), 500);
+        return () => clearInterval(id);
+    }, [aiHiddenItemEffectEndTime]);
+
+    // 싱글플레이 고급 히든: 10초 연출 종료 시점이 지나면 AI 히든 착수 실행 (한 번만)
+    useEffect(() => {
+        if (aiHiddenItemEffectEndTime == null) return;
+        if (Date.now() < aiHiddenItemEffectEndTime) return;
+        if (aiHiddenMoveExecutedRef.current) {
+            setAiHiddenItemEffectEndTime(null);
+            return;
+        }
+        aiHiddenMoveExecutedRef.current = true;
+        setAiHiddenItemEffectEndTime(null);
+        const boardStateToUse = restoredBoardState || session.boardState;
+        const moveHistoryLength = session.moveHistory?.length ?? 0;
+        if (!boardStateToUse?.length || !session.id || session.gameStatus !== 'playing' || session.currentPlayer !== Player.White) return;
+        const koInfoAtCalculation = session.koInfo ? JSON.parse(JSON.stringify(session.koInfo)) : null;
+        const aiMove = calculateSimpleAiMove(
+            JSON.parse(JSON.stringify(boardStateToUse)),
+            Player.White,
+            Player.Black,
+            koInfoAtCalculation,
+            moveHistoryLength,
+            session.settings?.aiDifficulty ?? 1
+        );
+        if (!aiMove) return;
+        const aiMoveResult = processMoveClient(
+            boardStateToUse,
+            { x: aiMove.x, y: aiMove.y, player: Player.White },
+            session.koInfo,
+            moveHistoryLength
+        );
+        if (!aiMoveResult.isValid) return;
+        lastAiMoveRef.current = { gameId: session.id, moveHistoryLength, player: Player.White, timestamp: Date.now() };
+        handlers.handleAction({
+            type: 'SINGLE_PLAYER_CLIENT_MOVE',
+            payload: {
+                gameId: session.id,
+                x: aiMove.x,
+                y: aiMove.y,
+                newBoardState: aiMoveResult.newBoardState,
+                capturedStones: aiMoveResult.capturedStones,
+                newKoInfo: aiMoveResult.newKoInfo,
+                isHidden: true,
+            },
+        } as any);
+    }, [aiHiddenItemEffectEndTime, effectTick, session.id, session.gameStatus, session.currentPlayer, session.moveHistory?.length, session.koInfo, session.settings?.aiDifficulty, restoredBoardState, session.boardState, handlers.handleAction]);
 
     useEffect(() => {
         const isGameOver = ['ended', 'no_contest', 'scoring'].includes(gameStatus);
@@ -1056,6 +1113,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (isAiTurn) {
+            // 싱글플레이 고급 히든: 경기 시작 시 'AI 턴 1~10 중 하나'를 랜덤으로 정해 둔 값과, 지금이 몇 번째 AI 차례인지가 일치할 때만 연출
+            const isSinglePlayerHiddenStage = session.isSinglePlayer && ((session.settings?.hiddenStoneCount ?? 0) > 0);
+            const moveCount = session.moveHistory?.length ?? 0;
+            const aiTurnIndex = Math.floor(moveCount / 2) + 1; // 지금 둘 차례인 백 = 1번째 AI턴(1), 2번째 AI턴(2), ..., 10번째 AI턴(10)
+            const isAiHiddenItemTurn = isSinglePlayerHiddenStage && currentPlayer === Player.White
+                && aiTurnIndex >= 1 && aiTurnIndex <= 10
+                && aiTurnIndex === ((session as any).aiHiddenItemTurn ?? 0)
+                && !(session as any).aiHiddenItemUsed;
+            if (isAiHiddenItemTurn && aiHiddenItemEffectEndTime == null) {
+                aiHiddenMoveExecutedRef.current = false;
+                setAiHiddenItemEffectEndTime(Date.now() + 10000);
+                return;
+            }
+            if (aiHiddenItemEffectEndTime != null) return;
+
             // 게임이 이미 종료되었는지 확인
             if (gameStatus !== 'playing' && (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring')) {
                 console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} game already ended, skipping AI move:`, {
@@ -1284,7 +1356,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 aiMoveTimeoutRef.current = null;
             }
         };
-    }, [session.isSinglePlayer, session.gameCategory, isPaused, gameStatus, currentPlayer, session.blackPlayerId, session.whitePlayerId, restoredBoardState, session.koInfo, session.moveHistory?.length, session.settings.aiDifficulty, isBoardLocked, session.id, session.gameStatus, handlers.handleAction]);
+    }, [session.isSinglePlayer, session.gameCategory, isPaused, gameStatus, currentPlayer, session.blackPlayerId, session.whitePlayerId, restoredBoardState, session.koInfo, session.moveHistory?.length, session.settings?.aiDifficulty, isBoardLocked, session.id, session.gameStatus, handlers.handleAction, aiHiddenItemEffectEndTime]);
     
     const globalChat = useMemo(() => waitingRoomChats['global'] || [], [waitingRoomChats]);
     
@@ -1436,7 +1508,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isMobile={isMobile}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                         showLastMoveMarker={settings.features.lastMoveMarker}
-                                        isSinglePlayerPaused={isPaused}
+                                        isSinglePlayerPaused={isPaused || (aiHiddenItemEffectEndTime != null && Date.now() < (aiHiddenItemEffectEndTime ?? 0))}
+                                        showBoardGlow={gameStatus === 'hidden_placing' || (aiHiddenItemEffectEndTime != null && Date.now() < (aiHiddenItemEffectEndTime ?? 0))}
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
                                         isBoardRotated={isBoardRotated}

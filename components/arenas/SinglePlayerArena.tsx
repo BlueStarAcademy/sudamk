@@ -12,6 +12,8 @@ interface SinglePlayerArenaProps extends GameProps {
     isMobile: boolean;
     showLastMoveMarker: boolean;
     isPaused?: boolean;
+    /** 히든 아이템 사용 시 / AI 히든 연출 시 바둑판 패널 테두리 빛나는 효과 */
+    showBoardGlow?: boolean;
     resumeCountdown?: number;
     isBoardLocked?: boolean;
 }
@@ -29,6 +31,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         isMobile,
         showLastMoveMarker,
         isPaused = false,
+        showBoardGlow = false,
         resumeCountdown = 0,
         isBoardLocked = false,
     } = props;
@@ -83,9 +86,10 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
 
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-center">
-            {/* 계가 중: 바둑판 위 오버레이 (완료 후 결과 모달 표시) */}
-            {gameStatus === 'scoring' && <ScoringOverlay variant="fullscreen" />}
+            {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
+            {gameStatus === 'scoring' && !session.analysisResult?.['system'] && <ScoringOverlay variant="fullscreen" />}
             <div className={`w-full h-full transition-opacity duration-500 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                <div className={`w-full h-full flex items-center justify-center rounded-lg transition-all duration-300 ${showBoardGlow ? 'ring-4 ring-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] animate-[pulse_2s_ease-in-out_infinite]' : ''}`}>
                 <GoBoard
                     boardState={boardState}
                     boardSize={settings.boardSize}
@@ -137,6 +141,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     onAction={props.onAction}
                     gameId={session.id}
                 />
+                </div>
             </div>
             {isPaused && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">

@@ -13,8 +13,9 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
         game.hidden_stones_p2 = (game.settings.hiddenStoneCount || 0);
         game.hidden_stones_used_p1 = 0;
         game.hidden_stones_used_p2 = 0;
+        // AI 턴 1~10 중 하나를 경기 시작 시 랜덤으로 정해 두고, 그 AI 턴에만 히든 연출 (전체 수순이 아니라 '몇 번째 AI 차례'인지)
         if ((game.hidden_stones_p2 ?? 0) > 0 && game.aiHiddenItemTurn === undefined) {
-            game.aiHiddenItemTurn = 2 + Math.floor(Math.random() * 11);
+            game.aiHiddenItemTurn = 1 + Math.floor(Math.random() * 10); // 1=1번째 AI턴, 2=2번째 AI턴, ..., 10=10번째 AI턴
         }
     }
 };
