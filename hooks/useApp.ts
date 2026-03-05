@@ -1155,17 +1155,23 @@ export const useApp = () => {
                         }
                     } as any;
                     
-                    // 마지막 착수가 렌더된 뒤 계가 화면으로 전환하고 서버에 계가 요청
+                    // 히든 모드: 서버가 먼저 히든돌 공개 애니메이션(hidden_final_reveal)을 보낸 뒤 계가로 전환하므로,
+                    // 클라이언트에서 500ms 후에 gameStatus를 'scoring'으로 바꾸지 않음 (순서 꼬임 방지)
+                    const isHiddenMode = game.mode === GameMode.Hidden ||
+                        (game.mode === GameMode.Mix && (game.settings as any)?.mixedModes?.includes?.(GameMode.Hidden)) ||
+                        ((game.settings as any)?.hiddenStoneCount ?? 0) > 0;
                     const scoringDelayRef = isTower ? towerScoringDelayTimeoutRef : singlePlayerScoringDelayTimeoutRef;
                     if (scoringDelayRef.current[gameId] != null) {
                         clearTimeout(scoringDelayRef.current[gameId]);
                     }
                     scoringDelayRef.current[gameId] = setTimeout(() => {
-                        updateGameState(prev => {
-                            const g = prev[gameId];
-                            if (!g) return prev;
-                            return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
-                        });
+                        if (!isHiddenMode) {
+                            updateGameState(prev => {
+                                const g = prev[gameId];
+                                if (!g) return prev;
+                                return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
+                            });
+                        }
                         console.log(`[handleAction] Sending PLACE_STONE action to server for auto-scoring:`, { ...autoScoringAction, payload: { ...autoScoringAction.payload, moveHistory: `[${moveHistory.length} moves]` } });
                         handleAction(autoScoringAction).then(result => {
                             console.log(`[handleAction] Auto-scoring action sent successfully:`, result);
@@ -3390,7 +3396,11 @@ export const useApp = () => {
                                                                         triggerAutoScoring: true
                                                                     }
                                                                 } as any;
-                                                                // 마지막 AI 수가 바둑판에 보인 뒤 계가 진행: 먼저 'playing'으로 보드만 표시, 0.5초 후 scoring 전환
+                                                                // 히든 모드: 서버가 hidden_final_reveal → scoring 순으로 보내므로, 클라이언트에서 scoring으로 덮어쓰지 않음
+                                                                const isHiddenModeWs = game.mode === GameMode.Hidden ||
+                                                                    (game.mode === GameMode.Mix && (game.settings as any)?.mixedModes?.includes?.(GameMode.Hidden)) ||
+                                                                    ((game.settings as any)?.hiddenStoneCount ?? 0) > 0;
+                                                                // 마지막 AI 수가 바둑판에 보인 뒤 계가 진행: 먼저 'playing'으로 보드만 표시, 0.5초 후 (비히든만 로컬 scoring 전환 후) 서버 요청
                                                                 if (singlePlayerScoringDelayTimeoutRef.current[gameId] != null) {
                                                                     clearTimeout(singlePlayerScoringDelayTimeoutRef.current[gameId]);
                                                                 }
@@ -3404,11 +3414,13 @@ export const useApp = () => {
                                                                     whiteTimeLeft: preservedWhiteTimeLeft,
                                                                 };
                                                                 singlePlayerScoringDelayTimeoutRef.current[gameId] = setTimeout(() => {
-                                                                    setSinglePlayerGames(prev => {
-                                                                        const g = prev[gameId];
-                                                                        if (!g) return prev;
-                                                                        return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
-                                                                    });
+                                                                    if (!isHiddenModeWs) {
+                                                                        setSinglePlayerGames(prev => {
+                                                                            const g = prev[gameId];
+                                                                            if (!g) return prev;
+                                                                            return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
+                                                                        });
+                                                                    }
                                                                     handleAction(autoScoringAction).then((result: any) => {
                                                                         if (process.env.NODE_ENV === 'development') {
                                                                             console.log(`[WebSocket][SinglePlayer] Auto-scoring action sent successfully:`, result);
@@ -4125,6 +4137,12 @@ export const useApp = () => {
         const isGamePage = currentHash.startsWith('#/game/');
 
         if (activeGame && !isGamePage) {
+            // 나가기 클릭 직후: postGameRedirect가 현재 해시와 같으면 경기장으로 다시 보내지 않음 (상태 갱신 전 리다이렉트 방지)
+            const postRedirect = sessionStorage.getItem('postGameRedirect');
+            if (postRedirect && currentHash === postRedirect) {
+                sessionStorage.removeItem('postGameRedirect');
+                return;
+            }
             console.log('[useApp] Routing to game:', activeGame.id);
             window.location.hash = `#/game/${activeGame.id}`;
         } else if (!activeGame && isGamePage) {

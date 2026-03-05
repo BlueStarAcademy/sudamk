@@ -864,13 +864,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         if (['ended', 'no_contest', 'rematch_pending'].includes(gameStatus)) {
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
-            // AI/일반 게임 종료 후 나가기 시 해당 종류의 대기실로 이동
+            // AI/일반 게임 종료 후 나가기 시 해당 종류의 대기실로 이동 (전략/놀이 대기실 AI를 먼저 판별해 싱글·탑으로 잘못 나가는 버그 방지)
             if (session.gameCategory === 'tower') {
                 sessionStorage.setItem('postGameRedirect', '#/tower');
-            } else if (session.isSinglePlayer) {
+            } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
+                const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
+                sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
+            } else if (session.gameCategory === 'singleplayer' || session.isSinglePlayer) {
                 sessionStorage.setItem('postGameRedirect', '#/singleplayer');
             } else {
-                // 놀이바둑(컬링·알까기 등) → 놀이바둑 대기실, 전략바둑 → 전략바둑 대기실
                 let waitingRoomMode: 'strategic' | 'playful' | null = null;
                 if (SPECIAL_GAME_MODES.some(m => m.mode === session.mode)) {
                     waitingRoomMode = 'strategic';

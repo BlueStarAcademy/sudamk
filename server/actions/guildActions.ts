@@ -813,14 +813,22 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 (myMemberInfo.role === GuildMemberRole.Vice && targetMemberInfo.role === GuildMemberRole.Member)) {
                 
                 guild.members = guild.members.filter(m => m.userId !== targetMemberId);
+                try {
+                    await guildRepo.removeGuildMember(guildId, targetMemberId);
+                } catch (err: any) {
+                    console.error(`[GUILD_KICK_MEMBER] Failed to remove GuildMember in Prisma:`, err?.message);
+                }
                 const targetUser = await db.getUser(targetMemberId);
                 if (targetUser) {
                     targetUser.guildId = undefined;
                     
                     // DB ?�데?�트�?비동기로 처리 (?�답 지??최소??
-                    db.updateUser(targetUser).catch(err => {
-                        console.error(`[GUILD_KICK_MEMBER] Failed to save target user ${targetUser.id}:`, err);
-                    });
+                    if (targetUser.status && typeof targetUser.status === 'object') {
+                        const status = { ...(targetUser.status as any) };
+                        delete status.guildId;
+                        targetUser.status = status;
+                    }
+                    await db.updateUser(targetUser);
 
                     // WebSocket?�로 ?�용???�데?�트 브로?�캐?�트 (최적?�된 ?�수 ?�용)
                     const { broadcastUserUpdate } = await import('../socket.js');

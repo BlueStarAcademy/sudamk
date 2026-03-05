@@ -8,7 +8,7 @@ import Button from '../Button.js';
 import GuildHomePanel, { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
 import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
-import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, DEMO_GUILD_WAR } from '../../constants/index.js';
+import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID } from '../../constants/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import GuildResearchPanel from './GuildResearchPanel.js';
 import GuildMissionsPanel from './GuildMissionsPanel.js';
@@ -96,18 +96,44 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
         setDonationModal({ type, count: Math.min(1, max) });
     };
 
-    const donationRecords = [...(guild?.donationLog || [])].reverse();
+    // 닉네임(유저)별 누적: 골드/다이아 기부 횟수 분리, 획득 길드코인·연구포인트 합계 (데이터 양 제한)
+    const donationByUser = React.useMemo(() => {
+        const log = guild?.donationLog || [];
+        const map = new Map<string, { nickname: string; goldCount: number; diamondCount: number; totalCoins: number; totalResearch: number }>();
+        for (const entry of log) {
+            const cur = map.get(entry.userId);
+            const nickname = entry.nickname || entry.userId;
+            if (!cur) {
+                map.set(entry.userId, {
+                    nickname,
+                    goldCount: entry.type === 'gold' ? entry.count : 0,
+                    diamondCount: entry.type === 'diamond' ? entry.count : 0,
+                    totalCoins: entry.coins,
+                    totalResearch: entry.research,
+                });
+            } else {
+                cur.nickname = nickname;
+                if (entry.type === 'gold') cur.goldCount += entry.count;
+                else cur.diamondCount += entry.count;
+                cur.totalCoins += entry.coins;
+                cur.totalResearch += entry.research;
+            }
+        }
+        return [...map.entries()]
+            .map(([userId, agg]) => ({ userId, ...agg }))
+            .sort((a, b) => b.totalCoins - a.totalCoins);
+    }, [guild?.donationLog]);
     const isMobile = useIsMobileLayout(768);
 
     return (
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col gap-3 relative overflow-hidden border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-1 min-h-[200px]" style={{ minHeight: '200px' }}>
+        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col gap-3 relative overflow-hidden border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-1 min-h-[200px] max-h-[320px]" style={{ minHeight: '200px' }}>
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none rounded-xl" />
             <h3 className="font-bold text-base text-highlight text-center relative z-10 flex items-center justify-center gap-2 drop-shadow-lg flex-shrink-0">
                 <span className="text-lg">💎</span>
                 <span>길드 기부</span>
             </h3>
 
-            <div className="flex flex-col md:flex-row gap-3 relative z-10 min-w-0 flex-1 items-stretch">
+            <div className="flex flex-col md:flex-row gap-3 relative z-10 min-w-0 flex-1 min-h-0 items-stretch">
             {/* 좌측: 기부 버튼 - 가운데 정렬, 기부 기록과 균형 맞춤 */}
             <div className="flex-[1] flex flex-col md:flex-row gap-2 md:gap-4 min-w-0 shrink-0 justify-center items-center md:items-stretch">
                 {/* 골드 기부 */}
@@ -161,31 +187,33 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                 </div>
             </div>
 
-            {/* 우측: 기부 기록 - 길드 공지 스타일 내부 박스 */}
-            <div className="flex-[1.5] min-w-0 flex flex-col relative z-10 border-t md:border-t-0 md:border-l border-stone-600/50 pt-2 md:pt-0 md:pl-3">
-                <div className="text-xs font-semibold text-highlight mb-1">기부 기록</div>
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                    <div className="bg-tertiary/50 rounded-lg p-3 min-h-[80px] border-2 border-black/20 shadow-inner backdrop-blur-sm h-full">
-                        <div className="space-y-0.5 text-[10px] md:text-xs text-secondary h-full overflow-y-auto">
-                            {donationRecords.length === 0 ? (
+            {/* 우측: 기부 기록 - 고정 높이, 내용 많으면 내부 스크롤 */}
+            <div className="flex-[1.5] min-w-0 flex flex-col min-h-0 relative z-10 border-t md:border-t-0 md:border-l border-stone-600/50 pt-2 md:pt-0 md:pl-3">
+                <div className="text-xs font-semibold text-highlight mb-1 flex-shrink-0">기부 기록</div>
+                <div className="flex-1 min-h-0 overflow-y-auto pr-1 rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner backdrop-blur-sm">
+                    <div className="p-3 space-y-0.5 text-[10px] md:text-xs text-secondary min-h-full">
+                            {donationByUser.length === 0 ? (
                                 <div className="text-stone-500 py-1">기록 없음</div>
                             ) : (
-                                donationRecords.map((log, idx) => (
-                                    <div key={idx} className="leading-tight truncate" title={`${log.nickname} ${log.type === 'gold' ? '골드' : '다이아'}${log.count}회 : 길드코인 ${log.coins} + RP ${log.research}`}>
-                                        <span className="text-amber-200/90">[{log.nickname}]</span>
-                                        {log.type === 'gold' ? '골드' : '다이아'}{log.count}회기부 :{' '}
+                                donationByUser.map((agg) => (
+                                    <div key={agg.userId} className="leading-tight truncate" title={`${agg.nickname} · 골드 ${agg.goldCount}회 · 다이아 ${agg.diamondCount}회 · 길드코인 ${agg.totalCoins.toLocaleString()} · RP ${agg.totalResearch.toLocaleString()}`}>
+                                        <span className="text-amber-200/90">[{agg.nickname}]</span>
+                                        {' '}
+                                        <span className="text-amber-200/95">골드 <span className="font-semibold text-white">{agg.goldCount}</span>회</span>
+                                        {' · '}
+                                        <span className="text-blue-200/95">다이아 <span className="font-semibold text-white">{agg.diamondCount}</span>회</span>
+                                        {' · '}
                                         <img src="/images/guild/tokken.png" alt="코인" className="w-2.5 h-2.5 inline align-middle" />
-                                        <span className="font-semibold text-amber-200">{log.coins}</span>
-                                        {' + '}
+                                        <span className="font-semibold text-amber-200">{agg.totalCoins.toLocaleString()}</span>
+                                        {' · '}
                                         <img src="/images/guild/button/guildlab.png" alt="RP" className="w-2.5 h-2.5 inline align-middle" />
-                                        <span className="font-semibold text-blue-200">{log.research}</span>
+                                        <span className="font-semibold text-blue-200">{agg.totalResearch.toLocaleString()}</span>
                                     </div>
                                 ))
                             )}
                         </div>
                     </div>
                 </div>
-            </div>
             </div>
 
             {/* 기부 횟수 선택 모달 - createPortal로 document.body에 렌더링 */}
@@ -764,7 +792,12 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                 const gwFromGuild = (myGuildFromResponse as any)?.guildWarMatching;
                 const serverSaysMatching = matching || gwFromGuild === true;
                 const stillBeforeDeadline = lastAppliedAtRef.current > 0 && (appDeadline == null || Date.now() < appDeadline);
-                if (justStarted || (stillBeforeDeadline && !serverSaysMatching)) {
+                // 매칭 직후 서버가 activeWar를 내려주면 이미 매칭 완료이므로 isMatching을 false로 유지 (입장 버튼·상대 패널 표시)
+                if (war && !serverSaysMatching) {
+                    setIsMatching(false);
+                    matchingJustStartedAtRef.current = 0;
+                    lastAppliedAtRef.current = 0;
+                } else if (justStarted || (stillBeforeDeadline && !serverSaysMatching)) {
                     setIsMatching(true);
                 } else {
                     setIsMatching(serverSaysMatching);
@@ -786,11 +819,11 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                 
                 setActiveWar(war);
                 
-                // 상대 길드 정보
+                // 상대 길드 정보 (봇 길드는 KV에 없을 수 있으므로 fallback)
                 const myGuildId = guild.id;
                 const opponentGuildId = war.guild1Id === myGuildId ? war.guild2Id : war.guild1Id;
-                const opponentGuildData = allGuilds[opponentGuildId];
-                setOpponentGuild(opponentGuildData);
+                const opponentGuildData = allGuilds[opponentGuildId] ?? (opponentGuildId === GUILD_WAR_BOT_GUILD_ID ? { id: opponentGuildId, name: '[데모]길드전AI', level: 1, members: [], leaderId: opponentGuildId } : undefined);
+                setOpponentGuild(opponentGuildData ?? null);
                 
                 // 하루 도전 횟수 계산
                 const today = new Date().toISOString().split('T')[0];
@@ -991,11 +1024,12 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                 setMatchingModalMessage(cr?.message || '매칭 신청이 완료되었습니다. 화요일·금요일 0시에 매칭됩니다.');
                 setMatchingModalWarStartTime(cr?.nextMatchTime ?? undefined);
                 setShowMatchingModal(true);
-                // 데모 매칭 시 즉시 activeWar/guilds 반영
-                if (cr?.matched === true && cr?.activeWar && cr?.guilds) {
+                // 데모 매칭 시 즉시 activeWar/guilds 반영 (봇 길드는 guilds에 없을 수 있으므로 fallback)
+                if (cr?.matched === true && cr?.activeWar) {
                     setActiveWar(cr.activeWar);
                     const oppId = cr.activeWar.guild1Id === guild.id ? cr.activeWar.guild2Id : cr.activeWar.guild1Id;
-                    setOpponentGuild(cr.guilds[oppId] ?? null);
+                    const oppData = cr.guilds?.[oppId] ?? (oppId === GUILD_WAR_BOT_GUILD_ID ? { id: oppId, name: '[데모]길드전AI', level: 1, members: [], leaderId: oppId } : null);
+                    setOpponentGuild(oppData ?? null);
                     // 데모 모드에서는 자동으로 길드 전쟁 화면으로 이동
                     if (DEMO_GUILD_WAR) {
                         window.location.hash = '#/guildwar';
@@ -1125,7 +1159,9 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     };
     
     const { ourGuild: ourGuildOccupancy, enemyGuild: enemyGuildOccupancy, ourStars, enemyStars, ourScore, enemyScore } = calculateOccupancy();
-    const enemyGuildName = opponentGuild?.name || "상대 길드";
+    const opponentGuildIdForDisplay = activeWar ? (activeWar.guild1Id === guild.id ? activeWar.guild2Id : activeWar.guild1Id) : null;
+    const displayOpponent = opponentGuild ?? (opponentGuildIdForDisplay === GUILD_WAR_BOT_GUILD_ID ? { id: GUILD_WAR_BOT_GUILD_ID, name: '[데모]길드전AI', level: 1, members: [], leaderId: GUILD_WAR_BOT_GUILD_ID } : null);
+    const enemyGuildName = displayOpponent?.name || '상대 길드';
     const isMobile = useIsMobileLayout(768);
     const isPastApplicationDeadline = applicationDeadline != null && Date.now() >= applicationDeadline;
     
@@ -1184,9 +1220,9 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                                         {nextMatchTime != null && <div className="text-yellow-200 text-center text-[10px]">{timeRemaining || '0시에 상대 표시'}</div>}
                                     </div>
                                 )}
-                                {activeWar && !isMatching && opponentGuild && (
+                                {activeWar && !isMatching && displayOpponent && (
                                     <div className="space-y-1 text-xs">
-                                        <div className="font-bold text-red-300 truncate text-center" title={opponentGuild.name}>{opponentGuild.name || '상대 길드'}</div>
+                                        <div className="font-bold text-red-300 truncate text-center" title={displayOpponent.name}>{displayOpponent.name || '상대 길드'}</div>
                                         <div className="flex justify-between text-[10px]">
                                             <span className="text-blue-300">{ourStars} vs {enemyStars} (별)</span>
                                         </div>
@@ -1321,6 +1357,17 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                                 <span>{myWarTickets}/{GUILD_WAR_MAX_ATTEMPTS}</span>
                                 <span>입장</span>
                             </button>
+                            {DEMO_GUILD_WAR && (
+                                <button
+                                    type="button"
+                                    onClick={() => { window.location.hash = '#/guildwar'; }}
+                                    className={guildPanelBtn.war}
+                                    title="데모: 길드전 페이지로 이동 후 '데모 버전 입장'으로 체험"
+                                >
+                                    <span className="text-xs">🎮</span>
+                                    <span>데모 경기</span>
+                                </button>
+                            )}
                             {canStartWar && !activeWar && !isMatching && (DEMO_GUILD_WAR || !isPastApplicationDeadline) && (
                                 <button
                                     onClick={handleStartWar}

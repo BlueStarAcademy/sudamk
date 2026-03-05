@@ -441,11 +441,11 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (!['ended', 'no_contest'].includes(game.gameStatus)) {
                  await summaryService.endGame(game, types.Player.White, 'disconnect'); // AI is always P2/White and wins on disconnect
             } else {
-                // 게임이 이미 종료된 경우, 싱글플레이 게임이면 사용자 데이터를 다시 가져와서 브로드캐스트 (클리어 상태 반영)
-                if (game.isSinglePlayer) {
+                // 게임이 이미 종료된 경우, 싱글플레이·도전의 탑이면 사용자 데이터를 다시 가져와서 브로드캐스트 (클리어 상태·towerFloor 반영)
+                if (game.isSinglePlayer || game.gameCategory === 'tower') {
                     const freshUser = await db.getUser(user.id);
                     if (freshUser) {
-                        console.log(`[LEAVE_AI_GAME] Broadcasting updated user data for single player game ${gameId}, clearedStages: ${JSON.stringify(freshUser.clearedSinglePlayerStages)}`);
+                        console.log(`[LEAVE_AI_GAME] Broadcasting updated user data for ${game.gameCategory === 'tower' ? 'tower' : 'single player'} game ${gameId}`);
                         broadcast({ type: 'USER_UPDATE', payload: { [user.id]: freshUser } });
                     }
                 }

@@ -580,36 +580,40 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 return { error: errorMessage };
             }
             
+            // 따낸 돌에 기여한 "우리 돌 전체 연결 그룹"에서 히든 돌 수집 (인접한 돌만이 아니라 연결된 모든 돌 포함)
             const contributingHiddenStones: { point: types.Point, player: types.Player }[] = [];
             if (result.capturedStones.length > 0) {
-                const boardAfterMove = JSON.parse(JSON.stringify(game.boardState));
-                boardAfterMove[y][x] = myPlayerEnum;
-                const logic = getGoLogic({ ...game, boardState: boardAfterMove });
-                const checkedStones = new Set<string>();
-
-                for (const captured of result.capturedStones) {
-                    const neighbors = logic.getNeighbors(captured.x, captured.y);
-                    for (const n of neighbors) {
-                        const neighborKey = `${n.x},${n.y}`;
-                        if (checkedStones.has(neighborKey) || boardAfterMove[n.y][n.x] !== myPlayerEnum) continue;
-                    checkedStones.add(neighborKey);
-                    const isCurrentMove = n.x === x && n.y === y;
+                const logic = getGoLogic({ ...game, boardState: result.newBoardState });
+                const capturingGroupPoints = new Set<string>();
+                const queue: { x: number; y: number }[] = [{ x, y }];
+                capturingGroupPoints.add(`${x},${y}`);
+                while (queue.length > 0) {
+                    const cur = queue.shift()!;
+                    for (const n of logic.getNeighbors(cur.x, cur.y)) {
+                        const key = `${n.x},${n.y}`;
+                        if (capturingGroupPoints.has(key)) continue;
+                        if (result.newBoardState[n.y][n.x] !== myPlayerEnum) continue;
+                        capturingGroupPoints.add(key);
+                        queue.push(n);
+                    }
+                }
+                for (const key of capturingGroupPoints) {
+                    const [nx, ny] = key.split(',').map(Number);
+                    const isCurrentMove = nx === x && ny === y;
                     let isHiddenStone = isCurrentMove ? isHidden : false;
                     if (!isCurrentMove) {
-                        const moveIndex = game.moveHistory.findIndex(m => m.x === n.x && m.y === n.y);
+                        const moveIndex = game.moveHistory.findIndex(m => m.x === nx && m.y === ny);
                         isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                        // AI 초기 히든돌 확인
                         if (!isHiddenStone && game.isSinglePlayer && (game as any).aiInitialHiddenStone) {
                             const aiHidden = (game as any).aiInitialHiddenStone;
-                            isHiddenStone = n.x === aiHidden.x && n.y === aiHidden.y &&
-                                !game.permanentlyRevealedStones?.some(p => p.x === n.x && p.y === n.y);
+                            isHiddenStone = nx === aiHidden.x && ny === aiHidden.y &&
+                                !game.permanentlyRevealedStones?.some(p => p.x === nx && p.y === ny);
                         }
                     }
                     if (isHiddenStone) {
-                        if (!game.permanentlyRevealedStones || !game.permanentlyRevealedStones.some(p => p.x === n.x && p.y === n.y)) {
-                            contributingHiddenStones.push({ point: { x: n.x, y: n.y }, player: myPlayerEnum });
+                        if (!game.permanentlyRevealedStones || !game.permanentlyRevealedStones.some(p => p.x === nx && p.y === ny)) {
+                            contributingHiddenStones.push({ point: { x: nx, y: ny }, player: myPlayerEnum });
                         }
-                    }
                     }
                 }
             }

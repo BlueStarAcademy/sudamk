@@ -730,17 +730,17 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const handleCloseResults = () => {
             setShowResultModal(false);
 
-            // 게임 종류에 따라 적절한 로비/대기실로 라우팅
+            // 게임 종류에 따라 적절한 로비/대기실로 라우팅 (전략/놀이 대기실 AI를 먼저 판별해 싱글·탑으로 잘못 나가는 버그 방지)
             let redirectHash: string | null = null;
 
             if (session.gameCategory === 'tower') {
-                // 도전의 탑
                 redirectHash = '#/tower';
+            } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
+                const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
+                redirectHash = `#/waiting/${waitingRoomMode}`;
             } else if (session.gameCategory === 'singleplayer' || session.isSinglePlayer) {
-                // 싱글플레이 미션
                 redirectHash = '#/singleplayer';
             } else {
-                // 전략바둑 / 놀이바둑 AI 대국 (일반 대기실 AI)
                 let waitingRoomMode: 'strategic' | 'playful' | null = null;
                 if (SPECIAL_GAME_MODES.some(m => m.mode === session.mode)) {
                     waitingRoomMode = 'strategic';

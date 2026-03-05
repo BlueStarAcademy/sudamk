@@ -2629,10 +2629,10 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         }
     });
 
-    // 도전의 탑 랭킹 API
+    // 도전의 탑 랭킹 API (캐시 생략하여 10층+ 클리어 직후 랭킹에 즉시 반영)
     app.get('/api/ranking/tower', async (req, res) => {
         try {
-            const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false });
+            const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
             
             // 10층 돌파(클리어)한 사람만 랭킹에 표시
             const eligibleUsers = allUsers
