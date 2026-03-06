@@ -3,6 +3,7 @@ import { LiveGameSession, User, ServerAction, Player } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import PreGameColorRoulette from './PreGameColorRoulette.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 
 interface AlkkagiStartConfirmationModalProps {
@@ -15,6 +16,7 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
     const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, revealEndTime } = session;
     const hasConfirmed = preGameConfirmations?.[currentUser.id];
     const [countdown, setCountdown] = useState(30);
+    const [rouletteDone, setRouletteDone] = useState(false);
 
     useEffect(() => {
         const deadline = revealEndTime || (Date.now() + 30000);
@@ -31,12 +33,6 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
     
-    const wasRps = session.rpsState && Object.values(session.rpsState).every(c => c !== null);
-    const winner = blackPlayerId === player1.id ? player1 : player2;
-    const description = wasRps
-        ? `${winner.nickname}님이 가위바위보에서 승리하여 선공(흑)을 가져갑니다.`
-        : '선공/후공 선택이 완료되었습니다.';
-
     const blackAvatarUrl = AVATAR_POOL.find(a => a.id === blackPlayer.avatarId)?.url;
     const blackBorderUrl = BORDER_POOL.find(b => b.id === blackPlayer.borderId)?.url;
     const whiteAvatarUrl = AVATAR_POOL.find(a => a.id === whitePlayer.avatarId)?.url;
@@ -45,7 +41,13 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
     return (
         <DraggableWindow title="대국 시작 확인" initialWidth={600} windowId="alkkagi-start-confirm">
             <div className="text-white">
-                <p className="text-center text-gray-300 mb-4">{description}</p>
+                <PreGameColorRoulette
+                    blackPlayer={blackPlayer}
+                    whitePlayer={whitePlayer}
+                    onComplete={() => setRouletteDone(true)}
+                    title="룰렛으로 선공/후공이 결정되었습니다"
+                    subtitle="가위바위보 대신 자동 룰렛으로 흑과 백이 배정됩니다."
+                />
                 <p className="text-center text-gray-400 mb-4 text-sm">아래 시작 버튼을 누르거나 30초 후 대국이 자동으로 시작됩니다.</p>
 
                 <div className="flex gap-4 mt-4">
@@ -63,10 +65,10 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
 
                 <Button
                     onClick={() => onAction({ type: 'CONFIRM_ALKKAGI_START', payload: { gameId }})} 
-                    disabled={!!hasConfirmed}
+                    disabled={!!hasConfirmed || !rouletteDone}
                     className="w-full py-3 mt-6"
                 >
-                    {hasConfirmed ? '상대방 확인 대기 중...' : `대국 시작 (${countdown})`}
+                    {hasConfirmed ? '상대방 확인 대기 중...' : !rouletteDone ? '룰렛 결과 확인 중...' : `대국 시작 (${countdown})`}
                 </Button>
             </div>
         </DraggableWindow>

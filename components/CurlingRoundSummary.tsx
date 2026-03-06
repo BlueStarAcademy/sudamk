@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { LiveGameSession, ServerAction, Player, User } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 
 interface CurlingRoundSummaryProps {
@@ -13,24 +14,9 @@ interface CurlingRoundSummaryProps {
 
 const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, currentUser, onAction }) => {
     const { id: gameId, curlingRoundSummary, player1, player2, blackPlayerId, whitePlayerId, roundEndConfirmations, isAiGame } = session;
-    const [countdown, setCountdown] = useState(10);
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
     const totalRounds = session.settings.curlingRounds || 3;
     const isFinalRound = curlingRoundSummary?.round >= totalRounds;
-
-    useEffect(() => {
-        // AI 게임일 때는 카운트다운을 표시하지 않음 (무제한 대기)
-        if (isAiGame) {
-            setCountdown(0);
-            return;
-        }
-        const deadline = session.revealEndTime || (Date.now() + 10000);
-        const timerId = setInterval(() => {
-            const remaining = Math.max(0, (deadline - Date.now()) / 1000);
-            setCountdown(remaining);
-        }, 50); // 더 부드러운 애니메이션을 위해 50ms마다 업데이트
-        return () => clearInterval(timerId);
-    }, [session.revealEndTime, isAiGame]);
 
     if (!curlingRoundSummary) return null;
 
@@ -171,22 +157,6 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                         </p>
                     </div>
 
-                    {/* 카운트다운 표시 (AI 게임이 아닐 때만) */}
-                    {!isAiGame && (
-                        <div className="mt-4 space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-300">다음 화면까지</span>
-                                <span className="text-xl font-mono font-bold text-yellow-400">{Math.ceil(countdown)}초</span>
-                            </div>
-                            <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
-                                <div 
-                                    className="bg-gradient-to-r from-yellow-500 to-yellow-400 h-full rounded-full transition-all duration-50 ease-linear"
-                                    style={{ width: `${Math.max(0, Math.min(100, (countdown / 10) * 100))}%` }}
-                                ></div>
-                            </div>
-                        </div>
-                    )}
-
                     <Button 
                         onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId }})} 
                         disabled={!isAiGame && !!hasConfirmed}
@@ -196,9 +166,15 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                             ? (isFinalRound ? '확인' : '다음 라운드 시작')
                             : hasConfirmed 
                                 ? '상대방 확인 대기 중...' 
-                                : (isFinalRound ? '확인' : `다음 라운드 시작 (${countdown})`)
+                                : (isFinalRound ? '확인' : '다음 라운드 시작')
                         }
                     </Button>
+                    <RoundCountdownIndicator
+                        deadline={session.revealEndTime}
+                        durationSeconds={10}
+                        enabled={!isAiGame}
+                        label={isFinalRound ? '최종 결과 자동 표시까지' : '다음 라운드 자동 시작까지'}
+                    />
                 </div>
             </div>
         </DraggableWindow>

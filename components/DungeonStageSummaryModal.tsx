@@ -131,6 +131,21 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                     quantity: 1
                 });
             });
+        } else if (tournamentState.accumulatedEquipmentItems && tournamentState.accumulatedEquipmentItems.length > 0) {
+            const nameCounts: Record<string, { image: string; count: number }> = {};
+            tournamentState.accumulatedEquipmentItems.forEach((eq) => {
+                if (!nameCounts[eq.name]) {
+                    nameCounts[eq.name] = { image: eq.image || '/images/equipments/normalbgi.png', count: 0 };
+                }
+                nameCounts[eq.name].count++;
+            });
+            Object.entries(nameCounts).forEach(([name, { image, count }], idx) => {
+                rewardItemsMap.set(`world_generated_${idx}_${name}`, {
+                    name: count > 1 ? `${name} x${count}` : name,
+                    image,
+                    quantity: 1
+                });
+            });
         } else if (tournamentState.accumulatedEquipmentDrops && tournamentState.accumulatedEquipmentDrops.length > 0) {
             const EQUIP_GRADE_IMAGE: Record<string, string> = {
                 normal: '/images/equipments/normalbgi.png',

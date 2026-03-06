@@ -9,6 +9,8 @@ interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'c
     showResultModal?: boolean;
     setShowResultModal?: (show: boolean) => void;
     setConfirmModalType?: (type: 'resign' | null) => void;
+    isMoveInFlight?: boolean;
+    isBoardLocked?: boolean;
 }
 
 interface ImageButtonProps {
@@ -42,11 +44,12 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
     );
 };
 
-const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, currentUser, showResultModal, setShowResultModal, setConfirmModalType }) => {
+const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, currentUser, showResultModal, setShowResultModal, setConfirmModalType, isMoveInFlight = false, isBoardLocked = false }) => {
     const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
     const [passConfirmModal, setPassConfirmModal] = useState(false);
     const [turnAddConfirmModal, setTurnAddConfirmModal] = useState(false);
     const floor = session.towerFloor ?? 1;
+    const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
     const stage = TOWER_STAGES.find(s => {
         const stageFloor = parseInt(s.id.replace('tower-', ''));
         return stageFloor === floor;
@@ -248,10 +251,10 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const missileCount = showMissileAndHiddenForHook ? getItemCount(['미사일', 'missile']) : 0;
     const missileMaxCount = 2;
     const myMissilesLeft = session.missiles_p1 ?? missileCount;
-    const missileDisabled = !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
+    const missileDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
     
     const handleUseMissile = () => {
-        if (gameStatus !== 'playing') return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
         onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
     };
     
@@ -260,18 +263,18 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const hiddenMaxCount = 2;
     // 히든 아이템 (스캔 아이템처럼 개수 기반)
     const hiddenLeft = session.hidden_stones_p1 ?? hiddenCount;
-    const hiddenDisabled = !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
+    const hiddenDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
     
     const handleUseHidden = () => {
-        if (gameStatus !== 'playing') return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
         onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
     };
 
     // 스캔 아이템 (21층 이상): 상대(AI)에 미공개 히든돌이 있을 때만 사용 가능 (canScan은 상단 useMemo로 정의)
-    const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeftForHook <= 0 || !canScan;
+    const scanDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || myScansLeftForHook <= 0 || !canScan;
 
     const handleUseScan = () => {
-        if (gameStatus !== 'playing') return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
         onAction({ type: 'START_SCANNING', payload: { gameId: session.id } });
     };
 

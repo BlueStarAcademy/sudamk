@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { LiveGameSession, ServerAction, User } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 
 interface DiceRoundSummaryProps {
@@ -13,20 +14,7 @@ interface DiceRoundSummaryProps {
 
 const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUser, onAction }) => {
     const { id: gameId, player1, player2, diceRoundSummary, roundEndConfirmations, revealEndTime } = session;
-    const [countdown, setCountdown] = useState(20);
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
-
-    useEffect(() => {
-        const deadline = revealEndTime || (Date.now() + 20000);
-        const timerId = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-            setCountdown(remaining);
-        }, 1000);
-
-        return () => {
-            clearInterval(timerId);
-        };
-    }, [revealEndTime]);
 
     if (!diceRoundSummary) return null;
 
@@ -63,12 +51,12 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
     const isFinalRound = diceRoundSummary.round >= (session.settings.diceGoRounds ?? 3);
     const isTie = p1Score === p2Score;
 
-    let buttonText = `다음 라운드 시작 (${countdown})`;
+    let buttonText = '다음 라운드 시작';
     if (isFinalRound) {
         if (isTie) {
-            buttonText = `데스매치 시작 (${countdown})`;
+            buttonText = '데스매치 시작';
         } else {
-            buttonText = `최종 결과 보기 (${countdown})`;
+            buttonText = '최종 결과 보기';
         }
     }
     if (hasConfirmed) {
@@ -115,6 +103,11 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
                 >
                     {buttonText}
                 </Button>
+                <RoundCountdownIndicator
+                    deadline={revealEndTime}
+                    durationSeconds={20}
+                    label={isFinalRound ? (isTie ? '데스매치 자동 시작까지' : '최종 결과 자동 표시까지') : '다음 라운드 자동 시작까지'}
+                />
             </div>
         </DraggableWindow>
     );

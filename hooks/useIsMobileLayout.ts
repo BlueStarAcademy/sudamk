@@ -1,4 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
+const getViewportSize = () => {
+    if (typeof window === 'undefined') {
+        return { width: 0, height: 0 };
+    }
+    return { width: window.innerWidth, height: window.innerHeight };
+};
+
+const isHandheldWidth = (width: number, breakpoint: number) => width < breakpoint;
+const isPortraitViewport = (width: number, height: number) => width <= height;
 
 /**
  * 모바일에서 가로 모드만 사용하므로, "모바일 레이아웃"은 세로일 때만 적용.
@@ -8,17 +18,14 @@ import { useState, useEffect } from 'react';
  */
 export function useIsMobileLayout(breakpoint: number = 1024): boolean {
     const [isMobile, setIsMobile] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        return w < breakpoint && w <= h;
+        const { width, height } = getViewportSize();
+        return isHandheldWidth(width, breakpoint) && isPortraitViewport(width, height);
     });
 
     useEffect(() => {
         const update = () => {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            setIsMobile(w < breakpoint && w <= h);
+            const { width, height } = getViewportSize();
+            setIsMobile(isHandheldWidth(width, breakpoint) && isPortraitViewport(width, height));
         };
         update();
         window.addEventListener('resize', update);
@@ -32,17 +39,44 @@ export function useIsMobileLayout(breakpoint: number = 1024): boolean {
     return isMobile;
 }
 
+/** 좁은 화면의 휴대기기 여부. 레이아웃이 아니라 safe-area/회전 정책 판단용. */
+export function useIsHandheldDevice(breakpoint: number = 1024): boolean {
+    const [isHandheld, setIsHandheld] = useState(() => {
+        const { width } = getViewportSize();
+        return isHandheldWidth(width, breakpoint);
+    });
+
+    useEffect(() => {
+        const update = () => {
+            const { width } = getViewportSize();
+            setIsHandheld(isHandheldWidth(width, breakpoint));
+        };
+        update();
+        window.addEventListener('resize', update);
+        window.addEventListener('orientationchange', update);
+        return () => {
+            window.removeEventListener('resize', update);
+            window.removeEventListener('orientationchange', update);
+        };
+    }, [breakpoint]);
+
+    return isHandheld;
+}
+
 /**
  * 현재 화면이 세로(portrait)인지. 모바일에서 가로 모드만 허용할 때 세로면 "돌려주세요" 오버레이 표시용.
  */
 export function useIsPortrait(): boolean {
     const [isPortrait, setIsPortrait] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        return window.innerWidth <= window.innerHeight;
+        const { width, height } = getViewportSize();
+        return isPortraitViewport(width, height);
     });
 
     useEffect(() => {
-        const update = () => setIsPortrait(window.innerWidth <= window.innerHeight);
+        const update = () => {
+            const { width, height } = getViewportSize();
+            setIsPortrait(isPortraitViewport(width, height));
+        };
         window.addEventListener('resize', update);
         window.addEventListener('orientationchange', update);
         return () => {
@@ -57,17 +91,14 @@ export function useIsPortrait(): boolean {
 /** 세로 모드이면서 좁은 화면(모바일)일 때만 true. 가로 전용 오버레이 표시용. */
 export function useShowLandscapeOnlyOverlay(): boolean {
     const [show, setShow] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        return w <= h && w <= 1024;
+        const { width, height } = getViewportSize();
+        return isPortraitViewport(width, height) && isHandheldWidth(width, 1025);
     });
 
     useEffect(() => {
         const update = () => {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            setShow(w <= h && w <= 1024);
+            const { width, height } = getViewportSize();
+            setShow(isPortraitViewport(width, height) && isHandheldWidth(width, 1025));
         };
         update();
         window.addEventListener('resize', update);

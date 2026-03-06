@@ -7,6 +7,8 @@ import ConfirmModal from '../ConfirmModal.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     setShowResultModal?: (show: boolean) => void;
+    isMoveInFlight?: boolean;
+    isBoardLocked?: boolean;
 }
 
 interface ImageButtonProps {
@@ -70,9 +72,10 @@ const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, di
     );
 };
 
-const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, onAction, currentUser, setShowResultModal }) => {
+const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, onAction, currentUser, setShowResultModal, isMoveInFlight = false, isBoardLocked = false }) => {
     const [alertModal, setAlertModal] = useState<{ title?: string; message: string } | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ title?: string; message: string; onConfirm: () => void } | null>(null);
+    const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
     
     // 게임 모드별 아이템 로직 (hooks 규칙 준수를 위해 early return 전에 선언)
     const refreshesUsed = session.singlePlayerPlacementRefreshesUsed || 0;
@@ -97,12 +100,12 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     
     // 히든 아이템 (스캔 아이템처럼 개수 기반)
     const hiddenLeft = session.hidden_stones_p1 ?? hiddenCountSetting;
-    const hiddenDisabled = !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
+    const hiddenDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
     
     const handleUseHidden = React.useCallback(() => {
-        if (gameStatus !== 'playing') return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
         onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
-    }, [gameStatus, session.id, onAction]);
+    }, [gameStatus, session.id, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     // 스캔 아이템: 상대(백/AI)에 미공개 히든돌이 1개라도 있을 때만 활성화
     const myScansLeft = session.scans_p1 ?? scanCountSetting;
@@ -138,21 +141,21 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         return hasOpponentUnrevealedHidden;
     }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
     
-    const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan;
+    const scanDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan;
     
     const handleUseScan = React.useCallback(() => {
-        if (gameStatus !== 'playing') return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
         onAction({ type: 'START_SCANNING', payload: { gameId: session.id } });
-    }, [gameStatus, session.id, onAction]);
+    }, [gameStatus, session.id, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     // 미사일 아이템
     const myMissilesLeft = session.missiles_p1 ?? missileCountSetting;
-    const missileDisabled = !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
+    const missileDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
     
     const handleUseMissile = React.useCallback(() => {
-        if (gameStatus !== 'playing') return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
         onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
-    }, [gameStatus, session.id, onAction]);
+    }, [gameStatus, session.id, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     const handleRefresh = React.useCallback(() => {
         if (canRefresh && canAfford) {

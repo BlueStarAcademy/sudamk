@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 import { LiveGameSession, ServerAction, User, Player, AlkkagiStone, AvatarInfo, BorderInfo } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 
 interface AlkkagiRoundSummaryProps {
@@ -13,17 +14,7 @@ interface AlkkagiRoundSummaryProps {
 
 const AlkkagiRoundSummary: React.FC<AlkkagiRoundSummaryProps> = ({ session, currentUser, onAction }) => {
     const { id: gameId, alkkagiRoundSummary, player1, player2, roundEndConfirmations, revealEndTime, alkkagiStones } = session;
-    const [countdown, setCountdown] = useState(30);
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
-
-    useEffect(() => {
-        const deadline = revealEndTime || (Date.now() + 30000);
-        const timerId = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-            setCountdown(remaining);
-        }, 1000);
-        return () => clearInterval(timerId);
-    }, [revealEndTime]);
 
     if (!alkkagiRoundSummary) return null;
 
@@ -73,8 +64,13 @@ const AlkkagiRoundSummary: React.FC<AlkkagiRoundSummaryProps> = ({ session, curr
                     disabled={!!hasConfirmed}
                     className="w-full py-3"
                 >
-                    {hasConfirmed ? '상대방 확인 대기 중...' : `${nextRound > totalRounds ? '최종 결과 보기' : '다음 라운드 시작'} (${countdown})`}
+                    {hasConfirmed ? '상대방 확인 대기 중...' : nextRound > totalRounds ? '최종 결과 보기' : '다음 라운드 시작'}
                 </Button>
+                <RoundCountdownIndicator
+                    deadline={revealEndTime}
+                    durationSeconds={30}
+                    label={nextRound > totalRounds ? '최종 결과 자동 표시까지' : '다음 라운드 자동 시작까지'}
+                />
             </div>
         </DraggableWindow>
     );

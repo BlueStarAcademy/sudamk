@@ -2517,25 +2517,33 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     app.get('/api/ranking/tower', async (req, res) => {
         try {
             const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
-            // 1층 이상 클리어한 유저만 랭킹에 표시 (0층만 있으면 표시 안 함)
+            // 월간 도전의 탑 랭킹은 월간 최고 층수가 10층 이상인 유저만 집계한다.
             const eligibleUsers = allUsers
-                .filter(user => {
+                .map(user => {
                     const towerFloor = (user as any).towerFloor ?? 0;
-                    return towerFloor >= 1;
+                    const monthlyTowerFloor = (user as any).monthlyTowerFloor ?? 0;
+                    return {
+                        id: user.id,
+                        nickname: user.nickname,
+                        avatarId: user.avatarId,
+                        borderId: user.borderId,
+                        towerFloor,
+                        monthlyTowerFloor,
+                        lastTowerClearTime: (user as any).lastTowerClearTime ?? Infinity,
+                    };
                 })
-                .map(user => ({
-                    id: user.id,
-                    nickname: user.nickname,
-                    avatarId: user.avatarId,
-                    borderId: user.borderId,
-                    towerFloor: (user as any).towerFloor ?? 0,
-                    lastTowerClearTime: (user as any).lastTowerClearTime ?? Infinity
-                }));
+                .filter(user => user.monthlyTowerFloor >= 10);
+
             const sortedUsers = eligibleUsers.sort((a, b) => {
-                if (a.towerFloor !== b.towerFloor) return b.towerFloor - a.towerFloor;
+                if (a.monthlyTowerFloor !== b.monthlyTowerFloor) return b.monthlyTowerFloor - a.monthlyTowerFloor;
                 return a.lastTowerClearTime - b.lastTowerClearTime;
             });
-            const rankings = sortedUsers.map((user, index) => ({ ...user, rank: index + 1 }));
+
+            const rankings = sortedUsers.map((user, index) => ({
+                ...user,
+                rank: index + 1,
+            }));
+
             res.json({ type: 'tower', rankings, total: rankings.length, cached: false });
         } catch (error: any) {
             console.error('[API/Ranking/Tower] Error:', error);
@@ -3763,7 +3771,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const equipIds = new Set(Object.values(user.equipment || {}).filter(Boolean));
             const equippedItems = Array.isArray(user.inventory) ? user.inventory.filter((item: any) => item && equipIds.has(item.id)) : [];
 
-            const publicUser = {
+            const publicUser: Record<string, unknown> = {
                 id: user.id,
                 username: user.username,
                 nickname: user.nickname,
@@ -3790,8 +3798,26 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 inventory: equippedItems,
                 baseStats: user.baseStats || {},
                 spentStatPoints: user.spentStatPoints || {},
+                guildId: user.guildId ?? undefined,
             };
-            
+
+            if (user.guildId) {
+                try {
+                    const guildRepo = await import('./prisma/guildRepository.js');
+                    const guild = await guildRepo.getGuildById(user.guildId);
+                    if (guild) {
+                        const icon = guild.emblem?.startsWith('/images/guild/icon')
+                            ? guild.emblem.replace('/images/guild/icon', '/images/guild/profile/icon')
+                            : (guild.emblem || '/images/guild/profile/icon1.png');
+                        publicUser.guildName = guild.name;
+                        publicUser.guildLevel = guild.level;
+                        publicUser.guildIcon = icon;
+                    }
+                } catch (err: any) {
+                    console.warn('[/api/user/:userId] Failed to load guild for user:', userId, err?.message);
+                }
+            }
+
             res.json(publicUser);
         } catch (error: any) {
             console.error('[/api/user/:userId] Error:', error);

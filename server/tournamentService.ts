@@ -1,12 +1,15 @@
-import { TournamentState, PlayerForTournament, CoreStat, CommentaryLine, Match, User, Round, TournamentType, TournamentSimulationStatus } from '../shared/types/index.js';
+import { TournamentState, PlayerForTournament, CoreStat, CommentaryLine, Match, User, Round, TournamentType, TournamentSimulationStatus, EquipmentSlot } from '../shared/types/index.js';
 import { calculateTotalStats } from './statService.js';
 import { randomUUID } from 'crypto';
 import { TOURNAMENT_DEFINITIONS, NEIGHBORHOOD_MATCH_REWARDS, NATIONAL_MATCH_REWARDS, WORLD_MATCH_REWARDS, DUNGEON_STAGE_BOT_STATS, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, getDungeonMatchGoldReward, getDungeonMatchMaterialReward, getDungeonMatchEquipmentGrade } from '../shared/constants';
+import { ItemGrade } from '../shared/types/enums.js';
+import { generateNewItem } from './actions/inventoryActions.js';
 
 const EARLY_GAME_DURATION = 15;
 const MID_GAME_DURATION = 20;
 const END_GAME_DURATION = 15;
 const TOTAL_GAME_DURATION = EARLY_GAME_DURATION + MID_GAME_DURATION + END_GAME_DURATION;
+const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
 
 const STAT_WEIGHTS: Record<'early' | 'mid' | 'end', Partial<Record<CoreStat, number>>> = {
     early: {
@@ -390,10 +393,23 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                 state.matchMaterialRewards.push({ ...added });
             }
             
-            // 월드챔피언십: 장비 드롭 등급 누적 (1단계 승 일반75/희귀25, 패 일반100; 10단계 승 희귀/에픽/전설/신화)
+            // 월드챔피언십: 등급만이 아니라 실제 지급 장비도 즉시 생성해 화면에 바로 보여준다.
             if (state.type === 'world') {
+                const gradeMap: Record<string, ItemGrade> = {
+                    normal: ItemGrade.Normal,
+                    uncommon: ItemGrade.Uncommon,
+                    rare: ItemGrade.Rare,
+                    epic: ItemGrade.Epic,
+                    legendary: ItemGrade.Legendary,
+                    mythic: ItemGrade.Mythic,
+                };
                 if (!state.accumulatedEquipmentDrops) state.accumulatedEquipmentDrops = [];
-                state.accumulatedEquipmentDrops.push(getDungeonMatchEquipmentGrade(stage, isWin));
+                if (!state.accumulatedEquipmentItems) state.accumulatedEquipmentItems = [];
+                const gradeKey = getDungeonMatchEquipmentGrade(stage, isWin);
+                const grade = gradeMap[gradeKey] ?? ItemGrade.Normal;
+                const slot = ALL_SLOTS[Math.floor(Math.random() * ALL_SLOTS.length)];
+                state.accumulatedEquipmentDrops.push(gradeKey);
+                state.accumulatedEquipmentItems.push(generateNewItem(grade, slot));
             }
         }
         
@@ -745,6 +761,7 @@ export const createTournament = (type: TournamentType, user: User, players: Play
         matchMaterialRewards: type === 'national' ? [] : undefined, // 전국 8강/4강/결승(또는 3·4위전) 경기별 재료 표시용
         accumulatedEquipmentBoxes: type === 'world' ? {} : undefined, // 월드챔피언십 (레거시)
         accumulatedEquipmentDrops: type === 'world' ? [] : undefined, // 월드챔피언십 경기당 장비 등급 드롭 누적
+        accumulatedEquipmentItems: type === 'world' ? [] : undefined, // 월드챔피언십 경기당 실제 획득 장비
         currentRoundRobinRound: type === 'neighborhood' ? 1 : undefined, // 동네바둑리그는 1회차부터 시작
     };
 };

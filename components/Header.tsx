@@ -109,7 +109,7 @@ const Header: React.FC = () => {
             <div className="p-2.5 sm:p-3 flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-2 sm:gap-3 min-h-[70px] sm:min-h-[75px]">
                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 min-w-0 cursor-pointer relative" onClick={openProfileEditModal}>
                      <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={40} />
-                     <div className="hidden sm:block min-w-0">
+                     <div className={`${isMobile ? 'hidden' : 'block'} min-w-0`}>
                         <h1 className="font-bold text-primary truncate whitespace-nowrap">{currentUserWithStatus.nickname}</h1>
                         <p className="text-xs text-tertiary truncate whitespace-nowrap">전략 Lv.{currentUserWithStatus.strategyLevel} / 놀이 Lv.{currentUserWithStatus.playfulLevel}</p>
                      </div>
@@ -118,7 +118,7 @@ const Header: React.FC = () => {
                      )}
                 </div>
 
-                <div className="flex-1 w-full sm:w-auto flex flex-wrap sm:flex-nowrap items-center justify-end gap-1 sm:gap-2">
+                    <div className="flex-1 w-full sm:w-auto flex flex-wrap sm:flex-nowrap items-center justify-end gap-1 sm:gap-2">
                     <div className="flex items-center flex-shrink-0 gap-1 bg-tertiary/60 rounded-full pl-2 pr-1 py-1 border border-tertiary/40 shadow-inner">
                         <span className="flex items-center gap-1 font-bold text-[9px] sm:text-xs text-primary whitespace-nowrap">
                             <span className="text-base leading-none">⚡</span>
@@ -164,7 +164,7 @@ const Header: React.FC = () => {
                     <div className="h-9 w-px bg-border-color mx-1 sm:mx-2 flex-shrink-0"></div>
                     
                     {/* 데스크톱 버튼들 */}
-                    <div className="hidden sm:flex items-center gap-1 sm:gap-2">
+                    <div className={`${isMobile ? 'hidden' : 'flex'} items-center gap-1 sm:gap-2`}>
                     {isAdmin && (
                         <Button
                             onClick={() => { window.location.hash = '#/admin'; }}
@@ -203,7 +203,7 @@ const Header: React.FC = () => {
                     </div>
 
                     {/* 모바일 메뉴 버튼 */}
-                    <div className="sm:hidden relative mobile-menu-container">
+                    <div className={`${isMobile ? 'relative' : 'hidden'} mobile-menu-container`}>
                         <button
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                             className="p-2 rounded-lg text-xl hover:bg-secondary transition-colors flex items-center"

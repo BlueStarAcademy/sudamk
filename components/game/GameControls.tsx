@@ -16,6 +16,19 @@ interface ImageButtonProps {
     count?: number; // 아이템 남은 개수
 }
 
+const ItemCountBadge: React.FC<{ count: number; disabled?: boolean }> = ({ count, disabled = false }) => (
+    <span className={`absolute bottom-1 right-1 min-w-5 h-5 px-1.5 bg-black/75 text-white text-[11px] font-bold rounded-full flex items-center justify-center leading-none shadow-md ${disabled ? 'opacity-60' : ''}`}>
+        {count}
+    </span>
+);
+
+const CountOverlay: React.FC<{ count: number; disabled?: boolean; children: React.ReactNode }> = ({ count, disabled = false, children }) => (
+    <div className="relative inline-flex">
+        {children}
+        <ItemCountBadge count={count} disabled={disabled} />
+    </div>
+);
+
 const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count }) => {
     const variantClasses = variant === 'danger'
         ? 'border-red-400 shadow-red-500/40 focus:ring-red-400'
@@ -42,9 +55,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
         >
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
             {count !== undefined && (
-                <span className={`absolute bottom-1 right-1 bg-black/70 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ${disabled ? 'opacity-60' : ''}`}>
-                    {count}
-                </span>
+                <ItemCountBadge count={count} disabled={disabled} />
             )}
         </button>
     );
@@ -220,28 +231,30 @@ const DicePanel: React.FC<{ session: LiveGameSession, isMyTurn: boolean, onActio
                 />
             </div>
             <div className="flex flex-col items-center">
-                <Dice 
-                    displayText="홀" 
-                    color="blue" 
-                    value={null} 
-                    isRolling={isRolling} 
-                    size={48}
-                    onClick={() => handleRoll('odd')}
-                    disabled={!canRoll || oddCount <= 0}
-                />
-                <span className="text-xs mt-1 font-bold">{oddCount}개</span>
+                <CountOverlay count={oddCount} disabled={!canRoll || oddCount <= 0}>
+                    <Dice 
+                        displayText="홀" 
+                        color="blue" 
+                        value={null} 
+                        isRolling={isRolling} 
+                        size={48}
+                        onClick={() => handleRoll('odd')}
+                        disabled={!canRoll || oddCount <= 0}
+                    />
+                </CountOverlay>
             </div>
-             <div className="flex flex-col items-center">
-                <Dice 
-                    displayText="짝" 
-                    color="yellow" 
-                    value={null} 
-                    isRolling={isRolling} 
-                    size={48}
-                    onClick={() => handleRoll('even')}
-                    disabled={!canRoll || evenCount <= 0}
-                />
-                <span className="text-xs mt-1 font-bold">{evenCount}개</span>
+            <div className="flex flex-col items-center">
+                <CountOverlay count={evenCount} disabled={!canRoll || evenCount <= 0}>
+                    <Dice 
+                        displayText="짝" 
+                        color="yellow" 
+                        value={null} 
+                        isRolling={isRolling} 
+                        size={48}
+                        onClick={() => handleRoll('even')}
+                        disabled={!canRoll || evenCount <= 0}
+                    />
+                </CountOverlay>
             </div>
         </div>
     );
@@ -399,7 +412,7 @@ const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                 src="/images/button/slow.png"
                 alt="슬로우"
                 label="슬로우"
-                caption={`${slowCount}개${isSlowActive ? ' · 사용중' : ''}`}
+                count={slowCount}
                 onClick={() => useItem('slow')}
                 disabled={!canUse || slowCount <= 0 || isSlowActive}
                 title={`파워 게이지 속도를 50% 감소시킵니다. 남은 개수: ${slowCount}`}
@@ -408,7 +421,7 @@ const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                 src="/images/button/target.png"
                 alt="조준선"
                 label="조준선"
-                caption={`${aimCount}개${isAimActive ? ' · 사용중' : ''}`}
+                count={aimCount}
                 onClick={() => useItem('aimingLine')}
                 disabled={!canUse || aimCount <= 0 || isAimActive}
                 title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
@@ -589,7 +602,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     onClick={() => handleUseItem('hidden')}
                     disabled={hiddenDisabled}
                     title="히든 스톤 배치"
-                    count={hiddenLeft > 0 ? hiddenLeft : undefined}
+                    count={hiddenLeft}
                 />
             );
 
@@ -604,7 +617,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     onClick={() => handleUseItem('scan')}
                     disabled={scanDisabled}
                     title="상대 히든 스톤 탐지"
-                    count={scansLeft > 0 ? scansLeft : undefined}
+                    count={scansLeft}
                 />
             );
         }
@@ -621,7 +634,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     onClick={() => handleUseItem('missile')}
                     disabled={missileDisabled}
                     title="미사일 발사"
-                    count={missilesLeft > 0 ? missilesLeft : undefined}
+                    count={missilesLeft}
                 />
             );
         }

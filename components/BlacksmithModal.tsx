@@ -35,26 +35,14 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
     const [selectedForDisassembly, setSelectedForDisassembly] = useState<Set<string>>(new Set()); // New state
     const [sortOption, setSortOption] = useState<SortOption>('grade');
 
-    // 모바일 감지
+    // 좁은 가로 화면에서는 PC 레이아웃을 그대로 축소해서 사용
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
     useEffect(() => {
         const handleResize = () => setWindowWidth(window.innerWidth);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-    const isMobile = windowWidth < 768;
-
-    // 모바일 스케일 팩터 (PC 레이아웃을 그대로 축소)
-    const scaleFactor = useMemo(() => {
-        if (isMobile) {
-            // 모바일: PC 레이아웃을 그대로 축소 (최소 0.35, 최대 0.5)
-            const baseWidth = 1100;
-            const calculatedWidth = windowWidth * 0.95;
-            const rawScale = calculatedWidth / baseWidth;
-            return Math.max(0.35, Math.min(0.5, rawScale));
-        }
-        return 1.0;
-    }, [isMobile, windowWidth]);
+    const isCompactViewport = windowWidth < 1025;
 
     if (!currentUserWithStatus) return null;
 

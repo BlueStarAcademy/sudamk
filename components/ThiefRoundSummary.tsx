@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { LiveGameSession, ServerAction, User, ThiefRoundSummary as ThiefRoundSummaryType } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 
 interface ThiefRoundSummaryProps {
@@ -37,20 +38,7 @@ const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: Us
 
 const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentUser, onAction }) => {
     const { id: gameId, player1, player2, thiefRoundSummary, roundEndConfirmations, revealEndTime } = session;
-    const [countdown, setCountdown] = useState(20);
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
-
-    useEffect(() => {
-        const deadline = revealEndTime || (Date.now() + 20000);
-        const timerId = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-            setCountdown(remaining);
-        }, 1000);
-
-        return () => {
-            clearInterval(timerId);
-        };
-    }, [revealEndTime]);
 
     if (!thiefRoundSummary) return null;
     
@@ -82,8 +70,13 @@ const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentU
                     disabled={hasConfirmed}
                     className="w-full py-3"
                 >
-                    {hasConfirmed ? '상대방 확인 대기 중...' : `다음 라운드 시작 (${countdown})`}
+                    {hasConfirmed ? '상대방 확인 대기 중...' : '다음 라운드 시작'}
                 </Button>
+                <RoundCountdownIndicator
+                    deadline={revealEndTime}
+                    durationSeconds={20}
+                    label={isDeathmatch ? '다음 데스매치 자동 시작까지' : '다음 라운드 자동 시작까지'}
+                />
             </div>
         </DraggableWindow>
     );

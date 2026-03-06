@@ -28,6 +28,7 @@ import AlkkagiStartConfirmationModal from '../AlkkagiStartConfirmationModal.js';
 import SinglePlayerSummaryModal from '../SinglePlayerSummaryModal.js';
 import TowerSummaryModal from '../TowerSummaryModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
+import ColorStartConfirmationModal from '../ColorStartConfirmationModal.js';
 
 interface GameModalsProps extends GameProps {
     confirmModalType: 'resign' | null;
@@ -75,6 +76,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             'komi_bidding',
             'capture_bidding',
             'dice_rps', 'thief_rps', 'alkkagi_rps', 'curling_rps', 'omok_rps', 'ttamok_rps',
+            'color_start_confirmation',
             'turn_preference_selection',
             'thief_role_selection',
             'alkkagi_simultaneous_placement',
@@ -90,6 +92,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         
         if (gameStatus === 'dice_turn_rolling' || gameStatus === 'dice_turn_rolling_animating' || gameStatus === 'dice_turn_choice') return <DiceGoTurnSelectionModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'dice_start_confirmation') return <DiceGoStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'color_start_confirmation') return <ColorStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
         if (['nigiri_choosing', 'nigiri_guessing', 'nigiri_reveal'].includes(gameStatus)) return <NigiriModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;

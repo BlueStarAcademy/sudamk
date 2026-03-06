@@ -3,6 +3,7 @@ import { LiveGameSession, User, ServerAction, Player } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import PreGameColorRoulette from './PreGameColorRoulette.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 
 interface ThiefRoleConfirmedModalProps {
@@ -12,9 +13,10 @@ interface ThiefRoleConfirmedModalProps {
 }
 
 const ThiefRoleConfirmedModal: React.FC<ThiefRoleConfirmedModalProps> = ({ session, currentUser, onAction }) => {
-    const { id: gameId, player1, player2, thiefPlayerId, policePlayerId, preGameConfirmations, revealEndTime, rpsState, turnChoices } = session;
+    const { id: gameId, player1, player2, thiefPlayerId, policePlayerId, preGameConfirmations, revealEndTime } = session;
     const hasConfirmed = !!(preGameConfirmations?.[currentUser.id]);
     const [countdown, setCountdown] = useState(10);
+    const [rouletteDone, setRouletteDone] = useState(false);
 
     useEffect(() => {
         const deadline = revealEndTime || (Date.now() + 10000);
@@ -35,19 +37,17 @@ const ThiefRoleConfirmedModal: React.FC<ThiefRoleConfirmedModalProps> = ({ sessi
     const policeAvatarUrl = AVATAR_POOL.find(a => a.id === policePlayer.avatarId)?.url;
     const policeBorderUrl = BORDER_POOL.find(b => b.id === policePlayer.borderId)?.url;
 
-    // Determine who won the tiebreaker
-    let description = '역할이 결정되었습니다.';
-    const myChoice = session.roleChoices?.[currentUser.id];
-    const opponentId = currentUser.id === player1.id ? player2.id : player1.id;
-    const opponentChoice = session.roleChoices?.[opponentId];
-    if (myChoice === opponentChoice) {
-        description = `가위바위보 결과, ${thiefPlayer.id === currentUser.id ? '승리하여' : '패배하여'} 역할이 결정되었습니다.`
-    }
-    
     return (
         <DraggableWindow title="역할 결정 완료" initialWidth={600} windowId="thief-role-confirm">
             <div className="text-white">
-                <p className="text-center text-gray-300 mb-4">{description}</p>
+                <PreGameColorRoulette
+                    blackPlayer={thiefPlayer}
+                    whitePlayer={policePlayer}
+                    onComplete={() => setRouletteDone(true)}
+                    title="룰렛으로 역할과 선공/후공이 결정되었습니다"
+                    subtitle="도둑은 흑(선공), 경찰은 백(후공)으로 자동 배정됩니다."
+                />
+                <p className="text-center text-gray-400 mt-4 text-sm">아래 시작 버튼을 누르거나 10초 후 대국이 자동으로 시작됩니다.</p>
                 
                 <div className="flex gap-4">
                     <div className="w-1/2 flex flex-col items-center p-4 bg-gray-900/50 rounded-lg border border-gray-700">
@@ -64,10 +64,10 @@ const ThiefRoleConfirmedModal: React.FC<ThiefRoleConfirmedModalProps> = ({ sessi
 
                 <Button
                     onClick={() => onAction({ type: 'CONFIRM_THIEF_ROLE', payload: { gameId }})} 
-                    disabled={!!hasConfirmed}
+                    disabled={!!hasConfirmed || !rouletteDone}
                     className="w-full py-3 mt-6"
                 >
-                    {hasConfirmed ? '상대방 확인 대기 중...' : `대국 시작 (${countdown})`}
+                    {hasConfirmed ? '상대방 확인 대기 중...' : !rouletteDone ? '룰렛 결과 확인 중...' : `대국 시작 (${countdown})`}
                 </Button>
             </div>
         </DraggableWindow>

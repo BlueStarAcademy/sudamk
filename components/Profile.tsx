@@ -80,6 +80,14 @@ const XpBar: React.FC<{ level: number, currentXp: number, label: string, colorCl
     );
 };
 
+const CombinedLevelBadge: React.FC<{ level: number; compact?: boolean }> = ({ level, compact = false }) => {
+    return (
+        <div className={`flex-shrink-0 bg-tertiary/40 rounded-md border border-color flex items-center justify-center text-center ${compact ? 'w-12 px-1 py-1' : 'w-16 px-2 py-2'}`}>
+            <span className={`font-bold leading-none text-highlight whitespace-nowrap ${compact ? 'text-base' : 'text-2xl'}`}>Lv.{level}</span>
+        </div>
+    );
+};
+
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
     normal: '/images/equipments/normalbgi.png',
@@ -274,7 +282,6 @@ const Profile: React.FC<ProfileProps> = () => {
     const championshipScore = championshipMyEntry?.score ?? currentUserWithStatus?.cumulativeTournamentScore ?? 0;
     const championshipRank = championshipMyEntry?.rank ?? null;
     const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | null>(null);
-    const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
     const [hasNewMessage, setHasNewMessage] = useState(false);
     const [towerTimeLeft, setTowerTimeLeft] = useState('');
     const [selectedPreset, setSelectedPreset] = useState(0);
@@ -424,13 +431,12 @@ const Profile: React.FC<ProfileProps> = () => {
     
     const globalChat = useMemo(() => waitingRoomChats['global'] || [], [waitingRoomChats]);
     const prevChatLength = usePrevious(globalChat.length);
-    const hasNotification = hasNewMessage || hasClaimableQuest;
 
     useEffect(() => {
-        if (!isMobilePanelOpen && prevChatLength !== undefined && globalChat.length > prevChatLength) {
+        if (prevChatLength !== undefined && globalChat.length > prevChatLength) {
             setHasNewMessage(true);
         }
-    }, [globalChat.length, prevChatLength, isMobilePanelOpen]);
+    }, [globalChat.length, prevChatLength]);
     
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
@@ -491,6 +497,7 @@ const Profile: React.FC<ProfileProps> = () => {
         return aggregated;
     }, [equippedItems]);
 
+    const combinedLevel = currentUserWithStatus.strategyLevel + currentUserWithStatus.playfulLevel;
     const levelPoints = (currentUserWithStatus.strategyLevel - 1) * 2 + (currentUserWithStatus.playfulLevel - 1) * 2;
     const bonusPoints = currentUserWithStatus.bonusStatPoints || 0;
     const totalPoints = levelPoints + bonusPoints;
@@ -656,9 +663,14 @@ const Profile: React.FC<ProfileProps> = () => {
                     </div>
                 </div>
                 
-                <div className="flex-grow space-y-0.5 bg-tertiary/30 p-1.5 rounded-md flex flex-col justify-center">
-                    <XpBar level={currentUserWithStatus.strategyLevel} currentXp={currentUserWithStatus.strategyXp} label="전략" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
-                    <XpBar level={currentUserWithStatus.playfulLevel} currentXp={currentUserWithStatus.playfulXp} label="놀이" colorClass="bg-gradient-to-r from-yellow-500 to-orange-400" />
+                <div className="flex-grow bg-tertiary/30 p-1.5 rounded-md flex flex-col gap-1 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <CombinedLevelBadge level={combinedLevel} />
+                        <div className="flex-1 min-w-0 space-y-0.5 flex flex-col justify-center">
+                            <XpBar level={currentUserWithStatus.strategyLevel} currentXp={currentUserWithStatus.strategyXp} label="전략" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
+                            <XpBar level={currentUserWithStatus.playfulLevel} currentXp={currentUserWithStatus.playfulXp} label="놀이" colorClass="bg-gradient-to-r from-yellow-500 to-orange-400" />
+                        </div>
+                    </div>
                     <button
                         onClick={() => setShowMannerRankModal(true)}
                         className="w-full text-left hover:bg-tertiary/50 rounded-md p-1 transition-all"
@@ -675,7 +687,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         </div>
                     </button>
                 </div>
-            </div>
+            </div>        
 
             <div className="flex-grow flex flex-col min-h-0 border-t border-color mt-1 pt-1">
                 <div className="bg-tertiary/30 p-1.5 rounded-md mb-1">
@@ -755,7 +767,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
             </div>
         </>
-    ), [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds, isGuildChecking]);
+    ), [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds, isGuildChecking, combinedLevel]);
     
     const LobbyCards = (
         <div className="grid grid-cols-12 grid-rows-2 gap-2 lg:gap-4 h-full">
@@ -844,9 +856,9 @@ const Profile: React.FC<ProfileProps> = () => {
             </header>
             <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 {/* --- DESKTOP LAYOUT --- */}
-                <div className="hidden lg:flex flex-col h-full gap-1 min-w-0 overflow-hidden">
+                <div className="flex flex-col h-full gap-1 min-w-0 overflow-hidden">
                     <div className="flex flex-row gap-1 min-w-0 flex-shrink-0 max-h-[380px]">
-                        <div className="w-[25%] min-w-[200px] max-w-[300px] bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col gap-0.5 overflow-hidden">{ProfilePanelContent}</div>
+                        <div className="w-[30%] min-w-[240px] max-w-[360px] bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col gap-0.5 overflow-hidden">{ProfilePanelContent}</div>
                         {/* New structure for equipped items, ranking boards, and quick access */}
                         <div className="flex-1 flex flex-row gap-1 min-w-0 overflow-hidden">
                             <div className="w-[280px] min-w-[200px] max-w-[280px] flex-shrink-0 bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col overflow-hidden">
@@ -914,7 +926,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
 
                 {/* --- MOBILE LAYOUT --- */}
-                <div className="lg:hidden flex flex-col h-full gap-1 relative">
+                <div className="hidden flex-col h-full gap-1 relative">
                     <div className="flex flex-row gap-1 flex-shrink-0">
                         <div className="basis-[50%] min-w-[150px] bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col gap-1">
                             <div className="flex flex-row gap-1 items-center">
@@ -942,23 +954,28 @@ const Profile: React.FC<ProfileProps> = () => {
                                     </div>
                                 </div>
                                 
-                                <div className="flex-grow space-y-0.5 bg-tertiary/30 p-1 rounded-md flex flex-col justify-center">
-                                    <div>
-                                        <div className="flex justify-between items-baseline mb-0.5 text-[9px] whitespace-nowrap">
-                                            <span className="font-semibold whitespace-nowrap overflow-hidden">전략 <span className="text-xs font-bold">Lv.{currentUserWithStatus.strategyLevel}</span></span>
-                                            <span className="font-mono text-tertiary whitespace-nowrap overflow-hidden">{currentUserWithStatus.strategyXp} / {getXpRequirementForLevel(currentUserWithStatus.strategyLevel)}</span>
-                                        </div>
-                                        <div className="w-full bg-tertiary/50 rounded-full h-2 border border-color">
-                                            <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full transition-width duration-500" style={{ width: `${Math.min((currentUserWithStatus.strategyXp / getXpRequirementForLevel(currentUserWithStatus.strategyLevel)) * 100, 100)}%` }}></div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between items-baseline mb-0.5 text-[9px] whitespace-nowrap">
-                                            <span className="font-semibold whitespace-nowrap overflow-hidden">놀이 <span className="text-xs font-bold">Lv.{currentUserWithStatus.playfulLevel}</span></span>
-                                            <span className="font-mono text-tertiary whitespace-nowrap overflow-hidden">{currentUserWithStatus.playfulXp} / {getXpRequirementForLevel(currentUserWithStatus.playfulLevel)}</span>
-                                        </div>
-                                        <div className="w-full bg-tertiary/50 rounded-full h-2 border border-color">
-                                            <div className="bg-gradient-to-r from-yellow-500 to-orange-400 h-full rounded-full transition-width duration-500" style={{ width: `${Math.min((currentUserWithStatus.playfulXp / getXpRequirementForLevel(currentUserWithStatus.playfulLevel)) * 100, 100)}%` }}></div>
+                                <div className="flex-grow bg-tertiary/30 p-1 rounded-md flex flex-col gap-0.5 min-w-0">
+                                    <div className="flex items-center gap-1 min-w-0">
+                                        <CombinedLevelBadge level={combinedLevel} compact />
+                                        <div className="flex-1 min-w-0 space-y-0.5 flex flex-col justify-center">
+                                            <div>
+                                                <div className="flex justify-between items-baseline mb-0.5 text-[9px] whitespace-nowrap">
+                                                    <span className="font-semibold whitespace-nowrap overflow-hidden">전략 <span className="text-xs font-bold">Lv.{currentUserWithStatus.strategyLevel}</span></span>
+                                                    <span className="font-mono text-tertiary whitespace-nowrap overflow-hidden">{currentUserWithStatus.strategyXp} / {getXpRequirementForLevel(currentUserWithStatus.strategyLevel)}</span>
+                                                </div>
+                                                <div className="w-full bg-tertiary/50 rounded-full h-2 border border-color">
+                                                    <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full transition-width duration-500" style={{ width: `${Math.min((currentUserWithStatus.strategyXp / getXpRequirementForLevel(currentUserWithStatus.strategyLevel)) * 100, 100)}%` }}></div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between items-baseline mb-0.5 text-[9px] whitespace-nowrap">
+                                                    <span className="font-semibold whitespace-nowrap overflow-hidden">놀이 <span className="text-xs font-bold">Lv.{currentUserWithStatus.playfulLevel}</span></span>
+                                                    <span className="font-mono text-tertiary whitespace-nowrap overflow-hidden">{currentUserWithStatus.playfulXp} / {getXpRequirementForLevel(currentUserWithStatus.playfulLevel)}</span>
+                                                </div>
+                                                <div className="w-full bg-tertiary/50 rounded-full h-2 border border-color">
+                                                    <div className="bg-gradient-to-r from-yellow-500 to-orange-400 h-full rounded-full transition-width duration-500" style={{ width: `${Math.min((currentUserWithStatus.playfulXp / getXpRequirementForLevel(currentUserWithStatus.playfulLevel)) * 100, 100)}%` }}></div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <button
@@ -976,6 +993,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                             <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }}></div>
                                         </div>
                                     </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1097,57 +1115,6 @@ const Profile: React.FC<ProfileProps> = () => {
                     <div className="flex-1 min-h-0 overflow-y-auto pr-0.5">
                         {LobbyCards}
                     </div>
-
-                    {/* Slide-out button */}
-                    <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20">
-                        <button
-                            onClick={() => { setIsMobilePanelOpen(true); setHasNewMessage(false); }}
-                            className="w-11 h-12 sm:w-12 sm:h-14 bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
-                            aria-label="채팅/메뉴 열기"
-                        >
-                            <span className="relative font-bold text-2xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                                {'<'}
-                                {hasNotification && <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg animate-pulse"></div>}
-                            </span>
-                        </button>
-                    </div>
-
-                    {/* Slide-out Panel */}
-                    <div className={`fixed top-0 right-0 h-full w-[360px] bg-primary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobilePanelOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
-                        <div className="flex justify-between items-center p-2 border-b border-color flex-shrink-0">
-                            <h3 className="text-lg font-bold">채팅 / 메뉴</h3>
-                            <button onClick={() => setIsMobilePanelOpen(false)} className="text-2xl font-bold text-tertiary hover:text-primary">×</button>
-                        </div>
-                        <div className="flex flex-col gap-2 p-2 flex-grow min-h-0">
-                            <div className="flex-shrink-0 p-1 bg-panel rounded-lg border border-color">
-                                <QuickAccessSidebar mobile={true} />
-                            </div>
-                            <div className="flex-1 flex flex-col gap-2 min-h-0">
-                                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg overflow-hidden">
-                                    <div className="h-full">
-                                        <GameRankingBoard />
-                                    </div>
-                                </div>
-                                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg overflow-hidden">
-                                    <div className="h-full">
-                                        <BadukRankingBoard />
-                                    </div>
-                                </div>
-                                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg overflow-hidden">
-                                    <div className="h-full">
-                                        <ChampionshipRankingPanel compact />
-                                    </div>
-                                </div>
-                                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg flex flex-col overflow-hidden">
-                                    <ChatWindow messages={globalChat} mode="global" onAction={handlers.handleAction} onViewUser={handlers.openViewingUser} locationPrefix="[홈]" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Overlay */}
-                    {isMobilePanelOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobilePanelOpen(false)}></div>}
-                </div>
             </main>
             {detailedStatsType && (
                 <DetailedStatsModal

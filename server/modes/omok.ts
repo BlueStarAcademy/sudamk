@@ -1,7 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { getOmokLogic } from '../omokLogic.js';
-import { handleSharedAction, updateSharedGameState } from './shared.js';
+import { handleSharedAction, updateSharedGameState, startColorConfirmation } from './shared.js';
 import { initializeNigiri, updateNigiriState, handleNigiriAction } from './nigiri.js';
 // FIX: Changed import path to avoid circular dependency
 import { transitionToPlaying, shouldEnforceTimeControl } from './shared.js';
@@ -20,10 +20,7 @@ export const initializeOmok = (game: types.LiveGameSession, neg: types.Negotiati
         }
         transitionToPlaying(game, now);
     } else {
-        game.gameStatus = 'turn_preference_selection';
-        game.turnChoices = { [game.player1.id]: null, [game.player2.id]: null };
-        game.turnChoiceDeadline = now + 30000;
-        game.turnSelectionTiebreaker = 'rps';
+        startColorConfirmation(game, now);
     }
 };
 

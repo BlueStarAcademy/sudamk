@@ -3,7 +3,6 @@ import { GameMode, ServerAction, Announcement, OverrideAnnouncement, UserWithSta
 import Avatar from '../Avatar.js';
 import HelpModal from '../HelpModal.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 // Import newly created sub-components
 import PlayerList from './PlayerList.js';
@@ -24,14 +23,6 @@ interface WaitingRoomComponentProps {
 }
 
 const PLAYFUL_AI_MODES: GameMode[] = [GameMode.Dice, GameMode.Omok, GameMode.Ttamok, GameMode.Thief, GameMode.Alkkagi, GameMode.Curling];
-
-function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T | undefined>(undefined);
-  useEffect(() => {
-    ref.current = value;
-  }, [value]);
-  return ref.current;
-}
 
 
 const ROW_HEIGHT_REM = 2.5;
@@ -116,9 +107,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     waitingRoomChats, negotiations, handlers 
   } = useAppContext();
 
-  const isMobile = useIsMobileLayout(1024);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [hasNewMessage, setHasNewMessage] = useState(false);
   const [isTierInfoModalOpen, setIsTierInfoModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isAiChallengeModalOpen, setIsAiChallengeModalOpen] = useState(false);
@@ -130,7 +118,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   // 전략바둑과 놀이바둑 대기실은 각각의 채널 사용
   const chatChannel = mode === 'strategic' ? 'strategic' : mode === 'playful' ? 'playful' : 'global';
   const chatMessages = waitingRoomChats[chatChannel] || [];
-  const prevChatLength = usePrevious(chatMessages.length);
 
   const isStrategic = useMemo(() => {
     if (mode === 'strategic') return true;
@@ -211,12 +198,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     }
   }, [mode, currentUserWithStatus?.id]);
 
-  useEffect(() => {
-    if (!isMobileSidebarOpen && prevChatLength !== undefined && chatMessages.length > prevChatLength) {
-        setHasNewMessage(true);
-    }
-  }, [chatMessages.length, prevChatLength, isMobileSidebarOpen]);
-  
   const onBackToLobby = () => {
     handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' });
     window.location.hash = '#/profile';
@@ -343,65 +324,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         </div>
       </header>
       <div className="flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6 overflow-hidden">
-        {isMobile ? (
-          <>
-            <div className="flex flex-col h-full gap-2 overflow-hidden">
-                <div className="flex-shrink-0"><AnnouncementBoard mode={mode} /></div>
-                <div className="h-[350px] min-h-0 overflow-hidden">
-                    <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
-                </div>
-                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg flex flex-col overflow-hidden">
-                    <PlayerList 
-                      users={usersInThisRoom} 
-                      mode={mode} 
-                      onAction={handlers.handleAction} 
-                      currentUser={currentUserWithStatus} 
-                      negotiations={Object.values(negotiations)} 
-                      onViewUser={handlers.openViewingUser} 
-                      lobbyType={isStrategic ? 'strategic' : 'playful'} 
-                      userCount={usersInThisRoom.length}
-                      onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
-                    />
-                </div>
-            </div>
-
-            <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20">
-                <button 
-                    onClick={() => { setIsMobileSidebarOpen(true); setHasNewMessage(false); }}
-                    className="w-11 h-12 sm:w-12 sm:h-14 bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
-                    aria-label="유저 및 랭킹 목록 열기"
-                >
-                    <span className="relative font-bold text-2xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                        {'<'}
-                        {hasNewMessage && <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg animate-pulse"></div>}
-                    </span>
-                </button>
-            </div>
-            <div className={`fixed top-0 right-0 h-full w-[360px] bg-primary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
-                <div className="flex justify-between items-center p-2 border-b border-color flex-shrink-0">
-                    <h3 className="text-lg font-bold">메뉴</h3>
-                    <button onClick={() => setIsMobileSidebarOpen(false)} className="text-2xl font-bold text-tertiary hover:text-primary">×</button>
-                </div>
-                <div className="flex flex-col gap-2 p-2 flex-grow min-h-0 overflow-y-auto">
-                    <div className="flex-shrink-0 p-1 bg-panel rounded-lg border border-color">
-                        <QuickAccessSidebar mobile={true} />
-                    </div>
-                    <div className="flex-shrink-0 border-b border-color pb-2">
-                        <div className="bg-panel border border-color rounded-lg">
-                            <RankingList mode={mode} onShowTierInfo={() => setIsTierInfoModalOpen(true)} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} onShowPastRankings={(info) => handlers.openPastRankings(info)} lobbyType={isStrategic ? 'strategic' : 'playful'} />
-                        </div>
-                    </div>
-                    <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg flex flex-col">
-                        <ChatWindow messages={chatMessages} mode={chatChannel} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
-                    </div>
-                </div>
-            </div>
-            {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
-          </>
-        ) : (
-          <div ref={desktopContainerRef} className="grid grid-cols-1 lg:grid-cols-5 h-full gap-4 overflow-hidden">
+          <div ref={desktopContainerRef} className="grid grid-cols-5 h-full gap-4 overflow-hidden">
               {/* Main Content Column */}
-                  <div className="lg:col-span-3 flex flex-col gap-4 min-h-0 overflow-hidden">
+                  <div className="col-span-3 flex flex-col gap-4 min-h-0 overflow-hidden">
                       <div className="flex-shrink-0">
                           <AnnouncementBoard mode={mode} />
                       </div>
@@ -437,7 +362,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   </div>
               
               {/* Right Sidebar Column */}
-              <div className="lg:col-span-2 flex flex-col gap-4 min-h-0 overflow-hidden">
+              <div className="col-span-2 flex flex-col gap-4 min-h-0 overflow-hidden">
                 <div className="flex-1 flex flex-row gap-4 items-stretch min-h-0 overflow-hidden">
                   <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0 min-h-0 overflow-hidden">
                     <PlayerList 
@@ -462,7 +387,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 </div>
               </div>
           </div>
-        )}
       </div>
       {isTierInfoModalOpen && <TierInfoModal onClose={() => setIsTierInfoModalOpen(false)} />}
       {isHelpModalOpen && <HelpModal mode={mode} onClose={() => setIsHelpModalOpen(false)} />}

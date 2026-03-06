@@ -124,10 +124,10 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({
         return () => window.removeEventListener('resize', handleResize);
     }, []);
     
-    const isMobile = windowWidth < 768;
+    const isCompactViewport = windowWidth < 1025;
     const calculatedWidth = Math.max(800, Math.min(1200, windowWidth * 0.85));
     const calculatedHeight = Math.max(600, Math.min(900, windowHeight * 0.8));
-    const mobileTextScale = isMobile ? 1.15 : 1.0;
+    const mobileTextScale = isCompactViewport ? 1.15 : 1.0;
 
     const selectedGameDefinition = useMemo(() => {
         return availableGameDefinitions.find(mode => mode.mode === selectedMode);
@@ -249,7 +249,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({
         >
             <div className="flex h-full">
                 {/* Left Panel: Game Selection */}
-                <div className={`w-1/3 bg-tertiary/30 ${isMobile ? 'p-2' : 'p-4'} flex flex-col text-on-panel rounded-l-lg border-r border-gray-700`}>
+                <div className={`w-1/3 bg-tertiary/30 ${isCompactViewport ? 'p-2' : 'p-4'} flex flex-col text-on-panel rounded-l-lg border-r border-gray-700`}>
                     <h3 className="font-bold text-green-300 mb-3" style={{ fontSize: `${Math.max(12, Math.round(16 * mobileTextScale))}px` }}>
                         게임 종류 선택 (다중 선택 가능)
                     </h3>
@@ -280,7 +280,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({
                 </div>
 
                 {/* Right Panel: Priority List, Game Description and Settings */}
-                <div className={`w-2/3 bg-primary ${isMobile ? 'p-2' : 'p-4'} flex flex-col rounded-r-lg overflow-y-auto`}>
+                <div className={`w-2/3 bg-primary ${isCompactViewport ? 'p-2' : 'p-4'} flex flex-col rounded-r-lg overflow-y-auto`}>
                     {/* 우선순위 목록 - 오른쪽 제일 위에 표시 */}
                     {selectedModes.length > 0 && (
                         <div className="mb-4 flex-1 min-h-0 flex flex-col">
@@ -367,9 +367,9 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({
                         </div>
                     )}
                     {selectedGameDefinition ? (
-                        <div className={`flex gap-4 ${isMobile ? 'flex-col' : 'flex-row'} flex-shrink-0`} style={{ maxHeight: '40%' }}>
+                        <div className={`flex gap-4 ${isCompactViewport ? 'flex-col' : 'flex-row'} flex-shrink-0`} style={{ maxHeight: '40%' }}>
                             {/* Game Info - 왼쪽 */}
-                            <div className={`bg-gray-900/50 rounded-lg border border-gray-700 ${isMobile ? 'p-2' : 'p-3'} ${isMobile ? 'w-full' : 'w-1/2'} flex-shrink-0 flex flex-col`}>
+                            <div className={`bg-gray-900/50 rounded-lg border border-gray-700 ${isCompactViewport ? 'p-2' : 'p-3'} ${isCompactViewport ? 'w-full' : 'w-1/2'} flex-shrink-0 flex flex-col`}>
                                 <div className="flex items-center gap-3 mb-3">
                                     <img 
                                         src={selectedGameDefinition.image} 
@@ -396,7 +396,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({
                             </div>
 
                             {/* Ranked Settings - 오른쪽 */}
-                            <div className={`bg-yellow-900/20 border border-yellow-700/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} ${isMobile ? 'w-full' : 'w-1/2'} flex-shrink-0 flex flex-col`}>
+                            <div className={`bg-yellow-900/20 border border-yellow-700/50 rounded-lg ${isCompactViewport ? 'p-2' : 'p-3'} ${isCompactViewport ? 'w-full' : 'w-1/2'} flex-shrink-0 flex flex-col`}>
                                 <h4 className="font-semibold text-yellow-300 mb-3 flex-shrink-0" style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}>
                                     게임 설정
                                 </h4>

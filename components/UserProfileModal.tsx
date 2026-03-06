@@ -56,6 +56,14 @@ const XpBar: React.FC<{ level: number, currentXp: number, label: string, colorCl
     );
 };
 
+const CombinedLevelBadge: React.FC<{ level: number }> = ({ level }) => {
+    return (
+        <div className="flex-shrink-0 bg-gray-900/70 rounded-md border border-gray-700 flex items-center justify-center px-3 py-2">
+            <span className="font-bold text-xl text-blue-300 whitespace-nowrap">Lv.{level}</span>
+        </div>
+    );
+};
+
 const gradeBackgrounds: Record<ItemGrade, string> = {
     normal: '/images/equipments/normalbgi.png',
     uncommon: '/images/equipments/uncommonbgi.png',
@@ -196,7 +204,7 @@ const getTier = (score: number, rank: number, totalGames: number) => {
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onViewItem, isTopmost }) => {
     const { inventory, stats, nickname, avatarId, borderId, equipment } = user;
     const [showMbtiComparison, setShowMbtiComparison] = useState(false);
-    const { currentUserWithStatus } = useAppContext();
+    const { currentUserWithStatus, guilds } = useAppContext();
     
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
@@ -294,6 +302,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
     const mannerStyle = getMannerStyle(totalMannerScore);
     const totalStats = calculateTotalStats(user);
 
+    const combinedLevel = (user as any).strategyLevel + (user as any).playfulLevel;
+
+    const guildInfo = useMemo(() => {
+        if (!user.guildId) return null;
+        return guilds[user.guildId] || null;
+    }, [user.guildId, guilds]);
+
     const DESKTOP_WIDTH = 900;
     const MOBILE_BREAKPOINT = 768;
 
@@ -313,34 +328,93 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             <div className="flex flex-col md:flex-row gap-3 h-full">
                     {/* Left Column */}
                     <div className="w-full md:w-1/3 flex-shrink-0 flex flex-col gap-3">
-                        <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col items-center text-center">
-                            <Avatar userId={user.id} userName={nickname} size={60} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                            <h2 className="text-lg font-bold mt-1.5">{nickname}</h2>
-                            <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
-                                <span>매너: </span>
-                                <span className={`font-semibold ${mannerRank.color}`}>{totalMannerScore}점 ({mannerRank.rank})</span>
+                        <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col gap-2">
+                            <div className="flex items-center gap-3">
+                                <Avatar userId={user.id} userName={nickname} size={60} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                                <div className="flex-1 min-w-0">
+                                    <h2 className="text-lg font-bold truncate">{nickname}</h2>
+                                    {user.guildId ? (
+                                        <div className="flex items-center gap-1 text-xs text-gray-300 mt-0.5">
+                                            <div className="w-5 h-5 rounded-md bg-gray-900/60 border border-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                {(guildInfo?.icon ?? (user as any).guildIcon) ? (
+                                                    <img
+                                                        src={(() => {
+                                                            const icon = guildInfo?.icon ?? (user as any).guildIcon;
+                                                            return icon?.startsWith('/images/guild/icon') ? icon.replace('/images/guild/icon', '/images/guild/profile/icon') : icon;
+                                                        })()}
+                                                        alt={guildInfo?.name ?? (user as any).guildName ?? '길드'}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <img src="/images/button/guild.png" alt="길드" className="w-4 h-4 object-contain" />
+                                                )}
+                                            </div>
+                                            <span className="font-semibold truncate">
+                                                {guildInfo?.name ?? (user as any).guildName ?? '길드 소속'}
+                                            </span>
+                                            <span className="text-[11px] text-gray-400">
+                                                Lv.{guildInfo ? (guildInfo.level || 1) : ((user as any).guildLevel ?? 1)}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div className="text-xs text-gray-500 mt-0.5">
+                                            길드 없음
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 flex-wrap">
+                                        <span>MBTI:</span>
+                                        {user.mbti ? (
+                                            <>
+                                                <span className="font-semibold text-gray-200">{user.mbti}</span>
+                                                <button
+                                                    onClick={() => setShowMbtiComparison(true)}
+                                                    className="px-2 py-0.5 text-[11px] font-medium rounded bg-blue-600/80 hover:bg-blue-500 text-white transition-colors"
+                                                >
+                                                    분석하기
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <span className="font-semibold text-gray-200 flex items-center gap-1">
+                                                미설정
+                                                <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5 flex-wrap">
-                                <span>MBTI:</span>
-                                {user.mbti ? (
-                                    <>
-                                        <span className="font-semibold text-gray-200">{user.mbti}</span>
-                                        <button
-                                            onClick={() => setShowMbtiComparison(true)}
-                                            className="px-2 py-0.5 text-[11px] font-medium rounded bg-blue-600/80 hover:bg-blue-500 text-white transition-colors"
-                                        >
-                                            분석하기
-                                        </button>
-                                    </>
-                                ) : (
-                                    <span className="font-semibold text-gray-200 flex items-center gap-1">
-                                        미설정
-                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                                    </span>
-                                )}
-                            </div>
-                            <div className="w-full bg-gray-700 rounded-full h-2 mt-1.5 border border-gray-900">
-                                <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }}></div>
+                            <div className="w-full bg-gray-900/70 rounded-md p-2 mt-1 flex flex-col gap-1.5">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <CombinedLevelBadge level={combinedLevel} />
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                        <XpBar
+                                            level={(user as any).strategyLevel}
+                                            currentXp={(user as any).strategyXp}
+                                            label="전략"
+                                            colorClass="bg-gradient-to-r from-blue-500 to-cyan-400"
+                                        />
+                                        <XpBar
+                                            level={(user as any).playfulLevel}
+                                            currentXp={(user as any).playfulXp}
+                                            label="놀이"
+                                            colorClass="bg-gradient-to-r from-yellow-500 to-orange-400"
+                                        />
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {}}
+                                    className="w-full text-left rounded-md"
+                                    disabled
+                                    style={{ display: 'none' }}
+                                />
+                                <div className="mt-0.5">
+                                    <div className="flex items-center justify-between text-xs text-gray-300 mb-0.5">
+                                        <span className="font-semibold">매너 등급</span>
+                                        <span className={`font-semibold ${mannerRank.color}`}>{totalMannerScore}점 ({mannerRank.rank})</span>
+                                    </div>
+                                    <div className="w-full bg-gray-700 rounded-full h-2 border border-gray-900">
+                                        <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }}></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

@@ -1042,10 +1042,47 @@ export const useApp = () => {
             };
             const updateGameState = gameType === 'tower' ? setTowerGames : setSinglePlayerGames;
             const now = Date.now();
+            let postRevealAutoScoringState: {
+                boardState: any[][];
+                moveHistory: any[];
+                totalTurns: number;
+                blackTimeLeft: number | undefined;
+                whiteTimeLeft: number | undefined;
+                captures: any;
+                isHiddenMode: boolean;
+            } | null = null;
+
+            const queueAutoScoringAfterReveal = (nextGame: LiveGameSession) => {
+                const autoScoringTurns = gameType === 'singleplayer' && nextGame.stageId
+                    ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === nextGame.stageId)?.autoScoringTurns
+                    : (nextGame.settings as any)?.autoScoringTurns;
+                if (!autoScoringTurns || nextGame.gameStatus !== 'playing') return;
+                const validMoves = (nextGame.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1);
+                const totalTurns = nextGame.totalTurns ?? validMoves.length;
+                if (totalTurns < autoScoringTurns) return;
+                const isHiddenMode = nextGame.mode === GameMode.Hidden ||
+                    (nextGame.mode === GameMode.Mix && (nextGame.settings as any)?.mixedModes?.includes?.(GameMode.Hidden)) ||
+                    (((nextGame.settings as any)?.hiddenStoneCount ?? 0) > 0);
+                postRevealAutoScoringState = {
+                    boardState: nextGame.boardState,
+                    moveHistory: nextGame.moveHistory || [],
+                    totalTurns,
+                    blackTimeLeft: nextGame.blackTimeLeft,
+                    whiteTimeLeft: nextGame.whiteTimeLeft,
+                    captures: nextGame.captures,
+                    isHiddenMode
+                };
+            };
 
             updateGameState(currentGames => {
                 const game = currentGames[gameId];
-                if (!game || game.gameStatus !== 'hidden_reveal_animating') {
+                if (!game) {
+                    return currentGames;
+                }
+
+                // 서버/로컬 동기화 타이밍에 gameStatus가 먼저 playing으로 돌아가더라도
+                // pendingCapture가 남아 있으면 포획 정산은 반드시 마무리한다.
+                if (game.gameStatus !== 'hidden_reveal_animating' && !game.pendingCapture) {
                     return currentGames;
                 }
 
@@ -1069,23 +1106,25 @@ export const useApp = () => {
 
                 if (!pendingCapture) {
                     const deadline = buildTurnDeadline(game.currentPlayer);
+                    const nextGame = {
+                        ...game,
+                        animation: null,
+                        gameStatus: 'playing',
+                        revealAnimationEndTime: undefined,
+                        pendingCapture: null,
+                        pausedTurnTimeLeft: undefined,
+                        itemUseDeadline: undefined,
+                        justCaptured: [],
+                        newlyRevealed: [],
+                        ...deadline,
+                        ...(game as any).isAiTurnCancelledAfterReveal !== undefined
+                            ? ({ isAiTurnCancelledAfterReveal: undefined } as any)
+                            : {}
+                    } as LiveGameSession;
+                    queueAutoScoringAfterReveal(nextGame);
                     return {
                         ...currentGames,
-                        [gameId]: {
-                            ...game,
-                            animation: null,
-                            gameStatus: 'playing',
-                            revealAnimationEndTime: undefined,
-                            pendingCapture: null,
-                            pausedTurnTimeLeft: undefined,
-                            itemUseDeadline: undefined,
-                            justCaptured: [],
-                            newlyRevealed: [],
-                            ...deadline,
-                            ...(game as any).isAiTurnCancelledAfterReveal !== undefined
-                                ? ({ isAiTurnCancelledAfterReveal: undefined } as any)
-                                : {}
-                        } as any
+                        [gameId]: nextGame as any
                     };
                 }
 
@@ -1139,33 +1178,70 @@ export const useApp = () => {
 
                 const nextPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
                 const deadline = buildTurnDeadline(nextPlayer);
+                const nextGame = {
+                    ...game,
+                    boardState,
+                    captures,
+                    hiddenStoneCaptures,
+                    blackPatternStones,
+                    whitePatternStones,
+                    justCaptured,
+                    newlyRevealed,
+                    currentPlayer: nextPlayer,
+                    gameStatus: 'playing',
+                    animation: null,
+                    revealAnimationEndTime: undefined,
+                    pendingCapture: null,
+                    pausedTurnTimeLeft: undefined,
+                    itemUseDeadline: undefined,
+                    ...deadline,
+                    ...(clearAiInitialHidden ? ({ aiInitialHiddenStone: undefined, aiInitialHiddenStoneIsPrePlaced: false } as any) : {}),
+                    ...(game as any).isAiTurnCancelledAfterReveal !== undefined
+                        ? ({ isAiTurnCancelledAfterReveal: undefined } as any)
+                        : {}
+                } as LiveGameSession;
+                queueAutoScoringAfterReveal(nextGame);
 
                 return {
                     ...currentGames,
-                    [gameId]: {
-                        ...game,
-                        boardState,
-                        captures,
-                        hiddenStoneCaptures,
-                        blackPatternStones,
-                        whitePatternStones,
-                        justCaptured,
-                        newlyRevealed,
-                        currentPlayer: nextPlayer,
-                        gameStatus: 'playing',
-                        animation: null,
-                        revealAnimationEndTime: undefined,
-                        pendingCapture: null,
-                        pausedTurnTimeLeft: undefined,
-                        itemUseDeadline: undefined,
-                        ...deadline,
-                        ...(clearAiInitialHidden ? ({ aiInitialHiddenStone: undefined, aiInitialHiddenStoneIsPrePlaced: false } as any) : {}),
-                        ...(game as any).isAiTurnCancelledAfterReveal !== undefined
-                            ? ({ isAiTurnCancelledAfterReveal: undefined } as any)
-                            : {}
-                    } as any
+                    [gameId]: nextGame as any
                 };
             });
+
+            if (postRevealAutoScoringState) {
+                const autoScoringAction = {
+                    type: 'PLACE_STONE',
+                    payload: {
+                        gameId,
+                        x: -1,
+                        y: -1,
+                        totalTurns: postRevealAutoScoringState.totalTurns,
+                        moveHistory: postRevealAutoScoringState.moveHistory,
+                        boardState: postRevealAutoScoringState.boardState,
+                        blackTimeLeft: postRevealAutoScoringState.blackTimeLeft,
+                        whiteTimeLeft: postRevealAutoScoringState.whiteTimeLeft,
+                        captures: postRevealAutoScoringState.captures,
+                        triggerAutoScoring: true
+                    }
+                } as any;
+                const scoringDelayRef = gameType === 'tower' ? towerScoringDelayTimeoutRef : singlePlayerScoringDelayTimeoutRef;
+                if (scoringDelayRef.current[gameId] != null) {
+                    clearTimeout(scoringDelayRef.current[gameId]);
+                }
+                scoringDelayRef.current[gameId] = setTimeout(() => {
+                    if (!postRevealAutoScoringState?.isHiddenMode) {
+                        updateGameState(prev => {
+                            const g = prev[gameId];
+                            if (!g) return prev;
+                            return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
+                        });
+                    }
+                    handleAction(autoScoringAction).catch(err => {
+                        console.error(`[handleAction] Failed to trigger auto-scoring after hidden reveal:`, err);
+                    });
+                    delete scoringDelayRef.current[gameId];
+                }, 500);
+            }
             return;
         }
 

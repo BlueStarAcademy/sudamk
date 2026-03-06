@@ -1892,21 +1892,25 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 }
             }
             
-            // 월드챔피언십: 경기당 누적된 장비 드롭 등급 → 랜덤 슬롯 장비 생성
+            // 월드챔피언십: 경기 중 이미 생성해 둔 실제 장비를 지급하고, 레거시 데이터만 있으면 기존 방식으로 보완한다.
             const equipmentDropsToAdd: InventoryItem[] = [];
-            if (dungeonType === 'world' && dungeonState.accumulatedEquipmentDrops?.length) {
-                const gradeMap: Record<string, ItemGrade> = {
-                    normal: ItemGrade.Normal,
-                    uncommon: ItemGrade.Uncommon,
-                    rare: ItemGrade.Rare,
-                    epic: ItemGrade.Epic,
-                    legendary: ItemGrade.Legendary,
-                    mythic: ItemGrade.Mythic,
-                };
-                for (const gradeKey of dungeonState.accumulatedEquipmentDrops) {
-                    const grade = gradeMap[gradeKey] ?? ItemGrade.Normal;
-                    const slot = ALL_SLOTS[Math.floor(Math.random() * ALL_SLOTS.length)];
-                    equipmentDropsToAdd.push(generateNewItem(grade, slot));
+            if (dungeonType === 'world') {
+                if (dungeonState.accumulatedEquipmentItems?.length) {
+                    equipmentDropsToAdd.push(...dungeonState.accumulatedEquipmentItems.map(item => JSON.parse(JSON.stringify(item))));
+                } else if (dungeonState.accumulatedEquipmentDrops?.length) {
+                    const gradeMap: Record<string, ItemGrade> = {
+                        normal: ItemGrade.Normal,
+                        uncommon: ItemGrade.Uncommon,
+                        rare: ItemGrade.Rare,
+                        epic: ItemGrade.Epic,
+                        legendary: ItemGrade.Legendary,
+                        mythic: ItemGrade.Mythic,
+                    };
+                    for (const gradeKey of dungeonState.accumulatedEquipmentDrops) {
+                        const grade = gradeMap[gradeKey] ?? ItemGrade.Normal;
+                        const slot = ALL_SLOTS[Math.floor(Math.random() * ALL_SLOTS.length)];
+                        equipmentDropsToAdd.push(generateNewItem(grade, slot));
+                    }
                 }
             }
             
@@ -2044,14 +2048,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             freshUser.stats[statsKey].wins = (freshUser.stats[statsKey].wins ?? 0) + userWins;
             freshUser.stats[statsKey].losses = (freshUser.stats[statsKey].losses ?? 0) + userLosses;
             
-            // DB 저장 및 캐시 업데이트 (한 번만)
-            await db.updateUser(freshUser);
-            updateUserCache(freshUser);
-            const { invalidateRankingCache } = await import('../rankingCache.js');
-            invalidateRankingCache();
-            if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
-            volatileState.activeTournaments[freshUser.id] = dungeonState;
-            
             // 기본 보상 정보 수집
             const baseRewards: {
                 gold?: number;
@@ -2084,18 +2080,40 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 이미 클리어한 단계를 다시 클리어한 경우: 이번에 열린 게 아니라 원래 열려 있었음
             const nextStageWasAlreadyUnlocked = nextStageUnlocked && wasNextStageAlreadyUnlocked;
 
-            // 대기실 입장 카드에 다음 단계·누적 전적 반영: dungeonProgress·stats 브로드캐스트 (동네/전국/월드 공통)
+            // 월드챔피언십: 실제 지급된 장비 목록(이름·이미지) 표시용
+            const grantedEquipmentDrops = dungeonType === 'world' && equipmentDropsToAdd.length > 0
+                ? equipmentDropsToAdd.map((eq: InventoryItem) => ({ name: eq.name, image: eq.image || '' }))
+                : undefined;
+
+            dungeonState.claimedRewardSummary = {
+                stage,
+                userRank,
+                wins: userWins,
+                losses: userLosses,
+                baseRewards,
+                rankReward: grantedRankReward.items.length > 0 ? grantedRankReward : undefined,
+                grantedEquipmentDrops,
+                nextStageUnlocked,
+                nextStageWasAlreadyUnlocked: nextStageWasAlreadyUnlocked ?? false,
+                dailyScore: finalScore,
+                claimedAt: now,
+            };
+
+            // DB 저장 및 캐시 업데이트 (한 번만)
+            await db.updateUser(freshUser);
+            updateUserCache(freshUser);
+            const { invalidateRankingCache } = await import('../rankingCache.js');
+            invalidateRankingCache();
+
+            // 대기실 입장 카드와 보상내역 버튼에 최신 상태 반영
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(freshUser, ['dungeonProgress', 'stats', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament']);
 
             if (volatileState.activeTournaments?.[user.id]) {
                 delete volatileState.activeTournaments[user.id];
             }
-            
-            // 월드챔피언십: 실제 지급된 장비 목록(이름·이미지) 표시용
-            const grantedEquipmentDrops = dungeonType === 'world' && equipmentDropsToAdd.length > 0
-                ? equipmentDropsToAdd.map((eq: InventoryItem) => ({ name: eq.name, image: eq.image || '' }))
-                : undefined;
+            if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+            volatileState.activeTournaments[freshUser.id] = dungeonState;
 
             return { 
                 clientResponse: { 

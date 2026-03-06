@@ -60,28 +60,36 @@ const getNeighbors = (x: number, y: number, boardSize: number): Point[] => {
     return neighbors;
 };
 
-const collectConnectedGroup = (boardState: Player[][], start: Point, player: Player): Point[] => {
-    if (boardState[start.y]?.[start.x] !== player) {
+const collectCaptureAdjacentHiddenStones = (
+    boardState: Player[][],
+    capturedStones: Point[],
+    movePlayer: Player,
+    moveHistory: LiveGameSession['moveHistory'] | undefined,
+    hiddenMoves: { [moveIndex: number]: boolean },
+    permanentlyRevealedStones: Point[] | undefined
+): { point: Point; player: Player }[] => {
+    if (capturedStones.length === 0) {
         return [];
     }
 
-    const queue: Point[] = [start];
-    const visited = new Set<string>([`${start.x},${start.y}`]);
-    const group: Point[] = [start];
+    const contributors: { point: Point; player: Player }[] = [];
+    const seen = new Set<string>();
 
-    while (queue.length > 0) {
-        const current = queue.shift()!;
-        for (const neighbor of getNeighbors(current.x, current.y, boardState.length)) {
+    for (const capturedStone of capturedStones) {
+        for (const neighbor of getNeighbors(capturedStone.x, capturedStone.y, boardState.length)) {
+            if (boardState[neighbor.y]?.[neighbor.x] !== movePlayer) continue;
+
+            const moveIndex = findMoveIndexAt(moveHistory, neighbor.x, neighbor.y);
+            const isHiddenStone = moveIndex !== -1 && !!hiddenMoves[moveIndex];
             const key = `${neighbor.x},${neighbor.y}`;
-            if (visited.has(key)) continue;
-            if (boardState[neighbor.y]?.[neighbor.x] !== player) continue;
-            visited.add(key);
-            queue.push(neighbor);
-            group.push(neighbor);
+            if (!isHiddenStone || seen.has(key) || hasPoint(permanentlyRevealedStones, neighbor)) continue;
+
+            seen.add(key);
+            contributors.push({ point: neighbor, player: movePlayer });
         }
     }
 
-    return group;
+    return contributors;
 };
 
 const isHiddenModeActive = (game: LiveGameSession, hiddenMoves: { [moveIndex: number]: boolean }) =>
@@ -221,18 +229,17 @@ export function updateGameStateAfterMove(
     const finalKoInfo = newKoInfo || null;
     const revealModeActive = isHiddenModeActive(game, updatedHiddenMoves);
 
-    const contributingHiddenStones: { point: Point; player: Player }[] = [];
-    if (revealModeActive && capturedStones.length > 0) {
-        const capturingGroup = collectConnectedGroup(newBoardState as Player[][], { x, y }, movePlayer);
-        for (const point of capturingGroup) {
-            const isCurrentMove = point.x === x && point.y === y;
-            const moveIndex = isCurrentMove ? newMoveHistory.length - 1 : findMoveIndexAt(newMoveHistory, point.x, point.y);
-            const isHiddenStone = moveIndex !== -1 && !!updatedHiddenMoves[moveIndex];
-            if (isHiddenStone && !hasPoint(game.permanentlyRevealedStones, point)) {
-                contributingHiddenStones.push({ point, player: movePlayer });
-            }
-        }
-    }
+    const contributingHiddenStones =
+        revealModeActive && capturedStones.length > 0
+            ? collectCaptureAdjacentHiddenStones(
+                newBoardState as Player[][],
+                capturedStones,
+                movePlayer,
+                newMoveHistory,
+                updatedHiddenMoves,
+                game.permanentlyRevealedStones
+            )
+            : [];
 
     const capturedHiddenStones: { point: Point; player: Player }[] = [];
     if (revealModeActive && capturedStones.length > 0) {
@@ -240,7 +247,7 @@ export function updateGameStateAfterMove(
             const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y);
             const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             const wasAiInitialHidden =
-                gameType === 'singleplayer' &&
+                (gameType === 'singleplayer' || gameType === 'tower') &&
                 !!(game as any).aiInitialHiddenStone &&
                 isSamePoint((game as any).aiInitialHiddenStone, stone);
             if ((wasHiddenMove || wasAiInitialHidden) && !hasPoint(game.permanentlyRevealedStones, stone)) {
@@ -270,7 +277,7 @@ export function updateGameStateAfterMove(
             const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y);
             const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             const wasAiInitialHidden =
-                gameType === 'singleplayer' &&
+                (gameType === 'singleplayer' || gameType === 'tower') &&
                 !!(game as any).aiInitialHiddenStone &&
                 isSamePoint((game as any).aiInitialHiddenStone, stone);
 
@@ -360,17 +367,23 @@ export function updateGameStateAfterMove(
         (updatedGame as any)[hiddenKey] = Math.max(0, current - 1);
     }
 
-    if (gameType === 'singleplayer' && isHidden && movePlayer === Player.White) {
+    if ((gameType === 'singleplayer' || gameType === 'tower') && isHidden && movePlayer === Player.White) {
         (updatedGame as any).gameStatus = 'playing';
         (updatedGame as any).aiInitialHiddenStone = { x, y };
         (updatedGame as any).aiInitialHiddenStoneIsPrePlaced = false;
         const p2Hidden = (game as any).hidden_stones_p2 ?? (game.settings as any)?.hiddenStoneCount ?? 0;
         (updatedGame as any).hidden_stones_p2 = Math.max(0, p2Hidden - 1);
-        (updatedGame as any).aiHiddenItemUsed = true;
+        const plannedTurns = Array.isArray((game as any).aiHiddenItemTurns) ? (game as any).aiHiddenItemTurns as number[] : [];
+        const usedCount = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
+        const nextUsedCount = usedCount + 1;
+        (updatedGame as any).aiHiddenItemsUsedCount = nextUsedCount;
+        (updatedGame as any).aiHiddenItemUsed = plannedTurns.length > 0
+            ? nextUsedCount >= plannedTurns.length
+            : true;
     }
 
     if (
-        gameType === 'singleplayer' &&
+        (gameType === 'singleplayer' || gameType === 'tower') &&
         !!(game as any).aiInitialHiddenStone &&
         capturedHiddenStones.some(stone => isSamePoint(stone.point, (game as any).aiInitialHiddenStone))
     ) {

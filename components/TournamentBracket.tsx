@@ -1201,7 +1201,15 @@ const CommentaryPanel: React.FC<{ commentary: CommentaryLine[], isSimulating: bo
     );
 };
 
-const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser: UserWithStatus; onAction: (action: ServerAction) => void; onCompleteDungeon?: () => void; dungeonRewardAlreadyRequested?: boolean; onDungeonRewardRequested?: () => void }> = ({ tournamentState, currentUser, onAction, onCompleteDungeon, dungeonRewardAlreadyRequested, onDungeonRewardRequested }) => {
+const FinalRewardPanel: React.FC<{
+    tournamentState: TournamentState;
+    currentUser: UserWithStatus;
+    onAction: (action: ServerAction) => void;
+    onCompleteDungeon?: () => void;
+    dungeonRewardAlreadyRequested?: boolean;
+    onDungeonRewardRequested?: () => void;
+    onOpenRewardHistory?: () => void;
+}> = ({ tournamentState, currentUser, onAction, onCompleteDungeon, dungeonRewardAlreadyRequested, onDungeonRewardRequested, onOpenRewardHistory }) => {
     const { type, rounds } = tournamentState;
     
     // 모든 경기가 완료되었는지 확인
@@ -1288,6 +1296,8 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
     // 월드챔피언십: 누적 장비상자(레거시) 또는 경기당 장비 드롭 개수 (서버는 accumulatedEquipmentDrops만 채움)
     const accumulatedEquipmentBoxes = tournamentState.type === 'world' ? (tournamentState.accumulatedEquipmentBoxes || {}) : {};
     const accumulatedEquipmentDropsCount = tournamentState.type === 'world' ? (tournamentState.accumulatedEquipmentDrops?.length ?? 0) : 0;
+    const accumulatedEquipmentItems = tournamentState.type === 'world' ? (tournamentState.accumulatedEquipmentItems || []) : [];
+    const claimedRewardSummary = tournamentState.claimedRewardSummary || null;
     
     // 랭킹 점수 계산 (현재 순위 기준, 경기 진행 중에도 표시)
     const scoreRewardInfo = TOURNAMENT_SCORE_REWARDS[type];
@@ -1493,8 +1503,23 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                     })}
                 </div>
             )}
-            {/* 월드챔피언십: 경기당 획득 장비를 등급별 이미지로 각각 표시 (재료상자 대신 장비 배경 이미지) */}
-            {tournamentState.type === 'world' && tournamentState.accumulatedEquipmentDrops && tournamentState.accumulatedEquipmentDrops.length > 0 && (
+            {/* 월드챔피언십: 경기당 실제 획득 장비를 바로 표시 */}
+            {tournamentState.type === 'world' && accumulatedEquipmentItems.length > 0 && (
+                <div className={`mb-1 grid grid-cols-2 gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                    {accumulatedEquipmentItems.map((item, idx) => (
+                        <div
+                            key={`${item.id ?? item.name}-${idx}`}
+                            className="flex items-center gap-1 rounded-lg border border-purple-600/50 bg-purple-900/25 p-1 overflow-hidden"
+                            title={`경기 ${idx + 1} · ${item.name}`}
+                        >
+                            <img src={item.image} alt={item.name} className="w-8 h-8 object-contain flex-shrink-0" loading="lazy" decoding="async" />
+                            <span className="text-[10px] text-purple-100 truncate">{item.name}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {/* 레거시 데이터 폴백: 등급 배경만 남아있는 경우 */}
+            {tournamentState.type === 'world' && accumulatedEquipmentItems.length === 0 && tournamentState.accumulatedEquipmentDrops && tournamentState.accumulatedEquipmentDrops.length > 0 && (
                 <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
                     {(tournamentState.accumulatedEquipmentDrops as string[]).map((gradeKey: string, idx: number) => {
                         const EQUIP_GRADE_IMAGE: Record<string, string> = {
@@ -1577,7 +1602,7 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                     const bgColor = isGold ? 'bg-yellow-900/40' : isDiamond ? 'bg-blue-900/40' : 'bg-purple-900/40';
                     const textColor = isGold ? 'text-yellow-100' : isDiamond ? 'text-blue-100' : 'text-purple-100';
                     const qtyText = item.min === item.max ? `${item.min}` : `${item.min}~${item.max}`;
-                    const suffix = itemName.includes('골드') ? ' 골드' : itemName.includes('다이아') ? ' 다이아' : '';
+                    const suffix = isGold ? ' 골드' : '';
                     const displayQty = suffix ? `${qtyText}${suffix}` : qtyText;
                     const isSm = size === 'sm';
                     return (
@@ -1632,7 +1657,7 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
             })()}
             
             {/* 보상이 하나도 없는 경우 (전국은 matchMaterialRewards 있으면 보상 있음) */}
-            {scoreReward === 0 && accumulatedGold === 0 && Object.keys(accumulatedMaterials).length === 0 && Object.keys(accumulatedEquipmentBoxes).length === 0 && accumulatedEquipmentDropsCount === 0 && !(type === 'national' && tournamentState.matchMaterialRewards && tournamentState.matchMaterialRewards.length > 0) && (
+            {scoreReward === 0 && accumulatedGold === 0 && Object.keys(accumulatedMaterials).length === 0 && Object.keys(accumulatedEquipmentBoxes).length === 0 && accumulatedEquipmentDropsCount === 0 && accumulatedEquipmentItems.length === 0 && !(type === 'national' && tournamentState.matchMaterialRewards && tournamentState.matchMaterialRewards.length > 0) && (
                 <div className="flex items-center justify-center h-full">
                     <p className="text-xs text-gray-400 text-center">획득한 보상이 없습니다.</p>
                 </div>
@@ -1642,19 +1667,29 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
             {/* 하단 보상 영역: 수령 전에는 보상받기, 수령 후에는 보상완료. 이미 수령(isClaimed)이면 클릭 불가(서버 재호출 방지) */}
             {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
                 <div className="flex-shrink-0 pt-1.5 border-t border-gray-700 mt-1.5">
-                    {isDungeonMode && onCompleteDungeon && !isClaimed ? (
-                        <button
-                            onClick={onCompleteDungeon}
-                            disabled={isClaiming}
-                            className="w-full py-1.5 px-3 rounded-lg font-semibold text-xs bg-green-600 hover:bg-green-700 text-white cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isClaiming ? '처리 중...' : '보상 완료'}
-                        </button>
-                    ) : (
-                        <div className="w-full py-1.5 px-3 rounded-lg font-semibold text-xs text-center bg-gray-700/50 text-gray-400 border border-gray-600">
-                            보상완료
-                        </div>
-                    )}
+                    <div className="space-y-1.5">
+                        {isDungeonMode && onCompleteDungeon && !isClaimed ? (
+                            <button
+                                onClick={onCompleteDungeon}
+                                disabled={isClaiming}
+                                className="w-full py-1.5 px-3 rounded-lg font-semibold text-xs bg-green-600 hover:bg-green-700 text-white cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isClaiming ? '처리 중...' : '보상 완료'}
+                            </button>
+                        ) : (
+                            <div className="w-full py-1.5 px-3 rounded-lg font-semibold text-xs text-center bg-gray-700/50 text-gray-400 border border-gray-600">
+                                보상완료
+                            </div>
+                        )}
+                        {claimedRewardSummary && onOpenRewardHistory && (
+                            <button
+                                onClick={onOpenRewardHistory}
+                                className="w-full py-1.5 px-3 rounded-lg font-semibold text-xs bg-purple-700/70 hover:bg-purple-700 text-white transition-colors"
+                            >
+                                보상내역
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
             {!treatAsClaimed && (
@@ -2882,6 +2917,28 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             setDungeonStageRewardRequested(true);
         }
     }, [tournament, currentUser.id, currentUser.dungeonProgress, currentUser.dailyRankings, allUsersForRanking, onAction]);
+
+    const handleOpenRewardHistory = useCallback(() => {
+        const summary = tournament?.claimedRewardSummary;
+        if (!summary || !tournament) return;
+
+        setDungeonStageSummaryData({
+            dungeonType: tournament.type,
+            stage: summary.stage,
+            tournamentState: tournament,
+            userRank: summary.userRank,
+            wins: summary.wins,
+            losses: summary.losses,
+            baseRewards: summary.baseRewards,
+            rankReward: summary.rankReward,
+            grantedEquipmentDrops: summary.grantedEquipmentDrops,
+            nextStageUnlocked: summary.nextStageUnlocked,
+            nextStageWasAlreadyUnlocked: summary.nextStageWasAlreadyUnlocked,
+            dailyScore: summary.dailyScore,
+            previousRank: undefined,
+            currentRank: undefined,
+        });
+    }, [tournament]);
     
     // 서버 응답 후 모달 데이터 업데이트 (다음 단계 언락 상태 반영)
     // 1·2·3위만 다음 단계 열림. 4위 이하는 unlockedStages에 다음 단계가 있어도 표시하지 않음
@@ -4127,7 +4184,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 className={`${isMobile ? 'w-2/5 min-w-[140px]' : 'flex-[1.4] min-w-[160px]'} bg-gray-800/50 rounded-lg p-1.5 md:p-2 flex flex-col overflow-hidden`}
                                 style={{ display: 'flex', flexDirection: 'column' }}
                             >
-                                <FinalRewardPanel tournamentState={tournament} currentUser={currentUser} onAction={onAction} onCompleteDungeon={handleCompleteDungeon} dungeonRewardAlreadyRequested={dungeonStageRewardRequested} onDungeonRewardRequested={() => setDungeonStageRewardRequested(true)} />
+                                <FinalRewardPanel tournamentState={tournament} currentUser={currentUser} onAction={onAction} onCompleteDungeon={handleCompleteDungeon} dungeonRewardAlreadyRequested={dungeonStageRewardRequested} onDungeonRewardRequested={() => setDungeonStageRewardRequested(true)} onOpenRewardHistory={handleOpenRewardHistory} />
                             </div>
                         </div>
                     </div>

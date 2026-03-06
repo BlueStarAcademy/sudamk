@@ -3,6 +3,7 @@ import { GameMode, ServerAction, Announcement, OverrideAnnouncement, UserWithSta
 import Avatar from './Avatar.js';
 import HelpModal from './HelpModal.js';
 import { useAppContext } from './../hooks/useAppContext.js';
+import { useIsMobileLayout } from './../hooks/useIsMobileLayout.js';
 
 // Import newly created sub-components
 import PlayerList from './waiting-room/PlayerList.js';
@@ -113,7 +114,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     waitingRoomChats, negotiations, handlers 
   } = useAppContext();
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const isMobile = useIsMobileLayout(1024);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [isTierInfoModalOpen, setIsTierInfoModalOpen] = useState(false);
@@ -137,12 +138,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     window.location.hash = `#/lobby/${isStrategic ? 'strategic' : 'playful'}`;
   }
 
-  useEffect(() => {
-    const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener('resize', checkIsMobile);
-    return () => window.removeEventListener('resize', checkIsMobile);
-  }, []);
-  
   if (!currentUserWithStatus) return null;
 
   const ongoingGames = useMemo(() => {
@@ -261,9 +256,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
           </>
         ) : (
-          <div ref={desktopContainerRef} className="grid grid-cols-1 lg:grid-cols-5 h-full gap-4">
+          <div ref={desktopContainerRef} className="grid grid-cols-5 h-full gap-4">
             {/* Main Content Column */}
-            <div className="lg:col-span-3 flex flex-col gap-4 min-h-0">
+            <div className="col-span-3 flex flex-col gap-4 min-h-0">
                 <div className="flex-shrink-0">
                     <AnnouncementBoard mode={mode} />
                 </div>
@@ -281,7 +276,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             </div>
             
             {/* Right Sidebar Column */}
-            <div className="lg:col-span-2 grid grid-rows-2 gap-4">
+            <div className="col-span-2 grid grid-rows-2 gap-4">
               <div className="flex flex-row gap-4 items-stretch min-h-0">
                 <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0">
                   <PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} negotiations={Object.values(negotiations)} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} />

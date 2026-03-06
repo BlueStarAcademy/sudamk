@@ -67,6 +67,7 @@ export type GameStatus =
   | 'curling_tiebreaker_rps' | 'curling_tiebreaker_rps_reveal'
   // Role/Turn Selection
   | 'turn_preference_selection' // Unified state for choosing turn
+  | 'color_start_confirmation'
   | 'alkkagi_turn_selection'
   | 'curling_turn_selection'
   | 'thief_role_selection'

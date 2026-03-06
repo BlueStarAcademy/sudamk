@@ -53,10 +53,18 @@ export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiat
             console.log(`[initializeThief] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
         }
     } else {
-        // Original logic for human players
-        game.gameStatus = 'thief_role_selection';
-        game.roleChoices = { [p1.id]: null, [p2.id]: null };
-        game.turnChoiceDeadline = now + 10000; // 10s
+        const thiefPlayer = Math.random() < 0.5 ? p1 : p2;
+        const policePlayer = thiefPlayer.id === p1.id ? p2 : p1;
+
+        game.thiefPlayerId = thiefPlayer.id;
+        game.policePlayerId = policePlayer.id;
+        game.blackPlayerId = thiefPlayer.id;
+        game.whitePlayerId = policePlayer.id;
+        game.gameStatus = 'thief_role_confirmed';
+        game.revealEndTime = now + 10000;
+        game.preGameConfirmations = { [p1.id]: false, [p2.id]: false };
+        game.roleChoices = undefined;
+        game.turnChoiceDeadline = undefined;
     }
 };
 

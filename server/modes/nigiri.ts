@@ -3,69 +3,50 @@ import * as types from '../../types/index.js';
 import { transitionToPlaying } from './shared.js';
 
 export const initializeNigiri = (game: types.LiveGameSession, now: number) => {
-    const p1 = game.player1;
-    const p2 = game.player2;
-    const holderId = Math.random() < 0.5 ? p1.id : p2.id;
+    const blackPlayer = Math.random() < 0.5 ? game.player1 : game.player2;
+    const whitePlayer = blackPlayer.id === game.player1.id ? game.player2 : game.player1;
+
+    game.blackPlayerId = blackPlayer.id;
+    game.whitePlayerId = whitePlayer.id;
     game.nigiri = {
-        holderId,
-        guesserId: holderId === p1.id ? p2.id : p1.id,
-        stones: Math.floor(Math.random() * 20) + 1,
+        holderId: blackPlayer.id,
+        guesserId: whitePlayer.id,
+        stones: null,
         guess: null,
         result: null,
     };
-    game.gameStatus = 'nigiri_choosing';
-    game.guessDeadline = now + 30000;
+    game.gameStatus = 'nigiri_reveal';
+    game.revealEndTime = now + 30000;
+    game.preGameConfirmations = {
+        [game.player1.id]: false,
+        [game.player2.id]: false,
+    };
+    game.guessDeadline = undefined;
     game.nigiriStartTime = now;
 };
 
 export const updateNigiriState = (game: types.LiveGameSession, now: number) => {
-    switch (game.gameStatus) {
-        case 'nigiri_choosing':
-            if (!game.nigiriStartTime) {
-                game.nigiriStartTime = now;
-            }
-            if (now > (game.nigiriStartTime + 1000)) {
-                game.gameStatus = 'nigiri_guessing';
-            }
-            break;
-        case 'nigiri_guessing':
-            if (game.guessDeadline && now > game.guessDeadline && game.nigiri && game.nigiri.guess === null) {
-                const randomGuess = (Math.random() < 0.5 ? 1 : 2) as 1 | 2;
-                game.nigiri.guess = randomGuess;
-                game.nigiri.result = (game.nigiri.stones! % 2 === 0) === (randomGuess === 2) ? 'correct' : 'incorrect';
-                game.gameStatus = 'nigiri_reveal';
-                game.revealEndTime = now + 5000;
-
-                const winnerId = game.nigiri.result === 'correct' ? game.nigiri.guesserId : game.nigiri.holderId;
-                game.blackPlayerId = winnerId;
-                game.whitePlayerId = winnerId === game.player1.id ? game.player2.id : game.player1.id;
-            }
-            break;
-        case 'nigiri_reveal':
-            if (game.revealEndTime && now > game.revealEndTime && !game.nigiri?.processed) {
-                game.nigiri!.processed = true;
-                transitionToPlaying(game, now);
-            }
-            break;
+    if (game.gameStatus === 'nigiri_reveal') {
+        const bothConfirmed = game.preGameConfirmations?.[game.player1.id] && game.preGameConfirmations?.[game.player2.id];
+        const deadlinePassed = game.revealEndTime && now > game.revealEndTime;
+        if (bothConfirmed || deadlinePassed) {
+            if (game.nigiri) game.nigiri.processed = true;
+            game.preGameConfirmations = {};
+            game.revealEndTime = undefined;
+            transitionToPlaying(game, now);
+        }
     }
 };
 
 export const handleNigiriAction = (game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): types.HandleActionResult | null => {
-    const { type, payload } = action as any; // Cast to any to access payload without TS complaining before the switch
-    const now = Date.now();
+    const { type } = action as any; // Cast to any to access payload without TS complaining before the switch
 
-    if (type === 'NIGIRI_GUESS') {
-        if (game.gameStatus !== 'nigiri_guessing' || !game.nigiri || user.id !== game.nigiri.guesserId) {
-            return { error: "Not your turn to guess." };
+    if (type === 'CONFIRM_COLOR_START') {
+        if (game.gameStatus !== 'nigiri_reveal') {
+            return { error: "Not in confirmation phase." };
         }
-        game.nigiri.guess = payload.guess;
-        game.nigiri.result = (game.nigiri.stones! % 2 === 0) === (payload.guess === 2) ? 'correct' : 'incorrect';
-        game.gameStatus = 'nigiri_reveal';
-        game.revealEndTime = now + 5000;
-
-        const winnerId = game.nigiri.result === 'correct' ? game.nigiri.guesserId : game.nigiri.holderId;
-        game.blackPlayerId = winnerId;
-        game.whitePlayerId = winnerId === game.player1.id ? game.player2.id : game.player1.id;
+        if (!game.preGameConfirmations) game.preGameConfirmations = {};
+        game.preGameConfirmations[user.id] = true;
         return {};
     }
 

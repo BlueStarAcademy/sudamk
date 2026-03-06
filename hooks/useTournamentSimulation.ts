@@ -5,10 +5,88 @@ import { runClientSimulationStep, SeededRandom } from '../utils/tournamentSimula
 
 const TOTAL_GAME_DURATION = 50;
 
+type PersistedTournamentSimulation = {
+    userId: string;
+    tournament: TournamentState;
+    matchKey: string | null;
+    rngState: number | null;
+    savedAt: number;
+};
+
+const getMatchKey = (tournament: TournamentState | null | undefined): string | null => {
+    if (!tournament?.currentSimulatingMatch) return null;
+    return `${tournament.currentSimulatingMatch.roundIndex}-${tournament.currentSimulatingMatch.matchIndex}-${tournament.simulationSeed || ''}`;
+};
+
+const getStorageKey = (userId: string, type: TournamentState['type']) => `tournamentSimulation_${userId}_${type}`;
+
+const readPersistedSimulation = (userId: string, type: TournamentState['type']): PersistedTournamentSimulation | null => {
+    try {
+        const raw = sessionStorage.getItem(getStorageKey(userId, type));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as PersistedTournamentSimulation;
+        if (parsed.userId !== userId || parsed.tournament?.type !== type) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+};
+
+const persistSimulation = (userId: string, tournament: TournamentState, rngState: number | null) => {
+    try {
+        const payload: PersistedTournamentSimulation = {
+            userId,
+            tournament,
+            matchKey: getMatchKey(tournament),
+            rngState,
+            savedAt: Date.now(),
+        };
+        sessionStorage.setItem(getStorageKey(userId, tournament.type), JSON.stringify(payload));
+    } catch (error) {
+        console.warn('[useTournamentSimulation] Failed to persist simulation state', error);
+    }
+};
+
+const clearPersistedSimulation = (userId: string, type: TournamentState['type']) => {
+    try {
+        sessionStorage.removeItem(getStorageKey(userId, type));
+    } catch {
+        // ignore
+    }
+};
+
+const resolveInitialTournament = (tournament: TournamentState | null, currentUser: User | null): TournamentState | null => {
+    if (!currentUser || !tournament?.type) return tournament;
+
+    const persisted = readPersistedSimulation(currentUser.id, tournament.type);
+    if (!persisted) return tournament;
+
+    const persistedMatchKey = persisted.matchKey;
+    const incomingMatchKey = getMatchKey(tournament);
+
+    if (tournament.status !== 'round_in_progress') {
+        clearPersistedSimulation(currentUser.id, tournament.type);
+        return tournament;
+    }
+
+    if (persisted.tournament.status === 'round_in_progress' &&
+        persistedMatchKey &&
+        persistedMatchKey === incomingMatchKey &&
+        (persisted.tournament.timeElapsed || 0) >= (tournament.timeElapsed || 0)) {
+        return persisted.tournament;
+    }
+
+    if (persistedMatchKey && persistedMatchKey !== incomingMatchKey) {
+        clearPersistedSimulation(currentUser.id, tournament.type);
+    }
+
+    return tournament;
+};
+
 export const useTournamentSimulation = (tournament: TournamentState | null, currentUser: User | null) => {
     const { handlers } = useAppContext();
-    const [localTournament, setLocalTournament] = useState<TournamentState | null>(tournament);
-    
+    const [localTournament, setLocalTournament] = useState<TournamentState | null>(() => resolveInitialTournament(tournament, currentUser));
+
     // Refs for simulation state
     const simulationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const isSimulatingRef = useRef(false);
@@ -19,38 +97,35 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
     const player2ScoreRef = useRef(0);
     const commentaryRef = useRef<any[]>([]);
     const timeElapsedRef = useRef(0);
-    
+
     // Track current match to detect changes
-    const currentMatchKeyRef = useRef<string | null>(null);
+    const currentMatchKeyRef = useRef<string | null>(getMatchKey(localTournament));
 
     // Update local tournament state when tournament prop changes
     useEffect(() => {
-        if (!tournament) {
+        const resolvedTournament = resolveInitialTournament(tournament, currentUser);
+
+        if (!resolvedTournament) {
             setLocalTournament(null);
             return;
         }
 
-        // Generate match key to detect match changes
-        const matchKey = tournament.currentSimulatingMatch
-            ? `${tournament.currentSimulatingMatch.roundIndex}-${tournament.currentSimulatingMatch.matchIndex}-${tournament.simulationSeed || ''}`
-            : null;
+        const matchKey = getMatchKey(resolvedTournament);
 
         // If match changed, reset simulation state
         if (matchKey !== currentMatchKeyRef.current) {
             console.log('[useTournamentSimulation] Match changed, resetting simulation state', {
                 prevKey: currentMatchKeyRef.current,
                 newKey: matchKey,
-                status: tournament.status,
-                hasSeed: !!tournament.simulationSeed
+                status: resolvedTournament.status,
+                hasSeed: !!resolvedTournament.simulationSeed
             });
-            
-            // Clear any running simulation
+
             if (simulationIntervalRef.current) {
                 clearInterval(simulationIntervalRef.current);
                 simulationIntervalRef.current = null;
             }
-            
-            // Reset simulation state
+
             isSimulatingRef.current = false;
             timeElapsedRef.current = 0;
             player1ScoreRef.current = 0;
@@ -59,39 +134,60 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
             rngRef.current = null;
             player1Ref.current = null;
             player2Ref.current = null;
-            
+
             currentMatchKeyRef.current = matchKey;
         }
 
-        // Update local tournament state
         setLocalTournament(prev => {
-            if (!prev) return tournament;
-            
-            // Preserve client-side simulation state if same match is running
-            if (prev.status === 'round_in_progress' && 
-                tournament.status === 'round_in_progress' &&
-                prev.currentSimulatingMatch &&
-                tournament.currentSimulatingMatch &&
-                prev.currentSimulatingMatch.roundIndex === tournament.currentSimulatingMatch.roundIndex &&
-                prev.currentSimulatingMatch.matchIndex === tournament.currentSimulatingMatch.matchIndex &&
-                prev.simulationSeed === tournament.simulationSeed) {
-                // Same match, preserve client-side updates
-                return {
-                    ...tournament,
-                    timeElapsed: prev.timeElapsed,
-                    currentMatchScores: prev.currentMatchScores,
-                    currentMatchCommentary: prev.currentMatchCommentary
-                };
+            if (!prev) return resolvedTournament;
+
+            if (prev.status === 'round_in_progress' &&
+                resolvedTournament.status === 'round_in_progress' &&
+                getMatchKey(prev) === getMatchKey(resolvedTournament)) {
+                const usePrevClientState = (prev.timeElapsed || 0) > (resolvedTournament.timeElapsed || 0);
+                if (usePrevClientState) {
+                    return {
+                        ...resolvedTournament,
+                        timeElapsed: prev.timeElapsed,
+                        currentMatchScores: prev.currentMatchScores,
+                        currentMatchCommentary: prev.currentMatchCommentary,
+                        lastScoreIncrement: prev.lastScoreIncrement,
+                        players: prev.players,
+                    };
+                }
             }
-            
-            return tournament;
+
+            return resolvedTournament;
         });
-    }, [tournament]);
+    }, [tournament, currentUser]);
+
+    // Persist in-progress simulation so a refresh can resume mid-match.
+    useEffect(() => {
+        if (!currentUser || !localTournament) return;
+
+        const matchKey = getMatchKey(localTournament);
+        if (localTournament.status === 'round_in_progress' && matchKey && rngRef.current) {
+            persistSimulation(currentUser.id, localTournament, rngRef.current.getState());
+            return;
+        }
+
+        clearPersistedSimulation(currentUser.id, localTournament.type);
+    }, [
+        currentUser,
+        localTournament?.type,
+        localTournament?.status,
+        localTournament?.simulationSeed,
+        localTournament?.currentSimulatingMatch?.roundIndex,
+        localTournament?.currentSimulatingMatch?.matchIndex,
+        localTournament?.timeElapsed,
+        localTournament?.currentMatchScores?.player1,
+        localTournament?.currentMatchScores?.player2,
+        localTournament?.currentMatchCommentary?.length,
+    ]);
 
     // Main simulation effect
     useEffect(() => {
         if (!localTournament || !currentUser) {
-            // Cleanup
             if (simulationIntervalRef.current) {
                 clearInterval(simulationIntervalRef.current);
                 simulationIntervalRef.current = null;
@@ -100,8 +196,7 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
             return;
         }
 
-        // Check if we should start simulation
-        const shouldStartSimulation = 
+        const shouldStartSimulation =
             localTournament.status === 'round_in_progress' &&
             localTournament.currentSimulatingMatch !== null &&
             localTournament.simulationSeed !== undefined &&
@@ -109,7 +204,6 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
             !simulationIntervalRef.current;
 
         if (!shouldStartSimulation) {
-            // Cleanup if status changed
             if (localTournament.status !== 'round_in_progress' && simulationIntervalRef.current) {
                 clearInterval(simulationIntervalRef.current);
                 simulationIntervalRef.current = null;
@@ -118,7 +212,6 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
             return;
         }
 
-        // Get match
         const match = localTournament.currentSimulatingMatch
             ? localTournament.rounds[localTournament.currentSimulatingMatch.roundIndex]
                 ?.matches[localTournament.currentSimulatingMatch.matchIndex]
@@ -133,11 +226,8 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
             return;
         }
 
-        // Get players
-        const p1 = tournament?.players.find(p => p.id === match.players[0]!.id) ||
-                   localTournament.players.find(p => p.id === match.players[0]!.id);
-        const p2 = tournament?.players.find(p => p.id === match.players[1]!.id) ||
-                   localTournament.players.find(p => p.id === match.players[1]!.id);
+        const p1 = localTournament.players.find(p => p.id === match.players[0]!.id);
+        const p2 = localTournament.players.find(p => p.id === match.players[1]!.id);
 
         if (!p1 || !p2) {
             console.warn('[useTournamentSimulation] Cannot start simulation: players not found');
@@ -151,47 +241,57 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
             p2: p2.nickname
         });
 
-        // Initialize simulation state
+        const persisted = readPersistedSimulation(currentUser.id, localTournament.type);
+        const canResumePersisted =
+            !!persisted &&
+            persisted.matchKey === getMatchKey(localTournament) &&
+            persisted.rngState !== null &&
+            (localTournament.timeElapsed || 0) > 0;
+
         isSimulatingRef.current = true;
         player1Ref.current = JSON.parse(JSON.stringify(p1));
         player2Ref.current = JSON.parse(JSON.stringify(p2));
         rngRef.current = new SeededRandom(localTournament.simulationSeed!);
-        
-        // Set conditions
-        const isP1User = p1.id === currentUser.id;
-        const isP2User = p2.id === currentUser.id;
-        
-        // Preserve user condition from server, generate for others if needed
-        if (isP1User && p1.condition !== undefined && p1.condition !== null && p1.condition !== 1000 && p1.condition >= 40 && p1.condition <= 100) {
-            player1Ref.current.condition = p1.condition;
-        } else if (!isP1User && (p1.condition === undefined || p1.condition === null || p1.condition === 1000 || p1.condition < 40 || p1.condition > 100)) {
-            player1Ref.current.condition = rngRef.current.randomInt(40, 100);
+
+        if (canResumePersisted) {
+            rngRef.current.setState(persisted!.rngState!);
+            player1ScoreRef.current = localTournament.currentMatchScores?.player1 || 0;
+            player2ScoreRef.current = localTournament.currentMatchScores?.player2 || 0;
+            commentaryRef.current = [...(localTournament.currentMatchCommentary || [])];
+            timeElapsedRef.current = localTournament.timeElapsed || 0;
         } else {
-            player1Ref.current.condition = p1.condition || rngRef.current.randomInt(40, 100);
-        }
-        
-        if (isP2User && p2.condition !== undefined && p2.condition !== null && p2.condition !== 1000 && p2.condition >= 40 && p2.condition <= 100) {
-            player2Ref.current.condition = p2.condition;
-        } else if (!isP2User && (p2.condition === undefined || p2.condition === null || p2.condition === 1000 || p2.condition < 40 || p2.condition > 100)) {
-            player2Ref.current.condition = rngRef.current.randomInt(40, 100);
-        } else {
-            player2Ref.current.condition = p2.condition || rngRef.current.randomInt(40, 100);
+            const isP1User = p1.id === currentUser.id;
+            const isP2User = p2.id === currentUser.id;
+
+            if (isP1User && p1.condition !== undefined && p1.condition !== null && p1.condition !== 1000 && p1.condition >= 40 && p1.condition <= 100) {
+                player1Ref.current.condition = p1.condition;
+            } else if (!isP1User && (p1.condition === undefined || p1.condition === null || p1.condition === 1000 || p1.condition < 40 || p1.condition > 100)) {
+                player1Ref.current.condition = rngRef.current.randomInt(40, 100);
+            } else {
+                player1Ref.current.condition = p1.condition || rngRef.current.randomInt(40, 100);
+            }
+
+            if (isP2User && p2.condition !== undefined && p2.condition !== null && p2.condition !== 1000 && p2.condition >= 40 && p2.condition <= 100) {
+                player2Ref.current.condition = p2.condition;
+            } else if (!isP2User && (p2.condition === undefined || p2.condition === null || p2.condition === 1000 || p2.condition < 40 || p2.condition > 100)) {
+                player2Ref.current.condition = rngRef.current.randomInt(40, 100);
+            } else {
+                player2Ref.current.condition = p2.condition || rngRef.current.randomInt(40, 100);
+            }
+
+            if (player1Ref.current.originalStats) {
+                player1Ref.current.stats = JSON.parse(JSON.stringify(player1Ref.current.originalStats));
+            }
+            if (player2Ref.current.originalStats) {
+                player2Ref.current.stats = JSON.parse(JSON.stringify(player2Ref.current.originalStats));
+            }
+
+            player1ScoreRef.current = 0;
+            player2ScoreRef.current = 0;
+            commentaryRef.current = [];
+            timeElapsedRef.current = 0;
         }
 
-        // Reset stats
-        if (player1Ref.current.originalStats) {
-            player1Ref.current.stats = JSON.parse(JSON.stringify(player1Ref.current.originalStats));
-        }
-        if (player2Ref.current.originalStats) {
-            player2Ref.current.stats = JSON.parse(JSON.stringify(player2Ref.current.originalStats));
-        }
-        
-        player1ScoreRef.current = 0;
-        player2ScoreRef.current = 0;
-        commentaryRef.current = [];
-        timeElapsedRef.current = 0;
-
-        // Start simulation interval
         try {
             simulationIntervalRef.current = setInterval(() => {
                 if (!rngRef.current || !player1Ref.current || !player2Ref.current) {
@@ -223,7 +323,6 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
                 player2ScoreRef.current = result.player2Score;
                 commentaryRef.current = result.commentary;
 
-                // Update local tournament state
                 setLocalTournament(prev => {
                     if (!prev) return prev;
                     const updated = { ...prev };
@@ -258,7 +357,6 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
                     return updated;
                 });
 
-                // Check if simulation is complete
                 if (timeElapsedRef.current >= TOTAL_GAME_DURATION) {
                     if (simulationIntervalRef.current) {
                         clearInterval(simulationIntervalRef.current);
@@ -266,7 +364,6 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
                     }
                     isSimulatingRef.current = false;
 
-                    // Calculate final result
                     const totalScore = player1ScoreRef.current + player2ScoreRef.current;
                     const p1Percent = totalScore > 0 ? (player1ScoreRef.current / totalScore) * 100 : 50;
                     const diffPercent = Math.abs(p1Percent - 50) * 2;
@@ -284,22 +381,21 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
                         winnerNickname = winner.nickname;
                     }
 
-                    const finalCommentaryText = scoreDiff < 0.5 
+                    const finalCommentaryText = scoreDiff < 0.5
                         ? `[최종결과] ${winnerNickname}, 0.5집 승리!`
                         : `[최종결과] ${winnerNickname}, ${scoreDiff.toFixed(1)}집 승리!`;
 
-                    commentaryRef.current.push({ 
-                        text: finalCommentaryText, 
-                        phase: 'end', 
-                        isRandomEvent: false 
+                    commentaryRef.current.push({
+                        text: finalCommentaryText,
+                        phase: 'end',
+                        isRandomEvent: false
                     });
-                    commentaryRef.current.push({ 
-                        text: `${winnerNickname}님이 승리했습니다!`, 
-                        phase: 'end', 
-                        isRandomEvent: false 
+                    commentaryRef.current.push({
+                        text: `${winnerNickname}님이 승리했습니다!`,
+                        phase: 'end',
+                        isRandomEvent: false
                     });
 
-                    // Update final state
                     setLocalTournament(prev => {
                         if (!prev) return prev;
                         const updated = { ...prev };
@@ -314,7 +410,8 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
                         return updated;
                     });
 
-                    // Send result to server
+                    clearPersistedSimulation(currentUser.id, localTournament.type);
+
                     handlers.handleAction({
                         type: 'COMPLETE_TOURNAMENT_SIMULATION',
                         payload: {
@@ -355,8 +452,7 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
         localTournament?.simulationSeed,
         localTournament?.currentSimulatingMatch?.roundIndex,
         localTournament?.currentSimulatingMatch?.matchIndex,
-        tournament,
-        currentUser?.id
+        currentUser,
     ]);
 
     return localTournament;

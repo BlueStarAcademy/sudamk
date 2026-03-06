@@ -209,6 +209,7 @@ export type TournamentState = {
     matchMaterialRewards?: Record<string, number>[]; // 전국바둑대회 8강/4강/결승(또는 3·4위전) 각 경기별 재료 (표시용 더미)
     accumulatedEquipmentBoxes?: Record<string, number>; // 월드챔피언십 경기별 누적 장비상자 (상자명: 개수)
     accumulatedEquipmentDrops?: string[]; // 월드챔피언십 경기별 누적 장비 드롭 등급 (normal/rare/epic 등)
+    accumulatedEquipmentItems?: InventoryItem[]; // 월드챔피언십 경기별 실제 획득 장비 (즉시 표시/지급용)
     // 던전 시스템 필드
     currentStage?: number; // 현재 클리어한 최고 단계 (1~10)
     unlockedStages?: number[]; // 클리어하여 언락된 단계 배열
@@ -222,6 +223,26 @@ export type TournamentState = {
     dailyStageAttempts?: Record<number, number>; // 일일 단계별 시도 횟수 (리셋용)
     currentStageAttempt?: number; // 현재 진행 중인 단계
     autoAdvanceEnabled?: boolean; // 첫 경기 시작 후 자동 진행 여부
+    claimedRewardSummary?: {
+        stage: number;
+        userRank: number;
+        wins: number;
+        losses: number;
+        baseRewards: {
+            gold?: number;
+            materials?: Record<string, number>;
+            equipmentBoxes?: Record<string, number>;
+            changeTickets?: number;
+        };
+        rankReward?: {
+            items?: Array<{ itemId: string; quantity?: number; min?: number; max?: number }>;
+        };
+        grantedEquipmentDrops?: Array<{ name: string; image: string }>;
+        nextStageUnlocked: boolean;
+        nextStageWasAlreadyUnlocked?: boolean;
+        dailyScore?: number;
+        claimedAt: number;
+    } | null;
 };
 
 export type LeagueOutcome = 'promote' | 'maintain' | 'demote';
@@ -730,6 +751,8 @@ export type LiveGameSession = {
   disconnectionCounts: { [playerId: string]: number; };
   aiHiddenItemUsed?: boolean;
   aiHiddenItemTurn?: number;
+  aiHiddenItemTurns?: number[];
+  aiHiddenItemsUsedCount?: number;
   aiHiddenItemAnimationEndTime?: number;
   noContestInitiatorIds?: string[];
   currentActionButtons: { [playerId: string]: any[] }; // ActionButton

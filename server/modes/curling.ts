@@ -1,6 +1,6 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
-import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePlayfulTurnTimeoutByoyomi, shouldEnforceTimeControl } from './shared.js';
+import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePlayfulTurnTimeoutByoyomi, shouldEnforceTimeControl, startColorConfirmation } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
 import { CURLING_TURN_TIME_LIMIT, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
@@ -280,10 +280,7 @@ export const initializeCurling = (game: types.LiveGameSession, neg: types.Negoti
         }
 
     } else {
-        game.gameStatus = 'turn_preference_selection';
-        game.turnChoices = { [p1.id]: null, [p2.id]: null };
-        game.turnChoiceDeadline = now + 30000;
-        game.turnSelectionTiebreaker = 'rps';
+        startColorConfirmation(game, now, 'curling_start_confirmation', 30000);
     }
 };
 

@@ -3,6 +3,8 @@ import { LiveGameSession, Player, GameStatus, GameMode, User, ServerAction } fro
 import { PLAYFUL_GAME_MODES, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS } from '../../constants';
 import { audioService } from '../../services/audioService.js';
 
+const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
+
 interface TurnDisplayProps {
     session: LiveGameSession;
     isPaused?: boolean;
@@ -171,6 +173,14 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             return () => clearTimeout(timer);
         }
     }, [session.foulInfo, prevFoulInfoMessage]);
+
+    useEffect(() => {
+        if (foulMessage !== AI_HIDDEN_ITEM_MESSAGE) return;
+        const isUserTurnAfterAiHiddenMove = session.gameStatus === 'playing' && session.currentPlayer === Player.Black;
+        if (isUserTurnAfterAiHiddenMove) {
+            setFoulMessage(null);
+        }
+    }, [foulMessage, session.gameStatus, session.currentPlayer]);
 
     useEffect(() => {
         if (session.lastTimeoutPlayerId && session.lastTimeoutPlayerId !== prevTimeoutPlayerId) {

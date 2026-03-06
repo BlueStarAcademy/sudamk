@@ -96,6 +96,36 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
     }
 };
 
+export const assignRandomColors = (game: types.LiveGameSession) => {
+    const blackPlayer = Math.random() < 0.5 ? game.player1 : game.player2;
+    const whitePlayer = blackPlayer.id === game.player1.id ? game.player2 : game.player1;
+    game.blackPlayerId = blackPlayer.id;
+    game.whitePlayerId = whitePlayer.id;
+};
+
+export const startColorConfirmation = (
+    game: types.LiveGameSession,
+    now: number,
+    gameStatus: types.GameStatus = 'color_start_confirmation',
+    revealDurationMs: number = 30000
+) => {
+    assignRandomColors(game);
+    game.gameStatus = gameStatus;
+    game.revealEndTime = now + revealDurationMs;
+    game.turnChoiceDeadline = undefined;
+    game.turnChoices = undefined;
+    game.turnSelectionTiebreaker = undefined;
+    game.rpsState = undefined;
+    game.rpsRound = undefined;
+    game.preGameConfirmations = {
+        [game.player1.id]: false,
+        [game.player2.id]: false,
+    };
+    if (game.isAiGame) {
+        game.preGameConfirmations[aiUserId] = true;
+    }
+};
+
 /**
  * 게임 타이머를 일시정지하고 아이템 사용 시간을 부여합니다.
  * 히든/미사일/스캔 아이템 사용 시 호출됩니다.
@@ -213,6 +243,17 @@ const transitionFromTurnPreference = (game: LiveGameSession, p1Choice: 'first' |
 export const updateSharedGameState = (game: LiveGameSession, now: number): boolean => {
     const p1Id = game.player1.id;
     const p2Id = game.player2.id;
+
+    if (game.gameStatus === 'color_start_confirmation') {
+        const bothConfirmed = game.preGameConfirmations?.[p1Id] && game.preGameConfirmations?.[p2Id];
+        const deadlinePassed = game.revealEndTime && now > game.revealEndTime;
+        if (bothConfirmed || deadlinePassed) {
+            game.preGameConfirmations = {};
+            game.revealEndTime = undefined;
+            transitionToPlaying(game, now);
+            return true;
+        }
+    }
     
     if (game.gameStatus === 'turn_preference_selection') {
         const p1Choice = game.turnChoices?.[p1Id];
@@ -484,6 +525,15 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
             if (p1Choice && p2Choice) {
                 transitionFromTurnPreference(game, p1Choice, p2Choice, now);
             }
+            return {};
+        }
+
+        case 'CONFIRM_COLOR_START': {
+            if (game.gameStatus !== 'color_start_confirmation' && game.gameStatus !== 'nigiri_reveal') {
+                return { error: 'Not in confirmation phase.' };
+            }
+            if (!game.preGameConfirmations) game.preGameConfirmations = {};
+            game.preGameConfirmations[user.id] = true;
             return {};
         }
 

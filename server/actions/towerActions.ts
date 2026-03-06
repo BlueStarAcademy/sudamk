@@ -107,6 +107,22 @@ const shufflePoints = (points: Point[]): Point[] => {
     return out;
 };
 
+const getRandomTurnInRange = (minTurn: number, maxTurn: number): number => {
+    const start = Math.max(1, Math.floor(minTurn));
+    const end = Math.max(start, Math.floor(maxTurn));
+    return start + Math.floor(Math.random() * (end - start + 1));
+};
+
+const planTowerAiHiddenTurns = (floor: number, hiddenCount: number): number[] => {
+    if (floor < 21 || hiddenCount <= 0) return [];
+
+    const plannedTurns: number[] = [getRandomTurnInRange(1, 20)];
+    if (floor >= 51 && hiddenCount >= 2) {
+        plannedTurns.push(getRandomTurnInRange(21, 35));
+    }
+    return plannedTurns.sort((a, b) => a - b);
+};
+
 // Helper function to place stones randomly without overlap and without immediate capture — 층별 흑/백 개수 정확히 맞춤
 const placeStonesOnBoard = (board: BoardState, boardSize: number, count: number, player: Player): Point[] => {
     const empty: Point[] = [];
@@ -437,14 +453,17 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 const missileCap = (game.settings as any).missileCount ?? 2;
                 const hiddenCap = (game.settings as any).hiddenStoneCount ?? 2;
                 const scanCap = (game.settings as any).scanCount ?? 2;
+                const aiHiddenCap = floor >= 51 ? Math.max(2, hiddenCap) : hiddenCap;
+                const aiHiddenItemTurns = planTowerAiHiddenTurns(floor, aiHiddenCap);
                 (game as any).missiles_p1 = Math.min(missileCap, countItems(['미사일', 'missile']));
                 (game as any).hidden_stones_p1 = Math.min(hiddenCap, countItems(['히든', 'hidden']));
                 (game as any).scans_p1 = Math.min(scanCap, countItems(['스캔', 'scan']));
-                (game as any).hidden_stones_p2 = hiddenCap;
+                (game as any).hidden_stones_p2 = aiHiddenCap;
                 (game as any).scans_p2 = (game.settings as any).scanCount ?? 0;
-                if ((game as any).hidden_stones_p2 > 0 && game.aiHiddenItemTurn === undefined) {
-                    (game as any).aiHiddenItemTurn = 2 + Math.floor(Math.random() * 11);
-                }
+                (game as any).aiHiddenItemTurns = aiHiddenItemTurns;
+                (game as any).aiHiddenItemsUsedCount = 0;
+                game.aiHiddenItemUsed = false;
+                game.aiHiddenItemTurn = aiHiddenItemTurns[0];
             }
             
             // 도전의 탑은 시간 제한 없음 (제한시간/초읽기 미적용)

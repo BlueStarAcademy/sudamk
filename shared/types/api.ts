@@ -163,6 +163,7 @@ export type ServerAction =
     // Turn Preference (Alkkagi, Curling, Omok, Ttamok)
     | { type: 'CHOOSE_TURN_PREFERENCE', payload: { gameId: string, choice: 'first' | 'second' } }
     | { type: 'SUBMIT_RPS_CHOICE', payload: { gameId: string, choice: RPSChoice } }
+    | { type: 'CONFIRM_COLOR_START', payload: { gameId: string } }
     // Dice Go
     | { type: 'DICE_READY_FOR_TURN_ROLL', payload: { gameId: string } }
     | { type: 'DICE_CHOOSE_TURN', payload: { gameId: string; choice: 'first' | 'second' } }

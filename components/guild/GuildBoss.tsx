@@ -765,9 +765,9 @@ const GuildBoss: React.FC = () => {
                 <h1 className="text-3xl font-bold text-white" style={{ textShadow: '2px 2px 5px black' }}>길드 보스전</h1>
             </header>
 
-            <main className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
+            <main className="flex-1 min-h-0 flex flex-row gap-4">
                 {/* 모바일: 상단 - 보스 패널과 유저 패널 가로 배치 */}
-                <div className="lg:hidden flex flex-row gap-4 flex-shrink-0">
+                <div className="hidden flex-row gap-4 flex-shrink-0">
                     <div className="w-1/2 flex flex-col gap-4">
                         <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={currentBoss.maxHp} damageNumbers={bossDamageNumbers} />
                         <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
@@ -800,7 +800,7 @@ const GuildBoss: React.FC = () => {
                 </div>
 
                 {/* 모바일: 하단 - 보스 중계와 유저 중계 가로 배치 */}
-                <div className="lg:hidden flex flex-row gap-4 flex-1 min-h-0">
+                <div className="hidden flex-row gap-4 flex-1 min-h-0">
                     <div className="w-1/2 bg-panel border border-color rounded-lg p-4 flex flex-col min-h-0">
                         <h3 className="text-lg font-bold mb-2 flex-shrink-0 text-center text-red-300">보스의 공격</h3>
                         <div ref={mobileBossLogContainerRef} className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-2 rounded-md space-y-2 text-sm">
@@ -828,12 +828,12 @@ const GuildBoss: React.FC = () => {
                 </div>
 
                 {/* 데스크톱: 기존 레이아웃 */}
-                <div className="hidden lg:flex w-full lg:w-[22%] xl:w-[20%] flex flex-col gap-4">
+                <div className="flex w-full lg:w-[22%] xl:w-[20%] flex-col gap-4">
                     <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={currentBoss.maxHp} damageNumbers={bossDamageNumbers} />
                     <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
                 </div>
                 
-                <div className="hidden lg:flex flex-1 flex flex-col gap-4 min-h-0">
+                <div className="flex flex-1 flex-col gap-4 min-h-0">
                     <div className="bg-panel border border-color rounded-lg p-4 flex flex-col h-1/2 min-h-[200px] lg:min-h-0">
                         <h3 className="text-lg font-bold mb-2 flex-shrink-0 text-center text-red-300">보스의 공격</h3>
                         <div ref={bossLogContainerRef} className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-2 rounded-md space-y-2 text-sm">
@@ -860,7 +860,7 @@ const GuildBoss: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="hidden lg:flex w-full lg:w-[28%] xl:w-[26%] flex-shrink-0 flex flex-col gap-4">
+                <div className="flex w-full lg:w-[28%] xl:w-[26%] flex-shrink-0 flex-col gap-4">
                     <UserStatsPanel 
                         user={currentUserWithStatus} 
                         guild={myGuild} 

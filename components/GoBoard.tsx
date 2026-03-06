@@ -1160,6 +1160,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     }
 
                     if (!isVisible) return null;
+                    // 공개 애니메이션 중인 히든돌은 하단 보드에서 다시 그리지 않고
+                    // 전용 오버레이만 렌더링해 중첩 표시를 막는다.
+                    if (isInRevealAnimation) return null;
                     // 미사일 애니메이션 중에는 원래 자리와 목적지 자리의 돌을 숨김
                     if (animation?.type === 'missile') {
                         if (animation.from.x === x && animation.from.y === y) return null; // 원래 자리

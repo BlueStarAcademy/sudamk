@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 
 interface DraggableWindowProps {
 
@@ -72,7 +72,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
     const positionRef = useRef(position);
 
-    const isMobile = useIsMobileLayout(768);
+    const isCompactViewport = useIsHandheldDevice(1025);
 
     const [rememberPosition, setRememberPosition] = useState(true);
 
@@ -130,7 +130,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
 
     useEffect(() => {
-        if (isMobile) {
+        if (isCompactViewport) {
             setPosition({ x: 0, y: 0 });
             try {
                 const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
@@ -140,7 +140,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                 console.error("Failed to clear mobile position", e);
             }
         }
-    }, [isMobile, windowId]);
+    }, [isCompactViewport, windowId]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -162,7 +162,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         if (!initialWidth) return undefined;
         
         // 모바일이 아닐 때는 initialWidth를 최소값으로 보장 (데스크톱에서는 고정 크기 사용)
-        if (!isMobile) {
+        if (!isCompactViewport) {
             // 데스크톱: initialWidth를 최대한 보장하되, 화면이 너무 작으면 화면 크기에 맞춤
             const minWidth = Math.min(initialWidth, windowWidth - 40); // 화면에서 40px 여유 공간
             // initialWidth를 최소한 95% 이상 보장 (90%에서 95%로 증가)
@@ -174,13 +174,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         const viewportRatio = windowWidth / 1920; // 기준 해상도 1920px
         const adjustedWidth = Math.max(400, Math.min(baseWidth, baseWidth * viewportRatio));
         return adjustedWidth;
-    }, [initialWidth, windowWidth, isMobile]);
+    }, [initialWidth, windowWidth, isCompactViewport]);
     
     const calculatedHeight = useMemo(() => {
         if (!initialHeight) return undefined;
         
         // 모바일이 아닐 때는 initialHeight를 최소값으로 보장 (데스크톱에서는 고정 크기 사용)
-        if (!isMobile) {
+        if (!isCompactViewport) {
             // 데스크톱: initialHeight를 최소값으로 보장하되, 화면이 너무 작으면 화면 크기에 맞춤
             const minHeight = Math.min(initialHeight, windowHeight - 40); // 화면에서 40px 여유 공간
             return Math.max(initialHeight * 0.9, minHeight); // initialHeight의 90% 이상 보장
@@ -191,11 +191,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         const viewportRatio = windowHeight / 1080; // 기준 해상도 1080px
         const adjustedHeight = Math.max(300, Math.min(baseHeight, baseHeight * viewportRatio));
         return adjustedHeight;
-    }, [initialHeight, windowHeight, isMobile]);
+    }, [initialHeight, windowHeight, isCompactViewport]);
 
     // 모바일에서 PC 모달 구조를 그대로 사용하고 전체적으로 축소하는 스케일 팩터 계산
     const mobileScaleFactor = useMemo(() => {
-        if (!isMobile) return 1.0;
+        if (!isCompactViewport) return 1.0;
         
         // PC 모달 크기를 그대로 사용
         const baseWidth = initialWidth || 800;
@@ -214,7 +214,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         
         // 최소/최대 스케일 제한 (너무 작거나 크지 않도록)
         return Math.max(0.25, Math.min(0.95, scale));
-    }, [isMobile, windowWidth, windowHeight, initialWidth, initialHeight]);
+    }, [isCompactViewport, windowWidth, windowHeight, initialWidth, initialHeight]);
 
 
 
@@ -239,7 +239,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
 
 
-            if (shouldRemember && !isMobile) {
+            if (shouldRemember && !isCompactViewport) {
 
                 const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
 
@@ -269,7 +269,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
         setIsInitialized(true);
 
-    }, [windowId, isMobile]);
+    }, [windowId, isCompactViewport]);
 
 
 
@@ -421,7 +421,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
             setIsDragging(false);
 
-            if (rememberPosition && !isMobile) {
+            if (rememberPosition && !isCompactViewport) {
 
                 try {
 
@@ -441,7 +441,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
         }
 
-    }, [isDragging, windowId, rememberPosition, isMobile]);
+    }, [isDragging, windowId, rememberPosition, isCompactViewport]);
 
 
 
@@ -550,18 +550,18 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                 data-draggable-window={windowId}
                 className={`${containerBaseClass} ${containerVariantClass}`}
                 style={{
-                    width: isMobile 
+                    width: isCompactViewport 
                         ? (initialWidth ? `${initialWidth}px` : '800px')
                         : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
-                    minWidth: isMobile 
+                    minWidth: isCompactViewport 
                         ? (initialWidth ? `${initialWidth}px` : '800px')
                         : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
-                    maxWidth: isMobile ? undefined : 'calc(100vw - 40px)',
-                    height: isMobile 
+                    maxWidth: isCompactViewport ? undefined : 'calc(100vw - 40px)',
+                    height: isCompactViewport 
                         ? (initialHeight ? `${initialHeight}px` : '600px')
                         : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
-                    maxHeight: isMobile ? undefined : '90vh',
-                    transform: isMobile 
+                    maxHeight: isCompactViewport ? undefined : '90vh',
+                    transform: isCompactViewport 
                         ? `translate(-50%, -50%) scale(${mobileScaleFactor})`
                         : transformStyle,
                     transformOrigin: 'center',

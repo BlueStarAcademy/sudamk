@@ -45,6 +45,10 @@ export const SCRIPT_REGISTRY: Record<string, ScriptEntry> = {
   },
 
   // === 장비/유저 복구 ===
+  'recompute-equipment-enhancement': {
+    path: join(__dirname, 'server', 'scripts', 'recomputeEquipmentEnhancement.ts'),
+    desc: '장비 강화 수치 변경 후 착용 장비 일괄 재계산(마이그레이션)',
+  },
   'restore-equipment': {
     path: join(__dirname, 'server', 'restoreEquipment.ts'),
     desc: '장비 복구',

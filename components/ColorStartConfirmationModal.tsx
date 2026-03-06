@@ -4,20 +4,20 @@ import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
 
-interface NigiriModalProps {
+interface ColorStartConfirmationModalProps {
     session: LiveGameSession;
     currentUser: User;
     onAction: (action: ServerAction) => void;
 }
 
-const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onAction }) => {
+const ColorStartConfirmationModal: React.FC<ColorStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
     const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, revealEndTime } = session;
     const hasConfirmed = !!preGameConfirmations?.[currentUser.id];
     const [countdown, setCountdown] = useState(30);
     const [rouletteDone, setRouletteDone] = useState(false);
 
     useEffect(() => {
-        const deadline = revealEndTime || (Date.now() + 30 * 1000);
+        const deadline = revealEndTime || (Date.now() + 30000);
         const timerId = setInterval(() => {
             const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
             setCountdown(remaining);
@@ -31,18 +31,16 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
 
     return (
-        <DraggableWindow title="흑/백 결정 룰렛" initialWidth={680} windowId="nigiri">
+        <DraggableWindow title="흑/백 결정 완료" initialWidth={680} windowId="color-start-confirmation">
             <div className="text-white space-y-6">
                 <PreGameColorRoulette
                     blackPlayer={blackPlayer}
                     whitePlayer={whitePlayer}
                     onComplete={() => setRouletteDone(true)}
-                    title="룰렛으로 흑/백을 자동 결정합니다"
-                    subtitle="돌가리기 대신 자동 룰렛으로 선공과 후공이 배정됩니다."
                 />
 
                 <p className="text-center text-gray-300">
-                    배정 결과를 확인한 뒤 시작 버튼을 누르거나, 30초 후 자동으로 대국이 시작됩니다.
+                    흑/백 배정을 확인한 뒤 시작 버튼을 누르거나, 30초 후 자동으로 대국이 시작됩니다.
                 </p>
 
                 <Button
@@ -57,4 +55,4 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
     );
 };
 
-export default NigiriModal;
+export default ColorStartConfirmationModal;

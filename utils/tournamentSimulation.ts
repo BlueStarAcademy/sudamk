@@ -30,6 +30,14 @@ export class SeededRandom {
     randomInt(min: number, max: number): number {
         return Math.floor(this.random() * (max - min + 1)) + min;
     }
+
+    getState(): number {
+        return this.seed;
+    }
+
+    setState(nextSeed: number): void {
+        this.seed = nextSeed;
+    }
 }
 
 const STAT_WEIGHTS: Record<'early' | 'mid' | 'end', Partial<Record<CoreStat, number>>> = {

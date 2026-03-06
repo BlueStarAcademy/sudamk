@@ -38,7 +38,8 @@ import EnhancementModal from './components/EnhancementModal';
 import EquipmentEffectsModal from './components/EquipmentEffectsModal';
 import EnhancementResultModal from './components/modals/EnhancementResultModal.js';
 import InstallPrompt from './components/InstallPrompt.js';
-import { useIsMobileLayout } from './hooks/useIsMobileLayout.js';
+import LandscapeOnlyOverlay from './components/LandscapeOnlyOverlay.js';
+import { useIsHandheldDevice, useIsMobileLayout, useShowLandscapeOnlyOverlay } from './hooks/useIsMobileLayout.js';
 
 // Lazy 로드된 모달을 위한 로딩 컴포넌트
 const ModalLoadingFallback = () => null;
@@ -191,27 +192,33 @@ const AppContent: React.FC = () => {
     const backgroundClass = currentUser ? 'bg-primary' : 'bg-login-background';
 
     const isMobile = useIsMobileLayout(768);
+    const isHandheld = useIsHandheldDevice(1025);
+    const showLandscapeOnlyOverlay = useShowLandscapeOnlyOverlay();
 
-    // 휴대기기에서 가로 모드만 사용: 화면 방향을 landscape로 고정 시도 (안내 문구 없이)
+    // 휴대기기에서는 가로 모드 진입을 우선 시도하고, 실패 시 오버레이로 진입을 막는다.
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        const isNarrow = w <= 1024;
         const orient = (window as any).screen?.orientation;
-        if (isNarrow && orient?.lock) {
+        if (!isHandheld || !orient?.lock) return;
+
+        const tryLockLandscape = () => {
             orient.lock('landscape').catch(() => {});
-        }
-    }, []);
+        };
+
+        tryLockLandscape();
+        window.addEventListener('orientationchange', tryLockLandscape);
+        return () => window.removeEventListener('orientationchange', tryLockLandscape);
+    }, [isHandheld]);
 
     return (
         <div className={`font-sans ${backgroundClass} text-primary flex flex-col`} style={{ 
-            minHeight: isMobile ? '100dvh' : '100vh',
-            height: isMobile ? '100dvh' : '100vh',
+            minHeight: '100%',
+            height: '100%',
             width: '100%',
             overflow: 'hidden',
             paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : '0px'
         }}>
+            <LandscapeOnlyOverlay show={showLandscapeOnlyOverlay} />
             {isPreloading && (
                 <div className="fixed bottom-4 right-4 z-[100] bg-panel border border-color text-on-panel rounded-lg shadow-xl px-3 py-2 flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>

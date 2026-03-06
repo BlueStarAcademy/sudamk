@@ -4,7 +4,6 @@ import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LE
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 import LeagueTierInfoModal from './LeagueTierInfoModal.js';
 import QuickAccessSidebar from './QuickAccessSidebar.js';
 import ChatWindow from './waiting-room/ChatWindow.js';
@@ -696,8 +695,6 @@ const TournamentLobby: React.FC = () => {
     const { currentUserWithStatus, allUsers, handlers, waitingRoomChats, presets } = useAppContext();
     
     const [viewingTournament, setViewingTournament] = useState<TournamentState | null>(null);
-    const isMobile = useIsMobileLayout(1024);
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [hasRankChanged, setHasRankChanged] = useState(false);
     const [enrollingIn, setEnrollingIn] = useState<TournamentType | null>(null);
     const [selectedPreset, setSelectedPreset] = useState(0);
@@ -777,12 +774,8 @@ const TournamentLobby: React.FC = () => {
         }
     };
 
-    const containerClass = isMobile
-        ? 'h-full overflow-y-auto'
-        : 'h-full overflow-hidden min-h-0';
-
     return (
-        <div className={`p-4 sm:p-6 lg:p-8 w-full flex flex-col relative ${containerClass}`}>
+        <div className="p-4 sm:p-6 lg:p-8 w-full h-full flex flex-col relative overflow-hidden min-h-0">
             <header className="flex justify-between items-center mb-4 sm:mb-6 flex-shrink-0">
                 <button onClick={() => window.location.hash = '#/profile'} className="transition-transform active:scale-90 filter hover:drop-shadow-lg">
                     <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
@@ -799,19 +792,10 @@ const TournamentLobby: React.FC = () => {
                     >
                         <img src="/images/button/help.png" alt="도움말" className="w-full h-full" />
                     </button>
-                    {isMobile && (
-                        <button 
-                            onClick={() => setIsMobileSidebarOpen(true)}
-                            className="w-11 h-12 sm:w-12 sm:h-14 flex items-center justify-center bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
-                            aria-label="메뉴 열기"
-                        >
-                            <span className="text-2xl sm:text-3xl font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{'<'}</span>
-                        </button>
-                    )}
                 </div>
             </header>
             
-            <div className={`${isMobile ? '' : 'flex-1'} flex flex-col lg:flex-row gap-6 min-h-0 ${isMobile ? '' : 'overflow-hidden'}`}>
+            <div className="flex-1 flex flex-row gap-6 min-h-0 overflow-hidden">
                 <main className="flex-grow flex flex-col gap-6 min-h-0 overflow-hidden">
                     <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 flex-shrink-0">
                         <TournamentCard type="neighborhood" onClick={(stage) => handleEnterArena('neighborhood', stage)} onContinue={() => handleContinueTournament('neighborhood')} inProgress={neighborhoodState || null} currentUser={currentUserWithStatus} />
@@ -819,82 +803,10 @@ const TournamentLobby: React.FC = () => {
                         <TournamentCard type="world" onClick={(stage) => handleEnterArena('world', stage)} onContinue={() => handleContinueTournament('world')} inProgress={worldState || null} currentUser={currentUserWithStatus} />
                     </div>
                     
-                    {/* 모바일: 장착 장비 + 능력치 + 일일 획득 가능점수 패널 */}
-                    <div className="lg:hidden grid grid-cols-2 gap-3 sm:gap-4 flex-shrink-0">
-                        {/* 장착 장비 + 능력치 패널 (모바일) - 홈화면과 동일 레이아웃 */}
-                        <div className="bg-panel border border-color rounded-lg p-2 sm:p-3 shadow-lg min-h-0 flex flex-col overflow-hidden text-on-panel">
-                            <div className="flex flex-col gap-2 h-full min-h-0">
-                                {/* 장착 장비 섹션 */}
-                                <div className="flex flex-col gap-1.5 flex-shrink-0">
-                                    <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0">장착 장비</h3>
-                                    <div className="grid grid-cols-3 gap-1.5">
-                                        {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                            const item = getItemForSlot(slot);
-                                            return (
-                                                <div key={slot} className="w-full aspect-square">
-                                                    <EquipmentSlotDisplay
-                                                        slot={slot}
-                                                        item={item}
-                                                        onClick={() => item && handlers.openViewingItem(item, true)}
-                                                    />
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="mt-1 flex gap-1.5 items-center">
-                                        <select
-                                            value={selectedPreset}
-                                            onChange={handlePresetChange}
-                                            className="bg-secondary border border-color text-[9px] sm:text-xs rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
-                                        >
-                                            {presets && presets.map((preset, index) => (
-                                                <option key={index} value={index}>{preset.name}</option>
-                                            ))}
-                                        </select>
-                                        <Button
-                                            onClick={handlers.openEquipmentEffectsModal}
-                                            colorScheme="none"
-                                            className="!text-[9px] sm:!text-[10px] !py-0.5 !px-2 flex-shrink-0 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
-                                        >
-                                            장비 효과
-                                        </Button>
-                                    </div>
-                                </div>
-                                {/* 능력치 섹션 - 그 아래에 표시 */}
-                                <div className="flex flex-col gap-1 flex-1 min-h-0 border-t border-color pt-1.5 mt-0.5">
-                                    <h3 className="text-[10px] sm:text-xs font-semibold text-secondary flex-shrink-0">능력치</h3>
-                                    <div className="flex-1 min-h-0">
-                                        <StatsDisplayPanel currentUser={currentUserWithStatus} isMobile={isMobile} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* 일일 획득 가능점수 패널 (모바일) */}
-                        <div className="flex flex-col min-h-0 overflow-hidden">
-                            <PointsInfoPanel />
-                        </div>
-                    </div>
-                    
-                    {/* 채팅창 - 모바일에서는 아래에 */}
-                    <div className={`lg:hidden flex-1 bg-gray-800/50 rounded-lg shadow-lg min-h-0 flex flex-col overflow-hidden min-h-[300px]`}>
-                        <ChatWindow
-                            messages={waitingRoomChats.global || []}
-                            mode="global"
-                            onAction={handlers.handleAction}
-                            onViewUser={handlers.openViewingUser}
-                            locationPrefix="[챔피언십]"
-                        />
-                    </div>
-                    
-                    {/* 데스크톱: 일일 획득 가능점수 / 채팅창 가로 배치 */}
-                    <div className="hidden lg:flex flex-1 flex-row gap-3 sm:gap-4 lg:gap-6 min-h-0 overflow-hidden">
-                        {/* 일일 획득 가능점수 패널 (데스크톱) */}
+                    <div className="flex-1 flex flex-row gap-3 sm:gap-4 lg:gap-6 min-h-0 overflow-hidden">
                         <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden">
                             <PointsInfoPanel />
                         </div>
-                        
-                        {/* 채팅창 (데스크톱) */}
                         <div className="flex-1 bg-gray-800/50 rounded-lg shadow-lg min-h-0 flex flex-col overflow-hidden">
                             <ChatWindow
                                 messages={waitingRoomChats.global || []}
@@ -906,10 +818,8 @@ const TournamentLobby: React.FC = () => {
                         </div>
                     </div>
                 </main>
-                 <aside className="hidden lg:flex flex-col lg:w-[460px] flex-shrink-0 gap-3 min-h-0 overflow-hidden">
-                    {/* 상단: 장비+능력치 패널(홈화면과 동일) + 퀵메뉴 */}
+                 <aside className="flex flex-col w-[380px] xl:w-[460px] flex-shrink-0 gap-3 min-h-0 overflow-hidden">
                     <div className="flex-shrink-0 flex flex-row gap-2 items-stretch">
-                        {/* 장비 + 능력치 패널 - 홈화면과 동일한 내용 크기, 내부 패딩으로 중앙 배치 */}
                         <div className="flex-1 bg-panel border border-color text-on-panel rounded-lg flex flex-col overflow-hidden min-w-0">
                             <div className="w-[280px] max-w-full mx-auto flex flex-col flex-1 p-1.5">
                                 <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0 mb-1">장착 장비</h3>
@@ -962,29 +872,6 @@ const TournamentLobby: React.FC = () => {
                     </div>
                 </aside>
             </div>
-
-            {/* Mobile Sidebar - 오른쪽에서 왼쪽으로 열림 */}
-            {isMobile && (
-                <>
-                    <div className={`fixed top-0 right-0 h-full w-[320px] sm:w-[360px] bg-gray-800 shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
-                        <div className="flex justify-between items-center p-2 sm:p-3 border-b border-gray-600 flex-shrink-0">
-                            <h3 className="text-base sm:text-lg font-bold">메뉴</h3>
-                            <button onClick={() => setIsMobileSidebarOpen(false)} className="text-xl sm:text-2xl font-bold text-gray-300 hover:text-white">×</button>
-                        </div>
-                        <div className="flex flex-col gap-2 p-2 flex-grow min-h-0 overflow-y-auto">
-                            {/* Quick Access Sidebar - Horizontal */}
-                            <div className="flex-shrink-0 p-1.5 sm:p-2 bg-gray-900/50 rounded-lg border border-gray-700">
-                                <QuickAccessSidebar mobile={true} />
-                            </div>
-                            {/* Championship Ranking Panel */}
-                            <div className="flex-1 min-h-[250px] sm:min-h-[300px] bg-gray-900/50 rounded-lg border border-gray-700 overflow-hidden">
-                                <ChampionshipRankingPanel />
-                            </div>
-                        </div>
-                    </div>
-                    {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
-                </>
-            )}
             {isChampionshipHelpOpen && <ChampionshipHelpModal onClose={() => setIsChampionshipHelpOpen(false)} />}
         </div>
     );
