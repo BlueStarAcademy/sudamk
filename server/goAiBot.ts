@@ -579,14 +579,14 @@ export async function makeGoAiBotMove(
         if (aiHiddenLeft > 0 && appliesToAi) {
             game.aiHiddenItemUsed = true;
             const aiPlayerId = aiPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-            game.foulInfo = { message: 'AI봇이 히든 아이템을 사용했습니다!', expiry: now + 5000 };
+            game.foulInfo = { message: 'AI봇이 히든 아이템을 사용했습니다!', expiry: now + 6000 };
             game.animation = {
                 type: 'ai_thinking',
                 startTime: now,
-                duration: 5000,
+                duration: 6000,
                 playerId: aiPlayerId
             };
-            game.aiHiddenItemAnimationEndTime = now + 5000;
+            game.aiHiddenItemAnimationEndTime = now + 6000;
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };

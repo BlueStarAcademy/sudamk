@@ -140,9 +140,8 @@ export function syncAiSession(game: LiveGameSession, aiPlayerId: string, options
          (game.currentPlayer === Player.White && game.whitePlayerId === aiPlayerId));
 
     if (aiShouldMove && !options.allowAdvanceOnAiTurn) {
-        // AI의 차례이면 현재 moveCount를 그대로 기록하지 않고 이전 턴까지만 처리한 것으로 유지
-        const target = Math.max(-1, moveCount - 1);
-        session.lastProcessedMoveCount = Math.min(session.lastProcessedMoveCount, target);
+        // AI 차례의 stale state가 들어와도 lastProcessedMoveCount를 뒤로 되감지 않는다.
+        // 되감으면 방금 처리한 AI 수가 저장/브로드캐스트되기 전에 같은 국면으로 다시 GnuGo를 호출할 수 있다.
         return;
     }
 

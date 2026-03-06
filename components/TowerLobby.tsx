@@ -457,8 +457,8 @@ const TowerLobby: React.FC = () => {
                                             </div>
                                         </div>
                                     )}
-                                    {!myRankingEntry && ((currentUserWithStatus as any).towerFloor ?? 0) < 10 && (
-                                        <p className="text-center text-amber-300/70 text-xs py-2 px-1">10층 클리어 시 랭킹에 표시됩니다.</p>
+                                    {!myRankingEntry && ((currentUserWithStatus as any).towerFloor ?? 0) < 1 && (
+                                        <p className="text-center text-amber-300/70 text-xs py-2 px-1">1층 클리어 시 랭킹에 표시됩니다.</p>
                                     )}
                                     {top100Users.length > 0 ? (
                                         top100Users.map((user, index) => {
@@ -756,8 +756,8 @@ const TowerLobby: React.FC = () => {
                                 </div>
                             </div>
                         )}
-                        {!myRankingEntry && ((currentUserWithStatus as any).towerFloor ?? 0) < 10 && (
-                            <p className="text-center text-amber-300/70 text-xs py-2 px-1">10층 클리어 시 랭킹에 표시됩니다.</p>
+                        {!myRankingEntry && ((currentUserWithStatus as any).towerFloor ?? 0) < 1 && (
+                            <p className="text-center text-amber-300/70 text-xs py-2 px-1">1층 클리어 시 랭킹에 표시됩니다.</p>
                         )}
                         {/* Top 100 */}
                         {top100Users.length > 0 ? (

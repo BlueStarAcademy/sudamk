@@ -29,6 +29,68 @@ export interface GameStateUpdateResult {
     };
 }
 
+const isSamePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+
+const hasPoint = (points: Point[] | undefined, target: Point) =>
+    !!points?.some(point => isSamePoint(point, target));
+
+const upsertPoint = (points: Point[] | undefined, target: Point): Point[] => {
+    if (hasPoint(points, target)) {
+        return points ? [...points] : [];
+    }
+    return [...(points || []), target];
+};
+
+const findMoveIndexAt = (moveHistory: LiveGameSession['moveHistory'] | undefined, x: number, y: number): number => {
+    const moves = moveHistory || [];
+    for (let i = moves.length - 1; i >= 0; i--) {
+        if (moves[i].x === x && moves[i].y === y) {
+            return i;
+        }
+    }
+    return -1;
+};
+
+const getNeighbors = (x: number, y: number, boardSize: number): Point[] => {
+    const neighbors: Point[] = [];
+    if (x > 0) neighbors.push({ x: x - 1, y });
+    if (x < boardSize - 1) neighbors.push({ x: x + 1, y });
+    if (y > 0) neighbors.push({ x, y: y - 1 });
+    if (y < boardSize - 1) neighbors.push({ x, y: y + 1 });
+    return neighbors;
+};
+
+const collectConnectedGroup = (boardState: Player[][], start: Point, player: Player): Point[] => {
+    if (boardState[start.y]?.[start.x] !== player) {
+        return [];
+    }
+
+    const queue: Point[] = [start];
+    const visited = new Set<string>([`${start.x},${start.y}`]);
+    const group: Point[] = [start];
+
+    while (queue.length > 0) {
+        const current = queue.shift()!;
+        for (const neighbor of getNeighbors(current.x, current.y, boardState.length)) {
+            const key = `${neighbor.x},${neighbor.y}`;
+            if (visited.has(key)) continue;
+            if (boardState[neighbor.y]?.[neighbor.x] !== player) continue;
+            visited.add(key);
+            queue.push(neighbor);
+            group.push(neighbor);
+        }
+    }
+
+    return group;
+};
+
+const isHiddenModeActive = (game: LiveGameSession, hiddenMoves: { [moveIndex: number]: boolean }) =>
+    game.mode === GameMode.Hidden ||
+    (game.mode === GameMode.Mix && game.settings?.mixedModes?.includes(GameMode.Hidden)) ||
+    ((game.settings as any)?.hiddenStoneCount ?? 0) > 0 ||
+    Object.keys(hiddenMoves).length > 0 ||
+    !!(game as any).aiInitialHiddenStone;
+
 /**
  * 클라이언트 이동 처리 후 게임 상태 업데이트
  */
@@ -38,8 +100,7 @@ export function updateGameStateAfterMove(
     gameType: GameType
 ): GameStateUpdateResult {
     const { x, y, newBoardState, capturedStones, newKoInfo, isPass, isHidden } = payload;
-    
-    // 패스 처리
+
     if (isPass && x === -1 && y === -1) {
         const movePlayer = game.currentPlayer;
         const updatedGame = {
@@ -51,93 +112,33 @@ export function updateGameStateAfterMove(
             currentPlayer: movePlayer === Player.Black ? Player.White : Player.Black,
             koInfo: newKoInfo || game.koInfo
         };
-        
+
         return {
             updatedGame,
             shouldCheckVictory: false,
             checkInfo: undefined
         };
     }
-    
-    // 이동한 플레이어의 포획 수 업데이트
-    // 문양돌은 2점, 일반 돌은 1점
+
+    const now = Date.now();
     const movePlayer = game.currentPlayer;
     const opponentPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
-    
-    let capturePoints = 0;
-    for (const stone of capturedStones) {
-        // 문양돌 확인: 상대방의 문양돌 목록에서 확인
-        const patternStones = opponentPlayer === Player.Black ? game.blackPatternStones : game.whitePatternStones;
-        const isPatternStone = patternStones?.some(p => p.x === stone.x && p.y === stone.y) ?? false;
-        capturePoints += isPatternStone ? 2 : 1;
+    const newMoveHistory = [...(game.moveHistory || []), { x, y, player: movePlayer }];
+    const updatedHiddenMoves = { ...(game.hiddenMoves || {}) };
+
+    if (isHidden) {
+        updatedHiddenMoves[newMoveHistory.length - 1] = true;
     }
-    
-    const newCaptures = {
-        ...game.captures,
-        [movePlayer]: (game.captures[movePlayer] || 0) + capturePoints
-    };
-    
-    // 살리기 바둑 모드: 백이 수를 둔 경우 whiteTurnsPlayed 증가
+
     let updatedWhiteTurnsPlayed = (game as any).whiteTurnsPlayed;
     if (gameType === 'singleplayer' && movePlayer === Player.White) {
         updatedWhiteTurnsPlayed = ((game as any).whiteTurnsPlayed || 0) + 1;
     }
-    
-    // 도전의 탑 또는 싱글플레이: 목표 달성 체크 준비
-    let checkInfo: { towerFloor?: number; stageId: string; newCaptures: { [key in Player]?: number }; gameType: GameType } | undefined;
-    
-    if (gameType === 'tower' && game.towerFloor !== undefined && game.towerFloor >= 1 && game.towerFloor <= 20 && game.stageId) {
-        // 도전의 탑: 1~20층 사이에서 목표 달성 체크
-        checkInfo = {
-            towerFloor: game.towerFloor,
-            stageId: game.stageId,
-            newCaptures: newCaptures,
-            gameType: 'tower'
-        };
-    } else if (gameType === 'singleplayer' && game.stageId) {
-        // 싱글플레이 따내기 바둑: 목표 달성 체크
-        // 살리기 바둑 모드가 아닌 경우에만 체크 (살리기 바둑은 서버에서 처리)
-        // effectiveCaptureTargets로 판단 (살리기 바둑은 effectiveCaptureTargets가 999로 설정됨)
-        const hasTargetScore = game.effectiveCaptureTargets && (
-            (game.effectiveCaptureTargets[Player.Black] !== undefined && game.effectiveCaptureTargets[Player.Black] !== 999) ||
-            (game.effectiveCaptureTargets[Player.White] !== undefined && game.effectiveCaptureTargets[Player.White] !== 999)
-        );
-        // 또는 mode가 Capture인 경우
-        const isCaptureMode = game.mode === '따내기 바둑' || (game.mode as any) === 'capture';
-        if (hasTargetScore || isCaptureMode) {
-            checkInfo = {
-                stageId: game.stageId,
-                newCaptures: newCaptures,
-                gameType: 'singleplayer'
-            };
-        }
-    }
-    
-    // 문양돌 목록 업데이트: 따낸 문양돌 제거
-    // 상대방의 문양돌 목록에서 따낸 돌 제거
-    let updatedBlackPatternStones = game.blackPatternStones;
-    let updatedWhitePatternStones = game.whitePatternStones;
-    
-    if (opponentPlayer === Player.Black && game.blackPatternStones) {
-        updatedBlackPatternStones = game.blackPatternStones.filter(p => 
-            !capturedStones.some(s => s.x === p.x && s.y === p.y)
-        );
-    }
-    
-    if (opponentPlayer === Player.White && game.whitePatternStones) {
-        updatedWhitePatternStones = game.whitePatternStones.filter(p => 
-            !capturedStones.some(s => s.x === p.x && s.y === p.y)
-        );
-    }
-    
-    // 싱글플레이/도전의 탑: totalTurns 업데이트 (흑/백 모두 카운팅)
+
     let updatedTotalTurns = game.totalTurns;
     if ((gameType === 'singleplayer' || gameType === 'tower') && game.stageId) {
-        const newMoveHistory = [...(game.moveHistory || []), { x, y, player: movePlayer }];
-        // validMoves: x !== -1인 수만 카운팅 (패스 제외)
         const validMoves = newMoveHistory.filter(m => m.x !== -1 && m.y !== -1);
         if (!isPass) {
-            // 새로고침 직후 state에 totalTurns가 없을 수 있으므로, 있으면 +1만 하고 없으면 sessionStorage에서 복원 후 +1 (한 수 둔 뒤 남은 턴이 Max로 리셋되는 버그 방지)
             if (game.totalTurns != null && game.totalTurns >= 0) {
                 updatedTotalTurns = game.totalTurns + 1;
             } else {
@@ -151,117 +152,188 @@ export function updateGameStateAfterMove(
                             storedTotal = parsed.totalTurns;
                         }
                     }
-                } catch { /* ignore */ }
+                } catch {
+                    // ignore
+                }
                 updatedTotalTurns = storedTotal != null ? storedTotal + 1 : validMoves.length;
             }
         } else {
             updatedTotalTurns = validMoves.length;
         }
     }
-    
-    // 피셔 방식 시간 연장: 스피드 바둑 모드에서 착수한 플레이어의 시간에 increment 추가
+
     let updatedBlackTimeLeft = game.blackTimeLeft;
     let updatedWhiteTimeLeft = game.whiteTimeLeft;
     let updatedBlackByoyomiPeriodsLeft = game.blackByoyomiPeriodsLeft ?? game.settings?.byoyomiCount ?? 0;
     let updatedWhiteByoyomiPeriodsLeft = game.whiteByoyomiPeriodsLeft ?? game.settings?.byoyomiCount ?? 0;
     let updatedTurnDeadline = game.turnDeadline;
     let updatedTurnStartTime = game.turnStartTime;
-    
+
     const isFischer = game.mode === GameMode.Speed || (game.mode === GameMode.Mix && game.settings?.mixedModes?.includes(GameMode.Speed));
     const timeIncrement = isFischer ? (game.settings?.timeIncrement || 0) : 0;
     const byoyomiTime = game.settings?.byoyomiTime ?? 0;
-    const byoyomiCount = game.settings?.byoyomiCount ?? 0;
-    
-    // 수를 둔 플레이어의 시간 업데이트
+
     if (movePlayer === Player.Black) {
-        // 현재 시간 계산: turnDeadline이 있으면 남은 시간, 없으면 blackTimeLeft 사용
-        let currentTime = game.turnDeadline 
-            ? Math.max(0, (game.turnDeadline - Date.now()) / 1000)
+        let currentTime = game.turnDeadline
+            ? Math.max(0, (game.turnDeadline - now) / 1000)
             : (game.blackTimeLeft || 0);
-        
-        // 피셔 방식이면 increment 추가
-        if (timeIncrement > 0) {
-            currentTime = currentTime + timeIncrement;
-        }
-        
-        // 메인 시간이 0이 되었고 초읽기가 남아있으면 초읽기로 전환
+        if (timeIncrement > 0) currentTime += timeIncrement;
         if (currentTime <= 0 && updatedBlackByoyomiPeriodsLeft > 0 && byoyomiTime > 0) {
-            // 초읽기 시작: 초읽기 시간으로 설정하고 초읽기 횟수 감소
             updatedBlackTimeLeft = 0;
             updatedBlackByoyomiPeriodsLeft = Math.max(0, updatedBlackByoyomiPeriodsLeft - 1);
         } else {
-            // 메인 시간 업데이트
             updatedBlackTimeLeft = Math.max(0, currentTime);
         }
-    } else if (movePlayer === Player.White) {
-        // 현재 시간 계산: turnDeadline이 있으면 남은 시간, 없으면 whiteTimeLeft 사용
-        let currentTime = game.turnDeadline 
-            ? Math.max(0, (game.turnDeadline - Date.now()) / 1000)
+    } else {
+        let currentTime = game.turnDeadline
+            ? Math.max(0, (game.turnDeadline - now) / 1000)
             : (game.whiteTimeLeft || 0);
-        
-        // 피셔 방식이면 increment 추가
-        if (timeIncrement > 0) {
-            currentTime = currentTime + timeIncrement;
-        }
-        
-        // 메인 시간이 0이 되었고 초읽기가 남아있으면 초읽기로 전환
+        if (timeIncrement > 0) currentTime += timeIncrement;
         if (currentTime <= 0 && updatedWhiteByoyomiPeriodsLeft > 0 && byoyomiTime > 0) {
-            // 초읽기 시작: 초읽기 시간으로 설정하고 초읽기 횟수 감소
             updatedWhiteTimeLeft = 0;
             updatedWhiteByoyomiPeriodsLeft = Math.max(0, updatedWhiteByoyomiPeriodsLeft - 1);
         } else {
-            // 메인 시간 업데이트
             updatedWhiteTimeLeft = Math.max(0, currentTime);
         }
     }
-    
-    // 다음 플레이어의 turnDeadline 설정
+
     const nextPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
-    const nextTimeKey = nextPlayer === Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-    const nextByoyomiKey = nextPlayer === Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-    
-    // 다음 플레이어의 시간은 업데이트된 시간 사용
     let nextTime = nextPlayer === Player.Black ? updatedBlackTimeLeft : updatedWhiteTimeLeft;
     const nextByoyomiPeriods = nextPlayer === Player.Black ? updatedBlackByoyomiPeriodsLeft : updatedWhiteByoyomiPeriodsLeft;
-    
-    // 시간이 없으면 설정에서 기본값 사용
+
     if (nextTime <= 0 && nextByoyomiPeriods <= 0) {
         nextTime = game.settings?.timeLimit ? game.settings.timeLimit * 60 : 0;
     }
-    
-    // 메인 시간이 0이고 초읽기가 남아있으면 초읽기로 전환
+
     if (nextTime <= 0 && nextByoyomiPeriods > 0 && byoyomiTime > 0) {
-        // 초읽기 시작: 초읽기 시간으로 deadline 설정
-        updatedTurnDeadline = Date.now() + (byoyomiTime * 1000);
-        updatedTurnStartTime = Date.now();
-        // 메인 시간은 0으로 유지
+        updatedTurnDeadline = now + (byoyomiTime * 1000);
+        updatedTurnStartTime = now;
         if (nextPlayer === Player.Black) {
             updatedBlackTimeLeft = 0;
         } else {
             updatedWhiteTimeLeft = 0;
         }
     } else if (nextTime > 0) {
-        // 메인 시간이 남아있으면 메인 시간으로 deadline 설정
-        updatedTurnDeadline = Date.now() + (nextTime * 1000);
-        updatedTurnStartTime = Date.now();
+        updatedTurnDeadline = now + (nextTime * 1000);
+        updatedTurnStartTime = now;
     }
-    
-    // 패 처리: 새로운 패가 발생하면 설정, 패가 발생하지 않으면 해제
-    // 패는 바로 다음 수에서만 유효하고, 그 이후에는 자동으로 해제됨
-    let finalKoInfo = newKoInfo || null;
-    
-    // 게임 상태 업데이트
-    const newMoveHistory = [...(game.moveHistory || []), { x, y, player: movePlayer }];
+
+    const finalKoInfo = newKoInfo || null;
+    const revealModeActive = isHiddenModeActive(game, updatedHiddenMoves);
+
+    const contributingHiddenStones: { point: Point; player: Player }[] = [];
+    if (revealModeActive && capturedStones.length > 0) {
+        const capturingGroup = collectConnectedGroup(newBoardState as Player[][], { x, y }, movePlayer);
+        for (const point of capturingGroup) {
+            const isCurrentMove = point.x === x && point.y === y;
+            const moveIndex = isCurrentMove ? newMoveHistory.length - 1 : findMoveIndexAt(newMoveHistory, point.x, point.y);
+            const isHiddenStone = moveIndex !== -1 && !!updatedHiddenMoves[moveIndex];
+            if (isHiddenStone && !hasPoint(game.permanentlyRevealedStones, point)) {
+                contributingHiddenStones.push({ point, player: movePlayer });
+            }
+        }
+    }
+
+    const capturedHiddenStones: { point: Point; player: Player }[] = [];
+    if (revealModeActive && capturedStones.length > 0) {
+        for (const stone of capturedStones) {
+            const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y);
+            const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+            const wasAiInitialHidden =
+                gameType === 'singleplayer' &&
+                !!(game as any).aiInitialHiddenStone &&
+                isSamePoint((game as any).aiInitialHiddenStone, stone);
+            if ((wasHiddenMove || wasAiInitialHidden) && !hasPoint(game.permanentlyRevealedStones, stone)) {
+                capturedHiddenStones.push({ point: stone, player: opponentPlayer });
+            }
+        }
+    }
+
+    const stonesToReveal = Array.from(
+        new Map(
+            [...contributingHiddenStones, ...capturedHiddenStones].map(item => [`${item.point.x},${item.point.y}`, item])
+        ).values()
+    );
+
+    let updatedBlackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : undefined;
+    let updatedWhitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : undefined;
+    const updatedCaptures = { ...(game.captures || {}) };
+    const updatedHiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) } as typeof game.hiddenStoneCaptures;
+    let updatedPermanentlyRevealedStones = [...(game.permanentlyRevealedStones || [])];
+    const justCapturedEntries: { point: Point; player: Player; wasHidden: boolean }[] = [];
+
+    if (stonesToReveal.length === 0) {
+        for (const stone of capturedStones) {
+            const isPatternStone = opponentPlayer === Player.Black
+                ? !!updatedBlackPatternStones?.some(p => isSamePoint(p, stone))
+                : !!updatedWhitePatternStones?.some(p => isSamePoint(p, stone));
+            const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y);
+            const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+            const wasAiInitialHidden =
+                gameType === 'singleplayer' &&
+                !!(game as any).aiInitialHiddenStone &&
+                isSamePoint((game as any).aiInitialHiddenStone, stone);
+
+            let points = 1;
+            let wasHidden = false;
+
+            if (wasHiddenMove || wasAiInitialHidden) {
+                points = 5;
+                wasHidden = true;
+                updatedHiddenStoneCaptures[movePlayer] = (updatedHiddenStoneCaptures[movePlayer] || 0) + 1;
+                updatedPermanentlyRevealedStones = upsertPoint(updatedPermanentlyRevealedStones, stone);
+            } else if (isPatternStone) {
+                points = 2;
+                if (opponentPlayer === Player.Black) {
+                    updatedBlackPatternStones = updatedBlackPatternStones?.filter(p => !isSamePoint(p, stone));
+                } else {
+                    updatedWhitePatternStones = updatedWhitePatternStones?.filter(p => !isSamePoint(p, stone));
+                }
+            }
+
+            updatedCaptures[movePlayer] = (updatedCaptures[movePlayer] || 0) + points;
+            justCapturedEntries.push({ point: stone, player: opponentPlayer, wasHidden });
+        }
+    } else {
+        for (const stone of stonesToReveal) {
+            updatedPermanentlyRevealedStones = upsertPoint(updatedPermanentlyRevealedStones, stone.point);
+        }
+    }
+
+    let checkInfo: { towerFloor?: number; stageId: string; newCaptures: { [key in Player]?: number }; gameType: GameType } | undefined;
+
+    if (gameType === 'tower' && game.towerFloor !== undefined && game.towerFloor >= 1 && game.towerFloor <= 20 && game.stageId) {
+        checkInfo = {
+            towerFloor: game.towerFloor,
+            stageId: game.stageId,
+            newCaptures: updatedCaptures,
+            gameType: 'tower'
+        };
+    } else if (gameType === 'singleplayer' && game.stageId) {
+        const hasTargetScore = game.effectiveCaptureTargets && (
+            (game.effectiveCaptureTargets[Player.Black] !== undefined && game.effectiveCaptureTargets[Player.Black] !== 999) ||
+            (game.effectiveCaptureTargets[Player.White] !== undefined && game.effectiveCaptureTargets[Player.White] !== 999)
+        );
+        const isCaptureMode = game.mode === '따내기 바둑' || (game.mode as any) === 'capture';
+        if (hasTargetScore || isCaptureMode) {
+            checkInfo = {
+                stageId: game.stageId,
+                newCaptures: updatedCaptures,
+                gameType: 'singleplayer'
+            };
+        }
+    }
+
     const updatedGame: LiveGameSession = {
         ...game,
         boardState: newBoardState,
         koInfo: finalKoInfo,
         lastMove: { x, y },
         moveHistory: newMoveHistory,
-        captures: newCaptures,
+        captures: updatedCaptures,
         blackPatternStones: updatedBlackPatternStones,
         whitePatternStones: updatedWhitePatternStones,
-        currentPlayer: game.currentPlayer === Player.Black ? Player.White : Player.Black,
+        currentPlayer: nextPlayer,
         serverRevision: (game.serverRevision || 0) + 1,
         blackTimeLeft: updatedBlackTimeLeft,
         whiteTimeLeft: updatedWhiteTimeLeft,
@@ -269,28 +341,79 @@ export function updateGameStateAfterMove(
         whiteByoyomiPeriodsLeft: updatedWhiteByoyomiPeriodsLeft,
         turnDeadline: updatedTurnDeadline,
         turnStartTime: updatedTurnStartTime,
+        hiddenMoves: updatedHiddenMoves,
+        permanentlyRevealedStones: updatedPermanentlyRevealedStones,
+        hiddenStoneCaptures: updatedHiddenStoneCaptures,
+        justCaptured: justCapturedEntries,
+        newlyRevealed: [],
+        animation: null,
+        pendingCapture: null,
+        revealAnimationEndTime: undefined,
         ...(updatedWhiteTurnsPlayed !== undefined ? { whiteTurnsPlayed: updatedWhiteTurnsPlayed } as any : {}),
         ...(updatedTotalTurns !== undefined ? { totalTurns: updatedTotalTurns } as any : {}),
     };
 
-    // 도전의 탑 21층+ / 싱글플레이 유저(흑) 히든 아이템: playing 전환, hiddenMoves 기록, hidden_stones_p1 감소
     if ((gameType === 'tower' || gameType === 'singleplayer') && isHidden && movePlayer === Player.Black) {
         (updatedGame as any).gameStatus = 'playing';
-        (updatedGame as any).hiddenMoves = { ...(game.hiddenMoves || {}), [newMoveHistory.length - 1]: true };
         const hiddenKey = 'hidden_stones_p1';
         const current = (game as any)[hiddenKey] ?? (game.settings as any)?.hiddenStoneCount ?? 0;
         (updatedGame as any)[hiddenKey] = Math.max(0, current - 1);
     }
 
-    // 싱글플레이 AI(백) 히든 아이템: hiddenMoves, aiInitialHiddenStone, hidden_stones_p2 감소, aiHiddenItemUsed
     if (gameType === 'singleplayer' && isHidden && movePlayer === Player.White) {
         (updatedGame as any).gameStatus = 'playing';
-        (updatedGame as any).hiddenMoves = { ...(game.hiddenMoves || {}), [newMoveHistory.length - 1]: true };
         (updatedGame as any).aiInitialHiddenStone = { x, y };
         (updatedGame as any).aiInitialHiddenStoneIsPrePlaced = false;
         const p2Hidden = (game as any).hidden_stones_p2 ?? (game.settings as any)?.hiddenStoneCount ?? 0;
         (updatedGame as any).hidden_stones_p2 = Math.max(0, p2Hidden - 1);
         (updatedGame as any).aiHiddenItemUsed = true;
+    }
+
+    if (
+        gameType === 'singleplayer' &&
+        !!(game as any).aiInitialHiddenStone &&
+        capturedHiddenStones.some(stone => isSamePoint(stone.point, (game as any).aiInitialHiddenStone))
+    ) {
+        (updatedGame as any).aiInitialHiddenStone = undefined;
+        (updatedGame as any).aiInitialHiddenStoneIsPrePlaced = false;
+    }
+
+    if (stonesToReveal.length > 0) {
+        const boardDuringReveal = (newBoardState || []).map(row => [...row]);
+        for (const stone of capturedStones) {
+            if (boardDuringReveal[stone.y]) {
+                boardDuringReveal[stone.y][stone.x] = opponentPlayer;
+            }
+        }
+
+        updatedGame.boardState = boardDuringReveal;
+        updatedGame.currentPlayer = movePlayer;
+        updatedGame.gameStatus = 'hidden_reveal_animating';
+        updatedGame.animation = {
+            type: 'hidden_reveal',
+            stones: stonesToReveal,
+            startTime: now,
+            duration: 2000
+        } as any;
+        updatedGame.revealAnimationEndTime = now + 2000;
+        updatedGame.pendingCapture = {
+            stones: capturedStones,
+            move: { x, y, player: movePlayer },
+            hiddenContributors: contributingHiddenStones.map(item => item.point),
+            capturedHiddenStones: capturedHiddenStones.map(item => item.point)
+        };
+        updatedGame.captures = { ...(game.captures || {}) };
+        updatedGame.hiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) } as typeof game.hiddenStoneCaptures;
+        updatedGame.blackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : game.blackPatternStones;
+        updatedGame.whitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : game.whitePatternStones;
+        updatedGame.justCaptured = [];
+        updatedGame.newlyRevealed = [];
+        updatedGame.turnDeadline = undefined;
+        updatedGame.turnStartTime = undefined;
+        updatedGame.pausedTurnTimeLeft = game.turnDeadline
+            ? Math.max(0, (game.turnDeadline - now) / 1000)
+            : game.pausedTurnTimeLeft;
+        updatedGame.itemUseDeadline = undefined;
     }
 
     return {

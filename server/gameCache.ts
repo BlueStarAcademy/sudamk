@@ -37,6 +37,12 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
     // 캐시 미스 또는 만료된 경우 DB에서 로드
     const game = await db.getLiveGame(gameId);
     if (game) {
+        // 도전의 탑: CONFIRM이 캐시에서만 'playing'으로 바꾸고 DB 저장은 비동기이므로, 캐시에 이미 'playing'이 있으면 DB의 'pending'으로 덮어쓰지 않음
+        const isTowerOrSp = gameId.startsWith('sp-game-') || gameId.startsWith('tower-');
+        if (isTowerOrSp && cached?.game && (cached.game as any).gameStatus === 'playing' && (game as any).gameStatus === 'pending') {
+            cache.set(gameId, { game: cached.game, lastUpdated: now });
+            return cached.game;
+        }
         cache.set(gameId, { game, lastUpdated: now });
         return game;
     }

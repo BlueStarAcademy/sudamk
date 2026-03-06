@@ -423,6 +423,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             
             game.gameStatus = 'playing';
             game.startTime = now;
+            (game as any).gameStartTime = now; // 경과 시간은 실제 시작 시점부터 (pending 시 0 표시)
             // currentPlayer를 Black으로 설정 (유저가 항상 Black으로 시작)
             game.currentPlayer = Player.Black;
             
@@ -457,8 +458,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             // 게임 캐시 업데이트 (다음 요청에서 빠른 응답)
             updateGameCache(game);
             
-            // DB 저장은 비동기로 처리 (응답 속도 개선)
-            db.saveGame(game).catch(err => {
+            // DB 저장을 여기서 완료까지 대기 (TOWER_ADD_TURNS 등 직후 요청에서 캐시 만료 시에도 DB에서 'playing' 상태를 읽을 수 있도록)
+            await db.saveGame(game).catch(err => {
                 console.error(`[CONFIRM_TOWER_GAME_START] Failed to save game ${gameId}:`, err);
             });
             
@@ -564,7 +565,13 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
         }
         case 'TOWER_ADD_TURNS': {
             const { gameId } = payload;
-            const game = await db.getLiveGame(gameId);
+            // 도전의 탑은 CONFIRM 후 gameStatus가 캐시에서만 'playing'으로 바뀌고 DB 저장은 비동기이므로, 캐시 우선 조회 (TOWER_REFRESH_PLACEMENT와 동일)
+            const { getCachedGame, updateGameCache, updateUserCache } = await import('../gameCache.js');
+            let game = await getCachedGame(gameId);
+            if (!game) {
+                game = await db.getLiveGame(gameId);
+                if (game) updateGameCache(game);
+            }
             if (!game) {
                 return { error: 'Game not found.' };
             }
@@ -583,10 +590,14 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: '게임이 진행 중이 아닙니다.' };
             }
             
-            // 턴 추가 아이템 사용 가능 여부 확인 및 소모 (로비·가방과 동일: 이름/id 일치 시 사용, source는 tower 또는 미지정)
-            const inventory = user.inventory || [];
-            const itemIndex = inventory.findIndex((item: any) => 
-                (item.name === '턴 추가' || item.name === '턴증가' || item.id === 'turn_add' || item.id === 'turn_add_item') && (item.source === 'tower' || item.source == null)
+            // API에서 전달된 user는 getCachedUser로 로드되어 inventory가 비어 있을 수 있음 → DB에서 인벤토리 포함해 재조회
+            const userWithInventory = await db.getUser(user.id, { includeEquipment: true, includeInventory: true });
+            if (!userWithInventory) {
+                return { error: 'User not found.' };
+            }
+            const inventory = userWithInventory.inventory || [];
+            const itemIndex = inventory.findIndex((item: any) =>
+                (item.name === '턴 추가' || item.name === '턴증가' || item.id === 'turn_add' || item.id === 'turn_add_item' || item.id === 'addturn') && (item.source === 'tower' || item.source == null)
             );
             
             if (itemIndex === -1) {
@@ -613,18 +624,19 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             // 3턴 추가 (흑의 남은 턴 = effectiveBlackTurnLimit - blackMoves 에서 limit이 +3 됨)
             (game as any).blackTurnLimitBonus += 3;
 
-            const { updateGameCache } = await import('../gameCache.js');
             updateGameCache(game);
-            await db.saveGame(game);
-            db.updateUser(user).catch(err => {
-                console.error(`[TOWER_ADD_TURNS] Failed to save user ${user.id}:`, err);
+            // 새로고침 후에도 턴 추가가 유지되도록 PVE 진행 중에도 DB에 강제 저장
+            await db.saveGame(game, true);
+            await db.updateUser(userWithInventory).catch(err => {
+                console.error(`[TOWER_ADD_TURNS] Failed to save user ${userWithInventory.id}:`, err);
             });
+            updateUserCache(userWithInventory);
 
             const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-            broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'towerFloor']);
+            broadcastUserUpdate(userWithInventory, ['inventory', 'gold', 'diamonds', 'towerFloor']);
             // HTTP 응답에 game 포함해 클라이언트가 남은 턴 UI 즉시 갱신
-            return { clientResponse: { updatedUser: user, gameId: game.id, game } };
+            return { clientResponse: { updatedUser: userWithInventory, gameId: game.id, game } };
         }
         case 'END_TOWER_GAME': {
             const { gameId, winner, winReason } = payload;

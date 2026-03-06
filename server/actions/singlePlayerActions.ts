@@ -401,6 +401,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const now = Date.now();
             game.gameStatus = 'playing';
             game.turnStartTime = now;
+            (game as any).startTime = now;
+            (game as any).gameStartTime = now; // 경과 시간은 실제 시작 시점부터 (pending 시 0 표시)
             const isSpeedMode = game.mode === GameMode.Speed;
             
             // 싱글플레이 시간 설정: 비스피드 모드는 무제한(제한시간/초읽기 0, 초읽기 소리 없음)

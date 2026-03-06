@@ -422,6 +422,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.turnDeadline = undefined;
                     game.turnStartTime = undefined;
                 }
+                game.itemUseDeadline = undefined;
                 return {};
             }
 
@@ -559,100 +560,43 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             const uniqueStonesToReveal = Array.from(new Map(allStonesToReveal.map(item => [JSON.stringify(item.point), item])).values());
             
             if (uniqueStonesToReveal.length > 0) {
-                // 싱글플레이에서 히든 착점인 경우 애니메이션 없이 바로 처리하고 턴 전환
-                if (game.isSinglePlayer && isHidden && game.gameStatus === 'hidden_placing') {
-                    // 히든 돌 공개 및 캡처 처리 (애니메이션 없이)
-                    game.lastMove = { x, y };
-                    game.lastTurnStones = null;
-                    game.moveHistory.push(move);
-                    if (isHidden) {
-                        if (!game.hiddenMoves) game.hiddenMoves = {};
-                        game.hiddenMoves[game.moveHistory.length - 1] = true;
-                    }
-                
-                    game.boardState = result.newBoardState;
-                    for (const stone of result.capturedStones) {
-                        game.boardState[stone.y][stone.x] = opponentPlayerEnum;
-                    }
-                
-                    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                    uniqueStonesToReveal.forEach(s => {
-                        if (!game.permanentlyRevealedStones!.some(p => p.x === s.point.x && p.y === s.point.y)) {
-                            game.permanentlyRevealedStones!.push(s.point);
-                        }
-                    });
-                    
-                    // 캡처 처리 (히든 돌 5점)
-                    if (result.capturedStones.length > 0) {
-                        if (!game.justCaptured) game.justCaptured = [];
-                        for (const stone of result.capturedStones) {
-                            const capturedPlayerEnum = opponentPlayerEnum;
-                            let points = 1;
-                            const moveIdx = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
-                            const wasHidden = moveIdx !== -1 && !!game.hiddenMoves?.[moveIdx];
-                            const wasAiInitial = (game as any).aiInitialHiddenStone && (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
-                            if (wasHidden || wasAiInitial) {
-                                points = 5;
-                                game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
-                            } else if (game.isSinglePlayer) {
-                                const patternStones = capturedPlayerEnum === types.Player.Black ? game.blackPatternStones : game.whitePatternStones;
-                                if (patternStones) {
-                                    const patternIndex = patternStones.findIndex(p => p.x === stone.x && p.y === stone.y);
-                                    if (patternIndex !== -1) {
-                                        points = 2;
-                                        patternStones.splice(patternIndex, 1);
-                                    }
-                                }
-                            }
-                            game.captures[myPlayerEnum] += points;
-                            game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHidden || wasAiInitial });
-                        }
-                    }
-                    
-                    // 상태는 아래에서 처리되므로 여기서는 return하지 않음 (턴 전환을 위해 계속 진행)
-                } else {
-                    // 일반적인 경우: 애니메이션 사용
-                    game.gameStatus = 'hidden_reveal_animating';
-                    game.animation = {
-                        type: 'hidden_reveal',
-                        stones: uniqueStonesToReveal,
-                        startTime: now,
-                        duration: 2000
-                    };
-                    game.revealAnimationEndTime = now + 2000;
-                    game.pendingCapture = { stones: result.capturedStones, move, hiddenContributors: contributingHiddenStones.map(c => c.point) };
-                
-                    game.lastMove = { x, y };
-                    game.lastTurnStones = null;
-                    game.moveHistory.push(move);
-                    if (isHidden) {
-                        if (!game.hiddenMoves) game.hiddenMoves = {};
-                        game.hiddenMoves[game.moveHistory.length - 1] = true;
-                    }
-                
-                    game.boardState = result.newBoardState;
-                    for (const stone of result.capturedStones) {
-                        game.boardState[stone.y][stone.x] = opponentPlayerEnum;
-                    }
-                
-                    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                    uniqueStonesToReveal.forEach(s => {
-                        if (!game.permanentlyRevealedStones!.some(p => p.x === s.point.x && p.y === s.point.y)) {
-                            game.permanentlyRevealedStones!.push(s.point);
-                        }
-                    });
+                game.gameStatus = 'hidden_reveal_animating';
+                game.animation = {
+                    type: 'hidden_reveal',
+                    stones: uniqueStonesToReveal,
+                    startTime: now,
+                    duration: 2000
+                };
+                game.revealAnimationEndTime = now + 2000;
+                game.pendingCapture = { stones: result.capturedStones, move, hiddenContributors: contributingHiddenStones.map(c => c.point) };
             
-                    if (game.turnDeadline) {
-                        game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
-                        game.turnDeadline = undefined;
-                        game.turnStartTime = undefined;
-                    }
-                    // 히든 아이템 사용 후 itemUseDeadline만 초기화 (타이머는 애니메이션 종료 시 재개)
-                    if (game.isSinglePlayer && game.gameStatus === 'hidden_reveal_animating') {
-                        game.itemUseDeadline = undefined;
-                    }
-                    return {};
+                game.lastMove = { x, y };
+                game.lastTurnStones = null;
+                game.moveHistory.push(move);
+                if (isHidden) {
+                    if (!game.hiddenMoves) game.hiddenMoves = {};
+                    game.hiddenMoves[game.moveHistory.length - 1] = true;
                 }
+            
+                game.boardState = result.newBoardState;
+                for (const stone of result.capturedStones) {
+                    game.boardState[stone.y][stone.x] = opponentPlayerEnum;
+                }
+            
+                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                uniqueStonesToReveal.forEach(s => {
+                    if (!game.permanentlyRevealedStones!.some(p => p.x === s.point.x && p.y === s.point.y)) {
+                        game.permanentlyRevealedStones!.push(s.point);
+                    }
+                });
+        
+                if (game.turnDeadline) {
+                    game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+                    game.turnDeadline = undefined;
+                    game.turnStartTime = undefined;
+                }
+                game.itemUseDeadline = undefined;
+                return {};
             }
 
 
@@ -753,13 +697,6 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.gameStatus = 'playing';
                 game.itemUseDeadline = undefined;
                 game.pausedTurnTimeLeft = undefined;
-                // 히든 아이템 개수 감소
-                const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
-                const currentHidden = game[hiddenKey] ?? 0;
-                if (currentHidden > 0) {
-                    game[hiddenKey] = currentHidden - 1;
-                    console.log(`[handleStandardAction] Hidden item consumed: ${hiddenKey} ${currentHidden} -> ${game[hiddenKey]}, gameId=${game.id}`);
-                }
             } else if (wasHiddenPlacing) {
                 game.gameStatus = 'playing';
                 game.itemUseDeadline = undefined;

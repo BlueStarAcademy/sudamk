@@ -1367,8 +1367,8 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                         <div className="mb-1.5 px-1.5 py-1 rounded-lg border border-amber-700/50 bg-amber-900/20">
                             <div className="text-[10px] font-semibold text-amber-200/90 mb-0.5">기본 보상 (경기당)</div>
                             <div className="text-[10px] text-amber-100/80 flex flex-wrap gap-x-2 gap-y-0.5">
-                                <span>승리: 골드 {range.win.min.toLocaleString()}~{range.win.max.toLocaleString()}</span>
-                                <span>패배: 골드 {range.loss.min.toLocaleString()}~{range.loss.max.toLocaleString()}</span>
+                                <span>승리: {range.win.min.toLocaleString()}~{range.win.max.toLocaleString()} 골드</span>
+                                <span>패배: {range.loss.min.toLocaleString()}~{range.loss.max.toLocaleString()} 골드</span>
                             </div>
                         </div>
                     );
@@ -1577,11 +1577,13 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                     const bgColor = isGold ? 'bg-yellow-900/40' : isDiamond ? 'bg-blue-900/40' : 'bg-purple-900/40';
                     const textColor = isGold ? 'text-yellow-100' : isDiamond ? 'text-blue-100' : 'text-purple-100';
                     const qtyText = item.min === item.max ? `${item.min}` : `${item.min}~${item.max}`;
+                    const suffix = itemName.includes('골드') ? ' 골드' : itemName.includes('다이아') ? ' 다이아' : '';
+                    const displayQty = suffix ? `${qtyText}${suffix}` : qtyText;
                     const isSm = size === 'sm';
                     return (
                         <div key={index} className={`relative rounded-lg border-2 ${borderColor} ${bgColor} flex items-center justify-center overflow-hidden ${opacity} ${isSm ? 'w-9 h-9' : 'w-11 h-11'}`}>
                             {imageUrl ? <img src={imageUrl} alt={itemName} className={isSm ? 'w-5 h-5 object-contain' : 'w-7 h-7 object-contain'} loading="lazy" decoding="async" /> : <span className="text-[10px] text-gray-300 truncate px-0.5">{itemName}</span>}
-                            <span className={`absolute -bottom-0.5 -right-0.5 font-bold ${textColor} bg-black/80 px-1 rounded-tl leading-tight shadow-sm ${isSm ? 'text-[10px]' : 'text-[11px]'}`}>{qtyText}</span>
+                            <span className={`absolute -bottom-0.5 -right-0.5 font-bold ${textColor} bg-black/80 px-1 rounded-tl leading-tight shadow-sm ${isSm ? 'text-[10px]' : 'text-[11px]'}`}>{displayQty}</span>
                         </div>
                     );
                 };
@@ -1589,19 +1591,19 @@ const FinalRewardPanel: React.FC<{ tournamentState: TournamentState; currentUser
                 const isDungeonRankDecided = allMatchesFinished && (isTournamentFullyComplete || isUserEliminated || isClaimed);
                 return (
                     <>
-                        {/* 순위별 보상 미리보기 (경기 종료 전): 범위값(min~max)으로 표시 */}
+                        {/* 순위별 보상 미리보기 (경기 종료 전): 범위값(min~max)으로 표시, 한 줄에 2개씩 */}
                         {!allMatchesFinished && rankKeys.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-gray-700">
                                 <div className="text-xs font-semibold text-gray-300 mb-1.5 text-center">순위별 보상 (경기 종료 후 확정)</div>
-                                <div className="space-y-1 max-h-36 overflow-y-auto">
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-1 max-h-36 overflow-y-auto">
                                     {rankKeys.map((rankKey: number) => {
                                         const r = getDungeonRankRewardRangeForDisplay(type, stage, rankKey);
                                         const rankLabel = (type === 'world' && rankKey === 9) ? '9~16위' : (type === 'world' && rankKey === 4) ? '4~8위' : `${rankKey}위`;
                                         if (!r?.items?.length) return null;
                                         return (
-                                            <div key={rankKey} className="flex items-center gap-2 py-0.5">
+                                            <div key={rankKey} className="flex items-center gap-2 py-0.5 min-w-0">
                                                 <span className="text-[11px] font-medium text-gray-300 w-9 flex-shrink-0">{rankLabel}</span>
-                                                <div className="flex flex-wrap gap-1">
+                                                <div className="flex flex-wrap gap-1 min-w-0">
                                                     {r.items.map((item, idx) => renderRewardRangeChip(item, idx, '', 'sm'))}
                                                 </div>
                                             </div>

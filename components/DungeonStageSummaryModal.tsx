@@ -56,16 +56,23 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
 
     const rewardItemsMap = new Map<string, { name: string; image: string; quantity: number }>();
 
-    // 동네바둑리그: 골드 합계만 표시 (출처 없이 수량만)
+    // 동네바둑리그: 1회차~5회차 각각 N 골드 형태로 표시 (경기별 기본보상)
     if (dungeonType === 'neighborhood' && baseRewards.gold && baseRewards.gold > 0) {
-        const totalGold = tournamentState.matchGoldRewards && tournamentState.matchGoldRewards.length > 0
-            ? tournamentState.matchGoldRewards.reduce((sum: number, a: number) => sum + a, 0)
-            : baseRewards.gold;
-        rewardItemsMap.set('gold', {
-            name: `${totalGold.toLocaleString()} 골드`,
-            image: '/images/icon/Gold.png',
-            quantity: 1
-        });
+        if (tournamentState.matchGoldRewards && tournamentState.matchGoldRewards.length > 0) {
+            tournamentState.matchGoldRewards.forEach((goldAmount: number, idx: number) => {
+                rewardItemsMap.set(`neighborhood_round_${idx}`, {
+                    name: `${idx + 1}회차 ${goldAmount.toLocaleString()} 골드`,
+                    image: '/images/icon/Gold.png',
+                    quantity: 1
+                });
+            });
+        } else {
+            rewardItemsMap.set('gold', {
+                name: `${baseRewards.gold.toLocaleString()} 골드`,
+                image: '/images/icon/Gold.png',
+                quantity: 1
+            });
+        }
     } else if (baseRewards.gold && baseRewards.gold > 0) {
         rewardItemsMap.set('gold', {
             name: `${baseRewards.gold.toLocaleString()} 골드`,
@@ -179,7 +186,10 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             let itemName = item.itemId;
             const hasRange = item.min != null && item.max != null;
             const qtyText = hasRange ? (item.min === item.max ? `${item.min}` : `${item.min}~${item.max}`) : (item.quantity != null ? `${item.quantity}` : '');
-            const displayName = qtyText ? `${itemName} ${qtyText}` : itemName;
+            // N 골드 / N 다이아 형태로 통일 (숫자 먼저)
+            const displayName = qtyText
+                ? (itemName.includes('골드') ? `${qtyText} 골드` : itemName.includes('다이아') ? `${qtyText} 다이아` : `${itemName} ${qtyText}`)
+                : itemName;
             let itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === itemName);
             if (!itemTemplate && (MATERIAL_ITEMS as any)[itemName]) {
                 itemTemplate = { name: itemName, image: (MATERIAL_ITEMS as any)[itemName].image } as any;

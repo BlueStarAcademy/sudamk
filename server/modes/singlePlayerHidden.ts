@@ -47,6 +47,8 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
             const currentHidden = game[hiddenKey] ?? 0;
             if (currentHidden > 0) {
                 game[hiddenKey] = currentHidden - 1;
+                const usedKey = timedOutPlayerId === game.player1.id ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
+                game[usedKey] = (game[usedKey] || 0) + 1;
                 console.log(`[updateSinglePlayerHiddenState] Hidden item consumed: ${hiddenKey} ${currentHidden} -> ${game[hiddenKey]}, gameId=${game.id}`);
             }
         } else if (currentItemMode === 'scanning') {

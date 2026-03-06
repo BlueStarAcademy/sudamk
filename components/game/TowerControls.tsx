@@ -52,7 +52,37 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         return stageFloor === floor;
     });
 
-    
+    // 훅은 early return 이전에 항상 호출 (React 규칙: 훅 개수/순서 일정 유지)
+    const showMissileAndHiddenForHook = floor >= 21;
+    const scanCountSettingForHook = showMissileAndHiddenForHook ? ((session.settings as any)?.scanCount ?? (stage?.scanCount ?? 0)) : 0;
+    const myScansLeftForHook = (session as any).scans_p1 ?? scanCountSettingForHook;
+    const canScan = React.useMemo(() => {
+        if (!showMissileAndHiddenForHook || myScansLeftForHook <= 0) return false;
+        const board = session.boardState;
+        if (!Array.isArray(board) || board.length === 0) return false;
+        const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
+        const aiHiddenIsPrePlaced = (session as any).aiInitialHiddenStoneIsPrePlaced;
+        if (aiInitialHiddenStone && !aiHiddenIsPrePlaced) {
+            const { x, y } = aiInitialHiddenStone;
+            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
+            if (inBounds && board[y][x] === Player.White) {
+                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
+                if (!isPermanentlyRevealed) return true;
+            }
+        }
+        if (!session.hiddenMoves || !session.moveHistory) return false;
+        return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
+            if (!isHidden) return false;
+            const move = session.moveHistory![parseInt(moveIndexStr, 10)];
+            if (!move || move.player !== Player.White) return false;
+            const { x, y } = move;
+            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
+            if (!inBounds || board[y][x] !== Player.White) return false;
+            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
+            return !isPermanentlyRevealed;
+        });
+    }, [showMissileAndHiddenForHook, myScansLeftForHook, session.boardState, session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
+
     if (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') {
         const isWinner = session.winner === Player.Black;
         const nextFloor = floor < 100 ? floor + 1 : null;
@@ -195,7 +225,6 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
     const isMyTurn = session.currentPlayer === Player.Black;
     const gameStatus = session.gameStatus;
-    const showMissileAndHidden = floor >= 21;
     const showTurnAdd = floor <= 20; // 1~20층에서만 턴 추가 아이템 표시
     // 도전의 탑 전체(1~100층)에서 통과 비활성: 1~20층 따내기 턴 제한, 21층+ 자동 계가
     const passAllowed = false;
@@ -216,7 +245,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     };
 
     // 미사일 아이템 (21층 이상, 최대 2개) - 로비·가방과 동기화
-    const missileCount = showMissileAndHidden ? getItemCount(['미사일', 'missile']) : 0;
+    const missileCount = showMissileAndHiddenForHook ? getItemCount(['미사일', 'missile']) : 0;
     const missileMaxCount = 2;
     const myMissilesLeft = session.missiles_p1 ?? missileCount;
     const missileDisabled = !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
@@ -227,7 +256,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     };
     
     // 히든 아이템 (21층 이상, 최대 2개) - 로비·가방과 동기화
-    const hiddenCount = showMissileAndHidden ? getItemCount(['히든', 'hidden']) : 0;
+    const hiddenCount = showMissileAndHiddenForHook ? getItemCount(['히든', 'hidden']) : 0;
     const hiddenMaxCount = 2;
     // 히든 아이템 (스캔 아이템처럼 개수 기반)
     const hiddenLeft = session.hidden_stones_p1 ?? hiddenCount;
@@ -238,36 +267,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
     };
 
-    // 스캔 아이템 (21층 이상): 상대(AI)에 미공개 히든돌이 있을 때만 사용 가능
-    const scanCountSetting = showMissileAndHidden ? ((session.settings as any)?.scanCount ?? (stage?.scanCount ?? 0)) : 0;
-    const myScansLeft = session.scans_p1 ?? scanCountSetting;
-    const canScan = React.useMemo(() => {
-        if (!showMissileAndHidden || myScansLeft <= 0) return false;
-        const board = session.boardState;
-        if (!Array.isArray(board) || board.length === 0) return false;
-        const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
-        const aiHiddenIsPrePlaced = (session as any).aiInitialHiddenStoneIsPrePlaced;
-        if (aiInitialHiddenStone && !aiHiddenIsPrePlaced) {
-            const { x, y } = aiInitialHiddenStone;
-            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (inBounds && board[y][x] === Player.White) {
-                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
-                if (!isPermanentlyRevealed) return true;
-            }
-        }
-        if (!session.hiddenMoves || !session.moveHistory) return false;
-        return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
-            if (!isHidden) return false;
-            const move = session.moveHistory![parseInt(moveIndexStr, 10)];
-            if (!move || move.player !== Player.White) return false;
-            const { x, y } = move;
-            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (!inBounds || board[y][x] !== Player.White) return false;
-            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
-            return !isPermanentlyRevealed;
-        });
-    }, [showMissileAndHidden, myScansLeft, session.boardState, session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
-    const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan;
+    // 스캔 아이템 (21층 이상): 상대(AI)에 미공개 히든돌이 있을 때만 사용 가능 (canScan은 상단 useMemo로 정의)
+    const scanDisabled = !isMyTurn || gameStatus !== 'playing' || myScansLeftForHook <= 0 || !canScan;
 
     const handleUseScan = () => {
         if (gameStatus !== 'playing') return;
@@ -381,7 +382,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                         </span>
                     </div>
                 )}
-                {showMissileAndHidden && (
+                {showMissileAndHiddenForHook && (
                     <div className="flex flex-col items-center gap-1">
                         <ImageButton
                             src="/images/button/missile.png"
@@ -397,7 +398,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                         </span>
                     </div>
                 )}
-                {showMissileAndHidden && (
+                {showMissileAndHiddenForHook && (
                     <div className="flex flex-col items-center gap-1">
                         <ImageButton
                             src="/images/button/hidden.png"
@@ -413,7 +414,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                         </span>
                     </div>
                 )}
-                {showMissileAndHidden && (
+                {showMissileAndHiddenForHook && (
                     <div className="flex flex-col items-center gap-1">
                         <ImageButton
                             src="/images/button/scan.png"
@@ -421,8 +422,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                             onClick={handleUseScan}
                             disabled={scanDisabled}
                             title="스캔"
-                            count={myScansLeft}
-                            maxCount={scanCountSetting}
+                            count={myScansLeftForHook}
+                            maxCount={scanCountSettingForHook}
                         />
 						<span className={`text-[11px] font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
                             스캔

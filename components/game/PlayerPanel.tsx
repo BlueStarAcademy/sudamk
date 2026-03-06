@@ -316,13 +316,21 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const { player1, player2, blackPlayerId, whitePlayerId, captures, mode, settings, effectiveCaptureTargets, scores, currentPlayer } = session;
 
     const enforceTime = showTimeControl(session);
-    const gameStart = session.gameStartTime ?? session.createdAt;
+    // 경기는 '게임 시작' 버튼을 누른 뒤(playing 등)부터만 경과 시간 산정. pending일 때는 0으로 표시
+    const gameStart =
+        session.gameStatus === 'pending'
+            ? undefined
+            : (session.gameStartTime ?? (session as any).startTime ?? session.createdAt);
     const [elapsedSec, setElapsedSec] = useState(0);
     const isEnded = session.gameStatus === 'ended' || session.gameStatus === 'no_contest';
     const isScoring = session.gameStatus === 'scoring';
     const scoringEndTime = isScoring ? (session as { endTime?: number }).endTime : undefined;
     useEffect(() => {
-        if (enforceTime || !gameStart) return;
+        if (enforceTime) return;
+        if (!gameStart) {
+            setElapsedSec(0);
+            return;
+        }
         // 계가 중이면 타이머 정지: 서버에서 내려준 endTime 기준으로만 표시
         if (isEnded || (isScoring && scoringEndTime != null)) {
             const endMs = isEnded ? (session.turnStartTime ?? Date.now()) : scoringEndTime!;

@@ -987,6 +987,188 @@ export const useApp = () => {
             return;
         }
 
+        if ((action as any).type === 'LOCAL_HIDDEN_REVEAL_TRIGGER') {
+            const { gameId, gameType, point, player, keepTurn } = (action as any).payload as {
+                gameId: string;
+                gameType: 'tower' | 'singleplayer';
+                point: Point;
+                player: Player;
+                keepTurn?: boolean;
+            };
+            const updateGameState = gameType === 'tower' ? setTowerGames : setSinglePlayerGames;
+            const now = Date.now();
+
+            updateGameState(currentGames => {
+                const game = currentGames[gameId];
+                if (!game || game.gameStatus === 'hidden_reveal_animating') {
+                    return currentGames;
+                }
+
+                const permanentlyRevealedStones = (game.permanentlyRevealedStones || []).some((p: Point) => p.x === point.x && p.y === point.y)
+                    ? [...(game.permanentlyRevealedStones || [])]
+                    : [...(game.permanentlyRevealedStones || []), point];
+
+                return {
+                    ...currentGames,
+                    [gameId]: {
+                        ...game,
+                        gameStatus: 'hidden_reveal_animating',
+                        animation: {
+                            type: 'hidden_reveal',
+                            stones: [{ point, player }],
+                            startTime: now,
+                            duration: 2000
+                        },
+                        revealAnimationEndTime: now + 2000,
+                        permanentlyRevealedStones,
+                        pendingCapture: null,
+                        turnDeadline: undefined,
+                        turnStartTime: undefined,
+                        pausedTurnTimeLeft: game.turnDeadline ? Math.max(0, (game.turnDeadline - now) / 1000) : game.pausedTurnTimeLeft,
+                        itemUseDeadline: undefined,
+                        justCaptured: [],
+                        newlyRevealed: [],
+                        ...(keepTurn ? { isAiTurnCancelledAfterReveal: true } as any : {})
+                    } as any
+                };
+            });
+            return;
+        }
+
+        if ((action as any).type === 'LOCAL_HIDDEN_REVEAL_COMPLETE') {
+            const { gameId, gameType } = (action as any).payload as {
+                gameId: string;
+                gameType: 'tower' | 'singleplayer';
+            };
+            const updateGameState = gameType === 'tower' ? setTowerGames : setSinglePlayerGames;
+            const now = Date.now();
+
+            updateGameState(currentGames => {
+                const game = currentGames[gameId];
+                if (!game || game.gameStatus !== 'hidden_reveal_animating') {
+                    return currentGames;
+                }
+
+                const pendingCapture = game.pendingCapture;
+                const hasTimeControl = (game.settings?.timeLimit ?? 0) > 0 || ((game.settings?.byoyomiCount ?? 0) > 0 && (game.settings?.byoyomiTime ?? 0) > 0);
+                const buildTurnDeadline = (player: Player) => {
+                    if (!hasTimeControl) {
+                        return { turnDeadline: undefined, turnStartTime: undefined };
+                    }
+                    const timeLeft = player === Player.Black ? game.blackTimeLeft : game.whiteTimeLeft;
+                    const byoyomiLeft = player === Player.Black ? (game.blackByoyomiPeriodsLeft ?? 0) : (game.whiteByoyomiPeriodsLeft ?? 0);
+                    const byoyomiTime = game.settings?.byoyomiTime ?? 0;
+                    if ((timeLeft ?? 0) <= 0 && byoyomiLeft > 0 && byoyomiTime > 0) {
+                        return { turnDeadline: now + byoyomiTime * 1000, turnStartTime: now };
+                    }
+                    if ((timeLeft ?? 0) > 0) {
+                        return { turnDeadline: now + (timeLeft ?? 0) * 1000, turnStartTime: now };
+                    }
+                    return { turnDeadline: undefined, turnStartTime: hasTimeControl ? now : undefined };
+                };
+
+                if (!pendingCapture) {
+                    const deadline = buildTurnDeadline(game.currentPlayer);
+                    return {
+                        ...currentGames,
+                        [gameId]: {
+                            ...game,
+                            animation: null,
+                            gameStatus: 'playing',
+                            revealAnimationEndTime: undefined,
+                            pendingCapture: null,
+                            pausedTurnTimeLeft: undefined,
+                            itemUseDeadline: undefined,
+                            justCaptured: [],
+                            newlyRevealed: [],
+                            ...deadline,
+                            ...(game as any).isAiTurnCancelledAfterReveal !== undefined
+                                ? ({ isAiTurnCancelledAfterReveal: undefined } as any)
+                                : {}
+                        } as any
+                    };
+                }
+
+                const movePlayer = pendingCapture.move.player;
+                const opponentPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
+                const boardState = (game.boardState || []).map((row: Player[]) => [...row]);
+                const captures = { ...(game.captures || {}) };
+                const hiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) };
+                let blackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : undefined;
+                let whitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : undefined;
+                const justCaptured: { point: Point; player: Player; wasHidden: boolean }[] = [];
+                const newlyRevealed = (pendingCapture.hiddenContributors || []).map((point: Point) => ({ point, player: movePlayer }));
+
+                let clearAiInitialHidden = false;
+                const aiInitialHiddenStone = (game as any).aiInitialHiddenStone as Point | undefined;
+
+                for (const stone of pendingCapture.stones || []) {
+                    if (boardState[stone.y]) {
+                        boardState[stone.y][stone.x] = Player.None;
+                    }
+
+                    const moveIndex = (game.moveHistory || []).findIndex((m: any) => m.x === stone.x && m.y === stone.y);
+                    const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+                    const wasAiInitialHidden = !!aiInitialHiddenStone && aiInitialHiddenStone.x === stone.x && aiInitialHiddenStone.y === stone.y;
+                    const wasPatternStone = opponentPlayer === Player.Black
+                        ? !!blackPatternStones?.some(p => p.x === stone.x && p.y === stone.y)
+                        : !!whitePatternStones?.some(p => p.x === stone.x && p.y === stone.y);
+
+                    let points = 1;
+                    let wasHidden = false;
+
+                    if (wasHiddenMove || wasAiInitialHidden) {
+                        points = 5;
+                        wasHidden = true;
+                        hiddenStoneCaptures[movePlayer] = (hiddenStoneCaptures[movePlayer] || 0) + 1;
+                        if (wasAiInitialHidden) {
+                            clearAiInitialHidden = true;
+                        }
+                    } else if (wasPatternStone) {
+                        points = 2;
+                        if (opponentPlayer === Player.Black) {
+                            blackPatternStones = blackPatternStones?.filter(p => !(p.x === stone.x && p.y === stone.y));
+                        } else {
+                            whitePatternStones = whitePatternStones?.filter(p => !(p.x === stone.x && p.y === stone.y));
+                        }
+                    }
+
+                    captures[movePlayer] = (captures[movePlayer] || 0) + points;
+                    justCaptured.push({ point: stone, player: opponentPlayer, wasHidden });
+                }
+
+                const nextPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
+                const deadline = buildTurnDeadline(nextPlayer);
+
+                return {
+                    ...currentGames,
+                    [gameId]: {
+                        ...game,
+                        boardState,
+                        captures,
+                        hiddenStoneCaptures,
+                        blackPatternStones,
+                        whitePatternStones,
+                        justCaptured,
+                        newlyRevealed,
+                        currentPlayer: nextPlayer,
+                        gameStatus: 'playing',
+                        animation: null,
+                        revealAnimationEndTime: undefined,
+                        pendingCapture: null,
+                        pausedTurnTimeLeft: undefined,
+                        itemUseDeadline: undefined,
+                        ...deadline,
+                        ...(clearAiInitialHidden ? ({ aiInitialHiddenStone: undefined, aiInitialHiddenStoneIsPrePlaced: false } as any) : {}),
+                        ...(game as any).isAiTurnCancelledAfterReveal !== undefined
+                            ? ({ isAiTurnCancelledAfterReveal: undefined } as any)
+                            : {}
+                    } as any
+                };
+            });
+            return;
+        }
+
         // 타워 게임과 싱글플레이 게임의 클라이언트 측 move 처리 (서버로 전송하지 않음)
         // 클라이언트 측 이동 처리 (도전의 탑, 싱글플레이 공통 로직)
         if ((action as any).type === 'TOWER_CLIENT_MOVE' || (action as any).type === 'SINGLE_PLAYER_CLIENT_MOVE') {
@@ -1039,7 +1221,7 @@ export const useApp = () => {
                 
                 // 싱글플레이 또는 AI봇 대결에서 자동계가 체크
                 // hidden_placing, scanning 등 아이템 모드에서는 자동계가 체크를 하지 않음
-                const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(updateResult.updatedGame.gameStatus);
+                const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating', 'hidden_reveal_animating'].includes(updateResult.updatedGame.gameStatus);
                 
                 if (!isItemMode) {
                     const autoScoringTurns = gameType === 'singleplayer' && game.stageId
@@ -3329,11 +3511,17 @@ export const useApp = () => {
                                                 // 서버의 permanentlyRevealedStones 우선 (히든 따냄/따임·상대 착수 시도 시 영구 공개 반영)
                                                 const serverRevealed = game.permanentlyRevealedStones && game.permanentlyRevealedStones.length > 0 ? game.permanentlyRevealedStones : null;
                                                 const mergedRevealed = serverRevealed ?? existingGame?.permanentlyRevealedStones ?? game.permanentlyRevealedStones ?? [];
+                                                const mergedPendingCapture = game.pendingCapture ?? existingGame?.pendingCapture ?? null;
+                                                const mergedRevealAnimationEndTime = game.revealAnimationEndTime ?? existingGame?.revealAnimationEndTime;
+                                                const mergedAnimation = game.animation ?? existingGame?.animation ?? null;
                                                 updatedGames[gameId] = {
                                                     ...game,
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
                                                     permanentlyRevealedStones: mergedRevealed,
+                                                    pendingCapture: mergedPendingCapture,
+                                                    revealAnimationEndTime: mergedRevealAnimationEndTime,
+                                                    animation: mergedAnimation,
                                                     // totalTurns와 captures 보존 (미사일 애니메이션 중에는 서버 captures 적용)
                                                     totalTurns: preservedTotalTurns,
                                                     captures: finalCapturesForItemMode,

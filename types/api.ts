@@ -290,6 +290,8 @@ export type ServerAction =
     | { type: 'END_SINGLE_PLAYER_GAME', payload: { gameId: string; winner: Player; winReason: WinReason } }
     | { type: 'TOWER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; } }
     | { type: 'SINGLE_PLAYER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; isHidden?: boolean; } }
+    | { type: 'LOCAL_HIDDEN_REVEAL_TRIGGER', payload: { gameId: string; gameType: 'tower' | 'singleplayer'; point: Point; player: Player; keepTurn?: boolean } }
+    | { type: 'LOCAL_HIDDEN_REVEAL_COMPLETE', payload: { gameId: string; gameType: 'tower' | 'singleplayer' } }
     | { type: 'AI_GAME_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; } }
     | { type: 'START_SINGLE_PLAYER_MISSION', payload: { missionId: string } }
     | { type: 'CLAIM_SINGLE_PLAYER_MISSION_REWARD', payload: { missionId: string } }

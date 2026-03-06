@@ -299,19 +299,19 @@ const makeStrategicAiMove = async (game: types.LiveGameSession) => {
     if (isHiddenMode && game.isSinglePlayer && !game.aiHiddenItemUsed && game.aiHiddenItemTurn !== undefined && totalTurns >= game.aiHiddenItemTurn) {
         // AI 히든 아이템 사용 연출
         game.aiHiddenItemUsed = true;
-        game.foulInfo = { message: 'AI봇이 히든 아이템을 사용했습니다!', expiry: now + 5000 };
+        game.foulInfo = { message: 'AI봇이 히든 아이템을 사용했습니다!', expiry: now + 6000 };
         
-        // 5초간 생각하는 연출을 위해 게임 상태를 특별한 상태로 설정
+        // 6초간 생각하는 연출을 위해 게임 상태를 특별한 상태로 설정
         game.gameStatus = 'playing'; // 상태는 유지하되, 애니메이션으로 표시
         game.animation = {
             type: 'ai_thinking',
             startTime: now,
-            duration: 5000,
+            duration: 6000,
             playerId: aiPlayerId
         };
         
-        // 5초 후에 실제 수를 두도록 설정
-        game.aiHiddenItemAnimationEndTime = now + 5000;
+        // 6초 후에 실제 수를 두도록 설정
+        game.aiHiddenItemAnimationEndTime = now + 6000;
         
         await db.saveGame(game);
         return; // 이번 턴은 연출만 하고 실제 수는 다음 업데이트에서

@@ -88,8 +88,12 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         <div className="relative w-full h-full flex flex-col items-center justify-center">
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
             {gameStatus === 'scoring' && !session.analysisResult?.['system'] && <ScoringOverlay variant="fullscreen" />}
-            <div className={`w-full h-full transition-opacity duration-500 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                <div className={`w-full h-full flex items-center justify-center rounded-lg transition-all duration-300 ${showBoardGlow ? 'ring-4 ring-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] animate-[pulse_2s_ease-in-out_infinite]' : ''}`}>
+            <div className={`relative w-full h-full transition-opacity duration-500 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                {/* 히든 사용 중: 테두리만 깜빡이도록 별도 레이어 사용 (바둑판은 깜빡이지 않음) */}
+                {showBoardGlow && (
+                    <div className="absolute inset-0 rounded-lg pointer-events-none ring-4 ring-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] animate-[pulse_2s_ease-in-out_infinite]" aria-hidden />
+                )}
+                <div className="w-full h-full flex items-center justify-center rounded-lg">
                 <GoBoard
                     boardState={boardState}
                     boardSize={settings.boardSize}

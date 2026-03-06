@@ -31,6 +31,40 @@ import { processMoveClient } from './client/goLogicClient.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
+const isSamePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+
+const isUnrevealedUserHiddenStoneAt = (game: LiveGameSession, x: number, y: number): boolean => {
+    if (!game.moveHistory || !game.hiddenMoves) return false;
+
+    for (let i = game.moveHistory.length - 1; i >= 0; i--) {
+        const move = game.moveHistory[i];
+        if (move.x !== x || move.y !== y) continue;
+        if (move.player !== Player.Black) return false;
+        if (!game.hiddenMoves[i]) return false;
+        return !(game.permanentlyRevealedStones || []).some(point => isSamePoint(point, { x, y }));
+    }
+
+    return false;
+};
+
+const getMaskedBoardForHiddenAi = (game: LiveGameSession, boardState: Player[][]): Player[][] => {
+    const maskedBoard = boardState.map(row => [...row]);
+    if (!game.moveHistory || !game.hiddenMoves) {
+        return maskedBoard;
+    }
+
+    for (let i = 0; i < game.moveHistory.length; i++) {
+        const move = game.moveHistory[i];
+        if (move.player !== Player.Black || !game.hiddenMoves[i]) continue;
+        if ((game.permanentlyRevealedStones || []).some(point => isSamePoint(point, { x: move.x, y: move.y }))) continue;
+        if (maskedBoard[move.y]?.[move.x] === Player.Black) {
+            maskedBoard[move.y][move.x] = Player.None;
+        }
+    }
+
+    return maskedBoard;
+};
+
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
   useEffect(() => {
@@ -77,7 +111,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [isMoveInFlight, setIsMoveInFlight] = useState(false);
     const clientTimes = useClientTimer(session, (session.isSinglePlayer || (session.gameCategory === 'tower')) ? { isPaused } : {});
     const [isAiRematchModalOpen, setIsAiRematchModalOpen] = useState(false);
-    // 싱글플레이 고급 히든: AI 히든 아이템 연출 종료 시각 (이 시각까지 바둑판 테두리 빛 + 일시정지)
+    // 싱글플레이 고급 히든: AI 히든 아이템 연출 종료 시각 (이 시각까지 바둑판 패널 테두리만 빛남)
     const [aiHiddenItemEffectEndTime, setAiHiddenItemEffectEndTime] = useState<number | null>(null);
     const aiHiddenMoveExecutedRef = useRef(false);
     // 연출 중 시간 경과로 빛/일시정지 갱신용 (0.5초마다)
@@ -217,6 +251,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     boardState: restoredBoardState,
                     moveHistory: session.moveHistory || [],
                     captures: session.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+                    gameStatus: session.gameStatus,
+                    currentPlayer: session.currentPlayer,
+                    itemUseDeadline: session.itemUseDeadline,
+                    pausedTurnTimeLeft: session.pausedTurnTimeLeft,
+                    turnDeadline: session.turnDeadline,
+                    turnStartTime: session.turnStartTime,
+                    revealAnimationEndTime: session.revealAnimationEndTime,
                     baseStoneCaptures: session.baseStoneCaptures,
                     hiddenStoneCaptures: session.hiddenStoneCaptures,
                     permanentlyRevealedStones: session.permanentlyRevealedStones || [],
@@ -244,6 +285,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (stored) {
                 const parsed = JSON.parse(stored);
                 if (parsed.gameId === gameId) {
+                    const itemModeStatuses: GameStatus[] = [
+                        'hidden_placing',
+                        'scanning',
+                        'scanning_animating',
+                        'hidden_reveal_animating',
+                        'hidden_final_reveal',
+                        'missile_selecting',
+                        'missile_animating',
+                    ];
+                    if (itemModeStatuses.includes(parsed.gameStatus) && !itemModeStatuses.includes(next.gameStatus)) {
+                        next = {
+                            ...next,
+                            gameStatus: parsed.gameStatus,
+                            currentPlayer: parsed.currentPlayer ?? next.currentPlayer,
+                            itemUseDeadline: parsed.itemUseDeadline ?? next.itemUseDeadline,
+                            pausedTurnTimeLeft: parsed.pausedTurnTimeLeft ?? next.pausedTurnTimeLeft,
+                            turnDeadline: parsed.turnDeadline ?? next.turnDeadline,
+                            turnStartTime: parsed.turnStartTime ?? next.turnStartTime,
+                            revealAnimationEndTime: parsed.revealAnimationEndTime ?? next.revealAnimationEndTime,
+                        };
+                    }
                     const hasPattern = (session.blackPatternStones?.length ?? 0) > 0 || (session.whitePatternStones?.length ?? 0) > 0;
                     if (!hasPattern) {
                         const storedBlack = Array.isArray(parsed.blackPatternStones) ? parsed.blackPatternStones : null;
@@ -437,14 +499,38 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => { return () => audioService.stopScanBgm(); }, []);
 
-    // 싱글플레이 고급 히든: AI 히든 연출 중 0.5초마다 갱신 (테두리 빛/일시정지 표시)
+    // 싱글플레이 고급 히든: AI 히든 연출 중 0.5초마다 갱신 (테두리 빛 표시)
     useEffect(() => {
         if (aiHiddenItemEffectEndTime == null) return;
         const id = setInterval(() => setEffectTick((t) => t + 1), 500);
         return () => clearInterval(id);
     }, [aiHiddenItemEffectEndTime]);
 
-    // 싱글플레이 고급 히든: 10초 연출 종료 시점이 지나면 AI 히든 착수 실행 (한 번만)
+    useEffect(() => {
+        if (!(isSinglePlayer || isTower)) return;
+        if (session.gameStatus !== 'hidden_reveal_animating' || !session.revealAnimationEndTime) return;
+
+        const remaining = Math.max(0, session.revealAnimationEndTime - Date.now());
+        const id = window.setTimeout(() => {
+            handlers.handleAction({
+                type: 'LOCAL_HIDDEN_REVEAL_COMPLETE',
+                payload: {
+                    gameId: session.id,
+                    gameType: isTower ? 'tower' : 'singleplayer'
+                }
+            } as any);
+        }, remaining + 50);
+
+        return () => window.clearTimeout(id);
+    }, [session.gameStatus, session.revealAnimationEndTime, session.id, isSinglePlayer, isTower, handlers.handleAction]);
+
+    useEffect(() => {
+        if (prevGameStatus === 'hidden_reveal_animating' && gameStatus === 'playing' && currentPlayer === Player.White) {
+            lastAiMoveRef.current = null;
+        }
+    }, [prevGameStatus, gameStatus, currentPlayer]);
+
+    // 싱글플레이 고급 히든: 6초 연출 종료 시점이 지나면 AI 히든 착수 실행 (한 번만)
     useEffect(() => {
         if (aiHiddenItemEffectEndTime == null) return;
         if (Date.now() < aiHiddenItemEffectEndTime) return;
@@ -457,9 +543,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const boardStateToUse = restoredBoardState || session.boardState;
         const moveHistoryLength = session.moveHistory?.length ?? 0;
         if (!boardStateToUse?.length || !session.id || session.gameStatus !== 'playing' || session.currentPlayer !== Player.White) return;
+        const maskedBoardState = getMaskedBoardForHiddenAi(session, boardStateToUse);
         const koInfoAtCalculation = session.koInfo ? JSON.parse(JSON.stringify(session.koInfo)) : null;
         const aiMove = calculateSimpleAiMove(
-            JSON.parse(JSON.stringify(boardStateToUse)),
+            JSON.parse(JSON.stringify(maskedBoardState)),
             Player.White,
             Player.Black,
             koInfoAtCalculation,
@@ -467,6 +554,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             session.settings?.aiDifficulty ?? 1
         );
         if (!aiMove) return;
+        if (isUnrevealedUserHiddenStoneAt(session, aiMove.x, aiMove.y)) {
+            lastAiMoveRef.current = { gameId: session.id, moveHistoryLength, player: Player.White, timestamp: Date.now() };
+            handlers.handleAction({
+                type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
+                payload: {
+                    gameId: session.id,
+                    gameType: 'singleplayer',
+                    point: { x: aiMove.x, y: aiMove.y },
+                    player: Player.Black,
+                    keepTurn: true
+                }
+            } as any);
+            return;
+        }
         const aiMoveResult = processMoveClient(
             boardStateToUse,
             { x: aiMove.x, y: aiMove.y, player: Player.White },
@@ -594,7 +695,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                if (stoneAtTarget === opponentPlayerEnum) return;
+                const moveIndexAtTarget = (session.moveHistory || []).findIndex(m => m.x === x && m.y === y);
+                const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
+                    moveIndexAtTarget !== -1 &&
+                    !!session.hiddenMoves?.[moveIndexAtTarget] &&
+                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
+                if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
+                if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
+                    handlers.handleAction({
+                        type: 'PLACE_STONE',
+                        payload: {
+                            gameId,
+                            x,
+                            y,
+                            isHidden: true,
+                            boardState: boardStateToUse,
+                            moveHistory: session.moveHistory || [],
+                        }
+                    } as ServerAction);
+                    if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                    return;
+                }
                 let moveResult;
                 try {
                     moveResult = processMoveClient(
@@ -646,7 +767,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                if (stoneAtTarget === opponentPlayerEnum) return;
+                const moveIndexAtTarget = (session.moveHistory || []).findIndex(m => m.x === x && m.y === y);
+                const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
+                    moveIndexAtTarget !== -1 &&
+                    !!session.hiddenMoves?.[moveIndexAtTarget] &&
+                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
+                if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
+                if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
+                    handlers.handleAction({
+                        type: 'PLACE_STONE',
+                        payload: {
+                            gameId,
+                            x,
+                            y,
+                            isHidden: true,
+                            boardState: boardStateToUse,
+                            moveHistory: session.moveHistory || [],
+                        }
+                    } as ServerAction);
+                    if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                    return;
+                }
                 let moveResult;
                 try {
                     moveResult = processMoveClient(
@@ -717,6 +858,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 // 싱글플레이/도전의 탑에서 AI 돌 위에 착점하는 것 차단
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
+                const moveIndexAtTarget = (session.moveHistory || []).findIndex(m => m.x === x && m.y === y);
+                const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
+                    moveIndexAtTarget !== -1 &&
+                    !!session.hiddenMoves?.[moveIndexAtTarget] &&
+                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
+                if ((isSinglePlayer || isTower) && stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
+                    handlers.handleAction({
+                        type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
+                        payload: {
+                            gameId,
+                            gameType: isTower ? 'tower' : 'singleplayer',
+                            point: { x, y },
+                            player: opponentPlayerEnum,
+                            keepTurn: true
+                        }
+                    } as any);
+                    return;
+                }
                 if ((isSinglePlayer || isTower) && stoneAtTarget === opponentPlayerEnum) {
                     console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - CRITICAL BUG PREVENTION: Attempted to place stone on AI stone at (${x}, ${y})`);
                     // TODO: 에러 메시지를 사용자에게 표시
@@ -1123,7 +1282,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 && !(session as any).aiHiddenItemUsed;
             if (isAiHiddenItemTurn && aiHiddenItemEffectEndTime == null) {
                 aiHiddenMoveExecutedRef.current = false;
-                setAiHiddenItemEffectEndTime(Date.now() + 10000);
+                setAiHiddenItemEffectEndTime(Date.now() + 6000);
                 return;
             }
             if (aiHiddenItemEffectEndTime != null) return;
@@ -1220,9 +1379,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const currentPlayerAtCalculation = currentPlayer;
             const moveHistoryLengthAtCalculation = moveHistoryLength;
             
-            // 보드 상태를 깊은 복사하여 계산 시점의 상태를 보존
+            // 히든 모드에서는 유저의 미공개 히든 돌을 AI에게 빈칸처럼 보이게 처리한다.
             const boardStateToUse = restoredBoardState || session.boardState;
-            const boardStateAtCalculation = JSON.parse(JSON.stringify(boardStateToUse));
+            const boardStateForAi = (session.isSinglePlayer || session.gameCategory === 'tower')
+                ? getMaskedBoardForHiddenAi(session, boardStateToUse)
+                : boardStateToUse;
+            const boardStateAtCalculation = JSON.parse(JSON.stringify(boardStateForAi));
+            const actualBoardStateAtCalculation = JSON.parse(JSON.stringify(boardStateToUse));
             const koInfoAtCalculation = session.koInfo ? JSON.parse(JSON.stringify(session.koInfo)) : null;
             
             const aiMove = calculateSimpleAiMove(
@@ -1266,10 +1429,34 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 y: aiMove.y,
                                 currentPlayer: currentPlayerAtCalculation
                             });
+
+                            const aiTriedUserHiddenStone =
+                                (session.isSinglePlayer || session.gameCategory === 'tower') &&
+                                isUnrevealedUserHiddenStoneAt(session, aiMove.x, aiMove.y);
+                            if (aiTriedUserHiddenStone) {
+                                lastAiMoveRef.current = {
+                                    gameId: currentGameId,
+                                    moveHistoryLength: moveHistoryLengthAtCalculation,
+                                    player: currentPlayerAtCalculation,
+                                    timestamp: Date.now()
+                                };
+                                handlers.handleAction({
+                                    type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
+                                    payload: {
+                                        gameId: currentGameId,
+                                        gameType: session.gameCategory === 'tower' ? 'tower' : 'singleplayer',
+                                        point: { x: aiMove.x, y: aiMove.y },
+                                        player: Player.Black,
+                                        keepTurn: true
+                                    }
+                                } as any);
+                                aiMoveTimeoutRef.current = null;
+                                return;
+                            }
                             
                             // 클라이언트에서 AI move 처리
                             const aiMoveResult = processMoveClient(
-                                boardStateAtCalculation,
+                                actualBoardStateAtCalculation,
                                 { x: aiMove.x, y: aiMove.y, player: currentPlayerAtCalculation },
                                 koInfoAtCalculation,
                                 moveHistoryLengthAtCalculation
@@ -1508,7 +1695,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isMobile={isMobile}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                         showLastMoveMarker={settings.features.lastMoveMarker}
-                                        isSinglePlayerPaused={isPaused || (aiHiddenItemEffectEndTime != null && Date.now() < (aiHiddenItemEffectEndTime ?? 0))}
+                                        isSinglePlayerPaused={isPaused}
                                         showBoardGlow={gameStatus === 'hidden_placing' || (aiHiddenItemEffectEndTime != null && Date.now() < (aiHiddenItemEffectEndTime ?? 0))}
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}

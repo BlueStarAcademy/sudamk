@@ -2513,6 +2513,36 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     // --- API Endpoints ---
     // Health check endpoint는 server 생성 직후에 정의됨 (위 참조)
 
+    // 도전의 탑 랭킹 API (반드시 /api/ranking/:type 보다 먼저 등록해 'tower'가 :type에 잡히지 않도록 함)
+    app.get('/api/ranking/tower', async (req, res) => {
+        try {
+            const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
+            // 1층 이상 클리어한 유저만 랭킹에 표시 (0층만 있으면 표시 안 함)
+            const eligibleUsers = allUsers
+                .filter(user => {
+                    const towerFloor = (user as any).towerFloor ?? 0;
+                    return towerFloor >= 1;
+                })
+                .map(user => ({
+                    id: user.id,
+                    nickname: user.nickname,
+                    avatarId: user.avatarId,
+                    borderId: user.borderId,
+                    towerFloor: (user as any).towerFloor ?? 0,
+                    lastTowerClearTime: (user as any).lastTowerClearTime ?? Infinity
+                }));
+            const sortedUsers = eligibleUsers.sort((a, b) => {
+                if (a.towerFloor !== b.towerFloor) return b.towerFloor - a.towerFloor;
+                return a.lastTowerClearTime - b.lastTowerClearTime;
+            });
+            const rankings = sortedUsers.map((user, index) => ({ ...user, rank: index + 1 }));
+            res.json({ type: 'tower', rankings, total: rankings.length, cached: false });
+        } catch (error: any) {
+            console.error('[API/Ranking/Tower] Error:', error);
+            res.status(200).json({ type: 'tower', rankings: [], total: 0, cached: false, error: 'Failed to fetch tower rankings' });
+        }
+    });
+
     // 랭킹 API 엔드포인트
     app.get('/api/ranking/:type', async (req, res) => {
         try {
@@ -2625,59 +2655,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 total: 0,
                 cached: false,
                 error: error?.message || 'Unknown error'
-            });
-        }
-    });
-
-    // 도전의 탑 랭킹 API (캐시 생략하여 10층+ 클리어 직후 랭킹에 즉시 반영)
-    app.get('/api/ranking/tower', async (req, res) => {
-        try {
-            const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
-            
-            // 10층 돌파(클리어)한 사람만 랭킹에 표시
-            const eligibleUsers = allUsers
-                .filter(user => {
-                    const towerFloor = (user as any).towerFloor ?? 0;
-                    return towerFloor >= 10;
-                })
-                .map(user => ({
-                    id: user.id,
-                    nickname: user.nickname,
-                    avatarId: user.avatarId,
-                    borderId: user.borderId,
-                    towerFloor: (user as any).towerFloor ?? 0,
-                    lastTowerClearTime: (user as any).lastTowerClearTime ?? Infinity
-                }));
-            
-            // 정렬: 층수 높은 순, 같은 층이면 먼저 클리어한 순 (lastTowerClearTime이 작을수록 먼저)
-            const sortedUsers = eligibleUsers.sort((a, b) => {
-                if (a.towerFloor !== b.towerFloor) {
-                    return b.towerFloor - a.towerFloor; // 층수 높은 순
-                }
-                // 같은 층이면 먼저 클리어한 순
-                return a.lastTowerClearTime - b.lastTowerClearTime;
-            });
-            
-            // 랭킹 추가
-            const rankings = sortedUsers.map((user, index) => ({
-                ...user,
-                rank: index + 1
-            }));
-            
-            res.json({
-                type: 'tower',
-                rankings,
-                total: rankings.length,
-                cached: false
-            });
-        } catch (error: any) {
-            console.error('[API/Ranking/Tower] Error:', error);
-            res.status(200).json({
-                type: 'tower',
-                rankings: [],
-                total: 0,
-                cached: false,
-                error: 'Failed to fetch tower rankings'
             });
         }
     });
@@ -3850,6 +3827,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const rejoinableStatuses = [
                 'pending', 'playing', 'scoring', 'ended', 'no_contest',
                 'hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating',
+                'hidden_reveal_animating', 'hidden_final_reveal',
             ];
             if (!rejoinableStatuses.includes(game.gameStatus || '')) {
                 return res.status(400).json({ error: '이어하기할 수 없는 게임 상태입니다.' });

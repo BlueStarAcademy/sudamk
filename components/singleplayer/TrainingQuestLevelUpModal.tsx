@@ -166,30 +166,22 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                 <span className="text-3xl">📜</span>
                             )}
                         </div>
-                        <div className="flex-1">
-                            <h2 className="text-2xl font-bold text-white drop-shadow-[0_4px_15px_rgba(79,70,229,0.5)]">{mission.name}</h2>
-                            <div className="mt-1 flex items-baseline gap-2 relative">
-                                <span
-                                    className={`text-sm font-semibold transition-all duration-300 ${
-                                        isLevelingUp 
-                                            ? 'text-green-400 scale-125 drop-shadow-[0_0_20px_rgba(34,197,94,0.8)]' 
-                                            : showLevelUpEffect
-                                                ? 'text-emerald-300 scale-110'
-                                                : 'text-indigo-100/80'
-                                    }`}
-                                >
-                                    Lv.{displayLevel}
-                                </span>
-                                {showLevelUpEffect && (
-                                    <div className="absolute -top-2 -right-2 text-2xl animate-bounce">✨</div>
-                                )}
-                                {!isLevelingUp && displayLevel < currentLevel + 1 && (
-                                    <span className="text-xs text-indigo-200/60">→ Lv.{currentLevel + 1}</span>
-                                )}
-                                {isLevelingUp && (
-                                    <span className="text-xs text-green-300 animate-pulse">↑</span>
-                                )}
-                            </div>
+                        <div className="flex-1 flex items-center gap-3">
+                            <h2 className="text-xl font-bold text-white drop-shadow-[0_4px_15px_rgba(79,70,229,0.5)]">{mission.name}</h2>
+                            <span
+                                className={`text-2xl font-bold tabular-nums transition-all duration-300 ${
+                                    isLevelingUp
+                                        ? 'text-green-400 scale-110 drop-shadow-[0_0_20px_rgba(34,197,94,0.8)]'
+                                        : showLevelUpEffect
+                                            ? 'text-emerald-300 scale-105'
+                                            : 'text-indigo-100'
+                                }`}
+                            >
+                                Lv.{displayLevel}
+                            </span>
+                            {showLevelUpEffect && (
+                                <span className="text-xl animate-bounce">✨</span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -219,7 +211,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="rounded-xl border border-indigo-400/30 bg-slate-900/60 p-3.5 shadow-[0_20px_40px_-30px_rgba(99,102,241,0.8)]">
-                            <p className="text-[11px] uppercase tracking-[0.25em] text-indigo-200/70 mb-2">현재 레벨</p>
+                            <p className="text-[11px] uppercase tracking-[0.25em] text-indigo-200/70 mb-2">현재 레벨 {currentLevel}</p>
                             {currentLevelInfo ? (
                                 <div className="space-y-2 text-sm">
                                     <div className="flex items-center justify-between">
@@ -250,7 +242,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                         </div>
 
                         <div className="rounded-xl border border-cyan-400/40 bg-slate-900/60 p-3.5 shadow-[0_20px_40px_-30px_rgba(34,211,238,0.8)]">
-                            <p className="text-[11px] uppercase tracking-[0.25em] text-cyan-200/70 mb-2">다음 레벨</p>
+                            <p className="text-[11px] uppercase tracking-[0.25em] text-cyan-200/70 mb-2">다음 레벨 {currentLevel + 1}</p>
                             <div className="space-y-2 text-sm">
                                 <div className="flex items-center justify-between">
                                     <span className="text-slate-300/90 flex items-center gap-1.5">
@@ -337,11 +329,15 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                             )}
                         </Button>
                     </div>
-                    <div className="h-2 w-full bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/60">
-                        <div
-                            className={`h-full bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 transition-[width] duration-100 ease-linear ${isEnhancing ? '' : 'opacity-0'}`}
-                            style={{ width: `${isEnhancing ? enhancementProgress : 0}%` }}
-                        />
+                    <div className="flex items-center gap-2 w-full">
+                        <span className="text-xs font-semibold text-slate-300 tabular-nums flex-shrink-0">Lv.{currentLevel}</span>
+                        <div className="flex-1 h-2 bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/60">
+                            <div
+                                className={`h-full bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 transition-[width] duration-100 ease-linear ${isEnhancing ? '' : 'opacity-0'}`}
+                                style={{ width: `${isEnhancing ? enhancementProgress : 0}%` }}
+                            />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-300 tabular-nums flex-shrink-0">Lv.{currentLevel + 1}</span>
                     </div>
                 </div>
             </div>
