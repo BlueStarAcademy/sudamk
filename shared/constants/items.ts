@@ -144,6 +144,23 @@ export const ENHANCEMENT_FAIL_BONUS_RATES: Record<ItemGrade, number> = {
     mythic: 0.5,
 };
 
+// 등급별 메인 옵션 강화 증가 배수 테이블
+// 인덱스 0~9는 각각 목표 별 수 1~10강에 해당
+export const MAIN_ENHANCEMENT_STEP_MULTIPLIER: Record<ItemGrade, number[]> = {
+    normal:   [1.0, 1.0, 1.0, 0.8, 0.6, 0.6, 0.4, 0.4, 0.3, 0.3],
+    uncommon: [1.0, 1.0, 1.0, 0.9, 0.7, 0.7, 0.5, 0.5, 0.4, 0.4],
+    rare:     [1.0, 1.0, 1.0, 1.0, 0.9, 0.9, 0.6, 0.6, 0.5, 0.5],
+    epic:     [1.0, 1.0, 1.0, 1.1, 1.0, 1.0, 0.8, 0.8, 0.6, 0.6],
+    legendary:[1.1, 1.1, 1.1, 1.2, 1.1, 1.1, 0.9, 0.9, 0.7, 0.7],
+    mythic:   [1.1, 1.1, 1.1, 1.3, 1.2, 1.2, 1.0, 1.0, 0.8, 0.8],
+};
+
+// D.신화(Divine Mythic) 전용 메인 옵션 강화 증가 배수
+// 신화 등급이면서 isDivineMythic === true인 장비에만 적용
+export const DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER: number[] = [
+    1.2, 1.2, 1.2, 1.4, 1.3, 1.3, 1.1, 1.1, 0.9, 0.9,
+];
+
 export const ENHANCEMENT_COSTS: Record<ItemGrade, { amount: number; name: string }[][]> = {
     normal: [
         /* +1 */ [{ amount: 10, name: '하급 강화석' }],

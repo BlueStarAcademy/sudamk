@@ -27,7 +27,9 @@ import {
     BLACKSMITH_MAX_LEVEL,
     BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP,
     BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL,
-    calculateEnhancementGoldCost
+    calculateEnhancementGoldCost,
+    MAIN_ENHANCEMENT_STEP_MULTIPLIER,
+    DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER
 } from '../../constants/index.js';
 import {
     BLACKSMITH_ENHANCEMENT_XP_GAIN,
@@ -1070,15 +1072,13 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 }
                 
                 const main = item.options.main;
-                if(main.baseValue) {
-                    let increaseMultiplier = 1;
-                    if (item.stars === 4) {
-                        increaseMultiplier = 1.3; // 4강화: 1.3배 (반올림)
-                    } else if (item.stars === 7) {
-                        increaseMultiplier = 1.5; // 7강화: 1.5배 (반올림)
-                    } else if (item.stars === 10) {
-                        increaseMultiplier = 2; // 10강화: 2배
-                    }
+                if (main.baseValue) {
+                    const starIndex = Math.max(0, Math.min(9, item.stars - 1));
+                    const isDivineMythic = item.grade === ItemGrade.Mythic && item.isDivineMythic;
+                    const multipliers = isDivineMythic
+                        ? DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER
+                        : MAIN_ENHANCEMENT_STEP_MULTIPLIER[item.grade];
+                    const increaseMultiplier = multipliers?.[starIndex] ?? 1;
                     const increaseAmount = Math.round(main.baseValue * increaseMultiplier);
                     main.value = parseFloat((main.value + increaseAmount).toFixed(2));
                     main.display = `${main.type} +${main.value}${main.isPercentage ? '%' : ''}`;
