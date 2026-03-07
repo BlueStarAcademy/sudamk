@@ -38,7 +38,6 @@
     "check-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/checkAdminGuild.ts",
     "test-db-performance": "npx tsx --tsconfig server/tsconfig.json server/scripts/testDbPerformance.ts",
     "analyze-db-queries": "npx tsx --tsconfig server/tsconfig.json server/scripts/analyzeDbQueries.ts",
-    "recompute-equipment-enhancement": "npx tsx --tsconfig server/tsconfig.json server/scripts/recomputeEquipmentEnhancement.ts",
     "runscripts": "npx tsx --tsconfig server/tsconfig.json runscripts.ts",
     "optimize-images": "node scripts/optimizeImages.js",
     "compress-images": "npx tsx --tsconfig server/tsconfig.json scripts/compress-images.ts",

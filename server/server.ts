@@ -4852,13 +4852,7 @@ process.on('exit', (code) => {
     console.error(`[Server] Exit time: ${new Date().toISOString()}`);
 });
 
-process.on('SIGTERM', () => {
-    console.log('[Server] SIGTERM received. This is normal for Railway deployments.');
-});
-
-process.on('SIGINT', () => {
-    console.log('[Server] SIGINT received. This is normal for Railway deployments.');
-});
+// SIGTERM/SIGINT는 createApp() 내부에서 등록됨 (graceful shutdown). 여기서 중복 등록하면 그쪽이 덮어씌워지므로 핸들러 제거하지 않음.
 
 // beforeExit 핸들러 제거 - 이 핸들러는 프로세스 종료를 방해할 수 있음
 // Railway는 정상적인 종료 시그널(SIGTERM)을 보내므로 beforeExit 핸들러가 필요 없음
