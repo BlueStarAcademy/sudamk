@@ -17,6 +17,8 @@ interface CurlingBoardProps {
     dragStartPoint: Point | null; // Screen coordinates
     dragEndPoint: Point | null; // Screen coordinates
     selectedStone: AlkkagiStone | null;
+    /** true면 발사 위치 주변 취소 영역(붉은색) + 발사취소 박스 표시 */
+    isInCancelZone?: boolean;
     activeCurlingItems: LiveGameSession['activeCurlingItems'];
     currentUser: UserWithStatus;
     session: LiveGameSession; // Added for active items
@@ -26,7 +28,7 @@ interface CurlingBoardProps {
 
 
 const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, ref) => {
-    const { stones, gameStatus, myPlayer, currentPlayer, onLaunchAreaInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, currentUser, session, isRotated = false, myPlayerEnum } = props;
+    const { stones, gameStatus, myPlayer, currentPlayer, onLaunchAreaInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, isInCancelZone = false, currentUser, session, isRotated = false, myPlayerEnum } = props;
     const [localStones, setLocalStones] = useState(stones);
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -283,6 +285,31 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
                         })()}
                     </g>
                 )}
+
+                {/* 발사 취소 영역: 돌과 같은 크기의 붉은 원 + 발사 취소 박스 */}
+                {selectedStone && isInCancelZone && (() => {
+                    const isMyStone = selectedStone.player === myPlayerEnum;
+                    const displayX = selectedStone.x;
+                    const displayY = isMyStone
+                        ? (myPlayerEnum === Player.White ? boardSizePx - selectedStone.y : selectedStone.y)
+                        : (selectedStone.player === Player.White ? selectedStone.y : boardSizePx - selectedStone.y);
+                    return (
+                        <g style={{ pointerEvents: 'none' }}>
+                            <circle
+                                cx={displayX}
+                                cy={displayY}
+                                r={selectedStone.radius}
+                                fill="rgba(239, 68, 68, 0.28)"
+                                stroke="rgba(220, 38, 38, 0.95)"
+                                strokeWidth="4"
+                            />
+                            <g transform={`translate(${displayX}, ${displayY - selectedStone.radius - 28})`}>
+                                <rect x="-42" y="-12" width="84" height="24" rx="6" fill="rgba(0,0,0,0.88)" stroke="rgba(239, 68, 68, 0.95)" strokeWidth="2.5" />
+                                <text y="4" textAnchor="middle" fill="#fecaca" fontSize="12" fontWeight="bold">발사 취소</text>
+                            </g>
+                        </g>
+                    );
+                })()}
             </svg>
         </div>
     );

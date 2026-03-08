@@ -196,9 +196,29 @@ const reconnectPrisma = async (): Promise<boolean> => {
     }
     
     await prisma.$connect();
-    console.log('[Prisma] Reconnected successfully');
-    consecutiveConnectionFailures = 0;
-    return true;
+    // 엔진/네트워크가 안정될 때까지 충분히 대기 후 프로브 (Railway 등에서 지연 발생)
+    await new Promise((r) => setTimeout(r, 1000));
+    const probeTimeout = 5000;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      try {
+        await Promise.race([
+          prisma.$queryRaw`SELECT 1`,
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), probeTimeout)),
+        ]);
+        // gameService 쪽 캐시 무효화 (재연결 후 ensurePrismaEngineReady가 다시 probe 하도록)
+        const g = globalThis as any;
+        if (g.__prismaEngineReadyState && typeof g.__prismaEngineReadyState === 'object') {
+          g.__prismaEngineReadyState.readyAt = 0;
+        }
+        console.log('[Prisma] Reconnected successfully');
+        consecutiveConnectionFailures = 0;
+        return true;
+      } catch (_) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
+    }
+    console.warn('[Prisma] Reconnect: $connect ok but probe failed (DB may be sleeping or unreachable)');
+    return false;
   } catch (error: any) {
     consecutiveConnectionFailures++;
     console.error(`[Prisma] Reconnection failed (attempt ${consecutiveConnectionFailures}/${MAX_CONSECUTIVE_FAILURES}):`, error?.message || error);
@@ -215,9 +235,12 @@ const reconnectPrisma = async (): Promise<boolean> => {
   }
 };
 
+/** MainLoop 등에서 연결 실패 시 수동 재연결 트리거 (재시도 간격 내 한 번만 유의미) */
+export const tryReconnect = (): Promise<boolean> => reconnectPrisma();
+
 /**
  * Prisma 엔진이 쿼리를 받을 수 있는지 확인.
- * 실패 시 연결 관련 오류면 $connect() 후 한 번 재시도 (재연결 직후 MainLoop가 "engine not ready"로 무한 스킵하는 버그 방지).
+ * 실패 시 $connect() 후 대기·프로브 재시도 (재연결 직후 MainLoop가 "engine not ready"로 무한 스킵하는 버그 방지).
  */
 export const ensurePrismaConnected = async (): Promise<boolean> => {
   const probe = async (): Promise<boolean> => {
@@ -236,8 +259,13 @@ export const ensurePrismaConnected = async (): Promise<boolean> => {
 
   try {
     await prisma.$connect();
-    await new Promise((r) => setTimeout(r, 200));
-    return await probe();
+    await new Promise((r) => setTimeout(r, 800));
+    for (let attempt = 0; attempt < 8; attempt++) {
+      if (await probe()) return true;
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+    // 마지막 시도: 완전 재연결 (disconnect + connect + 긴 프로브)
+    return await tryReconnect();
   } catch (_) {
     return false;
   }

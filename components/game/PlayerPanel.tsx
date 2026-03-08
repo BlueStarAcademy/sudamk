@@ -461,7 +461,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             };
         }
         
-        // 자동계가: 자동계가까지 남은 턴 (유효 수만 카운트, 서버와 동일: x/y !== -1)
+        // 자동계가: 카운트다운 형태(남은 턴). 0이 되면 자동계가 진행 (유효 수만 카운트, 서버와 동일: x/y !== -1)
         // totalTurns가 0이거나 없으면 moveHistory 기준으로 계산 (한 수 둔 뒤 턴이 Max로 돌아가는 버그 방지)
         if (stage.autoScoringTurns) {
             const validMovesCount = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
@@ -471,7 +471,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
             return {
                 type: 'auto_scoring' as const,
-                label: '자동계가까지',
+                label: '남은 턴',
                 remaining: remainingTurns,
                 total: stage.autoScoringTurns
             };

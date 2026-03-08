@@ -238,7 +238,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                             </div>
                         )}
 
-                        {/* 자동 계가 */}
+                        {/* 자동 계가: 남은 턴 카운트다운, 0이 되면 계가 */}
                         {stage.autoScoringTurns && stage.autoScoringTurns > 0 && (
                             <div>
                                 <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
@@ -247,7 +247,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                 </h3>
                                 <div className="bg-gray-700/50 rounded-lg p-3">
                                     <p className="text-gray-200">
-                                        <span className="text-blue-400 font-bold">{stage.autoScoringTurns}턴</span> 후 자동으로 계가가 진행됩니다.
+                                        <span className="text-blue-400 font-bold">남은 턴</span>이 0이 되면 자동으로 계가가 진행됩니다. (최대 {stage.autoScoringTurns}수)
                                     </p>
                                 </div>
                             </div>

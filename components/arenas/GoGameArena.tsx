@@ -36,7 +36,17 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         pendingMove,
     } = props;
     
-    const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode } = session;
+    const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
+
+    const displayLastMove = useMemo(() => {
+        if (!hiddenMoves || typeof hiddenMoves !== 'object' || !moveHistory?.length) return lastMove;
+        for (let i = moveHistory.length - 1; i >= 0; i--) {
+            const m = moveHistory[i];
+            if (m.x === -1 && m.y === -1) continue;
+            if (!hiddenMoves[i]) return { x: m.x, y: m.y };
+        }
+        return lastMove;
+    }, [lastMove, moveHistory, hiddenMoves]);
 
     const players = [player1, player2];
     const blackPlayer = players.find(p => p.id === blackPlayerId) || null;
@@ -120,7 +130,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 }}
                 onAction={onAction}
                 gameId={session.id}
-                lastMove={lastMove}
+                lastMove={displayLastMove}
                 lastTurnStones={session.lastTurnStones}
                 isBoardDisabled={props.isSpectator || (!isMyTurn && gameStatus !== 'base_placement')}
                 stoneColor={myPlayerEnum}

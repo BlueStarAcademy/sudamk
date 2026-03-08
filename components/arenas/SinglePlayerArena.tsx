@@ -81,6 +81,17 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         return points;
     }, [moveHistory, revealedHiddenMoves, currentUser?.id, session]);
 
+    // 히든 모드: 마지막 수 표시를 '마지막 비히든 수'로 (새로고침 후 마지막 수가 히든 돌 위치로 겹치는 버그 방지)
+    const displayLastMove = useMemo(() => {
+        if (!hiddenMoves || typeof hiddenMoves !== 'object' || !moveHistory?.length) return lastMove;
+        for (let i = moveHistory.length - 1; i >= 0; i--) {
+            const m = moveHistory[i];
+            if (m.x === -1 && m.y === -1) continue;
+            if (!hiddenMoves[i]) return { x: m.x, y: m.y };
+        }
+        return lastMove;
+    }, [lastMove, moveHistory, hiddenMoves]);
+
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player2 : player1;
 
@@ -111,7 +122,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                             } 
                         });
                     }}
-                    lastMove={lastMove}
+                    lastMove={displayLastMove}
                     lastTurnStones={lastTurnStones}
                     isBoardDisabled={!isMyTurn || isSpectator || isPaused || isBoardLocked}
                     stoneColor={myPlayerEnum}

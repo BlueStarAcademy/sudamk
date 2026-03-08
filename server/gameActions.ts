@@ -265,6 +265,25 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 if (!game) game = await db.getLiveGame(gameId);
                 if (!game) return { error: 'Game not found.' };
                 if (game.gameCategory !== 'tower') return { error: 'Not a tower game.' };
+                const towerFloor = (game as any).towerFloor ?? 0;
+                if (towerFloor < 21) return { error: '1~20층에서는 미사일/히든/스캔 아이템을 사용할 수 없습니다. 21층 이상에서 사용 가능합니다.' };
+                // 21층+: DB/캐시에서 불러온 게임에 아이템 수가 없으면 인벤토리 기준으로 복원
+                const s = (game.settings || {}) as any;
+                if ((game as any).missiles_p1 == null) {
+                    const inv = userData.inventory || [];
+                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
+                    (game as any).missiles_p1 = Math.min(s.missileCount ?? 2, countItems(['미사일', 'missile']));
+                }
+                if ((game as any).hidden_stones_p1 == null) {
+                    const inv = userData.inventory || [];
+                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
+                    (game as any).hidden_stones_p1 = Math.min(s.hiddenStoneCount ?? 2, countItems(['히든', 'hidden']));
+                }
+                if ((game as any).scans_p1 == null) {
+                    const inv = userData.inventory || [];
+                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
+                    (game as any).scans_p1 = Math.min(s.scanCount ?? 2, countItems(['스캔', 'scan']));
+                }
                 if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
                     const { handleStrategicGameAction } = await import('./modes/strategic.js');
                     const result = await handleStrategicGameAction(volatileState, game, action, userData);
@@ -328,6 +347,28 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (!game) {
                 console.error(`[handleAction] Game not found: gameId=${gameId}, type=${type}`);
                 return { error: 'Game not found.' };
+            }
+            // 도전의 탑 1~20층: 미사일/히든/스캔 사용 불가
+            if (game.gameCategory === 'tower') {
+                const towerFloor = (game as any).towerFloor ?? 0;
+                if (towerFloor < 21) return { error: '1~20층에서는 미사일/히든/스캔 아이템을 사용할 수 없습니다. 21층 이상에서 사용 가능합니다.' };
+                // 21층+: DB/캐시에서 불러온 게임에 아이템 수가 없으면 인벤토리 기준으로 복원
+                const s = (game.settings || {}) as any;
+                if ((game as any).hidden_stones_p1 == null) {
+                    const inv = userData.inventory || [];
+                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
+                    (game as any).hidden_stones_p1 = Math.min(s.hiddenStoneCount ?? 2, countItems(['히든', 'hidden']));
+                }
+                if ((game as any).scans_p1 == null) {
+                    const inv = userData.inventory || [];
+                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
+                    (game as any).scans_p1 = Math.min(s.scanCount ?? 2, countItems(['스캔', 'scan']));
+                }
+                if ((game as any).missiles_p1 == null) {
+                    const inv = userData.inventory || [];
+                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
+                    (game as any).missiles_p1 = Math.min(s.missileCount ?? 2, countItems(['미사일', 'missile']));
+                }
             }
             if (game.isSinglePlayer) {
                 // PLACE_STONE은 히든 아이템 사용 시 서버에서 처리해야 함

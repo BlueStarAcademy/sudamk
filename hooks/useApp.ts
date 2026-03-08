@@ -1035,6 +1035,17 @@ export const useApp = () => {
             return;
         }
 
+        if ((action as any).type === 'LOCAL_HIDDEN_FINAL_REVEAL_COMPLETE') {
+            const { gameId, gameType } = (action as any).payload as { gameId: string; gameType: 'tower' | 'singleplayer' };
+            const updateGameState = gameType === 'tower' ? setTowerGames : setSinglePlayerGames;
+            updateGameState(prev => {
+                const g = prev[gameId];
+                if (!g || g.gameStatus !== 'hidden_final_reveal') return prev;
+                return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const, animation: null, revealAnimationEndTime: undefined } };
+            });
+            return;
+        }
+
         if ((action as any).type === 'LOCAL_HIDDEN_REVEAL_COMPLETE') {
             const { gameId, gameType } = (action as any).payload as {
                 gameId: string;
@@ -1300,31 +1311,37 @@ export const useApp = () => {
                 const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating', 'hidden_reveal_animating'].includes(updateResult.updatedGame.gameStatus);
                 
                 if (!isItemMode) {
-                    const autoScoringTurns = gameType === 'singleplayer' && game.stageId
-                        ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === game.stageId)?.autoScoringTurns
-                        : (updateResult.updatedGame.settings as any)?.autoScoringTurns;
-                    
-                    if (autoScoringTurns !== undefined || (gameType === 'singleplayer' && game.stageId)) {
-                    // totalTurns가 없으면 moveHistory에서 계산
-                    let totalTurns = updateResult.updatedGame.totalTurns;
-                    if (totalTurns === undefined || totalTurns === null) {
-                        const validMoves = (updateResult.updatedGame.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1);
-                        totalTurns = validMoves.length;
+                    let autoScoringTurns: number | undefined =
+                        gameType === 'singleplayer' && game.stageId
+                            ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === game.stageId)?.autoScoringTurns
+                            : (updateResult.updatedGame.settings as any)?.autoScoringTurns;
+                    if (gameType === 'tower' && (autoScoringTurns === undefined || autoScoringTurns === null) && (game.stageId || game.towerFloor != null)) {
+                        const stage = game.stageId
+                            ? TOWER_STAGES.find((s: any) => s.id === game.stageId)
+                            : (game.towerFloor != null && Number(game.towerFloor) >= 1 ? TOWER_STAGES[Number(game.towerFloor) - 1] : undefined);
+                        autoScoringTurns = stage?.autoScoringTurns;
                     }
+                    if (autoScoringTurns !== undefined || (gameType === 'singleplayer' && game.stageId)) {
+                    // totalTurns는 항상 유효 수 개수로 확정 (0/N 표시와 트리거 일치)
+                    const validMoves = (updateResult.updatedGame.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1);
+                    const totalTurns = Math.max(
+                        updateResult.updatedGame.totalTurns ?? 0,
+                        validMoves.length
+                    );
+                    updateResult.updatedGame.totalTurns = totalTurns;
                     
-                        if (totalTurns !== undefined && totalTurns !== null && autoScoringTurns) {
+                        if (totalTurns > 0 && autoScoringTurns != null && autoScoringTurns > 0) {
                             try {
                                 const nextPlayerEnum = updateResult.updatedGame.currentPlayer;
-                                // "AI 턴인지"는 "다음 차례" 기준으로 판단해야 함 (이 시점의 currentPlayer는 방금 착수 후 토글된 값)
                                 const isNextTurnAi = gameType === 'singleplayer' &&
                                     ((nextPlayerEnum === Player.White && updateResult.updatedGame.whitePlayerId === aiUserId) ||
                                      (nextPlayerEnum === Player.Black && updateResult.updatedGame.blackPlayerId === aiUserId));
-
-                                if (totalTurns >= autoScoringTurns) {
-                                    // totalTurns를 업데이트
+                                const remainingTurns = Math.max(0, autoScoringTurns - totalTurns);
+                                // 자동계가: 남은 턴이 0 이하(0/N 도달)이면 반드시 계가 트리거
+                                if (remainingTurns <= 0) {
                                     updateResult.updatedGame.totalTurns = totalTurns;
-
-                                    if (updateResult.updatedGame.gameStatus === 'playing') {
+                                    const status = updateResult.updatedGame.gameStatus;
+                                    if (status === 'playing' || status === 'hidden_placing') {
                                         // 다음 차례가 AI면, AI가 실제 착수한 뒤 서버가 계가를 트리거함 → 계가 직전에 유저 소요시간만 서버에 한 번 전달
                                         if (isNextTurnAi) {
                                             console.log(
@@ -1342,6 +1359,7 @@ export const useApp = () => {
                                                     blackTimeLeft: g.blackTimeLeft,
                                                     whiteTimeLeft: g.whiteTimeLeft,
                                                     captures: g.captures,
+                                                    hiddenMoves: g.hiddenMoves ?? undefined,
                                                 }
                                             } as ServerAction);
                                         } else {
@@ -1363,6 +1381,8 @@ export const useApp = () => {
                                             const preservedBlackTimeLeft = updateResult.updatedGame.blackTimeLeft ?? game.blackTimeLeft;
                                             const preservedWhiteTimeLeft = updateResult.updatedGame.whiteTimeLeft ?? game.whiteTimeLeft;
                                             const preservedCaptures = updateResult.updatedGame.captures ?? game.captures;
+                                            const preservedHiddenMoves = updateResult.updatedGame.hiddenMoves ?? game.hiddenMoves;
+                                            const preservedPermanentlyRevealedStones = updateResult.updatedGame.permanentlyRevealedStones ?? game.permanentlyRevealedStones;
 
                                             autoScoringPreservedState = {
                                                 boardState: preservedBoardState,
@@ -1371,6 +1391,8 @@ export const useApp = () => {
                                                 blackTimeLeft: preservedBlackTimeLeft,
                                                 whiteTimeLeft: preservedWhiteTimeLeft,
                                                 captures: preservedCaptures,
+                                                hiddenMoves: preservedHiddenMoves,
+                                                permanentlyRevealedStones: preservedPermanentlyRevealedStones,
                                             };
 
                                             // 즉시 상태에는 보드/히스토리만 확정 반영하고, gameStatus는 playing 유지
@@ -1392,7 +1414,7 @@ export const useApp = () => {
                 
                 // 자동 계가 트리거가 필요한 경우 서버에 요청 (비동기로 처리)
                 if (shouldTriggerAutoScoring && autoScoringPreservedState) {
-                    let { totalTurns, moveHistory, boardState, blackTimeLeft, whiteTimeLeft, captures } = autoScoringPreservedState;
+                    let { totalTurns, moveHistory, boardState, blackTimeLeft, whiteTimeLeft, captures, hiddenMoves, permanentlyRevealedStones } = autoScoringPreservedState;
                     const boardSize = game.settings?.boardSize || 9;
                     // IMPORTANT: 포획이 있는 판에서 moveHistory로 보드를 "단순 복원"하면 잡힌 돌이 다시 살아나는 버그가 발생할 수 있음.
                     // 자동계가에는 항상 현재 보드(boardState)를 우선 전달한다.
@@ -1423,6 +1445,8 @@ export const useApp = () => {
                             blackTimeLeft: blackTimeLeft,
                             whiteTimeLeft: whiteTimeLeft,
                             captures: captures,
+                            hiddenMoves: hiddenMoves ?? undefined,
+                            permanentlyRevealedStones: Array.isArray(permanentlyRevealedStones) ? permanentlyRevealedStones : undefined,
                             triggerAutoScoring: true
                         }
                     } as any;
@@ -3609,6 +3633,34 @@ export const useApp = () => {
                                                         ? game.whiteTimeLeft 
                                                         : (existingGame?.whiteTimeLeft !== undefined && existingGame?.whiteTimeLeft !== null ? existingGame.whiteTimeLeft : game.whiteTimeLeft),
                                                 };
+                                            } else if (game.gameStatus === 'hidden_final_reveal' && game.isSinglePlayer && existingGame) {
+                                                // 싱글플레이: 서버는 boardState를 보내지 않으므로 기존 보드/수순/공개목록 반드시 보존 (투명해짐·색상 뒤바뀜·계가 안 됨 방지)
+                                                const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0;
+                                                const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
+                                                const boardState = serverBoardValid ? game.boardState : (existingGame.boardState ?? game.boardState);
+                                                const moveHistory = serverMoveHistoryValid ? game.moveHistory : (existingGame.moveHistory ?? game.moveHistory);
+                                                // 기존에 공개된 돌(내 히든 등) + 서버가 이번에 공개한 돌 합침 (서버만 쓰면 이전 공개가 사라져 투명해짐)
+                                                const existingRevealed = existingGame.permanentlyRevealedStones ?? [];
+                                                const serverRevealed = game.permanentlyRevealedStones ?? [];
+                                                const mergedRevealed = [...existingRevealed];
+                                                for (const p of serverRevealed) {
+                                                    if (!mergedRevealed.some((r: Point) => r.x === p.x && r.y === p.y))
+                                                        mergedRevealed.push(p);
+                                                }
+                                                const hiddenMoves = (existingGame.moveHistory?.length === game.moveHistory?.length && existingGame.hiddenMoves)
+                                                    ? existingGame.hiddenMoves
+                                                    : (game.hiddenMoves ?? existingGame.hiddenMoves ?? {});
+                                                updatedGames[gameId] = {
+                                                    ...game,
+                                                    boardState,
+                                                    moveHistory,
+                                                    hiddenMoves,
+                                                    permanentlyRevealedStones: mergedRevealed,
+                                                    animation: game.animation ?? existingGame.animation,
+                                                    revealAnimationEndTime: game.revealAnimationEndTime ?? existingGame.revealAnimationEndTime,
+                                                    totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
+                                                    captures: preservedCaptures ?? game.captures ?? existingGame.captures,
+                                                };
                                             } else if (game.gameStatus === 'playing' && (game.stageId || (game.settings as any)?.autoScoringTurns)) {
                                                 // GAME_UPDATE를 받았을 때 자동계가 체크 (AI 수를 둔 경우 등)
                                                 try {
@@ -3616,21 +3668,14 @@ export const useApp = () => {
                                                         ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === game.stageId)?.autoScoringTurns
                                                         : (game.settings as any)?.autoScoringTurns;
                                                     
-                                                    if (autoScoringTurns) {
-                                                        // totalTurns가 없으면 moveHistory에서 계산 (항상 최신 상태로 업데이트)
+                                                    if (autoScoringTurns != null && autoScoringTurns > 0) {
+                                                        // totalTurns는 항상 유효 수 개수로 확정 (0/N 표시와 트리거 일치)
                                                         const validMoves = (game.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1);
-                                                        let totalTurns = game.totalTurns;
-                                                        if (totalTurns === undefined || totalTurns === null || totalTurns < validMoves.length) {
-                                                            // totalTurns가 없거나 moveHistory보다 작으면 moveHistory에서 계산
-                                                            totalTurns = validMoves.length;
-                                                        }
-                                                        
-                                                        // totalTurns를 게임 상태에 반영
-                                                        if (totalTurns !== undefined && totalTurns !== null) {
-                                                            game.totalTurns = totalTurns;
-                                                        }
-                                                        
-                                                        if (totalTurns !== undefined && totalTurns >= autoScoringTurns) {
+                                                        const totalTurns = Math.max(game.totalTurns ?? 0, validMoves.length);
+                                                        game.totalTurns = totalTurns;
+                                                        const remainingTurns = Math.max(0, autoScoringTurns - totalTurns);
+                                                        // 자동계가: 남은 턴이 0 이하(0/N 도달)이면 반드시 계가 트리거
+                                                        if (remainingTurns <= 0 && totalTurns > 0) {
                                                             // 마지막 수가 AI 차례라면 AI가 실제로 착수한 뒤 계가를 진행해야 함.
                                                             // (클라이언트 AI 착수는 `Game.tsx`에서 처리되므로 여기서는 트리거하지 않고 대기)
                                                             const isAiTurnForSinglePlayer =
@@ -3659,6 +3704,7 @@ export const useApp = () => {
                                                                 const preservedCaptures = (game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0)
                                                                     ? game.captures
                                                                     : (existingGame?.captures && typeof existingGame.captures === 'object' ? existingGame.captures : game.captures);
+                                                                const preservedHiddenMovesWs = existingGame?.hiddenMoves ?? game.hiddenMoves;
                                                                 const autoScoringAction = {
                                                                     type: 'PLACE_STONE',
                                                                     payload: {
@@ -3671,6 +3717,7 @@ export const useApp = () => {
                                                                         blackTimeLeft: preservedBlackTimeLeft,
                                                                         whiteTimeLeft: preservedWhiteTimeLeft,
                                                                         captures: preservedCaptures,
+                                                                        hiddenMoves: preservedHiddenMovesWs ?? undefined,
                                                                         triggerAutoScoring: true
                                                                     }
                                                                 } as any;

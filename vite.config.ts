@@ -45,7 +45,10 @@ const filterProxyErrorsPlugin = (): Plugin => {
         if (typeof msg === 'string' && (
           msg.includes('ws proxy error') ||
           msg.includes('ws proxy socket error') ||
+          msg.includes('WebSocket proxy error') ||
           (msg.includes('ECONNREFUSED') && msg.includes('proxy')) ||
+          msg.includes('ETIMEDOUT') ||
+          msg.includes('AggregateError') ||
           msg.includes('write ECONNABORTED') ||
           msg.includes('ECONNABORTED')
         )) {
@@ -100,15 +103,15 @@ export default defineConfig({
         secure: false,
         configure: (proxy, _options) => {
           proxy.on('error', (err: any, _req, _res) => {
-            // 서버가 아직 시작되지 않았을 때 발생하는 ECONNREFUSED 에러는 조용히 무시
-            if (err.code === 'ECONNREFUSED' || err.code === 'ECONNABORTED') {
-              // 개발 환경에서만 조용히 무시
-              return;
-            }
-            // 실제 프록시 오류만 로그 (일반적인 연결 거부는 제외)
-            if (!err.message?.includes('ECONNREFUSED')) {
-              console.error('[Vite Proxy] API proxy error:', err);
-            }
+            const isStartupRace =
+              err.code === 'ECONNREFUSED' ||
+              err.code === 'ECONNABORTED' ||
+              err.code === 'ETIMEDOUT' ||
+              (err.name === 'AggregateError' &&
+                Array.isArray(err.errors) &&
+                err.errors.every((e: any) => e?.code === 'ECONNREFUSED' || e?.code === 'ETIMEDOUT'));
+            if (isStartupRace) return;
+            console.error('[Vite Proxy] API proxy error:', err);
           });
         },
       },
@@ -119,15 +122,17 @@ export default defineConfig({
         secure: false,
         configure: (proxy, _options) => {
           proxy.on('error', (err: any, _req, _res) => {
-            // 서버가 아직 시작되지 않았을 때 발생하는 ECONNREFUSED 에러는 조용히 무시
-            if (err.code === 'ECONNREFUSED' || err.code === 'ECONNABORTED') {
-              // 개발 환경에서만 조용히 무시
-              return;
-            }
-            // 실제 프록시 오류만 로그 (일반적인 연결 거부는 제외)
-            if (!err.message?.includes('ECONNREFUSED')) {
-              console.error('[Vite Proxy] WebSocket proxy error:', err);
-            }
+            // 서버가 아직 시작되지 않았을 때 발생하는 연결 실패는 조용히 무시 (시작 순서 경쟁)
+            const isStartupRace =
+              err.code === 'ECONNREFUSED' ||
+              err.code === 'ECONNABORTED' ||
+              err.code === 'ETIMEDOUT' ||
+              (err.name === 'AggregateError' &&
+                Array.isArray(err.errors) &&
+                err.errors.every((e: any) => e?.code === 'ECONNREFUSED' || e?.code === 'ETIMEDOUT'));
+            if (isStartupRace) return;
+            // 실제 프록시 오류만 로그
+            console.error('[Vite Proxy] WebSocket proxy error:', err);
           });
           proxy.on('proxyReqWs', (proxyReq, req, socket) => {
             // WebSocket 연결 시도 시 재연결 로직

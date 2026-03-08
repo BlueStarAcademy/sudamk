@@ -172,7 +172,6 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.boardState = payload.boardState;
                 }
                 if (payload.captures && typeof payload.captures === 'object') {
-                    // 싱글플레이는 클라이언트에서 포획 수를 계산하므로, 자동계가 시점에 동기화가 필요
                     game.captures = { ...(game.captures || {}), ...payload.captures };
                 }
                 if (payload.blackTimeLeft !== undefined) {
@@ -181,28 +180,49 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (payload.whiteTimeLeft !== undefined) {
                     game.whiteTimeLeft = payload.whiteTimeLeft;
                 }
+                if (payload.hiddenMoves != null && typeof payload.hiddenMoves === 'object') {
+                    game.hiddenMoves = { ...payload.hiddenMoves };
+                }
+                if (payload.permanentlyRevealedStones != null && Array.isArray(payload.permanentlyRevealedStones)) {
+                    game.permanentlyRevealedStones = payload.permanentlyRevealedStones.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y }));
+                }
                 
-                console.log(`[handleStrategicGameAction] Game state updated: totalTurns=${game.totalTurns}, moveHistoryLength=${game.moveHistory?.length || 0}, boardStateSize=${game.boardState?.length || 0}`);
+                // 0/N 도달 검증: 서버에서 유효 수 기준으로 totalTurns 재계산 후 계가 조건 확인
+                const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x !== -1 && m.y !== -1);
+                const totalTurns = validMoves.length;
+                game.totalTurns = totalTurns;
+                let autoScoringTurns: number | undefined;
+                if (game.gameCategory === 'tower') {
+                    autoScoringTurns = (game.settings as any)?.autoScoringTurns;
+                } else if (game.isSinglePlayer && game.stageId) {
+                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
+                    autoScoringTurns = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns;
+                } else {
+                    autoScoringTurns = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
+                }
+                const remainingTurns = autoScoringTurns != null ? Math.max(0, autoScoringTurns - totalTurns) : 0;
                 
-                // 계가 진입 시점에 종료 시각 고정 (타이머 정지, 총 걸린 시간에 계가 연출 제외)
-                if (game.endTime == null) game.endTime = Date.now();
-                // 게임 상태를 scoring으로 변경하고 계가 처리
-                game.gameStatus = 'scoring';
-                await db.saveGame(game);
-                console.log(`[handleStrategicGameAction] Game ${game.id} set to scoring state, calling getGameResult...`);
+                console.log(`[handleStrategicGameAction] Game state updated: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}, remainingTurns=${remainingTurns}, moveHistoryLength=${game.moveHistory?.length || 0}`);
                 
-                // 계가 시작 (getGameResult가 KataGo 분석을 시작하고 게임을 종료함)
-                try {
-                    await getGameResult(game);
-                    console.log(`[handleStrategicGameAction] getGameResult completed for game ${game.id}`);
-                } catch (error) {
-                    console.error(`[handleStrategicGameAction] Error in getGameResult for game ${game.id}:`, error);
-                    throw error;
+                if (autoScoringTurns != null && remainingTurns <= 0) {
+                    if (game.endTime == null) game.endTime = Date.now();
+                    game.gameStatus = 'scoring';
+                    await db.saveGame(game);
+                    console.log(`[handleStrategicGameAction] Game ${game.id} set to scoring state (0/N reached), calling getGameResult...`);
+                    try {
+                        await getGameResult(game);
+                        console.log(`[handleStrategicGameAction] getGameResult completed for game ${game.id}`);
+                    } catch (error) {
+                        console.error(`[handleStrategicGameAction] Error in getGameResult for game ${game.id}:`, error);
+                        throw error;
+                    }
+                } else if (autoScoringTurns != null) {
+                    console.warn(`[handleStrategicGameAction] triggerAutoScoring ignored: remainingTurns=${remainingTurns} > 0 (totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns})`);
                 }
                 return {};
             }
 
-            // 다음 턴이 AI인 경우: 클라이언트가 계가 직전 유저 소요시간만 동기화 (계가 시 서버가 시간 보너스 계산용으로 사용)
+            // 다음 턴이 AI인 경우: 클라이언트가 계가 직전 유저 소요시간만 동기화 → 동기화 후 남은 턴 0이면 즉시 계가
             if (payload.syncTimeAndStateForScoring && (game.isSinglePlayer || game.gameCategory === 'tower')) {
                 if (payload.moveHistory && Array.isArray(payload.moveHistory)) game.moveHistory = payload.moveHistory;
                 if (payload.boardState && Array.isArray(payload.boardState)) game.boardState = payload.boardState;
@@ -210,6 +230,36 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (payload.blackTimeLeft !== undefined) game.blackTimeLeft = payload.blackTimeLeft;
                 if (payload.whiteTimeLeft !== undefined) game.whiteTimeLeft = payload.whiteTimeLeft;
                 if (payload.captures && typeof payload.captures === 'object') game.captures = { ...(game.captures || {}), ...payload.captures };
+                if (payload.hiddenMoves != null && typeof payload.hiddenMoves === 'object') game.hiddenMoves = { ...payload.hiddenMoves };
+                const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x !== -1 && m.y !== -1);
+                const totalTurns = validMoves.length;
+                game.totalTurns = totalTurns;
+                let autoScoringTurnsSync: number | undefined;
+                if (game.gameCategory === 'tower') {
+                    autoScoringTurnsSync = (game.settings as any)?.autoScoringTurns;
+                } else if (game.isSinglePlayer && game.stageId) {
+                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
+                    autoScoringTurnsSync = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns;
+                } else {
+                    autoScoringTurnsSync = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
+                }
+                const remainingTurnsSync = autoScoringTurnsSync != null ? Math.max(0, autoScoringTurnsSync - totalTurns) : 0;
+                if (autoScoringTurnsSync != null && remainingTurnsSync <= 0) {
+                    if (game.endTime == null) game.endTime = Date.now();
+                    game.gameStatus = 'scoring';
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('../socket.js');
+                    const gameToBroadcast = { ...game };
+                    delete (gameToBroadcast as any).boardState;
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                    try {
+                        await getGameResult(game);
+                    } catch (error) {
+                        console.error(`[handleStrategicGameAction] getGameResult after syncTimeAndStateForScoring failed for game ${game.id}:`, error);
+                        throw error;
+                    }
+                    return {};
+                }
                 await db.saveGame(game);
                 return {};
             }
@@ -603,7 +653,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
 
             game.boardState = result.newBoardState;
-            game.lastMove = { x, y };
+            if (!isHidden) game.lastMove = { x, y };
             game.lastTurnStones = null;
             game.moveHistory.push(move);
             game.koInfo = result.newKoInfo;
@@ -612,7 +662,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             if (isHidden) {
                 if (!game.hiddenMoves) game.hiddenMoves = {};
                 game.hiddenMoves[game.moveHistory.length - 1] = true;
-                console.log(`[handleStandardAction] Hidden stone placed at (${x}, ${y}), moveIndex=${game.moveHistory.length - 1}, gameId=${game.id}`);
+                console.log(`[handleStrategicAction] Hidden stone placed at (${x}, ${y}), moveIndex=${game.moveHistory.length - 1}, gameId=${game.id}`);
             }
 
             if (result.capturedStones.length > 0) {

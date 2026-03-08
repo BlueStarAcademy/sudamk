@@ -904,7 +904,7 @@ const TowerLobby: React.FC = () => {
                                 if (stage.blackTurnLimit) {
                                     return `흑 ${stage.targetScore?.black ?? 0}개 따내기 (${stage.blackTurnLimit}턴 제한)`;
                                 } else if (stage.autoScoringTurns) {
-                                    return `자동계가 (${stage.autoScoringTurns}턴)`;
+                                    return `자동계가 (최대 ${stage.autoScoringTurns}수, 남은 턴 0이 되면)`;
                                 }
                                 return '승리';
                             };

@@ -19,6 +19,8 @@ interface AlkkagiBoardProps {
     dragStartPoint: Point | null; // Screen coordinates
     dragEndPoint: Point | null; // Screen coordinates
     selectedStone: AlkkagiStone | null;
+    /** true면 돌 주변 취소 영역(붉은색) + 돌 근처 발사취소 박스 표시 */
+    isInCancelZone?: boolean;
     myStonesCount: number;
     maxStones: number;
     session: LiveGameSession;
@@ -27,7 +29,7 @@ interface AlkkagiBoardProps {
 }
 
 const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, ref): ReactNode => {
-    const { stones, gameStatus, myPlayer, isMyTurn, settings, onPlacementClick, onStoneInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, myStonesCount, maxStones, session, currentUser, isRotated = false } = props;
+    const { stones, gameStatus, myPlayer, isMyTurn, settings, onPlacementClick, onStoneInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, isInCancelZone = false, myStonesCount, maxStones, session, currentUser, isRotated = false } = props;
     const [localStones, setLocalStones] = useState(stones);
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
@@ -297,6 +299,24 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
                      <g style={{ pointerEvents: 'none' }}>
                         {/* 돌·보드는 서버 좌표로 그려지고, 백일 때는 부모 div가 rotate-180 적용. 화살표도 같은 서버 좌표로 그려야 돌 위에 맞고 방향이 맞음 */}
                         <line x1={dragLine.start.x} y1={dragLine.start.y} x2={dragLine.end.x} y2={dragLine.end.y} stroke="rgba(239, 68, 68, 0.7)" strokeWidth="4" strokeDasharray="8 4" markerEnd="url(#arrowhead-alkkagi)" />
+                    </g>
+                )}
+
+                {/* 발사 취소 영역: 돌과 같은 크기의 붉은 원 + 발사 취소 박스 */}
+                {selectedStone && isInCancelZone && (
+                    <g style={{ pointerEvents: 'none' }}>
+                        <circle
+                            cx={selectedStone.x}
+                            cy={selectedStone.y}
+                            r={selectedStone.radius}
+                            fill="rgba(239, 68, 68, 0.28)"
+                            stroke="rgba(220, 38, 38, 0.95)"
+                            strokeWidth="4"
+                        />
+                        <g transform={`translate(${selectedStone.x}, ${selectedStone.y - selectedStone.radius - 28})`}>
+                            <rect x="-42" y="-12" width="84" height="24" rx="6" fill="rgba(0,0,0,0.88)" stroke="rgba(239, 68, 68, 0.95)" strokeWidth="2.5" />
+                            <text y="4" textAnchor="middle" fill="#fecaca" fontSize="12" fontWeight="bold">발사 취소</text>
+                        </g>
                     </g>
                 )}
             </svg>

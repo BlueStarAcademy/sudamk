@@ -393,9 +393,10 @@ export function updateGameStateAfterMove(
 
     if (stonesToReveal.length > 0) {
         const boardDuringReveal = (newBoardState || []).map(row => [...row]);
+        // 따낸 돌은 보드에서 제거(빈 칸). opponentPlayer로 덮어쓰면 따낸 돌이 다시 남는 버그 발생
         for (const stone of capturedStones) {
             if (boardDuringReveal[stone.y]) {
-                boardDuringReveal[stone.y][stone.x] = opponentPlayer;
+                boardDuringReveal[stone.y][stone.x] = Player.None;
             }
         }
 

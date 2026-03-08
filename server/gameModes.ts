@@ -158,27 +158,26 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             game.permanentlyRevealedStones = [];
         }
         
-        // 모든 히든 돌을 확인하여 아직 공개되지 않은 것들을 찾기
+        // 실제 비공개 상태였던 히든 돌만 공개 대상: hiddenMoves에 true로 등록되고, 아직 permanentlyRevealed에 없는 수만
         const stonesToReveal: types.Point[] = [];
+        const moveHistoryLen = game.moveHistory.length;
         
         for (const [moveIndexStr, isHidden] of Object.entries(game.hiddenMoves)) {
             if (!isHidden) continue;
             
-            const moveIndex = parseInt(moveIndexStr);
-            const move = game.moveHistory[moveIndex];
+            const moveIndex = parseInt(moveIndexStr, 10);
+            if (moveIndex < 0 || moveIndex >= moveHistoryLen) continue;
             
-            if (!move) continue;
+            const move = game.moveHistory[moveIndex];
+            if (!move || move.x === -1 || move.y === -1) continue;
             
             const { x, y } = move;
             
-            // 이미 영구적으로 공개된 돌인지 확인
             const isAlreadyRevealed = game.permanentlyRevealedStones.some(
                 p => p.x === x && p.y === y
             );
-            
             if (isAlreadyRevealed) continue;
             
-            // 돌이 보드에 아직 남아있는지 확인 (캡처되지 않았는지)
             if (game.boardState[y]?.[x] !== types.Player.None) {
                 stonesToReveal.push({ x, y });
             }
@@ -839,13 +838,14 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
     }
 
     try {
-        // PVE 게임 완전 제외 (싱글플레이어, 도전의 탑)
-        // PVE 게임은 클라이언트에서 실행되므로 서버 루프에서 처리 불필요
+        // PVE 게임은 일반적으로 제외. 단, hidden_final_reveal / hidden_reveal_animating 인 경우
+        // 애니메이션 종료 후 scoring 전환을 위해 서버 루프에서 처리 필요
         const multiPlayerGames: LiveGameSession[] = [];
         for (const game of games) {
             if (!game || !game.id) continue;
             const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
-            if (!isPVEGame) {
+            const needsRevealTransition = isPVEGame && (game.gameStatus === 'hidden_final_reveal' || game.gameStatus === 'hidden_reveal_animating');
+            if (!isPVEGame || needsRevealTransition) {
                 multiPlayerGames.push(game);
             }
         }

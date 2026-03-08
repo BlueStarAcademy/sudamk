@@ -116,7 +116,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const aiHiddenMoveExecutedRef = useRef(false);
     // 연출 중 시간 경과로 빛/일시정지 갱신용 (0.5초마다)
     const [effectTick, setEffectTick] = useState(0);
-    
+
     // 보드 잠금 메커니즘: AI가 돌을 둔 직후 최신 serverRevision을 받을 때까지 보드 잠금
     const [lastReceivedServerRevision, setLastReceivedServerRevision] = useState<number>(session.serverRevision ?? 0);
     const [isBoardLocked, setIsBoardLocked] = useState(false);
@@ -572,11 +572,30 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return () => window.clearTimeout(id);
     }, [session.gameStatus, session.revealAnimationEndTime, session.pendingCapture, session.id, isSinglePlayer, isTower, handlers.handleAction]);
 
+    // 계가 턴 히든 공개(hidden_final_reveal) 애니메이션 종료 시 로컬에서 즉시 scoring으로 전환 → 계가 연출(ScoringOverlay) 표시
+    useEffect(() => {
+        if (!(isSinglePlayer || isTower)) return;
+        if (session.gameStatus !== 'hidden_final_reveal' || !session.revealAnimationEndTime) return;
+        const remaining = Math.max(0, session.revealAnimationEndTime - Date.now());
+        const id = window.setTimeout(() => {
+            handlers.handleAction({
+                type: 'LOCAL_HIDDEN_FINAL_REVEAL_COMPLETE',
+                payload: { gameId: session.id, gameType: isTower ? 'tower' : 'singleplayer' }
+            } as any);
+        }, remaining + 50);
+        return () => window.clearTimeout(id);
+    }, [session.gameStatus, session.revealAnimationEndTime, session.id, isSinglePlayer, isTower, handlers.handleAction]);
+
     useEffect(() => {
         if (prevGameStatus === 'hidden_reveal_animating' && gameStatus === 'playing' && currentPlayer === Player.White) {
             lastAiMoveRef.current = null;
         }
     }, [prevGameStatus, gameStatus, currentPlayer]);
+
+    // 게임이 바뀌면 히든 연출 실행 여부 ref 초기화 (새 게임에서 1회 히든 턴이 동작하도록)
+    useEffect(() => {
+        aiHiddenMoveExecutedRef.current = false;
+    }, [session.id]);
 
     // 싱글플레이/도전의 탑 히든: 6초 연출 종료 시점이 지나면 AI 히든 착수 실행 (한 번만)
     useEffect(() => {
@@ -1137,15 +1156,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             } else if (session.gameCategory === 'singleplayer' || session.isSinglePlayer) {
                 sessionStorage.setItem('postGameRedirect', '#/singleplayer');
             } else {
-                let waitingRoomMode: 'strategic' | 'playful' | null = null;
-                if (SPECIAL_GAME_MODES.some(m => m.mode === session.mode)) {
-                    waitingRoomMode = 'strategic';
-                } else if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {
-                    waitingRoomMode = 'playful';
-                }
-                if (waitingRoomMode) {
-                    sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
-                }
+                // 일반 게임(전략/놀이바둑): 전략이면 전략 대기실, 그 외는 놀이바둑 대기실로 이동
+                const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
+                sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
             }
             handlers.handleAction({ type: actionType, payload: { gameId } });
             return;
@@ -1323,8 +1336,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const moveCount = session.moveHistory?.length ?? 0;
             const aiTurnIndex = Math.floor(moveCount / 2) + 1; // 지금 둘 차례인 백 = 1번째 AI턴(1), 2번째 AI턴(2), ...
             const aiHiddenLeft = Number((session as any).hidden_stones_p2 ?? 0);
+            const maxHiddenTurns = plannedAiHiddenTurns.length || 1;
+            // 이미 사용한 히든 턴 수가 계획된 수 이상이면 더 이상 히든 연출하지 않음 (두 번째 AI 수가 히든으로 겹치는 버그 방지)
+            const hasHiddenSlotsLeft = aiHiddenItemsUsedCount < maxHiddenTurns;
+            // 유저 턴이 한 번이라도 지났으면(이미 히든 연출 실행 후) 다음 AI 수는 반드시 일반 돌
+            const neverExecutedHiddenThisGame = !aiHiddenMoveExecutedRef.current;
             const isAiHiddenItemTurn = isAiHiddenPresentationStage && currentPlayer === Player.White
                 && aiHiddenLeft > 0
+                && hasHiddenSlotsLeft
+                && neverExecutedHiddenThisGame
                 && nextAiHiddenItemTurn != null
                 && aiTurnIndex === nextAiHiddenItemTurn;
             if (isAiHiddenItemTurn && aiHiddenItemEffectEndTime == null) {
@@ -1605,12 +1625,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (isTowerOrSingle || isPlayfulAiStayOnConfirm) return;
         // 그 외(전략/놀이바둑 AI 대국 등): 경기 종료 후 결과 모달 "확인" 시 퇴장 + 해당 대기실로 이동
         if ((gameStatus === 'ended' || gameStatus === 'no_contest') && gameId) {
-            const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const
-                : PLAYFUL_GAME_MODES.some(m => m.mode === session.mode) ? 'playful' as const
-                : null;
-            if (waitingRoomMode) {
-                sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
-            }
+            // 전략이면 전략 대기실, 그 외는 놀이바둑 대기실로 이동
+            const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
+            sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
             handlers.handleAction({ type: actionType, payload: { gameId } });
         }

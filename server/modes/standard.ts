@@ -287,6 +287,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         // 싱글플레이는 클라이언트에서 포획 수를 계산하므로, 자동계가 시점에 동기화가 필요
                         game.captures = { ...(game.captures || {}), ...payload.captures };
                     }
+                    if (payload.hiddenMoves != null && typeof payload.hiddenMoves === 'object') {
+                        game.hiddenMoves = { ...payload.hiddenMoves };
+                    }
+                    if (payload.permanentlyRevealedStones != null && Array.isArray(payload.permanentlyRevealedStones)) {
+                        game.permanentlyRevealedStones = payload.permanentlyRevealedStones.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y }));
+                    }
                 } else {
                     // 온라인 대국: 클라이언트가 보낸 보드/수순은 신뢰하지 않고 서버 상태를 유지
                     // 단, 남은 시간 정보는 참고용으로만 업데이트
@@ -300,12 +306,28 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     updateGameCache(game);
                 }
                 
-                // 게임 상태를 scoring으로 변경하고 계가 처리
+                // 0/N 도달 검증: 유효 수 기준 totalTurns 재계산 후 계가 조건 확인
+                const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x !== -1 && m.y !== -1);
+                const totalTurns = validMoves.length;
+                game.totalTurns = totalTurns;
+                let autoScoringTurns: number | undefined;
+                if (game.gameCategory === 'tower') {
+                    autoScoringTurns = (game.settings as any)?.autoScoringTurns;
+                } else if (game.isSinglePlayer && game.stageId) {
+                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
+                    autoScoringTurns = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns;
+                } else {
+                    autoScoringTurns = (game.settings as any)?.autoScoringTurns;
+                }
+                const remainingTurns = autoScoringTurns != null ? Math.max(0, autoScoringTurns - totalTurns) : 0;
+                if (autoScoringTurns != null && remainingTurns > 0) {
+                    console.warn(`[handleStandardAction] triggerAutoScoring ignored: remainingTurns=${remainingTurns} (totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns})`);
+                    return {};
+                }
+                
                 game.gameStatus = 'scoring';
                 await db.saveGame(game);
-                console.log(`[handleStandardAction] Game ${game.id} set to scoring state, calling getGameResult...`);
-                
-                // 계가 시작 (getGameResult가 KataGo 분석을 시작하고 게임을 종료함)
+                console.log(`[handleStandardAction] Game ${game.id} set to scoring state (0/N reached), calling getGameResult...`);
                 try {
                     await getGameResult(game);
                     console.log(`[handleStandardAction] getGameResult completed for game ${game.id}`);
@@ -700,7 +722,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
 
             game.boardState = result.newBoardState;
-            game.lastMove = { x, y };
+            // 히든 착수 시 lastMove를 갱신하지 않음 (새로고침 후 마지막 수 표시가 히든 돌 위치로 겹치는 버그 방지)
+            if (!isHidden) {
+                game.lastMove = { x, y };
+            }
             game.lastTurnStones = null;
             game.moveHistory.push(move);
             game.koInfo = result.newKoInfo;

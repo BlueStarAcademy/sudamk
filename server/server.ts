@@ -70,6 +70,7 @@ let isProcessingTournamentTick = false;
 let isProcessingMainLoop = false;
 let hasLoggedMainLoopSkip = false;
 let hasCompletedFirstRun = false; // 첫 실행 완료 플래그 (전역)
+let lastPrismaNotReadyLogAt = 0; // "Prisma engine not ready" 로그 억제 (60초에 한 번)
 let mainLoopConsecutiveFailures = 0; // 연속 실패 횟수 추적
 const MAX_CONSECUTIVE_FAILURES = 10; // 최대 연속 실패 횟수
 
@@ -1170,7 +1171,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         try {
                             const prismaClient = await import('./prismaClient.js');
                             if (prismaClient.ensurePrismaConnected && !(await prismaClient.ensurePrismaConnected())) {
-                                console.warn('[MainLoop] Prisma engine not ready, skipping this cycle...');
+                                const now = Date.now();
+                                if (now - lastPrismaNotReadyLogAt >= 60_000) {
+                                    lastPrismaNotReadyLogAt = now;
+                                    console.warn('[MainLoop] Prisma engine not ready, skipping this cycle (will retry reconnect every 5s, log at most once/min)...');
+                                }
                                 isProcessingMainLoop = false;
                                 scheduleMainLoop(5000);
                                 return;

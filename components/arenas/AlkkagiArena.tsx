@@ -264,6 +264,18 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
             const finalDragStart = dragStartPointRef.current;
             const finalDragEnd = 'touches' in e ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } : { x: e.clientX, y: e.clientY };
 
+            // 돌(보이는 원) 크기와 같은 범위 안에서 손을 떼면 발사 취소 (getBoundingClientRect로 CSS 픽셀 일치)
+            const svgForCancel = boardRef.current?.getSvg();
+            if (finalDragStart && finalSelectedStone && svgForCancel) {
+                const rect = svgForCancel.getBoundingClientRect();
+                const scale = rect.width / 840;
+                const screenRadius = finalSelectedStone.radius * scale;
+                if (Math.hypot(finalDragEnd.x - finalDragStart.x, finalDragEnd.y - finalDragStart.y) < screenRadius) {
+                    cancelFlick();
+                    return;
+                }
+            }
+
             stopPowerGauge();
             const finalPower = powerRef.current;
             setFlickPower(finalPower);
@@ -362,6 +374,17 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         return alkkagiStones?.find(s => s.id === selectedStoneId) || null;
     }, [selectedStoneId, alkkagiStones]);
 
+    /** 드래그 끝이 시작점(돌) 근처면 발사 취소 영역 — 보드 크기 기준 CSS 픽셀로 돌 반경 계산 */
+    const isInCancelZone = useMemo(() => {
+        if (!dragStartPoint || !dragEndPoint || !selectedStoneForRender) return false;
+        const svg = boardRef.current?.getSvg();
+        if (!svg) return false;
+        const rect = svg.getBoundingClientRect();
+        const scale = rect.width / 840; // viewBox 840 = 보드 한 변
+        const screenRadius = selectedStoneForRender.radius * scale; // clientX/clientY와 같은 CSS 픽셀
+        return Math.hypot(dragEndPoint.x - dragStartPoint.x, dragEndPoint.y - dragStartPoint.y) < screenRadius;
+    }, [dragStartPoint, dragEndPoint, selectedStoneForRender]);
+
     const backgroundClass = useMemo(() => {
         if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {
             return 'bg-transparent';
@@ -382,16 +405,18 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
                     />
                 )}
                 {(dragStartPoint || flickPower !== null) && (
-                    <div className={`relative w-full bg-gray-900/50 rounded-full h-6 border-2 border-gray-500 ${flickPower !== null ? 'animate-flick-power-pulse' : ''}`}>
-                        <div 
-                            ref={powerGaugeRef}
-                            className="bg-gradient-to-r from-yellow-400 to-red-500 h-full rounded-full" 
-                            style={{ width: `${displayedPower}%` }}
-                        />
-                        <span className="absolute inset-0 w-full h-full flex items-center justify-center text-white font-bold text-sm drop-shadow-md">
-                            POWER
-                        </span>
-                    </div>
+                    <>
+                        <div className={`relative w-full bg-gray-900/50 rounded-full h-6 border-2 border-gray-500 ${flickPower !== null ? 'animate-flick-power-pulse' : ''}`}>
+                            <div 
+                                ref={powerGaugeRef}
+                                className="bg-gradient-to-r from-yellow-400 to-red-500 h-full rounded-full" 
+                                style={{ width: `${displayedPower}%` }}
+                            />
+                            <span className="absolute inset-0 w-full h-full flex items-center justify-center text-white font-bold text-sm drop-shadow-md">
+                                POWER
+                            </span>
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -409,6 +434,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
                     dragStartPoint={dragStartPoint}
                     dragEndPoint={dragEndPoint}
                     selectedStone={selectedStoneForRender}
+                    isInCancelZone={isInCancelZone}
                     myStonesCount={myStonesCount}
                     maxStones={maxStones}
                     session={session}
