@@ -618,7 +618,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     <Button
                         onClick={handleExitToLobby}
                         colorScheme="none"
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${!isProcessing ? 'border-slate-400/50 bg-gradient-to-r from-slate-500/90 via-gray-500/90 to-zinc-500/90 text-white shadow-[0_12px_32px_-18px_rgba(71,85,105,0.85)] hover:from-slate-400 hover:to-zinc-400' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
+                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${!isProcessing ? 'border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
                         disabled={isProcessing}
                     >
                         나가기

@@ -4,7 +4,7 @@ import { UserWithStatus, TournamentState, PlayerForTournament, ServerAction, Use
 import Button from './Button.js';
 import { useButtonClickThrottle } from '../hooks/useButtonClickThrottle.js';
 import { useTournamentSimulation } from '../hooks/useTournamentSimulation.js';
-import { TOURNAMENT_DEFINITIONS, TOURNAMENT_SCORE_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, AVATAR_POOL, BORDER_POOL, CORE_STATS_DATA, LEAGUE_DATA, DUNGEON_STAGE_BASE_SCORE, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS } from '../constants';
+import { TOURNAMENT_DEFINITIONS, TOURNAMENT_SCORE_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, AVATAR_POOL, BORDER_POOL, CORE_STATS_DATA, LEAGUE_DATA, DUNGEON_STAGE_BASE_SCORE, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS, gradeBackgrounds } from '../constants';
 import { getDungeonRankRewardForDisplay, getDungeonRankRewardRangeForDisplay, getDungeonRankKeysForDisplay, getDungeonBasicRewardRangeGold, getDungeonStageScore, DUNGEON_STAGE_MATERIAL_ROLLS, DUNGEON_STAGE_EQUIPMENT_DROP } from '../shared/constants/tournaments';
 import Avatar from './Avatar.js';
 import RadarChart from './RadarChart.js';
@@ -1421,14 +1421,6 @@ const FinalRewardPanel: React.FC<{
                 </div>
             )}
             
-            {/* 경기 진행 중 안내 */}
-            {isInProgress && (
-                <div className="mb-1 px-1.5 py-1 bg-blue-900/30 rounded-lg border border-blue-700/50">
-                    <p className="text-xs text-blue-400 text-center">경기 진행 중 - 누적 보상 표시</p>
-                </div>
-            )}
-            
-            
             {/* 누적 골드 (동네바둑리그) - 경기마다 따로 더미 표시하여 여러 번 받은 것처럼 표시 */}
             {accumulatedGold > 0 && (
                 <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
@@ -1503,46 +1495,70 @@ const FinalRewardPanel: React.FC<{
                     })}
                 </div>
             )}
-            {/* 월드챔피언십: 경기당 실제 획득 장비를 바로 표시 */}
-            {tournamentState.type === 'world' && accumulatedEquipmentItems.length > 0 && (
-                <div className={`mb-1 grid grid-cols-2 gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
-                    {accumulatedEquipmentItems.map((item, idx) => (
-                        <div
-                            key={`${item.id ?? item.name}-${idx}`}
-                            className="flex items-center gap-1 rounded-lg border border-purple-600/50 bg-purple-900/25 p-1 overflow-hidden"
-                            title={`경기 ${idx + 1} · ${item.name}`}
-                        >
-                            <img src={item.image} alt={item.name} className="w-8 h-8 object-contain flex-shrink-0" loading="lazy" decoding="async" />
-                            <span className="text-[10px] text-purple-100 truncate">{item.name}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
-            {/* 레거시 데이터 폴백: 등급 배경만 남아있는 경우 */}
-            {tournamentState.type === 'world' && accumulatedEquipmentItems.length === 0 && tournamentState.accumulatedEquipmentDrops && tournamentState.accumulatedEquipmentDrops.length > 0 && (
-                <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
-                    {(tournamentState.accumulatedEquipmentDrops as string[]).map((gradeKey: string, idx: number) => {
-                        const EQUIP_GRADE_IMAGE: Record<string, string> = {
-                            normal: '/images/equipments/normalbgi.png',
-                            uncommon: '/images/equipments/uncommonbgi.png',
-                            rare: '/images/equipments/rarebgi.png',
-                            epic: '/images/equipments/epicbgi.png',
-                            legendary: '/images/equipments/legendarybgi.png',
-                            mythic: '/images/equipments/mythicbgi.png',
-                        };
-                        const EQUIP_GRADE_LABEL: Record<string, string> = {
-                            normal: '일반', uncommon: '희귀', rare: '레어', epic: '에픽', legendary: '전설', mythic: '신화',
-                        };
-                        const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.png';
-                        const label = EQUIP_GRADE_LABEL[gradeKey] ?? gradeKey;
-                        return (
-                            <div key={idx} className="relative w-11 h-11 rounded-lg border-2 border-purple-600/70 bg-purple-900/40 flex items-center justify-center overflow-hidden rounded overflow-hidden" title={`경기 ${idx + 1} · ${label} 장비`}>
-                                <img src={img} alt={label} className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+            {/* 월드챔피언십: 경기당 실제 획득 장비 — 등급 테두리 + 아이템 이미지만 표시, 이름은 마우스 오버 시 */}
+            {tournamentState.type === 'world' && accumulatedEquipmentItems.length > 0 && (() => {
+                const EQUIP_GRADE_BORDER: Record<string, string> = {
+                    normal: 'border-2 border-gray-500/80',
+                    uncommon: 'border-2 border-green-500/80',
+                    rare: 'border-2 border-blue-500/80',
+                    epic: 'border-2 border-purple-500/80',
+                    legendary: 'border-2 border-red-500/80',
+                    mythic: 'border-2 border-amber-500/80',
+                };
+                return (
+                    <div className={`mb-1 grid grid-cols-2 gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                        {accumulatedEquipmentItems.map((item, idx) => {
+                            const grade = (item.grade ?? 'normal') as string;
+                            const borderClass = EQUIP_GRADE_BORDER[grade] || EQUIP_GRADE_BORDER.normal;
+                            return (
+                                <div
+                                    key={`${item.id ?? item.name}-${idx}`}
+                                    className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center ${borderClass}`}
+                                    title={`경기 ${idx + 1} · ${item.name}`}
+                                >
+                                    <img src={item.image?.startsWith('/') ? item.image : `/${item.image}`} alt="" className="w-[70%] h-[70%] object-contain pointer-events-none" loading="lazy" decoding="async" />
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            })()}
+            {/* 레거시 데이터 폴백: 등급만 남아있는 경우 — 등급 테두리 + 등급 아이콘, 이름은 마우스 오버 시 */}
+            {tournamentState.type === 'world' && accumulatedEquipmentItems.length === 0 && tournamentState.accumulatedEquipmentDrops && tournamentState.accumulatedEquipmentDrops.length > 0 && (() => {
+                const EQUIP_GRADE_IMAGE: Record<string, string> = {
+                    normal: '/images/equipments/normalbgi.png',
+                    uncommon: '/images/equipments/uncommonbgi.png',
+                    rare: '/images/equipments/rarebgi.png',
+                    epic: '/images/equipments/epicbgi.png',
+                    legendary: '/images/equipments/legendarybgi.png',
+                    mythic: '/images/equipments/mythicbgi.png',
+                };
+                const EQUIP_GRADE_LABEL: Record<string, string> = {
+                    normal: '일반', uncommon: '고급', rare: '희귀', epic: '에픽', legendary: '전설', mythic: '신화',
+                };
+                const EQUIP_GRADE_BORDER: Record<string, string> = {
+                    normal: 'border-2 border-gray-500/80',
+                    uncommon: 'border-2 border-green-500/80',
+                    rare: 'border-2 border-blue-500/80',
+                    epic: 'border-2 border-purple-500/80',
+                    legendary: 'border-2 border-red-500/80',
+                    mythic: 'border-2 border-amber-500/80',
+                };
+                return (
+                    <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                        {(tournamentState.accumulatedEquipmentDrops as string[]).map((gradeKey: string, idx: number) => {
+                            const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.png';
+                            const label = EQUIP_GRADE_LABEL[gradeKey] ?? gradeKey;
+                            const borderClass = EQUIP_GRADE_BORDER[gradeKey] || EQUIP_GRADE_BORDER.normal;
+                            return (
+                                <div key={idx} className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center ${borderClass}`} title={`경기 ${idx + 1} · ${label} 장비`}>
+                                    <img src={img} alt="" className="w-[70%] h-[70%] object-contain" loading="lazy" decoding="async" />
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            })()}
             
             {/* 던전 모드 보상 표시 (단계별 기본 보상 + 순위 보상) */}
             {effectiveStageAttempt && (() => {
@@ -1602,12 +1618,46 @@ const FinalRewardPanel: React.FC<{
                     const bgColor = isGold ? 'bg-yellow-900/40' : isDiamond ? 'bg-blue-900/40' : 'bg-purple-900/40';
                     const textColor = isGold ? 'text-yellow-100' : isDiamond ? 'text-blue-100' : 'text-purple-100';
                     const qtyText = item.min === item.max ? `${item.min}` : `${item.min}~${item.max}`;
-                    const suffix = isGold ? ' 골드' : '';
-                    const displayQty = suffix ? `${qtyText}${suffix}` : qtyText;
+                    const displayQty = qtyText;
                     const isSm = size === 'sm';
+                    // 티어 배경: 장비/상자 등 grade가 있는 소비 아이템이면 gradeBackgrounds 사용
+                    const consumableTemplate = CONSUMABLE_ITEMS.find(ci => ci.name === itemName);
+                    const tierBg = consumableTemplate?.grade ? gradeBackgrounds[consumableTemplate.grade] : undefined;
                     return (
                         <div key={index} className={`relative rounded-lg border-2 ${borderColor} ${bgColor} flex items-center justify-center overflow-hidden ${opacity} ${isSm ? 'w-9 h-9' : 'w-11 h-11'}`}>
-                            {imageUrl ? <img src={imageUrl} alt={itemName} className={isSm ? 'w-5 h-5 object-contain' : 'w-7 h-7 object-contain'} loading="lazy" decoding="async" /> : <span className="text-[10px] text-gray-300 truncate px-0.5">{itemName}</span>}
+                            {tierBg ? (
+                                <>
+                                    <img
+                                        src={tierBg}
+                                        alt=""
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                        aria-hidden
+                                    />
+                                    {imageUrl && (
+                                        <img
+                                            src={imageUrl}
+                                            alt={itemName}
+                                            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${isSm ? 'w-[70%] h-[70%]' : 'w-[75%] h-[75%]'} object-contain pointer-events-none`}
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    {imageUrl ? (
+                                        <img
+                                            src={imageUrl}
+                                            alt={itemName}
+                                            className={isSm ? 'w-5 h-5 object-contain' : 'w-7 h-7 object-contain'}
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    ) : (
+                                        <span className="text-[10px] text-gray-300 truncate px-0.5">{itemName}</span>
+                                    )}
+                                </>
+                            )}
                             <span className={`absolute -bottom-0.5 -right-0.5 font-bold ${textColor} bg-black/80 px-1 rounded-tl leading-tight shadow-sm ${isSm ? 'text-[10px]' : 'text-[11px]'}`}>{displayQty}</span>
                         </div>
                     );

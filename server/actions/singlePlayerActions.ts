@@ -431,8 +431,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 const initialSec = enforcedMainTimeMinutes * 60;
                 game.blackTimeLeft = initialSec;
                 game.whiteTimeLeft = initialSec;
-                (game as any).blackInitialTimeLeft = initialSec;
-                (game as any).whiteInitialTimeLeft = initialSec;
+                game.blackInitialTimeLeft = initialSec;
+                game.whiteInitialTimeLeft = initialSec;
                 game.turnDeadline = now + initialSec * 1000;
             } else {
                 game.turnDeadline = undefined;

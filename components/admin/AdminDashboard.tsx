@@ -13,6 +13,8 @@ interface AdminDashboardProps extends Omit<AdminProps, 'onBack'> {
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToProfile, liveGames, onAction, currentUser }) => {
     
+    const activeLiveGames = liveGames.filter(game => game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest');
+
     const handleDeleteGame = (game: LiveGameSession) => {
         if (window.confirm(`[${game.player1.nickname} vs ${game.player2.nickname}] 대국을 강제로 종료하시겠습니까?`)) {
             onAction({ type: 'ADMIN_FORCE_DELETE_GAME', payload: { gameId: game.id } });
@@ -139,7 +141,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToPro
                             </tr>
                         </thead>
                         <tbody>
-                            {liveGames.map(game => (
+                            {activeLiveGames.map(game => (
                                 <tr key={game.id} className="bg-primary border-b border-color hover:bg-secondary/50">
                                     <td className="px-4 py-4 font-medium text-primary whitespace-nowrap">{game.player1.nickname} vs {game.player2.nickname}</td>
                                     <td className="px-4 py-4">{game.mode}</td>

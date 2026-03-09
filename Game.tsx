@@ -1186,16 +1186,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [session.isSinglePlayer, isPaused, gameStatus, resumeFromPause, session.gameCategory]);
 
+    // 게임 ID가 바뀔 때만 일시정지/재개 상태 초기화 (다른 게임으로 이동)
     useEffect(() => {
         setIsPaused(false);
         setResumeCountdown(0);
         setPauseButtonCooldown(0);
         pauseStartedAtRef.current = null;
         clearPauseCountdown();
-        // 게임이 변경되면 보드 잠금 상태 초기화
         setIsBoardLocked(false);
         setLastReceivedServerRevision(session.serverRevision ?? 0);
-    }, [session.id, clearPauseCountdown, session.serverRevision]);
+    }, [session.id, clearPauseCountdown]);
+
+    // 같은 게임 내 serverRevision 변경 시: 최신 리비전 반영 및 보드 잠금 해제 (일시정지 상태는 유지)
+    useEffect(() => {
+        if (session.serverRevision !== undefined) {
+            setLastReceivedServerRevision(session.serverRevision);
+            setIsBoardLocked(false);
+        }
+    }, [session.serverRevision]);
 
     // currentPlayer 변경 감지: AI가 돌을 둔 경우 보드 잠금
     useEffect(() => {

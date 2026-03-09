@@ -825,7 +825,7 @@ const Profile: React.FC<ProfileProps> = () => {
                     onClick={() => window.location.hash = '#/tower'}
                     footerContent={
                         <div className="flex flex-col items-center">
-                            <span>현재 층: 1층</span>
+                            <span>현재 층: {Math.max(1, (currentUserWithStatus as User)?.towerFloor ?? 0)}층</span>
                             <span className="text-tertiary">{towerTimeLeft}</span>
                         </div>
                     }

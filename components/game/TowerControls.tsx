@@ -160,7 +160,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                     <Button onClick={handleNextFloor} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap`} disabled={!canTryNext}>
                         다음 층{canTryNext && nextFloor ? `: ${nextFloor}층` : ''}{nextFloorActionPointCost > 0 && ` (⚡${nextFloorActionPointCost})`}
                     </Button>
-                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-slate-400/50 bg-gradient-to-r from-slate-800/90 via-slate-900/90 to-black/90 text-slate-100 shadow-[0_12px_32px_-18px_rgba(148,163,184,0.85)] hover:from-slate-700 hover:to-slate-900 whitespace-nowrap`}>
+                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap`}>
                         나가기
                     </Button>
                 </div>

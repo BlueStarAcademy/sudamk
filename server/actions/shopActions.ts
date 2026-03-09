@@ -658,11 +658,14 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             }
 
             const updatedUser = getSelectiveUserUpdate(user, 'BUY_TOWER_ITEM', { includeAll: true });
-            
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-            db.updateUser(user).catch(err => {
+
+            // 장바구니 일괄 구매 시 다음 요청이 최신 상태를 보도록 DB 저장을 완료한 뒤 응답
+            try {
+                await db.updateUser(user);
+            } catch (err) {
                 console.error(`[BUY_TOWER_ITEM] Failed to save user ${user.id}:`, err);
-            });
+                return { error: '보상 저장에 실패했습니다.' };
+            }
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');

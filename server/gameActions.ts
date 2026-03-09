@@ -254,17 +254,26 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
             if (gameId.startsWith('tower-game-')) {
                 const { getCachedGame, updateGameCache } = await import('./gameCache.js');
-                let game = await getCachedGame(gameId);
-                if (!game) {
-                    const cache = volatileState.gameCache;
-                    if (cache) {
-                        const cached = cache.get(gameId);
-                        if (cached) game = cached.game;
-                    }
+                // 탑: 메모리 캐시에 항목이 있으면 우선 사용 (CONFIRM 직후 DB가 pending일 수 있음)
+                let game: types.LiveGameSession | null = null;
+                const cache = volatileState.gameCache;
+                if (cache) {
+                    const cached = cache.get(gameId);
+                    if (cached?.game) game = cached.game as types.LiveGameSession;
+                }
+                if (!game) game = await getCachedGame(gameId);
+                if (!game && cache) {
+                    const cached = cache.get(gameId);
+                    if (cached) game = cached.game;
                 }
                 if (!game) game = await db.getLiveGame(gameId);
                 if (!game) return { error: 'Game not found.' };
                 if (game.gameCategory !== 'tower') return { error: 'Not a tower game.' };
+                // 탑: pending인데 아직 수가 없고 흑 차례면 CONFIRM 직후 상태로 간주 → playing으로 정규화
+                if ((game as any).gameStatus === 'pending' && (!game.moveHistory || game.moveHistory.length === 0) && game.currentPlayer === types.Player.Black) {
+                    (game as any).gameStatus = 'playing';
+                    updateGameCache(game);
+                }
                 const towerFloor = (game as any).towerFloor ?? 0;
                 if (towerFloor < 21) return { error: '1~20층에서는 미사일/히든/스캔 아이템을 사용할 수 없습니다. 21층 이상에서 사용 가능합니다.' };
                 // 21층+: DB/캐시에서 불러온 게임에 아이템 수가 없으면 인벤토리 기준으로 복원
@@ -287,6 +296,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
                     const { handleStrategicGameAction } = await import('./modes/strategic.js');
                     const result = await handleStrategicGameAction(volatileState, game, action, userData);
+                    if (result && (result as any).error && process.env.NODE_ENV === 'development') {
+                        console.log(`[handleAction] Tower missile/item action ${type} failed:`, { gameId, gameStatus: game.gameStatus, error: (result as any).error });
+                    }
                     if (result && !(result as any).error) {
                         updateGameCache(game);
                         await db.saveGame(game);
@@ -331,16 +343,19 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         const actionTypeStr = type as string;
         if (actionTypeStr === 'START_HIDDEN_PLACEMENT' || actionTypeStr === 'START_SCANNING' || actionTypeStr === 'SCAN_BOARD') {
             const { getCachedGame, updateGameCache } = await import('./gameCache.js');
-            let game = await getCachedGame(gameId);
-            // PVE 게임(싱글·탑) 캐시에서 직접 확인 (TTL 무시)
-            if (!game && (gameId.startsWith('sp-game-') || gameId.startsWith('tower-game-'))) {
-                const cache = volatileState.gameCache;
-                if (cache) {
-                    const cached = cache.get(gameId);
-                    if (cached) {
-                        game = cached.game;
-                        updateGameCache(game);
-                    }
+            // 탑: 메모리 캐시에 항목이 있으면 우선 사용 (CONFIRM 직후 DB가 pending일 수 있음)
+            let game: types.LiveGameSession | null = null;
+            const cacheForTower = volatileState.gameCache;
+            if (gameId.startsWith('tower-game-') && cacheForTower) {
+                const cached = cacheForTower.get(gameId);
+                if (cached?.game) game = cached.game as types.LiveGameSession;
+            }
+            if (!game) game = await getCachedGame(gameId);
+            if (!game && (gameId.startsWith('sp-game-') || gameId.startsWith('tower-game-')) && cacheForTower) {
+                const cached = cacheForTower.get(gameId);
+                if (cached) {
+                    game = cached.game;
+                    updateGameCache(game);
                 }
             }
             if (!game) game = await db.getLiveGame(gameId);
@@ -350,6 +365,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
             // 도전의 탑 1~20층: 미사일/히든/스캔 사용 불가
             if (game.gameCategory === 'tower') {
+                // 탑: pending인데 아직 수가 없고 흑 차례면 CONFIRM 직후 상태로 간주 → playing으로 정규화
+                if ((game as any).gameStatus === 'pending' && (!game.moveHistory || game.moveHistory.length === 0) && game.currentPlayer === types.Player.Black) {
+                    (game as any).gameStatus = 'playing';
+                    updateGameCache(game);
+                }
                 const towerFloor = (game as any).towerFloor ?? 0;
                 if (towerFloor < 21) return { error: '1~20층에서는 미사일/히든/스캔 아이템을 사용할 수 없습니다. 21층 이상에서 사용 가능합니다.' };
                 // 21층+: DB/캐시에서 불러온 게임에 아이템 수가 없으면 인벤토리 기준으로 복원
@@ -369,6 +389,21 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
                     (game as any).missiles_p1 = Math.min(s.missileCount ?? 2, countItems(['미사일', 'missile']));
                 }
+            }
+            // 도전의 탑: 히든/스캔 액션은 반드시 전략 핸들러로 (isSinglePlayer 블록보다 먼저)
+            if (game.gameCategory === 'tower' && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                const { handleStrategicGameAction } = await import('./modes/strategic.js');
+                const result = await handleStrategicGameAction(volatileState, game, action, userData);
+                if (result && (result as any).error && process.env.NODE_ENV === 'development') {
+                    console.log(`[handleAction] Tower hidden/scan action ${type} failed:`, { gameId, gameStatus: game.gameStatus, error: (result as any).error });
+                }
+                if (result && !(result as any).error) {
+                    updateGameCache(game);
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                }
+                return result || {};
             }
             if (game.isSinglePlayer) {
                 // PLACE_STONE은 히든 아이템 사용 시 서버에서 처리해야 함
@@ -393,17 +428,6 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
                 const singlePlayerResult = await handleSinglePlayerAction(volatileState, action, userData);
                 return singlePlayerResult || {};
-            }
-            if (game.gameCategory === 'tower' && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                const { handleStrategicGameAction } = await import('./modes/strategic.js');
-                const result = await handleStrategicGameAction(volatileState, game, action, userData);
-                if (result && !(result as any).error) {
-                    updateGameCache(game);
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('./socket.js');
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                }
-                return result || {};
             }
         }
         

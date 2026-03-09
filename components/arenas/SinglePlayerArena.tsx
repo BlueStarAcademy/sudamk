@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { GameProps, Player, Point, Move } from '../../types.js';
 import GoBoard from '../GoBoard.js';
 import { ScoringOverlay } from '../game/ScoringOverlay.js';
+import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
+import { TOWER_STAGES } from '../../constants/towerConstants.js';
 
 interface SinglePlayerArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -95,6 +97,27 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player2 : player1;
 
+    // 남은 턴이 0이면 계가 진행되므로, 그 순간부터 클릭 불가 (빠르게 눌러서 추가 착수되는 버그 방지)
+    const isBoardDisabledDueToTurnLimit = useMemo(() => {
+        if (gameStatus !== 'playing' && gameStatus !== 'hidden_placing') return false;
+        const moves = session.moveHistory ?? [];
+        const validMovesCount = moves.filter(m => m.x !== -1 && m.y !== -1).length;
+        const isTower = session.gameCategory === 'tower';
+        if ((session.isSinglePlayer || isTower) && session.stageId) {
+            const stage = isTower
+                ? TOWER_STAGES.find(s => s.id === session.stageId)
+                : SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
+            if (stage?.autoScoringTurns) {
+                const totalTurns = (session.totalTurns != null && session.totalTurns > 0)
+                    ? Math.max(session.totalTurns, validMovesCount)
+                    : validMovesCount;
+                const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
+                if (remainingTurns <= 0) return true;
+            }
+        }
+        return false;
+    }, [gameStatus, session.isSinglePlayer, session.gameCategory, session.stageId, session.moveHistory, session.totalTurns]);
+
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-center">
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
@@ -124,7 +147,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     }}
                     lastMove={displayLastMove}
                     lastTurnStones={lastTurnStones}
-                    isBoardDisabled={!isMyTurn || isSpectator || isPaused || isBoardLocked}
+                    isBoardDisabled={!isMyTurn || isSpectator || isPaused || isBoardLocked || isBoardDisabledDueToTurnLimit}
                     stoneColor={myPlayerEnum}
                     winningLine={winningLine}
                     mode={session.mode}

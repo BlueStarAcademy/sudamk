@@ -252,12 +252,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                             
                             if (totalTurns >= autoScoringTurns && game.gameStatus === 'playing') {
                                 console.log(`[updateSinglePlayerHiddenState] Auto-scoring triggered after hidden reveal animation: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}`);
-                                game.gameStatus = 'scoring';
-                                await db.saveGame(game);
-                                const { broadcastToGameParticipants } = await import('../socket.js');
-                                const gameToBroadcast = { ...game };
-                                delete (gameToBroadcast as any).boardState;
-                                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                                // getGameResult가 미공개 히든 돌이 있으면 hidden_final_reveal로 공개 연출 후 계가 진행
                                 const { getGameResult } = await import('../gameModes.js');
                                 await getGameResult(game);
                                 return;
@@ -350,9 +345,9 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             const hasUnrevealedAiInitial = !!aiHidden &&
                 !game.permanentlyRevealedStones?.some(p => p.x === aiHidden.x && p.y === aiHidden.y) &&
                 game.boardState?.[aiHidden.y]?.[aiHidden.x] === opponentPlayerEnum;
-            // 싱글플레이: DB/캐시에 aiInitialHiddenStone·hiddenMoves가 없을 수 있으므로, AI가 히든을 가질 수 있는 스테이지에서 상대(백) 돌이 보드에 미공개로 있으면 스캔 진입 허용
-            const aiCanHaveHidden = (game.hidden_stones_p2 ?? (game.settings as any)?.hiddenStoneCount ?? 0) > 0;
-            const hasAnyUnrevealedOpponentStone = aiCanHaveHidden && game.boardState && game.moveHistory && game.moveHistory.some((m) => {
+            // 싱글플레이: 스테이지가 히든 모드이면, 상대(AI) 돌이 보드에 공개되지 않은 상태로 1개라도 있으면 스캔 허용 (AI가 이미 히든을 다 쓴 경우 hidden_stones_p2=0이어도 보드에 숨겨진 돌이 있을 수 있음)
+            const stageAllowsHiddenStones = ((game.settings as any)?.hiddenStoneCount ?? 0) > 0;
+            const hasAnyUnrevealedOpponentStone = stageAllowsHiddenStones && game.boardState && game.moveHistory && game.moveHistory.some((m) => {
                 if (m.x < 0 || m.y < 0) return false;
                 if (m.player !== opponentPlayerEnum) return false;
                 const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === m.x && p.y === m.y);

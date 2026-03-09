@@ -32,6 +32,7 @@ export function getSelectiveUserUpdate(
         'BUY_SHOP_ITEM': ['inventory', 'gold', 'diamonds'],
         'BUY_MATERIAL_BOX': ['inventory', 'gold', 'diamonds', 'dailyShopPurchases'],
         'BUY_CONDITION_POTION': ['inventory', 'gold', 'dailyShopPurchases'],
+        'BUY_TOWER_ITEM': ['inventory', 'gold', 'diamonds', 'dailyShopPurchases'],
         'BUY_BORDER': ['ownedBorders', 'gold', 'diamonds'],
         'PURCHASE_ACTION_POINTS': ['actionPoints', 'diamonds', 'actionPointPurchasesToday', 'lastActionPointPurchaseDate'],
         

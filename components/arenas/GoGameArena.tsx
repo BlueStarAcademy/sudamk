@@ -3,6 +3,8 @@ import { GameProps, Player, Point, GameStatus, Move, GameMode } from '../../type
 import GoBoard from '../GoBoard.js';
 import { ScoringOverlay } from '../game/ScoringOverlay.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes';
+import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
+import { TOWER_STAGES } from '../../constants/towerConstants.js';
 
 interface GoGameArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -95,6 +97,38 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         return 'bg-primary';
     }, [mode, session.isAiGame, session.isSinglePlayer, session.gameCategory]);
 
+    // 남은 턴이 0이면 계가 진행되므로, 그 순간부터 클릭 불가 (빠르게 눌러서 추가 착수되는 버그 방지)
+    const isBoardDisabledDueToTurnLimit = useMemo(() => {
+        if (gameStatus !== 'playing' && gameStatus !== 'hidden_placing') return false;
+        const moveHistory = session.moveHistory ?? [];
+        const validMovesCount = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
+
+        // 싱글플레이/도전의 탑: 자동계가 턴 수 제한
+        const isTower = session.gameCategory === 'tower';
+        if ((session.isSinglePlayer || isTower) && session.stageId) {
+            const stage = isTower
+                ? TOWER_STAGES.find(s => s.id === session.stageId)
+                : SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
+            if (stage?.autoScoringTurns) {
+                const totalTurns = (session.totalTurns != null && session.totalTurns > 0)
+                    ? Math.max(session.totalTurns, validMovesCount)
+                    : validMovesCount;
+                const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
+                if (remainingTurns <= 0) return true;
+            }
+        }
+
+        // 전략바둑 로비: 수순 제한(scoringTurnLimit) 도달 시
+        const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
+        const limit = settings.scoringTurnLimit;
+        if (isStrategicMode && !session.isSinglePlayer && session.gameCategory !== 'tower' && limit != null && limit > 0) {
+            const current = validMovesCount > 0 ? validMovesCount : (session.totalTurns ?? 0);
+            if (current >= limit) return true;
+        }
+
+        return false;
+    }, [gameStatus, session.isSinglePlayer, session.gameCategory, session.stageId, session.moveHistory, session.totalTurns, settings.scoringTurnLimit, mode]);
+
     return (
         <div className={`w-full h-full flex items-center justify-center ${backgroundClass} relative`}>
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
@@ -132,7 +166,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 gameId={session.id}
                 lastMove={displayLastMove}
                 lastTurnStones={session.lastTurnStones}
-                isBoardDisabled={props.isSpectator || (!isMyTurn && gameStatus !== 'base_placement')}
+                isBoardDisabled={props.isSpectator || (!isMyTurn && gameStatus !== 'base_placement') || isBoardDisabledDueToTurnLimit}
                 stoneColor={myPlayerEnum}
                 winningLine={session.winningLine}
                 mode={session.mode}

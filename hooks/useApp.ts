@@ -1360,6 +1360,7 @@ export const useApp = () => {
                                                     whiteTimeLeft: g.whiteTimeLeft,
                                                     captures: g.captures,
                                                     hiddenMoves: g.hiddenMoves ?? undefined,
+                                                    permanentlyRevealedStones: Array.isArray(g.permanentlyRevealedStones) ? g.permanentlyRevealedStones : undefined,
                                                 }
                                             } as ServerAction);
                                         } else {
@@ -1738,7 +1739,7 @@ export const useApp = () => {
                     showError(errorMessage);
                     return;
                 }
-                // LEAVE_AI_GAME 성공 시 로컬 상태에서 해당 게임 제거 및 사용자 gameId 해제 → activeGame이 null이 되어 "재접속 중..."에 갇히지 않음
+                // LEAVE_AI_GAME 성공 시 로컬 상태에서 해당 게임 제거 및 사용자 gameId 해제 → 전략/놀이 대기실로 이동
                 if (action.type === 'LEAVE_AI_GAME') {
                     const gameId = (action.payload as { gameId?: string })?.gameId;
                     if (gameId) {
@@ -1752,6 +1753,12 @@ export const useApp = () => {
                         if (uid) {
                             setOnlineUsers(prev => prev.map(u => u.id === uid ? { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined } : u));
                         }
+                    }
+                    // 나가기 클릭 시 설정된 대기실로 즉시 이동 (전략바둑 → #/waiting/strategic, 놀이바둑 → #/waiting/playful 등)
+                    const postRedirect = sessionStorage.getItem('postGameRedirect');
+                    if (postRedirect) {
+                        sessionStorage.removeItem('postGameRedirect');
+                        setTimeout(() => { window.location.hash = postRedirect; }, 0);
                     }
                 }
                 // SPECTATE_GAME 성공 시 서버가 반환한 전체 게임 데이터를 상태에 넣고 게임 페이지로 이동 (중립 관전)
@@ -3462,7 +3469,8 @@ export const useApp = () => {
                                 const isPlayfulBoardUpdate = !!(game.alkkagiStones || game.curlingStones || (game.gameStatus && (String(game.gameStatus).startsWith('alkkagi_') || String(game.gameStatus).startsWith('curling_'))));
                                 // 주사위/도둑 굴리기 애니메이션: moveHistory가 안 바뀌어도 반영 (두 번째 턴부터 애니 안 나오는 버그 방지)
                                 const isDiceRollAnimationUpdate = game.gameStatus === 'dice_rolling_animating' || game.gameStatus === 'thief_rolling_animating' || game.animation?.type === 'dice_roll_main';
-                                if (!hasNewMoves && !isPlayfulBoardUpdate && !isDiceRollAnimationUpdate && now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS) {
+                                const isScoringOrRevealUpdate = game.gameStatus === 'scoring' || game.gameStatus === 'hidden_final_reveal';
+                                if (!hasNewMoves && !isPlayfulBoardUpdate && !isDiceRollAnimationUpdate && !isScoringOrRevealUpdate && now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS) {
                                     return;
                                 }
                                 lastGameUpdateTimeRef.current[gameId] = now;
@@ -3837,9 +3845,17 @@ export const useApp = () => {
                                             const localServerRevision = existingGame.serverRevision || 0;
                                             const serverRevision = game.serverRevision || 0;
                                             
-                                            // 클라이언트가 더 많은 수를 두었거나, 같은 수를 두었지만 클라이언트의 serverRevision이 더 크면 무시
-                                            if (localMoveHistoryLength > serverMoveHistoryLength || 
-                                                (localMoveHistoryLength === serverMoveHistoryLength && localServerRevision >= serverRevision)) {
+                                            // 서버가 계가/히든 공개로 전환한 경우는 항상 반영 (공개할 히든 없이 바로 계가 시 멈춤 방지)
+                                            const isServerScoringOrReveal = game.gameStatus === 'scoring' || game.gameStatus === 'hidden_final_reveal';
+                                            // 서버가 아이템 사용 모드로 전환한 경우도 항상 반영 (히든/미사일/스캔 버튼 클릭 후 화면 전환)
+                                            const isServerItemMode = game.gameStatus === 'hidden_placing' || game.gameStatus === 'missile_selecting' || game.gameStatus === 'scanning';
+                                            // 서버가 미사일 애니메이션 중인 상태를 보낸 경우 반영 (LAUNCH_MISSILE 직후 애니메이션 재생·완료 신호 전송을 위해)
+                                            const isServerMissileAnimating = game.gameStatus === 'missile_animating';
+                                            // 서버가 미사일/스캔 애니메이션 종료 후 playing으로 복귀한 경우 항상 반영 (애니메이션 멈춤·게임 재개)
+                                            const isServerExitingAnimation = (existingGame.gameStatus === 'missile_animating' || existingGame.gameStatus === 'scanning') && game.gameStatus === 'playing';
+                                            // 클라이언트가 더 많은 수를 두었거나, 같은 수를 두었지만 클라이언트의 serverRevision이 더 크면 무시 (단, 계가/공개/아이템모드/애니종료 전환은 제외)
+                                            if (!isServerScoringOrReveal && !isServerItemMode && !isServerMissileAnimating && !isServerExitingAnimation && (localMoveHistoryLength > serverMoveHistoryLength || 
+                                                (localMoveHistoryLength === serverMoveHistoryLength && localServerRevision >= serverRevision))) {
                                                 // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
                                                 if (process.env.NODE_ENV === 'development') {
                                                     console.log('[WebSocket] Tower game - Ignoring server update (client state is newer):', {
@@ -4561,6 +4577,42 @@ export const useApp = () => {
             }
         }, 2500);
         return () => clearTimeout(t);
+    }, [currentUser, currentRoute?.view, currentRoute?.params?.id, liveGames, singlePlayerGames, towerGames]);
+
+    // 계가 중(scoring) 새로고침 시 KataGo 결과 수신: scoring 상태인 활성 게임이 있으면 rejoin 폴링하여 결과 반영
+    useEffect(() => {
+        const gameId = currentRoute?.view === 'game' ? (currentRoute.params?.id ?? '') : '';
+        if (!currentUser || !gameId) return;
+        const game = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+        if (!game || game.gameStatus !== 'scoring') return;
+
+        const SCORING_POLL_MS = 3000;
+        const id = setInterval(async () => {
+            try {
+                const res = await fetch(getApiUrl('/api/game/rejoin'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id, gameId }),
+                    credentials: 'omit',
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.game) return;
+                const g = data.game as LiveGameSession;
+                if (g.gameStatus !== 'scoring' && g.gameStatus !== 'hidden_final_reveal') {
+                    const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+                    if (category === 'singleplayer') {
+                        setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
+                    } else if (category === 'tower') {
+                        setTowerGames(prev => ({ ...prev, [g.id]: g }));
+                    } else {
+                        setLiveGames(prev => ({ ...prev, [g.id]: g }));
+                    }
+                }
+            } catch {
+                // ignore
+            }
+        }, SCORING_POLL_MS);
+        return () => clearInterval(id);
     }, [currentUser, currentRoute?.view, currentRoute?.params?.id, liveGames, singlePlayerGames, towerGames]);
 
     // --- Misc UseEffects ---

@@ -83,14 +83,15 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
         return item?.quantity ?? 0;
     };
 
-    // 오늘 구매한 개수 계산
+    // 오늘(KST) 구매한 개수 계산 — 서버와 동일 키(itemId)·날짜 기준
     const getTodayPurchased = (itemId: string): number => {
-        const dailyPurchases = currentUser.dailyShopPurchases || {};
+        const dailyPurchases = currentUser.dailyShopPurchases ?? {};
         const purchaseRecord = dailyPurchases[itemId];
-        if (purchaseRecord && isSameDayKST(purchaseRecord.date, Date.now())) {
-            return purchaseRecord.quantity;
-        }
-        return 0;
+        if (!purchaseRecord || typeof purchaseRecord !== 'object') return 0;
+        const date = typeof purchaseRecord.date === 'number' ? purchaseRecord.date : undefined;
+        if (date == null || !isSameDayKST(date, Date.now())) return 0;
+        const qty = typeof purchaseRecord.quantity === 'number' ? purchaseRecord.quantity : 0;
+        return Math.max(0, qty);
     };
 
     // 각 아이템의 구매 가능 여부 및 최대 구매 가능 개수 계산
@@ -98,14 +99,18 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
         const currentOwned = getCurrentOwned(item.itemId);
         const todayPurchased = getTodayPurchased(item.itemId);
         const cartQuantity = cart[item.itemId] || 0;
-        const canBuyMore = currentOwned < item.maxOwned && todayPurchased < item.dailyPurchaseLimit;
-        const maxCanBuy = Math.min(
-            item.maxOwned - currentOwned, // 보유 제한까지 구매 가능
-            item.dailyPurchaseLimit - todayPurchased, // 하루 구매 제한까지 구매 가능
-            item.price.gold ? Math.floor((currentUser.gold || 0) / item.price.gold) : Infinity, // 골드 제한
-            item.price.diamonds ? Math.floor((currentUser.diamonds || 0) / item.price.diamonds) : Infinity // 다이아 제한
-        );
-        return { canBuyMore, maxCanBuy, currentOwned, todayPurchased, cartQuantity };
+        const atMaxOwned = currentOwned >= item.maxOwned;
+        const atDailyLimit = todayPurchased >= item.dailyPurchaseLimit;
+        const canBuyMore = !atMaxOwned && !atDailyLimit;
+        const maxCanBuy = atMaxOwned
+            ? 0
+            : Math.min(
+                item.maxOwned - currentOwned,
+                item.dailyPurchaseLimit - todayPurchased,
+                item.price.gold ? Math.floor((currentUser.gold || 0) / item.price.gold) : Infinity,
+                item.price.diamonds ? Math.floor((currentUser.diamonds || 0) / item.price.diamonds) : Infinity
+            );
+        return { canBuyMore, maxCanBuy, currentOwned, todayPurchased, cartQuantity, atMaxOwned, atDailyLimit };
     };
 
     const handleQuantityChange = (itemId: string, delta: number) => {
@@ -281,7 +286,7 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
 
                             <div className="border-t border-amber-700/40 pt-4">
                                 {(() => {
-                                    const { canBuyMore, maxCanBuy, currentOwned, todayPurchased, cartQuantity } = getItemPurchaseInfo(selectedItem);
+                                    const { canBuyMore, maxCanBuy, currentOwned, todayPurchased, cartQuantity, atMaxOwned, atDailyLimit } = getItemPurchaseInfo(selectedItem);
                                     const isGold = !!selectedItem.price.gold;
                                     const pricePerItem = selectedItem.price.gold || selectedItem.price.diamonds || 0;
                                     const totalItemPrice = pricePerItem * (cartQuantity || 0);
@@ -321,7 +326,7 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
 
                                             <div className="text-xs text-amber-300/80 space-y-1">
                                                 <p>현재 보유: {currentOwned}/{selectedItem.maxOwned}개</p>
-                                                <p>오늘 구매: {todayPurchased}/{selectedItem.dailyPurchaseLimit}개</p>
+                                                <p>오늘 구매: {atMaxOwned ? selectedItem.dailyPurchaseLimit : todayPurchased}/{selectedItem.dailyPurchaseLimit}개</p>
                                                 <p>최대 구매 가능: {maxCanBuy}개</p>
                                             </div>
 
@@ -349,9 +354,14 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                                                 </div>
                                             )}
 
-                                            {!canBuyMore && (
+                                            {atMaxOwned && (
                                                 <p className="text-xs text-red-400 text-center">
-                                                    구매 한도에 도달했습니다.
+                                                    보유 개수가 최대치여서 구매할 수 없습니다.
+                                                </p>
+                                            )}
+                                            {!atMaxOwned && atDailyLimit && (
+                                                <p className="text-xs text-red-400 text-center">
+                                                    오늘 구매 한도에 도달했습니다.
                                                 </p>
                                             )}
                                         </div>

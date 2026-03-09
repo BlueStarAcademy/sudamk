@@ -86,7 +86,9 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
             details.push(renderSetting("덤", `${session.finalKomi ?? session.settings.komi ?? DEFAULT_KOMI}집`));
         }
        
-        if (!modesWithoutTime.includes(mode)) {
+        // 도전의 탑: 제한시간/초읽기는 무제한이므로 표시하지 않음
+        const isTowerGame = (session as any).gameCategory === 'tower';
+        if (!isTowerGame && !modesWithoutTime.includes(mode)) {
             if (settings.timeLimit > 0) {
                 details.push(renderSetting("제한시간", `${settings.timeLimit}분`));
                 details.push(renderSetting("초읽기", mode === GameMode.Speed ? `${settings.timeIncrement}초 피셔` : `${settings.byoyomiTime}초 ${settings.byoyomiCount}회`));
@@ -147,13 +149,16 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
              details.push(renderSetting("베이스돌", `${settings.baseStones}개`));
         }
         
-        if (mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden))) {
-             details.push(renderSetting("히든돌", `${settings.hiddenStoneCount}개`));
-             details.push(renderSetting("스캔", `${settings.scanCount}개`));
+        // 도전의 탑: 턴 추가/미사일/히든/스캔/배치변경은 대기실(가방) 보유 개수만 사용 → 개수 미표시
+        if (!isTowerGame && (mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden)))) {
+             details.push(renderSetting("히든돌", `${settings.hiddenStoneCount ?? 0}개`));
+             details.push(renderSetting("스캔", `${settings.scanCount ?? 0}개`));
         }
-        
-        if (mode === GameMode.Missile || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Missile))) {
+        if (!isTowerGame && (mode === GameMode.Missile || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Missile)))) {
              details.push(renderSetting("미사일", `${settings.missileCount}개`));
+        }
+        if (isTowerGame && (mode === GameMode.Mix || mode === GameMode.Missile || mode === GameMode.Hidden)) {
+             details.push(renderSetting("아이템", "대기실 보유 개수 사용"));
         }
 
         if (SPECIAL_GAME_MODES.some(m => m.mode === mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
@@ -336,16 +341,14 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // 싱글플레이, 도전의 탑, 일반 게임 구분
+    // 싱글플레이, 도전의 탑, 전략/놀이바둑 명확히 구분 (gameCategory·isSinglePlayer 우선)
     let locationPrefix: string;
-    if (session.isSinglePlayer && !session.gameCategory) {
-        // 싱글플레이 게임
-        locationPrefix = '[싱글플레이]';
-    } else if (session.gameCategory === 'tower') {
-        // 도전의 탑
+    if (session.gameCategory === 'tower') {
         locationPrefix = '[도전의탑]';
+    } else if (session.gameCategory === 'singleplayer' || session.isSinglePlayer) {
+        locationPrefix = '[싱글플레이]';
     } else {
-        // 일반 게임 (멀티플레이)
+        // 전략바둑/놀이바둑 대기실 게임만 [전략:모드] / [놀이:모드]
         const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
         const lobbyType = isStrategic ? '전략' : '놀이';
         locationPrefix = `[${lobbyType}:${mode}]`;

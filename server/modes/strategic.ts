@@ -225,7 +225,18 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 다음 턴이 AI인 경우: 클라이언트가 계가 직전 유저 소요시간만 동기화 → 동기화 후 남은 턴 0이면 즉시 계가
             if (payload.syncTimeAndStateForScoring && (game.isSinglePlayer || game.gameCategory === 'tower')) {
                 if (payload.moveHistory && Array.isArray(payload.moveHistory)) game.moveHistory = payload.moveHistory;
-                if (payload.boardState && Array.isArray(payload.boardState)) game.boardState = payload.boardState;
+                // 히든 모드: 클라이언트 보드는 AI의 미공개 히든 돌이 없으므로 서버 boardState 유지 (계가 시 백 돌 포함)
+                const isHiddenModeSync = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+                if (!isHiddenModeSync && payload.boardState && Array.isArray(payload.boardState)) game.boardState = payload.boardState;
+                // 히든 모드: 이미 공개된 돌은 클라이언트 기준으로 서버에 반영 → getGameResult에서 미공개만 애니메이션
+                if (isHiddenModeSync && payload.permanentlyRevealedStones != null && Array.isArray(payload.permanentlyRevealedStones)) {
+                    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                    for (const p of payload.permanentlyRevealedStones) {
+                        if (typeof p.x === 'number' && typeof p.y === 'number' && !game.permanentlyRevealedStones.some((q: { x: number; y: number }) => q.x === p.x && q.y === p.y)) {
+                            game.permanentlyRevealedStones.push({ x: p.x, y: p.y });
+                        }
+                    }
+                }
                 if (payload.totalTurns !== undefined) game.totalTurns = payload.totalTurns;
                 if (payload.blackTimeLeft !== undefined) game.blackTimeLeft = payload.blackTimeLeft;
                 if (payload.whiteTimeLeft !== undefined) game.whiteTimeLeft = payload.whiteTimeLeft;
@@ -246,12 +257,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 const remainingTurnsSync = autoScoringTurnsSync != null ? Math.max(0, autoScoringTurnsSync - totalTurns) : 0;
                 if (autoScoringTurnsSync != null && remainingTurnsSync <= 0) {
                     if (game.endTime == null) game.endTime = Date.now();
-                    game.gameStatus = 'scoring';
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('../socket.js');
-                    const gameToBroadcast = { ...game };
-                    delete (gameToBroadcast as any).boardState;
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                    // getGameResult가 히든 미공개 돌이 있으면 hidden_final_reveal로 보내고, 없으면 scoring 진행. 먼저 scoring으로 덮어쓰지 않음.
                     try {
                         await getGameResult(game);
                     } catch (error) {
@@ -798,12 +804,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     if (newTotalTurns >= autoScoringTurns) {
                         const gameType = game.gameCategory === 'tower' ? 'Tower' : 'SinglePlayer';
                         console.log(`[handleStrategicAction] Auto-scoring triggered (user placed last stone): totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, ${gameType}`);
-                        game.gameStatus = 'scoring';
-                        await db.saveGame(game);
-                        const { broadcastToGameParticipants } = await import('../socket.js');
-                        const gameToBroadcast = { ...game };
-                        delete (gameToBroadcast as any).boardState;
-                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                        // 히든 모드: getGameResult가 미공개 히든 돌이 있으면 hidden_final_reveal → 공개 연출 후 계가. 먼저 scoring으로 덮어쓰지 않음.
                         try {
                             await getGameResult(game);
                         } catch (scoringError: any) {

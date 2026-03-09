@@ -171,10 +171,15 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
     const now = Date.now();
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     const isMyTurn = myPlayerEnum === game.currentPlayer;
+    // 도전의 탑/싱글: 유저가 방금 둔 직후(턴이 AI로 넘어갔지만 AI가 아직 두기 전)에도 히든/스캔 허용 (싱글플레이와 동일)
+    const lastMove = game.moveHistory?.length ? game.moveHistory[game.moveHistory.length - 1] : null;
+    const lastMoveWasMine = lastMove && (lastMove as { player?: number }).player === myPlayerEnum;
+    const allowItemAfterMyMove = (game.isSinglePlayer || (game as any).gameCategory === 'tower') && game.gameStatus === 'playing' && lastMoveWasMine && !isMyTurn;
+    const canUseItem = isMyTurn || allowItemAfterMyMove;
 
     switch(type) {
         case 'START_HIDDEN_PLACEMENT': {
-            if (!isMyTurn || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
+            if (!canUseItem || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
             // Mix/타워: 히든 개수 확인 (없으면 진입 불가)
             const isMixOrHidden = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
             if (isMixOrHidden) {
@@ -187,7 +192,7 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             return {};
         }
         case 'START_SCANNING': {
-            if (!isMyTurn || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
+            if (!canUseItem || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
             const scanKeyStart = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
             if ((game[scanKeyStart] ?? 0) <= 0) return { error: "No scans left." };
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;

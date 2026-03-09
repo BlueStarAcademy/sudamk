@@ -592,7 +592,8 @@ const GuildBoss: React.FC = () => {
                 const actionResult = await handlers.handleAction({ type: 'START_GUILD_BOSS_BATTLE', payload: { bossId: currentBoss.id, result: finalResult, bossName: currentBoss.name } });
                 
                 // 서버에서 반환된 업데이트된 결과 사용 (장비 정보 포함)
-                const serverResult = (actionResult as any)?.clientResponse?.guildBossBattleResult;
+                // API가 { success, ...clientResponse } 형태로 응답하므로 guildBossBattleResult는 최상위에 있음
+                const serverResult = (actionResult as any)?.guildBossBattleResult ?? (actionResult as any)?.clientResponse?.guildBossBattleResult;
                 const resultToUse = serverResult || finalResult;
                 
                 // 디버깅: 장비 정보 확인

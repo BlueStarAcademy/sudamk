@@ -183,8 +183,8 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             }
         }
         
-        // AI 초기 히든돌도 확인 (싱글플레이 모드)
-        if (game.isSinglePlayer && (game as any).aiInitialHiddenStone) {
+        // AI 초기 히든돌도 확인 (싱글플레이·탑)
+        if ((game.isSinglePlayer || game.gameCategory === 'tower') && (game as any).aiInitialHiddenStone) {
             const aiHidden = (game as any).aiInitialHiddenStone;
             const isAlreadyRevealed = game.permanentlyRevealedStones.some(
                 p => p.x === aiHidden.x && p.y === aiHidden.y
@@ -210,18 +210,20 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             }
         }
         
-        // 발견되지 않은 히든 돌들을 모두 영구적으로 공개
+        // 공개할 히든 돌이 없으면 애니메이션 없이 바로 계가 진행
+        if (stonesToReveal.length === 0) {
+            console.log(`[getGameResult] No hidden stones to reveal for game ${game.id}, proceeding to scoring`);
+        }
+        // 발견되지 않은 히든 돌들이 있으면 공개 애니메이션 후 계가
         if (stonesToReveal.length > 0) {
             // 히든돌 공개 애니메이션 추가
             const now = Date.now();
             const stonesToRevealWithPlayer = stonesToReveal.map(point => {
                 // moveHistory에서 원래 플레이어 확인
                 const moveIndex = game.moveHistory.findIndex(m => m.x === point.x && m.y === point.y);
-                const player = moveIndex !== -1 ? game.moveHistory[moveIndex].player : 
-                              (game.isSinglePlayer && (game as any).aiInitialHiddenStone && 
-                               (game as any).aiInitialHiddenStone.x === point.x && 
-                               (game as any).aiInitialHiddenStone.y === point.y) 
-                              ? types.Player.White : types.Player.Black;
+                const isAiInitial = (game.isSinglePlayer || game.gameCategory === 'tower') && (game as any).aiInitialHiddenStone &&
+                    (game as any).aiInitialHiddenStone.x === point.x && (game as any).aiInitialHiddenStone.y === point.y;
+                const player = moveIndex !== -1 ? game.moveHistory[moveIndex].player : (isAiInitial ? types.Player.White : types.Player.Black);
                 return { point, player };
             });
             

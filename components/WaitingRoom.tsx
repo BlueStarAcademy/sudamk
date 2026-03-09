@@ -151,8 +151,13 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         return false;
       }
       
-      // 종료된 게임인 경우 대국실에 참가자나 관전자가 있는지 확인
-      if (g.gameStatus === 'ended' || g.gameStatus === 'no_contest') {
+      // 강제 종료(no_contest)된 게임은 방 목록에서 항상 제외
+      if (g.gameStatus === 'no_contest') {
+        return false;
+      }
+
+      // 일반 종료된 게임인 경우 대국실에 참가자나 관전자가 있는지 확인
+      if (g.gameStatus === 'ended') {
         // 게임에 참가 중이거나 관전 중인 사용자가 있는지 확인
         const hasParticipants = onlineUsers.some(u => 
           (u.gameId === g.id && (u.status === 'in-game' || u.status === 'spectating')) ||

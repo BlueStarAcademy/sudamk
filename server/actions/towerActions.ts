@@ -77,6 +77,11 @@ const wouldBeImmediatelyCaptured = (board: BoardState, x: number, y: number, pla
         return true; // Couldn't find group, skip
     }
 
+    // 0 liberties = 즉시 따이는 모양 (자살/포석 즉시 잡힘) → 배치 불가
+    if (myGroup.liberties.length === 0) {
+        return true;
+    }
+
     // If the group has only one liberty, check if opponent can capture by playing there
     if (myGroup.liberties.length === 1) {
         const liberty = myGroup.liberties[0];
@@ -143,18 +148,25 @@ const placeStonesOnBoard = (board: BoardState, boardSize: number, count: number,
     return placedStones;
 };
 
-// Helper function to place pattern stones randomly without overlap — 층별 문양돌 개수 정확히 맞춤
-const placePatternStonesOnBoard = (board: BoardState, boardSize: number, count: number, _player: Player, existingStones: Point[]): Point[] => {
-    const empty: Point[] = [];
-    for (let y = 0; y < boardSize; y++) {
-        for (let x = 0; x < boardSize; x++) {
-            if (board[y][x] === Player.None && !existingStones.some(s => s.x === x && s.y === y)) {
+// Helper function to place pattern stones randomly without overlap and without capture shape — 층별 문양돌 개수 맞춤, 따내지는 위치 제외
+const placePatternStonesOnBoard = (board: BoardState, boardSize: number, count: number, player: Player, _existingStones: Point[]): Point[] => {
+    const result: Point[] = [];
+    for (let n = 0; n < count; n++) {
+        const empty: Point[] = [];
+        for (let y = 0; y < boardSize; y++) {
+            for (let x = 0; x < boardSize; x++) {
+                if (board[y][x] !== Player.None) continue;
+                if (wouldBeImmediatelyCaptured(board, x, y, player)) continue;
                 empty.push({ x, y });
             }
         }
+        if (empty.length === 0) break;
+        const shuffled = shufflePoints(empty);
+        const chosen = shuffled[0];
+        board[chosen.y][chosen.x] = player;
+        result.push(chosen);
     }
-    const shuffled = shufflePoints(empty);
-    return shuffled.slice(0, Math.min(count, shuffled.length));
+    return result;
 };
 
 const generateTowerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
@@ -327,7 +339,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                     blackTurnLimit: stage.blackTurnLimit,
                     autoScoringTurns: stage.autoScoringTurns,
                     hiddenStoneCount: stage.hiddenCount,
-                    scanCount: stage.scanCount,
+                    scanCount: stage.scanCount ?? (stage.hiddenCount ? 2 : 0),
                     missileCount: stage.missileCount,
                     mixedModes: mixedModes.length > 0 ? mixedModes : undefined,
                     useClientSideAi: useClientSideAi === true,

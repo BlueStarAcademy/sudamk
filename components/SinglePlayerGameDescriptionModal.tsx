@@ -98,8 +98,8 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-gray-600">
+        <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[calc(100vh-2rem)] min-h-0 overflow-y-auto border-2 border-gray-600">
                 <div className="p-6">
                     <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-600 pb-3">
                         {stage.name} - 게임 설명
@@ -247,13 +247,13 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                 </h3>
                                 <div className="bg-gray-700/50 rounded-lg p-3">
                                     <p className="text-gray-200">
-                                        <span className="text-blue-400 font-bold">남은 턴</span>이 0이 되면 자동으로 계가가 진행됩니다. (최대 {stage.autoScoringTurns}수)
+                                        <span className="text-blue-400 font-bold">남은 턴</span>이 0이 되면 자동으로 계가가 진행됩니다. ({stage.autoScoringTurns}수)
                                     </p>
                                 </div>
                             </div>
                         )}
 
-                        {/* 특수 아이템 */}
+                        {/* 특수 아이템: 도전의 탑은 대기실(가방) 보유 개수만 사용, 기본 개수 없음 */}
                         {(stage.missileCount || stage.hiddenCount || stage.scanCount) && (
                             <div>
                                 <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
@@ -261,49 +261,87 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                     <span>특수 아이템</span>
                                 </h3>
                                 <div className="bg-gray-700/50 rounded-lg p-3 space-y-3">
-                                    {/* 미사일 아이템 */}
-                                    {stage.missileCount && stage.missileCount > 0 && (
-                                        <div className="border-l-4 border-amber-400 pl-3">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <img src="/images/button/missile.png" alt="미사일" className="w-6 h-6 object-contain" />
-                                                <span className="font-semibold text-amber-300">미사일 ({stage.missileCount}개)</span>
-                                            </div>
-                                            <p className="text-gray-200 text-sm">
-                                                발사할 바둑돌을 선택한 후 방향을 선택하면 해당 방향으로 날아갑니다. 
-                                                <br />
-                                                <span className="text-gray-300 text-xs">• 아이템 사용 시 30초의 제한시간이 부여됩니다.</span>
+                                    {isTower && (stage.missileCount || stage.hiddenCount || stage.scanCount) ? (
+                                        <>
+                                            <p className="text-amber-200/90 text-sm mb-3">
+                                                각종 아이템을 이용하여 공략해보세요.
                                             </p>
-                                        </div>
-                                    )}
-                                    
-                                    {/* 히든 아이템 */}
-                                    {stage.hiddenCount && stage.hiddenCount > 0 && (
-                                        <div className="border-l-4 border-purple-400 pl-3">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <img src="/images/button/hidden.png" alt="히든" className="w-6 h-6 object-contain" />
-                                                <span className="font-semibold text-purple-300">히든 스톤 ({stage.hiddenCount}개)</span>
+                                            <div className="space-y-2">
+                                                {stage.missileCount > 0 && (
+                                                    <div className="flex items-start gap-2 border-l-4 border-amber-400 pl-3 py-1">
+                                                        <img src="/images/button/missile.png" alt="미사일" className="w-6 h-6 object-contain flex-shrink-0" />
+                                                        <div>
+                                                            <span className="font-semibold text-amber-300">미사일</span>
+                                                            <p className="text-gray-300 text-xs mt-0.5">놓여진 내 돌을 직선으로 이동하는 아이템</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {stage.hiddenCount > 0 && (
+                                                    <div className="flex items-start gap-2 border-l-4 border-purple-400 pl-3 py-1">
+                                                        <img src="/images/button/hidden.png" alt="히든" className="w-6 h-6 object-contain flex-shrink-0" />
+                                                        <div>
+                                                            <span className="font-semibold text-purple-300">히든</span>
+                                                            <p className="text-gray-300 text-xs mt-0.5">상대방에게 보이지 않는 비밀의 한 수를 두는 아이템</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {/* 21층+는 미사일/히든 있으면 스캔도 사용 가능(대기실 보유분) */}
+                                                {(stage.scanCount || (session.settings as any)?.scanCount || (stage.missileCount || stage.hiddenCount)) && (
+                                                    <div className="flex items-start gap-2 border-l-4 border-blue-400 pl-3 py-1">
+                                                        <img src="/images/button/scan.png" alt="스캔" className="w-6 h-6 object-contain flex-shrink-0" />
+                                                        <div>
+                                                            <span className="font-semibold text-blue-300">스캔</span>
+                                                            <p className="text-gray-300 text-xs mt-0.5">상대방의 히든 돌을 탐색해보는 아이템</p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <p className="text-gray-200 text-sm">
-                                                상대방에게 보이지 않는 돌을 배치할 수 있습니다. 
-                                                <br />
-                                                <span className="text-gray-300 text-xs">• 아이템 사용 시 30초의 제한시간이 부여됩니다.</span>
+                                            <p className="text-gray-300 text-xs mt-2">
+                                                • 아이템 사용 시 30초의 제한시간이 부여됩니다.
                                             </p>
-                                        </div>
-                                    )}
-                                    
-                                    {/* 스캔 아이템 */}
-                                    {stage.scanCount && stage.scanCount > 0 && (
-                                        <div className="border-l-4 border-blue-400 pl-3">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <img src="/images/button/scan.png" alt="스캔" className="w-6 h-6 object-contain" />
-                                                <span className="font-semibold text-blue-300">스캔 ({stage.scanCount}개)</span>
-                                            </div>
-                                            <p className="text-gray-200 text-sm">
-                                                상대방의 히든 스톤을 탐지할 수 있습니다. 
-                                                <br />
-                                                <span className="text-gray-300 text-xs">• 아이템 사용 시 30초의 제한시간이 부여됩니다.</span>
-                                            </p>
-                                        </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {stage.missileCount > 0 && (
+                                                <div className="border-l-4 border-amber-400 pl-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <img src="/images/button/missile.png" alt="미사일" className="w-6 h-6 object-contain" />
+                                                        <span className="font-semibold text-amber-300">미사일 ({stage.missileCount}개)</span>
+                                                    </div>
+                                                    <p className="text-gray-200 text-sm">
+                                                        발사할 바둑돌을 선택한 후 방향을 선택하면 해당 방향으로 날아갑니다.
+                                                        <br />
+                                                        <span className="text-gray-300 text-xs">• 아이템 사용 시 30초의 제한시간이 부여됩니다.</span>
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {stage.hiddenCount > 0 && (
+                                                <div className="border-l-4 border-purple-400 pl-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <img src="/images/button/hidden.png" alt="히든" className="w-6 h-6 object-contain" />
+                                                        <span className="font-semibold text-purple-300">히든 스톤 ({stage.hiddenCount}개)</span>
+                                                    </div>
+                                                    <p className="text-gray-200 text-sm">
+                                                        상대방에게 보이지 않는 돌을 배치할 수 있습니다.
+                                                        <br />
+                                                        <span className="text-gray-300 text-xs">• 아이템 사용 시 30초의 제한시간이 부여됩니다.</span>
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {stage.scanCount > 0 && (
+                                                <div className="border-l-4 border-blue-400 pl-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <img src="/images/button/scan.png" alt="스캔" className="w-6 h-6 object-contain" />
+                                                        <span className="font-semibold text-blue-300">스캔 ({stage.scanCount}개)</span>
+                                                    </div>
+                                                    <p className="text-gray-200 text-sm">
+                                                        상대방의 히든 스톤을 탐지할 수 있습니다.
+                                                        <br />
+                                                        <span className="text-gray-300 text-xs">• 아이템 사용 시 30초의 제한시간이 부여됩니다.</span>
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>

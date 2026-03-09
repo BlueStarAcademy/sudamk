@@ -2,8 +2,9 @@ import React from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { TournamentType, TournamentState } from '../types.js';
+import { ItemGrade } from '../types/enums.js';
 import { TOURNAMENT_DEFINITIONS } from '../constants/tournaments.js';
-import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
+import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, gradeBackgrounds, EQUIPMENT_POOL } from '../constants/items.js';
 
 export interface DungeonStageSummaryModalProps {
     dungeonType: TournamentType;
@@ -54,7 +55,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     const tournamentName = TOURNAMENT_DEFINITIONS[dungeonType].name;
     const nextStage = stage < 10 ? stage + 1 : null;
 
-    const rewardItemsMap = new Map<string, { name: string; image: string; quantity: number }>();
+    const rewardItemsMap = new Map<string, { name: string; image: string; quantity: number; grade?: ItemGrade }>();
 
     // 동네바둑리그: 1회차~5회차 각각 N 골드 형태로 표시 (경기별 기본보상)
     if (dungeonType === 'neighborhood' && baseRewards.gold && baseRewards.gold > 0) {
@@ -114,36 +115,27 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             }
         }
     }
-    // 월드챔피언십: 장비 등급별 수량만 표시 (출처 없이)
+    // 월드챔피언십: 실제 지급된 장비를 인벤토리 카드 스타일(등급 배경 + 장비 이미지)로 표시
     if (dungeonType === 'world') {
         if (grantedEquipmentDrops && grantedEquipmentDrops.length > 0) {
-            const nameCounts: Record<string, { image: string; count: number }> = {};
-            grantedEquipmentDrops.forEach((eq) => {
-                if (!nameCounts[eq.name]) {
-                    nameCounts[eq.name] = { image: eq.image || '/images/equipments/normalbgi.png', count: 0 };
-                }
-                nameCounts[eq.name].count++;
-            });
-            Object.entries(nameCounts).forEach(([name, { image, count }], idx) => {
-                rewardItemsMap.set(`world_equip_${idx}_${name}`, {
-                    name: count > 1 ? `${name} x${count}` : name,
-                    image,
-                    quantity: 1
+            grantedEquipmentDrops.forEach((eq, idx) => {
+                const template = EQUIPMENT_POOL.find(t => t.name === eq.name);
+                const grade = template?.grade as ItemGrade | undefined;
+                rewardItemsMap.set(`world_drop_${idx}_${eq.name}`, {
+                    name: eq.name,
+                    image: eq.image || '/images/equipments/normalbgi.png',
+                    quantity: 1,
+                    grade,
                 });
             });
         } else if (tournamentState.accumulatedEquipmentItems && tournamentState.accumulatedEquipmentItems.length > 0) {
-            const nameCounts: Record<string, { image: string; count: number }> = {};
-            tournamentState.accumulatedEquipmentItems.forEach((eq) => {
-                if (!nameCounts[eq.name]) {
-                    nameCounts[eq.name] = { image: eq.image || '/images/equipments/normalbgi.png', count: 0 };
-                }
-                nameCounts[eq.name].count++;
-            });
-            Object.entries(nameCounts).forEach(([name, { image, count }], idx) => {
-                rewardItemsMap.set(`world_generated_${idx}_${name}`, {
-                    name: count > 1 ? `${name} x${count}` : name,
-                    image,
-                    quantity: 1
+            tournamentState.accumulatedEquipmentItems.forEach((eq, idx) => {
+                const grade = (eq as any).grade as ItemGrade | undefined;
+                rewardItemsMap.set(`world_generated_${idx}_${eq.name}`, {
+                    name: eq.name,
+                    image: eq.image || '/images/equipments/normalbgi.png',
+                    quantity: 1,
+                    grade,
                 });
             });
         } else if (tournamentState.accumulatedEquipmentDrops && tournamentState.accumulatedEquipmentDrops.length > 0) {
@@ -156,21 +148,16 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 mythic: '/images/equipments/mythicbgi.png',
             };
             const EQUIP_GRADE_LABEL: Record<string, string> = {
-                normal: '일반', uncommon: '희귀', rare: '레어', epic: '에픽', legendary: '전설', mythic: '신화',
+                normal: '일반', uncommon: '고급', rare: '희귀', epic: '에픽', legendary: '전설', mythic: '신화',
             };
-            const gradeCounts: Record<string, number> = {};
-            (tournamentState.accumulatedEquipmentDrops as string[]).forEach((gradeKey: string) => {
+            (tournamentState.accumulatedEquipmentDrops as string[]).forEach((gradeKey: string, idx: number) => {
                 const label = EQUIP_GRADE_LABEL[gradeKey] ?? gradeKey;
-                gradeCounts[label] = (gradeCounts[label] || 0) + 1;
-            });
-            Object.entries(gradeCounts).forEach(([label], idx) => {
-                const gradeKey = Object.entries(EQUIP_GRADE_LABEL).find(([, v]) => v === label)?.[0] ?? 'normal';
                 const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.png';
-                const count = gradeCounts[label]!;
-                rewardItemsMap.set(`world_equip_${idx}`, {
-                    name: count > 1 ? `${label} 장비 x${count}` : `${label} 장비`,
+                rewardItemsMap.set(`world_equip_${idx}_${gradeKey}`, {
+                    name: `${label} 장비`,
                     image: img,
-                    quantity: 1
+                    quantity: 1,
+                    grade: gradeKey as ItemGrade,
                 });
             });
         }
@@ -326,18 +313,59 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                         </h3>
                         {rewardItems.length > 0 ? (
                             <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 content-start">
-                                {rewardItems.map((item, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-900/60 border border-gray-700/80"
-                                    >
-                                        <img src={item.image} alt={item.name} className="w-8 h-8 object-contain" />
-                                        <span className="text-[10px] text-gray-300 text-center truncate w-full mt-1">{item.name}</span>
-                                        {item.quantity > 1 && (
-                                            <span className="text-[10px] font-bold text-amber-200">x{item.quantity}</span>
-                                        )}
-                                    </div>
-                                ))}
+                                {rewardItems.map((item, index) => {
+                                    const maybeEquip = item as typeof item & { grade?: ItemGrade };
+                                    const isWorldEquip = dungeonType === 'world' && maybeEquip.grade;
+
+                                    if (isWorldEquip && maybeEquip.grade) {
+                                        const grade = maybeEquip.grade;
+                                        const bg = gradeBackgrounds[grade] || gradeBackgrounds[ItemGrade.Normal];
+
+                                        return (
+                                            <div
+                                                key={index}
+                                                className="flex flex-col items-center justify-center rounded-lg"
+                                                title={item.name}
+                                            >
+                                                <div className="relative aspect-square w-12 sm:w-14 rounded-lg overflow-hidden">
+                                                    <img
+                                                        src={bg}
+                                                        alt={grade}
+                                                        className="absolute inset-0 w-full h-full object-cover rounded-md"
+                                                        aria-hidden
+                                                    />
+                                                    <img
+                                                        src={item.image?.startsWith('/') ? item.image : `/${item.image}`}
+                                                        alt={item.name}
+                                                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[78%] h-[78%] object-contain pointer-events-none"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                    />
+                                                </div>
+                                                <span className="text-[10px] text-gray-200 text-center truncate w-full mt-1">
+                                                    {item.name}
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div
+                                            key={index}
+                                            className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-900/60 border border-gray-700/80"
+                                        >
+                                            <img src={item.image} alt={item.name} className="w-8 h-8 object-contain" />
+                                            <span className="text-[10px] text-gray-300 text-center truncate w-full mt-1">
+                                                {item.name}
+                                            </span>
+                                            {item.quantity > 1 && (
+                                                <span className="text-[10px] font-bold text-amber-200">
+                                                    x{item.quantity}
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <p className="text-gray-500 text-sm py-2">보상 없음</p>
