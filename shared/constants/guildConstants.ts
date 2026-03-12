@@ -182,7 +182,20 @@ export const GUILD_BOSSES: GuildBossInfo[] = [
 
 export const GUILD_BOSS_MAX_ATTEMPTS = 2;
 
-// 딜량 등급 구분 (1~5등급)
+// 12등급 라벨 (E ~ SSS), 절대 데미지로 결정
+export const GUILD_BOSS_GRADE_NAMES = ['E', 'D-', 'D', 'C-', 'C', 'B-', 'B', 'A-', 'A', 'S', 'SS', 'SSS'] as const;
+export type GuildBossGradeLabel = (typeof GUILD_BOSS_GRADE_NAMES)[number];
+
+// 12등급 절대 데미지 경계 (2만 단위 균등 + SSS 25만 이상, 보기 좋은 정수)
+// E < 2만, D- < 4만, D < 6만, C- < 8만, C < 10만, B- < 12만, B < 14만, A- < 16만, A < 18만, S < 20만, SS < 25만, SSS >= 25만
+export const GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS = [20000, 40000, 60000, 80000, 100000, 120000, 140000, 160000, 180000, 200000, 250000] as const;
+
+// 등급별 기여도 (1~12등급)
+export const GUILD_BOSS_CONTRIBUTION_BY_GRADE: Record<number, number> = {
+    1: 5, 2: 6, 3: 8, 4: 10, 5: 12, 6: 15, 7: 18, 8: 22, 9: 28, 10: 32, 11: 36, 12: 40,
+};
+
+// 레거시: 딜량 절대값 등급 (1~5, 개인 보상 등에서 참조 가능)
 export const GUILD_BOSS_DAMAGE_TIERS = {
     1: { min: 0, max: 19999 },
     2: { min: 20000, max: 49999 },
@@ -191,57 +204,153 @@ export const GUILD_BOSS_DAMAGE_TIERS = {
     5: { min: 200000, max: Infinity },
 } as const;
 
-// 등급별 기여도 (딜량에 따라 차등)
+// 레거시: 5등급 기여도 (호환용)
 export const GUILD_BOSS_CONTRIBUTION_BY_TIER: Record<1 | 2 | 3 | 4 | 5, number> = {
-    1: 5,
-    2: 10,
-    3: 15,
-    4: 25,
-    5: 40,
+    1: 5, 2: 10, 3: 15, 4: 25, 5: 40,
 };
 
-// 등급별 보상 (100% 확률)
-export const GUILD_BOSS_REWARDS_BY_TIER = {
+// 12등급별 보상 범위 (gold, guildCoins, researchPoints, guildXp, materials, tickets) + 등급별 장비 테이블
+export const GUILD_BOSS_REWARDS_BY_GRADE: Record<number, {
+    gold: [number, number];
+    guildCoins: [number, number];
+    researchPoints: [number, number];
+    guildXp: [number, number];
+    materials: { name: string; quantity: [number, number] };
+    tickets: [number, number];
+    materialBox?: { name: string; quantity: number }[];
+    equipmentTable: { grade: ItemGrade; weight: number }[];
+}> = {
+    // E~S: 등급 올라갈수록 고급 장비 확률 단조 증가. SS: 전설 20%. SSS만 신화 1%.
     1: {
-        guildXp: [100, 500],
-        guildCoins: [10, 30],
-        researchPoints: [50, 100],
-        gold: [100, 500],
-        materials: { name: '하급 강화석', quantity: [5, 7] },
-        tickets: [1, 2],
+        gold: [500, 1000], guildCoins: [15, 40], researchPoints: [5, 15], guildXp: [20, 60], materials: { name: '하급 강화석', quantity: [10, 25] }, tickets: [1, 2],
+        equipmentTable: [
+            { grade: ItemGrade.Normal, weight: 80 },
+            { grade: ItemGrade.Uncommon, weight: 18 },
+            { grade: ItemGrade.Rare, weight: 2 },
+        ],
     },
     2: {
-        guildXp: [500, 1000],
-        guildCoins: [30, 60],
-        researchPoints: [100, 200],
-        gold: [500, 1500],
-        materials: { name: '중급 강화석', quantity: [5, 8] },
-        tickets: [1, 3],
+        gold: [800, 1500], guildCoins: [25, 55], researchPoints: [15, 35], guildXp: [40, 90], materials: { name: '하급 강화석', quantity: [12, 28] }, tickets: [1, 2],
+        equipmentTable: [
+            { grade: ItemGrade.Normal, weight: 65 },
+            { grade: ItemGrade.Uncommon, weight: 28 },
+            { grade: ItemGrade.Rare, weight: 7 },
+        ],
     },
     3: {
-        guildXp: [1000, 2000],
-        guildCoins: [60, 100],
-        researchPoints: [200, 300],
-        gold: [1500, 3000],
-        materials: { name: '상급 강화석', quantity: [6, 8] },
-        tickets: [2, 4],
+        gold: [1200, 2200], guildCoins: [35, 70], researchPoints: [30, 60], guildXp: [60, 120], materials: { name: '중급 강화석', quantity: [10, 20] }, tickets: [1, 2],
+        equipmentTable: [
+            { grade: ItemGrade.Normal, weight: 50 },
+            { grade: ItemGrade.Uncommon, weight: 38 },
+            { grade: ItemGrade.Rare, weight: 12 },
+        ],
     },
     4: {
-        guildXp: [2000, 3500],
-        guildCoins: [100, 150],
-        researchPoints: [300, 400],
-        gold: [3000, 4500],
-        materials: { name: '최상급 강화석', quantity: [7, 9] },
-        tickets: [3, 5],
+        gold: [1800, 3200], guildCoins: [50, 90], researchPoints: [50, 90], guildXp: [90, 160], materials: { name: '중급 강화석', quantity: [12, 24] }, tickets: [1, 3],
+        equipmentTable: [
+            { grade: ItemGrade.Normal, weight: 35 },
+            { grade: ItemGrade.Uncommon, weight: 45 },
+            { grade: ItemGrade.Rare, weight: 18 },
+            { grade: ItemGrade.Epic, weight: 2 },
+        ],
     },
     5: {
-        guildXp: [3500, 5000],
-        guildCoins: [150, 200],
-        researchPoints: [400, 500],
-        gold: [4500, 5000],
-        materials: { name: '신비의 강화석', quantity: [8, 10] },
-        tickets: [4, 5],
+        gold: [2500, 4500], guildCoins: [65, 110], researchPoints: [70, 120], guildXp: [120, 200], materials: { name: '상급 강화석', quantity: [8, 16] }, tickets: [1, 3],
+        equipmentTable: [
+            { grade: ItemGrade.Normal, weight: 20 },
+            { grade: ItemGrade.Uncommon, weight: 45 },
+            { grade: ItemGrade.Rare, weight: 28 },
+            { grade: ItemGrade.Epic, weight: 7 },
+        ],
     },
+    6: {
+        gold: [3500, 6000], guildCoins: [85, 135], researchPoints: [100, 160], guildXp: [160, 260], materials: { name: '상급 강화석', quantity: [10, 20] }, tickets: [2, 3],
+        equipmentTable: [
+            { grade: ItemGrade.Normal, weight: 8 },
+            { grade: ItemGrade.Uncommon, weight: 42 },
+            { grade: ItemGrade.Rare, weight: 38 },
+            { grade: ItemGrade.Epic, weight: 12 },
+        ],
+    },
+    7: {
+        gold: [5000, 8500], guildCoins: [105, 165], researchPoints: [130, 200], guildXp: [200, 320], materials: { name: '상급 강화석', quantity: [12, 24] }, tickets: [2, 4],
+        equipmentTable: [
+            { grade: ItemGrade.Uncommon, weight: 35 },
+            { grade: ItemGrade.Rare, weight: 45 },
+            { grade: ItemGrade.Epic, weight: 18 },
+            { grade: ItemGrade.Legendary, weight: 2 },
+        ],
+    },
+    8: {
+        gold: [7000, 12000], guildCoins: [125, 200], researchPoints: [170, 250], guildXp: [260, 380], materials: { name: '최상급 강화석', quantity: [8, 16] }, tickets: [2, 4],
+        equipmentTable: [
+            { grade: ItemGrade.Uncommon, weight: 20 },
+            { grade: ItemGrade.Rare, weight: 50 },
+            { grade: ItemGrade.Epic, weight: 25 },
+            { grade: ItemGrade.Legendary, weight: 5 },
+        ],
+    },
+    9: {
+        gold: [9500, 15500], guildCoins: [145, 235], researchPoints: [210, 300], guildXp: [320, 440], materials: { name: '최상급 강화석', quantity: [10, 20] }, tickets: [3, 4],
+        equipmentTable: [
+            { grade: ItemGrade.Uncommon, weight: 10 },
+            { grade: ItemGrade.Rare, weight: 50 },
+            { grade: ItemGrade.Epic, weight: 32 },
+            { grade: ItemGrade.Legendary, weight: 8 },
+        ],
+    },
+    10: {
+        gold: [13000, 18000], guildCoins: [165, 270], researchPoints: [250, 350], guildXp: [380, 500], materials: { name: '최상급 강화석', quantity: [12, 24] }, tickets: [3, 5],
+        equipmentTable: [
+            { grade: ItemGrade.Rare, weight: 55 },
+            { grade: ItemGrade.Epic, weight: 35 },
+            { grade: ItemGrade.Legendary, weight: 10 },
+        ],
+    },
+    11: {
+        gold: [16500, 22000], guildCoins: [185, 305], researchPoints: [280, 400], guildXp: [440, 560], materials: { name: '최상급 강화석', quantity: [14, 28] }, tickets: [3, 5],
+        equipmentTable: [
+            { grade: ItemGrade.Rare, weight: 40 },
+            { grade: ItemGrade.Epic, weight: 40 },
+            { grade: ItemGrade.Legendary, weight: 20 },
+        ],
+    },
+    12: {
+        gold: [20000, 30000],
+        guildCoins: [150, 300],
+        researchPoints: [300, 500],
+        guildXp: [300, 500],
+        materials: { name: '상급 강화석', quantity: [7, 12] },
+        tickets: [3, 5],
+        materialBox: [{ name: '재료 상자 III', quantity: 1 }, { name: '재료 상자 IV', quantity: 1 }],
+        equipmentTable: [
+            { grade: ItemGrade.Rare, weight: 30 },
+            { grade: ItemGrade.Epic, weight: 45 },
+            { grade: ItemGrade.Legendary, weight: 25 },
+            { grade: ItemGrade.Mythic, weight: 1 },
+        ],
+    },
+};
+
+// 로또 슬롯 발동 확률 (다음 등급 보상 1종 추가)
+export const GUILD_BOSS_LOTTO_CHANCE = 0.10;
+
+// SSS 로또 전용 풀 (SSS 등급일 때 "다음 등급" 대신 사용)
+export const GUILD_BOSS_SSS_LOTTO_POOL: { type: 'gold' | 'guildCoins' | 'researchPoints' | 'materials' | 'materialBox'; weight: number }[] = [
+    { type: 'gold', weight: 25 },
+    { type: 'guildCoins', weight: 25 },
+    { type: 'researchPoints', weight: 20 },
+    { type: 'materials', weight: 20 },
+    { type: 'materialBox', weight: 10 },
+];
+
+// 레거시: 5등급 보상 (호환용, 사용처 없으면 제거 가능)
+export const GUILD_BOSS_REWARDS_BY_TIER = {
+    1: { guildXp: [100, 500], guildCoins: [10, 30], researchPoints: [50, 100], gold: [100, 500], materials: { name: '하급 강화석', quantity: [5, 7] }, tickets: [1, 2] },
+    2: { guildXp: [500, 1000], guildCoins: [30, 60], researchPoints: [100, 200], gold: [500, 1500], materials: { name: '중급 강화석', quantity: [5, 8] }, tickets: [1, 3] },
+    3: { guildXp: [1000, 2000], guildCoins: [60, 100], researchPoints: [200, 300], gold: [1500, 3000], materials: { name: '상급 강화석', quantity: [6, 8] }, tickets: [2, 4] },
+    4: { guildXp: [2000, 3500], guildCoins: [100, 150], researchPoints: [300, 400], gold: [3000, 4500], materials: { name: '최상급 강화석', quantity: [7, 9] }, tickets: [3, 5] },
+    5: { guildXp: [3500, 5000], guildCoins: [150, 200], researchPoints: [400, 500], gold: [4500, 5000], materials: { name: '신비의 강화석', quantity: [8, 10] }, tickets: [4, 5] },
 } as const;
 
 // 장비 보상 확률 테이블

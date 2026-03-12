@@ -128,9 +128,17 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost }) => {
                 </button>
             </div>
             <div className="flex-grow overflow-y-auto pr-1 text-xs flex flex-col gap-0.5 min-h-0">
-                {rankings.length === 0 ? (
+                {loading ? (
                     <div className="flex items-center justify-center h-full text-gray-400 text-xs">
-                        {loading ? '데이터 로딩 중...' : error ? '랭킹을 불러오는데 실패했습니다.' : '랭킹 데이터가 없습니다.'}
+                        데이터 로딩 중...
+                    </div>
+                ) : error ? (
+                    <div className="flex items-center justify-center h-full text-red-400 text-xs">
+                        랭킹을 불러오는데 실패했습니다.
+                    </div>
+                ) : rankings.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">
+                        랭킹 데이터가 없습니다.
                     </div>
                 ) : (
                     <>
@@ -140,8 +148,8 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost }) => {
                             </div>
                         )}
                         <div className="flex flex-col gap-0.5">
-                            {displayedRankings.filter(r => r && r.user && r.user.id).map((r, i) => (
-                                <RankingRow key={r.user.id} user={r.user} rank={i + 1} value={r.value} isCurrentUser={false} onViewUser={handlers.openViewingUser} />
+                            {displayedRankings.filter(r => r && r.user && r.user.id).map((r) => (
+                                <RankingRow key={r.user.id} user={r.user} rank={r.rank} value={r.value} isCurrentUser={false} onViewUser={handlers.openViewingUser} />
                             ))}
                             {displayCount < rankings.length && (
                                 <div ref={loadMoreRef} className="text-center text-gray-400 py-2 text-xs">

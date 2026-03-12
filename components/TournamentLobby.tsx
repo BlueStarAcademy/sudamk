@@ -30,22 +30,19 @@ const seededRandom = (seed: number): number => {
 };
 
 // WeeklyCompetitorsPanel 제거됨 - 던전 시스템으로 변경
-/** stageResults 키가 JSON 직렬화로 문자열일 수 있으므로 숫자/문자 모두로 확인. currentStage >= stage면 해당 단계를 클리어한 것으로 간주(보정). maxUnlockedStage가 있으면 그 미만 단계는 모두 클리어로 간주(5단계 열림 → 1~4단계 클리어). */
+/** 해당 단계 클리어 여부: 1~3위 달성 시에만 true. stageResults.cleared만 신뢰(순위 무관 보정 제거). */
 function isStageCleared(
     stageResults: Record<number, { cleared?: boolean }> | undefined,
     stage: number,
-    currentStage?: number,
-    maxUnlockedStage?: number
+    _currentStage?: number,
+    _maxUnlockedStage?: number
 ): boolean {
-    const cs = currentStage != null ? Number(currentStage) : undefined;
-    if (cs != null && !Number.isNaN(cs) && cs >= stage) return true;
-    if (maxUnlockedStage != null && stage < maxUnlockedStage) return true; // N단계가 열려 있으면 1~N-1은 클리어로 표시
     if (!stageResults) return false;
     const entry = stageResults[stage] ?? (stageResults as Record<string, { cleared?: boolean }>)[String(stage)];
     return !!entry?.cleared;
 }
 
-/** API/저장소에서 온 dungeonProgress 정규화: currentStage 숫자화, stageResults에서 역산, unlockedStages를 currentStage 기준으로 보정 */
+/** API/저장소에서 온 dungeonProgress 정규화. unlockedStages는 서버 값만 사용(1~3위 시에만 다음 단계 추가되므로 보정 없음). */
 function normalizeDungeonProgress(
     raw: { currentStage?: number; unlockedStages?: number[]; stageResults?: Record<number | string, { cleared?: boolean }>; dailyStageAttempts?: Record<number, number> } | null | undefined
 ): { currentStage: number; unlockedStages: number[]; stageResults: Record<number, { cleared?: boolean }>; dailyStageAttempts: Record<number, number> } {
@@ -63,8 +60,7 @@ function normalizeDungeonProgress(
     }
     const currentStage = Math.min(10, Math.max(0, derivedCurrent));
     const list = Array.isArray(raw.unlockedStages) ? raw.unlockedStages.map(Number).filter(n => !Number.isNaN(n) && n >= 1 && n <= 10) : [1];
-    const upToNext = Array.from({ length: Math.min(currentStage + 1, 10) }, (_, i) => i + 1);
-    const unlockedStages = [...new Set([...list, ...upToNext])].sort((a, b) => a - b);
+    const unlockedStages = list.length > 0 ? [...new Set(list)].sort((a, b) => a - b) : [1];
     return {
         currentStage,
         unlockedStages,
@@ -790,7 +786,7 @@ const TournamentLobby: React.FC = () => {
                         aria-label="도움말"
                         title="도움말"
                     >
-                        <img src="/images/button/help.png" alt="도움말" className="w-full h-full" />
+                        <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
                     </button>
                 </div>
             </header>

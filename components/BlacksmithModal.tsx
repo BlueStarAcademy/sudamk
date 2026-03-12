@@ -333,7 +333,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                         <div className="w-full aspect-w-3 aspect-h-2 prism-border rounded-lg overflow-hidden relative flex-shrink-0">
                             <img src="/images/equipments/moru.png" alt="Blacksmith" className="w-full h-full object-cover" />
                             <button onClick={handlers.openBlacksmithHelp} className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center transition-transform hover:scale-110">
-                                <img src="/images/button/help.png" alt="도움말" className="w-full h-full" />
+                                <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
                             </button>
                         </div>
                         <div className="text-center">

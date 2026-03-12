@@ -1915,7 +1915,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                             className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-tertiary/50 hover:bg-tertiary/70 transition-all hover:scale-110 border border-accent/20 shadow-md" 
                             title="길드 도움말"
                         >
-                            <img src="/images/button/help.png" alt="도움말" className="w-full h-full" />
+                            <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
                         </button>
                     </div>
                 )}

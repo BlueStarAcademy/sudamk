@@ -77,6 +77,11 @@ const wouldBeImmediatelyCaptured = (board: BoardState, x: number, y: number, pla
         return true; // Couldn't find group, skip
     }
 
+    // 0 liberties = 즉시 따이는 모양 (자살/포석 즉시 잡힘) → 배치 불가
+    if (myGroup.liberties.length === 0) {
+        return true;
+    }
+
     // If the group has only one liberty, check if opponent can capture by playing there
     if (myGroup.liberties.length === 1) {
         const liberty = myGroup.liberties[0];

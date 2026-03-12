@@ -4,7 +4,7 @@
 // FIX: Changed imports to point to specific files to avoid namespace conflicts
 import type { User, Guild, GuildBossInfo, QuestReward, MannerEffects, GuildBossSkill, GuildBossActiveSkill, GuildBossPassiveSkill, GuildBossSkillEffect, GuildBossSkillSubEffect, BattleLogEntry, GuildBossBattleResult } from '../types/index.js';
 import { GuildResearchId, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../types/enums.js';
-import { GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, ACTION_POINT_REGEN_INTERVAL_MS, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_REWARDS_BY_TIER, GUILD_BOSS_EQUIPMENT_LOOT_TABLE, GUILD_BOSS_TICKET_TYPES } from '../constants/index.js';
+import { GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, ACTION_POINT_REGEN_INTERVAL_MS, GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS, GUILD_BOSS_REWARDS_BY_GRADE, GUILD_BOSS_TICKET_TYPES, GUILD_BOSS_LOTTO_CHANCE, GUILD_BOSS_SSS_LOTTO_POOL } from '../constants/index.js';
 import { BOSS_SKILL_ICON_MAP, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_REGEN_IMG, GUILD_ATTACK_ICON } from '../assets.js';
 import { calculateUserEffects, calculateTotalStats } from './statUtils.js';
 import { getMannerEffects } from './mannerUtils.js';
@@ -17,16 +17,15 @@ const criticalAttackCommentaries = ['사활문제를 풀어냈습니다!', '엄�
 
 const getRandom = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-// 딜량에 따른 등급 계산 (1~5등급)
-const calculateDamageTier = (damage: number): 1 | 2 | 3 | 4 | 5 => {
-    if (damage < GUILD_BOSS_DAMAGE_TIERS[2].min) return 1;
-    if (damage < GUILD_BOSS_DAMAGE_TIERS[3].min) return 2;
-    if (damage < GUILD_BOSS_DAMAGE_TIERS[4].min) return 3;
-    if (damage < GUILD_BOSS_DAMAGE_TIERS[5].min) return 4;
-    return 5;
+// 절대 데미지로 12등급(1~12) 계산
+const calculateGrade = (damage: number): number => {
+    for (let i = 0; i < GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS.length; i++) {
+        if (damage < GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS[i]) return i + 1;
+    }
+    return 12;
 };
 
-// 보상 계산 함수
+// 보상 계산 함수 (12등급, 절대 데미지 기준)
 const calculateBossRewards = (damage: number): {
     tier: number;
     guildXp: number;
@@ -34,62 +33,111 @@ const calculateBossRewards = (damage: number): {
     researchPoints: number;
     gold: number;
     materials: { name: string; quantity: number };
+    materialsBonus?: { name: string; quantity: number };
     tickets: { name: string; quantity: number }[];
     equipment?: { grade: ItemGrade };
+    materialBox?: { name: string; quantity: number };
 } => {
-    const tier = calculateDamageTier(damage);
-    const tierRewards = GUILD_BOSS_REWARDS_BY_TIER[tier as keyof typeof GUILD_BOSS_REWARDS_BY_TIER];
-    
-    // 길드 경험치는 딜량에 비례하여 계산
-    const guildXpRange = tierRewards.guildXp;
-    const damageRatio = Math.min(1, damage / (GUILD_BOSS_DAMAGE_TIERS[5].min || 200000));
-    const guildXp = Math.floor(guildXpRange[0] + (guildXpRange[1] - guildXpRange[0]) * damageRatio);
-    
-    // 랜덤 보상 계산 (개인 추가 길드 코인은 서버에서 추가하여 모달에 반영)
-    const guildCoins = getRandom(tierRewards.guildCoins[0], tierRewards.guildCoins[1]);
-    const researchPoints = getRandom(tierRewards.researchPoints[0], tierRewards.researchPoints[1]);
-    const gold = getRandom(tierRewards.gold[0], tierRewards.gold[1]);
-    const materialQuantity = getRandom(tierRewards.materials.quantity[0], tierRewards.materials.quantity[1]);
-    const ticketCount = getRandom(tierRewards.tickets[0], tierRewards.tickets[1]);
-    
-    // 변경권 랜덤 선택
+    const grade = calculateGrade(damage);
+    const cfg = GUILD_BOSS_REWARDS_BY_GRADE[grade]!;
+
+    let gold = getRandom(cfg.gold[0], cfg.gold[1]);
+    let guildCoins = getRandom(cfg.guildCoins[0], cfg.guildCoins[1]);
+    let researchPoints = getRandom(cfg.researchPoints[0], cfg.researchPoints[1]);
+    const guildXp = getRandom(cfg.guildXp[0], cfg.guildXp[1]);
+    const ticketCount = getRandom(cfg.tickets[0], cfg.tickets[1]);
+
+    let materialName = cfg.materials.name;
+    let materialQuantity = getRandom(cfg.materials.quantity[0], cfg.materials.quantity[1]);
+    let materialsBonus: { name: string; quantity: number } | undefined;
+    let lottoMaterialBox: { name: string; quantity: number } | undefined;
+
+    if (grade === 12) {
+        materialName = Math.random() < 0.5 ? '상급 강화석' : '최상급 강화석';
+        materialQuantity = getRandom(7, 12);
+        if (Math.random() < 0.05) materialsBonus = { name: '신비의 강화석', quantity: getRandom(1, 3) };
+    }
+
     const tickets: { name: string; quantity: number }[] = [];
     for (let i = 0; i < ticketCount; i++) {
         const ticketType = GUILD_BOSS_TICKET_TYPES[Math.floor(Math.random() * GUILD_BOSS_TICKET_TYPES.length)];
-        const existingTicket = tickets.find(t => t.name === ticketType);
-        if (existingTicket) {
-            existingTicket.quantity++;
+        const existing = tickets.find(t => t.name === ticketType);
+        if (existing) existing.quantity++;
+        else tickets.push({ name: ticketType, quantity: 1 });
+    }
+
+    // 로또 슬롯: 10% 확률로 다음 등급 보상 1종 추가 (SSS는 전용 풀)
+    if (Math.random() < GUILD_BOSS_LOTTO_CHANCE) {
+        if (grade < 12) {
+            const nextCfg = GUILD_BOSS_REWARDS_BY_GRADE[grade + 1]!;
+            const bonusTypes: Array<'gold' | 'guildCoins' | 'researchPoints' | 'materials'> = ['gold', 'guildCoins', 'researchPoints', 'materials'];
+            const chosen = bonusTypes[Math.floor(Math.random() * bonusTypes.length)];
+            switch (chosen) {
+                case 'gold': gold += getRandom(nextCfg.gold[0], nextCfg.gold[1]); break;
+                case 'guildCoins': guildCoins += getRandom(nextCfg.guildCoins[0], nextCfg.guildCoins[1]); break;
+                case 'researchPoints': researchPoints += getRandom(nextCfg.researchPoints[0], nextCfg.researchPoints[1]); break;
+                case 'materials': materialQuantity += getRandom(nextCfg.materials.quantity[0], nextCfg.materials.quantity[1]); break;
+            }
         } else {
-            tickets.push({ name: ticketType, quantity: 1 });
+            const pool = GUILD_BOSS_SSS_LOTTO_POOL;
+            const totalW = pool.reduce((s, p) => s + p.weight, 0);
+            let r = Math.random() * totalW;
+            let chosen: (typeof pool)[number]['type'] = pool[0].type;
+            for (const p of pool) {
+                if (r < p.weight) { chosen = p.type; break; }
+                r -= p.weight;
+            }
+            if (chosen === 'gold') gold += getRandom(cfg.gold[0], cfg.gold[1]);
+            else if (chosen === 'guildCoins') guildCoins += getRandom(cfg.guildCoins[0], cfg.guildCoins[1]);
+            else if (chosen === 'researchPoints') researchPoints += getRandom(cfg.researchPoints[0], cfg.researchPoints[1]);
+            else if (chosen === 'materials') materialQuantity += getRandom(1, 3);
+            else if (chosen === 'materialBox') {
+                lottoMaterialBox = Math.random() < 70 / 75 ? { name: '재료 상자 III', quantity: 1 } : { name: '재료 상자 IV', quantity: 1 };
+            }
         }
     }
-    
-    // 장비 보상 확률 계산
-    const totalWeight = GUILD_BOSS_EQUIPMENT_LOOT_TABLE.reduce((sum, item) => sum + item.weight, 0);
-    let random = Math.random() * totalWeight;
-    let selectedGrade: ItemGrade = ItemGrade.Normal;
-    
-    for (const item of GUILD_BOSS_EQUIPMENT_LOOT_TABLE) {
-        if (random < item.weight) {
-            selectedGrade = item.grade;
-            break;
-        }
-        random -= item.weight;
+
+    const equipmentTable = cfg.equipmentTable;
+    const totalWeight = equipmentTable.reduce((s, x) => s + x.weight, 0);
+    let r = Math.random() * totalWeight;
+    let selectedGrade: ItemGrade = equipmentTable[0].grade;
+    for (const item of equipmentTable) {
+        if (r < item.weight) { selectedGrade = item.grade; break; }
+        r -= item.weight;
     }
-    
-    return {
-        tier,
+
+    let materialBox: { name: string; quantity: number } | undefined;
+    if (grade === 12 && cfg.materialBox) {
+        const roll = Math.random() * 100;
+        if (roll < 70) materialBox = { name: '재료 상자 III', quantity: 1 };
+        else if (roll < 75) materialBox = { name: '재료 상자 IV', quantity: 1 };
+    }
+
+    const out: {
+        tier: number;
+        guildXp: number;
+        guildCoins: number;
+        researchPoints: number;
+        gold: number;
+        materials: { name: string; quantity: number };
+        materialsBonus?: { name: string; quantity: number };
+        tickets: { name: string; quantity: number }[];
+        equipment?: { grade: ItemGrade };
+        materialBox?: { name: string; quantity: number };
+    } = {
+        tier: grade,
         guildXp,
         guildCoins,
         researchPoints,
         gold,
-        materials: {
-            name: tierRewards.materials.name,
-            quantity: materialQuantity,
-        },
+        materials: { name: materialName, quantity: materialQuantity },
         tickets,
         equipment: { grade: selectedGrade },
     };
+    if (materialsBonus?.name === '신비의 강화석') out.materialsBonus = materialsBonus;
+    if (lottoMaterialBox) out.materialBox = lottoMaterialBox;
+    else if (materialBox) out.materialBox = materialBox;
+    return out;
 };
 
 export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo): GuildBossBattleResult => {
@@ -133,15 +181,19 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
         }
         
         userDamage = Math.round(userDamage);
+        totalDamageDealt += userDamage;
+        // 보스 처치 시 해당 턴 실제 데미지(캡)만 로그에 기록 → 클라이언트 합계가 시뮬레이터 finalDamage와 일치
+        const overflow = totalDamageDealt - boss.hp;
+        const actualThisTurn = overflow > 0 ? Math.max(0, userDamage - overflow) : userDamage;
+        if (boss.hp - totalDamageDealt <= 0) totalDamageDealt = boss.hp;
+
         const commentary = isCrit ? criticalAttackCommentaries[Math.floor(Math.random() * criticalAttackCommentaries.length)] : normalAttackCommentaries[Math.floor(Math.random() * normalAttackCommentaries.length)];
         const extraTurnText = isExtra ? ' (추가 턴)' : '';
-        battleLog.push({ turn: turnsSurvived, icon: GUILD_ATTACK_ICON, message: `[${user.nickname}] ${commentary}${extraTurnText} | 보스 HP -${userDamage.toLocaleString()}${isCrit ? ' (크리티컬!)' : ''}`, isUserAction: true, isCrit });
-        totalDamageDealt += userDamage;
+        battleLog.push({ turn: turnsSurvived, icon: GUILD_ATTACK_ICON, message: `[${user.nickname}] ${commentary}${extraTurnText} | 보스 HP -${actualThisTurn.toLocaleString()}${isCrit ? ' (크리티컬!)' : ''}`, isUserAction: true, isCrit });
 
         if (boss.hp - totalDamageDealt <= 0) {
             battleLog.push({ turn: turnsSurvived, icon: GUILD_ATTACK_ICON, message: `[${user.nickname}]의 마지막 일격!`, isUserAction: true });
             battleLog.push({ turn: turnsSurvived, message: `[${boss.name}]이 돌을 거두었습니다.`, isUserAction: false });
-            totalDamageDealt = boss.hp;
             return true; // Boss defeated
         }
         return false;
@@ -171,10 +223,12 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 igniteDamage = Math.round(igniteDamage);
 
                 totalDamageDealt += igniteDamage;
-                battleLog.push({ turn: turnsSurvived, icon: GUILD_RESEARCH_IGNITE_IMG, message: `[연구-점화] 발동! 보스 HP -${igniteDamage.toLocaleString()}`, isUserAction: true });
-                if (boss.hp - totalDamageDealt <= 0) {
+                const igniteOverflow = totalDamageDealt - boss.hp;
+                const actualIgniteThisTurn = igniteOverflow > 0 ? Math.max(0, igniteDamage - igniteOverflow) : igniteDamage;
+                if (boss.hp - totalDamageDealt <= 0) totalDamageDealt = boss.hp;
+                battleLog.push({ turn: turnsSurvived, icon: GUILD_RESEARCH_IGNITE_IMG, message: `[연구-점화] 발동! 보스 HP -${actualIgniteThisTurn.toLocaleString()}`, isUserAction: true });
+                if (totalDamageDealt >= boss.hp) {
                     battleLog.push({ turn: turnsSurvived, message: `[연구-점화]의 피해로 [${boss.name}]이 돌을 거두었습니다.`, isUserAction: false });
-                    totalDamageDealt = boss.hp;
                     return true;
                 }
             }
@@ -377,8 +431,10 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
             researchPoints: calculatedRewards.researchPoints,
             gold: calculatedRewards.gold,
             materials: calculatedRewards.materials,
+            materialsBonus: calculatedRewards.materialsBonus,
             tickets: calculatedRewards.tickets,
             equipment: calculatedRewards.equipment,
+            materialBox: calculatedRewards.materialBox,
         },
         battleLog,
         bossHpBefore: boss.hp,

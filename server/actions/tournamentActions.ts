@@ -1458,9 +1458,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                             dungeonProgress.unlockedStages.sort((a: number, b: number) => a - b);
                             console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Unlocked stage ${stage + 1} for ${type} (userRank: ${userRank}, stage: ${stage})`);
                         }
-                        // 동네/전국/월드 공통: 1~stage+1 단계 모두 열림으로 보정 (currentStage·stageResults와 동기화)
-                        const upToNext = Array.from({ length: Math.min(stage + 1, 10) }, (_, i) => i + 1);
-                        dungeonProgress.unlockedStages = [...new Set([...(dungeonProgress.unlockedStages || []), ...upToNext])].filter((s: number) => s >= 1 && s <= 10).sort((a: number, b: number) => a - b);
+                        // 다음 단계는 1~3위일 때만 위에서 추가함. 순위 무관 보정 제거(버그: 4위 이하도 다음 단계가 열리던 문제)
                     }
                     
                     // 보상을 이미 수령했는지 확인 (중복 추가 방지)
@@ -1915,7 +1913,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
             
             // 다음 단계가 이미 열려 있었는지 (이번 클리어 전 기준) — 모달에서 "이미 열려있습니다" 표시용
-            const wasNextStageAlreadyUnlocked = stage < 10 && (dungeonProgress.unlockedStages || []).includes(stage + 1);
+            // UX 보정: unlockedStages에 다음 단계가 남아있더라도, "이미 열림" 문구는 '이미 클리어한 단계를 다시 클리어'한 경우에만 표시
+            const stageEntryBefore = dungeonProgress.stageResults?.[stage] ?? (dungeonProgress.stageResults as any)?.[String(stage)];
+            const stageWasClearedBefore = !!stageEntryBefore?.cleared || (Number(dungeonProgress.currentStage) || 0) >= stage;
+            const wasNextStageAlreadyUnlocked = stageWasClearedBefore && stage < 10 && (dungeonProgress.unlockedStages || []).includes(stage + 1);
             // 다음 단계 언락 조건: 해당 단계에서 3등 이하 달성 시 (cleared 조건과 독립적으로 처리)
             // 1위, 2위, 3위를 달성하면 다음 단계 언락
             if (userRank <= 3 && stage < 10) {
@@ -2020,10 +2021,11 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
             
             // 던전 상태 업데이트 (이미 complete/eliminated 상태이므로 유지)
-            // unlockedStages 보정: 1~currentStage만 보정. 다음 단계(currentStage+1)는 1·2·3위 달성 시에만 위에서 추가됨
-            const cs = Math.min(10, Math.max(0, Number(dungeonProgress.currentStage) ?? 0));
-            const upToCurrent = Array.from({ length: Math.min(cs, 10) }, (_, i) => i + 1);
-            dungeonProgress.unlockedStages = [...new Set([...(dungeonProgress.unlockedStages || []), ...upToCurrent])].filter((s: number) => s >= 1 && s <= 10).sort((a: number, b: number) => a - b);
+            // unlockedStages는 1~3위 시에만 위에서 nextStage가 추가됨. 순위 무관 보정 제거(4위 이하도 단계 열리던 버그 방지)
+            if (!Array.isArray(dungeonProgress.unlockedStages) || dungeonProgress.unlockedStages.length === 0) {
+                dungeonProgress.unlockedStages = [1];
+            }
+            dungeonProgress.unlockedStages = [...new Set(dungeonProgress.unlockedStages)].filter((s: number) => s >= 1 && s <= 10).sort((a: number, b: number) => a - b);
             
             freshUser.dungeonProgress[dungeonType] = dungeonProgress;
             (freshUser as any)[stateKey] = dungeonState;

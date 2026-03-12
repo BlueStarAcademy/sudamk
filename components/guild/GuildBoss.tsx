@@ -456,6 +456,7 @@ const GuildBoss: React.FC = () => {
     const [showResultModal, setShowResultModal] = useState(false);
     const [battleResult, setBattleResult] = useState<GuildBossBattleResult & { bossName: string; previousRank?: number; currentRank?: number } | null>(null);
     const [previousRank, setPreviousRank] = useState<number | null>(null);
+    const [showBossHelpModal, setShowBossHelpModal] = useState(false);
 
     
     const userLogContainerRef = useRef<HTMLDivElement>(null);
@@ -764,6 +765,17 @@ const GuildBoss: React.FC = () => {
                     <BackButton onClick={() => window.location.hash = '#/guild'} />
                 </div>
                 <h1 className="text-3xl font-bold text-white" style={{ textShadow: '2px 2px 5px black' }}>길드 보스전</h1>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">
+                    <button
+                        type="button"
+                        onClick={() => setShowBossHelpModal(true)}
+                        className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-tertiary/50 hover:bg-tertiary/70 transition-all hover:scale-110 border border-accent/20 shadow-md"
+                        title="길드 보스전 도움말"
+                        aria-label="도움말"
+                    >
+                        <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
+                    </button>
+                </div>
             </header>
 
             <main className="flex-1 min-h-0 flex flex-row gap-4">
@@ -893,11 +905,13 @@ const GuildBoss: React.FC = () => {
                     onClose={() => {
                         setShowResultModal(false);
                         setBattleResult(null);
-                        // 길드 홈으로 돌아갔을 때 나의 기록(랭킹/총 데미지/현재순위/역대 최고)이 갱신되어 보이도록 길드 정보 재요청
                         void handlers.handleAction({ type: 'GET_GUILD_INFO' });
                     }} 
                     isTopmost={true}
                 />
+            )}
+            {showBossHelpModal && (
+                <HelpModal mode="guildBoss" onClose={() => setShowBossHelpModal(false)} />
             )}
         </div>
     );

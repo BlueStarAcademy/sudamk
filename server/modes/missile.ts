@@ -552,16 +552,16 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                 }
             }
             
-            // 보드 상태 변경: 목적지에 돌을 먼저 배치 (예전 방식 복원)
-            // 원래 자리의 돌은 아직 유지 (애니메이션 중에는 두 곳에 모두 보임)
+            // 보드 상태 변경: 미사일은 돌을 "이동"시킴 (복사 아님) — 원래 자리 제거, 목적지에 배치
+            game.boardState[from.y][from.x] = types.Player.None;
             game.boardState[to.y][to.x] = myPlayerEnum;
             
-            // 배치돌 업데이트 (목적지에 배치)
+            // 배치돌 업데이트: 원래 자리의 배치돌을 목적지로 이동
             if (game.baseStones) {
                 const baseStoneIndex = game.baseStones.findIndex(bs => bs.x === from.x && bs.y === from.y);
                 if (baseStoneIndex !== -1) {
-                    // 목적지에 배치돌 복사 (원래 자리는 아직 유지)
-                    game.baseStones.push({ x: to.x, y: to.y, player: myPlayerEnum });
+                    game.baseStones[baseStoneIndex].x = to.x;
+                    game.baseStones[baseStoneIndex].y = to.y;
                 }
             }
             
@@ -572,17 +572,17 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             if (baseStonesArray) {
                 const baseStoneIndex = baseStonesArray.findIndex(bs => bs.x === from.x && bs.y === from.y);
                 if (baseStoneIndex !== -1) {
-                    // 목적지에 배치돌 복사 (원래 자리는 아직 유지)
-                    baseStonesArray.push({ x: to.x, y: to.y });
+                    baseStonesArray[baseStoneIndex].x = to.x;
+                    baseStonesArray[baseStoneIndex].y = to.y;
                 }
             }
             
-            // moveHistory에 새 이동 추가 (목적지에)
-            game.moveHistory.push({
-                x: to.x,
-                y: to.y,
-                player: myPlayerEnum
-            });
+            // moveHistory: 원래 자리의 이동 기록이 있으면 목적지로 변경, 없으면(배치돌) 새로 추가하지 않음
+            const fromMoveIndex = game.moveHistory.findIndex(m => m.x === from.x && m.y === from.y && m.player === myPlayerEnum);
+            if (fromMoveIndex !== -1) {
+                game.moveHistory[fromMoveIndex].x = to.x;
+                game.moveHistory[fromMoveIndex].y = to.y;
+            }
             
             // 아이템 사용 시간 일시 정지 (애니메이션 중)
             game.itemUseDeadline = undefined;
@@ -703,53 +703,15 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             // 처리된 애니메이션의 startTime을 먼저 기록 (중복 처리 방지)
             (game as any).lastProcessedMissileAnimationTime = animationStartTime;
             
-            // 애니메이션 정보를 먼저 저장 (null 설정 전에)
+            // 애니메이션 정보 저장 (null 설정 전에) — 타이머 복원에 사용
             const playerWhoMoved = game.currentPlayer;
-            const animationFrom = game.animation.from;
-            const animationTo = game.animation.to;
-            const revealedHiddenStone = (game.animation as any).revealedHiddenStone as types.Point | null | undefined;
             
             // 애니메이션 제거
             game.animation = null;
             
             // 게임 상태를 playing으로 변경
+            // (보드/배치돌/moveHistory는 이미 LAUNCH_MISSILE에서 이동 처리되었으므로 여기서 변경하지 않음)
             game.gameStatus = 'playing';
-            
-            // 예전 방식: 애니메이션이 끝나면 원래 자리의 돌만 제거
-            // (목적지의 돌은 이미 LAUNCH_MISSILE에서 배치되었으므로 그대로 유지)
-            if (animationFrom && animationTo) {
-                const stoneAtFrom = game.boardState[animationFrom.y]?.[animationFrom.x];
-                // 원래 자리의 돌 제거 (목적지의 돌은 이미 배치되어 있음)
-                if (stoneAtFrom === playerWhoMoved) {
-                    game.boardState[animationFrom.y][animationFrom.x] = types.Player.None;
-                }
-                
-                // 배치돌 업데이트: 원래 자리의 배치돌 제거
-                if (game.baseStones) {
-                    const baseStoneIndex = game.baseStones.findIndex(bs => bs.x === animationFrom.x && bs.y === animationFrom.y);
-                    if (baseStoneIndex !== -1) {
-                        game.baseStones.splice(baseStoneIndex, 1);
-                    }
-                }
-                
-                // 싱글플레이에서 baseStones_p1, baseStones_p2도 확인
-                const playerId = playerWhoMoved === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-                const baseStonesKey = playerId === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
-                const baseStonesArray = (game as any)[baseStonesKey] as types.Point[] | undefined;
-                if (baseStonesArray) {
-                    const baseStoneIndex = baseStonesArray.findIndex(bs => bs.x === animationFrom.x && bs.y === animationFrom.y);
-                    if (baseStoneIndex !== -1) {
-                        baseStonesArray.splice(baseStoneIndex, 1);
-                    }
-                }
-                
-                // moveHistory에서 원래 자리의 이동 기록 제거 (목적지의 이동 기록은 이미 추가됨)
-                const fromMoveIndex = game.moveHistory.findIndex(m => m.x === animationFrom.x && m.y === animationFrom.y && m.player === playerWhoMoved);
-                if (fromMoveIndex !== -1) {
-                    // 원래 자리의 이동 기록 제거 (목적지의 이동 기록은 유지)
-                    game.moveHistory.splice(fromMoveIndex, 1);
-                }
-            }
             
             // 타이머 복원 (아이템 사용 시간이 마감되고 원래 턴 시간으로 복귀)
             if (game.pausedTurnTimeLeft !== undefined) {

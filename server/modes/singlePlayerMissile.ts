@@ -916,6 +916,29 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 // 유저가 직접 착수한 돌만 moveHistory에 있음
             }
             
+            // 문양 돌 이동: 원래 자리가 문양 돌이면 목적지에서도 문양 돌로 유지
+            if (game.blackPatternStones && myPlayerEnum === types.Player.Black) {
+                const patternIdx = game.blackPatternStones.findIndex(p => p.x === from.x && p.y === from.y);
+                if (patternIdx !== -1) {
+                    game.blackPatternStones[patternIdx] = { x: to.x, y: to.y };
+                }
+            }
+            if (game.whitePatternStones && myPlayerEnum === types.Player.White) {
+                const patternIdx = game.whitePatternStones.findIndex(p => p.x === from.x && p.y === from.y);
+                if (patternIdx !== -1) {
+                    game.whitePatternStones[patternIdx] = { x: to.x, y: to.y };
+                }
+            }
+            
+            // 공개된 히든 돌 이동: 원래 자리가 permanentlyRevealedStones에 있으면 목적지에서도 공개 상태 유지
+            // (hiddenMoves는 moveHistory 인덱스 기준이므로 좌표만 바꾼 위 moveHistory 업데이트로 그대로 유지됨)
+            if (game.permanentlyRevealedStones) {
+                const revealedIdx = game.permanentlyRevealedStones.findIndex(p => p.x === from.x && p.y === from.y);
+                if (revealedIdx !== -1) {
+                    game.permanentlyRevealedStones[revealedIdx] = { x: to.x, y: to.y };
+                }
+            }
+            
             // 아이템 사용 시간 일시 정지 (애니메이션 중)
             game.itemUseDeadline = undefined;
             

@@ -2,10 +2,10 @@ import React from 'react';
 import { GameMode } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { GAME_RULES } from '../gameRules.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, GUILD_BOSS_MAX_ATTEMPTS } from '../constants';
 
 interface HelpModalProps {
-    mode: GameMode | 'strategic' | 'playful' | 'guild';
+    mode: GameMode | 'strategic' | 'playful' | 'guild' | 'guildBoss';
     onClose: () => void;
 }
 
@@ -46,6 +46,44 @@ const STRATEGIC_LOBBY_HELP = {
                 '플레이어 목록에서 원하는 상대를 선택하고 대국 신청을 보냅니다.',
                 '상대가 수락하면 게임이 시작됩니다.',
                 'AI 봇과의 연습 게임도 가능합니다.',
+            ],
+        },
+    ],
+};
+
+const GUILD_BOSS_HELP = {
+    title: '길드 보스전',
+    sections: [
+        {
+            subtitle: '길드 보스전이란',
+            content: [
+                '길드원이 함께 주간 보스에게 도전하는 콘텐츠입니다.',
+                '매주 월요일 0시(한국시간)에 보스가 교체됩니다.',
+                '보스에게 입힌 피해량에 따라 12등급(E ~ SSS)이 정해지고, 등급별로 다른 보상을 받습니다.',
+            ],
+        },
+        {
+            subtitle: '참여 방법',
+            content: [
+                `하루에 최대 ${GUILD_BOSS_MAX_ATTEMPTS}회까지 도전할 수 있습니다. (도전권은 매일 초기화)`,
+                '"도전하기" 버튼을 누르면 자동으로 전투가 진행되며, 30턴 동안 보스와 대결합니다.',
+                '전투력·집중력·판단력 등 능력치와 연구소 스킬(회복, 점화, 회복 억제 등)이 결과에 영향을 줍니다.',
+            ],
+        },
+        {
+            subtitle: '12등급 (절대 데미지 기준)',
+            content: [
+                'E: 2만 미만 · D-: 2만~4만 · D: 4만~6만 · C-: 6만~8만 · C: 8만~10만 · B-: 10만~12만',
+                'B: 12만~14만 · A-: 14만~16만 · A: 16만~18만 · S: 18만~20만 · SS: 20만~25만 · SSS: 25만 이상',
+                '등급이 높을수록 골드, 강화석, 길드 코인, 연구 포인트, 장비 등 보상이 좋아집니다.',
+            ],
+        },
+        {
+            subtitle: '보상과 로또',
+            content: [
+                '전투 종료 후 등급에 따라 골드, 길드 코인, 연구 포인트, 강화석, 변경권, 장비 등을 받습니다.',
+                '10% 확률로 "로또 슬롯"이 발동되어, 한 단계 위 등급 보상 중 하나를 추가로 받을 수 있습니다.',
+                'SSS 등급은 상급 이상 강화석, 재료 상자, Rare~Legendary 장비 등 특별 보상이 포함됩니다.',
             ],
         },
     ],
@@ -145,6 +183,34 @@ const PLAYFUL_LOBBY_HELP = {
 };
 
 const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose }) => {
+    // 길드 보스전 도움말인 경우
+    if (mode === 'guildBoss') {
+        return (
+            <DraggableWindow title={`${GUILD_BOSS_HELP.title} 도움말`} onClose={onClose} windowId="help-guildBoss" initialWidth={560}>
+                <div className="max-h-[70vh] overflow-y-auto pr-2 text-gray-300">
+                    <div className="space-y-4">
+                        {GUILD_BOSS_HELP.sections.map((section, index) => (
+                            <div key={index} className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
+                                {index === 0 && <img src="/images/guild/button/bossraid1.png" alt="보스전" className="w-24 h-24 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 1 && <div className="w-24 h-24 bg-amber-900/50 rounded-lg flex items-center justify-center flex-shrink-0 text-3xl">⚔</div>}
+                                {index === 2 && <div className="w-24 h-24 bg-gradient-to-br from-yellow-600/80 to-orange-600/80 rounded-lg flex items-center justify-center flex-shrink-0 text-2xl font-bold text-white">E~SSS</div>}
+                                {index === 3 && <div className="w-24 h-24 bg-purple-900/50 rounded-lg flex items-center justify-center flex-shrink-0 text-3xl">🎁</div>}
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-lg text-yellow-300 mb-2">{section.subtitle}</h3>
+                                    <ul className="list-disc list-inside space-y-1 text-sm">
+                                        {section.content.map((point, i) => (
+                                            <li key={i}>{point}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </DraggableWindow>
+        );
+    }
+
     // 길드 도움말인 경우
     if (mode === 'guild') {
         return (

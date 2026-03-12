@@ -1171,8 +1171,10 @@ export type GuildBossBattleResult = {
         researchPoints: number;
         gold: number;
         materials: { name: string; quantity: number };
+        materialsBonus?: { name: string; quantity: number };
         tickets: { name: string; quantity: number }[];
         equipment?: { grade: ItemGrade };
+        materialBox?: { name: string; quantity: number };
     };
     battleLog: BattleLogEntry[];
     bossHpBefore: number;

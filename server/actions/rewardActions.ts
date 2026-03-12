@@ -534,10 +534,11 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             } else {
                 console.log(`[CLAIM_TOURNAMENT_REWARD] Stage unlock condition not met: userRank=${userRank}, currentStage=${currentStage}, need: userRank 1-3 and currentStage < 10`);
             }
-            // unlockedStages 보정: currentStage까지 클리어했으면 1..currentStage+1 모두 열려 있어야 함
-            const cs = Math.min(10, Math.max(0, Number(dungeonProgress.currentStage) ?? 0));
-            const upToNext = Array.from({ length: Math.min(cs + 1, 10) }, (_, i) => i + 1);
-            dungeonProgress.unlockedStages = [...new Set([...(dungeonProgress.unlockedStages || []), ...upToNext])].filter((s: number) => s >= 1 && s <= 10).sort((a: number, b: number) => a - b);
+            // unlockedStages는 1~3위일 때만 위에서 nextStage 추가. 순위 무관 보정 제거(버그 방지)
+            if (!Array.isArray(dungeonProgress.unlockedStages) || dungeonProgress.unlockedStages.length === 0) {
+                dungeonProgress.unlockedStages = [1];
+            }
+            dungeonProgress.unlockedStages = [...new Set(dungeonProgress.unlockedStages)].filter((s: number) => s >= 1 && s <= 10).sort((a: number, b: number) => a - b);
             
             const itemReward = itemRewardInfo.rewards?.[itemRewardKey];
 
@@ -613,8 +614,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 }
                 updateQuestProgress(freshUser, 'tournament_complete');
                 
-                // 보상 수령 후에도 토너먼트 상태를 유지하기 위해 DB에 저장
-                (freshUser as any)[tourneyKey] = tournamentState;
+                // 보상 수령 후 경기장 JSON 삭제 (대용량 데이터 누적 방지)
+                (freshUser as any)[tourneyKey] = null;
                 
                 // 중복 보상 방지: statusKey를 설정한 후 즉시 DB에 동기적으로 저장
                 await db.updateUser(freshUser);
@@ -731,8 +732,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             
             updateQuestProgress(freshUser, 'tournament_complete');
 
-            // 보상 수령 후에도 토너먼트 상태를 유지하기 위해 DB에 저장
-            (freshUser as any)[tourneyKey] = tournamentState;
+            // 보상 수령 후 경기장 JSON 삭제 (대용량 데이터 누적 방지)
+            (freshUser as any)[tourneyKey] = null;
             
             // 중복 보상 방지: statusKey를 설정한 후 즉시 DB에 동기적으로 저장
             await db.updateUser(freshUser);

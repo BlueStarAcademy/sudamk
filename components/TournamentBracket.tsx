@@ -4271,7 +4271,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     aria-label="도움말"
                     title="도움말"
                 >
-                    <img src="/images/button/help.png" alt="도움말" className="w-full h-full" loading="lazy" decoding="async" />
+                    <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" loading="lazy" decoding="async" />
                 </button>
             </header>
             {isMobile ? (

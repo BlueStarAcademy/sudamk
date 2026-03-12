@@ -850,7 +850,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center transition-transform hover:scale-110 flex-shrink-0"
                         title="도움말"
                     >
-                        <img src="/images/button/help.png" alt="도움말" className="w-full h-full" />
+                        <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
                     </button>
                 </div>
             </header>

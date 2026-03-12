@@ -180,7 +180,7 @@ const TowerLobby: React.FC = () => {
                     aria-label="도움말"
                     title="도움말"
                 >
-                    <img src="/images/button/help.png" alt="도움말" className="w-full h-full" />
+                    <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
                 </button>
             </header>
 

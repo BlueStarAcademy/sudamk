@@ -115,8 +115,15 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 return emptyCache;
             }
             
-            // 병렬로 여러 랭킹 계산 (combat은 별도 처리)
-            // 각 계산에 개별 에러 핸들링 추가 (하나 실패해도 다른 것들은 성공)
+            // 바둑능력(combat) 랭킹용: 장비/인벤토리 포함 사용자 1회 조회 (N번 getUser 호출 제거)
+            const combatUsersPromise = db.getAllUsers({ includeEquipment: true, includeInventory: true, skipCache: true })
+                .then((usersWithEquipment) => calculateCombatRankings(usersWithEquipment || []))
+                .catch((error) => {
+                    console.error('[RankingCache] Error calculating combat rankings:', error);
+                    return [];
+                });
+            
+            // 병렬로 여러 랭킹 계산
             const [strategicRankings, playfulRankings, championshipRankings, mannerRankings, combatRankings, strategicSeasonRankings, playfulSeasonRankings] = await Promise.all([
                 Promise.resolve(calculateRanking(allUsers, SPECIAL_GAME_MODES, 'strategic', 'standard')).catch((err) => {
                     console.error('[RankingCache] Error calculating strategic rankings:', err);
@@ -134,11 +141,7 @@ export async function buildRankingCache(): Promise<RankingCache> {
                     console.error('[RankingCache] Error calculating manner rankings:', err);
                     return [];
                 }),
-                calculateCombatRankings(allUsers).catch((error) => {
-                    // combat ranking 실패 시 빈 배열 반환 (서버 크래시 방지)
-                    console.error('[RankingCache] Error calculating combat rankings:', error);
-                    return [];
-                }),
+                combatUsersPromise,
                 Promise.resolve(calculateSeasonRanking(allUsers, SPECIAL_GAME_MODES, 'strategic')).catch((err) => {
                     console.error('[RankingCache] Error calculating strategic season rankings:', err);
                     return [];
@@ -290,89 +293,43 @@ function calculateMannerRankings(allUsers: any[]): RankingEntry[] {
     return rankings.map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
-// 전투력 랭킹 계산 (장비 보너스 포함)
-async function calculateCombatRankings(allUsers: any[]): Promise<RankingEntry[]> {
+// 전투력 랭킹 계산 (장비 보너스 포함). usersWithEquipment는 이미 장비/인벤토리가 포함된 사용자 배열.
+async function calculateCombatRankings(usersWithEquipment: any[]): Promise<RankingEntry[]> {
     const rankings: RankingEntry[] = [];
     const { calculateTotalStats } = await import('./statService.js');
-    const { getAllUsers } = await import('./db.js');
     const allGameModes = [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES];
     
     try {
-        // 메모리 사용량 확인
         const memUsage = process.memoryUsage();
-        const memUsageMB = {
-            rss: Math.round(memUsage.rss / 1024 / 1024),
-            heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024)
-        };
+        const memUsageMB = Math.round(memUsage.rss / 1024 / 1024);
+        const maxUsersToProcess = memUsageMB > 350 ? 200 : 500;
+        const usersToProcess = usersWithEquipment.slice(0, maxUsersToProcess);
         
-        // 메모리 사용량이 너무 높으면 처리 제한
-        const maxUsersToProcess = memUsageMB.rss > 350 ? 200 : 500;
-        const usersToProcess = allUsers.slice(0, maxUsersToProcess);
+        console.log(`[RankingCache] Processing combat rankings: ${usersToProcess.length} users (Memory: ${memUsageMB}MB RSS)`);
         
-        // 배치로 처리하여 메모리 사용량 제한 (한 번에 30명씩으로 감소)
-        const batchSize = memUsageMB.rss > 350 ? 30 : 50;
-        const { getUser } = await import('./db.js');
-        
-        console.log(`[RankingCache] Processing combat rankings: ${usersToProcess.length} users in batches of ${batchSize} (Memory: ${memUsageMB.rss}MB RSS)`);
-        
-        // inventory가 필요한 사용자 계산 (배치 처리)
-        for (let i = 0; i < usersToProcess.length; i += batchSize) {
-            // 메모리 체크 (배치마다)
-            const currentMemUsage = process.memoryUsage();
-            const currentMemMB = Math.round(currentMemUsage.rss / 1024 / 1024);
-            if (currentMemMB > 450) {
-                console.warn(`[RankingCache] Memory usage too high (${currentMemMB}MB), stopping combat ranking calculation`);
-                break;
-            }
-            
-            const batch = usersToProcess.slice(i, i + batchSize);
-            
-            // 배치 단위로 병렬 처리 (타임아웃 추가)
-            await Promise.allSettled(batch.map(async (user) => {
-                if (!user || !user.id) return;
-                
-                try {
-                    // 각 사용자 조회에 타임아웃 추가 (5초)
-                    const userTimeout = new Promise<any>((_, reject) => {
-                        setTimeout(() => reject(new Error('getUser timeout')), 5000);
-                    });
-                    
-                    const fullUser = await Promise.race([
-                        getUser(user.id, { includeEquipment: true, includeInventory: true }),
-                        userTimeout
-                    ]);
-                    
-                    if (!fullUser) return;
-                    
-                    // calculateTotalStats로 6가지 능력치 합계 계산 (장비 보너스 포함)
-                    const totalStats = calculateTotalStats(fullUser);
-                    const sum = Object.values(totalStats).reduce((acc: number, value: number) => acc + value, 0);
-                    
-                    rankings.push({
-                        id: fullUser.id,
-                        nickname: fullUser.nickname || fullUser.username,
-                        avatarId: fullUser.avatarId,
-                        borderId: fullUser.borderId,
-                        rank: 0,
-                        score: sum,
-                        totalGames: calculateTotalGames(fullUser, allGameModes),
-                        wins: 0,
-                        losses: 0,
-                        league: fullUser.league
-                    });
-                } catch (error: any) {
-                    console.error(`[RankingCache] Error calculating combat ranking for user ${user.id}:`, error?.message || error);
-                    // 에러 발생해도 계속 진행
-                }
-            }));
-            
-            // 배치 처리 사이에 대기 시간 증가 (메모리 압력 완화)
-            if (i + batchSize < usersToProcess.length) {
-                await new Promise(resolve => setTimeout(resolve, 50)); // 10ms -> 50ms로 증가
+        for (const user of usersToProcess) {
+            if (!user || !user.id) continue;
+            try {
+                const totalStats = calculateTotalStats(user);
+                const sum = Object.values(totalStats).reduce((acc: number, value: number) => acc + value, 0);
+                rankings.push({
+                    id: user.id,
+                    nickname: user.nickname || user.username,
+                    avatarId: user.avatarId,
+                    borderId: user.borderId,
+                    rank: 0,
+                    score: sum,
+                    totalGames: calculateTotalGames(user, allGameModes),
+                    wins: 0,
+                    losses: 0,
+                    league: user.league
+                });
+            } catch (error: any) {
+                console.error(`[RankingCache] Error calculating combat ranking for user ${user.id}:`, error?.message || error);
             }
         }
         
-        console.log(`[RankingCache] Processed ${rankings.length} users for combat rankings (limited to ${maxUsersToProcess})`);
+        console.log(`[RankingCache] Processed ${rankings.length} users for combat rankings`);
     } catch (error: any) {
         console.error('[RankingCache] ========== ERROR IN COMBAT RANKINGS ==========');
         console.error('[RankingCache] Error:', error);

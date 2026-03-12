@@ -5,6 +5,7 @@ import { ItemGrade } from '../../types/enums.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { gradeBackgrounds, slotNames, EQUIPMENT_POOL } from '../../constants/items.js';
+import { GUILD_BOSS_GRADE_NAMES } from '../../constants/index.js';
 
 interface GuildBossBattleResultModalProps {
     result: GuildBossBattleResultType & { bossName: string; previousRank?: number; currentRank?: number };
@@ -13,7 +14,7 @@ interface GuildBossBattleResultModalProps {
 }
 
 interface RewardCard {
-    type: 'guildXp' | 'guildCoins' | 'researchPoints' | 'gold' | 'material' | 'ticket' | 'equipment';
+    type: 'guildXp' | 'guildCoins' | 'researchPoints' | 'gold' | 'material' | 'ticket' | 'equipment' | 'materialBox';
     name: string;
     quantity?: number;
     image: string;
@@ -33,7 +34,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
     const hpPercentAfter = (result.bossHpAfter / result.bossMaxHp) * 100;
     const rewards = result.rewards;
     const tier = rewards.tier;
-    const isTier5 = tier === 5;
+    const isTopGrade = tier === 12;
     
     useEffect(() => {
         // 보상 카드 배열 생성
@@ -44,8 +45,8 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             type: 'guildXp',
             name: '길드 경험치',
             quantity: rewards.guildXp,
-            image: '', // 이미지 사용 안 함
-            isSpecial: isTier5,
+            image: '',
+            isSpecial: isTopGrade,
         });
         
         // 길드 코인
@@ -54,7 +55,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             name: '길드 코인',
             quantity: rewards.guildCoins,
             image: '/images/guild/tokken.png',
-            isSpecial: isTier5,
+            isSpecial: isTopGrade,
         });
         
         // 연구소 포인트
@@ -63,7 +64,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             name: '연구소 포인트',
             quantity: rewards.researchPoints,
             image: '/images/guild/button/guildlab.png',
-            isSpecial: isTier5,
+            isSpecial: isTopGrade,
         });
         
         // 골드
@@ -72,7 +73,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             name: '골드',
             quantity: rewards.gold,
             image: '/images/icon/Gold.png',
-            isSpecial: isTier5,
+            isSpecial: isTopGrade,
         });
         
         // 강화재료
@@ -81,8 +82,30 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             name: rewards.materials.name,
             quantity: rewards.materials.quantity,
             image: MATERIAL_IMAGES[rewards.materials.name] || '/images/materials/materials1.png',
-            isSpecial: isTier5,
+            isSpecial: isTopGrade,
         });
+        
+        // 신비의 강화석 등 추가 강화재료 (SSS 등)
+        if (rewards.materialsBonus && rewards.materialsBonus.quantity > 0) {
+            cards.push({
+                type: 'material',
+                name: rewards.materialsBonus.name,
+                quantity: rewards.materialsBonus.quantity,
+                image: MATERIAL_IMAGES[rewards.materialsBonus.name] || '/images/materials/materials5.png',
+                isSpecial: true,
+            });
+        }
+        
+        // 재료 상자 (SSS 등)
+        if (rewards.materialBox && rewards.materialBox.quantity > 0) {
+            cards.push({
+                type: 'materialBox',
+                name: rewards.materialBox.name,
+                quantity: rewards.materialBox.quantity,
+                image: MATERIAL_BOX_IMAGES[rewards.materialBox.name] || '/images/Box/ResourceBox3.png',
+                isSpecial: true,
+            });
+        }
         
         // 변경권
         rewards.tickets.forEach(ticket => {
@@ -91,7 +114,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 name: ticket.name,
                 quantity: ticket.quantity,
                 image: TICKET_IMAGES[ticket.name] || '/images/use/change1.png',
-                isSpecial: isTier5,
+                isSpecial: isTopGrade,
             });
         });
         
@@ -102,6 +125,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 ? (typeof equipmentItem.grade === 'string' ? equipmentItem.grade as ItemGrade : equipmentItem.grade)
                 : (typeof rewards.equipment.grade === 'string' ? (rewards.equipment.grade as ItemGrade) : rewards.equipment.grade);
             const isLegendaryOrMythic = equipmentGrade === ItemGrade.Legendary || equipmentGrade === ItemGrade.Mythic;
+            const isSpecialEquipment = isLegendaryOrMythic || isTopGrade;
 
             let equipmentName = equipmentItem?.name ?? (rewards.equipment as any).name;
             let equipmentImage = equipmentItem?.image ?? (rewards.equipment as any).image;
@@ -129,7 +153,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 name: displayName,
                 image: imagePath,
                 grade: equipmentGrade,
-                isSpecial: isLegendaryOrMythic,
+                isSpecial: isSpecialEquipment,
                 equipment: {
                     slot: equipmentSlot ? slotNames[equipmentSlot as keyof typeof slotNames] : undefined,
                     fullName: displayName,
@@ -153,6 +177,12 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         '최상급 강화석': '/images/materials/materials4.png',
         '신비의 강화석': '/images/materials/materials5.png',
     };
+    const MATERIAL_BOX_IMAGES: Record<string, string> = {
+        '재료 상자 I': '/images/Box/ResourceBox1.png',
+        '재료 상자 II': '/images/Box/ResourceBox2.png',
+        '재료 상자 III': '/images/Box/ResourceBox3.png',
+        '재료 상자 IV': '/images/Box/ResourceBox4.png',
+    };
     
     const TICKET_IMAGES: Record<string, string> = {
         '옵션 종류 변경권': '/images/use/change1.png',
@@ -161,25 +191,26 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
     };
     
     const getTierColor = (tier: number) => {
-        switch (tier) {
-            case 1: return 'from-gray-500 to-gray-600';
-            case 2: return 'from-green-500 to-green-600';
-            case 3: return 'from-blue-500 to-blue-600';
-            case 4: return 'from-purple-500 to-purple-600';
-            case 5: return 'from-yellow-400 via-orange-500 to-red-500';
-            default: return 'from-gray-500 to-gray-600';
-        }
+        const colors: Record<number, string> = {
+            1: 'from-gray-500 to-gray-600',
+            2: 'from-gray-400 to-gray-500',
+            3: 'from-green-700 to-green-800',
+            4: 'from-green-500 to-green-600',
+            5: 'from-emerald-500 to-emerald-600',
+            6: 'from-cyan-500 to-cyan-600',
+            7: 'from-blue-500 to-blue-600',
+            8: 'from-indigo-500 to-indigo-600',
+            9: 'from-violet-500 to-violet-600',
+            10: 'from-purple-500 to-purple-600',
+            11: 'from-amber-400 to-amber-500',
+            12: 'from-yellow-400 via-orange-500 to-red-500',
+        };
+        return colors[tier] ?? 'from-gray-500 to-gray-600';
     };
     
     const getTierName = (tier: number) => {
-        switch (tier) {
-            case 1: return '1등급';
-            case 2: return '2등급';
-            case 3: return '3등급';
-            case 4: return '4등급';
-            case 5: return '5등급';
-            default: return '1등급';
-        }
+        const label = GUILD_BOSS_GRADE_NAMES[tier - 1];
+        return label ? `${label}등급` : 'E등급';
     };
     
     return (

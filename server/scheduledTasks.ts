@@ -14,6 +14,7 @@ import { TournamentType } from '../types/index.js';
 import { startTournamentSessionForUser } from './actions/tournamentActions.js';
 import { broadcast } from './socket.js';
 import * as mailRepo from './prisma/mailRepository.js';
+import { volatileState } from './state.js';
 
 let lastSeasonProcessed: SeasonInfo | null = null;
 let lastWeeklyResetTimestamp: number | null = null;
@@ -1809,12 +1810,36 @@ export async function processDailyQuestReset(): Promise<void> {
     
     console.log(`[DailyQuestReset] Processing daily quest reset and tournament state reset at midnight KST`);
 
+    // 챔피언십 경기장: 다음날 0시에 기존 경기 정보 깔끔하게 정리 (메모리 + DB는 아래 resetAndGenerateQuests에서 null 처리)
+    if (volatileState.activeTournaments && Object.keys(volatileState.activeTournaments).length > 0) {
+        volatileState.activeTournaments = {};
+        console.log('[DailyQuestReset] Cleared in-memory championship venue state (activeTournaments)');
+    }
+
     const allUsers = await db.getAllUsers();
     let resetCount = 0;
     let tournamentResetCount = 0;
     let tournamentSessionStartedCount = 0;
 
-    // 모든 사용자에게 토너먼트 세션 자동 시작
+    // 챔피언십 경기장 DB 정리: 다음날 0시에 모든 유저의 last*Tournament(경기 JSON)를 null로 초기화
+    let venueClearedCount = 0;
+    for (const user of allUsers) {
+        if (!user?.id) continue;
+        const hasVenueData = (user as any).lastNeighborhoodTournament != null || (user as any).lastNationalTournament != null || (user as any).lastWorldTournament != null;
+        if (!hasVenueData) continue;
+        const copy = JSON.parse(JSON.stringify(user)) as types.User;
+        (copy as any).lastNeighborhoodTournament = null;
+        (copy as any).lastNationalTournament = null;
+        (copy as any).lastWorldTournament = null;
+        await db.updateUser(copy);
+        venueClearedCount++;
+    }
+    if (venueClearedCount > 0) {
+        console.log(`[DailyQuestReset] Cleared championship venue data (last*Tournament) for ${venueClearedCount} users`);
+    }
+
+    // 모든 사용자: 퀘스트 리셋 + 챔피언십 playedDate/rewardClaimed 일괄 초기화(날짜 바뀜 기준)
+    // 이후 각 유저별로 새 토너먼트 세션 자동 시작
     const tournamentTypes: TournamentType[] = ['neighborhood', 'national', 'world'];
     const updatedUsersMap = new Map<string, types.User>();
 

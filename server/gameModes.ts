@@ -840,14 +840,16 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
     }
 
     try {
-        // PVE 게임은 일반적으로 제외. 단, hidden_final_reveal / hidden_reveal_animating 인 경우
-        // 애니메이션 종료 후 scoring 전환을 위해 서버 루프에서 처리 필요
+        // PVE 게임은 일반적으로 제외. 단, 다음 경우 서버 루프에서 처리 필요:
+        // - hidden_final_reveal / hidden_reveal_animating: 애니메이션 종료 후 scoring 전환
+        // - missile_animating / scanning_animating: 애니메이션 종료 후 playing 전환 (도전의 탑 등)
         const multiPlayerGames: LiveGameSession[] = [];
         for (const game of games) {
             if (!game || !game.id) continue;
             const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
             const needsRevealTransition = isPVEGame && (game.gameStatus === 'hidden_final_reveal' || game.gameStatus === 'hidden_reveal_animating');
-            if (!isPVEGame || needsRevealTransition) {
+            const needsMissileOrScanTransition = isPVEGame && (game.gameStatus === 'missile_animating' || game.gameStatus === 'scanning_animating');
+            if (!isPVEGame || needsRevealTransition || needsMissileOrScanTransition) {
                 multiPlayerGames.push(game);
             }
         }

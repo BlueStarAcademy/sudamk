@@ -217,17 +217,18 @@ export const DUNGEON_STAGE_BASE_REWARDS_GOLD: Record<number, number> = Object.fr
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => [s, Math.round((lerp(s, 80, 150, 1000, 3000).min + lerp(s, 80, 150, 1000, 3000).max) / 2)])
 ) as Record<number, number>;
 
+// 전국바둑대회 단계별 기본 재료 (1~2 하급, 3~4 중급, 5~6 상급, 7~9 최상급, 10단계는 순위보상에서 1위 신비의 5개)
 export const DUNGEON_STAGE_BASE_REWARDS_MATERIAL: Record<number, { materialName: string; quantity: number }> = {
     1: { materialName: '하급 강화석', quantity: 10 },
     2: { materialName: '하급 강화석', quantity: 13 },
     3: { materialName: '중급 강화석', quantity: 8 },
     4: { materialName: '중급 강화석', quantity: 12 },
-    5: { materialName: '중급 강화석', quantity: 15 },
-    6: { materialName: '상급 강화석', quantity: 10 },
-    7: { materialName: '상급 강화석', quantity: 13 },
-    8: { materialName: '최상급 강화석', quantity: 7 },
-    9: { materialName: '최상급 강화석', quantity: 10 },
-    10: { materialName: '고급 강화석', quantity: 12 },
+    5: { materialName: '상급 강화석', quantity: 10 },
+    6: { materialName: '상급 강화석', quantity: 13 },
+    7: { materialName: '최상급 강화석', quantity: 8 },
+    8: { materialName: '최상급 강화석', quantity: 10 },
+    9: { materialName: '최상급 강화석', quantity: 12 },
+    10: { materialName: '최상급 강화석', quantity: 12 },
 };
 
 export const DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT: Record<number, { boxes: { boxName: string; quantity: number }[]; changeTickets: number }> = {
@@ -327,27 +328,23 @@ export function getDungeonRankRewardNeighborhood(stage: number, rank: number): D
     return { gold: rankGoldNeighborhood(stage, rank) };
 }
 
-// 전국: 1단계 1위 하급 30개, 10단계 1위 신비의 1~3개; 2~9 및 2~8위 비율
+// 전국바둑대회 순위 보상: 1~2단계 하급, 3단계~ 중급, 5단계~ 상급, 7단계~ 최상급, 10단계 1위 신비의 강화석 2개
+const NATIONAL_RANK_QTY: Record<string, Record<number, number>> = {
+    '하급 강화석': { 1: 30, 2: 22, 3: 16, 4: 12, 5: 9, 6: 6, 7: 4, 8: 2 },
+    '중급 강화석': { 1: 20, 2: 15, 3: 12, 4: 9, 5: 7, 6: 5, 7: 3, 8: 2 },
+    '상급 강화석': { 1: 15, 2: 12, 3: 9, 4: 7, 5: 5, 6: 4, 7: 3, 8: 2 },
+    '최상급 강화석': { 1: 10, 2: 8, 3: 6, 4: 5, 5: 4, 6: 3, 7: 2, 8: 1 },
+};
 function rankMaterialNational(stage: number, rank: number): Record<string, number> {
-    const stage1: Record<number, { name: string; qty: number }> = {
-        1: { name: '하급 강화석', qty: 30 }, 2: { name: '하급 강화석', qty: 22 }, 3: { name: '하급 강화석', qty: 16 },
-        4: { name: '하급 강화석', qty: 12 }, 5: { name: '하급 강화석', qty: 9 }, 6: { name: '하급 강화석', qty: 6 },
-        7: { name: '하급 강화석', qty: 4 }, 8: { name: '하급 강화석', qty: 2 },
-    };
-    const stage10: Record<number, { name: string; min: number; max: number }> = {
-        1: { name: '신비의 강화석', min: 1, max: 3 }, 2: { name: '신비의 강화석', min: 1, max: 2 }, 3: { name: '최상급 강화석', min: 4, max: 6 },
-        4: { name: '최상급 강화석', min: 3, max: 5 }, 5: { name: '상급 강화석', min: 6, max: 10 }, 6: { name: '상급 강화석', min: 4, max: 6 },
-        7: { name: '상급 강화석', min: 5, max: 8 }, 8: { name: '상급 강화석', min: 3, max: 5 },
-    };
     if (rank < 1 || rank > 8) return {};
-    const r1 = stage1[rank], r10 = stage10[rank];
-    if (!r1 || !r10) return {};
-    const t = (stage - 1) / 9;
-    const qty10 = r10.min + Math.floor(Math.random() * (r10.max - r10.min + 1));
-    const qty = Math.round(r1.qty + (qty10 - r1.qty) * t);
-    const name = t < 0.5 ? r1.name : r10.name;
-    const finalQty = stage >= 10 ? qty10 : Math.max(1, qty);
-    return { [name]: finalQty };
+    if (stage >= 10 && rank === 1) return { '신비의 강화석': 2 };
+    let materialName: string;
+    if (stage <= 2) materialName = '하급 강화석';
+    else if (stage <= 4) materialName = '중급 강화석';
+    else if (stage <= 6) materialName = '상급 강화석';
+    else materialName = '최상급 강화석';
+    const qty = NATIONAL_RANK_QTY[materialName]?.[rank] ?? 1;
+    return { [materialName]: qty };
 }
 
 export function getDungeonRankRewardNational(stage: number, rank: number): DungeonRankRewardResult {
@@ -380,27 +377,9 @@ export function getDungeonRankRewardWorld(stage: number, rank: number): DungeonR
     return d > 0 ? { diamonds: d } : {};
 }
 
-// 전국 순위 보상 표시용 (랜덤 없이 구간 중간값 사용)
+// 전국 순위 보상 표시용 (실제 지급과 동일한 단계별 강화석 종류·수량)
 function rankMaterialNationalDisplay(stage: number, rank: number): Record<string, number> {
-    const stage1: Record<number, { name: string; qty: number }> = {
-        1: { name: '하급 강화석', qty: 30 }, 2: { name: '하급 강화석', qty: 22 }, 3: { name: '하급 강화석', qty: 16 },
-        4: { name: '하급 강화석', qty: 12 }, 5: { name: '하급 강화석', qty: 9 }, 6: { name: '하급 강화석', qty: 6 },
-        7: { name: '하급 강화석', qty: 4 }, 8: { name: '하급 강화석', qty: 2 },
-    };
-    const stage10: Record<number, { name: string; min: number; max: number }> = {
-        1: { name: '신비의 강화석', min: 1, max: 3 }, 2: { name: '신비의 강화석', min: 1, max: 2 }, 3: { name: '최상급 강화석', min: 4, max: 6 },
-        4: { name: '최상급 강화석', min: 3, max: 5 }, 5: { name: '상급 강화석', min: 6, max: 10 }, 6: { name: '상급 강화석', min: 4, max: 6 },
-        7: { name: '상급 강화석', min: 5, max: 8 }, 8: { name: '상급 강화석', min: 3, max: 5 },
-    };
-    if (rank < 1 || rank > 8) return {};
-    const r1 = stage1[rank], r10 = stage10[rank];
-    if (!r1 || !r10) return {};
-    const t = (stage - 1) / 9;
-    const mid10 = Math.round((r10.min + r10.max) / 2);
-    const qty = Math.round(r1.qty + (mid10 - r1.qty) * t);
-    const name = t < 0.5 ? r1.name : r10.name;
-    const finalQty = stage >= 10 ? mid10 : Math.max(1, qty);
-    return { [name]: finalQty };
+    return rankMaterialNational(stage, rank);
 }
 
 // 월드 다이아 표시용 (구간 중간값)
@@ -462,23 +441,10 @@ export function getDungeonRankRewardRangeForDisplay(type: TournamentType, stage:
     }
     if (type === 'national') {
         if (rank < 1 || rank > 8) return null;
-        const stage1: Record<number, { name: string; qty: number }> = {
-            1: { name: '하급 강화석', qty: 30 }, 2: { name: '하급 강화석', qty: 22 }, 3: { name: '하급 강화석', qty: 16 },
-            4: { name: '하급 강화석', qty: 12 }, 5: { name: '하급 강화석', qty: 9 }, 6: { name: '하급 강화석', qty: 6 },
-            7: { name: '하급 강화석', qty: 4 }, 8: { name: '하급 강화석', qty: 2 },
-        };
-        const stage10: Record<number, { name: string; min: number; max: number }> = {
-            1: { name: '신비의 강화석', min: 1, max: 3 }, 2: { name: '신비의 강화석', min: 1, max: 2 }, 3: { name: '최상급 강화석', min: 4, max: 6 },
-            4: { name: '최상급 강화석', min: 3, max: 5 }, 5: { name: '상급 강화석', min: 6, max: 10 }, 6: { name: '상급 강화석', min: 4, max: 6 },
-            7: { name: '상급 강화석', min: 5, max: 8 }, 8: { name: '상급 강화석', min: 3, max: 5 },
-        };
-        const r1 = stage1[rank], r10 = stage10[rank];
-        if (!r1 || !r10) return null;
-        const t = (stage - 1) / 9;
-        const name = t < 0.5 ? r1.name : r10.name;
-        const min = stage <= 1 ? r1.qty : (stage >= 10 ? r10.min : Math.max(1, Math.round(r1.qty + (r10.min - r1.qty) * t)));
-        const max = stage <= 1 ? r1.qty : (stage >= 10 ? r10.max : Math.max(1, Math.round(r1.qty + (r10.max - r1.qty) * t)));
-        return { items: [{ itemId: name, min, max }] };
+        const mat = rankMaterialNational(stage, rank);
+        const entries = Object.entries(mat);
+        if (!entries.length) return null;
+        return { items: entries.map(([name, qty]) => ({ itemId: name, min: qty, max: qty })) };
     }
     if (type === 'world') {
         if (rank >= 9) return rank === 9 ? { items: [] } : null;

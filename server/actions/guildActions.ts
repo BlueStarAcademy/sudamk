@@ -2400,6 +2400,42 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 console.warn(`[START_GUILD_BOSS_BATTLE] Material template not found for: "${rewards.materials.name}"`);
             }
             
+            // 추가 강화재료 (SSS 신비의 강화석 등)
+            if (rewards.materialsBonus && rewards.materialsBonus.quantity > 0) {
+                const bonusTemplate = getItemTemplateByName(rewards.materialsBonus.name);
+                if (bonusTemplate) {
+                    const bonusItem: InventoryItem = {
+                        ...bonusTemplate,
+                        id: `item-${randomUUID()}`,
+                        createdAt: Date.now(),
+                        isEquipped: false,
+                        quantity: rewards.materialsBonus.quantity,
+                        level: 1,
+                        stars: 0,
+                    } as InventoryItem;
+                    (bonusItem as any).type = 'material';
+                    itemsToAdd.push(bonusItem);
+                }
+            }
+            
+            // 재료 상자 (SSS 등)
+            if (rewards.materialBox && rewards.materialBox.quantity > 0) {
+                const boxTemplate = getItemTemplateByName(rewards.materialBox.name);
+                if (boxTemplate) {
+                    const boxItem: InventoryItem = {
+                        ...boxTemplate,
+                        id: `item-${randomUUID()}`,
+                        createdAt: Date.now(),
+                        isEquipped: false,
+                        quantity: rewards.materialBox.quantity,
+                        level: 1,
+                        stars: 0,
+                    } as InventoryItem;
+                    (boxItem as any).type = 'consumable';
+                    itemsToAdd.push(boxItem);
+                }
+            }
+            
             // 변경권 추가 (소모품, addItemsToInventory 분류를 위해 type 명시)
             for (const ticket of rewards.tickets) {
                 const ticketTemplate = getItemTemplateByName(ticket.name);

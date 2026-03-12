@@ -695,7 +695,7 @@ export const useApp = () => {
         }
         actionDebounceRef.current.set(actionKey, now);
         
-        // 싱글플레이 미사일 애니메이션 완료 클라이언트 처리
+        // 싱글플레이 미사일 애니메이션 완료 클라이언트 처리 (도전의 탑은 towerGames, 그 외 싱글은 singlePlayerGames)
         if ((action as any).type === 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE') {
             const payload = (action as any).payload;
             const { gameId } = payload;
@@ -703,33 +703,35 @@ export const useApp = () => {
             if (process.env.NODE_ENV === 'development') {
                 console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - processing client-side:`, { gameId });
             }
-            
-            setSinglePlayerGames((currentGames) => {
-                const game = currentGames[gameId];
-                if (!game) {
-                    // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
-                    if (process.env.NODE_ENV === 'development') {
-                        console.debug(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Game not found in state:`, gameId);
-                    }
-                    return currentGames;
+            const game = singlePlayerGames[gameId] || towerGames[gameId];
+            if (!game) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.debug(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Game not found in state:`, gameId);
                 }
-                
+                return;
+            }
+            const isTower = game.gameCategory === 'tower';
+            const updateGameState = isTower ? setTowerGames : setSinglePlayerGames;
+            updateGameState((currentGames) => {
+                const gameInStore = currentGames[gameId];
+                if (!gameInStore) return currentGames;
+                const g = gameInStore;
                 // 게임이 이미 종료되었는지 확인
-                if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
+                if (g.gameStatus === 'ended' || g.gameStatus === 'no_contest' || g.gameStatus === 'scoring') {
                     // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
                     if (process.env.NODE_ENV === 'development') {
                         console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Game already ended, ignoring:`, {
                             gameId,
-                            gameStatus: game.gameStatus
+                            gameStatus: g.gameStatus
                         });
                     }
                     return currentGames;
                 }
                 
                 // 애니메이션이 없거나 이미 완료된 경우
-                if (!game.animation || (game.animation.type !== 'missile' && game.animation.type !== 'hidden_missile')) {
+                if (!g.animation || (g.animation.type !== 'missile' && g.animation.type !== 'hidden_missile')) {
                     // 게임 상태가 여전히 missile_animating이면 정리
-                    if (game.gameStatus === 'missile_animating') {
+                    if (g.gameStatus === 'missile_animating') {
                         // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
                         if (process.env.NODE_ENV === 'development') {
                             console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Cleaning up stuck missile_animating state:`, gameId);
@@ -737,7 +739,7 @@ export const useApp = () => {
                         return {
                             ...currentGames,
                             [gameId]: {
-                                ...game,
+                                ...g,
                                 gameStatus: 'playing',
                                 animation: null,
                                 pausedTurnTimeLeft: undefined,
@@ -749,32 +751,32 @@ export const useApp = () => {
                 }
                 
                 // 애니메이션 정보 저장
-                const animationFrom = game.animation.from;
-                const animationTo = game.animation.to;
-                const playerWhoMoved = game.currentPlayer;
-                const revealedHiddenStone = (game.animation as any).revealedHiddenStone as Point | null | undefined;
+                const animationFrom = g.animation.from;
+                const animationTo = g.animation.to;
+                const playerWhoMoved = g.currentPlayer;
+                const revealedHiddenStone = (g.animation as any).revealedHiddenStone as Point | null | undefined;
                 
                 // totalTurns와 captures 보존 (애니메이션 완료 시 초기화 방지)
-                const preservedTotalTurns = game.totalTurns;
-                const preservedCaptures = { ...game.captures };
-                const preservedBaseStoneCaptures = game.baseStoneCaptures ? { ...game.baseStoneCaptures } : undefined;
-                const preservedHiddenStoneCaptures = game.hiddenStoneCaptures ? { ...game.hiddenStoneCaptures } : undefined;
+                const preservedTotalTurns = g.totalTurns;
+                const preservedCaptures = { ...g.captures };
+                const preservedBaseStoneCaptures = g.baseStoneCaptures ? { ...g.baseStoneCaptures } : undefined;
+                const preservedHiddenStoneCaptures = g.hiddenStoneCaptures ? { ...g.hiddenStoneCaptures } : undefined;
                 
                 // 게임 상태 업데이트
                 // 타이머 복원: pausedTurnTimeLeft가 있으면 복원
-                let updatedBlackTime = game.blackTimeLeft;
-                let updatedWhiteTime = game.whiteTimeLeft;
+                let updatedBlackTime = g.blackTimeLeft;
+                let updatedWhiteTime = g.whiteTimeLeft;
                 
-                if (game.pausedTurnTimeLeft !== undefined) {
+                if (g.pausedTurnTimeLeft !== undefined) {
                     if (playerWhoMoved === Player.Black) {
-                        updatedBlackTime = game.pausedTurnTimeLeft;
+                        updatedBlackTime = g.pausedTurnTimeLeft;
                     } else {
-                        updatedWhiteTime = game.pausedTurnTimeLeft;
+                        updatedWhiteTime = g.pausedTurnTimeLeft;
                     }
                 }
                 
                 const updatedGame: LiveGameSession = {
-                    ...game,
+                    ...g,
                     animation: null,
                     gameStatus: 'playing',
                     blackTimeLeft: updatedBlackTime,
@@ -783,13 +785,13 @@ export const useApp = () => {
                     itemUseDeadline: undefined,
                     // 타이머 재개를 위해 turnDeadline과 turnStartTime도 설정 (제한시간 없음+초읽기 모드 포함)
                     turnDeadline: (() => {
-                        const hasTC = (game.settings.timeLimit ?? 0) > 0 || ((game.settings.byoyomiCount ?? 0) > 0 && (game.settings.byoyomiTime ?? 0) > 0);
+                        const hasTC = (g.settings.timeLimit ?? 0) > 0 || ((g.settings.byoyomiCount ?? 0) > 0 && (g.settings.byoyomiTime ?? 0) > 0);
                         return hasTC && (updatedBlackTime > 0 || updatedWhiteTime > 0)
                             ? Date.now() + (playerWhoMoved === Player.Black ? updatedBlackTime : updatedWhiteTime) * 1000
                             : undefined;
                     })(),
                     turnStartTime: (() => {
-                        const hasTC = (game.settings.timeLimit ?? 0) > 0 || ((game.settings.byoyomiCount ?? 0) > 0 && (game.settings.byoyomiTime ?? 0) > 0);
+                        const hasTC = (g.settings.timeLimit ?? 0) > 0 || ((g.settings.byoyomiCount ?? 0) > 0 && (g.settings.byoyomiTime ?? 0) > 0);
                         return hasTC ? Date.now() : undefined;
                     })(),
                     // totalTurns와 captures 보존
@@ -801,7 +803,7 @@ export const useApp = () => {
                 
                 // 히든 돌 공개 처리
                 if (revealedHiddenStone) {
-                    const moveIndex = game.moveHistory.findIndex(m => m.x === revealedHiddenStone.x && m.y === revealedHiddenStone.y);
+                    const moveIndex = g.moveHistory.findIndex(m => m.x === revealedHiddenStone.x && m.y === revealedHiddenStone.y);
                     if (moveIndex !== -1) {
                         if (!updatedGame.permanentlyRevealedStones) updatedGame.permanentlyRevealedStones = [];
                         if (!updatedGame.permanentlyRevealedStones.some(p => p.x === revealedHiddenStone.x && p.y === revealedHiddenStone.y)) {
@@ -815,7 +817,7 @@ export const useApp = () => {
                 // (서버에서 이미 원래 자리 제거, 목적지 배치가 완료됨)
                 // 단, 보드 상태가 제대로 동기화되지 않은 경우를 대비해 확인만 수행
                 // 새로고침 직후 등 boardState가 아직 없을 수 있음 → 옵셔널 체이닝 및 배열 검사
-                const boardState = game.boardState;
+                const boardState = g.boardState;
                 if (animationFrom && animationTo && Array.isArray(boardState)) {
                     const stoneAtTo = boardState[animationTo.y]?.[animationTo.x];
                     const stoneAtFrom = boardState[animationFrom.y]?.[animationFrom.x];
@@ -857,19 +859,19 @@ export const useApp = () => {
                     }
                     
                     // 배치돌 업데이트: 원래 자리의 배치돌을 목적지로 이동 (이미 서버에서 처리되었을 수 있음)
-                    if (game.baseStones) {
-                        const baseStoneIndex = game.baseStones.findIndex(bs => bs.x === animationFrom.x && bs.y === animationFrom.y);
+                    if (g.baseStones) {
+                        const baseStoneIndex = g.baseStones.findIndex(bs => bs.x === animationFrom.x && bs.y === animationFrom.y);
                         if (baseStoneIndex !== -1) {
-                            updatedGame.baseStones = [...game.baseStones];
-                            const originalBaseStone = game.baseStones[baseStoneIndex];
+                            updatedGame.baseStones = [...g.baseStones];
+                            const originalBaseStone = g.baseStones[baseStoneIndex];
                             updatedGame.baseStones[baseStoneIndex] = { x: animationTo.x, y: animationTo.y, player: originalBaseStone.player };
                         }
                     }
                     
                     // 싱글플레이에서 baseStones_p1, baseStones_p2도 확인
-                    const playerId = playerWhoMoved === Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-                    const baseStonesKey = playerId === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
-                    const baseStonesArray = (game as any)[baseStonesKey] as Point[] | undefined;
+                    const playerId = playerWhoMoved === Player.Black ? g.blackPlayerId! : g.whitePlayerId!;
+                    const baseStonesKey = playerId === g.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+                    const baseStonesArray = (g as any)[baseStonesKey] as Point[] | undefined;
                     if (baseStonesArray) {
                         const baseStoneIndex = baseStonesArray.findIndex(bs => bs.x === animationFrom.x && bs.y === animationFrom.y);
                         if (baseStoneIndex !== -1) {
@@ -879,23 +881,41 @@ export const useApp = () => {
                     }
                     
                     // moveHistory 업데이트: 원래 자리의 이동 기록을 목적지로 변경 (이미 서버에서 처리되었을 수 있음)
-                    const fromMoveIndex = game.moveHistory.findIndex(m => m.x === animationFrom.x && m.y === animationFrom.y && m.player === playerWhoMoved);
+                    const fromMoveIndex = g.moveHistory.findIndex(m => m.x === animationFrom.x && m.y === animationFrom.y && m.player === playerWhoMoved);
                     if (fromMoveIndex !== -1) {
-                        updatedGame.moveHistory = [...game.moveHistory];
+                        updatedGame.moveHistory = [...g.moveHistory];
                         updatedGame.moveHistory[fromMoveIndex] = { ...updatedGame.moveHistory[fromMoveIndex], x: animationTo.x, y: animationTo.y };
+                    }
+                    
+                    // 문양 돌 이동: 원래 자리가 문양 돌이면 목적지에서도 문양 돌로 유지 (서버 동기화 대비)
+                    if (g.blackPatternStones?.some(p => p.x === animationFrom.x && p.y === animationFrom.y)) {
+                        updatedGame.blackPatternStones = (updatedGame.blackPatternStones ?? g.blackPatternStones ?? []).map(p =>
+                            p.x === animationFrom.x && p.y === animationFrom.y ? { x: animationTo.x, y: animationTo.y } : p
+                        );
+                    }
+                    if (g.whitePatternStones?.some(p => p.x === animationFrom.x && p.y === animationFrom.y)) {
+                        updatedGame.whitePatternStones = (updatedGame.whitePatternStones ?? g.whitePatternStones ?? []).map(p =>
+                            p.x === animationFrom.x && p.y === animationFrom.y ? { x: animationTo.x, y: animationTo.y } : p
+                        );
+                    }
+                    // 공개된 히든 돌: 원래 자리가 공개 목록에 있으면 목적지에서도 공개 상태 유지
+                    if (g.permanentlyRevealedStones?.some(p => p.x === animationFrom.x && p.y === animationFrom.y)) {
+                        updatedGame.permanentlyRevealedStones = (updatedGame.permanentlyRevealedStones ?? g.permanentlyRevealedStones ?? []).map(p =>
+                            p.x === animationFrom.x && p.y === animationFrom.y ? { x: animationTo.x, y: animationTo.y } : p
+                        );
                     }
                 }
                 
                 // sessionStorage에 저장 (restoredBoardState가 최신 상태를 읽을 수 있도록)
                 // 새로고침 직후 등 boardState가 없으면 저장하지 않음 — 기존 저장된 보드를 덮어쓰지 않아 흰돌/돌 사라짐 방지
-                const boardToSave = updatedGame.boardState ?? game.boardState;
+                const boardToSave = updatedGame.boardState ?? g.boardState;
                 if (Array.isArray(boardToSave) && boardToSave.length > 0) {
                     try {
                         const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
                         const gameStateToSave = {
                             gameId,
                             boardState: boardToSave,
-                            moveHistory: updatedGame.moveHistory ?? game.moveHistory ?? [],
+                            moveHistory: updatedGame.moveHistory ?? g.moveHistory ?? [],
                             captures: updatedGame.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
                             baseStoneCaptures: updatedGame.baseStoneCaptures,
                             hiddenStoneCaptures: updatedGame.hiddenStoneCaptures,
@@ -929,16 +949,16 @@ export const useApp = () => {
                 // 새로고침 직후 등 moveHistory/boardState/턴 정보가 없을 수 있음 — 반환 객체는 기존 game 값 보존
                 const safeGame: LiveGameSession = {
                     ...updatedGame,
-                    moveHistory: updatedGame.moveHistory ?? game.moveHistory ?? [],
-                    boardState: updatedGame.boardState ?? game.boardState,
-                    currentPlayer: updatedGame.currentPlayer ?? game.currentPlayer,
-                    totalTurns: updatedGame.totalTurns ?? game.totalTurns,
-                    captures: updatedGame.captures ?? game.captures,
-                    lastMove: updatedGame.lastMove ?? game.lastMove,
-                    blackTimeLeft: updatedGame.blackTimeLeft ?? game.blackTimeLeft,
-                    whiteTimeLeft: updatedGame.whiteTimeLeft ?? game.whiteTimeLeft,
-                    turnDeadline: updatedGame.turnDeadline ?? game.turnDeadline,
-                    turnStartTime: updatedGame.turnStartTime ?? game.turnStartTime,
+                    moveHistory: updatedGame.moveHistory ?? g.moveHistory ?? [],
+                    boardState: updatedGame.boardState ?? g.boardState,
+                    currentPlayer: updatedGame.currentPlayer ?? g.currentPlayer,
+                    totalTurns: updatedGame.totalTurns ?? g.totalTurns,
+                    captures: updatedGame.captures ?? g.captures,
+                    lastMove: updatedGame.lastMove ?? g.lastMove,
+                    blackTimeLeft: updatedGame.blackTimeLeft ?? g.blackTimeLeft,
+                    whiteTimeLeft: updatedGame.whiteTimeLeft ?? g.whiteTimeLeft,
+                    turnDeadline: updatedGame.turnDeadline ?? g.turnDeadline,
+                    turnStartTime: updatedGame.turnStartTime ?? g.turnStartTime,
                 };
                 return {
                     ...currentGames,
