@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward, InventoryItem } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -174,6 +174,28 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
 
     const questList = activeTab === 'daily' ? (quests.daily?.quests || []) : (activeTab === 'weekly' ? (quests.weekly?.quests || []) : (quests.monthly?.quests || []));
 
+    // 주간 탭: 수령 가능한 퀘스트 보상 또는 활약도 마일스톤이 있으면 true
+    const hasClaimableWeekly = useMemo(() => {
+        const weekly = quests.weekly;
+        if (!weekly) return false;
+        const questClaimable = (weekly.quests || []).some((q: Quest) => q.progress >= q.target && !q.isClaimed);
+        const milestoneClaimable = WEEKLY_MILESTONE_THRESHOLDS.some((th, i) => 
+            (weekly.claimedMilestones?.[i] === false) && (weekly.activityProgress ?? 0) >= th
+        );
+        return questClaimable || milestoneClaimable;
+    }, [quests.weekly]);
+
+    // 월간 탭: 수령 가능한 퀘스트 보상 또는 활약도 마일스톤이 있으면 true
+    const hasClaimableMonthly = useMemo(() => {
+        const monthly = quests.monthly;
+        if (!monthly) return false;
+        const questClaimable = (monthly.quests || []).some((q: Quest) => q.progress >= q.target && !q.isClaimed);
+        const milestoneClaimable = MONTHLY_MILESTONE_THRESHOLDS.some((th, i) => 
+            (monthly.claimedMilestones?.[i] === false) && (monthly.activityProgress ?? 0) >= th
+        );
+        return questClaimable || milestoneClaimable;
+    }, [quests.monthly]);
+
     const renderActivityPanel = () => {
         if (activeTab === 'daily') {
             return <ActivityPanel title="오늘의 활약도" questData={quests.daily} thresholds={DAILY_MILESTONE_THRESHOLDS} rewards={DAILY_MILESTONE_REWARDS} questType="daily" onClaim={(index, type) => onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType: type } })} />;
@@ -191,9 +213,15 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
         <DraggableWindow title="퀘스트" onClose={onClose} windowId="quests" initialWidth={750} initialHeight={900} isTopmost={isTopmost} variant="store">
             <div className={`h-full flex flex-col`}>
                 <div className="flex bg-gray-900/70 p-1 rounded-lg mb-4 flex-shrink-0">
-                    <button onClick={() => setActiveTab('daily')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'daily' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>일일</button>
-                    <button onClick={() => setActiveTab('weekly')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'weekly' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>주간</button>
-                    <button onClick={() => setActiveTab('monthly')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'monthly' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>월간</button>
+                    <button onClick={() => setActiveTab('daily')} className={`relative flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'daily' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>일일</button>
+                    <button onClick={() => setActiveTab('weekly')} className={`relative flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'weekly' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>
+                        주간
+                        {hasClaimableWeekly && <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-red-500" aria-hidden />}
+                    </button>
+                    <button onClick={() => setActiveTab('monthly')} className={`relative flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'monthly' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>
+                        월간
+                        {hasClaimableMonthly && <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-red-500" aria-hidden />}
+                    </button>
                 </div>
 
                 {activeTab === 'monthly' && (

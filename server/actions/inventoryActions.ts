@@ -510,6 +510,46 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             console.log(`[USE_ITEM] Bulk use: itemName=${item.name}, requestedQuantity=${quantity}, totalAvailable=${totalAvailableQuantity}, useQuantity=${useQuantity}`);
 
+            // 행동력 회복제 소모품: 사용 시 행동력 회복, 아이템 소모 (가방 보관형)
+            const actionPointRestoreByItem: Record<string, number> = {
+                '행동력 회복제(+10)': 10,
+                '행동력 회복제(+20)': 20,
+                '행동력 회복제(+30)': 30,
+            };
+            const restoreAmount = actionPointRestoreByItem[item.name];
+            if (restoreAmount) {
+                const currentAP = user.actionPoints?.current ?? 0;
+                const totalRestore = restoreAmount * useQuantity;
+                user.actionPoints = user.actionPoints || { current: 0, max: 30 };
+                // 행동력 회복제는 최대치를 초과해서 추가 가능
+                user.actionPoints.current = currentAP + totalRestore;
+
+                let remainingToRemove = useQuantity;
+                const tempInventoryAfterUse: InventoryItem[] = [];
+                for (const invItem of user.inventory) {
+                    if (invItem.name === item.name && invItem.type === 'consumable' && remainingToRemove > 0) {
+                        const itemQuantity = invItem.quantity || 1;
+                        if (itemQuantity <= remainingToRemove) {
+                            remainingToRemove -= itemQuantity;
+                        } else {
+                            tempInventoryAfterUse.push({ ...invItem, quantity: itemQuantity - remainingToRemove });
+                            remainingToRemove = 0;
+                        }
+                    } else {
+                        tempInventoryAfterUse.push(invItem);
+                    }
+                }
+                user.inventory = tempInventoryAfterUse;
+
+                const updatedUser = getSelectiveUserUpdate(user, 'USE_ITEM');
+                db.updateUser(user).catch(err => {
+                    console.error(`[USE_ITEM] Failed to save user ${user.id} (action point item):`, err);
+                });
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['inventory', 'actionPoints']);
+                return { clientResponse: { updatedUser, actionPointsRestored: totalRestore } };
+            }
+
             // 골드 꾸러미 이름 통일: 띄어쓰기 없는 경우도 처리
             let normalizedItemName = item.name;
             if (normalizedItemName.startsWith('골드꾸러미')) {

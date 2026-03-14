@@ -451,11 +451,14 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 return { error: '유효하지 않은 요청입니다.' };
             }
 
-            // 변경권 아이템 정의
-            const consumableItems: Record<string, { name: string; price: number; dailyLimit: number }> = {
+            // 변경권·행동력 회복제 아이템 정의 (행동력은 구매 회차별 가격)
+            const consumableItems: Record<string, { name: string; price?: number; dailyLimit: number; prices?: number[] }> = {
                 'option_type_change_ticket': { name: '옵션 종류 변경권', price: 2000, dailyLimit: 3 },
                 'option_value_change_ticket': { name: '옵션 수치 변경권', price: 500, dailyLimit: 10 },
                 'mythic_option_change_ticket': { name: '신화 옵션 변경권', price: 500, dailyLimit: 10 },
+                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 3, prices: [100, 300, 500] },
+                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 2, prices: [300, 1000] },
+                'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [1000] },
             };
 
             const itemInfo = consumableItems[itemId];
@@ -481,15 +484,25 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 }
             }
 
-            const totalCost = itemInfo.price * quantity;
+            // 구매 회차별 가격(행동력 회복제) 또는 고정 가격
+            let totalCost: number;
+            if (itemInfo.prices) {
+                totalCost = 0;
+                for (let i = 0; i < quantity; i++) {
+                    const priceIndex = Math.min(purchasesToday + i, itemInfo.prices.length - 1);
+                    totalCost += itemInfo.prices[priceIndex] ?? itemInfo.prices[itemInfo.prices.length - 1];
+                }
+            } else {
+                totalCost = (itemInfo.price ?? 0) * quantity;
+            }
             if (!user.isAdmin) {
                 if (user.gold < totalCost) {
                     return { error: `골드가 부족합니다. (필요: ${totalCost} 골드)` };
                 }
             }
 
-            // 아이템 생성
-            const template = CONSUMABLE_ITEMS.find(item => item.name === itemInfo.name);
+            // 아이템 생성 (변경권 3종은 재료로 분류되어 MATERIAL_ITEMS에 있음)
+            const template = CONSUMABLE_ITEMS.find(item => item.name === itemInfo.name) ?? MATERIAL_ITEMS[itemInfo.name];
             if (!template) {
                 return { error: '아이템 템플릿을 찾을 수 없습니다.' };
             }

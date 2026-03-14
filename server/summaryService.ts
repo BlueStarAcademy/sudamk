@@ -3,7 +3,7 @@
 import { LiveGameSession, Player, User, GameSummary, StatChange, GameMode, InventoryItem, SpecialStat, WinReason, SinglePlayerStageInfo, QuestReward, Mail } from '../types/index.js';
 import * as db from './db.js';
 import { clearAiSession } from './aiSessionManager.js';
-import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, PLAYFUL_GAME_MODES, SINGLE_PLAYER_STAGES } from '../constants';
+import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, SINGLE_PLAYER_STAGES } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
 import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
@@ -635,7 +635,7 @@ const sendBadMannerPenaltyMail = async (
 };
 
 export const createConsumableItemInstance = (name: string): InventoryItem | null => {
-    const template = CONSUMABLE_ITEMS.find(item => item.name === name);
+    const template = CONSUMABLE_ITEMS.find(item => item.name === name) ?? MATERIAL_ITEMS[name];
     if (!template) {
         console.error(`[Reward] Consumable item template not found for: ${name}`);
         return null;

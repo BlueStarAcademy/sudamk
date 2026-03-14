@@ -333,6 +333,7 @@ export const useApp = () => {
     const [combinationResult, setCombinationResult] = useState<{ item: InventoryItem; xpGained: number; isGreatSuccess: boolean; } | null>(null);
     const [isBlacksmithHelpOpen, setIsBlacksmithHelpOpen] = useState(false);
     const [isEnhancementResultModalOpen, setIsEnhancementResultModalOpen] = useState(false);
+    const [isInsufficientActionPointsModalOpen, setIsInsufficientActionPointsModalOpen] = useState(false);
 
     useEffect(() => {
         try {
@@ -1756,7 +1757,12 @@ export const useApp = () => {
                 if (result.error || result.message) {
                     const errorMessage = result.message || result.error || '서버 오류가 발생했습니다.';
                     console.error(`[handleAction] ${action.type} - Server returned error:`, errorMessage);
-                    showError(errorMessage);
+                    // 행동력/액션 포인트 부족 시 전용 모달로 안내 (상점 구매 유도)
+                    if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
+                        setIsInsufficientActionPointsModalOpen(true);
+                    } else {
+                        showError(errorMessage);
+                    }
                     return;
                 }
                 // LEAVE_AI_GAME 성공 시 로컬 상태에서 해당 게임 제거 및 사용자 gameId 해제 → 전략/놀이 대기실로 이동
@@ -5040,6 +5046,7 @@ export const useApp = () => {
             isEnhancementResultModalOpen,
             tournamentScoreChange,
             refinementResult,
+            isInsufficientActionPointsModalOpen,
         },
         handlers: {
             handleAction,
@@ -5062,6 +5069,7 @@ export const useApp = () => {
                 setIsShopOpen(false);
                 setShopInitialTab(undefined);
             },
+            closeInsufficientActionPointsModal: () => setIsInsufficientActionPointsModalOpen(false),
             closeItemObtained: () => {
                 setLastUsedItemResult(null);
                 setTournamentScoreChange(null);

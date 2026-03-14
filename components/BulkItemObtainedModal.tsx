@@ -4,7 +4,7 @@ import Button from './Button.js';
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
-import { GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS } from '../constants';
+import { GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS, isActionPointConsumable } from '../constants/items';
 
 interface BulkItemObtainedModalProps {
     items: InventoryItem[];
@@ -102,7 +102,9 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                 <div key={index} className="relative w-full aspect-square rounded-lg overflow-visible">
                                     <div className={`relative w-full h-full rounded-lg flex items-center justify-center ${borderClass || 'border-2 border-black/50'} overflow-hidden ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
                                         <img src={styles.background} alt={itemGrade} className="absolute inset-0 w-full h-full object-cover" />
-                                        {imagePath && (
+                                        {isActionPointConsumable(item.name) ? (
+                                            <span className="absolute flex items-center justify-center inset-0 text-3xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                                        ) : imagePath ? (
                                             <img 
                                                 src={imagePath} 
                                                 alt={item.name} 
@@ -115,7 +117,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                     transform: 'translate(-50%, -50%)' 
                                                 }} 
                                             />
-                                        )}
+                                        ) : null}
                                         {isCurrency && (
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-sm p-1">
                                                 <span className="text-white text-lg font-bold text-center break-words" style={{ textShadow: '1px 1px 2px black' }}>

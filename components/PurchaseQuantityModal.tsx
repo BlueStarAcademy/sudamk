@@ -42,8 +42,11 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
             maxByInventory = availableSlots > 0 ? availableSlots : 0;
         }
         
+        // 행동력 회복제는 구매 회차별 가격이 달라서 1개씩만 선택 (총가격 = 단가×수량 아님)
+        const isTieredPriceItem = ['action_point_10', 'action_point_20', 'action_point_30'].includes(item.itemId);
+        const effectiveLimit = isTieredPriceItem ? 1 : (item.limit || Infinity);
         // Combine all limits: item.limit, currency, inventory space, and a hard cap
-        return Math.max(1, Math.min(item.limit || Infinity, maxByCurrency, maxByInventory, 999)); // Hard cap at 999 for sanity
+        return Math.max(1, Math.min(effectiveLimit, item.limit ?? Infinity, maxByCurrency, maxByInventory, 999)); // Hard cap at 999 for sanity
     }, [item, currentUser, isGold, pricePerItem]);
 
     const handleConfirm = () => {

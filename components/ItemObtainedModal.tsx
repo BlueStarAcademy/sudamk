@@ -5,6 +5,7 @@ import Button from './Button.js';
 import { InventoryItem, ItemGrade, ItemOption, CoreStat, SpecialStat, MythicStat } from '../types.js';
 import { audioService } from '../services/audioService.js';
 import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
+import { isActionPointConsumable } from '../constants/items';
 
 interface ItemObtainedModalProps {
     item: InventoryItem;
@@ -112,7 +113,11 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                     <div className="relative w-48 h-48 mx-auto rounded-lg mb-4 overflow-visible">
                         <div className={`relative w-full h-full rounded-lg flex items-center justify-center ${borderClass || 'border-2 border-black/50'} overflow-hidden ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
                             <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover" />
-                            {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-4" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                            {isActionPointConsumable(item.name) ? (
+                                <span className="absolute flex items-center justify-center inset-0 text-6xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                            ) : item.image ? (
+                                <img src={item.image} alt={item.name} className="absolute object-contain p-4" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                            ) : null}
                             {isCurrency && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-sm p-1">
                                     <span className="text-white text-3xl font-bold text-center break-words" style={{ textShadow: '1px 1px 2px black' }}>

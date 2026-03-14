@@ -24,6 +24,8 @@ interface PurchasableItem {
     price: { gold?: number; diamonds?: number };
     limit?: number;
     type: InventoryItemType;
+    /** 행동력 회복제 등 이미지 위 배지 텍스트 (예: +10) */
+    badge?: string;
 }
 
 const isSameDayKST = (ts1: number, ts2: number): boolean => {
@@ -84,7 +86,7 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
             </div>
             <h3 className="text-xl font-bold tracking-wide text-white drop-shadow-lg">행동력 충전</h3>
             <p className="text-sm text-slate-200/85 mt-2 leading-relaxed flex-grow">
-                최대치 초과가능
+                최대치 초과가능. 바로 지급
             </p>
             <div className="mt-4 flex flex-col items-center justify-center gap-2 w-full">
                 <Button
@@ -112,11 +114,11 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
 };
 
 const ShopItemCard: React.FC<{ 
-    item: { itemId: string, name: string, description: string, price: { gold?: number, diamonds?: number }, image: string, dailyLimit?: number, weeklyLimit?: number, type: InventoryItemType },
+    item: { itemId: string, name: string, description: string, price: { gold?: number, diamonds?: number }, image: string, dailyLimit?: number, weeklyLimit?: number, type: InventoryItemType, badge?: string },
     onBuy: (item: PurchasableItem) => void; 
     currentUser: UserWithStatus 
 }> = ({ item, onBuy, currentUser }) => {
-    const { name, description, price, image, dailyLimit, weeklyLimit } = item;
+    const { name, description, price, image, dailyLimit, weeklyLimit, badge } = item;
     const isGold = !!price.gold;
     const priceAmount = price.gold || price.diamonds || 0;
     const PriceIcon = isGold ? <img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5 drop-shadow-md" /> : <img src="/images/icon/Zem.png" alt="다이아" className="w-5 h-5 drop-shadow-md" />;
@@ -151,12 +153,21 @@ const ShopItemCard: React.FC<{
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent pointer-events-none" />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)] pointer-events-none" />
             <div 
-                className="w-16 h-16 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg mb-2 flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer hover:scale-105 transition-transform"
+                className="relative w-16 h-16 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg mb-2 flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer hover:scale-105 transition-transform"
                 onClick={() => setShowDescription(!showDescription)}
                 onMouseEnter={() => setShowDescription(true)}
                 onMouseLeave={() => setShowDescription(false)}
             >
-                <img src={image} alt={name} className="w-full h-full object-contain p-1.5 drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" />
+                {(item.itemId === 'action_point_10' || item.itemId === 'action_point_20' || item.itemId === 'action_point_30') ? (
+                    <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" aria-label={name}>⚡</span>
+                ) : (
+                    <img src={image} alt={name} className="w-full h-full object-contain p-1.5 drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" />
+                )}
+                {badge && (
+                    <span className="absolute top-0 right-0 text-[10px] font-bold text-cyan-300 bg-gray-900/90 px-1 rounded-bl leading-tight shadow-md">
+                        {badge}
+                    </span>
+                )}
             </div>
             <h3 className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] line-clamp-1">
                 {name}
@@ -224,8 +235,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         if (itemId.startsWith('condition_potion_')) {
             const potionType = itemId.replace('condition_potion_', '') as 'small' | 'medium' | 'large';
             onAction({ type: 'BUY_CONDITION_POTION', payload: { potionType, quantity } });
-        } else if (itemId === 'option_type_change_ticket' || itemId === 'option_value_change_ticket' || itemId === 'mythic_option_change_ticket') {
-            // 변경권 구매
+        } else if (itemId === 'option_type_change_ticket' || itemId === 'option_value_change_ticket' || itemId === 'mythic_option_change_ticket' || itemId === 'action_point_10' || itemId === 'action_point_20' || itemId === 'action_point_30') {
+            // 변경권·행동력 회복제 구매
             onAction({ type: 'BUY_CONSUMABLE', payload: { itemId, quantity } });
         } else {
             const actionType = item.type === 'equipment' ? 'BUY_SHOP_ITEM' : 'BUY_MATERIAL_BOX';
@@ -256,6 +267,9 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.png", dailyLimit: 10, type: 'material' as const },
             { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.png", dailyLimit: 10, type: 'material' as const },
             { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.png", dailyLimit: 10, type: 'material' as const },
+            { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류로 변경", price: { gold: 2000 }, image: "/images/use/change1.png", dailyLimit: 3, type: 'material' as const },
+            { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경", price: { gold: 500 }, image: "/images/use/change2.png", dailyLimit: 10, type: 'material' as const },
+            { itemId: 'mythic_option_change_ticket', name: "신화 옵션 종류 변경권", description: "신화 또는 D.신화 장비의 신화 옵션을 다른 신화 옵션으로 변경", price: { gold: 500 }, image: "/images/use/change3.png", dailyLimit: 10, type: 'material' as const },
         ];
 
         switch (activeTab) {
@@ -272,26 +286,47 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     </div>
                 );
             case 'misc':
-                 return (
+                return (
                     <div className="grid grid-cols-4 gap-3">
                         <ActionPointCard currentUser={currentUser} onBuy={handleBuyActionPoints} />
                     </div>
                 );
             case 'consumables':
-            default:
-                const consumableItems = [
+            default: {
+                const baseConsumableItems = [
                     { itemId: 'condition_potion_small', name: "컨디션회복제(소)", description: "컨디션 1~10회복", price: { gold: 100 }, image: "/images/use/con1.png", dailyLimit: 3, type: 'consumable' as const },
                     { itemId: 'condition_potion_medium', name: "컨디션회복제(중)", description: "컨디션 10~20회복", price: { gold: 150 }, image: "/images/use/con2.png", dailyLimit: 3, type: 'consumable' as const },
                     { itemId: 'condition_potion_large', name: "컨디션회복제(대)", description: "컨디션 20~30회복", price: { gold: 200 }, image: "/images/use/con3.png", dailyLimit: 3, type: 'consumable' as const },
-                        { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류로 변경", price: { gold: 2000 }, image: "/images/use/change1.png", dailyLimit: 3, type: 'consumable' as const },
-                    { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경", price: { gold: 500 }, image: "/images/use/change2.png", dailyLimit: 10, type: 'consumable' as const },
-                    { itemId: 'mythic_option_change_ticket', name: "신화 옵션 종류 변경권", description: "신화 또는 D.신화 장비의 신화 옵션을 다른 신화 옵션으로 변경", price: { gold: 500 }, image: "/images/use/change3.png", dailyLimit: 10, type: 'consumable' as const },
                 ];
+                // 행동력 회복제: 구매 회차별 가격, 다른 소모품과 동일한 카드 스타일(ShopItemCard)
+                const ACTION_POINT_ITEMS = [
+                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '가방으로 지급', dailyLimit: 3, prices: [100, 300, 500], badge: '+10' },
+                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '가방으로 지급', dailyLimit: 2, prices: [300, 1000], badge: '+20' },
+                    { itemId: 'action_point_30' as const, name: '행동력 회복제(+30)', description: '가방으로 지급', dailyLimit: 1, prices: [1000], badge: '+30' },
+                ];
+                const actionPointShopItems = ACTION_POINT_ITEMS.map(({ itemId, name, description, dailyLimit, prices, badge }) => {
+                    const purchaseRecord = currentUser.dailyShopPurchases?.[itemId];
+                    const purchasesToday = (purchaseRecord && isSameDayKST(purchaseRecord.date, Date.now())) ? purchaseRecord.quantity : 0;
+                    const nextPriceIndex = Math.min(purchasesToday, prices.length - 1);
+                    const nextPrice = prices[nextPriceIndex] ?? prices[prices.length - 1];
+                    return {
+                        itemId,
+                        name,
+                        description,
+                        price: { gold: nextPrice },
+                        image: '/images/icon/applus.png',
+                        dailyLimit,
+                        type: 'consumable' as const,
+                        badge,
+                    };
+                });
+                const consumableItems = [...baseConsumableItems, ...actionPointShopItems];
                 return (
                     <div className="grid grid-cols-4 gap-3">
                         {consumableItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} />)}
                     </div>
                 );
+            }
         }
     };
 

@@ -5,6 +5,7 @@ import Button from './Button.js';
 
 import { useAppContext } from '../hooks/useAppContext.js';
 import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
+import { isActionPointConsumable } from '../constants/items';
 
 interface ItemDetailModalProps {
     item: InventoryItem;
@@ -67,7 +68,11 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, isOwnedByCurren
                     {/* Left: Image */}
                     <div className="relative w-24 h-24 rounded-lg flex-shrink-0">
                         <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                        {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-2" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                        {isActionPointConsumable(item.name) ? (
+                            <span className="absolute flex items-center justify-center inset-0 text-2xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                        ) : item.image ? (
+                            <img src={item.image} alt={item.name} className="absolute object-contain p-2" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                        ) : null}
                         {renderStarDisplay(item.stars)}
                         {item.isDivineMythic && (
                             <div 

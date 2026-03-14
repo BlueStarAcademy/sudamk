@@ -5,6 +5,7 @@ import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
 import { GameMode, Player } from '../types/enums.js';
 import Button from './Button.js';
+import DraggableWindow from './DraggableWindow.js';
 
 interface SinglePlayerGameDescriptionModalProps {
     session: LiveGameSession;
@@ -98,14 +99,17 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[calc(100vh-2rem)] min-h-0 overflow-y-auto border-2 border-gray-600">
-                <div className="p-6">
-                    <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-600 pb-3">
-                        {stage.name} - 게임 설명
-                    </h2>
-                    
-                    <div className="space-y-4 text-white">
+        <DraggableWindow
+            title={`${stage.name} - 게임 설명`}
+            windowId="game-description-modal"
+            onClose={onClose}
+            initialWidth={672}
+            initialHeight={560}
+            modal={true}
+            closeOnOutsideClick={!!onClose}
+        >
+            <div className="flex flex-col h-full min-h-0">
+                <div className="flex-1 overflow-y-auto min-h-0 space-y-4 text-white">
                         {/* 승리 목표 - 이미지와 함께 */}
                         <div>
                             <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
@@ -346,30 +350,29 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                 </div>
                             </div>
                         )}
-                    </div>
+                </div>
 
-                    {/* 버튼 */}
-                    <div className="flex gap-3 mt-6 pt-4 border-t border-gray-600">
-                        {onClose && (
-                            <Button 
-                                onClick={onClose} 
-                                colorScheme="gray" 
-                                className="flex-1"
-                            >
-                                취소
-                            </Button>
-                        )}
+                {/* 버튼 */}
+                <div className="flex-shrink-0 flex gap-3 pt-4 mt-4 border-t border-gray-600">
+                    {onClose && (
                         <Button 
-                            onClick={onStart} 
-                            colorScheme="accent" 
+                            onClick={onClose} 
+                            colorScheme="gray" 
                             className="flex-1"
                         >
-                            시작하기
+                            취소
                         </Button>
-                    </div>
+                    )}
+                    <Button 
+                        onClick={onStart} 
+                        colorScheme="accent" 
+                        className="flex-1"
+                    >
+                        시작하기
+                    </Button>
                 </div>
             </div>
-        </div>
+        </DraggableWindow>
     );
 };
 

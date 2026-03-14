@@ -102,12 +102,30 @@ export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped
     { name: '히든', description: '도전의 탑에서 사용할 수 있는 히든 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/hidden.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     { name: '스캔', description: '도전의 탑에서 사용할 수 있는 스캔 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/scan.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     { name: '배치변경', description: '도전의 탑에서 사용할 수 있는 배치변경 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/reflesh.png', grade: ItemGrade.Normal, usable: true, sellable: true },
-    { name: '옵션 종류 변경권', description: '장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다.', type: 'consumable', slot: null, image: '/images/use/change1.png', grade: ItemGrade.Normal, usable: true, sellable: true },
-    { name: '옵션 수치 변경권', description: '장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다.', type: 'consumable', slot: null, image: '/images/use/change2.png', grade: ItemGrade.Normal, usable: true, sellable: true },
-    { name: '신화 옵션 변경권', description: '신화 또는 D.신화 장비의 신화 옵션을 다른 신화 옵션으로 변경할 수 있는 아이템입니다.', type: 'consumable', slot: null, image: '/images/use/change3.png', grade: ItemGrade.Normal, usable: true, sellable: true },
+    { name: '행동력 회복제(+10)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/applus.png', grade: ItemGrade.Normal, usable: true, sellable: false },
+    { name: '행동력 회복제(+20)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/applus.png', grade: ItemGrade.Uncommon, usable: true, sellable: false },
+    { name: '행동력 회복제(+30)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/applus.png', grade: ItemGrade.Rare, usable: true, sellable: false },
 ];
 
+/** 행동력 회복제 이름 목록 — UI에서 이미지 대신 ⚡ 이모지로 표시 */
+export const ACTION_POINT_CONSUMABLE_NAMES = ['행동력 회복제(+10)', '행동력 회복제(+20)', '행동력 회복제(+30)'] as const;
+export const isActionPointConsumable = (name: string): boolean =>
+    (ACTION_POINT_CONSUMABLE_NAMES as readonly string[]).includes(name);
+
+/** 도전의 탑 전용 소모품 — 가방 소모품 탭에는 숨기고, 탑 대기실에서만 표시 */
+export const TOWER_ONLY_CONSUMABLE_NAMES = ['턴 추가', '미사일', '히든', '스캔', '배치변경'] as const;
+export const isTowerOnlyConsumable = (name: string): boolean =>
+    (TOWER_ONLY_CONSUMABLE_NAMES as readonly string[]).includes(name);
+
+/** 옵션 변경권 3종 — 재료 탭에 표시(기존 소모품으로 저장된 것도 재료 탭에 포함) */
+export const REFINEMENT_TICKET_NAMES = ['옵션 종류 변경권', '옵션 수치 변경권', '신화 옵션 변경권'] as const;
+export const isRefinementTicketMaterial = (name: string): boolean =>
+    (REFINEMENT_TICKET_NAMES as readonly string[]).includes(name);
+
 export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = {
+    '옵션 종류 변경권': { name: '옵션 종류 변경권', description: '장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change1.png', grade: ItemGrade.Normal },
+    '옵션 수치 변경권': { name: '옵션 수치 변경권', description: '장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change2.png', grade: ItemGrade.Normal },
+    '신화 옵션 변경권': { name: '신화 옵션 변경권', description: '신화 또는 D.신화 장비의 신화 옵션을 다른 신화 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change3.png', grade: ItemGrade.Normal },
     '하급 강화석': { name: '하급 강화석', description: '장비 강화에 사용되는 기본 재료.', type: 'material', slot: null, image: '/images/materials/materials1.png', grade: ItemGrade.Normal },
     '중급 강화석': { name: '중급 강화석', description: '장비 강화에 사용되는 상급 재료.', type: 'material', slot: null, image: '/images/materials/materials2.png', grade: ItemGrade.Uncommon },
     '상급 강화석': { name: '상급 강화석', description: '장비 강화에 사용되는 최상급 재료.', type: 'material', slot: null, image: '/images/materials/materials3.png', grade: ItemGrade.Rare },

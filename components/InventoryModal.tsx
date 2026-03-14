@@ -3,7 +3,7 @@ import { UserWithStatus, InventoryItem, ServerAction, InventoryItemType, ItemGra
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
-import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items';
+import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial } from '../constants/items';
 
 import { calculateUserEffects } from '../services/effectService.js';
 import { calculateTotalStats } from '../services/statService.js';
@@ -191,6 +191,11 @@ const EquipmentSlotDisplay: React.FC<{
                         }
                     }
                     
+                    if (isActionPointConsumable(item.name)) {
+                        return (
+                            <span className="absolute flex items-center justify-center inset-0 text-2xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                        );
+                    }
                     return imagePath ? (
                         <img 
                             src={imagePath} 
@@ -485,6 +490,11 @@ const LocalItemDetailDisplay: React.FC<{
                             }
                         }
                         
+                        if (isActionPointConsumable(item.name)) {
+                            return (
+                                <span className="absolute flex items-center justify-center inset-0 text-2xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                            );
+                        }
                         return imagePath ? (
                             <img 
                                 src={imagePath} 
@@ -867,8 +877,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
 
     const filteredAndSortedInventory = useMemo(() => {
         let items = [...currentUser.inventory];
+        // 도전의 탑 전용 소모품은 가방에서 숨김(탑 대기실에서만 표시)
+        items = items.filter((item: InventoryItem) => !(item.type === 'consumable' && isTowerOnlyConsumable(item.name)));
         if (activeTab !== 'all') {
-            items = items.filter((item: InventoryItem) => item.type === activeTab);
+            if (activeTab === 'consumable') {
+                // 옵션 변경권 3종은 재료로 분류되어 소모품 탭에서 제외
+                items = items.filter((item: InventoryItem) => item.type === 'consumable' && !isRefinementTicketMaterial(item.name));
+            } else if (activeTab === 'material') {
+                // 재료 + 소모품으로 저장된 옵션 변경권도 재료 탭에 표시
+                items = items.filter((item: InventoryItem) => item.type === 'material' || (item.type === 'consumable' && isRefinementTicketMaterial(item.name)));
+            } else {
+                items = items.filter((item: InventoryItem) => item.type === activeTab);
+            }
         }
         // Log for debugging: Check if materials are present and filtered correctly
         if (activeTab === 'material') {
@@ -1597,6 +1617,11 @@ const InventoryItemCard: React.FC<{
                     }
                 }
                 
+                if (isActionPointConsumable(item.name)) {
+                    return (
+                        <span className="absolute flex items-center justify-center inset-0 text-2xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                    );
+                }
                 return imagePath ? (
                     <img 
                         src={imagePath} 

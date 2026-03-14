@@ -37,6 +37,7 @@ import CombinationResultModal from './components/blacksmith/CombinationResultMod
 import EnhancementModal from './components/EnhancementModal';
 import EquipmentEffectsModal from './components/EquipmentEffectsModal';
 import EnhancementResultModal from './components/modals/EnhancementResultModal.js';
+import InsufficientActionPointsModal from './components/InsufficientActionPointsModal.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import LandscapeOnlyOverlay from './components/LandscapeOnlyOverlay.js';
 import { useIsHandheldDevice, useIsMobileLayout, useShowLandscapeOnlyOverlay } from './hooks/useIsMobileLayout.js';
@@ -181,6 +182,7 @@ const AppContent: React.FC = () => {
         if (modals.isMbtiInfoModalOpen) ids.push('mbtiInfo');
         if (modals.mutualDisconnectMessage) ids.push('mutualDisconnect');
         if (modals.showOtherDeviceLoginModal) ids.push('otherDeviceLogin');
+        if (modals.isInsufficientActionPointsModalOpen) ids.push('insufficientActionPoints');
         // itemObtained은 항상 마지막에 추가하여 최상단에 표시
         if (modals.lastUsedItemResult) ids.push('itemObtained');
         return ids;
@@ -312,6 +314,16 @@ const AppContent: React.FC = () => {
                         </Suspense>
                     )}
                     {modals.isInfoModalOpen && <InfoModal onClose={handlers.closeInfoModal} isTopmost={topmostModalId === 'infoModal'} />}
+                    {modals.isInsufficientActionPointsModalOpen && (
+                        <InsufficientActionPointsModal
+                            onClose={handlers.closeInsufficientActionPointsModal}
+                            onOpenShop={() => {
+                                handlers.closeInsufficientActionPointsModal();
+                                handlers.openShop('misc');
+                            }}
+                            isTopmost={topmostModalId === 'insufficientActionPoints'}
+                        />
+                    )}
                     {modals.isEncyclopediaOpen && (
                         <Suspense fallback={ModalLoadingFallback()}>
                             <EncyclopediaModal onClose={handlers.closeEncyclopedia} isTopmost={topmostModalId === 'encyclopedia'} />

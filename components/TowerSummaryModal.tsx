@@ -163,7 +163,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                 return {
                     gold: rewards.gold ?? 0,
                     xp: { change: rewards.exp ?? 0 },
-                    items: rewards.items ? rewards.items.map((item: any) => ({ name: item.name, quantity: item.quantity || 1 })) : []
+                    items: rewards.items ? rewards.items.map((item: any) => ({ name: item.itemId ?? item.name, quantity: item.quantity || 1 })) : []
                 };
             }
         }
@@ -174,10 +174,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     // summary가 나중에 도착하더라도 expectedRewards를 먼저 표시하여 0.5초 안에 보상 정보가 나타나도록 함
     const displaySummary = summary || expectedRewards;
     
-    // 다음 층으로 갈 수 있는지 확인: 승리했고 다음 층이 있으면 다음 층으로 갈 수 있음
-    // 현재 층을 방금 클리어했다면 userTowerFloor가 아직 업데이트되지 않았을 수 있으므로
-    // isWinner만 확인하면 됨
-    const canTryNext = isWinner && !!nextStage;
+    // 다음 층으로 갈 수 있는지 확인: 이번 게임에서 승리했거나, 이미 이 층을 한 번이라도 클리어한 적이 있으면 다음 층 가능
+    // (재도전에서 실패해도 한 번 클리어한 층이면 다음 층으로 진행 가능)
+    const canTryNext = !!nextStage && (isWinner || isCleared);
     
     const retryActionPointCost = currentStage?.actionPointCost ?? 0;
     const nextFloorActionPointCost = nextStage?.actionPointCost ?? 0;
@@ -371,7 +370,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </h1>
                 )}
                 
-                <div className={`flex flex-row gap-1.5 sm:gap-2 overflow-hidden flex-1 min-h-0 min-w-0`}>
+                <div className={`flex flex-row gap-1.5 sm:gap-2 overflow-hidden flex-1 min-w-0 min-h-[300px]`}>
                     {/* Left Panel: 경기 결과 */}
                     <div className={`${panelSizing} bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg overflow-y-auto flex flex-col sp-summary-left-panel`}>
                         <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-1 sm:mb-2 border-b border-gray-700 pb-0.5 sm:pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>경기 결과</h2>
@@ -456,7 +455,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 </div>
                             )}
                             
-                            {/* 보상 박스들 */}
+                            {/* 보상 박스들 — 최소 높이로 영역 고정해 모달 크기 흔들림 방지 */}
+                            <div className="min-h-[140px] sm:min-h-[160px] flex flex-col flex-1 min-w-0">
                             {displaySummary ? (
                                 <>
                                     {((displaySummary.gold ?? 0) > 0 || (displaySummary.xp?.change ?? 0) > 0 || (displaySummary.items && displaySummary.items.length > 0)) ? (
@@ -481,31 +481,23 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                             )}
                                             {/* Item Rewards */}
                                             {displaySummary.items && displaySummary.items.length > 0 && displaySummary.items.map((item, idx) => {
+                                                // 표시 이름: 서버는 name, 스테이지 예상 보상은 itemId로 옴
+                                                const displayName = item.name ?? ('itemId' in item ? (item as any).itemId : undefined);
+                                                if (!displayName) return null;
                                                 // 이미지 경로 찾기: item.image가 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
-                                                // 이름 불일치 처리: '골드꾸러미1' <-> '골드 꾸러미1'
-                                                const nameWithSpace = item.name?.includes('골드꾸러미') 
-                                                    ? item.name.replace('골드꾸러미', '골드 꾸러미')
-                                                    : item.name;
-                                                const nameWithoutSpace = item.name?.includes('골드 꾸러미')
-                                                    ? item.name.replace('골드 꾸러미', '골드꾸러미')
-                                                    : item.name;
-                                                
-                                                const imagePath = ('image' in item && item.image) || 
-                                                    CONSUMABLE_ITEMS.find(ci => 
-                                                        ci.name === item.name || 
-                                                        ci.name === nameWithSpace || 
-                                                        ci.name === nameWithoutSpace
-                                                    )?.image ||
-                                                    MATERIAL_ITEMS[item.name]?.image ||
+                                                const nameWithSpace = displayName.includes('골드꾸러미') ? displayName.replace('골드꾸러미', '골드 꾸러미') : displayName;
+                                                const nameWithoutSpace = displayName.includes('골드 꾸러미') ? displayName.replace('골드 꾸러미', '골드꾸러미') : displayName;
+                                                const imagePath = ('image' in item && item.image) ||
+                                                    CONSUMABLE_ITEMS.find(ci => ci.name === displayName || ci.name === nameWithSpace || ci.name === nameWithoutSpace)?.image ||
+                                                    MATERIAL_ITEMS[displayName]?.image ||
                                                     MATERIAL_ITEMS[nameWithSpace]?.image ||
                                                     MATERIAL_ITEMS[nameWithoutSpace]?.image;
-                                                
                                                 return (
                                                     <div key={'id' in item && item.id ? item.id : idx} className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
                                                         {imagePath ? (
-                                                            <img 
-                                                                src={imagePath} 
-                                                                alt={item.name} 
+                                                            <img
+                                                                src={imagePath}
+                                                                alt={displayName}
                                                                 className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} mb-0.5 object-contain`}
                                                                 onError={(e) => {
                                                                     console.error(`[TowerSummaryModal] Failed to load image: ${imagePath} for item:`, item);
@@ -514,11 +506,11 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                             />
                                                         ) : (
                                                             <div className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} mb-0.5 flex items-center justify-center`}>
-                                                                <span className="text-xs text-gray-400 text-center px-1">{item.name || 'No Image'}</span>
+                                                                <span className="text-xs text-gray-300 text-center px-1 line-clamp-2">{displayName}</span>
                                                             </div>
                                                         )}
                                                         <p className="font-semibold text-purple-300 text-center leading-tight" style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : '10px' }}>
-                                                            {item.name}
+                                                            {displayName}
                                                             {item.quantity && item.quantity > 1 ? ` x${item.quantity}` : ''}
                                                         </p>
                                                     </div>
@@ -534,12 +526,13 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                     )}
                                 </>
                             ) : (
-                                <div className="flex items-center justify-center py-4">
+                                <div className="flex items-center justify-center py-4 flex-1">
                                     <p className="text-gray-400 text-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
                                         {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
                                     </p>
                                 </div>
                             )}
+                            </div>
                         </div>
                     </div>
                 </div>

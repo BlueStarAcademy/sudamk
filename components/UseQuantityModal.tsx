@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { InventoryItem, UserWithStatus } from '../types.js';
+import { isActionPointConsumable } from '../constants/items';
 
 interface UseQuantityModalProps {
     item: InventoryItem;
@@ -74,9 +75,13 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                 <div className="mb-4 text-center w-full">
                     <h3 className="text-lg font-bold mb-2">사용할 수량을 선택하세요</h3>
                     <div className="flex items-center justify-center gap-4 my-4">
-                        {item.image && (
-                            <div className="relative w-20 h-20 rounded-lg flex-shrink-0">
-                                <img src={item.image} alt={item.name} className="absolute object-contain" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                        {(isActionPointConsumable(item.name) || item.image) && (
+                            <div className="relative w-20 h-20 rounded-lg flex-shrink-0 flex items-center justify-center">
+                                {isActionPointConsumable(item.name) ? (
+                                    <span className="text-3xl" aria-hidden>⚡</span>
+                                ) : (
+                                    <img src={item.image!} alt={item.name} className="absolute object-contain" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                                )}
                             </div>
                         )}
                         <div className="text-left">
