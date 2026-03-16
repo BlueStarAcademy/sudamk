@@ -192,8 +192,21 @@ const EquipmentSlotDisplay: React.FC<{
                     }
                     
                     if (isActionPointConsumable(item.name)) {
+                        const match = item.name.match(/\+(\d+)/);
+                        const apValue = match ? match[1] : null;
                         return (
-                            <span className="absolute flex items-center justify-center inset-0 text-2xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                            <span
+                                className="absolute inset-0 flex flex-col items-center justify-center text-3xl"
+                                style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                aria-hidden
+                            >
+                                <span>⚡</span>
+                                {apValue && (
+                                    <span className="text-xs font-bold mt-0.5 text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
+                                        +{apValue}
+                                    </span>
+                                )}
+                            </span>
                         );
                     }
                     return imagePath ? (
@@ -491,8 +504,21 @@ const LocalItemDetailDisplay: React.FC<{
                         }
                         
                         if (isActionPointConsumable(item.name)) {
+                            const match = item.name.match(/\+(\d+)/);
+                            const apValue = match ? match[1] : null;
                             return (
-                                <span className="absolute flex items-center justify-center inset-0 text-2xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                                <span
+                                    className="absolute inset-0 flex flex-col items-center justify-center text-3xl"
+                                    style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                    aria-hidden
+                                >
+                                    <span>⚡</span>
+                                    {apValue && (
+                                        <span className="text-xs font-bold mt-0.5 text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
+                                            +{apValue}
+                                        </span>
+                                    )}
+                                </span>
                             );
                         }
                         return imagePath ? (
@@ -1618,8 +1644,21 @@ const InventoryItemCard: React.FC<{
                 }
                 
                 if (isActionPointConsumable(item.name)) {
+                    const match = item.name.match(/\+(\d+)/);
+                    const apValue = match ? match[1] : null;
                     return (
-                        <span className="absolute flex items-center justify-center inset-0 text-2xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                        <span
+                            className="absolute inset-0 flex flex-col items-center justify-center text-3xl"
+                            style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                            aria-hidden
+                        >
+                            <span>⚡</span>
+                            {apValue && (
+                                <span className="text-xs font-bold mt-0.5 text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
+                                    +{apValue}
+                                </span>
+                            )}
+                        </span>
                     );
                 }
                 return imagePath ? (

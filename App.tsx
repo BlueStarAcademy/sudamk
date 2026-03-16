@@ -10,6 +10,7 @@ const InventoryModal = lazy(() => import('./components/InventoryModal.js'));
 const MailboxModal = lazy(() => import('./components/MailboxModal.js'));
 const QuestsModal = lazy(() => import('./components/QuestsModal.js'));
 const ShopModal = lazy(() => import('./components/ShopModal.js'));
+const ActionPointModal = lazy(() => import('./components/ActionPointModal.js'));
 const UserProfileModal = lazy(() => import('./components/UserProfileModal.js'));
 const EncyclopediaModal = lazy(() => import('./components/modals/EncyclopediaModal.js'));
 const PastRankingsModal = lazy(() => import('./components/modals/PastRankingsModal.js'));
@@ -293,6 +294,16 @@ const AppContent: React.FC = () => {
                             <ShopModal currentUser={currentUserWithStatus} onClose={handlers.closeShop} onAction={handlers.handleAction} isTopmost={topmostModalId === 'shop'} initialTab={modals.shopInitialTab} />
                         </Suspense>
                     )}
+                    {modals.isActionPointModalOpen && (
+                        <Suspense fallback={ModalLoadingFallback()}>
+                            <ActionPointModal
+                                currentUser={currentUserWithStatus}
+                                onClose={handlers.closeActionPointModal}
+                                onAction={handlers.handleAction}
+                                isTopmost={topmostModalId === 'actionPoint'}
+                            />
+                        </Suspense>
+                    )}
                     
                     {modals.lastUsedItemResult && modals.lastUsedItemResult.length === 1 && <ItemObtainedModal item={modals.lastUsedItemResult[0]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} />}
                     {modals.lastUsedItemResult && modals.lastUsedItemResult.length > 1 && <BulkItemObtainedModal items={modals.lastUsedItemResult} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
@@ -319,7 +330,7 @@ const AppContent: React.FC = () => {
                             onClose={handlers.closeInsufficientActionPointsModal}
                             onOpenShop={() => {
                                 handlers.closeInsufficientActionPointsModal();
-                                handlers.openShop('misc');
+                                handlers.openActionPointModal();
                             }}
                             isTopmost={topmostModalId === 'insufficientActionPoints'}
                         />

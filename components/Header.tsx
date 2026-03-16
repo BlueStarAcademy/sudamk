@@ -126,7 +126,7 @@ const Header: React.FC = () => {
                         </span>
                         <ActionPointTimer user={currentUserWithStatus} />
                         <button
-                            onClick={() => openShop('misc')}
+                            onClick={handlers.openActionPointModal}
                             className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/70 hover:bg-primary transition-colors border border-primary/60 flex items-center justify-center"
                             title="행동력 충전 (상점)"
                         >

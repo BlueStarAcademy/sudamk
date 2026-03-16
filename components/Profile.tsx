@@ -306,58 +306,64 @@ const Profile: React.FC<ProfileProps> = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Get guild info directly from guilds state
+    // Get guild info: context(guilds+user.guildId) 또는 GET_GUILD_INFO 성공 시 저장한 길드 (새로고침 시 guildId가 늦게 올 수 있음)
+    const [checkedGuildFromApi, setCheckedGuildFromApi] = useState<Guild | null>(null);
     const guildInfo = useMemo(() => {
-        if (!currentUserWithStatus?.guildId) return null;
-        return guilds[currentUserWithStatus.guildId] || null;
-    }, [currentUserWithStatus?.guildId, guilds]);
+        if (currentUserWithStatus?.guildId && guilds[currentUserWithStatus.guildId]) {
+            return guilds[currentUserWithStatus.guildId];
+        }
+        return checkedGuildFromApi;
+    }, [currentUserWithStatus?.guildId, guilds, checkedGuildFromApi]);
     
-    // 길드 로딩 상태 및 타임아웃 관리
+    // 길드 로딩 상태: 확인이 끝나기 전에는 항상 빈칸만 표시(버튼 노출 방지)
     const [guildLoadingFailed, setGuildLoadingFailed] = useState(false);
-    const [isGuildChecking, setIsGuildChecking] = useState(true); // 초기 로딩 상태
+    const [guildCheckDone, setGuildCheckDone] = useState(false); // true가 되어야 길드/버튼 중 하나 표시
     const hasLoadedGuildRef = useRef<Set<string>>(new Set());
-    const hasCheckedGuildRef = useRef(false); // 길드 확인 여부 추적
+    const hasCheckedGuildRef = useRef(false);
     const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     
     // 길드 정보 확인 (초기 로딩 시 한 번만 실행)
+    // guildCheckDone은 '길드 있음' 또는 '가입한 길드 없음'이 확실할 때만 true → 그 전에는 버튼 노출 안 함
     useEffect(() => {
-        // 이미 확인했으면 다시 확인하지 않음
         if (hasCheckedGuildRef.current) return;
         
         const checkGuild = async () => {
-            setIsGuildChecking(true);
             setGuildLoadingFailed(false);
             
             try {
                 const result: any = await handlers.handleAction({ type: 'GET_GUILD_INFO' });
                 hasCheckedGuildRef.current = true;
                 
-                if (result?.error) {
-                    // "가입한 길드가 없습니다" 또는 "길드를 찾을 수 없습니다" 오류는 길드가 없는 것으로 간주
-                    if (result.error.includes('가입한 길드가 없습니다') || result.error.includes('길드를 찾을 수 없습니다')) {
-                        setGuildLoadingFailed(true);
-                    } else {
-                        // 다른 오류도 길드가 없는 것으로 간주
-                        setGuildLoadingFailed(true);
-                    }
-                } else if (result?.clientResponse?.guild) {
-                    // 길드 정보가 로드되었으면 로딩 실패 상태 해제
+                if (result?.clientResponse?.guild) {
+                    const g = result.clientResponse.guild;
+                    setCheckedGuildFromApi(g);
                     setGuildLoadingFailed(false);
-                } else {
-                    // 길드 정보가 없으면 길드가 없는 것으로 간주
+                    setGuildCheckDone(true);
+                } else if (result?.error && (result.error.includes('가입한 길드가 없습니다') || result.error.includes('길드를 찾을 수 없습니다'))) {
+                    setCheckedGuildFromApi(null);
                     setGuildLoadingFailed(true);
+                    setGuildCheckDone(true);
+                } else {
+                    setCheckedGuildFromApi(null);
+                    setGuildLoadingFailed(true);
+                    // 그 외 오류는 완료 처리 안 함 → 계속 빈칸, 재요청 등으로 길드 올 수 있음
                 }
             } catch (error) {
                 console.error('[Profile] Failed to check guild:', error);
                 hasCheckedGuildRef.current = true;
+                setCheckedGuildFromApi(null);
                 setGuildLoadingFailed(true);
-            } finally {
-                setIsGuildChecking(false);
+                // 네트워크 등 오류 시에도 완료 처리 안 함 → 빈칸 유지
             }
         };
         
         checkGuild();
     }, [handlers]);
+    
+    // 다른 경로(두 번째 useEffect 등)로 guildInfo가 들어오면 그때 완료 처리해서 길드 표시
+    useEffect(() => {
+        if (guildInfo && !guildCheckDone) setGuildCheckDone(true);
+    }, [guildInfo, guildCheckDone]);
     
     // 길드에 소속되어 있는데 길드 정보가 없으면 즉시 가져오기 (한 번만 실행)
     useEffect(() => {
@@ -690,12 +696,10 @@ const Profile: React.FC<ProfileProps> = () => {
             </div>        
 
             <div className="flex-grow flex flex-col min-h-0 border-t border-color mt-1 pt-1">
-                <div className="bg-tertiary/30 p-1.5 rounded-md mb-1">
-                    {isGuildChecking ? (
-                        // 길드 확인 중
-                        <div className="w-full flex items-center justify-center p-2 text-sm text-gray-400">
-                            길드 확인중..
-                        </div>
+                <div className="bg-tertiary/30 p-1.5 rounded-md mb-1 min-h-[52px]">
+                    {!guildCheckDone ? (
+                        // 길드 확인이 끝나기 전에는 항상 빈칸 (버튼 절대 노출 안 함)
+                        <div className="w-full p-2 min-h-[40px]" aria-hidden="true" />
                     ) : guildInfo ? (
                         // 길드가 있으면 길드 바로가기 버튼
                             <button
@@ -722,14 +726,16 @@ const Profile: React.FC<ProfileProps> = () => {
                                     →
                                 </div>
                             </button>
-                    ) : (
-                        // 길드가 없으면 가입/창설 버튼
+                    ) : guildLoadingFailed ? (
+                        // 확인 완료 후, 서버에서 '가입한 길드 없음'일 때만 창설/가입 버튼
                         <div className="flex items-center gap-2">
                             <div className="flex-1 flex gap-2">
                                 <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드창설</Button>
                                 <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드가입</Button>
                             </div>
                         </div>
+                    ) : (
+                        <div className="w-full p-2 min-h-[40px]" aria-hidden="true" />
                     )}
                 </div>
                  <div className="flex justify-between items-center mb-1 flex-shrink-0 whitespace-nowrap">
@@ -767,7 +773,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
             </div>
         </>
-    ), [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds, isGuildChecking, combinedLevel]);
+    ), [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds, guildCheckDone, guildLoadingFailed, combinedLevel]);
     
     const LobbyCards = (
         <div className="grid grid-cols-12 grid-rows-2 gap-2 lg:gap-4 h-full">
@@ -998,14 +1004,10 @@ const Profile: React.FC<ProfileProps> = () => {
                             </div>
 
                             <div className="flex-grow flex flex-col min-h-0 border-t border-color mt-1 pt-1">
-                                <div className="bg-tertiary/30 p-1 rounded-md mb-1">
-                                    {isGuildChecking ? (
-                                        // 길드 확인 중
-                                        <div className="w-full flex items-center justify-center p-1 text-[9px] text-gray-400">
-                                            길드 확인중..
-                                        </div>
+                                <div className="bg-tertiary/30 p-1 rounded-md mb-1 min-h-[36px]">
+                                    {!guildCheckDone ? (
+                                        <div className="w-full p-1 min-h-[28px]" aria-hidden="true" />
                                     ) : guildInfo ? (
-                                        // 길드가 있으면 길드 바로가기 버튼
                                             <button
                                                 onClick={() => window.location.hash = '#/guild'}
                                                 className="w-full flex items-center gap-1 p-1 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
@@ -1030,14 +1032,15 @@ const Profile: React.FC<ProfileProps> = () => {
                                                     →
                                                 </div>
                                             </button>
-                                        ) : (
-                                        // 길드가 없으면 가입/창설 버튼
+                                        ) : guildLoadingFailed ? (
                                         <div className="flex items-center gap-1">
                                             <div className="flex-1 flex gap-1">
                                                 <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className="flex-1 !text-[7px] !py-0.5 !px-1 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드창설</Button>
                                                 <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className="flex-1 !text-[7px] !py-0.5 !px-1 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드가입</Button>
                                             </div>
                                         </div>
+                                    ) : (
+                                        <div className="w-full p-1 min-h-[28px]" aria-hidden="true" />
                                     )}
                                 </div>
                                 <div className="flex justify-between items-center mb-0.5 flex-shrink-0 whitespace-nowrap">

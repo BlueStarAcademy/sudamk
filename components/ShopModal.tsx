@@ -287,8 +287,10 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 );
             case 'misc':
                 return (
-                    <div className="grid grid-cols-4 gap-3">
-                        <ActionPointCard currentUser={currentUser} onBuy={handleBuyActionPoints} />
+                    <div className="flex items-center justify-center h-full text-sm text-gray-300">
+                        <p className="text-center">
+                            추후 다이아 패키지 등이 추가될 예정입니다.
+                        </p>
                     </div>
                 );
             case 'consumables':

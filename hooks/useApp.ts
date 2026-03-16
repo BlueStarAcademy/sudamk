@@ -334,6 +334,7 @@ export const useApp = () => {
     const [isBlacksmithHelpOpen, setIsBlacksmithHelpOpen] = useState(false);
     const [isEnhancementResultModalOpen, setIsEnhancementResultModalOpen] = useState(false);
     const [isInsufficientActionPointsModalOpen, setIsInsufficientActionPointsModalOpen] = useState(false);
+    const [isActionPointModalOpen, setIsActionPointModalOpen] = useState(false);
 
     useEffect(() => {
         try {
@@ -1810,6 +1811,19 @@ export const useApp = () => {
                         applyUserUpdate(updatedUser, 'COMPLETE_DUNGEON_STAGE-http');
                     }
                     return result as HandleActionResult;
+                }
+                // START_GUILD_BOSS_BATTLE: 보상(장비 등)이 인벤토리에 반영된 updatedUser를 즉시 적용해 결과창 확인 후 가방에서 획득 장비가 보이도록 함.
+                if (action.type === 'START_GUILD_BOSS_BATTLE' && result && !result.error) {
+                    const updatedUser = result.updatedUser || (result as any).clientResponse?.updatedUser;
+                    if (updatedUser) {
+                        if (updatedUser.inventory && Array.isArray(updatedUser.inventory)) {
+                            updatedUser.inventory = JSON.parse(JSON.stringify(updatedUser.inventory));
+                        }
+                        flushSync(() => {
+                            applyUserUpdate(updatedUser, 'START_GUILD_BOSS_BATTLE-http');
+                            setUpdateTrigger(prev => prev + 1);
+                        });
+                    }
                 }
                 // 계가 요청 응답 처리
                 if (action.type === 'REQUEST_SCORING' && result.clientResponse?.scoringAnalysis) {
@@ -5047,6 +5061,7 @@ export const useApp = () => {
             tournamentScoreChange,
             refinementResult,
             isInsufficientActionPointsModalOpen,
+            isActionPointModalOpen,
         },
         handlers: {
             handleAction,
@@ -5069,6 +5084,8 @@ export const useApp = () => {
                 setIsShopOpen(false);
                 setShopInitialTab(undefined);
             },
+            openActionPointModal: () => setIsActionPointModalOpen(true),
+            closeActionPointModal: () => setIsActionPointModalOpen(false),
             closeInsufficientActionPointsModal: () => setIsInsufficientActionPointsModalOpen(false),
             closeItemObtained: () => {
                 setLastUsedItemResult(null);

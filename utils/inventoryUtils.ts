@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { InventoryItem, InventoryItemType } from '../types/index.js';
 import { ItemGrade } from '../types/enums.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants';
+import { isActionPointConsumable } from '../constants/items.js';
 
 const CONSUMABLE_TEMPLATE_MAP: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = CONSUMABLE_ITEMS.reduce((map, item) => {
     map[item.name] = item;
@@ -98,6 +99,13 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
     const tempInventory = JSON.parse(JSON.stringify(currentInventory));
     const finalItemsToAdd: InventoryItem[] = [];
 
+    const getMaxStackSize = (name: string): number => {
+        // 행동력 회복제: 한 묶음 최대 20개
+        if (isActionPointConsumable(name)) return 20;
+        // 그 외 소모품/재료: 한 묶음 최대 100개
+        return 100;
+    };
+
     const itemsByType = {
         equipment: itemsToAdd.filter(item => item.type === 'equipment'),
         consumable: itemsToAdd.filter(item => item.type === 'consumable'),
@@ -140,19 +148,20 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
             const { name, source } = parseStackKey(key);
             let quantityToPlace = stackableToAdd[key];
             const existingSource = source ?? (undefined as 'tower' | undefined);
+            const maxStackSize = getMaxStackSize(name);
 
             for (const existingItem of currentCategoryItems) {
                 if (quantityToPlace <= 0) break;
                 const exSource = (existingItem as InventoryItem & { source?: string }).source;
-                if (existingItem.name === name && (exSource ?? '') === (existingSource ?? '') && (existingItem.quantity || 0) < 100) {
-                    const space = 100 - (existingItem.quantity || 0);
+                if (existingItem.name === name && (exSource ?? '') === (existingSource ?? '') && (existingItem.quantity || 0) < maxStackSize) {
+                    const space = maxStackSize - (existingItem.quantity || 0);
                     const toAdd = Math.min(quantityToPlace, space);
                     existingItem.quantity = (existingItem.quantity || 0) + toAdd;
                     quantityToPlace -= toAdd;
                 }
             }
             if (quantityToPlace > 0) {
-                neededNewSlots += Math.ceil(quantityToPlace / 100);
+                neededNewSlots += Math.ceil(quantityToPlace / maxStackSize);
             }
         }
 
@@ -164,6 +173,7 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
             const { name, source } = parseStackKey(key);
             let quantityLeft = stackableToAdd[key];
             const existingSource = source ?? (undefined as 'tower' | undefined);
+            const maxStackSize = getMaxStackSize(name);
 
             for (const existingItem of currentCategoryItems) {
                 if (quantityLeft <= 0) break;
@@ -179,8 +189,8 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
                 for (const finalItem of finalItemsToAdd) {
                     if (quantityLeft <= 0) break;
                     const fSource = (finalItem as InventoryItem & { source?: string }).source;
-                    if (finalItem.name === name && (fSource ?? '') === (existingSource ?? '') && (finalItem.quantity || 0) < 100) {
-                        const space = 100 - (finalItem.quantity || 0);
+                    if (finalItem.name === name && (fSource ?? '') === (existingSource ?? '') && (finalItem.quantity || 0) < maxStackSize) {
+                        const space = maxStackSize - (finalItem.quantity || 0);
                         const toAdd = Math.min(quantityLeft, space);
                         finalItem.quantity = (finalItem.quantity || 0) + toAdd;
                         quantityLeft -= toAdd;
@@ -188,7 +198,7 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
                 }
 
                 while (quantityLeft > 0) {
-                    const toAdd = Math.min(quantityLeft, 100);
+                    const toAdd = Math.min(quantityLeft, maxStackSize);
                     const template = getItemTemplateByName(name);
                     const newItemSource = source === 'tower' ? { source: 'tower' as const } : {};
                     if (template) {
