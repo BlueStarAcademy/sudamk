@@ -476,6 +476,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 (game as any).aiHiddenItemsUsedCount = 0;
                 game.aiHiddenItemUsed = false;
                 game.aiHiddenItemTurn = aiHiddenItemTurns[0];
+                const { initializeTowerPlayerHidden } = await import('../modes/towerPlayerHidden.js');
+                initializeTowerPlayerHidden(game);
             }
             
             // 도전의 탑은 시간 제한 없음 (제한시간/초읽기 미적용)

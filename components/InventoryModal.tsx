@@ -1205,7 +1205,16 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     }}
                                                 >
                                                     <img src={gradeBackgrounds[selectedItem.grade]} alt={selectedItem.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                                                    {selectedItem.image && <img src={selectedItem.image} alt={selectedItem.name} className="absolute object-contain" style={{ width: '80%', height: '80%', padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                                                    {isActionPointConsumable(selectedItem.name) ? (
+                                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-amber-300" style={{ padding: `${Math.max(2, Math.round(4 * scaleFactor))}px` }}>
+                                                            <span className="text-2xl sm:text-3xl leading-none" aria-hidden>⚡</span>
+                                                            <span className="font-bold text-amber-200 mt-0.5" style={{ fontSize: `${Math.max(10, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
+                                                                +{selectedItem.name.replace(/.*\(\+(\d+)\)/, '$1')}
+                                                            </span>
+                                                        </div>
+                                                    ) : selectedItem.image ? (
+                                                        <img src={selectedItem.image} alt={selectedItem.name} className="absolute object-contain" style={{ width: '80%', height: '80%', padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                                                    ) : null}
                                                 </div>
                                                 <div className="flex-grow text-right ml-2">
                                                     <h3 className={`font-bold ${gradeStyles[selectedItem.grade].color}`} style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>{selectedItem.name}</h3>

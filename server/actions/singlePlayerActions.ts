@@ -1022,6 +1022,10 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 const { broadcastToGameParticipants } = await import('../socket.js');
                 broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
                 console.log(`[handleSinglePlayerAction] Game saved and broadcasted: gameStatus=${game.gameStatus}`);
+                // 스캔/히든 배치 모드 전환 또는 스캔 보드 클릭 시 클라이언트가 HTTP 응답으로 즉시 반영할 수 있도록 game 반환
+                if (type === 'START_SCANNING' || type === 'START_HIDDEN_PLACEMENT' || type === 'SCAN_BOARD') {
+                    return { clientResponse: { gameId: game.id, game } };
+                }
             } else {
                 console.log(`[handleSinglePlayerAction] Not saving/broadcasting: result=`, result);
             }

@@ -26,6 +26,12 @@ interface PurchasableItem {
     type: InventoryItemType;
     /** 행동력 회복제 등 이미지 위 배지 텍스트 (예: +10) */
     badge?: string;
+    /** 행동력 회복제 등 구매 회차별 가격 배열 (있으면 Max = 남은 일일 한도, 총가격 = 합산) */
+    prices?: number[];
+    /** 오늘 이미 구매한 수 (prices 인덱스용) */
+    purchasesToday?: number;
+    /** 아이템 이미지 URL (수량 모달 뷰어용) */
+    image?: string;
 }
 
 const isSameDayKST = (ts1: number, ts2: number): boolean => {
@@ -114,7 +120,7 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
 };
 
 const ShopItemCard: React.FC<{ 
-    item: { itemId: string, name: string, description: string, price: { gold?: number, diamonds?: number }, image: string, dailyLimit?: number, weeklyLimit?: number, type: InventoryItemType, badge?: string },
+    item: { itemId: string, name: string, description: string, price: { gold?: number, diamonds?: number }, image: string, dailyLimit?: number, weeklyLimit?: number, type: InventoryItemType, badge?: string, prices?: number[], purchasesToday?: number },
     onBuy: (item: PurchasableItem) => void; 
     currentUser: UserWithStatus 
 }> = ({ item, onBuy, currentUser }) => {
@@ -320,6 +326,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         dailyLimit,
                         type: 'consumable' as const,
                         badge,
+                        prices,
+                        purchasesToday,
                     };
                 });
                 const consumableItems = [...baseConsumableItems, ...actionPointShopItems];

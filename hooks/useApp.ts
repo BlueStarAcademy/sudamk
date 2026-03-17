@@ -2300,6 +2300,9 @@ export const useApp = () => {
                     effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
                     console.log(`[handleAction] ${action.type} - using payload/game gameId:`, effectiveGameId);
                 }
+                if (!effectiveGameId && (action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD')) {
+                    effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
+                }
                 
                 // END_TOWER_GAME / END_SINGLE_PLAYER_GAME / RESIGN_GAME 액션 처리 (서버 응답 병합 시 클라이언트 바둑판 상태 유지)
                 if (action.type === 'END_TOWER_GAME' || (action as ServerAction).type === 'END_SINGLE_PLAYER_GAME' || action.type === 'RESIGN_GAME') {
@@ -2359,7 +2362,7 @@ export const useApp = () => {
                         return { ...currentGames, [rollGameId]: next };
                     });
                 }
-                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS')) {
+                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD')) {
                     console.log(`[handleAction] ${action.type} - gameId received:`, effectiveGameId, 'hasGame:', !!game, 'result keys:', Object.keys(result), 'clientResponse keys:', result.clientResponse ? Object.keys(result.clientResponse) : []);
                     
                     // 응답에 게임 데이터가 있으면 즉시 상태에 추가 (WebSocket 업데이트를 기다리지 않음)
@@ -2377,9 +2380,8 @@ export const useApp = () => {
                                 } catch (_) { /* ignore */ }
                             }
                             setSinglePlayerGames(currentGames => {
-                                // CONFIRM 액션·배치변경(SINGLE_PLAYER_REFRESH_PLACEMENT)의 경우 게임 상태가 업데이트되었으므로 항상 업데이트
-                                if (action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || !currentGames[effectiveGameId]) {
-                                    // 배치 새로고침 시 보드/패턴을 새 참조로 넣어 화면이 확실히 갱신되도록 함
+                                const shouldUpdate = action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD' || !currentGames[effectiveGameId];
+                                if (shouldUpdate) {
                                     const isRefresh = action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT';
                                     const nextGame = isRefresh && game.boardState
                                         ? { ...game, boardState: (game.boardState as any[][]).map(row => [...row]), blackPatternStones: Array.isArray(game.blackPatternStones) ? [...game.blackPatternStones] : game.blackPatternStones, whitePatternStones: Array.isArray(game.whitePatternStones) ? [...game.whitePatternStones] : game.whitePatternStones }
@@ -2390,8 +2392,8 @@ export const useApp = () => {
                             });
                         } else if (isTowerGame) {
                             setTowerGames(currentGames => {
-                                // CONFIRM·배치변경(TOWER_REFRESH_PLACEMENT)·턴 추가(TOWER_ADD_TURNS) 시 게임 상태가 바뀌었으므로 항상 업데이트
-                                if (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || !currentGames[effectiveGameId]) {
+                                // CONFIRM·배치변경·턴 추가·스캔/히든 아이템 사용 시 게임 상태가 바뀌었으므로 업데이트
+                                if (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD' || !currentGames[effectiveGameId]) {
                                     console.log('[handleAction] Updating tower game:', effectiveGameId, 'gameStatus:', game.gameStatus, 'action type:', action.type, 'existing game status:', currentGames[effectiveGameId]?.gameStatus);
                                     const isRefresh = action.type === 'TOWER_REFRESH_PLACEMENT';
                                     const nextGame = isRefresh && game.boardState
@@ -3814,12 +3816,22 @@ export const useApp = () => {
                                                 }
                                             } else {
                                                 // 일반 상태에서는 서버에서 온 게임 상태 사용
-                                                // 애니메이션 중이거나 기존 게임이 있으면 totalTurns와 captures 보존, 서버의 permanentlyRevealedStones 우선
+                                                // 스캔 애니메이션 종료(scanning_animating → playing) 시 보드/수순 반드시 보존
+                                                const wasScanningAnimating = existingGame?.gameStatus === 'scanning_animating';
+                                                const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]);
+                                                const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
+                                                const existingBoardValid = existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
+                                                const existingMoveHistoryValid = existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0;
+                                                const preserveBoardFromExisting = wasScanningAnimating && (!serverBoardValid && existingBoardValid);
+                                                const preserveMoveHistoryFromExisting = wasScanningAnimating && (!serverMoveHistoryValid && existingMoveHistoryValid);
+                                                const finalBoardState = preserveBoardFromExisting ? existingGame.boardState : (serverBoardValid ? game.boardState : (existingGame?.boardState ?? game.boardState));
+                                                const finalMoveHistory = preserveMoveHistoryFromExisting ? existingGame.moveHistory : (serverMoveHistoryValid ? game.moveHistory : (existingGame?.moveHistory ?? game.moveHistory));
                                                 const serverRevealed = game.permanentlyRevealedStones && game.permanentlyRevealedStones.length > 0 ? game.permanentlyRevealedStones : null;
                                                 const mergedRevealed = serverRevealed ?? existingGame?.permanentlyRevealedStones ?? game.permanentlyRevealedStones ?? [];
                                                 if (isAnimating || existingGame) {
                                                     updatedGames[gameId] = {
                                                         ...game,
+                                                        ...(preserveBoardFromExisting || preserveMoveHistoryFromExisting ? { boardState: finalBoardState, moveHistory: finalMoveHistory } : {}),
                                                         permanentlyRevealedStones: mergedRevealed,
                                                         totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
                                                         captures: preservedCaptures
@@ -3895,7 +3907,7 @@ export const useApp = () => {
                                             // 서버가 미사일 애니메이션 중인 상태를 보낸 경우 반영 (LAUNCH_MISSILE 직후 애니메이션 재생·완료 신호 전송을 위해)
                                             const isServerMissileAnimating = game.gameStatus === 'missile_animating';
                                             // 서버가 미사일/스캔 애니메이션 종료 후 playing으로 복귀한 경우 항상 반영 (애니메이션 멈춤·게임 재개)
-                                            const isServerExitingAnimation = (existingGame.gameStatus === 'missile_animating' || existingGame.gameStatus === 'scanning') && game.gameStatus === 'playing';
+                                            const isServerExitingAnimation = (existingGame.gameStatus === 'missile_animating' || existingGame.gameStatus === 'scanning' || existingGame.gameStatus === 'scanning_animating') && game.gameStatus === 'playing';
                                             // 클라이언트가 더 많은 수를 두었거나, 같은 수를 두었지만 클라이언트의 serverRevision이 더 크면 무시 (단, 계가/공개/아이템모드/애니종료 전환은 제외)
                                             if (!isServerScoringOrReveal && !isServerItemMode && !isServerMissileAnimating && !isServerExitingAnimation && (localMoveHistoryLength > serverMoveHistoryLength || 
                                                 (localMoveHistoryLength === serverMoveHistoryLength && localServerRevision >= serverRevision))) {
@@ -3950,6 +3962,23 @@ export const useApp = () => {
                                             if (existingGame.moveHistory?.length) mergedGame.moveHistory = existingGame.moveHistory;
                                             if (existingGame.blackPatternStones?.length) mergedGame.blackPatternStones = existingGame.blackPatternStones;
                                             if (existingGame.whitePatternStones?.length) mergedGame.whitePatternStones = existingGame.whitePatternStones;
+                                        }
+                                        // 스캔 애니메이션 종료(scanning_animating → playing) 시 보드/수순 보존 (대국 복원)
+                                        const wasTowerScanningAnimating = existingGame?.gameStatus === 'scanning_animating' && game.gameStatus === 'playing';
+                                        if (wasTowerScanningAnimating && existingGame) {
+                                            const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]);
+                                            const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
+                                            const existingBoardValid = existingGame.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
+                                            const existingMoveHistoryValid = existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0;
+                                            const useExistingBoard = !serverBoardValid && existingBoardValid;
+                                            const useExistingMoves = !serverMoveHistoryValid && existingMoveHistoryValid;
+                                            if (useExistingBoard || useExistingMoves) {
+                                                mergedGame = {
+                                                    ...mergedGame,
+                                                    boardState: useExistingBoard ? existingGame.boardState : mergedGame.boardState,
+                                                    moveHistory: useExistingMoves ? existingGame.moveHistory : mergedGame.moveHistory,
+                                                };
+                                            }
                                         }
                                         // 21층 이상 자동계가: totalTurns를 moveHistory에서 항상 계산해 남은 턴 표시가 줄어들도록 함
                                         const autoScoringTurns = (mergedGame.settings as any)?.autoScoringTurns;

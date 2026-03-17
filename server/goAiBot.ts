@@ -772,6 +772,9 @@ export async function makeGoAiBotMove(
                     if (game.isSinglePlayer) {
                         (game as any).aiInitialHiddenStone = { x: hiddenMove.x, y: hiddenMove.y };
                         (game as any).aiInitialHiddenStoneIsPrePlaced = false;
+                        // 스캔 모드 진입 검사가 최신 상태를 보도록, saveGame 전에 캐시 즉시 갱신
+                        const { updateGameCache } = await import('./gameCache.js');
+                        updateGameCache(game);
                     }
                     if (game.isSinglePlayer && game.stageId) {
                         const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);

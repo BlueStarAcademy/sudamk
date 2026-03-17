@@ -200,6 +200,22 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
             await db.saveGame(game);
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
         }
+    } else if (game.gameCategory === 'tower') {
+        // 도전의 탑 PVE: 싱글플레이와 동일하게 towerPlayerHidden 전용 업데이트 사용
+        const { updateTowerPlayerHiddenState } = await import('./towerPlayerHidden.js');
+        await updateTowerPlayerHiddenState(game, now);
+        const missileStateChanged = updateMissileState(game, now);
+        const itemTimeoutStateChanged = (game as any)._itemTimeoutStateChanged;
+        if (missileStateChanged) (game as any)._missileStateChanged = true;
+        if (itemTimeoutStateChanged || missileStateChanged) {
+            if (itemTimeoutStateChanged) (game as any)._itemTimeoutStateChanged = false;
+            const { broadcastToGameParticipants } = await import('../socket.js');
+            const { updateGameCache } = await import('../gameCache.js');
+            const db = await import('../db.js');
+            updateGameCache(game);
+            await db.saveGame(game);
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+        }
     } else {
         updateHiddenState(game, now);
         const missileStateChanged = updateMissileState(game, now);

@@ -390,8 +390,22 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     (game as any).missiles_p1 = Math.min(s.missileCount ?? 2, countItems(['미사일', 'missile']));
                 }
             }
-            // 도전의 탑: 히든/스캔 액션은 반드시 전략 핸들러로 (isSinglePlayer 블록보다 먼저)
+            // 도전의 탑: PVE 히든/스캔은 towerPlayerHidden으로 처리 (싱글플레이와 동일 규칙)
             if (game.gameCategory === 'tower' && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                const isTowerHiddenAction = actionTypeStr === 'START_HIDDEN_PLACEMENT' || actionTypeStr === 'START_SCANNING' || actionTypeStr === 'SCAN_BOARD';
+                if (isTowerHiddenAction) {
+                    const { handleTowerPlayerHiddenAction } = await import('./modes/towerPlayerHidden.js');
+                    const towerResult = handleTowerPlayerHiddenAction(volatileState, game, action, userData);
+                    if (towerResult !== null) {
+                        if (!(towerResult as any).error) {
+                            updateGameCache(game);
+                            await db.saveGame(game);
+                            const { broadcastToGameParticipants } = await import('./socket.js');
+                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                        }
+                        return (towerResult as any).error ? towerResult : { ...towerResult, clientResponse: { gameId: game.id, game } };
+                    }
+                }
                 const { handleStrategicGameAction } = await import('./modes/strategic.js');
                 const result = await handleStrategicGameAction(volatileState, game, action, userData);
                 if (result && (result as any).error && process.env.NODE_ENV === 'development') {

@@ -331,32 +331,32 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
                 console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: No scans left - ${scanKeyStart}=${game[scanKeyStart]}`);
                 return { error: "No scans left." };
             }
-            // 상대(AI)의 미공개 히든돌이 보드에 하나라도 있을 때만 스캔 허용 (미리 배치·경기 중 둔 돌 모두 포함, 보드에 남아 있어야 함)
+            // 싱글플레이 전용: 상대(AI) 미공개 히든이 있으면 스캔 모드 진입. 없으면 거절.
+            // (PVP는 server/modes/hidden.ts에서 동일 검사 적용)
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-            const hasUnrevealedInMoveHistory = game.hiddenMoves && game.moveHistory && game.moveHistory.some((m, idx) => {
+            const hasUnrevealedInMoveHistory = !!(game.hiddenMoves && game.moveHistory && game.moveHistory.some((m: types.Move, idx: number) => {
                 if (m.x === -1 || m.y === -1) return false;
                 const isOpponent = m.player === opponentPlayerEnum;
                 const isHidden = !!game.hiddenMoves?.[idx];
-                const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === m.x && p.y === m.y);
+                const isRevealed = game.permanentlyRevealedStones?.some((p: types.Point) => p.x === m.x && p.y === m.y);
                 const stillOnBoard = game.boardState?.[m.y]?.[m.x] === opponentPlayerEnum;
                 return isOpponent && isHidden && !isRevealed && stillOnBoard;
-            });
+            }));
             const aiHidden = (game as any).aiInitialHiddenStone as { x: number; y: number } | undefined;
             const hasUnrevealedAiInitial = !!aiHidden &&
-                !game.permanentlyRevealedStones?.some(p => p.x === aiHidden.x && p.y === aiHidden.y) &&
+                !game.permanentlyRevealedStones?.some((p: types.Point) => p.x === aiHidden.x && p.y === aiHidden.y) &&
                 game.boardState?.[aiHidden.y]?.[aiHidden.x] === opponentPlayerEnum;
-            // 싱글플레이: 스테이지가 히든 모드이면, 상대(AI) 돌이 보드에 공개되지 않은 상태로 1개라도 있으면 스캔 허용 (AI가 이미 히든을 다 쓴 경우 hidden_stones_p2=0이어도 보드에 숨겨진 돌이 있을 수 있음)
             const stageAllowsHiddenStones = ((game.settings as any)?.hiddenStoneCount ?? 0) > 0;
-            const hasAnyUnrevealedOpponentStone = stageAllowsHiddenStones && game.boardState && game.moveHistory && game.moveHistory.some((m) => {
+            const hasAnyUnrevealedOpponentStone = stageAllowsHiddenStones && !!game.boardState && !!game.moveHistory && game.moveHistory.some((m: types.Move) => {
                 if (m.x < 0 || m.y < 0) return false;
                 if (m.player !== opponentPlayerEnum) return false;
-                const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === m.x && p.y === m.y);
+                const isRevealed = game.permanentlyRevealedStones?.some((p: types.Point) => p.x === m.x && p.y === m.y);
                 const stillOnBoard = game.boardState?.[m.y]?.[m.x] === opponentPlayerEnum;
                 return !isRevealed && stillOnBoard;
             });
             const opponentHasUnrevealedHidden = hasUnrevealedInMoveHistory || hasUnrevealedAiInitial || hasAnyUnrevealedOpponentStone;
             if (!opponentHasUnrevealedHidden) {
-                console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: No unrevealed opponent hidden stones on board (moveHistory=${!!game.moveHistory?.length}, hiddenMoves=${!!game.hiddenMoves}, aiInitial=${!!aiHidden}, anyUnrevealedOpp=${!!hasAnyUnrevealedOpponentStone})`);
+                console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: No unrevealed opponent hidden stones (moveHistory=${!!game.moveHistory?.length}, hiddenMoves=${!!game.hiddenMoves}, aiInitial=${!!aiHidden}, anyOpp=${!!hasAnyUnrevealedOpponentStone})`);
                 return { error: "No hidden stones to scan." };
             }
             console.log(`[handleSinglePlayerHiddenAction] START_SCANNING: Changing gameStatus from ${game.gameStatus} to scanning`);

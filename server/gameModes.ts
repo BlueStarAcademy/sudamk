@@ -382,12 +382,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     // (필요한 경우에만 ENABLE_MANUAL_SCORING_FALLBACK=true 로 명시적으로 켤 수 있음)
     const ENABLE_MANUAL_SCORING_FALLBACK = String(process.env.ENABLE_MANUAL_SCORING_FALLBACK || '').toLowerCase() === 'true';
     const SCORING_FALLBACK_AFTER_MS = parseInt(process.env.KATAGO_SCORING_FALLBACK_AFTER_MS || '0', 10);
-    // 계가 전용: 약 5초 안에 끝나도록 제한. env로 오버라이드 가능.
-    // (미설정 시 아래 기본값 사용; 명시 설정 시 KATAGO_SCORING_MAX_VISITS / KATAGO_SCORING_MAX_TIME_SEC 적용)
+    // 계가 전용: 약 3초 안에 끝나도록 제한 (연출은 클라이언트 5초 유지). env로 오버라이드 가능.
     const scoringMaxVisitsRaw = (process.env.KATAGO_SCORING_MAX_VISITS || '').trim();
     const scoringMaxTimeSecRaw = (process.env.KATAGO_SCORING_MAX_TIME_SEC || '').trim();
-    const SCORING_MAX_VISITS = scoringMaxVisitsRaw ? parseInt(scoringMaxVisitsRaw, 10) : 200;
-    const SCORING_MAX_TIME_SEC = scoringMaxTimeSecRaw ? parseInt(scoringMaxTimeSecRaw, 10) : 5;
+    const SCORING_MAX_VISITS = scoringMaxVisitsRaw ? parseInt(scoringMaxVisitsRaw, 10) : 120;
+    const SCORING_MAX_TIME_SEC = scoringMaxTimeSecRaw ? parseInt(scoringMaxTimeSecRaw, 10) : 3;
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
     const finalizeAndEndGame = async (freshGame: types.LiveGameSession, baseAnalysis: types.AnalysisResult, source: 'katago' | 'manual') => {

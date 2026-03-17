@@ -49,11 +49,13 @@ const OwnershipOverlay: React.FC<{
 
                 const { cx, cy } = toSvgCoords({ x, y });
                 const absValue = Math.abs(value);
-                const prob = absValue / 10; // Probability from 0 to 1
+                const prob = absValue / 10; // 0.7 ~ 1.0 (7~10)
 
-                // 더 작고 고급스러운 사각형 (60% 크기, 더 작은 모서리 반경)
-                const size = cellSize * prob * 0.6; // Max size is 60% of the cell (더 작게)
-                const opacity = Math.min(0.85, prob * 0.8 + 0.15); // 더 선명하게
+                // 영향력(소유 확률)에 따라 사각형 크기 차이를 뚜렷하게: 28% ~ 82% (7일 때 작게, 10일 때 크게)
+                const sizeMin = 0.28;
+                const sizeMax = 0.82;
+                const size = cellSize * (sizeMin + (sizeMax - sizeMin) * prob);
+                const opacity = Math.min(0.9, prob * 0.75 + 0.2);
                 const fill = value > 0 
                     ? `rgba(0, 0, 0, ${opacity})` 
                     : `rgba(255, 255, 255, ${opacity})`;
@@ -301,10 +303,13 @@ const AnimatedScanMarker: React.FC<{
                     <circle cx={cx} cy={cy} r={size * 0.2} fill="none" stroke="#34d399" className="scan-success-circle" style={{ animationDelay: '0.4s' }} />
                 </>
             ) : (
-                <>
-                    <line x1={cx - size/2} y1={cy - size/2} x2={cx + size/2} y2={cy + size/2} stroke="#f87171" strokeWidth="4" strokeLinecap="round" className="scan-fail-line" />
-                    <line x1={cx + size/2} y1={cy - size/2} x2={cx - size/2} y2={cy + size/2} stroke="#f87171" strokeWidth="4" strokeLinecap="round" className="scan-fail-line" style={{ animationDelay: '0.2s' }}/>
-                </>
+                <g className="scan-fail-marker">
+                    {/* 고급 스캔 실패 연출: 원형 배경 + 부드러운 X + 글로우 */}
+                    <circle cx={cx} cy={cy} r={size * 0.65} fill="rgba(15, 23, 42, 0.85)" stroke="rgba(248, 113, 113, 0.5)" strokeWidth="1.5" className="scan-fail-bg" />
+                    <circle cx={cx} cy={cy} r={size * 0.58} fill="none" stroke="rgba(248, 113, 113, 0.25)" strokeWidth="2" className="scan-fail-glow" />
+                    <line x1={cx - size * 0.45} y1={cy - size * 0.45} x2={cx + size * 0.45} y2={cy + size * 0.45} stroke="rgba(251, 191, 36, 0.95)" strokeWidth="2.2" strokeLinecap="round" className="scan-fail-line" />
+                    <line x1={cx + size * 0.45} y1={cy - size * 0.45} x2={cx - size * 0.45} y2={cy + size * 0.45} stroke="rgba(251, 191, 36, 0.95)" strokeWidth="2.2" strokeLinecap="round" className="scan-fail-line" style={{ animationDelay: '0.12s' }} />
+                </g>
             )}
         </g>
     );
@@ -362,7 +367,7 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
     const strokeWidth = isSelectedMissile || isPending ? 3.5 : 0;
 
     return (
-        <g className={`${animationClass || ''} ${isHoverSelectableMissile ? 'missile-selectable-stone' : ''}`} opacity={isPending ? 0.6 : (isFaint ? 0.4 : 1)}>
+        <g className={`${animationClass || ''} ${isHoverSelectableMissile ? 'missile-selectable-stone' : ''}`} opacity={isPending ? 0.6 : (isFaint ? 0.52 : 1)}>
             <circle
                 cx={cx}
                 cy={cy}
@@ -852,9 +857,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             <g style={{ pointerEvents: 'none' }} className="animate-fade-in">
                 {analysisResult.deadStones.map((p, i) => {
                     const { cx, cy } = toSvgCoords(p);
-                    // 사석의 색상 확인 (잡은 쪽의 색상)
-                    const deadStonePlayer = displayBoardState[p.y][p.x];
-                    const capturingPlayer = deadStonePlayer === Player.Black ? Player.White : Player.Black;
+                    // 사석의 색상: 보드에 돌이 있으면 그 색(잡힌 쪽), 없으면 이미 제거된 돌이므로 잡은 쪽을 반대색으로 추정
+                    const deadStonePlayer = displayBoardState[p.y]?.[p.x];
+                    const capturingPlayer = deadStonePlayer === Player.Black ? Player.White : deadStonePlayer === Player.White ? Player.Black : Player.White; // None이면 기본 백(흑 사석)
                     
                     // 영토 표시 사각형 (잡은 쪽의 색상)
                     const cellSize = (boardSizePx - padding * 2) / safeBoardSize;
@@ -901,20 +906,26 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         const markers: React.ReactNode[] = [];
 
         if (analysisResult.ownershipMap) {
-            // KataGo: ownershipMap 기반
+            // KataGo: ownershipMap 기반, 영향력(절대값)에 따라 사각형 크기 차이
             analysisResult.ownershipMap.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if (displayBoardState[y]?.[x] !== Player.None) return;
                     if (Math.abs(value) < TERRITORY_THRESHOLD) return;
 
                     const { cx, cy } = toSvgCoords({ x, y });
+                    const absValue = Math.abs(value);
+                    const prob = absValue / 10;
+                    const sizeMin = 0.28;
+                    const sizeMax = 0.82;
+                    const rectSize = cellSize * (sizeMin + (sizeMax - sizeMin) * prob);
+
                     const isBlackTerritory = value > 0;
                     const fill = isBlackTerritory ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
                     const stroke = isBlackTerritory ? `rgba(0, 0, 0, ${opacity * 0.5})` : `rgba(255, 255, 255, ${opacity * 0.5})`;
 
                     markers.push(
                         <g key={`territory-${y}-${x}`} style={{ zIndex: 10 }}>
-                            <rect x={cx - size / 2} y={cy - size / 2} width={size} height={size} fill={fill} stroke={stroke} strokeWidth={size * 0.05} rx={size * 0.15} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }} />
+                            <rect x={cx - rectSize / 2} y={cy - rectSize / 2} width={rectSize} height={rectSize} fill={fill} stroke={stroke} strokeWidth={rectSize * 0.05} rx={rectSize * 0.15} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }} />
                         </g>
                     );
                 });
@@ -1041,7 +1052,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     
     return (
         <div 
-            className={`relative w-full h-full min-h-0 shadow-2xl rounded-lg overflow-hidden p-0 border-4 bg-transparent go-board-panel ${isItemModeActive ? 'prism-border' : 'border-gray-800'}`}
+            className={`relative w-full h-full min-h-0 shadow-2xl rounded-lg overflow-hidden p-0 border-4 bg-transparent go-board-panel ${isItemModeActive ? 'prism-border' : 'border-gray-800'} ${gameStatus === 'scanning' ? 'cursor-scan' : ''}`}
             style={{ 
                 backgroundImage: 'none', 
                 backgroundColor: 'transparent',
@@ -1133,6 +1144,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                 {displayBoardState.map((row, y) => row.map((player, x) => {
                     if (player === Player.None) return null;
+                    // 계가 결과: 사석인 칸은 돌을 그리지 않음 (마지막 착점으로 잡힌 돌이 살아있는 것처럼 보이는 현상 방지)
+                    if (showTerritoryOverlay && analysisResult?.deadStones?.some(d => d.x === x && d.y === y)) return null;
                     const { cx, cy } = toSvgCoords({ x, y });
                     
                     // 미사일 선택 가능 여부는 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)

@@ -1,7 +1,6 @@
 
 import React, { useEffect } from 'react';
 import DraggableWindow from './DraggableWindow.js';
-import Button from './Button.js';
 import { InventoryItem, ItemGrade, ItemOption, CoreStat, SpecialStat, MythicStat } from '../types.js';
 import { audioService } from '../services/audioService.js';
 import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
@@ -107,14 +106,20 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     }, [item.grade]);
 
     return (
-        <DraggableWindow title="아이템 획득" onClose={onClose} windowId="item-obtained" initialWidth={400} isTopmost={isTopmost} zIndex={70}>
-            <div className="text-center">
-                <div className="p-6 rounded-lg">
-                    <div className="relative w-48 h-48 mx-auto rounded-lg mb-4 overflow-visible">
-                        <div className={`relative w-full h-full rounded-lg flex items-center justify-center ${borderClass || 'border-2 border-black/50'} overflow-hidden ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
-                            <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover" />
+        <DraggableWindow title="아이템 획득" onClose={onClose} windowId="item-obtained" initialWidth={420} isTopmost={isTopmost} zIndex={70}>
+            <div className="flex flex-col p-1">
+                <div className="rounded-xl bg-gradient-to-br from-slate-800/95 via-slate-900/98 to-slate-800/95 border border-slate-600/50 shadow-xl overflow-hidden">
+                    <div className="p-6">
+                        <div className="relative w-44 h-44 mx-auto rounded-xl mb-5 overflow-visible ring-2 ring-slate-500/40 ring-offset-2 ring-offset-slate-900">
+                            <div className={`relative w-full h-full rounded-xl flex items-center justify-center overflow-hidden ${borderClass || 'border-2 border-slate-500/50'} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
+                                <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover" />
                             {isActionPointConsumable(item.name) ? (
-                                <span className="absolute flex items-center justify-center inset-0 text-6xl" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} aria-hidden>⚡</span>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+                                    <span className="text-6xl leading-none" aria-hidden>⚡</span>
+                                    <span className="text-xl font-bold text-amber-200 mt-1" style={{ textShadow: '1px 1px 2px black' }}>
+                                        +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
+                                    </span>
+                                </div>
                             ) : item.image ? (
                                 <img src={item.image} alt={item.name} className="absolute object-contain p-4" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
                             ) : null}
@@ -141,19 +146,26 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                             )}
                         </div>
                     </div>
-                    <p className={`font-bold text-lg ${styles.text} ${textGlowClass}`}>[{styles.name}]</p>
-                    <div className="flex items-baseline justify-center gap-2">
-                        <h2 className={`text-3xl font-bold ${starInfo.colorClass} ${textGlowClass}`}>{item.name}</h2>
-                        {item.stars > 0 && <span className={`text-2xl font-bold ${starInfo.colorClass} ${textGlowClass}`}>{starInfo.text}</span>}
+                    <p className={`font-bold text-base ${styles.text} ${textGlowClass}`}>[{styles.name}]</p>
+                    <div className="flex items-baseline justify-center gap-2 mt-1">
+                        <h2 className={`text-2xl font-bold ${starInfo.colorClass} ${textGlowClass}`}>{item.name}</h2>
+                        {item.stars > 0 && <span className={`text-xl font-bold ${starInfo.colorClass} ${textGlowClass}`}>{starInfo.text}</span>}
                     </div>
-                    {requiredLevel && <p className="text-xs text-yellow-300">(착용 레벨 합: {requiredLevel})</p>}
+                    {requiredLevel && <p className="text-xs text-yellow-300 mt-1">(착용 레벨 합: {requiredLevel})</p>}
                     {item.type === 'equipment' && (
-                        <div className="w-full text-xs text-left space-y-2 mt-4 max-h-48 overflow-y-auto bg-black/20 p-2 rounded-md">
+                        <div className="w-full text-xs text-left space-y-2 mt-4 max-h-44 overflow-y-auto bg-slate-800/50 border border-slate-600/40 p-3 rounded-xl">
                             {renderOptions(item)}
                         </div>
                     )}
                 </div>
-                <Button onClick={onClose} className="w-full mt-6 py-2.5">확인</Button>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="w-full mt-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500/90 to-emerald-600/90 hover:from-emerald-400 hover:to-emerald-500 border border-emerald-400/50 text-white font-semibold shadow-md transition-all active:scale-[0.98]"
+                >
+                    확인
+                </button>
+            </div>
             </div>
         </DraggableWindow>
     );
