@@ -161,14 +161,41 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             if (payload.triggerAutoScoring) {
                 console.log(`[handleStrategicGameAction] triggerAutoScoring received for game ${game.id}, updating game state...`);
                 
-                // 클라이언트에서 전송한 게임 상태를 반영
+                const boardSize = game.settings?.boardSize ?? 19;
+                const isValidBoardState = (board: any) =>
+                    Array.isArray(board) && board.length === boardSize &&
+                    board.every((row: any) => Array.isArray(row) && row.length === boardSize);
+                const hasValidBoard = payload.boardState && isValidBoardState(payload.boardState);
+                const hasValidMoves = payload.moveHistory && Array.isArray(payload.moveHistory) && payload.moveHistory.length > 0;
+
+                // 싱글플레이/탑: 보드·수순이 없거나 잘못되면 캐시에서 복원 (미사일 모드 등에서 클라이언트 전달 누락 시 사석 오계가 방지)
+                if ((game.isSinglePlayer || game.gameCategory === 'tower') && (!hasValidBoard || !hasValidMoves)) {
+                    const { getCachedGame } = await import('../gameCache.js');
+                    const cached = game.id.startsWith('sp-game-') || game.id.startsWith('tower-game-') ? await getCachedGame(game.id) : null;
+                    if (cached) {
+                        if (!hasValidBoard && cached.boardState && isValidBoardState(cached.boardState)) {
+                            game.boardState = cached.boardState;
+                            console.log(`[handleStrategicGameAction] Restored boardState from cache for game ${game.id} (boardSize=${boardSize})`);
+                        }
+                        if (!hasValidMoves && cached.moveHistory?.length) {
+                            game.moveHistory = cached.moveHistory;
+                            console.log(`[handleStrategicGameAction] Restored moveHistory from cache for game ${game.id} (length=${cached.moveHistory.length})`);
+                        }
+                        if (cached.totalTurns != null) game.totalTurns = cached.totalTurns;
+                        if (cached.captures) game.captures = { ...(game.captures || {}), ...cached.captures };
+                    } else if (!hasValidBoard || !hasValidMoves) {
+                        console.warn(`[handleStrategicGameAction] triggerAutoScoring: missing or invalid boardState/moveHistory for game ${game.id}, hasValidBoard=${!!hasValidBoard}, hasValidMoves=${!!hasValidMoves}`);
+                    }
+                }
+
+                // 클라이언트에서 전송한 게임 상태를 반영 (유효할 때만 덮어씀)
                 if (payload.totalTurns !== undefined) {
                     game.totalTurns = payload.totalTurns;
                 }
-                if (payload.moveHistory) {
+                if (hasValidMoves) {
                     game.moveHistory = payload.moveHistory;
                 }
-                if (payload.boardState) {
+                if (hasValidBoard) {
                     game.boardState = payload.boardState;
                 }
                 if (payload.captures && typeof payload.captures === 'object') {
@@ -208,6 +235,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     if (game.endTime == null) game.endTime = Date.now();
                     game.gameStatus = 'scoring';
                     await db.saveGame(game);
+                    // 싱글플레이/탑: 계가 직전 캐시 갱신하여 getGameResult/재시도 시 최신 보드·수순 사용
+                    if ((game.isSinglePlayer || game.gameCategory === 'tower') && (game.id.startsWith('sp-game-') || game.id.startsWith('tower-game-'))) {
+                        const { updateGameCache } = await import('../gameCache.js');
+                        updateGameCache(game);
+                    }
                     console.log(`[handleStrategicGameAction] Game ${game.id} set to scoring state (0/N reached), calling getGameResult...`);
                     try {
                         await getGameResult(game);

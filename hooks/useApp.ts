@@ -1456,6 +1456,9 @@ export const useApp = () => {
                         }
                     }
                     console.log(`[handleAction] Auto-scoring triggered on client, sending to server: totalTurns=${totalTurns}, moveHistoryLength=${moveHistory.length}, boardStateSize=${boardState.length}, blackTimeLeft=${blackTimeLeft}, whiteTimeLeft=${whiteTimeLeft}, stage=${game.stageId}`);
+                    // 미사일/포획 모드 등에서 계가 정확도를 위해 보드·수순을 스냅샷으로 전달 (참조가 나중에 바뀌지 않도록 복사)
+                    const snapshotBoardState = Array.isArray(boardState) ? boardState.map((row: any) => [...row]) : boardState;
+                    const snapshotMoveHistory = Array.isArray(moveHistory) ? moveHistory.map((m: any) => ({ ...m })) : moveHistory;
                     const autoScoringAction = {
                         type: 'PLACE_STONE',
                         payload: {
@@ -1463,8 +1466,8 @@ export const useApp = () => {
                             x: -1,
                             y: -1,
                             totalTurns: totalTurns,
-                            moveHistory: moveHistory,
-                            boardState: boardState,
+                            moveHistory: snapshotMoveHistory,
+                            boardState: snapshotBoardState,
                             blackTimeLeft: blackTimeLeft,
                             whiteTimeLeft: whiteTimeLeft,
                             captures: captures,
