@@ -321,230 +321,222 @@ const AppContent: React.FC = () => {
                                 </main>
                             </div>
                         )}
+
+                        {/* Render modals inside scaled canvas so they scale too */}
+                        {currentUserWithStatus && (
+                            <>
+                                {modals.isSettingsModalOpen && <SettingsModal onClose={handlers.closeSettingsModal} isTopmost={topmostModalId === 'settings'} />}
+                                {modals.isInventoryOpen && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <InventoryModal currentUser={currentUserWithStatus} onClose={handlers.closeInventory} onAction={handlers.handleAction} onStartEnhance={handlers.openEnhancingItem} enhancementAnimationTarget={modals.enhancementAnimationTarget} onAnimationComplete={handlers.clearEnhancementAnimation} isTopmost={topmostModalId === 'inventory'} />
+                                    </Suspense>
+                                )}
+                                {modals.isMailboxOpen && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <MailboxModal currentUser={currentUserWithStatus} onClose={handlers.closeMailbox} onAction={handlers.handleAction} isTopmost={topmostModalId === 'mailbox'} />
+                                    </Suspense>
+                                )}
+                                {modals.isQuestsOpen && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <QuestsModal currentUser={currentUserWithStatus} onClose={handlers.closeQuests} onAction={handlers.handleAction} isTopmost={topmostModalId === 'quests'} />
+                                    </Suspense>
+                                )}
+                                {modals.rewardSummary && <RewardSummaryModal summary={modals.rewardSummary} onClose={handlers.closeRewardSummary} isTopmost={topmostModalId === 'rewardSummary'} />}
+                                {modals.isClaimAllSummaryOpen && modals.claimAllSummary && <ClaimAllSummaryModal summary={modals.claimAllSummary} onClose={handlers.closeClaimAllSummary} isTopmost={topmostModalId === 'claimAllSummary'} />}
+                                {modals.isShopOpen && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <ShopModal currentUser={currentUserWithStatus} onClose={handlers.closeShop} onAction={handlers.handleAction} isTopmost={topmostModalId === 'shop'} initialTab={modals.shopInitialTab} />
+                                    </Suspense>
+                                )}
+                                {modals.isActionPointModalOpen && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <ActionPointModal
+                                            currentUser={currentUserWithStatus}
+                                            onClose={handlers.closeActionPointModal}
+                                            onAction={handlers.handleAction}
+                                            isTopmost={topmostModalId === 'actionPoint'}
+                                        />
+                                    </Suspense>
+                                )}
+                                
+                                {modals.lastUsedItemResult && modals.lastUsedItemResult.length === 1 && <ItemObtainedModal item={modals.lastUsedItemResult[0]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} />}
+                                {modals.lastUsedItemResult && modals.lastUsedItemResult.length > 1 && <BulkItemObtainedModal items={modals.lastUsedItemResult} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
+                                {/* 챔피언십 보상 수령 시 아이템이 없어도 점수 변화가 있으면 모달 표시 */}
+                                {modals.tournamentScoreChange && !modals.lastUsedItemResult && <BulkItemObtainedModal items={[]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
+
+                                {modals.disassemblyResult && <DisassemblyResultModal result={modals.disassemblyResult} onClose={handlers.closeDisassemblyResult} isTopmost={topmostModalId === 'disassemblyResult'} isOpen={true} />}
+                                {modals.craftResult && (() => {
+                                    console.log('[App] Rendering CraftingResultModal:', {
+                                        craftResult: modals.craftResult,
+                                        topmostModalId,
+                                        isTopmost: topmostModalId === 'craftResult'
+                                    });
+                                    return <CraftingResultModal result={modals.craftResult} onClose={handlers.closeCraftResult} isTopmost={topmostModalId === 'craftResult'} />;
+                                })()}
+                                {modals.viewingUser && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <UserProfileModal user={modals.viewingUser} onClose={handlers.closeViewingUser} onViewItem={handlers.openViewingItem} isTopmost={topmostModalId === 'viewingUser'} />
+                                    </Suspense>
+                                )}
+                                {modals.isInfoModalOpen && <InfoModal onClose={handlers.closeInfoModal} isTopmost={topmostModalId === 'infoModal'} />}
+                                {modals.isInsufficientActionPointsModalOpen && (
+                                    <InsufficientActionPointsModal
+                                        onClose={handlers.closeInsufficientActionPointsModal}
+                                        onOpenShopConsumables={() => {
+                                            handlers.closeInsufficientActionPointsModal();
+                                            handlers.openShop('consumables');
+                                        }}
+                                        onOpenDiamondRecharge={() => {
+                                            handlers.closeInsufficientActionPointsModal();
+                                            handlers.openActionPointModal();
+                                        }}
+                                        isTopmost={topmostModalId === 'insufficientActionPoints'}
+                                    />
+                                )}
+                                {modals.isEncyclopediaOpen && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <EncyclopediaModal onClose={handlers.closeEncyclopedia} isTopmost={topmostModalId === 'encyclopedia'} />
+                                    </Suspense>
+                                )}
+                                {modals.isStatAllocationModalOpen && <StatAllocationModal currentUser={currentUserWithStatus} onClose={handlers.closeStatAllocationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'statAllocation'} />}
+                                {modals.isProfileEditModalOpen && <ProfileEditModal currentUser={currentUserWithStatus} onClose={handlers.closeProfileEditModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'profileEdit'} />}
+                                {modals.pastRankingsInfo && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <PastRankingsModal info={modals.pastRankingsInfo} onClose={handlers.closePastRankings} isTopmost={topmostModalId === 'pastRankings'} />
+                                    </Suspense>
+                                )}
+                                {modals.moderatingUser && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <AdminModerationModal user={modals.moderatingUser} currentUser={currentUserWithStatus} onClose={handlers.closeModerationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'moderatingUser'} />
+                                    </Suspense>
+                                )}
+                                {modals.viewingItem && <ItemDetailModal item={modals.viewingItem.item} isOwnedByCurrentUser={modals.viewingItem.isOwnedByCurrentUser} onClose={handlers.closeViewingItem} onStartEnhance={handlers.openEnhancementFromDetail} isTopmost={topmostModalId === 'viewingItem'} />}
+                                {activeNegotiation && (() => {
+                                    const isReceivedChallenge = activeNegotiation.status === 'pending' && 
+                                                                 ((activeNegotiation.opponent.id === currentUserWithStatus.id && 
+                                                                   activeNegotiation.proposerId === activeNegotiation.opponent.id) ||
+                                                                  (activeNegotiation.challenger.id === currentUserWithStatus.id && 
+                                                                   activeNegotiation.proposerId === activeNegotiation.challenger.id &&
+                                                                   (activeNegotiation.turnCount ?? 0) > 0));
+                                    const isChallengerWaiting = activeNegotiation.challenger.id === currentUserWithStatus.id && 
+                                                                activeNegotiation.status === 'pending' && 
+                                                                activeNegotiation.proposerId === activeNegotiation.opponent.id &&
+                                                                activeNegotiation.turnCount === 0;
+                                    
+                                    if (isChallengerWaiting) {
+                                        return null;
+                                    }
+                                    
+                                    if (isReceivedChallenge) {
+                                        return (
+                                            <ChallengeReceivedModal
+                                                negotiation={activeNegotiation}
+                                                currentUser={currentUserWithStatus}
+                                                onAccept={(settings) => {
+                                                    handlers.handleAction({ 
+                                                        type: 'ACCEPT_NEGOTIATION', 
+                                                        payload: { negotiationId: activeNegotiation.id, settings } 
+                                                    });
+                                                }}
+                                                onDecline={() => {
+                                                    handlers.handleAction({ 
+                                                        type: 'DECLINE_NEGOTIATION', 
+                                                        payload: { negotiationId: activeNegotiation.id } 
+                                                    });
+                                                }}
+                                                onProposeModification={(settings) => {
+                                                    handlers.handleAction({ 
+                                                        type: 'UPDATE_NEGOTIATION', 
+                                                        payload: { negotiationId: activeNegotiation.id, settings } 
+                                                    });
+                                                }}
+                                                onClose={() => {
+                                                    handlers.handleAction({ 
+                                                        type: 'DECLINE_NEGOTIATION', 
+                                                        payload: { negotiationId: activeNegotiation.id } 
+                                                    });
+                                                }}
+                                                onAction={handlers.handleAction}
+                                            />
+                                        );
+                                    }
+                                    return (
+                                        <NegotiationModal 
+                                            negotiation={activeNegotiation} 
+                                            currentUser={currentUserWithStatus} 
+                                            onAction={handlers.handleAction} 
+                                            onlineUsers={onlineUsers} 
+                                            isTopmost={topmostModalId === 'negotiation'} 
+                                        />
+                                    );
+                                })()}
+                                {modals.isMbtiInfoModalOpen && <MbtiInfoModal onClose={handlers.closeMbtiInfoModal} isTopmost={topmostModalId === 'mbtiInfo'} />}
+                                {modals.mutualDisconnectMessage && (
+                                    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">
+                                        <div className="bg-panel border border-color rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 text-center">
+                                            <h2 id="mutual-disconnect-title" className="text-lg font-bold text-on-panel mb-3">대국 종료 안내</h2>
+                                            <p className="text-on-panel/90 mb-6">{modals.mutualDisconnectMessage}</p>
+                                            <button type="button" onClick={handlers.closeMutualDisconnectModal} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
+                                        </div>
+                                    </div>
+                                )}
+                                {modals.showOtherDeviceLoginModal && (
+                                    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="other-device-login-title">
+                                        <div className="bg-panel border border-color rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 text-center">
+                                            <h2 id="other-device-login-title" className="text-lg font-bold text-on-panel mb-3">로그아웃 안내</h2>
+                                            <p className="text-on-panel/90 mb-6">다른 곳에서 로그인 되었습니다. 로그아웃 됩니다.</p>
+                                            <button type="button" onClick={handlers.confirmOtherDeviceLoginAndLogout} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
+                                        </div>
+                                    </div>
+                                )}
+                                {modals.isBlacksmithModalOpen && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <BlacksmithModal 
+                                            onClose={handlers.closeBlacksmithModal} 
+                                            isTopmost={topmostModalId === 'blacksmith'} 
+                                            selectedItemForEnhancement={modals.blacksmithSelectedItemForEnhancement} 
+                                            activeTab={modals.blacksmithActiveTab} 
+                                            onSetActiveTab={handlers.setBlacksmithActiveTab} 
+                                            enhancementOutcome={enhancementOutcome} 
+                                        />
+                                    </Suspense>
+                                )}
+                                {modals.combinationResult && <CombinationResultModal result={modals.combinationResult} onClose={handlers.closeCombinationResult} isTopmost={topmostModalId === 'combinationResult'} />}
+                                {modals.isBlacksmithHelpOpen && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <BlacksmithHelpModal onClose={handlers.closeBlacksmithHelp} isTopmost={topmostModalId === 'blacksmithHelp'} currentUser={currentUserWithStatus} />
+                                    </Suspense>
+                                )}
+                                {modals.isEnhancementResultModalOpen && enhancementOutcome && <EnhancementResultModal result={enhancementOutcome} onClose={handlers.closeEnhancementModal} isTopmost={topmostModalId === 'enhancementResult'} />}
+                                {modals.isClaimAllSummaryOpen && modals.claimAllSummary && <ClaimAllSummaryModal summary={modals.claimAllSummary} onClose={handlers.closeClaimAllSummary} isTopmost={topmostModalId === 'claimAllSummary'} />}
+                                {modals.isMbtiInfoModalOpen && <MbtiInfoModal onClose={handlers.closeMbtiInfoModal} isTopmost={topmostModalId === 'mbtiInfo'} />}
+                                {modals.isEquipmentEffectsModalOpen && <EquipmentEffectsModal onClose={handlers.closeEquipmentEffectsModal} isTopmost={topmostModalId === 'equipmentEffects'} mainOptionBonuses={mainOptionBonuses} combatSubOptionBonuses={combatSubOptionBonuses} specialStatBonuses={specialStatBonuses} aggregatedMythicStats={aggregatedMythicStats} />}
+                                {modals.isGameRecordListOpen && currentUserWithStatus && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <GameRecordListModal 
+                                            currentUser={currentUserWithStatus} 
+                                            onClose={handlers.closeGameRecordList} 
+                                            onAction={handlers.handleAction}
+                                            onViewRecord={handlers.openGameRecordViewer}
+                                            isTopmost={topmostModalId === 'gameRecordList'}
+                                        />
+                                    </Suspense>
+                                )}
+                                {modals.viewingGameRecord && (
+                                    <Suspense fallback={ModalLoadingFallback()}>
+                                        <GameRecordViewerModal 
+                                            record={modals.viewingGameRecord} 
+                                            onClose={handlers.closeGameRecordViewer}
+                                            isTopmost={topmostModalId === 'gameRecordViewer'}
+                                        />
+                                    </Suspense>
+                                )}
+                            </>
+                        )}
+                        <InstallPrompt />
                     </div>
                 </div>
             </div>
-            
-            {/* Render modals only when a user is logged in */}
-            {currentUserWithStatus && (
-                <>
-                    {modals.isSettingsModalOpen && <SettingsModal onClose={handlers.closeSettingsModal} isTopmost={topmostModalId === 'settings'} />}
-                    {modals.isInventoryOpen && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <InventoryModal currentUser={currentUserWithStatus} onClose={handlers.closeInventory} onAction={handlers.handleAction} onStartEnhance={handlers.openEnhancingItem} enhancementAnimationTarget={modals.enhancementAnimationTarget} onAnimationComplete={handlers.clearEnhancementAnimation} isTopmost={topmostModalId === 'inventory'} />
-                        </Suspense>
-                    )}
-                    {modals.isMailboxOpen && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <MailboxModal currentUser={currentUserWithStatus} onClose={handlers.closeMailbox} onAction={handlers.handleAction} isTopmost={topmostModalId === 'mailbox'} />
-                        </Suspense>
-                    )}
-                    {modals.isQuestsOpen && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <QuestsModal currentUser={currentUserWithStatus} onClose={handlers.closeQuests} onAction={handlers.handleAction} isTopmost={topmostModalId === 'quests'} />
-                        </Suspense>
-                    )}
-                    {modals.rewardSummary && <RewardSummaryModal summary={modals.rewardSummary} onClose={handlers.closeRewardSummary} isTopmost={topmostModalId === 'rewardSummary'} />}
-                    {modals.isClaimAllSummaryOpen && modals.claimAllSummary && <ClaimAllSummaryModal summary={modals.claimAllSummary} onClose={handlers.closeClaimAllSummary} isTopmost={topmostModalId === 'claimAllSummary'} />}
-                    {modals.isShopOpen && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <ShopModal currentUser={currentUserWithStatus} onClose={handlers.closeShop} onAction={handlers.handleAction} isTopmost={topmostModalId === 'shop'} initialTab={modals.shopInitialTab} />
-                        </Suspense>
-                    )}
-                    {modals.isActionPointModalOpen && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <ActionPointModal
-                                currentUser={currentUserWithStatus}
-                                onClose={handlers.closeActionPointModal}
-                                onAction={handlers.handleAction}
-                                isTopmost={topmostModalId === 'actionPoint'}
-                            />
-                        </Suspense>
-                    )}
-                    
-                    {modals.lastUsedItemResult && modals.lastUsedItemResult.length === 1 && <ItemObtainedModal item={modals.lastUsedItemResult[0]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} />}
-                    {modals.lastUsedItemResult && modals.lastUsedItemResult.length > 1 && <BulkItemObtainedModal items={modals.lastUsedItemResult} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
-                    {/* 챔피언십 보상 수령 시 아이템이 없어도 점수 변화가 있으면 모달 표시 */}
-                    {modals.tournamentScoreChange && !modals.lastUsedItemResult && <BulkItemObtainedModal items={[]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
-
-                    {modals.disassemblyResult && <DisassemblyResultModal result={modals.disassemblyResult} onClose={handlers.closeDisassemblyResult} isTopmost={topmostModalId === 'disassemblyResult'} isOpen={true} />}
-                    {modals.craftResult && (() => {
-                        console.log('[App] Rendering CraftingResultModal:', {
-                            craftResult: modals.craftResult,
-                            topmostModalId,
-                            isTopmost: topmostModalId === 'craftResult'
-                        });
-                        return <CraftingResultModal result={modals.craftResult} onClose={handlers.closeCraftResult} isTopmost={topmostModalId === 'craftResult'} />;
-                    })()}
-                    {modals.viewingUser && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <UserProfileModal user={modals.viewingUser} onClose={handlers.closeViewingUser} onViewItem={handlers.openViewingItem} isTopmost={topmostModalId === 'viewingUser'} />
-                        </Suspense>
-                    )}
-                    {modals.isInfoModalOpen && <InfoModal onClose={handlers.closeInfoModal} isTopmost={topmostModalId === 'infoModal'} />}
-                    {modals.isInsufficientActionPointsModalOpen && (
-                        <InsufficientActionPointsModal
-                            onClose={handlers.closeInsufficientActionPointsModal}
-                            onOpenShopConsumables={() => {
-                                handlers.closeInsufficientActionPointsModal();
-                                handlers.openShop('consumables');
-                            }}
-                            onOpenDiamondRecharge={() => {
-                                handlers.closeInsufficientActionPointsModal();
-                                handlers.openActionPointModal();
-                            }}
-                            isTopmost={topmostModalId === 'insufficientActionPoints'}
-                        />
-                    )}
-                    {modals.isEncyclopediaOpen && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <EncyclopediaModal onClose={handlers.closeEncyclopedia} isTopmost={topmostModalId === 'encyclopedia'} />
-                        </Suspense>
-                    )}
-                    {modals.isStatAllocationModalOpen && <StatAllocationModal currentUser={currentUserWithStatus} onClose={handlers.closeStatAllocationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'statAllocation'} />}
-                    {modals.isProfileEditModalOpen && <ProfileEditModal currentUser={currentUserWithStatus} onClose={handlers.closeProfileEditModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'profileEdit'} />}
-                    {modals.pastRankingsInfo && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <PastRankingsModal info={modals.pastRankingsInfo} onClose={handlers.closePastRankings} isTopmost={topmostModalId === 'pastRankings'} />
-                        </Suspense>
-                    )}
-                    {modals.moderatingUser && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <AdminModerationModal user={modals.moderatingUser} currentUser={currentUserWithStatus} onClose={handlers.closeModerationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'moderatingUser'} />
-                        </Suspense>
-                    )}
-                    {modals.viewingItem && <ItemDetailModal item={modals.viewingItem.item} isOwnedByCurrentUser={modals.viewingItem.isOwnedByCurrentUser} onClose={handlers.closeViewingItem} onStartEnhance={handlers.openEnhancementFromDetail} isTopmost={topmostModalId === 'viewingItem'} />}
-                    {activeNegotiation && (() => {
-                        // Check if this is a received challenge (current user is opponent, and it's the initial turn)
-                        // 단, 이미 수정 제안이 시작된 경우(turnCount > 0)는 NegotiationModal 사용
-                        // 수신자가 받은 초기 신청서 또는 수정 제안 후 발신자가 받은 신청서
-                        const isReceivedChallenge = activeNegotiation.status === 'pending' && 
-                                                     ((activeNegotiation.opponent.id === currentUserWithStatus.id && 
-                                                       activeNegotiation.proposerId === activeNegotiation.opponent.id) ||
-                                                      (activeNegotiation.challenger.id === currentUserWithStatus.id && 
-                                                       activeNegotiation.proposerId === activeNegotiation.challenger.id &&
-                                                       (activeNegotiation.turnCount ?? 0) > 0));
-                        
-                        // 발신자가 보는 초기 negotiation은 ChallengeSelectionModal에서 처리하므로 제외
-                        const isChallengerWaiting = activeNegotiation.challenger.id === currentUserWithStatus.id && 
-                                                    activeNegotiation.status === 'pending' && 
-                                                    activeNegotiation.proposerId === activeNegotiation.opponent.id &&
-                                                    activeNegotiation.turnCount === 0;
-                        
-                        if (isChallengerWaiting) {
-                            // 발신자는 ChallengeSelectionModal에서 응답을 기다리므로 NegotiationModal 표시하지 않음
-                            return null;
-                        }
-                        
-                        if (isReceivedChallenge) {
-                            return (
-                                <ChallengeReceivedModal
-                                    negotiation={activeNegotiation}
-                                    currentUser={currentUserWithStatus}
-                                    onAccept={(settings) => {
-                                        handlers.handleAction({ 
-                                            type: 'ACCEPT_NEGOTIATION', 
-                                            payload: { negotiationId: activeNegotiation.id, settings } 
-                                        });
-                                    }}
-                                    onDecline={() => {
-                                        handlers.handleAction({ 
-                                            type: 'DECLINE_NEGOTIATION', 
-                                            payload: { negotiationId: activeNegotiation.id } 
-                                        });
-                                    }}
-                                    onProposeModification={(settings) => {
-                                        // To switch to NegotiationModal for modification, call UPDATE_NEGOTIATION
-                                        handlers.handleAction({ 
-                                            type: 'UPDATE_NEGOTIATION', 
-                                            payload: { negotiationId: activeNegotiation.id, settings } 
-                                        });
-                                    }}
-                                    onClose={() => {
-                                        handlers.handleAction({ 
-                                            type: 'DECLINE_NEGOTIATION', 
-                                            payload: { negotiationId: activeNegotiation.id } 
-                                        });
-                                    }}
-                                    onAction={handlers.handleAction}
-                                />
-                            );
-                        }
-                        // 수정 제안이 시작된 경우(turnCount > 0)만 NegotiationModal 사용
-                        return (
-                            <NegotiationModal 
-                                negotiation={activeNegotiation} 
-                                currentUser={currentUserWithStatus} 
-                                onAction={handlers.handleAction} 
-                                onlineUsers={onlineUsers} 
-                                isTopmost={topmostModalId === 'negotiation'} 
-                            />
-                        );
-                    })()}
-                    {modals.isMbtiInfoModalOpen && <MbtiInfoModal onClose={handlers.closeMbtiInfoModal} isTopmost={topmostModalId === 'mbtiInfo'} />}
-                    {modals.mutualDisconnectMessage && (
-                        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">
-                            <div className="bg-panel border border-color rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 text-center">
-                                <h2 id="mutual-disconnect-title" className="text-lg font-bold text-on-panel mb-3">대국 종료 안내</h2>
-                                <p className="text-on-panel/90 mb-6">{modals.mutualDisconnectMessage}</p>
-                                <button type="button" onClick={handlers.closeMutualDisconnectModal} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
-                            </div>
-                        </div>
-                    )}
-                    {modals.showOtherDeviceLoginModal && (
-                        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="other-device-login-title">
-                            <div className="bg-panel border border-color rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 text-center">
-                                <h2 id="other-device-login-title" className="text-lg font-bold text-on-panel mb-3">로그아웃 안내</h2>
-                                <p className="text-on-panel/90 mb-6">다른 곳에서 로그인 되었습니다. 로그아웃 됩니다.</p>
-                                <button type="button" onClick={handlers.confirmOtherDeviceLoginAndLogout} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
-                            </div>
-                        </div>
-                    )}
-                    {modals.isBlacksmithModalOpen && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <BlacksmithModal 
-                                onClose={handlers.closeBlacksmithModal} 
-                                isTopmost={topmostModalId === 'blacksmith'} 
-                                selectedItemForEnhancement={modals.blacksmithSelectedItemForEnhancement} 
-                                activeTab={modals.blacksmithActiveTab} 
-                                onSetActiveTab={handlers.setBlacksmithActiveTab} 
-                                enhancementOutcome={enhancementOutcome} 
-                            />
-                        </Suspense>
-                    )}
-                    {modals.combinationResult && <CombinationResultModal result={modals.combinationResult} onClose={handlers.closeCombinationResult} isTopmost={topmostModalId === 'combinationResult'} />}
-                    {modals.isBlacksmithHelpOpen && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <BlacksmithHelpModal onClose={handlers.closeBlacksmithHelp} isTopmost={topmostModalId === 'blacksmithHelp'} currentUser={currentUserWithStatus} />
-                        </Suspense>
-                    )}
-                    {modals.isEnhancementResultModalOpen && enhancementOutcome && <EnhancementResultModal result={enhancementOutcome} onClose={handlers.closeEnhancementModal} isTopmost={topmostModalId === 'enhancementResult'} />}
-                    {modals.isClaimAllSummaryOpen && modals.claimAllSummary && <ClaimAllSummaryModal summary={modals.claimAllSummary} onClose={handlers.closeClaimAllSummary} isTopmost={topmostModalId === 'claimAllSummary'} />}
-                    {modals.isMbtiInfoModalOpen && <MbtiInfoModal onClose={handlers.closeMbtiInfoModal} isTopmost={topmostModalId === 'mbtiInfo'} />}
-                    {modals.isEquipmentEffectsModalOpen && <EquipmentEffectsModal onClose={handlers.closeEquipmentEffectsModal} isTopmost={topmostModalId === 'equipmentEffects'} mainOptionBonuses={mainOptionBonuses} combatSubOptionBonuses={combatSubOptionBonuses} specialStatBonuses={specialStatBonuses} aggregatedMythicStats={aggregatedMythicStats} />}
-                    {modals.isGameRecordListOpen && currentUserWithStatus && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <GameRecordListModal 
-                                currentUser={currentUserWithStatus} 
-                                onClose={handlers.closeGameRecordList} 
-                                onAction={handlers.handleAction}
-                                onViewRecord={handlers.openGameRecordViewer}
-                                isTopmost={topmostModalId === 'gameRecordList'}
-                            />
-                        </Suspense>
-                    )}
-                    {modals.viewingGameRecord && (
-                        <Suspense fallback={ModalLoadingFallback()}>
-                            <GameRecordViewerModal 
-                                record={modals.viewingGameRecord} 
-                                onClose={handlers.closeGameRecordViewer}
-                                isTopmost={topmostModalId === 'gameRecordViewer'}
-                            />
-                        </Suspense>
-                    )}
-                </>
-            )}
-            <InstallPrompt />
         </div>
     );
 };
