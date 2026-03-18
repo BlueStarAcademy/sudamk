@@ -8,9 +8,16 @@
 // Get API base URL from environment variable
 // Vite exposes env variables prefixed with VITE_
 const getApiBaseUrl = (): string => {
-    // In development, use relative paths (Vite proxy handles it)
+    // In development, prefer explicit backend URL if provided.
+    // (Some setups don't run Vite proxy or backend on localhost:4000.)
     if (import.meta.env.DEV) {
-        console.log('[API Config] Development mode: using relative paths');
+        const devApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL;
+        if (devApiUrl) {
+            let cleanUrl = devApiUrl.replace(/\/$/, '');
+            console.log('[API Config] Development mode: using explicit API URL:', cleanUrl);
+            return cleanUrl;
+        }
+        console.log('[API Config] Development mode: using relative paths (Vite proxy)');
         return '';
     }
     
@@ -43,8 +50,13 @@ const getApiBaseUrl = (): string => {
 
 // Get WebSocket URL from environment variable
 const getWebSocketUrl = (): string => {
-    // In development, use relative paths
+    // In development, prefer explicit WS URL if provided, otherwise same-origin (Vite proxy).
     if (import.meta.env.DEV) {
+        const devWsUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_BACKEND_WS_URL;
+        if (devWsUrl) {
+            console.log('[API Config] Development mode: using explicit WebSocket URL:', devWsUrl);
+            return devWsUrl;
+        }
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         return `${protocol}//${window.location.host}`;
     }

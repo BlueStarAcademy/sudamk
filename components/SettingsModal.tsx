@@ -304,13 +304,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                      <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-text-secondary mb-4">게임 플레이</h3>
                         <div className="flex items-center justify-between">
-                            <span className="text-text-secondary">모바일 착점 시 [착수] 버튼 생성</span>
-                            <ToggleSwitch
-                                checked={settings.features.mobileConfirm}
-                                onChange={(checked) => updateFeatureSetting('mobileConfirm', checked)}
-                            />
-                        </div>
-                        <div className="flex items-center justify-between">
                             <span className="text-text-secondary">돌 미리보기 (마우스 호버)</span>
                             <ToggleSwitch
                                 checked={settings.features.stonePreview}

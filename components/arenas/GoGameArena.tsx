@@ -145,7 +145,10 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                     <span className="text-xl leading-none" style={{ transform: isBoardRotated ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>🔄</span>
                 </button>
             )}
-            <GoBoard
+            {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
+            <div className="w-full h-full max-w-full max-h-full flex items-center justify-center min-w-0 min-h-0">
+                <div className="w-full h-full max-w-full max-h-full aspect-square min-w-0 min-h-0">
+                <GoBoard
                 boardState={session.boardState}
                 boardSize={settings.boardSize}
                 onBoardClick={handleBoardClick}
@@ -198,7 +201,9 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 isMobile={isMobile}
                 isRotated={isBoardRotated}
                 pendingMove={pendingMove}
-            />
+                />
+                </div>
+            </div>
         </div>
     );
 }

@@ -18,6 +18,8 @@ interface SinglePlayerArenaProps extends GameProps {
     showBoardGlow?: boolean;
     resumeCountdown?: number;
     isBoardLocked?: boolean;
+    // 착수 버튼 모드/AI 낙관 표시용 임시 돌 (예상착점)
+    pendingMove?: { x: number; y: number; player: Player } | null;
 }
 
 const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
@@ -36,6 +38,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         showBoardGlow = false,
         resumeCountdown = 0,
         isBoardLocked = false,
+        pendingMove = null,
     } = props;
     
     const {
@@ -127,7 +130,9 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                 {showBoardGlow && (
                     <div className="absolute inset-0 rounded-lg pointer-events-none ring-4 ring-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] animate-[pulse_2s_ease-in-out_infinite]" aria-hidden />
                 )}
-                <div className="w-full h-full flex items-center justify-center rounded-lg">
+                {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
+                <div className="w-full h-full flex items-center justify-center rounded-lg min-w-0 min-h-0 overflow-hidden">
+                <div className="w-full h-full max-w-full max-h-full aspect-square min-w-0 min-h-0">
                 <GoBoard
                     boardState={boardState}
                     boardSize={settings.boardSize}
@@ -178,7 +183,9 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     isSinglePlayer={true}
                     onAction={props.onAction}
                     gameId={session.id}
+                    pendingMove={pendingMove}
                 />
+                </div>
                 </div>
             </div>
             {isPaused && (

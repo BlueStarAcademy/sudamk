@@ -8,9 +8,11 @@ import { TOWER_STAGES } from '../../constants/towerConstants.js';
 
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
-    const min = Math.floor(seconds / 60);
-    const sec = Math.floor(seconds % 60);
-    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    const total = Math.floor(seconds);
+    const hrs = Math.floor(total / 3600);
+    const min = Math.floor((total % 3600) / 60);
+    const sec = total % 60;
+    return `${String(hrs).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 };
 
 const CapturedStones: React.FC<{ count: number; target?: number; panelType: 'black' | 'white' | 'neutral', mode: GameMode, isMobile?: boolean }> = ({ count, target, panelType, mode, isMobile = false }) => {

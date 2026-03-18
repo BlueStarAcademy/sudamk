@@ -572,8 +572,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             return;
         }
 
-        // 미사일 애니메이션이 있고 게임 상태가 missile_animating이면 애니메이션 완료 감지
-        if (animation && (animation.type === 'missile' || animation.type === 'hidden_missile') && gameStatus === 'missile_animating') {
+        // 미사일 애니메이션 완료 감지
+        // - 멀티플레이: gameStatus === 'missile_animating' 인 경우에만 동작
+        // - 싱글플레이/도전의 탑: 서버/클라이언트 상태가 약간 어긋나도 애니메이션이 존재하면 항상 완료 타이머를 건다
+        const isMissileAnimation = animation && (animation.type === 'missile' || animation.type === 'hidden_missile');
+        const shouldTrackMissileAnimation =
+            !!isMissileAnimation &&
+            (gameStatus === 'missile_animating' || isSinglePlayer);
+
+        if (shouldTrackMissileAnimation) {
             const now = Date.now();
             const elapsed = now - animation.startTime;
             const remaining = Math.max(0, animation.duration - elapsed);
@@ -1228,17 +1235,18 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 })}
                 {winningLine && winningLine.length > 0 && ( <path d={`M ${toSvgCoords(winningLine[0]).cx} ${toSvgCoords(winningLine[0]).cy} L ${toSvgCoords(winningLine[winningLine.length - 1]).cx} ${toSvgCoords(winningLine[winningLine.length - 1]).cy}`} stroke="rgba(239, 68, 68, 0.8)" strokeWidth="10" strokeLinecap="round" className="animate-fade-in" /> )}
                 
-                {/* 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌 */}
+                {/* 착수 버튼 모드/AI 낙관 표시용 임시 돌 (예상착점) */}
                 {pendingMove && (() => {
                     const { cx, cy } = toSvgCoords({ x: pendingMove.x, y: pendingMove.y });
                     return (
-                        <g opacity={0.7}>
+                        <g opacity={0.45} style={{ pointerEvents: 'none' }}>
                             <Stone
                                 player={pendingMove.player}
                                 cx={cx}
                                 cy={cy}
                                 radius={stone_radius}
                                 isLastMove={false}
+                                isPending={true}
                             />
                         </g>
                     );

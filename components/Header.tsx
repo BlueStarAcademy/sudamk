@@ -66,7 +66,9 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus }> = ({ user }) =
 };
 
 
-const Header: React.FC = () => {
+interface HeaderProps { compact?: boolean }
+
+const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const { currentUserWithStatus, handlers, unreadMailCount } = useAppContext();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const isMobile = useIsMobileLayout(640);
@@ -106,9 +108,9 @@ const Header: React.FC = () => {
 
     return (
         <header className="flex-shrink-0 bg-primary/80 backdrop-blur-sm shadow-lg relative z-50">
-            <div className="p-2.5 sm:p-3 flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-2 sm:gap-3 min-h-[70px] sm:min-h-[75px]">
+            <div className={`flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-2 sm:gap-3 ${compact ? 'p-1.5 sm:p-2 min-h-[48px] sm:min-h-[52px]' : 'p-2.5 sm:p-3 min-h-[70px] sm:min-h-[75px]'}`}>
                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 min-w-0 cursor-pointer relative" onClick={openProfileEditModal}>
-                     <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={40} />
+                     <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={compact ? 32 : 40} />
                      <div className={`${isMobile ? 'hidden' : 'block'} min-w-0`}>
                         <h1 className="font-bold text-primary truncate whitespace-nowrap">{currentUserWithStatus.nickname}</h1>
                         <p className="text-xs text-tertiary truncate whitespace-nowrap">전략 Lv.{currentUserWithStatus.strategyLevel} / 놀이 Lv.{currentUserWithStatus.playfulLevel}</p>

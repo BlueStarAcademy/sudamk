@@ -779,13 +779,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             };
 
             return (
-                <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full h-[148px]">
-                    {isMobile && settings.features.mobileConfirm && pendingMove && (
-                        <div className="flex gap-4 p-2 justify-center">
-                            <Button onClick={onCancelMove} colorScheme="none" className={`${getLuxuryButtonClasses('danger')} !py-3 !px-6`}>취소</Button>
-                            <Button onClick={onConfirmMove} colorScheme="none" className={`${getLuxuryButtonClasses('success')} !py-3 !px-6 animate-pulse`}>착수</Button>
-                        </div>
-                    )}
+                <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full h-[136px]">
                     <div className="bg-gray-900/70 border border-stone-700 rounded-xl px-4 py-3 flex flex-wrap items-center justify-center gap-3">
                         <Button onClick={handleShowResults} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap">
                             결과 확인
@@ -825,16 +819,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const myMissilesLeft = currentUser.id === p1Id ? (session.missiles_p1 ?? missileCountSetting) : (session.missiles_p2 ?? missileCountSetting);
 
         return (
-            <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[148px]">
-                {isMobile && settings.features.mobileConfirm && pendingMove && (
-                    <div className="flex gap-3 p-2 justify-center">
-                        <Button onClick={onCancelMove} colorScheme="none" className={`${getLuxuryButtonClasses('danger')} min-w-[96px] py-2`}>취소</Button>
-                        <Button onClick={onConfirmMove} colorScheme="none" className={`${getLuxuryButtonClasses('success')} min-w-[96px] py-2 animate-pulse`}>착수</Button>
-                    </div>
-                )}
+            <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[136px]">
                 <div className="bg-gray-900/60 border border-stone-700 rounded-xl px-4 py-3 flex flex-row items-center gap-4 w-full">
-                    {/* 좌측 패널: 기본 버튼 (중앙 정렬) */}
-                    <div className="flex-1 flex flex-row items-center justify-center gap-4">
+                    {/* 좌측 패널: 기권, 배치변경 */}
+                    <div className="flex-1 flex flex-row items-center justify-center gap-4 min-w-0">
                         <div className="flex flex-col items-center gap-2">
                             <ImageButton
                                 src="/images/button/giveup.png"
@@ -869,10 +857,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     </div>
                     
                     {/* 구분선 */}
-                    <div className="w-px h-12 bg-stone-600/50"></div>
+                    <div className="w-px h-12 bg-stone-600/50 flex-shrink-0"></div>
                     
-                    {/* 우측 패널: 특수 아이템 (중앙 정렬) */}
-                    <div className="flex-1 flex flex-row items-center justify-center gap-4">
+                    {/* 우측 패널: 특수 아이템 */}
+                    <div className="flex-1 flex flex-row items-center justify-center gap-4 min-w-0">
                         {/* 히든 아이템 */}
                         {isHiddenMode && (
                             <div className="flex flex-col items-center gap-2">
@@ -925,12 +913,6 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
     return (
         <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-1 flex flex-col items-stretch justify-center gap-1 w-full">
-            {isMobile && settings.features.mobileConfirm && pendingMove && (
-                 <div className="flex gap-3 p-2 justify-center">
-                    <Button onClick={onCancelMove} colorScheme="none" className={`${getLuxuryButtonClasses('danger')} min-w-[96px] py-2`}>취소</Button>
-                    <Button onClick={onConfirmMove} colorScheme="none" className={`${getLuxuryButtonClasses('success')} min-w-[96px] py-2 animate-pulse`}>착수</Button>
-                </div>
-            )}
             {/* Row 1: Manner Actions - PVP 모드에서만 표시 */}
             {!isSinglePlayer && !session.isAiGame ? (
                 <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 w-full">
@@ -986,7 +968,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         )}
                     </div>
                 </div>
-                
+
                 {/* Panel 2: 특수/놀이 기능 */}
                 <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 flex-1 min-w-0">
                     <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">{isStrategic ? '특수 기능' : '놀이 기능'}</h3>

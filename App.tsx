@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useLayoutEffect, Suspense, lazy } from 'react';
 import Header from './components/Header.js';
 import { AppProvider } from './contexts/AppContext.js';
 import { useAppContext } from './hooks/useAppContext.js';
@@ -40,8 +40,7 @@ import EquipmentEffectsModal from './components/EquipmentEffectsModal';
 import EnhancementResultModal from './components/modals/EnhancementResultModal.js';
 import InsufficientActionPointsModal from './components/InsufficientActionPointsModal.js';
 import InstallPrompt from './components/InstallPrompt.js';
-import LandscapeOnlyOverlay from './components/LandscapeOnlyOverlay.js';
-import { useIsHandheldDevice, useIsMobileLayout, useShowLandscapeOnlyOverlay } from './hooks/useIsMobileLayout.js';
+import { useIsHandheldDevice, useIsMobileLayout } from './hooks/useIsMobileLayout.js';
 
 // Lazy 로드된 모달을 위한 로딩 컴포넌트
 const ModalLoadingFallback = () => null;
@@ -196,21 +195,58 @@ const AppContent: React.FC = () => {
 
     const isMobile = useIsMobileLayout(768);
     const isHandheld = useIsHandheldDevice(1025);
-    const showLandscapeOnlyOverlay = useShowLandscapeOnlyOverlay();
 
-    // 휴대기기에서는 가로 모드 진입을 우선 시도하고, 실패 시 오버레이로 진입을 막는다.
+    // 전체 화면을 하나의 그림처럼 동일 비율로 스케일 (고정 캔버스 1920x1080 → 컨테이너에 맞춤)
+    const DESIGN_W = 1920;
+    const DESIGN_H = 1080;
+    const getInitialScale = () => {
+        if (typeof window === 'undefined') return 1;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        if (w <= 0 || h <= 0) return 1;
+        const byWidth = w / DESIGN_W;
+        const byHeight = h / DESIGN_H;
+        return Math.min(byWidth, byHeight, 1);
+    };
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [scale, setScale] = useState(getInitialScale);
+    useLayoutEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const updateScale = () => {
+            const w = el.clientWidth;
+            const h = el.clientHeight;
+            if (w > 0 && h > 0) setScale(Math.min(w / DESIGN_W, h / DESIGN_H));
+        };
+        updateScale();
+        const ro = new ResizeObserver(updateScale);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
+    // 휴대기기에서는 모든 화면에서 강제 가로 모드(랜드스케이프) 적용
     useEffect(() => {
-        if (typeof window === 'undefined') return;
+        if (typeof window === 'undefined' || !isHandheld) return;
         const orient = (window as any).screen?.orientation;
-        if (!isHandheld || !orient?.lock) return;
+        if (!orient?.lock) return;
 
         const tryLockLandscape = () => {
-            orient.lock('landscape').catch(() => {});
+            orient.lock('landscape').catch(() => {
+                orient.lock('landscape-primary').catch(() => {});
+            });
+        };
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') tryLockLandscape();
         };
 
         tryLockLandscape();
         window.addEventListener('orientationchange', tryLockLandscape);
-        return () => window.removeEventListener('orientationchange', tryLockLandscape);
+        window.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            window.removeEventListener('orientationchange', tryLockLandscape);
+            window.removeEventListener('visibilitychange', onVisibilityChange);
+        };
     }, [isHandheld]);
 
     return (
@@ -221,7 +257,6 @@ const AppContent: React.FC = () => {
             overflow: 'hidden',
             paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : '0px'
         }}>
-            <LandscapeOnlyOverlay show={showLandscapeOnlyOverlay} />
             {isPreloading && (
                 <div className="fixed bottom-4 right-4 z-[100] bg-panel border border-color text-on-panel rounded-lg shadow-xl px-3 py-2 flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
@@ -234,39 +269,61 @@ const AppContent: React.FC = () => {
                 </div>
             )}
             
-            {currentUser && !isGameView && <Header />}
-            
-            {currentUser ? (
-                <main className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden" style={{ 
-                    flex: '1 1 0',
-                    minHeight: 0,
-                    paddingBottom: isMobile ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
-                    WebkitOverflowScrolling: 'touch',
-                    marginBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : '0px'
-                }}>
-                    <Router />
-                </main>
-            ) : (
-                <div className="relative h-full w-full flex flex-col items-center justify-center p-4 sm:p-8 bg-tertiary bg-[url('/images/bg/loginbg.png')] bg-cover bg-center">
-                    <div className="absolute inset-0 bg-black/60"></div>
-                    <header className="relative text-center z-10 pt-8 md:pt-16 mb-8">
-                        <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-widest uppercase title-glow-secondary" style={{ fontFamily: 'serif' }}>
-                            SUDAM
-                        </h1>
-                        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-wider mt-2 title-glow-secondary" style={{ fontFamily: 'serif' }}>
-                            The Ascending Masters
-                        </h2>
-                        <p className="mt-4 text-xs sm:text-sm text-gray-300">
-                            Supreme Universe of Dueling Ascending Masters (S.U.D.A.M)
-                            <br/>
-                            (격돌하는 초인들이 승천하는 최고의 세계)
-                        </p>
-                    </header>
-                    <main className="relative flex-1 flex flex-col min-h-0 z-10">
-                        <Router />
-                    </main>
+            {/* 전체 앱을 16:9 박스 안에 넣고, 내부는 고정 캔버스(1920x1080)를 scale로 맞춰 “한 장 그림”처럼 동일 비율로 확대/축소 */}
+            <div className="flex-1 flex items-center justify-center min-h-0">
+                <div
+                    ref={containerRef}
+                    className="w-full h-full max-w-full max-h-full aspect-[16/9] overflow-hidden relative"
+                >
+                    <div
+                        className="absolute left-0 top-0 flex flex-col"
+                        style={{
+                            width: DESIGN_W,
+                            height: DESIGN_H,
+                            transform: `scale(${scale})`,
+                            transformOrigin: '0 0',
+                        }}
+                    >
+                        {currentUser && !isGameView && <Header />}
+                        
+                        {currentUser ? (
+                            <main
+                                className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden"
+                                style={{
+                                    flex: '1 1 0',
+                                    minHeight: 0,
+                                    paddingBottom: isMobile ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
+                                    WebkitOverflowScrolling: 'touch',
+                                    marginBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : '0px',
+                                }}
+                            >
+                                <Router />
+                            </main>
+                        ) : (
+                            <div className="relative flex-1 w-full flex flex-col items-center justify-center min-h-0 overflow-y-auto p-4 sm:p-6 bg-tertiary bg-[url('/images/bg/loginbg.png')] bg-cover bg-center">
+                                <div className="absolute inset-0 bg-black/60"></div>
+                                {/* 1920x1080 캔버스 기준 고정 크기 → 스케일 시 전체와 동일 비율로 확대/축소 */}
+                                <header className="relative text-center z-10 flex-shrink-0 pt-6 pb-2 mb-2" style={{ fontFamily: 'serif' }}>
+                                    <h1 className="font-black text-white tracking-widest uppercase title-glow-secondary" style={{ fontSize: 52, lineHeight: 1.2 }}>
+                                        SUDAM
+                                    </h1>
+                                    <h2 className="font-bold text-white tracking-wider mt-1 title-glow-secondary" style={{ fontSize: 26, lineHeight: 1.3 }}>
+                                        The Ascending Masters
+                                    </h2>
+                                    <p className="mt-2 text-gray-300" style={{ fontSize: 13 }}>
+                                        Supreme Universe of Dueling Ascending Masters (S.U.D.A.M)
+                                        <br/>
+                                        (격돌하는 초인들이 승천하는 최고의 세계)
+                                    </p>
+                                </header>
+                                <main className="relative flex-1 flex flex-col min-h-0 min-w-0 z-10 flex items-center justify-center">
+                                    <Router />
+                                </main>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            )}
+            </div>
             
             {/* Render modals only when a user is logged in */}
             {currentUserWithStatus && (
@@ -328,7 +385,11 @@ const AppContent: React.FC = () => {
                     {modals.isInsufficientActionPointsModalOpen && (
                         <InsufficientActionPointsModal
                             onClose={handlers.closeInsufficientActionPointsModal}
-                            onOpenShop={() => {
+                            onOpenShopConsumables={() => {
+                                handlers.closeInsufficientActionPointsModal();
+                                handlers.openShop('consumables');
+                            }}
+                            onOpenDiamondRecharge={() => {
                                 handlers.closeInsufficientActionPointsModal();
                                 handlers.openActionPointModal();
                             }}

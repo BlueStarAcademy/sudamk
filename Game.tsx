@@ -24,9 +24,11 @@ import TowerControls from './components/game/TowerControls.js';
 import TowerSidebar from './components/game/TowerSidebar.js';
 import { ScoringOverlay } from './components/game/ScoringOverlay.js';
 import { useClientTimer } from './hooks/useClientTimer.js';
-import { useIsMobileLayout } from './hooks/useIsMobileLayout.js';
+import { useIsHandheldDevice, useIsMobileLayout } from './hooks/useIsMobileLayout.js';
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
+import Button from './components/Button.js';
+import ToggleSwitch from './components/ui/ToggleSwitch.js';
 
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
@@ -88,6 +90,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         negotiations,
         activeNegotiation,
         settings,
+        updateFeatureSetting,
     } = useAppContext();
 
     const { id: gameId, currentPlayer, gameStatus, player1, player2, mode, blackPlayerId, whitePlayerId } = session;
@@ -402,6 +405,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // --- Mobile UI State (가로 모드에서는 PC와 동일 UI) ---
     const isMobile = useIsMobileLayout(1024);
     const isMobileSafeArea = useIsMobileLayout(768);
+    // 휴대기기에서는 세로/가로와 무관하게 "모바일 보조 UI(착수 확정 등)" 사용
+    const isHandheld = useIsHandheldDevice(1025);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [hasNewMessage, setHasNewMessage] = useState(false);
     // 우측 사이드바 접기/펼치기 (전략·놀이바둑 경기장)
@@ -468,6 +473,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         return Player.None;
     }, [currentUser.id, blackPlayerId, whitePlayerId, isSpectator, mode, gameStatus, player1.id, player2.id, session.settings.mixedModes]);
+
+    const pendingMoveForBoard = useMemo(() => {
+        if (!settings.features.mobileConfirm || !pendingMove) return null;
+        if (myPlayerEnum === Player.None) return null;
+        return { x: pendingMove.x, y: pendingMove.y, player: myPlayerEnum };
+    }, [settings.features.mobileConfirm, pendingMove, myPlayerEnum]);
     
     const isMyTurn = useMemo(() => {
         if (isSpectator) return false;
@@ -735,7 +746,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return;
         }
 
-        if (isMobile && settings.features.mobileConfirm && isMyTurn && !isItemModeActive) {
+        // 착수 버튼 모드(ON)면 PC/모바일 모두 pendingMove로 확정 처리
+        if (settings.features.mobileConfirm && isMyTurn && !isItemModeActive) {
             if (pendingMove && pendingMove.x === x && pendingMove.y === y) return;
             setPendingMove({ x, y });
             return;
@@ -1029,16 +1041,71 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return;
         }
 
+        const isTower = session.gameCategory === 'tower';
+        const isPVEGame = session.isSinglePlayer || isTower || session.gameCategory === 'singleplayer';
+
         let actionType: ServerAction['type'] | null = null;
         let payload: any = { gameId, x, y };
 
         if ((mode === GameMode.Omok || mode === GameMode.Ttamok) && gameStatus === 'playing' && isMyTurn) {
             actionType = 'OMOK_PLACE_STONE';
         } else if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn) {
-            actionType = 'PLACE_STONE';
-            payload.isHidden = gameStatus === 'hidden_placing';
-            payload.boardState = restoredBoardState || session.boardState;
-            payload.moveHistory = session.moveHistory || [];
+            // PVE(싱글/타워): 클라이언트에서 즉시 반영
+            if (isPVEGame) {
+                const boardStateToUse = restoredBoardState || session.boardState;
+                if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) {
+                    setPendingMove(null);
+                    return;
+                }
+                const boardSize = session.settings.boardSize;
+                if (x === -1 || y === -1) {
+                    setPendingMove(null);
+                    return;
+                }
+                if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
+                    setPendingMove(null);
+                    return;
+                }
+
+                const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+
+                let moveResult;
+                try {
+                    moveResult = processMoveClient(
+                        boardStateToUse,
+                        { x, y, player: myPlayerEnum },
+                        session.koInfo,
+                        session.moveHistory?.length || 0,
+                        { ignoreSuicide: false, isSinglePlayer: true, opponentPlayer: opponentPlayerEnum }
+                    );
+                } catch (e) {
+                    console.error('[Game] Confirm move processMoveClient error:', e);
+                    setPendingMove(null);
+                    return;
+                }
+                if (!moveResult.isValid) {
+                    setPendingMove(null);
+                    return;
+                }
+
+                actionType = isTower ? ('TOWER_CLIENT_MOVE' as any) : ('SINGLE_PLAYER_CLIENT_MOVE' as any);
+                payload = {
+                    gameId,
+                    x,
+                    y,
+                    newBoardState: moveResult.newBoardState,
+                    capturedStones: moveResult.capturedStones,
+                    newKoInfo: moveResult.newKoInfo,
+                    // 히든 배치 상태에서는 히든 착수로 처리(타워 21층+ 등)
+                    ...(gameStatus === 'hidden_placing' ? { isHidden: true } : {}),
+                };
+            } else {
+                // 온라인 게임(전략바둑 AI 대국 포함): 서버에서 검증/반영
+                actionType = 'PLACE_STONE';
+                payload.isHidden = gameStatus === 'hidden_placing';
+                payload.boardState = restoredBoardState || session.boardState;
+                payload.moveHistory = session.moveHistory || [];
+            }
         }
 
         if (actionType) {
@@ -1046,7 +1113,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             handlers.handleAction({ type: actionType, payload } as ServerAction);
         }
         setPendingMove(null);
-    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, session.boardState, session.moveHistory, restoredBoardState, isMoveInFlight]);
+    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, restoredBoardState, isMoveInFlight, session.gameCategory, session.isSinglePlayer, session.boardState, session.settings.boardSize, session.koInfo, session.moveHistory?.length, myPlayerEnum]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
 
@@ -1738,6 +1805,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const gameControlsProps = {
         session, isMyTurn, isSpectator, onAction: handlers.handleAction, setShowResultModal, setConfirmModalType, currentUser: currentUserWithStatus,
         onlineUsers, pendingMove, onConfirmMove: handleConfirmMove, onCancelMove: handleCancelMove, settings, isMobile,
+        onUpdateFeatureSetting: updateFeatureSetting,
         showResultModal,
         isMoveInFlight,
         isBoardLocked,
@@ -1753,23 +1821,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     if (isSinglePlayer) {
         return (
-            <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full bg-single-player-background text-stone-200`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
+            <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full bg-single-player-background text-stone-200 min-h-0`} style={{ height: '100%', maxHeight: '100%', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
                 {showGameDescription && (
                     <SinglePlayerGameDescriptionModal 
                         session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
                     />
                 )}
-                <Header />
+                <Header compact />
                 <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
-                    <main className="flex-1 flex items-center justify-center min-w-0 min-h-0">
-                        <div className="w-full h-full max-h-full max-w-[calc(100vh-8rem)] flex flex-col items-center gap-1 lg:gap-2">
-                            <div className="flex-shrink-0 w-full flex items-center gap-2">
-                                <div className="flex-1 min-w-0">
+                    <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
+                        <div className="w-full h-full max-h-full max-w-full flex flex-col items-center gap-1 lg:gap-2">
+                        <div className="flex-shrink-0 w-full flex items-center gap-2">
+                                <div className="flex-1 min-w-0 px-2 pt-1">
                                     <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isSinglePlayer={true} isMobile={isMobile} />
                                 </div>
                             </div>
-                            <div className="flex-1 w-full relative">
+                            <div className="flex-1 w-full relative min-w-0 min-h-0 overflow-hidden">
                                 <div className="absolute inset-0">
                                     <GameArena 
                                         {...gameProps}
@@ -1779,6 +1847,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isItemModeActive={isItemModeActive} 
                                         showTerritoryOverlay={showFinalTerritory} 
                                         isMobile={isMobile}
+                                        pendingMove={pendingMoveForBoard}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                         showLastMoveMarker={settings.features.lastMoveMarker}
                                         isSinglePlayerPaused={isPaused}
@@ -1788,6 +1857,37 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isBoardRotated={isBoardRotated}
                                         onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
                                     />
+                                    {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
+                                    {(
+                                        <div
+                                            className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
+                                            style={{ left: 'calc(50% + 420px + 8px)' }}
+                                        >
+                                            <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
+                                                <Button
+                                                    onClick={pendingMove ? handleConfirmMove : undefined}
+                                                    disabled={!pendingMove || !settings.features.mobileConfirm}
+                                                    colorScheme="none"
+                                                    className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${(!pendingMove || !settings.features.mobileConfirm) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                                    title={!settings.features.mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : (pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요')}
+                                                >
+                                                    착수
+                                                </Button>
+                                                {/* 취소 버튼은 사용하지 않음: 다른 곳 클릭 시 예상착점이 이동됨 */}
+                                                <div className="w-full h-px bg-gray-700/70" />
+                                                <div className="flex items-center justify-between gap-2 w-full">
+                                                    <span className="text-[10px] text-gray-300 whitespace-nowrap">착수 버튼</span>
+                                                    <ToggleSwitch
+                                                        checked={settings.features.mobileConfirm}
+                                                        onChange={(checked) => {
+                                                            updateFeatureSetting('mobileConfirm', checked);
+                                                            if (!checked) setPendingMove(null);
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -1873,10 +1973,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     if (isTower) {
         return (
             <div 
-                className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full text-stone-200`}
+                className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full text-stone-200 min-h-0`}
                 style={{
-                    height: '100dvh',
-                    maxHeight: '100dvh',
+                    height: '100%',
+                    maxHeight: '100%',
                     paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px',
                     ...(towerBackgroundImage ? {
                         backgroundImage: `url(${towerBackgroundImage})`,
@@ -1892,16 +1992,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         onStart={handleStartGame}
                     />
                 )}
-                <Header />
+                <Header compact />
                 <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
-                    <main className="flex-1 flex items-center justify-center min-w-0 min-h-0">
-                        <div className="w-full h-full max-h-full max-w-[calc(100vh-8rem)] flex flex-col items-center gap-1 lg:gap-2">
-                            <div className="flex-shrink-0 w-full flex items-center gap-2">
-                                <div className="flex-1 min-w-0">
+                    <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
+                        <div className="w-full h-full max-h-full max-w-full flex flex-col items-center gap-1 lg:gap-2">
+                        <div className="flex-shrink-0 w-full flex items-center gap-2">
+                            <div className="flex-1 min-w-0 px-2 pt-1">
                                     <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isSinglePlayer={true} isMobile={isMobile} />
                                 </div>
                             </div>
-                            <div className="flex-1 w-full relative">
+                            <div className="flex-1 w-full relative min-w-0 min-h-0 overflow-hidden">
                                 <div className="absolute inset-0">
                                 <GameArena 
                                         {...gameProps}
@@ -1911,6 +2011,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isItemModeActive={isItemModeActive} 
                                         showTerritoryOverlay={showFinalTerritory} 
                                         isMobile={isMobile}
+                                        pendingMove={pendingMoveForBoard}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                         showLastMoveMarker={settings.features.lastMoveMarker}
                                         isSinglePlayerPaused={isPaused}
@@ -1918,6 +2019,37 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
                                     />
+                                {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
+                                {(
+                                        <div
+                                            className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
+                                            style={{ left: 'calc(50% + 420px + 8px)' }}
+                                        >
+                                            <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
+                                            <Button
+                                                onClick={pendingMove ? handleConfirmMove : undefined}
+                                                disabled={!pendingMove || !settings.features.mobileConfirm}
+                                                colorScheme="none"
+                                                className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${(!pendingMove || !settings.features.mobileConfirm) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                                title={!settings.features.mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : (pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요')}
+                                            >
+                                                착수
+                                            </Button>
+                                            {/* 취소 버튼은 사용하지 않음: 다른 곳 클릭 시 예상착점이 이동됨 */}
+                                                <div className="w-full h-px bg-gray-700/70" />
+                                                <div className="flex items-center justify-between gap-2 w-full">
+                                                    <span className="text-[10px] text-gray-300 whitespace-nowrap">착수 버튼</span>
+                                                    <ToggleSwitch
+                                                        checked={settings.features.mobileConfirm}
+                                                    onChange={(checked) => {
+                                                        updateFeatureSetting('mobileConfirm', checked);
+                                                        if (!checked) setPendingMove(null);
+                                                    }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                )}
                                 </div>
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -2016,7 +2148,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame) ? isPaused : false;
 
     return (
-        <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full ${pvpBackgroundClass}`} style={{ height: '100dvh', maxHeight: '100dvh', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
+        <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full min-h-0 ${pvpBackgroundClass}`} style={{ height: '100%', maxHeight: '100%', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
             {session.disconnectionState && <DisconnectionModal session={session} currentUser={currentUser} />}
             {isAiRematchModalOpen && (
                 <AiChallengeModal
@@ -2035,16 +2167,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 />
             )}
             {/* 전략·놀이바둑 경기장 상단 헤더 (행동력, 재화, 설정 등) */}
-            <Header />
+            <Header compact />
             <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
-                <main className="flex-1 flex items-center justify-center min-w-0 min-h-0">
-                    <div className="w-full h-full max-h-full max-w-[calc(100vh-8rem)] flex flex-col items-center gap-1 lg:gap-2">
+                <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
+                    <div className="w-full h-full max-h-full max-w-full flex flex-col items-center gap-1 lg:gap-2">
                         <div className="flex-shrink-0 w-full flex items-center gap-2">
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 px-2 pt-1">
                                 <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isMobile={isMobile} />
                             </div>
                         </div>
-                        <div className="flex-1 w-full relative">
+                        <div className="flex-1 w-full relative min-w-0 min-h-0 overflow-hidden">
                             <div className="absolute inset-0">
                                 <div className={`w-full h-full transition-opacity duration-500 ${effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                                     <GameArena 
@@ -2055,12 +2187,44 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isItemModeActive={isItemModeActive} 
                                         showTerritoryOverlay={showFinalTerritory} 
                                         isMobile={isMobile}
+                                        pendingMove={pendingMoveForBoard}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                         showLastMoveMarker={settings.features.lastMoveMarker}
                                         isBoardRotated={isBoardRotated}
                                         onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
                                     />
                                 </div>
+                                {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
+                                {(
+                                    <div
+                                        className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
+                                        style={{ left: 'calc(50% + 420px + 8px)' }}
+                                    >
+                                        <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
+                                            <Button
+                                                onClick={pendingMove ? handleConfirmMove : undefined}
+                                                disabled={!pendingMove || !settings.features.mobileConfirm}
+                                                colorScheme="none"
+                                                className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${(!pendingMove || !settings.features.mobileConfirm) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                                title={!settings.features.mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : (pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요')}
+                                            >
+                                                착수
+                                            </Button>
+                                            {/* 취소 버튼은 사용하지 않음: 다른 곳 클릭 시 예상착점이 이동됨 */}
+                                            <div className="w-full h-px bg-gray-700/70" />
+                                            <div className="flex items-center justify-between gap-2 w-full">
+                                                <span className="text-[10px] text-gray-300 whitespace-nowrap">착수 버튼</span>
+                                                <ToggleSwitch
+                                                    checked={settings.features.mobileConfirm}
+                                                    onChange={(checked) => {
+                                                        updateFeatureSetting('mobileConfirm', checked);
+                                                        if (!checked) setPendingMove(null);
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 {effectivePaused && (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
                                         <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>

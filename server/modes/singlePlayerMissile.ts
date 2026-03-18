@@ -948,7 +948,7 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             // 미사일 아이템은 턴을 사용하는 행동이 아니므로 totalTurns를 증가시키지 않음
             // totalTurns는 유지되어야 함 (자동계가까지 남은 턴이 초기화되지 않도록)
             
-            // 애니메이션 설정 (2초)
+            // 애니메이션 설정 (3초)
             // 새로운 애니메이션 시작 시 이전 처리 기록 초기화
             (game as any).lastProcessedMissileAnimationTime = undefined;
             
@@ -958,7 +958,7 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 to,
                 player: myPlayerEnum,
                 startTime: now,
-                duration: 2000
+                duration: 3000
             };
             
             if (revealedHiddenStone) {

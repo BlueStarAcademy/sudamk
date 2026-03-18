@@ -605,7 +605,7 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                 to,
                 player: myPlayerEnum,
                 startTime: now,
-                duration: 2000
+                duration: 3000
             };
             
             if (revealedHiddenStone) {
