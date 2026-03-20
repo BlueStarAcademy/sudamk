@@ -187,7 +187,9 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4">
+    // App.tsx의 `transform: scale()` 캔버스 내부 렌더링 시 `fixed`는 스케일이 적용되지 않습니다.
+    // 따라서 `absolute`로 변경해 캔버스 스케일과 동일하게 동작하도록 합니다.
+    <div className="absolute inset-0 z-[9999] bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-gray-900/95 border border-color rounded-xl shadow-2xl text-on-panel overflow-hidden">
         <div className="p-5 border-b border-color bg-tertiary/20">
           <div className="flex items-start gap-4">

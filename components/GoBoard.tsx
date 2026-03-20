@@ -3,7 +3,6 @@ import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSe
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import { audioService } from '../services/audioService.js';
-import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 
 const AnimatedBonusText: React.FC<{
     animation: Extract<AnimationData, { type: 'bonus_text' }>;
@@ -480,7 +479,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const [isDraggingMissile, setIsDraggingMissile] = useState(false);
     const [dragStartPoint, setDragStartPoint] = useState<Point | null>(null);
     const [dragEndPoint, setDragEndPoint] = useState<Point | null>(null);
-    const isMobile = useIsMobileLayout(1024);
+    const isMobile = false;
     const dragStartBoardPoint = useRef<Point | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const preservedBoardStateRef = useRef<BoardState | null>(null);

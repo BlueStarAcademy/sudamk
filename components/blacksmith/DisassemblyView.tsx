@@ -5,7 +5,6 @@ import ResourceActionButton from '../ui/ResourceActionButton.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { ENHANCEMENT_COSTS, MATERIAL_ITEMS } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
-import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 const DisassemblyPreviewPanel: React.FC<{
     selectedIds: Set<string>;
@@ -165,7 +164,7 @@ interface DisassemblyViewProps {
 }
 
 const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedForDisassembly = new Set(), onToggleDisassemblySelection }) => { // Added default value
-    const isMobile = useIsMobileLayout(768);
+    const isMobile = false;
     const { currentUserWithStatus } = useAppContext();
     const [isAutoSelectOpen, setIsAutoSelectOpen] = useState(false);
 

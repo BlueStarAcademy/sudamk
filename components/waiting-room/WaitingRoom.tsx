@@ -199,8 +199,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   }, [mode, currentUserWithStatus?.id]);
 
   const onBackToLobby = () => {
-    handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' });
+    // 홈 이동은 항상 즉시 수행하고, 대기실 이탈 상태 정리는 비동기로 처리
     window.location.hash = '#/profile';
+    Promise.resolve(handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' })).catch((error) => {
+      console.error('[WaitingRoom] LEAVE_WAITING_ROOM failed:', error);
+    });
   }
 
   if (!currentUserWithStatus) return null;
@@ -272,13 +275,13 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     
   return (
     <div className="bg-primary text-primary flex flex-col h-full max-w-full">
-      <header className="flex justify-between items-center mb-4 flex-shrink-0 px-2 sm:px-4 lg:px-6 pt-2 sm:pt-4 lg:pt-6">
-        <div className="flex-1">
-          <button onClick={onBackToLobby} className="p-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
+      <header className="relative flex justify-between items-center mb-4 flex-shrink-0 px-2 sm:px-4 lg:px-6 pt-2 sm:pt-4 lg:pt-6">
+        <div className="flex-1 relative z-20">
+          <button onClick={onBackToLobby} className="relative z-20 pointer-events-auto p-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
             <img src="/images/button/back.png" alt="Back" className="w-full h-full" />
           </button>
         </div>
-        <div className='flex-1 text-center flex items-center justify-center h-full'>
+        <div className='flex-1 min-w-0 text-center flex items-center justify-center h-full pointer-events-none'>
           <div className="flex items-center gap-2 sm:gap-3 flex-nowrap h-full">
             <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold whitespace-nowrap">
               {mode === 'strategic' ? '전략바둑 대기실' : mode === 'playful' ? '놀이바둑 대기실' : `${mode} 대기실`}
@@ -292,7 +295,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   const targetMode = mode === 'strategic' ? 'playful' : 'strategic';
                   window.location.hash = `#/waiting/${targetMode}`;
                 }}
-                className="w-8 sm:w-10 flex items-center justify-center rounded-lg transition-all duration-300 hover:scale-110 active:scale-95 text-on-panel relative overflow-hidden group"
+                className="pointer-events-auto w-8 sm:w-10 flex items-center justify-center rounded-lg transition-all duration-300 hover:scale-110 active:scale-95 text-on-panel relative overflow-hidden group"
                 style={{ 
                   height: '60%',
                   marginTop: '4px',

@@ -507,8 +507,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
     };
     
     return (
-        <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={600} isTopmost={isTopmost}>
-            <div className="h-[calc(var(--vh,1vh)*60)] flex flex-col">
+        <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={600} initialHeight={720} isTopmost={isTopmost}>
+            <div className="h-[620px] flex flex-col">
                 <div className="flex bg-tertiary/70 p-1 rounded-lg mb-4 flex-shrink-0">
                     {tabs.map(tab => (
                         <button

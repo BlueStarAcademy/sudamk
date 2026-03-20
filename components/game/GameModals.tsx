@@ -138,7 +138,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         <>
             {renderModals()}
             {content && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[9999]">
+                <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[9999]">
                     <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm p-6 border border-gray-700">
                         <h2 className="text-xl font-bold text-center mb-4">{content.title}</h2>
                         <p className="text-center text-gray-300 mb-6">{content.message}</p>

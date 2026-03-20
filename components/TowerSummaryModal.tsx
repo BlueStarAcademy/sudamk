@@ -8,7 +8,6 @@ import { AVATAR_POOL, BORDER_POOL } from '../constants/ui.js';
 import { AvatarInfo, BorderInfo } from '../types.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
-import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 
 interface TowerSummaryModalProps {
@@ -126,8 +125,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     }, []);
 
     const effectiveViewportWidth = viewportWidth ?? 1024;
-    const isMobileView = useIsMobileLayout(768);
-    const initialWidth = isMobileView ? Math.max(Math.min(effectiveViewportWidth - 32, 420), 320) : 500;
+    const isMobileView = false;
+    const isInsideScaledCanvas = typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
+    const isMobile = isInsideScaledCanvas ? false : isMobileView;
+    const initialWidth = isMobile ? Math.max(Math.min(effectiveViewportWidth - 32, 420), 320) : 500;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];
@@ -344,8 +345,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             ? (isWinner ? "층 클리어" : "층 실패")
             : "게임 결과";
 
-    const isMobile = isMobileView;
-    const mobileTextScale = isMobileView ? 1.2 : 1.15;
+    // isMobile은 위에서 scaled-canvas 여부를 반영해 결정합니다.
+    const mobileTextScale = isMobile ? 1.2 : 1.15;
 
     // 좌/우 패널 균등 분할, 오른쪽 불필요한 여백 제거
     const panelSizing = isMobile ? 'min-w-0 flex-1' : 'min-w-0 flex-1 basis-0';

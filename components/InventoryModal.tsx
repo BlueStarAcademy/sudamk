@@ -774,24 +774,31 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     
     // 좁은 가로 화면에서는 PC 인벤토리 UI를 축소해서 유지한다.
     const isCompactViewport = useMemo(() => windowWidth < 1025, [windowWidth]);
+
+    // App.tsx에서 1920x1080 캔버스를 scale로 통째로 줄이는 환경에서는
+    // InventoryModal 내부 scaleFactor까지 중복 적용되지 않게 비활성화합니다.
+    const isInsideScaledCanvas =
+        typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
+
+    const effectiveIsCompactViewport = isInsideScaledCanvas ? false : isCompactViewport;
     
     // 창 크기에 비례한 스케일 팩터 계산 (기준: 950px 너비)
     // 모바일에서는 PC 레이아웃을 그대로 유지하되, 전체적으로 축소
     const baseWidth = 950;
     const scaleFactor = useMemo(() => {
-        if (isCompactViewport) {
+        if (effectiveIsCompactViewport) {
             // 모바일: PC 레이아웃을 그대로 축소 (최소 0.35, 최대 0.5)
             const rawScale = calculatedWidth / baseWidth;
             return Math.max(0.35, Math.min(0.5, rawScale));
         }
         const rawScale = calculatedWidth / baseWidth;
         return Math.max(0.4, Math.min(1.0, rawScale));
-    }, [calculatedWidth, isCompactViewport]);
+    }, [calculatedWidth, effectiveIsCompactViewport]);
     
     // 모바일 텍스트 크기 조정 팩터 (모바일에서는 텍스트를 약간 더 크게)
     const mobileTextScale = useMemo(() => {
-        return isCompactViewport ? 1.25 : 1.0;
-    }, [isCompactViewport]);
+        return effectiveIsCompactViewport ? 1.25 : 1.0;
+    }, [effectiveIsCompactViewport]);
 
     const handlePresetChange = (presetIndex: number) => {
         setSelectedPreset(presetIndex);
@@ -1053,7 +1060,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 style={{ margin: 0, padding: 0 }}
             >
                 {/* Top section: Equipped items (left) and Selected item details (right) */}
-                <div className={`bg-gray-800 mb-2 rounded-md shadow-inner flex flex-row ${isCompactViewport ? 'flex-shrink' : 'flex-shrink-0'} ${isCompactViewport ? '' : 'overflow-auto'}`} style={{ maxHeight: isCompactViewport ? 'none' : `${Math.min(600 * scaleFactor, windowHeight * 0.7)}px`, padding: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}>
+                <div
+                    className={`bg-gray-800 mb-2 rounded-md shadow-inner flex flex-row ${effectiveIsCompactViewport ? 'flex-shrink' : 'flex-shrink-0'} ${effectiveIsCompactViewport ? 'overflow-auto' : ''}`}
+                    style={{
+                        // 모바일(compact)일 때만 상단 섹션 높이 제한 + 스크롤 허용
+                        maxHeight: effectiveIsCompactViewport ? `${Math.min(600 * scaleFactor, windowHeight * 0.7)}px` : undefined,
+                        padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
+                    }}
+                >
                     {/* Left panel: Equipped items */}
                     <div className={`w-1/3 flex-shrink-0 border-r border-gray-700`} style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}>
                         <>
@@ -1124,7 +1138,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                             {/* Middle panel: Currently equipped item for comparison */}
                             <div className={`flex flex-col flex-1 h-full bg-panel-secondary rounded-lg p-2 relative overflow-hidden border-r border-gray-700`}>
                                 <h3 className="font-bold text-on-panel mb-1 flex-shrink-0" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>현재 장착</h3>
-                                <div className={`flex-1 min-h-0 ${isCompactViewport ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
+                                <div className={`flex-1 min-h-0 ${effectiveIsCompactViewport ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
                                     <LocalItemDetailDisplay 
                                         item={correspondingEquippedItem} 
                                         title="장착된 장비 없음" 
@@ -1147,7 +1161,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         </span>
                                     )}
                                 </div>
-                                <div className={`flex-1 min-h-0 ${isCompactViewport ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
+                                <div className={`flex-1 min-h-0 ${effectiveIsCompactViewport ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
                                     <LocalItemDetailDisplay item={selectedItem} title="선택된 아이템 없음" comparisonItem={correspondingEquippedItem} scaleFactor={scaleFactor} mobileTextScale={mobileTextScale} userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel} />
                                 </div>
                                 <div className={`absolute bottom-2 left-0 right-0 flex justify-center gap-2 px-2 flex-shrink-0 bg-panel-secondary/95 backdrop-blur-sm`}>
@@ -1195,7 +1209,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         <h3 className="font-bold text-on-panel mb-2 flex-shrink-0" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>
                                             선택 {selectedItem.type === 'consumable' ? '소모품' : '재료'}
                                         </h3>
-                                        <div className={`flex-1 min-h-0 ${isCompactViewport ? 'overflow-visible' : 'overflow-y-auto'}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px`, WebkitOverflowScrolling: 'touch' }}>
+                                        <div className={`flex-1 min-h-0 ${effectiveIsCompactViewport ? 'overflow-visible' : 'overflow-y-auto'}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px`, WebkitOverflowScrolling: 'touch' }}>
                                             <div className="flex items-start justify-between mb-2">
                                                 <div 
                                                     className="relative rounded-lg flex-shrink-0 aspect-square"
@@ -1314,7 +1328,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 </div>
 
                 {/* Bottom section: Inventory grid */}
-                <div className="bg-gray-900 overflow-hidden flex flex-col" style={{ flex: isCompactViewport ? '0 0 auto' : '1 1 0', minHeight: `${isCompactViewport ? Math.max(150 * scaleFactor, windowHeight * 0.2) : Math.max(320 * scaleFactor, windowHeight * 0.45)}px`, padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`, paddingTop: `${Math.max(12, Math.round(16 * scaleFactor))}px`, paddingBottom: `${Math.max(12, Math.round(16 * scaleFactor))}px`, marginBottom: 0 }}>
+                <div className="bg-gray-900 overflow-hidden flex flex-col" style={{ flex: effectiveIsCompactViewport ? '0 0 auto' : '1 1 0', minHeight: `${effectiveIsCompactViewport ? Math.max(150 * scaleFactor, windowHeight * 0.2) : Math.max(320 * scaleFactor, windowHeight * 0.45)}px`, padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`, paddingTop: `${Math.max(12, Math.round(16 * scaleFactor))}px`, paddingBottom: `${Math.max(12, Math.round(16 * scaleFactor))}px`, marginBottom: 0 }}>
                     <div className={`flex-shrink-0 bg-gray-900/50 rounded-md mb-2`} style={{ padding: `${Math.max(6, Math.round(8 * scaleFactor))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>
                         <div className={`flex items-center justify-between`}>
                             <div className={`flex items-center space-x-2`}>
@@ -1373,9 +1387,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                             <button
                                 key="expand-slot"
                                 onClick={handleExpand}
-                                className={`w-full aspect-square rounded-lg bg-gray-800/50 border-2 border-gray-700/50 flex items-center justify-center text-gray-400 ${isCompactViewport ? 'text-3xl' : 'text-4xl'} hover:bg-gray-700/50 hover:border-accent active:bg-gray-600/50 transition-all duration-200`}
+                                className={`w-full aspect-square rounded-lg bg-gray-800/50 border-2 border-gray-700/50 flex items-center justify-center text-gray-400 ${effectiveIsCompactViewport ? 'text-3xl' : 'text-4xl'} hover:bg-gray-700/50 hover:border-accent active:bg-gray-600/50 transition-all duration-200`}
                                 title={`가방 확장 (${expansionCost} 다이아)`}
-                                style={{ minHeight: isCompactViewport ? '44px' : undefined }}
+                                style={{ minHeight: effectiveIsCompactViewport ? '44px' : undefined }}
                             >
                                 +
                             </button>

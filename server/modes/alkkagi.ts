@@ -423,8 +423,32 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
             }
             break;
         case 'alkkagi_animating': {
+            const animation = game.animation;
+            const isValidFlickAnimation =
+                animation &&
+                animation.type === 'alkkagi_flick' &&
+                typeof animation.startTime === 'number' &&
+                typeof animation.duration === 'number';
+
+            // 복구 로직: 애니메이션 정보가 유실/오염된 경우에도 턴이 영구 정지되지 않도록 강제 정리
+            // (PVP에서 간헐적으로 alkkagi_animating 상태가 남는 문제 방지)
+            if (!isValidFlickAnimation) {
+                const previousPlayer = game.currentPlayer;
+                game.animation = null;
+                game.gameStatus = 'alkkagi_playing';
+                if (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) {
+                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+                }
+                if (shouldEnforceTimeControl(game)) {
+                    game.alkkagiTurnDeadline = now + ALKKAGI_TURN_TIME_LIMIT * 1000;
+                    game.turnStartTime = now;
+                }
+                console.warn(`[updateAlkkagiState] Recovered from invalid alkkagi animation state, switched turn ${previousPlayer} -> ${game.currentPlayer}, game ${game.id}`);
+                break;
+            }
+
             // 컬링/바둑처럼: duration이 끝나면 시뮬레이션 실행 후 즉시 턴 전환
-            if (game.animation && game.animation.type === 'alkkagi_flick' && now >= game.animation.startTime + game.animation.duration) {
+            if (now >= animation.startTime + animation.duration) {
                 runServerSimulation(game);
                 game.animation = null;
                 const roundEnded = checkAndEndRound(game, now);

@@ -3,7 +3,6 @@ import { GameMode, ServerAction, Announcement, OverrideAnnouncement, UserWithSta
 import Avatar from './Avatar.js';
 import HelpModal from './HelpModal.js';
 import { useAppContext } from './../hooks/useAppContext.js';
-import { useIsMobileLayout } from './../hooks/useIsMobileLayout.js';
 
 // Import newly created sub-components
 import PlayerList from './waiting-room/PlayerList.js';
@@ -114,7 +113,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     waitingRoomChats, negotiations, handlers 
   } = useAppContext();
 
-  const isMobile = useIsMobileLayout(1024);
+  const isMobile = false;
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [isTierInfoModalOpen, setIsTierInfoModalOpen] = useState(false);

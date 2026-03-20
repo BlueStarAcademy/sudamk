@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { GameMode, ServerAction, GameSettings, Player, AlkkagiPlacementType } from '../../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, aiUserId } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, aiUserId } from '../../constants';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
   CAPTURE_TARGETS, TTAMOK_CAPTURE_TARGETS, SPEED_BOARD_SIZES, SPEED_TIME_LIMITS, BASE_STONE_COUNTS,
@@ -13,7 +13,6 @@ import {
 } from '../../constants/gameSettings.js';
 import Avatar from '../Avatar.js';
 import { shouldUseClientSideAi, loadWasmGnuGo } from '../../services/wasmGnuGo.js';
-import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';
@@ -70,30 +69,21 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
     const availableGameModes = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(availableGameModes[0]?.mode || null);
     const [settings, setSettings] = useState<GameSettings>(DEFAULT_GAME_SETTINGS);
-    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-    const [windowHeight, setWindowHeight] = useState(window.innerHeight);
-    
-    // 브라우저 크기에 따라 창 크기 계산
-    useEffect(() => {
-        const handleResize = () => {
-            setWindowWidth(window.innerWidth);
-            setWindowHeight(window.innerHeight);
-        };
-        
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-    
-    // 모바일 감지 (가로 모드에서는 PC와 동일 UI)
-    const isMobile = useIsMobileLayout(768);
-    
-    // 뷰포트 크기에 비례한 창 크기 계산 (80% 너비, 최소 550px, 최대 950px)
-    const calculatedWidth = Math.max(550, Math.min(950, windowWidth * 0.8));
-    // 뷰포트 크기에 비례한 창 높이 계산 (75% 높이, 최소 500px, 최대 800px)
-    const calculatedHeight = Math.max(500, Math.min(800, windowHeight * 0.75));
-    
-    // 모바일 텍스트 크기 조정 팩터
-    const mobileTextScale = isMobile ? 1.15 : 1.0;
+
+    const actionPointCost = useMemo(() => {
+        if (!selectedGameMode) return STRATEGIC_ACTION_POINT_COST;
+        if (SPECIAL_GAME_MODES.some(m => m.mode === selectedGameMode)) return STRATEGIC_ACTION_POINT_COST;
+        if (PLAYFUL_GAME_MODES.some(m => m.mode === selectedGameMode)) return PLAYFUL_ACTION_POINT_COST;
+        return STRATEGIC_ACTION_POINT_COST;
+    }, [selectedGameMode]);
+
+    // 이 모달은 캔버스(scale) 내부에서 같이 축소되어야 하므로,
+    // viewport 높이(window.innerHeight)에 의존하지 말고 PC와 동일한 고정 크기를 사용합니다.
+    // (모바일 landscape에서 windowHeight가 작아져 모달 높이가 작아지는 현상 방지)
+    const calculatedWidth = 900;
+    const calculatedHeight = 760;
+    const isMobile = false;
+    const mobileTextScale = 1.0;
 
     const selectedGameDefinition = useMemo(() => {
         return availableGameModes.find(mode => mode.mode === selectedGameMode);
@@ -712,7 +702,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                     <div className="border-t border-gray-700 flex justify-end gap-2 mt-4 pt-4 flex-shrink-0">
                         <Button onClick={onClose} colorScheme="gray" style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}>취소</Button>
                         <Button onClick={handleChallenge} colorScheme="purple" disabled={!selectedGameMode} style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}>
-                            시작
+                            시작 (⚡{actionPointCost})
                         </Button>
                     </div>
                 </div>

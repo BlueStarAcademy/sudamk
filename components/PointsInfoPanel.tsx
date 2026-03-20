@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { getDungeonStageScore } from '../constants';
-import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 import { TournamentType } from '../types';
 
 /** 같은 점수인 연속 순위를 묶어서 [{ label: '1위' | '4~7위', points }] 형태로 반환 */
@@ -34,7 +33,7 @@ const PointsInfoPanel: React.FC = () => {
         { type: 'world', arena: '세계', title: '월드챔피언십', maxRank: 15 },
     ];
 
-    const isMobile = useIsMobileLayout(1024);
+    const isMobile = false;
 
     return (
         <div className="bg-gray-800/50 rounded-lg p-2 sm:p-3 h-full flex flex-col">

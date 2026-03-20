@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { GameMode, UserWithStatus, GameSettings, Negotiation, ServerAction } from '../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS } from '../constants.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../constants.js';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
   CAPTURE_TARGETS, SPEED_BOARD_SIZES, SPEED_TIME_LIMITS, BASE_STONE_COUNTS,
@@ -41,6 +41,8 @@ const ChallengeReceivedModal: React.FC<ChallengeReceivedModalProps> = ({
   const challenger = negotiation.challenger;
   const [settings, setSettings] = useState<GameSettings>(negotiation.settings);
   const selectedMode = negotiation.mode;
+  const actionPointCost = SPECIAL_GAME_MODES.some(m => m.mode === selectedMode) ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
+  const hasEnoughAP = (currentUser?.actionPoints?.current ?? 0) >= actionPointCost;
   
   // negotiation.settings가 변경되면 로컬 state 업데이트
   useEffect(() => {
@@ -702,10 +704,10 @@ const ChallengeReceivedModal: React.FC<ChallengeReceivedModalProps> = ({
                 onClick={() => onAccept(negotiation.settings)} 
                 colorScheme="green" 
                 className="!py-1.5 flex-1"
-                disabled={settingsHaveChanged}
+                disabled={settingsHaveChanged || !hasEnoughAP}
                 style={{ fontSize: `${Math.max(10, Math.round(12 * 0.85))}px` }}
               >
-                수락
+                수락 (⚡{actionPointCost})
               </Button>
             </div>
           </div>

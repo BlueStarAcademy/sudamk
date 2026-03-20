@@ -55,10 +55,10 @@ const KakaoCallback: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-gray-400">카카오 로그인 처리 중...</p>
+            <div className="flex w-full min-w-0 min-h-[280px] flex-col items-center justify-center py-8">
+                <div className="flex flex-col items-center text-center">
+                    <div className="mb-4 h-14 w-14 animate-spin rounded-full border-b-2 border-blue-500" />
+                    <p className="text-lg text-gray-400">카카오 로그인 처리 중...</p>
                 </div>
             </div>
         );
@@ -66,9 +66,9 @@ const KakaoCallback: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <p className="text-red-400 mb-4">{error}</p>
+            <div className="flex w-full min-w-0 min-h-[280px] flex-col items-center justify-center px-4 py-8">
+                <div className="max-w-lg text-center">
+                    <p className="text-red-400 text-lg mb-4 leading-snug">{error}</p>
                     <a 
                         href="#/" 
                         className="text-blue-400 hover:text-blue-300"

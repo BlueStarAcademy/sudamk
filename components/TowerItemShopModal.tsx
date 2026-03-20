@@ -194,8 +194,8 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
     const hasItemsInCart = Object.values(cart).some(qty => qty > 0);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="bg-gradient-to-br from-gray-900/95 via-amber-950/90 to-gray-800/95 border-2 border-amber-600/50 rounded-xl p-4 sm:p-6 max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl shadow-amber-900/50 backdrop-blur-md flex flex-col">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="bg-gradient-to-br from-gray-900/95 via-amber-950/90 to-gray-800/95 border-2 border-amber-600/50 rounded-xl p-4 sm:p-6 max-w-5xl w-full max-h-full overflow-hidden shadow-2xl shadow-amber-900/50 backdrop-blur-md flex flex-col">
                 <div className="flex justify-between items-center mb-4 flex-shrink-0">
                     <h2 className="text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">
                         도전의 탑 아이템 구매

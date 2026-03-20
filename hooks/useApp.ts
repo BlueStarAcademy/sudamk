@@ -705,16 +705,11 @@ export const useApp = () => {
             if (process.env.NODE_ENV === 'development') {
                 console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - processing client-side:`, { gameId });
             }
-            const game = singlePlayerGames[gameId] || towerGames[gameId];
-            if (!game) {
-                if (process.env.NODE_ENV === 'development') {
-                    console.debug(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Game not found in state:`, gameId);
-                }
-                return;
-            }
-            const isTower = game.gameCategory === 'tower';
-            const updateGameState = isTower ? setTowerGames : setSinglePlayerGames;
-            updateGameState((currentGames) => {
+            // NOTE:
+            // handleAction의 useCallback 의존성이 최소화되어 있어(singlePlayerGames/towerGames 미포함)
+            // 여기서 외부 클로저의 게임 맵을 참조하면 stale 상태로 게임을 못 찾을 수 있다.
+            // 각 스토어의 최신 currentGames를 기준으로 직접 갱신하여 멈춤 상태를 방지한다.
+            const applyMissileAnimationCompletion = (currentGames: Record<string, LiveGameSession>) => {
                 const gameInStore = currentGames[gameId];
                 if (!gameInStore) return currentGames;
                 const g = gameInStore;
@@ -966,7 +961,9 @@ export const useApp = () => {
                     ...currentGames,
                     [gameId]: safeGame
                 };
-            });
+            };
+            setSinglePlayerGames(applyMissileAnimationCompletion);
+            setTowerGames(applyMissileAnimationCompletion);
             
             return;
         }

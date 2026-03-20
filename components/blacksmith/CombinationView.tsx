@@ -3,7 +3,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, ServerAction, ItemGrade, EquipmentSlot, UserWithStatus } from '../../types.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES } from '../../constants/rules.js';
-import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
@@ -134,7 +133,7 @@ interface CombinationViewProps {
 }
 
 const CombinationView: React.FC<CombinationViewProps> = ({ items, onRemoveItem, onAction, currentUser }) => {
-    const isMobile = useIsMobileLayout(768);
+    const isMobile = false;
     const [isRandom, setIsRandom] = useState(false);
 
     const handleCombine = () => {

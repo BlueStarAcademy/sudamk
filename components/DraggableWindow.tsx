@@ -73,6 +73,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
     const positionRef = useRef(position);
 
     const isCompactViewport = useIsHandheldDevice(1025);
+    
+    // App.tsx에서 1920x1080 캔버스를 scale로 맞추는 환경에서는,
+    // DraggableWindow가 viewport(vh)/compact 기반으로 또 줄어들지 않게 막아야 합니다.
+    const isInsideScaledCanvas =
+        typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
+    const effectiveIsCompactViewport = isInsideScaledCanvas ? false : isCompactViewport;
 
     const [rememberPosition, setRememberPosition] = useState(true);
 
@@ -130,7 +136,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
 
     useEffect(() => {
-        if (isCompactViewport) {
+        if (effectiveIsCompactViewport) {
             setPosition({ x: 0, y: 0 });
             try {
                 const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
@@ -140,7 +146,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                 console.error("Failed to clear mobile position", e);
             }
         }
-    }, [isCompactViewport, windowId]);
+    }, [effectiveIsCompactViewport, windowId]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -161,8 +167,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
     const calculatedWidth = useMemo(() => {
         if (!initialWidth) return undefined;
         
+        // 스케일 캔버스 내부에서는 App.tsx의 scale로만 줄이기 위해 viewport 기반 보정 로직을 끕니다.
+        if (isInsideScaledCanvas) return initialWidth;
+
         // 모바일이 아닐 때는 initialWidth를 최소값으로 보장 (데스크톱에서는 고정 크기 사용)
-        if (!isCompactViewport) {
+        if (!effectiveIsCompactViewport) {
             // 데스크톱: initialWidth를 최대한 보장하되, 화면이 너무 작으면 화면 크기에 맞춤
             const minWidth = Math.min(initialWidth, windowWidth - 40); // 화면에서 40px 여유 공간
             // initialWidth를 최소한 95% 이상 보장 (90%에서 95%로 증가)
@@ -174,13 +183,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         const viewportRatio = windowWidth / 1920; // 기준 해상도 1920px
         const adjustedWidth = Math.max(400, Math.min(baseWidth, baseWidth * viewportRatio));
         return adjustedWidth;
-    }, [initialWidth, windowWidth, isCompactViewport]);
+    }, [initialWidth, windowWidth, effectiveIsCompactViewport, isInsideScaledCanvas]);
     
     const calculatedHeight = useMemo(() => {
         if (!initialHeight) return undefined;
         
+        // 스케일 캔버스 내부에서는 App.tsx의 scale로만 줄이기 위해 viewport 기반 보정 로직을 끕니다.
+        if (isInsideScaledCanvas) return initialHeight;
+
         // 모바일이 아닐 때는 initialHeight를 최소값으로 보장 (데스크톱에서는 고정 크기 사용)
-        if (!isCompactViewport) {
+        if (!effectiveIsCompactViewport) {
             // 데스크톱: initialHeight를 최소값으로 보장하되, 화면이 너무 작으면 화면 크기에 맞춤
             const minHeight = Math.min(initialHeight, windowHeight - 40); // 화면에서 40px 여유 공간
             return Math.max(initialHeight * 0.9, minHeight); // initialHeight의 90% 이상 보장
@@ -191,11 +203,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         const viewportRatio = windowHeight / 1080; // 기준 해상도 1080px
         const adjustedHeight = Math.max(300, Math.min(baseHeight, baseHeight * viewportRatio));
         return adjustedHeight;
-    }, [initialHeight, windowHeight, isCompactViewport]);
+    }, [initialHeight, windowHeight, effectiveIsCompactViewport, isInsideScaledCanvas]);
 
     // 모바일에서 PC 모달 구조를 그대로 사용하고 전체적으로 축소하는 스케일 팩터 계산
     const mobileScaleFactor = useMemo(() => {
-        if (!isCompactViewport) return 1.0;
+        if (!effectiveIsCompactViewport) return 1.0;
+        if (isInsideScaledCanvas) return 1.0;
         
         // PC 모달 크기를 그대로 사용
         const baseWidth = initialWidth || 800;
@@ -214,7 +227,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         
         // 최소/최대 스케일 제한 (너무 작거나 크지 않도록)
         return Math.max(0.25, Math.min(0.95, scale));
-    }, [isCompactViewport, windowWidth, windowHeight, initialWidth, initialHeight]);
+    }, [effectiveIsCompactViewport, isInsideScaledCanvas, windowWidth, windowHeight, initialWidth, initialHeight]);
 
 
 
@@ -239,7 +252,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
 
 
-            if (shouldRemember && !isCompactViewport) {
+            if (shouldRemember && !effectiveIsCompactViewport) {
 
                 const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
 
@@ -269,7 +282,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
         setIsInitialized(true);
 
-    }, [windowId, isCompactViewport]);
+    }, [windowId, effectiveIsCompactViewport]);
 
 
 
@@ -421,7 +434,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
             setIsDragging(false);
 
-            if (rememberPosition && !isCompactViewport) {
+            if (rememberPosition && !effectiveIsCompactViewport) {
 
                 try {
 
@@ -441,7 +454,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
         }
 
-    }, [isDragging, windowId, rememberPosition, isCompactViewport]);
+    }, [isDragging, windowId, rememberPosition, effectiveIsCompactViewport]);
 
 
 
@@ -525,7 +538,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
     const headerCursor = isTopmost ? 'cursor-move' : '';
     const isStoreVariant = variant === 'store';
-    const containerBaseClass = 'fixed top-1/2 left-1/2 rounded-xl flex flex-col transition-shadow duration-200';
+    const containerBaseClass = isInsideScaledCanvas
+        ? 'absolute top-1/2 left-1/2 rounded-xl flex flex-col transition-shadow duration-200'
+        : 'fixed top-1/2 left-1/2 rounded-xl flex flex-col transition-shadow duration-200';
     const containerVariantClass = isStoreVariant
         ? 'text-slate-100 bg-gradient-to-br from-[#1f2239] via-[#101a34] to-[#060b12] border border-cyan-300/40 shadow-[0_40px_100px_-45px_rgba(34,211,238,0.65)]'
         : 'text-on-panel bg-primary border border-color shadow-2xl';
@@ -543,25 +558,34 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
     const modalContent = (
         <>
             {modal && (
-                 <div className={`fixed inset-0 bg-black/50 ${!isTopmost ? 'backdrop-blur-sm' : ''}`} style={{ zIndex: effectiveZIndex - 1 }} />
+                <div
+                    className={`${
+                        isInsideScaledCanvas ? 'absolute' : 'fixed'
+                    } inset-0 bg-black/50 ${!isTopmost ? 'backdrop-blur-sm' : ''}`}
+                    style={{ zIndex: effectiveZIndex - 1 }}
+                />
             )}
             <div
                 ref={windowRef}
                 data-draggable-window={windowId}
                 className={`${containerBaseClass} ${containerVariantClass}`}
                 style={{
-                    width: isCompactViewport 
+                    width: effectiveIsCompactViewport
                         ? (initialWidth ? `${initialWidth}px` : '800px')
                         : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
-                    minWidth: isCompactViewport 
+                    minWidth: effectiveIsCompactViewport
                         ? (initialWidth ? `${initialWidth}px` : '800px')
                         : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
-                    maxWidth: isCompactViewport ? undefined : 'calc(100vw - 40px)',
-                    height: isCompactViewport 
+                    maxWidth: isInsideScaledCanvas
+                        ? undefined
+                        : (effectiveIsCompactViewport ? undefined : 'calc(100vw - 40px)'),
+                    height: effectiveIsCompactViewport
                         ? (initialHeight ? `${initialHeight}px` : '600px')
                         : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
-                    maxHeight: isCompactViewport ? undefined : '90vh',
-                    transform: isCompactViewport 
+                    maxHeight: isInsideScaledCanvas
+                        ? undefined
+                        : (effectiveIsCompactViewport ? undefined : '90vh'),
+                    transform: effectiveIsCompactViewport
                         ? `translate(-50%, -50%) scale(${mobileScaleFactor})`
                         : transformStyle,
                     transformOrigin: 'center',
@@ -615,8 +639,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         </>
     );
 
-    // Portal을 사용하여 body에 직접 렌더링 (z-index 문제 해결)
-    return createPortal(modalContent, document.body);
+    // Portal target:
+    // - App.tsx 스케일 캔버스 내부에 `sudamr-modal-root`가 있으면 그쪽으로 렌더링
+    // - 없으면 기존처럼 document.body로 폴백
+    const portalTarget = document.getElementById('sudamr-modal-root') ?? document.body;
+    return createPortal(modalContent, portalTarget);
 
 };
 

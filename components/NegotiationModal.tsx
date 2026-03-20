@@ -255,7 +255,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
              <div className="flex justify-end gap-4">
                 <Button onClick={onDecline} colorScheme="red" className={baseButtonClasses}>취소</Button>
                 <Button onClick={onStartAiGame} colorScheme="green" className={baseButtonClasses} disabled={!hasEnoughAP}>
-                    시작하기 {hasEnoughAP ? `(⚡${actionPointCost})` : `(⚡부족)`}
+                    시작하기 (⚡{actionPointCost})
                 </Button>
             </div>
         );
@@ -267,7 +267,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         <div className="flex justify-between items-center gap-4">
           <Button onClick={onDecline} colorScheme="red" className={baseButtonClasses}>취소</Button>
           <Button onClick={onSendChallenge} disabled={isMixModeInvalid || !hasEnoughAP} colorScheme="green" className={baseButtonClasses}>
-            대국 신청 {hasEnoughAP ? `(⚡${actionPointCost})` : `(⚡부족)`}
+            대국 신청 (⚡{actionPointCost})
           </Button>
         </div>
       );
@@ -279,7 +279,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             <Button onClick={onDecline} colorScheme="red" className={baseButtonClasses}>거절</Button>
             <Button onClick={onPropose} disabled={!settingsHaveChanged} colorScheme="yellow" className={baseButtonClasses}>수정 제안</Button>
             <Button onClick={onAccept} disabled={settingsHaveChanged || !hasEnoughAP} colorScheme="green" className={baseButtonClasses}>
-                수락 {hasEnoughAP ? `(⚡${actionPointCost})` : `(⚡부족)`}
+                수락 (⚡{actionPointCost})
             </Button>
         </div>
       );

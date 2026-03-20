@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { GameMode, UserWithStatus, GameSettings, Negotiation } from '../types';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS } from '../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../constants';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
   CAPTURE_TARGETS, TTAMOK_CAPTURE_TARGETS, SPEED_BOARD_SIZES, SPEED_TIME_LIMITS, BASE_STONE_COUNTS,
@@ -149,6 +149,8 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   const isWaitingForResponse = currentNegotiation?.status === 'pending' && currentNegotiation?.proposerId === opponent.id;
 
   const availableGames = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
+  const actionPointCost = lobbyType === 'strategic' ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
+  const hasEnoughAP = (currentUser?.actionPoints?.current ?? 0) >= actionPointCost;
   
   // 친선전 표시 (현재 협상 시스템은 모두 친선전)
   const isCasual = true;
@@ -1019,14 +1021,14 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               ) : (
                 <Button 
                   onClick={handleChallenge} 
-                  disabled={!selectedMode}
+                  disabled={!selectedMode || !hasEnoughAP}
                   className="!text-sm"
                   style={{ 
                     fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`,
                     padding: `${Math.max(6, Math.round(8 * scaleFactor))}px ${Math.max(12, Math.round(16 * scaleFactor))}px`
                   }}
                 >
-                  대국 신청
+                  대국 신청 (⚡{actionPointCost})
                 </Button>
               )}
             </div>

@@ -40,7 +40,7 @@ import EquipmentEffectsModal from './components/EquipmentEffectsModal';
 import EnhancementResultModal from './components/modals/EnhancementResultModal.js';
 import InsufficientActionPointsModal from './components/InsufficientActionPointsModal.js';
 import InstallPrompt from './components/InstallPrompt.js';
-import { useIsHandheldDevice, useIsMobileLayout } from './hooks/useIsMobileLayout.js';
+import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
 
 // Lazy 로드된 모달을 위한 로딩 컴포넌트
 const ModalLoadingFallback = () => null;
@@ -193,7 +193,6 @@ const AppContent: React.FC = () => {
     const isGameView = currentRoute.view === 'game';
     const backgroundClass = currentUser ? 'bg-primary' : 'bg-login-background';
 
-    const isMobile = useIsMobileLayout(768);
     const isHandheld = useIsHandheldDevice(1025);
 
     // 전체 화면을 하나의 그림처럼 동일 비율로 스케일 (고정 캔버스 1920x1080 → 컨테이너에 맞춤)
@@ -255,7 +254,7 @@ const AppContent: React.FC = () => {
             height: '100%',
             width: '100%',
             overflow: 'hidden',
-            paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : '0px'
+                                    paddingBottom: isHandheld ? 'env(safe-area-inset-bottom, 0px)' : '0px'
         }}>
             {isPreloading && (
                 <div className="fixed bottom-4 right-4 z-[100] bg-panel border border-color text-on-panel rounded-lg shadow-xl px-3 py-2 flex items-center gap-2">
@@ -285,6 +284,20 @@ const AppContent: React.FC = () => {
                         }}
                     >
                         {currentUser && !isGameView && <Header />}
+                        {/* 
+                           Modals/portals that render into document.body will not be scaled.
+                           We provide a dedicated portal target inside the scaled canvas.
+                        */}
+                        <div
+                            id="sudamr-modal-root"
+                            style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                width: DESIGN_W,
+                                height: DESIGN_H,
+                            }}
+                        />
                         
                         {currentUser ? (
                             <main
@@ -292,31 +305,45 @@ const AppContent: React.FC = () => {
                                 style={{
                                     flex: '1 1 0',
                                     minHeight: 0,
-                                    paddingBottom: isMobile ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
+                                    paddingBottom: isHandheld ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
                                     WebkitOverflowScrolling: 'touch',
-                                    marginBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : '0px',
+                                    marginBottom: isHandheld ? 'env(safe-area-inset-bottom, 0px)' : '0px',
                                 }}
                             >
                                 <Router />
                             </main>
                         ) : (
-                            <div className="relative flex-1 w-full flex flex-col items-center justify-center min-h-0 overflow-y-auto p-4 sm:p-6 bg-tertiary bg-[url('/images/bg/loginbg.png')] bg-cover bg-center">
-                                <div className="absolute inset-0 bg-black/60"></div>
-                                {/* 1920x1080 캔버스 기준 고정 크기 → 스케일 시 전체와 동일 비율로 확대/축소 */}
-                                <header className="relative text-center z-10 flex-shrink-0 pt-6 pb-2 mb-2" style={{ fontFamily: 'serif' }}>
-                                    <h1 className="font-black text-white tracking-widest uppercase title-glow-secondary" style={{ fontSize: 52, lineHeight: 1.2 }}>
+                            <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden bg-tertiary bg-[url('/images/bg/loginbg.png')] bg-cover bg-center px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
+                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/82 via-black/65 to-black/78" />
+                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_14%,rgba(180,140,80,0.14),transparent_48%)]" />
+                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_50%_at_50%_92%,rgba(30,58,95,0.18),transparent_52%)]" />
+                                {/* 상단 중앙 브랜드 — 모바일은 컴팩트, PC는 비율만 키움 */}
+                                <header
+                                    className="relative z-10 flex w-full max-w-lg shrink-0 flex-col items-center gap-0.5 px-2 text-center sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2"
+                                    style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+                                >
+                                    <p className="text-[8px] font-semibold uppercase tracking-[0.38em] text-amber-400/80 sm:text-[10px] sm:tracking-[0.42em] lg:text-xs lg:tracking-[0.48em]">
+                                        Online Strategy
+                                    </p>
+                                    <h1 className="bg-gradient-to-br from-stone-50 via-amber-100 to-amber-800 bg-clip-text text-2xl font-black uppercase tracking-[0.16em] text-transparent drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)] sm:text-4xl sm:tracking-[0.18em] lg:text-6xl lg:tracking-[0.14em] xl:text-7xl">
                                         SUDAM
                                     </h1>
-                                    <h2 className="font-bold text-white tracking-wider mt-1 title-glow-secondary" style={{ fontSize: 26, lineHeight: 1.3 }}>
+                                    <p className="text-[9px] font-light tracking-[0.22em] text-stone-400 sm:text-xs sm:tracking-[0.26em] lg:text-base lg:tracking-[0.24em]">
                                         The Ascending Masters
-                                    </h2>
-                                    <p className="mt-2 text-gray-300" style={{ fontSize: 13 }}>
+                                    </p>
+                                    <div
+                                        className="mt-3 hidden h-px w-32 max-w-[80%] bg-gradient-to-r from-transparent via-amber-500/45 to-transparent sm:block lg:mt-5 lg:w-48"
+                                        aria-hidden
+                                    />
+                                    <p className="mt-2 hidden max-w-xl px-2 text-center text-[11px] leading-relaxed text-stone-400 sm:mt-3 sm:block sm:text-xs lg:mt-4 lg:max-w-2xl lg:text-sm">
                                         Supreme Universe of Dueling Ascending Masters (S.U.D.A.M)
-                                        <br/>
-                                        (격돌하는 초인들이 승천하는 최고의 세계)
+                                        <br />
+                                        <span className="mt-1 inline-block text-[10px] text-stone-500 lg:text-xs">
+                                            격돌하는 초인들이 승천하는 최고의 세계
+                                        </span>
                                     </p>
                                 </header>
-                                <main className="relative flex-1 flex flex-col min-h-0 min-w-0 z-10 flex items-center justify-center">
+                                <main className="relative z-10 flex w-full min-w-0 max-w-[min(100%,480px)] flex-col items-center justify-center sm:max-w-[520px] lg:max-w-[560px]">
                                     <Router />
                                 </main>
                             </div>

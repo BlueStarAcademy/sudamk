@@ -6,7 +6,6 @@ import { AttackToTurnGauge } from '../AttackToTurnGauge.js';
 import { CURLING_TURN_TIME_LIMIT } from '../../constants';
 import { audioService } from '../../services/audioService.js';
 import { PLAYFUL_GAME_MODES } from '../../constants/gameModes';
-import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 interface CurlingArenaProps extends GameProps {}
 
@@ -45,7 +44,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
     const [power, setPower] = useState(0);
     const [flickPower, setFlickPower] = useState<number | null>(null);
     const [isRenderingPreviewStone, setIsRenderingPreviewStone] = useState(false);
-    const isMobile = useIsMobileLayout(1024);
+    const isMobile = false;
     // 각 플레이어의 마지막 발사 파워 저장 (애니메이션 중에도 표시하기 위해)
     const lastFlickPowerRef = useRef<{ [playerId: string]: number }>({});
 

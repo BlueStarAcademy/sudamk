@@ -120,6 +120,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
 
     const effectiveViewportWidth = viewportWidth ?? 1024;
     const isMobileView = effectiveViewportWidth <= 768;
+    const isInsideScaledCanvas = typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
     const initialWidth = 500;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
@@ -396,8 +397,9 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             ? (isWinner ? "미션 클리어" : "미션 실패")
             : "게임 결과";
 
-    const isMobile = isMobileView;
-    const mobileTextScale = isMobileView ? 1.2 : 1.15;
+    // App.tsx의 transform 스케일 캔버스 내부에서는 PC 비율로 렌더링합니다.
+    const isMobile = isInsideScaledCanvas ? false : isMobileView;
+    const mobileTextScale = isMobile ? 1.2 : 1.15;
 
     return (
         <DraggableWindow 

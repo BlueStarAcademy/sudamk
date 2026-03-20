@@ -4,7 +4,6 @@ import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { CONSUMABLE_ITEMS } from '../../constants/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 interface StageGridProps {
     selectedClass: SinglePlayerLevel;
@@ -100,7 +99,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser }) => 
         }
     };
 
-    const isMobile = useIsMobileLayout(1024);
+    const isMobile = false;
     
     return (
         <div className={`bg-panel rounded-lg shadow-lg ${isMobile ? 'p-2' : 'p-4'} flex flex-col min-h-0 h-full overflow-hidden`}>

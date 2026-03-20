@@ -6,7 +6,6 @@ import Avatar from './Avatar.js';
 import { getMannerEffects } from '../services/effectService.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIconKey } from './resourceIcons.js';
 
 const RESOURCE_LABEL: Record<ResourceIconKey, string> = {
@@ -71,7 +70,7 @@ interface HeaderProps { compact?: boolean }
 const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const { currentUserWithStatus, handlers, unreadMailCount } = useAppContext();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const isMobile = useIsMobileLayout(640);
+    const isMobile = false;
     const [isSpecialResourcesOpen, setIsSpecialResourcesOpen] = useState(false);
     const specialResourcesRef = useRef<HTMLDivElement>(null);
 

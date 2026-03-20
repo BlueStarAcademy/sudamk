@@ -5,7 +5,6 @@ import Button from '../Button.js';
 import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, CONSUMABLE_ITEMS, CORE_STATS_DATA } from '../../constants';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { calculateRefinementGoldCost } from '../../constants/rules.js';
-import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
@@ -169,7 +168,7 @@ interface RefinementViewProps {
 type RefinementType = 'type' | 'value' | 'mythic';
 
 const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUser, onAction, refinementResult, onResultConfirm }) => {
-    const isMobile = useIsMobileLayout(768);
+    const isMobile = false;
     const [selectedOption, setSelectedOption] = useState<{ type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; index: number } | null>(null);
     const [refinementType, setRefinementType] = useState<RefinementType | null>(null);
     const [isRefining, setIsRefining] = useState(false);

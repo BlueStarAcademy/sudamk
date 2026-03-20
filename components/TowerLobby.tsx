@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 import { useTowerRanking } from '../hooks/useTowerRanking.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
@@ -27,10 +26,8 @@ const TOWER_MONTHLY_REWARD_TIERS = [
 
 const TowerLobby: React.FC = () => {
         const { currentUser, currentUserWithStatus, handlers, towerRankingsRefetchTrigger } = useAppContext();
-    const isMobile = useIsMobileLayout(1024);
     const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isItemShopOpen, setIsItemShopOpen] = useState(false);
     const [timeUntilReset, setTimeUntilReset] = useState<string>('');
     const stageScrollRef = useRef<HTMLDivElement>(null);
@@ -145,12 +142,7 @@ const TowerLobby: React.FC = () => {
     }, []);
 
     return (
-        <div className="w-full h-full flex flex-col relative text-white overflow-hidden min-h-0" style={isMobile ? {
-            backgroundImage: `url(${TOWER_CHALLENGE_LOBBY_IMG})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-        } : {
+        <div className="w-full h-full flex flex-col relative text-white overflow-hidden min-h-0" style={{
             background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 20%, #2d2419 40%, #3d2e1f 60%, #4a3a2a 80%, #5c4a35 100%)',
             backgroundSize: '400% 400%',
             animation: 'gradientShift 20s ease infinite'
@@ -310,405 +302,10 @@ const TowerLobby: React.FC = () => {
                 </DraggableWindow>
             )}
 
-            {/* 모바일: 사이드바 버튼 */}
-            {isMobile && (
-                <div className="absolute top-1/2 -translate-y-1/2 right-0 z-30">
-                    <button 
-                        onClick={() => setIsMobileSidebarOpen(true)}
-                        className="w-11 h-12 sm:w-12 sm:h-14 bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
-                        aria-label="메뉴 열기"
-                    >
-                        <span className="relative font-bold text-2xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{'<'}</span>
-                    </button>
-                </div>
-            )}
-
-            {/* 모바일: 사이드바 */}
-            {isMobile && (
-                <>
-                    <div className={`fixed top-0 right-0 h-full w-[360px] bg-gradient-to-br from-gray-900/95 via-amber-950/90 to-gray-800/95 border-l-2 border-amber-600/50 shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
-                        <div className="flex justify-between items-center p-3 border-b border-amber-700/40 flex-shrink-0">
-                            <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">메뉴</h3>
-                            <button
-                                onClick={() => setIsMobileSidebarOpen(false)}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-amber-900/50 border border-amber-700/30"
-                            >
-                                <span className="text-xl text-amber-200">×</span>
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                            {/* 퀵메뉴 (가로 배치) */}
-                            <div className="bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 backdrop-blur-md">
-                                <QuickAccessSidebar mobile={true} />
-                            </div>
-                            
-                            {/* 보유 아이템 패널 (가로 배치) */}
-                            <div className="bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 backdrop-blur-md">
-                                <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                                        보유 아이템
-                                    </h3>
-                                    <Button
-                                        onClick={() => setIsItemShopOpen(true)}
-                                        colorScheme="none"
-                                        className="!py-1 !px-2 !min-w-0 text-xs font-semibold border border-amber-600/50 bg-amber-900/40 hover:bg-amber-800/60 text-amber-200"
-                                    >
-                                        구매하기
-                                    </Button>
-                                </div>
-                                <div className="flex flex-row gap-2 justify-center items-center">
-                                    {(() => {
-                                        const inventory = currentUserWithStatus?.inventory || [];
-                                        // 도전의 탑 전용 아이템: 이름/id 일치하는 모든 스택 합산 (상점·가방과 동일, source 무관)
-                                        const getItemCount = (namesOrIds: string[]): number => {
-                                            return (inventory as any[])
-                                                .filter((inv: any) => namesOrIds.some((n: string) => inv.name === n || inv.id === n))
-                                                .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
-                                        };
-                                        const items = [
-                                            { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(['턴 추가', 'addturn', '턴증가', 'turn_add', 'turn_add_item']) },
-                                            { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(['미사일', 'missile']) },
-                                            { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(['히든', 'hidden']) },
-                                            { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(['스캔', 'scan']) },
-                                            { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(['배치 새로고침', '배치변경', 'reflesh', 'refresh']) }
-                                        ];
-                                        return items.map((item, index) => (
-                                            <button
-                                                key={index}
-                                                className="flex flex-col items-center gap-1 bg-gray-800/40 border border-amber-700/30 rounded-lg p-2 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors flex-1"
-                                                onClick={() => setIsItemShopOpen(true)}
-                                            >
-                                                <div className="relative w-10 h-10">
-                                                    <img src={item.icon} alt={item.name} className="w-full h-full object-contain" />
-                                                    <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-amber-900 ${
-                                                        item.count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'
-                                                    }`}>
-                                                        {item.count}
-                                                    </div>
-                                                </div>
-                                                <p className="text-[10px] font-semibold text-amber-100 text-center leading-tight">{item.name}</p>
-                                            </button>
-                                        ));
-                                    })()}
-                                </div>
-                            </div>
-                            
-                            {/* 랭킹 보드 */}
-                            <div className="bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md">
-                                <div className="flex items-center justify-between mb-2 flex-shrink-0">
-                                    <div className="flex items-center gap-2">
-                                        <h2 className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                                            랭킹 Top 100
-                                        </h2>
-                                        <span className="text-xs sm:text-sm font-semibold text-yellow-300">{timeUntilReset}</span>
-                                    </div>
-                                    <Button
-                                        onClick={() => setIsRewardModalOpen(true)}
-                                        colorScheme="none"
-                                        className="!p-1.5 !min-w-0 border border-amber-600/50 bg-amber-900/40 hover:bg-amber-800/60 backdrop-blur-sm text-xs sm:text-sm text-amber-200"
-                                    >
-                                        보상정보
-                                    </Button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                                    {/* 내 정보 전용 박스: 역대 최고 층수, 현재 순위, 해당 보상 */}
-                                    <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-950/80 via-gray-900/90 to-amber-950/80 shadow-xl shadow-amber-900/40 overflow-hidden mb-3">
-                                        <div className="px-3 py-2 border-b border-amber-600/50 bg-amber-900/30">
-                                            <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-200">내 도전의 탑 기록</h3>
-                                        </div>
-                                        <div className="p-3 space-y-3 text-sm">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-amber-300/90">역대 최고 층수</span>
-                                                <span className="font-bold text-yellow-200">{bestFloorAllTime}층</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-amber-300/90">현재 나의 순위</span>
-                                                <span className="font-bold text-yellow-200">{myRankingEntry ? `${myRankingEntry.rank}위` : '순위 외'}</span>
-                                            </div>
-                                            <div className="pt-2 border-t border-amber-700/40">
-                                                <p className="text-amber-300/90 text-xs mb-1.5">이번 달 예정 보상 (현재 기록 기준)</p>
-                                                {myRewardTier ? (
-                                                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                                                        <span className="inline-flex items-center gap-1 text-yellow-200"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />{myRewardTier.gold.toLocaleString()}</span>
-                                                        <span className="inline-flex items-center gap-1 text-cyan-200"><img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4" />{myRewardTier.diamonds}</span>
-                                                        {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
-                                                            <span key={i} className="inline-flex items-center gap-1 text-amber-200">
-                                                                <img src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`} alt={it.itemId} className="w-4 h-4" />
-                                                                ×{it.quantity}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-amber-400/80 text-xs">10층 이상 클리어 시 월간 보상을 받을 수 있습니다.</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {!myRankingEntry && monthlyBestFloor < 10 && (
-                                        <p className="text-center text-amber-300/70 text-xs py-2 px-1">10층 이상 클리어 시 랭킹에 표시됩니다.</p>
-                                    )}
-                                    {towerRankingsLoading && towerRankings.length === 0 ? (
-                                        <p className="text-center text-amber-300/60 py-8">랭킹 불러오는 중...</p>
-                                    ) : top100Users.length > 0 ? (
-                                        top100Users.map((user) => {
-                                            const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
-                                            const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
-                                            const isTop3 = (user as any).rank <= 3;
-                                            const rank = (user as any).rank;
-                                            const isCurrentUser = user.id === currentUser.id;
-                                            return (
-                                                <div
-                                                    key={user.id}
-                                                    className={`flex items-center gap-2 p-2 rounded-lg transition-all ${
-                                                        isCurrentUser
-                                                            ? 'bg-gradient-to-r from-yellow-900/45 via-amber-800/45 to-orange-900/45 border-2 border-yellow-400/60 shadow-md shadow-yellow-900/30'
-                                                            : isTop3
-                                                            ? 'bg-gradient-to-r from-amber-900/40 to-yellow-900/40 border border-amber-500/50 hover:from-amber-800/50 hover:to-yellow-800/50'
-                                                            : 'bg-gray-800/40 border border-amber-700/30 hover:bg-gray-700/50 hover:border-amber-600/50'
-                                                    }`}
-                                                >
-                                                    <span className={`text-xs sm:text-sm font-bold w-6 flex-shrink-0 ${
-                                                        rank === 1 ? 'text-yellow-300' : rank === 2 ? 'text-gray-300' : rank === 3 ? 'text-amber-500' : 'text-amber-300'
-                                                    }`}>
-                                                        {rank}
-                                                    </span>
-                                                    <Avatar
-                                                        userId={user.id}
-                                                        userName={user.nickname}
-                                                        avatarUrl={avatarUrl}
-                                                        borderUrl={borderUrl}
-                                                        size={24}
-                                                    />
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className={`text-xs sm:text-sm font-semibold truncate ${isCurrentUser ? 'text-yellow-100' : 'text-amber-100'}`}>{user.nickname}</p>
-                                                            <p className="text-[10px] sm:text-xs text-amber-300/80">
-                                                                층: {(user as any).displayFloor ?? 0}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    ) : (
-                                        <p className="text-center text-amber-300/60 py-8">랭킹 데이터가 없습니다.</p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
-                </>
-            )}
-
-            {/* 메인 레이아웃: 데스크톱 4개 패널 / 모바일 스테이지 패널 오버레이 */}
-            {isMobile ? (
-                /* 모바일: 스테이지 패널 오버레이 */
-                <div className="flex-1 flex items-center justify-center p-4 min-h-0 overflow-hidden relative">
-                    <div className="w-full max-w-md bg-gradient-to-br from-gray-900/50 via-amber-950/50 to-gray-800/50 border-2 border-amber-600/40 rounded-xl p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl" style={{ opacity: 0.5 }}>
-                        <h2 className="text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 mb-3 flex-shrink-0 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                            스테이지
-                        </h2>
-                        <div
-                            ref={stageScrollRef}
-                            className="flex-1 overflow-y-auto space-y-1.5 pr-1"
-                        >
-                            {stages.map((floor) => {
-                                const stage = TOWER_STAGES.find(s => s.id === `tower-${floor}`);
-                                const userTowerFloor = (currentUserWithStatus as any).towerFloor ?? 0;
-                                const isCleared = floor <= userTowerFloor;
-                                const isCurrent = floor === userTowerFloor + 1;
-                                const actionPoints = currentUserWithStatus?.actionPoints?.current ?? 0;
-                                const isAdmin = currentUser?.isAdmin ?? false;
-                                const isLocked = !isAdmin && floor > 1 && floor > userTowerFloor + 1;
-                                // 클리어한 층은 행동력 소모가 0
-                                const effectiveActionPointCost = isCleared ? 0 : (stage?.actionPointCost ?? 0);
-                                const canChallenge = !isLocked && actionPoints >= effectiveActionPointCost;
-                                
-                                if (!stage) return null;
-                                
-                                const reward = stage.rewards.firstClear;
-                                const hasItemReward = reward.items && reward.items.length > 0;
-                                
-                                const getItemImage = (itemId: string): string => {
-                                    const itemNameMap: Record<string, string> = {
-                                        '장비상자1': '장비 상자 I', '장비상자2': '장비 상자 II', '장비상자3': '장비 상자 III',
-                                        '장비상자4': '장비 상자 IV', '장비상자5': '장비 상자 V', '장비상자6': '장비 상자 VI',
-                                        '재료상자1': '재료 상자 I', '재료상자2': '재료 상자 II', '재료상자3': '재료 상자 III',
-                                        '재료상자4': '재료 상자 IV', '재료상자5': '재료 상자 V', '재료상자6': '재료 상자 VI',
-                                        '골드꾸러미1': '골드 꾸러미1', '골드꾸러미2': '골드 꾸러미2', '골드꾸러미3': '골드 꾸러미3', '골드꾸러미4': '골드 꾸러미4',
-                                        '다이아꾸러미1': '다이아 꾸러미1', '다이아꾸러미2': '다이아 꾸러미2', '다이아꾸러미3': '다이아 꾸러미3', '다이아꾸러미4': '다이아 꾸러미4',
-                                    };
-                                    const itemName = itemNameMap[itemId] || itemId;
-                                    const itemTemplate = CONSUMABLE_ITEMS.find(item => item.name === itemName);
-                                    return itemTemplate?.image || '/images/icon/item_box.png';
-                                };
-
-								const getItemDisplayName = (itemId: string): string => {
-									const itemNameMap: Record<string, string> = {
-										'장비상자1': '장비 상자 I', '장비상자2': '장비 상자 II', '장비상자3': '장비 상자 III',
-										'장비상자4': '장비 상자 IV', '장비상자5': '장비 상자 V', '장비상자6': '장비 상자 VI',
-										'재료상자1': '재료 상자 I', '재료상자2': '재료 상자 II', '재료상자3': '재료 상자 III',
-										'재료상자4': '재료 상자 IV', '재료상자5': '재료 상자 V', '재료상자6': '재료 상자 VI',
-										'골드꾸러미1': '골드 꾸러미1', '골드꾸러미2': '골드 꾸러미2', '골드꾸러미3': '골드 꾸러미3', '골드꾸러미4': '골드 꾸러미4',
-										'다이아꾸러미1': '다이아 꾸러미1', '다이아꾸러미2': '다이아 꾸러미2', '다이아꾸러미3': '다이아 꾸러미3', '다이아꾸러미4': '다이아 꾸러미4',
-									};
-									return itemNameMap[itemId] || itemId;
-								};
-                                
-                                const isCaptureMode = floor <= 20;
-                                
-                                return (
-                                    <div
-                                        key={floor}
-                                        className={`rounded-lg p-2 border flex items-center justify-between gap-2 relative whitespace-nowrap ${
-                                            isLocked
-                                                ? 'bg-gray-900/50 border-gray-700/50 opacity-60'
-                                                : isCurrent
-                                                ? 'bg-gradient-to-r from-amber-700/50 to-yellow-700/50 border-amber-500/70 shadow-lg shadow-amber-600/50'
-                                                : isCleared
-                                                ? 'bg-gray-700/40 border-amber-600/50 hover:bg-gray-600/50 hover:border-amber-500/70'
-                                                : 'bg-gray-800/30 border-amber-700/30 hover:bg-gray-700/40 hover:border-amber-600/50'
-                                        }`}
-                                    >
-                                        {isLocked && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 rounded-lg z-10 backdrop-blur-sm">
-                                                <div className="flex items-center gap-2 px-2">
-                                                    <span className="text-2xl">🔒</span>
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <span className="text-xs text-amber-300 font-semibold whitespace-nowrap">잠금</span>
-                                                        <span className="text-[10px] text-amber-400/80 whitespace-nowrap">아래층을 먼저 클리어하세요</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5 flex-shrink-0 px-2 py-1 bg-amber-900/50 rounded border border-amber-600/40">
-                                                <span className={`text-lg font-black ${
-                                                    isCurrent ? 'text-yellow-300' : isCleared ? 'text-amber-200' : 'text-amber-400'
-                                                }`}>
-                                                    {floor}
-                                                </span>
-                                                <span className="text-xs text-amber-300 font-semibold">층</span>
-                                                {isCleared && (
-                                                    <span className="text-green-400 text-sm font-bold">✓</span>
-                                                )}
-                                            </div>
-                                            
-                                            {isCaptureMode && (
-                                                <div className="flex items-center gap-2 flex-shrink-0">
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/Black.png" alt="흑돌" className="w-5 h-5" />
-                                                        <span className="text-xs text-amber-300 font-semibold">{stage.placements.black}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/White.png" alt="백돌" className="w-5 h-5" />
-                                                        <span className="text-xs text-amber-300 font-semibold">{stage.placements.white}</span>
-                                                    </div>
-                                                    <div className="flex flex-col gap-0.5 flex-shrink-0">
-                                                        <div className="flex items-center gap-1">
-                                                            <span className="text-xs text-amber-300 font-semibold">목표:</span>
-                                                            <span className="text-xs text-yellow-300 font-bold">흑 {stage.targetScore?.black ?? 0}개</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1">
-                                                            <span className="text-xs text-amber-300 font-semibold">제한:</span>
-                                                            <span className="text-xs text-amber-200 font-bold">{stage.blackTurnLimit}턴</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            
-                                            {!isCaptureMode && (
-                                                <div className="flex items-center gap-2 flex-shrink-0">
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/Black.png" alt="흑돌" className="w-5 h-5" />
-                                                        <span className="text-xs text-amber-300 font-semibold">{stage.placements.black}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/White.png" alt="백돌" className="w-5 h-5" />
-                                                        <span className="text-xs text-amber-300 font-semibold">{stage.placements.white}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/BlackDouble.png" alt="흑 문양돌" className="w-5 h-5" />
-                                                        <span className="text-xs text-amber-300 font-semibold">×{stage.placements.blackPattern}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/WhiteDouble.png" alt="백 문양돌" className="w-5 h-5" />
-                                                        <span className="text-xs text-amber-300 font-semibold">×{stage.placements.whitePattern}</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            
-                                            <div className="flex flex-col gap-1 flex-shrink-0 ml-auto">
-                                                {isCleared ? (
-                                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                                        <span className="text-xs text-amber-300 font-semibold">보상수령완료</span>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        {reward.gold > 0 ? (
-                                                            <div className="flex items-center gap-0.5 flex-shrink-0">
-                                                                <img src="/images/icon/Gold.png" alt="골드" title="골드" className="w-4 h-4" />
-                                                                <span className="text-xs text-yellow-300 font-semibold">{reward.gold}</span>
-                                                            </div>
-                                                        ) : hasItemReward && reward.items && reward.items.length > 0 ? (
-                                                            <div className="flex items-center gap-1 flex-shrink-0">
-                                                                {reward.items.map((item: any, idx: number) => {
-                                                                    const itemId = 'itemId' in item ? item.itemId : item.name || item.id;
-                                                                    const itemImage = getItemImage(itemId);
-                                                                    const itemDisplayName = getItemDisplayName(itemId);
-                                                                    return (
-                                                                        <div key={idx} className="flex items-center gap-0.5">
-                                                                            <img src={itemImage} alt={itemDisplayName} title={itemDisplayName} className="w-4 h-4" />
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        ) : null}
-                                                        <div className="flex items-center gap-0.5 flex-shrink-0">
-                                                            <span className="text-xs text-green-300 font-semibold">전략EXP {reward.exp}</span>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                        
-										<button
-											onClick={async () => {
-                                                if (canChallenge && !isLocked) {
-													try {
-														// useApp.ts에서 라우팅을 처리하므로 여기서는 액션만 호출
-														await handlers.handleAction({
-                                                            type: 'START_TOWER_GAME',
-                                                            payload: { floor, useClientSideAi: shouldUseClientSideAi() }
-                                                        });
-													} catch (error) {
-														console.error('[TowerLobby] Failed to start tower game:', error);
-													}
-                                                }
-                                            }}
-                                            disabled={!canChallenge || isLocked}
-                                            className={`flex-shrink-0 px-3 py-2 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-1.5 ${
-                                                canChallenge && !isLocked
-                                                    ? 'bg-gradient-to-br from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-lg shadow-amber-600/50'
-                                                    : 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                                            }`}
-                                        >
-                                            <span className="text-sm">⚡</span>
-                                            <span className="text-[10px] leading-none">{effectiveActionPointCost}</span>
-                                            <span className="text-[10px] leading-none">도전</span>
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                /* 데스크톱: 좌(랭킹+보유아이템) / 가운데 이미지 / 스테이지 / 퀵메뉴 */
-                <div className="flex-1 flex flex-col lg:flex-row lg:justify-center gap-2 sm:gap-3 lg:gap-4 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 lg:py-4 min-h-0 overflow-hidden">
+            {/* 메인 레이아웃: 데스크톱 4개 패널 */}
+                <div className="flex-1 flex flex-row justify-center gap-2 sm:gap-3 lg:gap-4 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 lg:py-4 min-h-0 overflow-hidden">
                     {/* 좌측: 랭킹 Top 100 + 보유 아이템 (아래쪽 별도 패널) */}
-                    <div className="flex-1 lg:flex-[0_0_20%] lg:max-w-[20%] flex flex-col gap-2 min-h-0 overflow-hidden">
+                    <div className="flex-[0_0_20%] max-w-[20%] flex flex-col gap-2 min-h-0 overflow-hidden">
                     {/* 랭킹 Top 100 (하단 여유 줄여서 보유 아이템 공간 확보) */}
                     <div className="flex-1 min-h-0 flex flex-col bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
                     <div className="flex items-center justify-between mb-2 flex-shrink-0">
@@ -794,7 +391,7 @@ const TowerLobby: React.FC = () => {
                                             userName={user.nickname}
                                             avatarUrl={avatarUrl}
                                             borderUrl={borderUrl}
-                                            size={isMobile ? 24 : 32}
+                                            size={32}
                                         />
                                         <div className="flex-1 min-w-0">
                                             <p className={`text-xs sm:text-sm font-semibold truncate ${isCurrentUser ? 'text-yellow-100' : 'text-amber-100'}`}>{user.nickname}</p>
@@ -862,7 +459,7 @@ const TowerLobby: React.FC = () => {
                     </div>
 
                     {/* 가운데: 도전의 탑 이미지 */}
-                    <div className="flex-1 lg:flex-[0_0_25%] lg:max-w-[25%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative min-h-0">
+                    <div className="flex-[0_0_25%] max-w-[25%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative min-h-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-600/10 via-transparent to-yellow-600/10 rounded-xl"></div>
                     <img
                         src={TOWER_CHALLENGE_LOBBY_IMG}
@@ -872,7 +469,7 @@ const TowerLobby: React.FC = () => {
                 </div>
 
                     {/* 우측: 스테이지 */}
-                    <div className="flex-1 lg:flex-[0_0_35%] lg:max-w-[35%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
+                    <div className="flex-[0_0_35%] max-w-[35%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
                     <h2 className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 mb-3 flex-shrink-0 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
                         스테이지
                     </h2>
@@ -1138,8 +735,9 @@ const TowerLobby: React.FC = () => {
                                                 : 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
                                         }`}
                                     >
-                                        <span className="text-sm sm:text-base">⚡</span>
-                                        <span className="text-[10px] sm:text-xs leading-none">{effectiveActionPointCost}</span>
+                                        {effectiveActionPointCost > 0 && (
+                                            <span className="text-[10px] sm:text-xs leading-none">⚡{effectiveActionPointCost}</span>
+                                        )}
                                         <span className="text-[10px] sm:text-xs leading-none">도전</span>
                                     </button>
                                 </div>
@@ -1155,7 +753,6 @@ const TowerLobby: React.FC = () => {
                     </div>
                 </div>
                 </div>
-            )}
 
             {/* 아이템 구매 모달 */}
             {isItemShopOpen && currentUserWithStatus && (

@@ -8,7 +8,6 @@ import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, SPECIAL
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { getMannerRank as getMannerRankShared } from '../services/manner.js';
-import { useIsMobileLayout } from '../hooks/useIsMobileLayout.js';
 
 interface GameSummaryModalProps {
     session: LiveGameSession;
@@ -495,7 +494,8 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
 const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUser, onConfirm, onAction }) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
     const soundPlayed = useRef(false);
-    const isMobile = useIsMobileLayout(768);
+    // PC 레이아웃을 기준으로 렌더링합니다.
+    const isMobile = false;
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];

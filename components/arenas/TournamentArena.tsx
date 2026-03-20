@@ -2,7 +2,6 @@
 import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { TournamentType, UserWithStatus, PlayerForTournament } from '../../types';
 import { useAppContext } from '../../hooks/useAppContext';
-import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 import { TournamentBracket } from '../TournamentBracket';
 import Button from '../Button';
 import { TOURNAMENT_DEFINITIONS } from '../../constants';
@@ -61,7 +60,6 @@ interface TournamentArenaProps {
 
 const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     const { currentUserWithStatus, handlers, allUsers } = useAppContext();
-    const isMobile = useIsMobileLayout(1024);
 
     // stateKey 결정
     let stateKey: keyof Pick<UserWithStatus, 'lastNeighborhoodTournament' | 'lastNationalTournament' | 'lastWorldTournament'>;
@@ -160,7 +158,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     const noStateAndChampionship = isChampionshipDungeon && !tournamentState && !waitingForState;
     if (noStateAndChampionship) {
         return (
-            <div className="p-4 sm:p-6 lg:p-8 w-full flex flex-col h-full items-center justify-center gap-4">
+            <div className="p-8 w-full flex flex-col h-full items-center justify-center gap-4">
                 <Button onClick={() => { window.location.hash = '#/tournament'; }} className="!py-2 !px-4">
                     로비로 돌아가기
                 </Button>
@@ -171,7 +169,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     // 상태 로딩 대기 중 (방금 입장한 직후 HTTP 응답 반영 대기)
     if (isChampionshipDungeon && !tournamentState && waitingForState) {
         return (
-            <div className="p-4 sm:p-6 lg:p-8 w-full flex flex-col h-full items-center justify-center gap-4 text-center">
+            <div className="p-8 w-full flex flex-col h-full items-center justify-center gap-4 text-center">
                 <p className="text-gray-400">경기 정보를 불러오는 중...</p>
                 <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
             </div>
@@ -179,7 +177,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     }
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 w-full flex flex-col h-full relative overflow-hidden min-h-0">
+        <div className="p-8 w-full flex flex-col h-full relative overflow-hidden min-h-0">
             {tournamentState && (
                 <TournamentBracketErrorBoundary>
                     <TournamentBracket 
@@ -209,7 +207,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
                         onReset={() => handlers.handleAction({ type: 'CLEAR_TOURNAMENT_SESSION', payload: { type: type } })}
                         onSkip={() => handlers.handleAction({ type: 'SKIP_TOURNAMENT_END', payload: { type: type } })}
                         onOpenShop={() => handlers.openShop('consumables')}
-                        isMobile={isMobile}
+                        isMobile={false}
                     />
                 </TournamentBracketErrorBoundary>
             )}

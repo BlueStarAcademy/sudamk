@@ -529,41 +529,41 @@ const PlayerProfilePanel: React.FC<{
     }
     
     return (
-        <div className={`bg-gray-900/50 p-1.5 md:p-2 rounded-lg flex flex-col gap-0.5 md:gap-1 h-full min-h-0 ${isClickable ? 'cursor-pointer hover:bg-gray-700/50' : ''}`} onClick={isClickable ? () => onViewUser(playerId) : undefined} title={isClickable ? `${playerNickname} 프로필 보기` : ''} style={{ maxHeight: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
-            <div className="flex items-center gap-1 md:gap-2 w-full flex-shrink-0">
+        <div className={`bg-gray-900/50 p-2 rounded-lg flex flex-col gap-1 h-full min-h-0 ${isClickable ? 'cursor-pointer hover:bg-gray-700/50' : ''}`} onClick={isClickable ? () => onViewUser(playerId) : undefined} title={isClickable ? `${playerNickname} 프로필 보기` : ''} style={{ maxHeight: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
+            <div className="flex items-center gap-2 w-full flex-shrink-0">
                 {showLeague && leagueInfo && (
                     <img
                         key={`league-${playerId}-${leagueInfo.tier}`}
                         src={leagueInfo.icon}
                         alt={leagueInfo.name}
-                        className="w-6 h-6 md:w-9 md:h-9 object-contain drop-shadow-lg"
+                        className="w-9 h-9 object-contain drop-shadow-lg"
                         loading="lazy"
                     />
                 )}
-                 <Avatar key={`avatar-${playerId}`} userId={playerId} userName={playerNickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={isMobile ? 24 : 32} className={`${isMobile ? 'w-6 h-6' : 'md:w-10 md:h-10'} flex-shrink-0`} />
+                 <Avatar key={`avatar-${playerId}`} userId={playerId} userName={playerNickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={isMobile ? 24 : 32} className={`${isMobile ? 'w-6 h-6' : 'w-10 h-10'} flex-shrink-0`} />
                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-1 md:gap-1.5">
-                        <h4 className={`font-bold ${isMobile ? 'text-[10px]' : 'text-xs md:text-base'} truncate`}>{playerNickname}</h4>
-                        <span className={`${isMobile ? 'text-[8px]' : 'text-[10px] md:text-xs'} text-blue-300 font-semibold whitespace-nowrap`}>바둑능력: {totalAbilityScore}</span>
+                    <div className="flex flex-row items-center gap-1.5">
+                        <h4 className={`font-bold ${isMobile ? 'text-[10px]' : 'text-base'} truncate`}>{playerNickname}</h4>
+                        <span className={`${isMobile ? 'text-[8px]' : 'text-xs'} text-blue-300 font-semibold whitespace-nowrap`}>바둑능력: {totalAbilityScore}</span>
                     </div>
-                    <p className={`${isMobile ? 'text-[8px]' : 'text-[10px] md:text-xs'} text-gray-400 truncate`}>({cumulativeStats.wins}승 {cumulativeStats.losses}패)</p>
+                    <p className={`${isMobile ? 'text-[8px]' : 'text-xs'} text-gray-400 truncate`}>({cumulativeStats.wins}승 {cumulativeStats.losses}패)</p>
                  </div>
             </div>
             {/* 컨디션 표시 영역 - 항상 동일한 공간 유지 (경기 종료 후에는 숨김) */}
-            <div className={`font-bold ${isMobile ? 'text-[8px]' : 'text-xs md:text-sm'} mt-0 relative flex items-center gap-1 md:gap-2 w-full justify-center flex-shrink-0`} style={{ 
+            <div className={`font-bold ${isMobile ? 'text-[8px]' : 'text-sm'} mt-0 relative flex items-center gap-2 w-full justify-center flex-shrink-0`} style={{ 
                 visibility: (tournamentStatus === 'round_in_progress' || tournamentStatus === 'bracket_ready') ? 'visible' : 'hidden',
                 height: (tournamentStatus === 'round_in_progress' || tournamentStatus === 'bracket_ready') ? 'auto' : '1.25rem',
                 minHeight: '1.25rem'
             }}>
-                <span className={isMobile ? 'text-[8px]' : 'text-[10px] md:text-sm'}>컨디션:</span> 
-                <span className={`text-yellow-300 ${isMobile ? 'text-[8px]' : 'text-xs md:text-sm'} relative transition-all duration-300 ${
+                <span className={isMobile ? 'text-[8px]' : 'text-sm'}>컨디션:</span> 
+                <span className={`text-yellow-300 ${isMobile ? 'text-[8px]' : 'text-sm'} relative transition-all duration-300 ${
                     showConditionIncrease ? 'scale-125 text-green-300' : ''
                 }`}>
                     {playerCondition === 1000 ? '-' : playerCondition}
                 </span>
                 {showConditionIncrease && conditionIncreaseAmount > 0 && (
-                    <span className={`absolute ${isMobile ? 'text-[10px]' : 'text-sm md:text-base'} font-bold text-green-400 pointer-events-none whitespace-nowrap ${
-                        isMobile ? 'top-[-12px]' : 'top-[-16px] md:top-[-20px]'
+                    <span className={`absolute ${isMobile ? 'text-[10px]' : 'text-base'} font-bold text-green-400 pointer-events-none whitespace-nowrap ${
+                        isMobile ? 'top-[-12px]' : 'top-[-20px]'
                     }`} style={{
                         animation: 'fadeUp 2s ease-out forwards',
                         textShadow: '0 0 8px rgba(34, 197, 94, 0.8)'
@@ -580,7 +580,7 @@ const PlayerProfilePanel: React.FC<{
                             onUseConditionPotion();
                         }}
                         disabled={playerCondition >= 100}
-                        className={`ml-1 md:ml-2 ${isMobile ? 'text-[10px] w-4 h-4' : 'text-sm md:text-base w-5 h-5 md:w-6 md:h-6'} ${
+                        className={`ml-2 ${isMobile ? 'text-[10px] w-4 h-4' : 'text-base w-6 h-6'} ${
                             playerCondition >= 100 ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-green-600 hover:bg-green-700'
                         } text-white rounded-full transition-colors flex-shrink-0 flex items-center justify-center font-bold`}
                         title={playerCondition >= 100 ? "컨디션이 이미 최대입니다" : "컨디션 회복제 사용 (1회차 경기 시작 전에만 가능)"}
@@ -589,7 +589,7 @@ const PlayerProfilePanel: React.FC<{
                     </button>
                 )}
             </div>
-            <div className={`w-full grid grid-cols-2 md:grid-cols-4 gap-x-0.5 md:gap-x-1 lg:gap-x-3 gap-y-0.5 ${isMobile ? 'text-[8px]' : 'text-[10px] md:text-xs'} mt-0 border-t border-gray-600 pt-0.5 flex-shrink-0 overflow-hidden`}>
+            <div className={`w-full grid grid-cols-4 gap-x-3 gap-y-0.5 ${isMobile ? 'text-[8px]' : 'text-xs'} mt-0 border-t border-gray-600 pt-0.5 flex-shrink-0 overflow-hidden`}>
                 {Object.values(CoreStat).map(stat => {
                     try {
                         // 초기값: initialPlayer가 있으면 그것을 사용, 없으면 initialStats 사용
@@ -604,9 +604,9 @@ const PlayerProfilePanel: React.FC<{
                         <React.Fragment key={stat}>
                             <span className={`text-gray-400 truncate whitespace-nowrap ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''}`}>{stat}</span>
                             <div className="flex justify-end items-baseline relative min-w-0">
-                                <span className={`font-mono text-white ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''} ${isMobile ? 'min-w-[20px] text-[8px]' : 'min-w-[25px] sm:min-w-[30px] md:min-w-[40px] text-right text-[9px] sm:text-[10px] md:text-xs'} whitespace-nowrap`}>{currentValue}</span>
+                                <span className={`font-mono text-white ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''} ${isMobile ? 'min-w-[20px] text-[8px]' : 'min-w-[40px] text-right text-xs'} whitespace-nowrap`}>{currentValue}</span>
                                 {/* [N]: 항상 보이는 누적된 변화값 (초기값 대비 현재까지 누적된 변화) */}
-                                <span className={`ml-0.5 md:ml-1 font-bold ${isMobile ? 'text-[7px] min-w-[22px]' : 'text-[8px] sm:text-[9px] md:text-xs min-w-[28px] sm:min-w-[35px] md:min-w-[45px]'} text-right whitespace-nowrap`}>
+                                <span className={`ml-1 font-bold ${isMobile ? 'text-[7px] min-w-[22px]' : 'text-xs min-w-[45px]'} text-right whitespace-nowrap`}>
                                     {tournamentStatus === 'round_in_progress' && change !== 0 ? (
                                         <span className={`${change > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                             [{change > 0 ? '+' : ''}{change}]
@@ -615,7 +615,7 @@ const PlayerProfilePanel: React.FC<{
                                 </span>
                                 {/* (N): 1초마다 발생한 즉각적인 변화값을 잠시 보여주는 용도 (애니메이션으로 사라짐) */}
                                 {/* 애니메이션이 레이아웃에 영향을 주지 않도록 absolute positioning 사용 및 고정 공간 확보 */}
-                                <span className="ml-0.5 md:ml-1 font-bold text-[9px] sm:text-[10px] md:text-sm min-w-[32px] sm:min-w-[40px] md:min-w-[50px] text-right relative">
+                                <span className="ml-1 font-bold text-sm min-w-[50px] text-right relative">
                                     <span 
                                         className="absolute right-0 top-0 whitespace-nowrap"
                                         style={{ 
@@ -625,13 +625,13 @@ const PlayerProfilePanel: React.FC<{
                                         }}
                                     >
                                         {statChanges[stat] !== undefined && statChanges[stat] !== 0 && tournamentStatus === 'round_in_progress' ? (
-                                            <span className={`text-[9px] sm:text-[10px] md:text-sm ${statChanges[stat] > 0 ? 'text-green-300' : 'text-red-300'}`}>
+                                            <span className={`text-sm ${statChanges[stat] > 0 ? 'text-green-300' : 'text-red-300'}`}>
                                                 ({statChanges[stat] > 0 ? '+' : ''}{statChanges[stat]})
                                             </span>
                                         ) : null}
                                     </span>
                                     {/* 공간 확보를 위한 투명한 플레이스홀더 */}
-                                    <span className="invisible whitespace-nowrap text-[9px] sm:text-[10px] md:text-sm">
+                                    <span className="invisible whitespace-nowrap text-sm">
                                         (+99)
                                     </span>
                                 </span>
@@ -656,18 +656,18 @@ const PlayerProfilePanel: React.FC<{
             {/* 초반/중반/종반 능력치 표시 */}
             {phaseStats && typeof phaseStats === 'object' && (
                 <div className="w-full border-t border-gray-600 mt-0 pt-0.5 flex-shrink-0">
-                    <div className={`grid grid-cols-3 gap-0.5 md:gap-1 ${isMobile ? 'text-[8px]' : 'text-[9px] md:text-xs'}`}>
+                    <div className={`grid grid-cols-3 gap-1 ${isMobile ? 'text-[8px]' : 'text-xs'}`}>
                         <div className={`bg-blue-900/30 rounded ${isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5'} text-center border border-blue-700/50`}>
                             <div className={`text-gray-300 font-semibold ${isMobile ? 'mb-0' : 'mb-0'}`}>초반능력</div>
-                            <div className={`text-blue-300 font-bold ${isMobile ? 'text-[8px]' : 'text-[10px] md:text-sm'}`}>{phaseStats?.early ?? 0}</div>
+                            <div className={`text-blue-300 font-bold ${isMobile ? 'text-[8px]' : 'text-sm'}`}>{phaseStats?.early ?? 0}</div>
                         </div>
                         <div className={`bg-purple-900/30 rounded ${isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5'} text-center border border-purple-700/50`}>
                             <div className={`text-gray-300 font-semibold ${isMobile ? 'mb-0' : 'mb-0'}`}>중반능력</div>
-                            <div className={`text-purple-300 font-bold ${isMobile ? 'text-[8px]' : 'text-[10px] md:text-sm'}`}>{phaseStats?.mid ?? 0}</div>
+                            <div className={`text-purple-300 font-bold ${isMobile ? 'text-[8px]' : 'text-sm'}`}>{phaseStats?.mid ?? 0}</div>
                         </div>
                         <div className={`bg-orange-900/30 rounded ${isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5'} text-center border border-orange-700/50`}>
                             <div className={`text-gray-300 font-semibold ${isMobile ? 'mb-0' : 'mb-0'}`}>종반능력</div>
-                            <div className={`text-orange-300 font-bold ${isMobile ? 'text-[8px]' : 'text-[10px] md:text-sm'}`}>{phaseStats?.end ?? 0}</div>
+                            <div className={`text-orange-300 font-bold ${isMobile ? 'text-[8px]' : 'text-sm'}`}>{phaseStats?.end ?? 0}</div>
                         </div>
                     </div>
                 </div>
@@ -4064,11 +4064,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     );
 
     const mainContent = (
-        <div className={`${isMobile ? 'w-full' : 'flex-1'} flex flex-col lg:flex-row gap-2 ${isMobile ? '' : 'min-h-0 overflow-hidden'}`} style={isMobile ? {} : { height: '100%', display: 'flex' }}>
+        <div className={`${isMobile ? 'w-full' : 'flex-1'} flex flex-row gap-2 ${isMobile ? '' : 'min-h-0 overflow-hidden'}`} style={isMobile ? {} : { height: '100%', display: 'flex' }}>
             <div className={`${isMobile ? 'w-full' : 'flex-1'} flex flex-col gap-2 ${isMobile ? '' : 'min-h-0 min-w-0 overflow-hidden'}`}>
                 {/* 플레이어 프로필 섹션 */}
                 {matchForDisplay && (p1 || p2) ? (
-                    <section className={`flex-shrink-0 flex flex-row gap-1 md:gap-2 items-stretch p-1.5 md:p-2 bg-gray-800/50 rounded-lg ${isMobile ? 'mt-2 mb-2' : 'h-[280px] md:h-[300px]'} ${isMobile ? '' : 'overflow-hidden'}`} style={isMobile ? {} : { minHeight: '280px', maxHeight: '280px' }}>
+                    <section className={`flex-shrink-0 flex flex-row gap-2 items-stretch p-2 bg-gray-800/50 rounded-lg ${isMobile ? 'mt-2 mb-2' : 'h-[300px]'} ${isMobile ? '' : 'overflow-hidden'}`} style={isMobile ? {} : { minHeight: '300px', maxHeight: '300px' }}>
                         <div ref={p1ProfileRef} className="flex-1 min-w-0 min-h-0 overflow-hidden">
                             <PlayerProfilePanelErrorBoundary>
                                 <PlayerProfilePanel 
@@ -4090,11 +4090,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             </PlayerProfilePanelErrorBoundary>
                         </div>
                         {!isMobile && (
-                            <div className="flex-shrink-0 w-32 sm:w-40 md:w-44 xl:w-52 flex flex-col items-center justify-center min-w-0">
+                            <div className="flex-shrink-0 w-52 flex flex-col items-center justify-center min-w-0">
                                 <RadarChart datasets={radarDatasets} maxStatValue={maxStatValue} size={isMobile ? 120 : undefined} />
-                                <div className="flex justify-center gap-1 sm:gap-2 text-[9px] sm:text-[10px] md:text-xs mt-1">
-                                    <span className="flex items-center gap-0.5"><div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-sm" style={{backgroundColor: 'rgba(59, 130, 246, 0.6)'}}></div><span className="truncate max-w-[40px] sm:max-w-none">{p1?.nickname || '선수 1'}</span></span>
-                                    <span className="flex items-center gap-0.5"><div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-sm" style={{backgroundColor: 'rgba(239, 68, 68, 0.6)'}}></div><span className="truncate max-w-[40px] sm:max-w-none">{p2?.nickname || '선수 2'}</span></span>
+                                <div className="flex justify-center gap-2 text-xs mt-1">
+                                    <span className="flex items-center gap-0.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor: 'rgba(59, 130, 246, 0.6)'}}></div><span className="truncate max-w-none">{p1?.nickname || '선수 1'}</span></span>
+                                    <span className="flex items-center gap-0.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor: 'rgba(239, 68, 68, 0.6)'}}></div><span className="truncate max-w-none">{p2?.nickname || '선수 2'}</span></span>
                                 </div>
                             </div>
                         )}
@@ -4121,7 +4121,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     </section>
                 ) : (
                     // matchForDisplay가 null이거나 플레이어가 없는 경우 로딩 화면 표시
-                    <section className={`flex-shrink-0 flex flex-row gap-1 md:gap-2 items-stretch p-1.5 md:p-2 bg-gray-800/50 rounded-lg ${isMobile ? 'mt-2 mb-2' : 'h-[280px] md:h-[300px]'} ${isMobile ? '' : 'overflow-hidden'}`} style={isMobile ? {} : { minHeight: '280px', maxHeight: '280px' }}>
+                    <section className={`flex-shrink-0 flex flex-row gap-2 items-stretch p-2 bg-gray-800/50 rounded-lg ${isMobile ? 'mt-2 mb-2' : 'h-[300px]'} ${isMobile ? '' : 'overflow-hidden'}`} style={isMobile ? {} : { minHeight: '300px', maxHeight: '300px' }}>
                         <div className="flex-1 flex items-center justify-center text-gray-400">
                             경기 정보를 불러오는 중...
                         </div>
@@ -4132,7 +4132,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 <div className={`${isMobile ? 'w-full mt-4' : 'flex-1'} flex ${isMobile ? 'flex-col' : 'flex-row'} gap-2 ${isMobile ? '' : 'min-h-0 max-h-full overflow-hidden'}`}>
                     {/* SGF뷰어 */}
                     <div 
-                        className={`${isMobile ? 'flex-shrink-0' : 'lg:w-2/5'} bg-gray-800/50 rounded-lg p-1 md:p-2 flex flex-col items-center justify-center overflow-auto relative`}
+                        className={`${isMobile ? 'flex-shrink-0' : 'w-2/5'} bg-gray-800/50 rounded-lg p-1 md:p-2 flex flex-col items-center justify-center overflow-auto relative`}
                         style={isMobile ? { 
                             height: sgfViewerSize === 25 ? '30vh' : '50vh',
                             minHeight: '200px',
@@ -4200,10 +4200,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     
                     {/* 중계패널 (점수 그래프 + 실시간 중계 + 획득 보상) */}
                     <div 
-                        className={`${isMobile ? 'w-full' : 'w-full lg:w-3/5'} flex flex-col gap-2 ${isMobile ? '' : 'overflow-hidden'}`}
+                        className={`${isMobile ? 'w-full' : 'w-3/5'} flex flex-col gap-2 ${isMobile ? '' : 'overflow-hidden'}`}
                         style={isMobile ? {} : { height: '100%', minHeight: 0 }}
                     >
-                        <section className="flex-shrink-0 bg-gray-800/50 rounded-lg p-1.5 md:p-2">
+                        <section className="flex-shrink-0 bg-gray-800/50 rounded-lg p-2">
                             <ScoreGraph 
                                 p1Percent={p1Percent} 
                                 p2Percent={p2Percent} 
@@ -4224,14 +4224,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         >
                             {/* 왼쪽: 실시간 중계 (비율 축소해 보상 패널에 공간 확보) */}
                             <div
-                                className={`${isMobile ? 'w-3/5' : 'flex-[3] min-w-0'} bg-gray-800/50 rounded-lg p-1 md:p-2 flex flex-col overflow-hidden`}
+                                className={`${isMobile ? 'w-3/5' : 'flex-[3] min-w-0'} bg-gray-800/50 rounded-lg p-2 flex flex-col overflow-hidden`}
                                 style={{ display: 'flex', flexDirection: 'column' }}
                             >
                                 <CommentaryPanel commentary={displayTournament.currentMatchCommentary} isSimulating={displayTournament.status === 'round_in_progress'} />
                             </div>
                             {/* 오른쪽: 획득 보상 (가로폭 확대해 수치 가시성 확보) */}
                             <div
-                                className={`${isMobile ? 'w-2/5 min-w-[140px]' : 'flex-[1.4] min-w-[160px]'} bg-gray-800/50 rounded-lg p-1.5 md:p-2 flex flex-col overflow-hidden`}
+                                className={`${isMobile ? 'w-2/5 min-w-[140px]' : 'flex-[1.4] min-w-[160px]'} bg-gray-800/50 rounded-lg p-2 flex flex-col overflow-hidden`}
                                 style={{ display: 'flex', flexDirection: 'column' }}
                             >
                                 <FinalRewardPanel tournamentState={tournament} currentUser={currentUser} onAction={onAction} onCompleteDungeon={handleCompleteDungeon} dungeonRewardAlreadyRequested={dungeonStageRewardRequested} onDungeonRewardRequested={() => setDungeonStageRewardRequested(true)} onOpenRewardHistory={handleOpenRewardHistory} />
@@ -4250,16 +4250,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     );
     
     return (
-        <div className="w-full h-full flex flex-col gap-1 sm:gap-2 bg-gray-900 text-white relative overflow-hidden" style={{ height: '100%', minHeight: 0 }}>
-            <header className="flex justify-between items-center p-2 sm:p-3 flex-shrink-0 border-b border-gray-700">
+        <div className="w-full h-full flex flex-col gap-2 bg-gray-900 text-white relative overflow-hidden" style={{ height: '100%', minHeight: 0 }}>
+            <header className="flex justify-between items-center p-3 flex-shrink-0 border-b border-gray-700">
                 <button onClick={handleBackClick} className="transition-transform active:scale-90 filter hover:drop-shadow-lg">
-                    <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" loading="lazy" decoding="async" />
+                    <img src="/images/button/back.png" alt="Back" className="w-12 h-12" loading="lazy" decoding="async" />
                 </button>
                 <div className="flex-1 text-center">
-                    <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">
+                    <h1 className="text-2xl font-bold">
                         {TOURNAMENT_DEFINITIONS[tournament.type].name}
                         {tournament.currentStageAttempt && (
-                            <span className="ml-2 text-base sm:text-lg lg:text-xl text-yellow-400">
+                            <span className="ml-2 text-xl text-yellow-400">
                                 {tournament.currentStageAttempt}단계
                             </span>
                         )}
@@ -4267,7 +4267,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 </div>
                 <button 
                     onClick={() => setIsSimulationHelpOpen(true)}
-                    className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-transform hover:scale-110"
+                    className="w-10 h-10 flex items-center justify-center transition-transform hover:scale-110"
                     aria-label="도움말"
                     title="도움말"
                 >
@@ -4290,7 +4290,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             {mainContent}
                         </div>
                     </div>
-                    <div className={`fixed top-0 right-0 h-full w-[320px] bg-gray-800 shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+                    <div className={`absolute top-0 right-0 h-full w-[320px] bg-gray-800 shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
                         <div className="flex justify-between items-center p-2 border-b border-gray-600 flex-shrink-0">
                             <h3 className="text-lg font-bold">대진표</h3>
                             <button onClick={() => setIsMobileSidebarOpen(false)} className="text-2xl font-bold text-gray-300 hover:text-white">×</button>
@@ -4299,7 +4299,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             {sidebarContent}
                         </div>
                     </div>
-                    {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
+                    {isMobileSidebarOpen && <div className="absolute inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
                 </>
             ) : (
                 <div className="flex-1 min-h-0 overflow-hidden p-1 sm:p-2 pb-2">

@@ -24,7 +24,7 @@ import TowerControls from './components/game/TowerControls.js';
 import TowerSidebar from './components/game/TowerSidebar.js';
 import { ScoringOverlay } from './components/game/ScoringOverlay.js';
 import { useClientTimer } from './hooks/useClientTimer.js';
-import { useIsHandheldDevice, useIsMobileLayout } from './hooks/useIsMobileLayout.js';
+import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import Button from './components/Button.js';
@@ -145,6 +145,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
     const isSinglePlayer = session.isSinglePlayer;
     const isTower = session.gameCategory === 'tower';
+    const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+    const showMoveConfirmPanel = !isPlayfulMode;
     const aiHiddenTurnsFromSession = (session as any).aiHiddenItemTurns;
     const plannedAiHiddenTurns = Array.isArray(aiHiddenTurnsFromSession)
         ? aiHiddenTurnsFromSession
@@ -402,11 +404,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [session, isSinglePlayer, isTower, hasStrategicTurnLimit, gameId]);
     
-    // --- Mobile UI State (가로 모드에서는 PC와 동일 UI) ---
-    const isMobile = useIsMobileLayout(1024);
-    const isMobileSafeArea = useIsMobileLayout(768);
-    // 휴대기기에서는 세로/가로와 무관하게 "모바일 보조 UI(착수 확정 등)" 사용
+    // --- UI State (가로/캔버스 스케일 환경에서는 PC처럼 렌더링) ---
+    // global scaled canvas(1920x1080) 안에서는 PC 레이아웃이 기준이 되도록 모바일 분기를 끕니다.
     const isHandheld = useIsHandheldDevice(1025);
+    const isMobile = false;
+    const isMobileSafeArea = isHandheld;
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [hasNewMessage, setHasNewMessage] = useState(false);
     // 우측 사이드바 접기/펼치기 (전략·놀이바둑 경기장)
@@ -1858,7 +1860,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
                                     />
                                     {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
-                                    {(
+                                    {showMoveConfirmPanel && (
                                         <div
                                             className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
                                             style={{ left: 'calc(50% + 420px + 8px)' }}
@@ -2020,7 +2022,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isBoardLocked={isBoardLocked}
                                     />
                                 {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
-                                {(
+                                {showMoveConfirmPanel && (
                                         <div
                                             className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
                                             style={{ left: 'calc(50% + 420px + 8px)' }}
@@ -2195,7 +2197,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     />
                                 </div>
                                 {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
-                                {(
+                                {showMoveConfirmPanel && (
                                     <div
                                         className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
                                         style={{ left: 'calc(50% + 420px + 8px)' }}

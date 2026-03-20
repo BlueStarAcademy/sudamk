@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { Guild as GuildType, UserWithStatus, GuildBossInfo, QuestReward, GuildMember, GuildMemberRole, CoreStat, GuildResearchId, GuildResearchCategory, ItemGrade, ServerAction, GuildBossSkill } from '../../types/index.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import { useIsMobileLayout } from '../../hooks/useIsMobileLayout.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
 import GuildHomePanel, { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
@@ -123,7 +122,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
             .map(([userId, agg]) => ({ userId, ...agg }))
             .sort((a, b) => b.totalCoins - a.totalCoins);
     }, [guild?.donationLog]);
-    const isMobile = useIsMobileLayout(768);
+    const isMobile = false;
 
     return (
         <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col gap-3 relative overflow-hidden border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-1 min-h-[200px] max-h-[320px]" style={{ minHeight: '200px' }}>
@@ -300,7 +299,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                         </div>
                     </div>
                 </div>,
-                document.body
+                document.getElementById('sudamr-modal-root') ?? document.body
             )}
         </div>
     );
@@ -494,7 +493,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
 
     const theme = getBossTheme(currentBoss.id);
 
-    const isMobile = useIsMobileLayout(768);
+    const isMobile = false;
     
     return (
         <div className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center w-full relative overflow-hidden h-full ${className || ''}`}>
@@ -1162,7 +1161,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     const opponentGuildIdForDisplay = activeWar ? (activeWar.guild1Id === guild.id ? activeWar.guild2Id : activeWar.guild1Id) : null;
     const displayOpponent = opponentGuild ?? (opponentGuildIdForDisplay === GUILD_WAR_BOT_GUILD_ID ? { id: GUILD_WAR_BOT_GUILD_ID, name: '[데모]길드전AI', level: 1, members: [], leaderId: GUILD_WAR_BOT_GUILD_ID } : null);
     const enemyGuildName = displayOpponent?.name || '상대 길드';
-    const isMobile = useIsMobileLayout(768);
+    const isMobile = false;
     const isPastApplicationDeadline = applicationDeadline != null && Date.now() >= applicationDeadline;
     
     return (
@@ -1670,7 +1669,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [isBossGuideOpen, setIsBossGuideOpen] = useState(false);
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [isIconSelectOpen, setIsIconSelectOpen] = useState(false);
-    const isMobile = useIsMobileLayout(768);
+    const isMobile = false;
     const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
     const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
     const goldButtonRef = useRef<HTMLDivElement>(null);
