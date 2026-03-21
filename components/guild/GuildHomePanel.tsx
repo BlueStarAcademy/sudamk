@@ -408,7 +408,7 @@ const GuildHomePanel: React.FC<GuildHomePanelProps> = ({ guild, myMemberInfo, ri
                 </>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
+                    <div className="grid grid-cols-2 gap-4 flex-shrink-0">
                         <GuildCheckInPanel guild={guild} />
                         <GuildAnnouncementPanel guild={guild} />
                     </div>

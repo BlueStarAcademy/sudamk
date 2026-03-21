@@ -5,6 +5,7 @@ import { useAppContext } from '../../hooks/useAppContext';
 import { TournamentBracket } from '../TournamentBracket';
 import Button from '../Button';
 import { TOURNAMENT_DEFINITIONS } from '../../constants';
+import { replaceAppHash } from '../../utils/appUtils.js';
 
 // Error Boundary for TournamentBracket
 class TournamentBracketErrorBoundary extends Component<
@@ -36,7 +37,7 @@ class TournamentBracketErrorBoundary extends Component<
             return (
                 <div className="p-4 text-center">
                     <p className="text-red-400 mb-4">토너먼트 화면을 불러오는 중 오류가 발생했습니다.</p>
-                    <Button onClick={() => { window.location.hash = '#/tournament'; }}>토너먼트 로비로 돌아가기</Button>
+                    <Button onClick={() => { replaceAppHash('#/tournament'); }}>토너먼트 로비로 돌아가기</Button>
                     {import.meta.env.DEV && this.state.error && (
                         <details className="mt-4 text-left">
                             <summary className="cursor-pointer text-gray-400">에러 상세 정보</summary>
@@ -149,7 +150,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         return (
             <div className="p-4 text-center">
                 <p>사용자 정보를 불러오는 중입니다...</p>
-                <Button onClick={() => { window.location.hash = '#/tournament'; }} className="mt-4">로비로 돌아가기</Button>
+                <Button onClick={() => { replaceAppHash('#/tournament'); }} className="mt-4">로비로 돌아가기</Button>
             </div>
         );
     }
@@ -159,7 +160,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     if (noStateAndChampionship) {
         return (
             <div className="p-8 w-full flex flex-col h-full items-center justify-center gap-4">
-                <Button onClick={() => { window.location.hash = '#/tournament'; }} className="!py-2 !px-4">
+                <Button onClick={() => { replaceAppHash('#/tournament'); }} className="!py-2 !px-4">
                     로비로 돌아가기
                 </Button>
             </div>
@@ -196,7 +197,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
                                 } catch (error) {
                                     console.error('[TournamentArena] Failed to save tournament progress on exit:', error);
                                 } finally {
-                                    window.location.hash = '#/tournament';
+                                    replaceAppHash('#/tournament');
                                 }
                             }
                         }}

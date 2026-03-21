@@ -6,6 +6,7 @@ import Button from '../Button.js';
 import ChallengeSelectionModal from '../ChallengeSelectionModal';
 import GameRejectionSettingsModal from '../GameRejectionSettingsModal.tsx';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { isOpponentInsufficientActionPointsError } from '../../constants.js';
 
 const statusDisplay: Record<UserStatus, { text: string; color: string; }> = {
   'online': { text: '온라인', color: 'text-green-500' },
@@ -30,6 +31,7 @@ interface PlayerListProps {
 }
 
 const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, mode, negotiations, onViewUser, lobbyType, userCount, onOpenAiModal }) => {
+    const { handlers } = useAppContext();
     const [isChallengeSelectionModalOpen, setIsChallengeSelectionModalOpen] = useState(false);
     const [challengeTargetUser, setChallengeTargetUser] = useState<UserWithStatus | null>(null);
     const [isRejectionSettingsModalOpen, setIsRejectionSettingsModalOpen] = useState(false);
@@ -205,7 +207,11 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
                             
                             const result = await response.json();
                             if (result.error) {
-                                alert(result.error);
+                                if (typeof result.error === 'string' && isOpponentInsufficientActionPointsError(result.error)) {
+                                    handlers.openOpponentInsufficientActionPointsModal();
+                                } else {
+                                    alert(result.error);
+                                }
                                 return;
                             }
                             

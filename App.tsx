@@ -39,6 +39,7 @@ import EnhancementModal from './components/EnhancementModal';
 import EquipmentEffectsModal from './components/EquipmentEffectsModal';
 import EnhancementResultModal from './components/modals/EnhancementResultModal.js';
 import InsufficientActionPointsModal from './components/InsufficientActionPointsModal.js';
+import OpponentInsufficientActionPointsModal from './components/OpponentInsufficientActionPointsModal.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
 
@@ -161,6 +162,7 @@ const AppContent: React.FC = () => {
         if (modals.rewardSummary) ids.push('rewardSummary');
         if (modals.isClaimAllSummaryOpen) ids.push('claimAllSummary');
         if (modals.isShopOpen) ids.push('shop');
+        if (modals.isActionPointModalOpen) ids.push('actionPoint');
         if (modals.viewingUser) ids.push('viewingUser');
         if (modals.isInfoModalOpen) ids.push('infoModal');
         if (modals.isEncyclopediaOpen) ids.push('encyclopedia');
@@ -183,6 +185,7 @@ const AppContent: React.FC = () => {
         if (modals.mutualDisconnectMessage) ids.push('mutualDisconnect');
         if (modals.showOtherDeviceLoginModal) ids.push('otherDeviceLogin');
         if (modals.isInsufficientActionPointsModalOpen) ids.push('insufficientActionPoints');
+        if (modals.isOpponentInsufficientActionPointsModalOpen) ids.push('opponentInsufficientActionPoints');
         // itemObtained은 항상 마지막에 추가하여 최상단에 표시
         if (modals.lastUsedItemResult) ids.push('itemObtained');
         return ids;
@@ -418,6 +421,12 @@ const AppContent: React.FC = () => {
                                             handlers.openActionPointModal();
                                         }}
                                         isTopmost={topmostModalId === 'insufficientActionPoints'}
+                                    />
+                                )}
+                                {modals.isOpponentInsufficientActionPointsModalOpen && (
+                                    <OpponentInsufficientActionPointsModal
+                                        onClose={handlers.closeOpponentInsufficientActionPointsModal}
+                                        isTopmost={topmostModalId === 'opponentInsufficientActionPoints'}
                                     />
                                 )}
                                 {modals.isEncyclopediaOpen && (

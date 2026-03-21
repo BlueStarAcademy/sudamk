@@ -461,8 +461,6 @@ const GuildBoss: React.FC = () => {
     
     const userLogContainerRef = useRef<HTMLDivElement>(null);
     const bossLogContainerRef = useRef<HTMLDivElement>(null);
-    const mobileUserLogContainerRef = useRef<HTMLDivElement>(null);
-    const mobileBossLogContainerRef = useRef<HTMLDivElement>(null);
 
     const myGuild = useMemo(() => {
         if (!currentUserWithStatus?.guildId || !guilds) return null;
@@ -523,17 +521,6 @@ const GuildBoss: React.FC = () => {
         }
     }, [bossLogs]);
     
-    // 모바일 스크롤 자동 이동
-    useEffect(() => { 
-        if (mobileUserLogContainerRef.current) {
-            mobileUserLogContainerRef.current.scrollTop = mobileUserLogContainerRef.current.scrollHeight;
-        }
-    }, [userLogs]);
-    useEffect(() => { 
-        if (mobileBossLogContainerRef.current) {
-            mobileBossLogContainerRef.current.scrollTop = mobileBossLogContainerRef.current.scrollHeight;
-        }
-    }, [bossLogs]);
     useEffect(() => { if (!isSimulating) setSimulatedBossHp(currentHp); }, [currentHp, isSimulating]);
 
     // 보스 데미지 숫자가 1초 후 자동으로 제거되도록
@@ -759,7 +746,7 @@ const GuildBoss: React.FC = () => {
     const attemptsLeft = GUILD_BOSS_MAX_ATTEMPTS - usedToday;
     
     return (
-        <div style={backgroundStyle} className="p-2 sm:p-4 lg:p-6 w-full max-w-[95%] xl:max-w-[98%] mx-auto h-full flex flex-col relative">
+        <div style={backgroundStyle} className="relative mx-auto flex h-full w-full max-w-[98%] flex-col p-6">
             <header className="relative flex justify-center items-center mb-4 flex-shrink-0 py-2">
                 <div className="absolute left-0 top-1/2 -translate-y-1/2">
                     <BackButton onClick={() => window.location.hash = '#/guild'} />
@@ -769,7 +756,7 @@ const GuildBoss: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => setShowBossHelpModal(true)}
-                        className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-tertiary/50 hover:bg-tertiary/70 transition-all hover:scale-110 border border-accent/20 shadow-md"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent/20 bg-tertiary/50 shadow-md transition-all hover:scale-110 hover:bg-tertiary/70"
                         title="길드 보스전 도움말"
                         aria-label="도움말"
                     >
@@ -778,78 +765,17 @@ const GuildBoss: React.FC = () => {
                 </div>
             </header>
 
-            <main className="flex-1 min-h-0 flex flex-row gap-4">
-                {/* 모바일: 상단 - 보스 패널과 유저 패널 가로 배치 */}
-                <div className="hidden flex-row gap-4 flex-shrink-0">
-                    <div className="w-1/2 flex flex-col gap-4">
-                        <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={currentBoss.maxHp} damageNumbers={bossDamageNumbers} />
-                        <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
-                    </div>
-                    <div className="w-1/2 flex flex-col gap-4">
-                        <UserStatsPanel 
-                            user={currentUserWithStatus} 
-                            guild={myGuild} 
-                            hp={userHp} 
-                            maxHp={maxUserHp} 
-                            damageNumbers={damageNumbers}
-                            onOpenEffects={handlers.openEquipmentEffectsModal}
-                            onOpenPresets={handlers.openPresetModal}
-                            isSimulating={isSimulating}
-                            activeDebuffs={activeDebuffs}
-                        />
-                        <div className="flex-shrink-0 bg-panel border border-color rounded-lg p-3 space-y-2 text-center">
-                            <Button
-                                onClick={handleBattleStart}
-                                disabled={attemptsLeft <= 0 || isSimulating}
-                                className="w-full mt-3 flex items-center justify-center gap-2"
-                            >
-                                {!isSimulating && (
-                                    <img src="/images/guild/ticket.png" alt="도전권" className="w-5 h-5" />
-                                )}
-                                <span>{isSimulating ? '전투 중...' : `도전하기 (${attemptsLeft}/${GUILD_BOSS_MAX_ATTEMPTS})`}</span>
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 모바일: 하단 - 보스 중계와 유저 중계 가로 배치 */}
-                <div className="hidden flex-row gap-4 flex-1 min-h-0">
-                    <div className="w-1/2 bg-panel border border-color rounded-lg p-4 flex flex-col min-h-0">
-                        <h3 className="text-lg font-bold mb-2 flex-shrink-0 text-center text-red-300">보스의 공격</h3>
-                        <div ref={mobileBossLogContainerRef} className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-2 rounded-md space-y-2 text-sm">
-                            {bossLogs.map((entry, index) => (
-                                <div key={index} className="flex items-center gap-2 animate-fade-in">
-                                    <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
-                                    {entry.icon && <img src={entry.icon} alt="action" className="w-6 h-6 flex-shrink-0" />}
-                                    <span>{entry.message}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="w-1/2 bg-panel border border-color rounded-lg p-4 flex flex-col min-h-0">
-                        <h3 className="text-lg font-bold mb-2 flex-shrink-0 text-center text-blue-300">나의 공격</h3>
-                        <div ref={mobileUserLogContainerRef} className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-2 rounded-md space-y-2 text-sm">
-                            {userLogs.map((entry, index) => (
-                                <div key={index} className="flex items-center gap-2 animate-fade-in justify-start">
-                                    <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
-                                    {entry.icon && <img src={entry.icon} alt="action" className="w-6 h-6 flex-shrink-0" />}
-                                    <span>{entry.message}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 데스크톱: 기존 레이아웃 */}
-                <div className="flex w-full lg:w-[22%] xl:w-[20%] flex-col gap-4">
+            {/* 뷰포트 lg/xl이 아니라 설계 캔버스 기준으로 PC와 동일 20% | flex-1 | 26% */}
+            <main className="flex min-h-0 min-w-0 flex-1 flex-row gap-4">
+                <div className="flex w-[20%] min-w-0 shrink-0 flex-col gap-4">
                     <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={currentBoss.maxHp} damageNumbers={bossDamageNumbers} />
                     <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
                 </div>
-                
-                <div className="flex flex-1 flex-col gap-4 min-h-0">
-                    <div className="bg-panel border border-color rounded-lg p-4 flex flex-col h-1/2 min-h-[200px] lg:min-h-0">
-                        <h3 className="text-lg font-bold mb-2 flex-shrink-0 text-center text-red-300">보스의 공격</h3>
-                        <div ref={bossLogContainerRef} className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-2 rounded-md space-y-2 text-sm">
+
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+                    <div className="bg-panel border border-color flex h-1/2 min-h-0 flex-col rounded-lg p-4">
+                        <h3 className="mb-2 flex-shrink-0 text-center text-lg font-bold text-red-300">보스의 공격</h3>
+                        <div ref={bossLogContainerRef} className="flex-grow overflow-y-auto rounded-md bg-tertiary/50 p-2 pr-2 text-sm space-y-2">
                             {bossLogs.map((entry, index) => (
                                 <div key={index} className="flex items-center gap-2 animate-fade-in">
                                     <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
@@ -859,9 +785,9 @@ const GuildBoss: React.FC = () => {
                             ))}
                         </div>
                     </div>
-                     <div className="bg-panel border border-color rounded-lg p-4 flex flex-col h-1/2 min-h-[200px] lg:min-h-0">
-                        <h3 className="text-lg font-bold mb-2 flex-shrink-0 text-center text-blue-300">나의 공격</h3>
-                        <div ref={userLogContainerRef} className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-2 rounded-md space-y-2 text-sm">
+                    <div className="bg-panel border border-color flex h-1/2 min-h-0 flex-col rounded-lg p-4">
+                        <h3 className="mb-2 flex-shrink-0 text-center text-lg font-bold text-blue-300">나의 공격</h3>
+                        <div ref={userLogContainerRef} className="flex-grow overflow-y-auto rounded-md bg-tertiary/50 p-2 pr-2 text-sm space-y-2">
                             {userLogs.map((entry, index) => (
                                 <div key={index} className="flex items-center gap-2 animate-fade-in justify-start">
                                     <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
@@ -873,7 +799,7 @@ const GuildBoss: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="flex w-full lg:w-[28%] xl:w-[26%] flex-shrink-0 flex-col gap-4">
+                <div className="flex w-[26%] min-w-0 shrink-0 flex-col gap-4">
                     <UserStatsPanel 
                         user={currentUserWithStatus} 
                         guild={myGuild} 

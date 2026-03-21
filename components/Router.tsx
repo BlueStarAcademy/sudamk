@@ -19,6 +19,7 @@ import TowerLobby from './TowerLobby.js';
 import GuildHome from './guild/GuildHome.js';
 import GuildBoss from './guild/GuildBoss.js';
 import GuildWar from './guild/GuildWar.js';
+import { replaceAppHash } from '../utils/appUtils.js';
 
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
@@ -51,7 +52,7 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
                 setHasTimedOut(true);
                 setTimeout(() => {
                     if (window.location.hash !== '#/profile') {
-                        window.location.hash = '#/profile';
+                        replaceAppHash('#/profile');
                     }
                 }, 100);
             }

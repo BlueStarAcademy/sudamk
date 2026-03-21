@@ -4,6 +4,7 @@ import Button from '../Button.js';
 import ConfirmModal from '../ConfirmModal.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
+import { replaceAppHash } from '../../utils/appUtils.js';
 
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     showResultModal?: boolean;
@@ -144,8 +145,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                 // 에러가 발생해도 로비로 이동 (도전의 탑 게임이 이미 종료되었거나 없는 경우 등)
                 console.log('[TowerControls] LEAVE_AI_GAME failed, moving to lobby anyway:', error);
             }
-            // 서버 응답을 기다리지 않고 바로 이동
-            window.location.hash = '#/tower';
+            // 서버 응답을 기다리지 않고 바로 이동 (히스토리에서 경기장 항목 제거)
+            replaceAppHash('#/tower');
         };
 
         return (

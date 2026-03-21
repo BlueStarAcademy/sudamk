@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, Negotiation, GameMode, UserStatus, Player } from '../../types/index.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, DEFAULT_GAME_SETTINGS } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, DEFAULT_GAME_SETTINGS, OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE } from '../../constants';
 import { initializeGame } from '../gameModes.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
@@ -85,7 +85,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 }
 
                 if (opponent.actionPoints.current < getActionPointCost(mode) && !opponent.isAdmin) {
-                    return { error: `상대방의 액션 포인트가 부족합니다.` };
+                    return { error: OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE };
                 }
             }
             
@@ -141,6 +141,22 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 delete volatileState.negotiations[negotiationId];
                 volatileState.userStatuses[user.id].status = UserStatus.Waiting;
                 return { error: '상대방이 다른 대국 신청을 먼저 받았습니다. 잠시 후 다시 시도해주세요.' };
+            }
+
+            if (opponent.id !== aiUserId) {
+                const freshOpponent = await db.getUser(opponent.id);
+                if (!freshOpponent) {
+                    delete volatileState.negotiations[negotiationId];
+                    volatileState.userStatuses[user.id].status = UserStatus.Waiting;
+                    broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
+                    return { error: 'Opponent not found.' };
+                }
+                if (freshOpponent.actionPoints.current < cost && !freshOpponent.isAdmin) {
+                    delete volatileState.negotiations[negotiationId];
+                    volatileState.userStatuses[user.id].status = UserStatus.Waiting;
+                    broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
+                    return { error: OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE };
+                }
             }
 
             negotiation.previousSettings = undefined; // 초기 신청이므로 이전 설정 없음

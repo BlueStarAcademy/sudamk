@@ -1,6 +1,14 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { GameMode, UserWithStatus, GameSettings, Negotiation, ServerAction } from '../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../constants.js';
+import {
+  SPECIAL_GAME_MODES,
+  PLAYFUL_GAME_MODES,
+  DEFAULT_GAME_SETTINGS,
+  STRATEGIC_ACTION_POINT_COST,
+  PLAYFUL_ACTION_POINT_COST,
+  SELF_INSUFFICIENT_AP_HEADING,
+  formatMatchActionPointsLine,
+} from '../constants.js';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
   CAPTURE_TARGETS, SPEED_BOARD_SIZES, SPEED_TIME_LIMITS, BASE_STONE_COUNTS,
@@ -42,7 +50,8 @@ const ChallengeReceivedModal: React.FC<ChallengeReceivedModalProps> = ({
   const [settings, setSettings] = useState<GameSettings>(negotiation.settings);
   const selectedMode = negotiation.mode;
   const actionPointCost = SPECIAL_GAME_MODES.some(m => m.mode === selectedMode) ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
-  const hasEnoughAP = (currentUser?.actionPoints?.current ?? 0) >= actionPointCost;
+  const myAp = currentUser?.actionPoints?.current ?? 0;
+  const hasEnoughAP = !!currentUser?.isAdmin || myAp >= actionPointCost;
   
   // negotiation.settings가 변경되면 로컬 state 업데이트
   useEffect(() => {
@@ -687,6 +696,22 @@ const ChallengeReceivedModal: React.FC<ChallengeReceivedModalProps> = ({
               )}
               </div>
             </div>
+
+            {!hasEnoughAP && (
+              <div
+                className="mt-2 lg:mt-3 p-2 lg:p-3 rounded-lg bg-amber-900/35 border border-amber-600/45 text-amber-100 flex-shrink-0"
+              >
+                <p className="font-semibold text-center" style={{ fontSize: `${Math.max(10, Math.round(12 * 0.85))}px` }}>
+                  {SELF_INSUFFICIENT_AP_HEADING}
+                </p>
+                <p className="text-center text-amber-200/95 mt-1" style={{ fontSize: `${Math.max(9, Math.round(11 * 0.85))}px` }}>
+                  {formatMatchActionPointsLine(actionPointCost, myAp)}
+                </p>
+                <p className="text-center text-amber-200/80 text-xs mt-1">
+                  수락 시에도 행동력(⚡)이 소모됩니다. 충전한 뒤 수락해 주세요.
+                </p>
+              </div>
+            )}
 
             {/* 하단 버튼 */}
             <div className="mt-2 lg:mt-4 border-t border-gray-700 pt-2 lg:pt-4 flex justify-between gap-2 lg:gap-3">

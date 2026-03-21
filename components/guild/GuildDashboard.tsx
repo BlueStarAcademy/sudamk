@@ -21,6 +21,7 @@ import GuildWarMatchingModal from './GuildWarMatchingModal.js';
 import GuildWarCancelConfirmModal from './GuildWarCancelConfirmModal.js';
 import GuildWarApplicationDayOnlyModal from './GuildWarApplicationDayOnlyModal.js';
 import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getKSTDay, getTodayKSTDateString } from '../../utils/timeUtils.js';
+import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 
 // 고급 버튼 스타일 (길드 패널용)
 const guildPanelBtnBase = 'inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold tracking-wide transition-all duration-200 px-4 py-2 text-sm border backdrop-blur-sm';
@@ -132,9 +133,9 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                 <span>길드 기부</span>
             </h3>
 
-            <div className="flex flex-col md:flex-row gap-3 relative z-10 min-w-0 flex-1 min-h-0 items-stretch">
-            {/* 좌측: 기부 버튼 - 가운데 정렬, 기부 기록과 균형 맞춤 */}
-            <div className="flex-[1] flex flex-col md:flex-row gap-2 md:gap-4 min-w-0 shrink-0 justify-center items-center md:items-stretch">
+            <div className="flex flex-row gap-3 relative z-10 min-w-0 flex-1 min-h-0 items-stretch">
+            {/* 좌측: 기부 버튼 — 뷰포트 md 대신 항상 PC와 동일(캔버스 내부는 설계 너비 기준) */}
+            <div className="flex-[1] flex flex-row gap-4 min-w-0 shrink-0 justify-center items-stretch">
                 {/* 골드 기부 */}
                 <div className="flex-1 flex flex-col gap-1.5 min-w-[100px] max-w-[140px] shrink-0 items-center justify-center">
                     <div className="text-xs text-amber-200 font-semibold whitespace-nowrap text-center w-full">골드 기부</div>
@@ -187,10 +188,10 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
             </div>
 
             {/* 우측: 기부 기록 - 고정 높이, 내용 많으면 내부 스크롤 */}
-            <div className="flex-[1.5] min-w-0 flex flex-col min-h-0 relative z-10 border-t md:border-t-0 md:border-l border-stone-600/50 pt-2 md:pt-0 md:pl-3">
+            <div className="flex-[1.5] min-w-0 flex flex-col min-h-0 relative z-10 border-l border-stone-600/50 pl-3 pt-0">
                 <div className="text-xs font-semibold text-highlight mb-1 flex-shrink-0">기부 기록</div>
                 <div className="flex-1 min-h-0 overflow-y-auto pr-1 rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner backdrop-blur-sm">
-                    <div className="p-3 space-y-0.5 text-[10px] md:text-xs text-secondary min-h-full">
+                    <div className="p-3 space-y-0.5 text-xs text-secondary min-h-full">
                             {donationByUser.length === 0 ? (
                                 <div className="text-stone-500 py-1">기록 없음</div>
                             ) : (
@@ -313,25 +314,25 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
         { name: '보스 도감', icon: '/images/guild/button/bossraid1.png', action: onOpenBossGuide },
     ];
     return (
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-2 sm:p-3 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-shrink-0">
-            <h3 className="font-bold text-sm sm:text-base text-highlight mb-2 text-center flex items-center justify-center gap-1 sm:gap-2 flex-shrink-0">
-                <span className="text-base sm:text-xl">⚡</span>
+        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-shrink-0">
+            <h3 className="font-bold text-base text-highlight mb-2 text-center flex items-center justify-center gap-2 flex-shrink-0">
+                <span className="text-xl">⚡</span>
                 <span>길드 활동</span>
             </h3>
-            <div className="flex justify-around items-center gap-1 sm:gap-2">
+            <div className="flex justify-around items-center gap-2">
                 {activities.map(act => (
                     <button 
                         key={act.name} 
                         onClick={act.action}
-                        className={`flex flex-col items-center gap-1 sm:gap-2 p-1.5 sm:p-3 rounded-xl bg-gradient-to-br from-stone-800/50 to-stone-700/30 border border-stone-600/40 transition-all hover:brightness-110 hover:shadow-lg relative group flex-1 min-w-0`}
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl bg-gradient-to-br from-stone-800/50 to-stone-700/30 border border-stone-600/40 transition-all hover:brightness-110 hover:shadow-lg relative group flex-1 min-w-0`}
                     >
-                        <div className="w-10 h-10 sm:w-16 sm:h-16 bg-gradient-to-br from-stone-700/60 to-stone-800/50 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-xl transition-shadow border border-stone-600/40 flex-shrink-0">
-                            <img src={act.icon} alt={act.name} className="w-8 h-8 sm:w-14 sm:h-14 drop-shadow-lg object-contain" />
+                        <div className="h-16 w-16 bg-gradient-to-br from-stone-700/60 to-stone-800/50 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-xl transition-shadow border border-stone-600/40 flex-shrink-0">
+                            <img src={act.icon} alt={act.name} className="h-14 w-14 drop-shadow-lg object-contain" />
                         </div>
-                        <span className="text-xs sm:text-sm font-semibold text-highlight text-center leading-tight">{act.name}</span>
+                        <span className="text-sm font-semibold text-highlight text-center leading-tight">{act.name}</span>
                         {act.notification && (
-                            <div className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full animate-pulse border-2 border-secondary shadow-lg flex items-center justify-center">
-                                <span className="text-[6px] sm:text-[8px] text-white font-bold">!</span>
+                            <div className="absolute right-1 top-1 h-4 w-4 bg-red-500 rounded-full animate-pulse border-2 border-secondary shadow-lg flex items-center justify-center">
+                                <span className="text-[8px] text-white font-bold">!</span>
                             </div>
                         )}
                     </button>
@@ -1670,6 +1671,8 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [isIconSelectOpen, setIsIconSelectOpen] = useState(false);
     const isMobile = false;
+    /** 실제 폰 뷰포트는 좁지만 앱은 1920 설계 캔버스라 Tailwind md/lg가 오동작함 → 추가 scale만 끔 */
+    const isHandheldViewport = useIsHandheldDevice(1025);
     const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
     const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
     const goldButtonRef = useRef<HTMLDivElement>(null);
@@ -1679,13 +1682,19 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [scale, setScale] = useState(1);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // 스케일 계산 (가로 모드/데스크톱만)
+    // 스케일 계산 (넓은 화면에서만 — 휴대기기는 부모 16:9 캔버스 스케일만 사용)
     useEffect(() => {
         const handleResize = () => {
-            const desktopLayout = window.innerWidth >= 768 || window.innerWidth > window.innerHeight;
-            if (desktopLayout && containerRef.current) {
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            // 좁은 뷰포트·세로는 캔버스 스케일만 사용 (내부 scale 금지)
+            if (w < 1025 || w <= h) {
+                setScale(1);
+                return;
+            }
+            if (containerRef.current) {
+                const viewportWidth = w;
+                const viewportHeight = h;
                 
                 // 24인치 모니터 기준 (1920x1080)
                 const baseWidth = 1920;
@@ -1830,9 +1839,9 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
             ref={containerRef}
             className="w-full h-full flex items-center justify-center relative"
             style={{
-                transform: !isMobile ? `scale(${scale})` : 'none',
+                transform: !isMobile && !isHandheldViewport ? `scale(${scale})` : 'none',
                 transformOrigin: 'center center',
-                overflow: !isMobile ? 'visible' : 'auto',
+                overflow: !isMobile && !isHandheldViewport ? 'visible' : 'auto',
             }}
         >
             <div 
@@ -1855,15 +1864,15 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 setIsIconSelectOpen(false);
             }} />}
             
-            <header className="relative flex justify-center items-center mb-4 flex-shrink-0 py-3 md:py-4 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 rounded-xl border border-accent/20 shadow-lg">
+            <header className="relative flex justify-center items-center mb-4 flex-shrink-0 py-4 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 rounded-xl border border-accent/20 shadow-lg">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <BackButton onClick={() => window.location.hash = '#/profile'} />
                 </div>
                 
-                <div className="flex items-center gap-4 flex-1 justify-center px-16 md:px-20">
+                <div className="flex flex-1 items-center justify-center gap-4 px-20">
                     <div className="relative group flex-shrink-0 overflow-visible">
                         <div className="absolute inset-0 bg-gradient-to-br from-accent/30 to-accent/10 rounded-xl blur-sm"></div>
-                        <img src={getGuildIconPath(currentGuild?.icon || guild?.icon)} alt="Guild Icon" className="w-16 h-16 md:w-20 md:h-20 bg-tertiary rounded-xl border-2 border-accent/30 shadow-lg relative z-10" />
+                        <img src={getGuildIconPath(currentGuild?.icon || guild?.icon)} alt="Guild Icon" className="relative z-10 h-20 w-20 bg-tertiary rounded-xl border-2 border-accent/30 shadow-lg" />
                         {canManage && (
                             <button
                                 onClick={() => setIsIconSelectOpen(true)}
@@ -1876,7 +1885,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                         )}
                     </div>
                     <div className="flex flex-col items-center gap-1 min-w-0 flex-1 max-w-md">
-                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-highlight drop-shadow-md break-words truncate w-full text-center" title={(() => {
+                        <h1 className="w-full truncate break-words text-center text-3xl font-bold text-highlight drop-shadow-md" title={(() => {
                             if (!currentGuild) return '';
                             const guildsGuild = guilds[currentGuild.id || guild.id];
                             return guildsGuild?.name || currentGuild?.name || guild?.name || '';
@@ -1888,7 +1897,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                             })()}
                         </h1>
                         <div className="flex items-center gap-3 w-full flex-wrap justify-center">
-                            <div className="text-sm md:text-base lg:text-lg text-secondary font-semibold">레벨 {currentGuild?.level || 1}</div>
+                            <div className="text-lg font-semibold text-secondary">레벨 {currentGuild?.level || 1}</div>
                             {!isMobile && (
                                 <div className="flex-1 min-w-[180px] max-w-md">
                                     <div className="flex justify-between text-xs text-secondary mb-1">
@@ -1911,7 +1920,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
                         <button 
                             onClick={() => setIsHelpOpen(true)} 
-                            className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-tertiary/50 hover:bg-tertiary/70 transition-all hover:scale-110 border border-accent/20 shadow-md" 
+                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent/20 bg-tertiary/50 shadow-md transition-all hover:scale-110 hover:bg-tertiary/70" 
                             title="길드 도움말"
                         >
                             <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
@@ -2021,8 +2030,9 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 </>
             )}
 
-            <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-4">
-                <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-4 min-h-0">
+            {/* 뷰포트가 아닌 설계 캔버스 너비 기준으로 PC와 동일한 3+2 열 유지 */}
+            <main className="grid min-h-0 flex-1 grid-cols-5 gap-4">
+                <div className="col-span-3 flex min-h-0 flex-col gap-4">
                     {!isMobile && (
                         <div className="flex-shrink-0">
                             <div className="flex bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 rounded-xl w-full max-w-md border border-stone-600/40 shadow-md">
@@ -2103,7 +2113,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                     </div>
                 </div>
 
-                <div className="lg:col-span-2 xl:col-span-2 flex flex-col gap-1 h-full min-h-0 overflow-hidden">
+                <div className="col-span-2 flex h-full min-h-0 flex-col gap-1 overflow-hidden">
                     {!isMobile && (
                         <>
                             <div className="flex gap-1 flex-shrink-0">

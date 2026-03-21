@@ -5,6 +5,7 @@ import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { SINGLE_PLAYER_STAGES, AVATAR_POOL, BORDER_POOL } from '../constants';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
+import { replaceAppHash } from '../utils/appUtils.js';
 
 interface SinglePlayerSummaryModalProps {
     session: LiveGameSession;
@@ -365,8 +366,8 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         if (isProcessing) return;
         setIsProcessing(true);
         sessionStorage.setItem('postGameRedirect', '#/singleplayer');
-        // 라우팅을 먼저 설정하여 홈화면이 보이지 않도록 함
-        window.location.hash = '#/singleplayer';
+        // 라우팅을 먼저 설정하여 홈화면이 보이지 않도록 함 (경기장 히스토리 항목 교체)
+        replaceAppHash('#/singleplayer');
         try {
             // onAction이 완료될 때까지 기다림 (Promise 반환)
             await onAction({ type: 'LEAVE_AI_GAME', payload: { gameId: session.id } });

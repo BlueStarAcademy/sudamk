@@ -5,14 +5,15 @@ import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiat
 import { HandleActionResult } from '../types/api.js';
 import { Point } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
-import { stableStringify, parseHash } from '../utils/appUtils.js';
+import { stableStringify, parseHash, replaceAppHash, navigateFromGameIfApplicable } from '../utils/appUtils.js';
 import { getApiUrl, getWebSocketUrlFor } from '../utils/apiConfig.js';
 import { 
     DAILY_MILESTONE_THRESHOLDS,
     WEEKLY_MILESTONE_THRESHOLDS,
     MONTHLY_MILESTONE_THRESHOLDS,
     SPECIAL_GAME_MODES,
-    PLAYFUL_GAME_MODES
+    PLAYFUL_GAME_MODES,
+    isOpponentInsufficientActionPointsError,
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
@@ -23,6 +24,41 @@ import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { aiUserId } from '../constants/auth.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { getWasmGnuGoMove, isAvailable as isWasmGnuGoAvailable } from '../services/wasmGnuGo.js';
+
+/** 도전의 탑 PVE: 일반 수는 클라이언트만 반영되어 서버 game의 판·수순이 뒤처질 수 있음. 히든/스캔/미사일 선택 진입 시 응답으로 덮어쓰면 판이 초기화되는 버그 방지. */
+function mergeTowerServerGameWithClientBoardIfStale(
+    serverGame: LiveGameSession,
+    clientGame: LiveGameSession | undefined
+): LiveGameSession {
+    if (!clientGame) return serverGame;
+    const clientMoves = clientGame.moveHistory?.length ?? 0;
+    const serverMoves = serverGame.moveHistory?.length ?? 0;
+    const rowHasStone = (row: unknown) =>
+        Array.isArray(row) && row.some((cell: unknown) => cell !== 0 && cell !== null && cell !== undefined);
+    const boardHasStones = (board: unknown) =>
+        Array.isArray(board) && board.some(rowHasStone);
+    const clientBoardHasStones = boardHasStones(clientGame.boardState);
+    const serverBoardHasStones = boardHasStones(serverGame.boardState);
+    const clientAhead = clientMoves > serverMoves;
+    const serverBoardStale = clientMoves > 0 && !serverBoardHasStones;
+    const equalMovesButServerEmptyBoard =
+        clientMoves === serverMoves && clientMoves > 0 && clientBoardHasStones && !serverBoardHasStones;
+    if (!clientAhead && !serverBoardStale && !equalMovesButServerEmptyBoard) return serverGame;
+    return {
+        ...serverGame,
+        boardState: clientGame.boardState,
+        moveHistory: clientGame.moveHistory,
+        totalTurns: clientGame.totalTurns ?? serverGame.totalTurns,
+        captures: clientGame.captures ?? serverGame.captures,
+        koInfo: clientGame.koInfo ?? serverGame.koInfo,
+        hiddenMoves: clientGame.hiddenMoves ?? serverGame.hiddenMoves,
+        permanentlyRevealedStones: clientGame.permanentlyRevealedStones ?? serverGame.permanentlyRevealedStones,
+        blackPatternStones: clientGame.blackPatternStones ?? serverGame.blackPatternStones,
+        whitePatternStones: clientGame.whitePatternStones ?? serverGame.whitePatternStones,
+        revealedHiddenMoves: clientGame.revealedHiddenMoves ?? serverGame.revealedHiddenMoves,
+        serverRevision: Math.max(clientGame.serverRevision ?? 0, serverGame.serverRevision ?? 0),
+    };
+}
 
 export const useApp = () => {
     // --- State Management ---
@@ -334,6 +370,7 @@ export const useApp = () => {
     const [isBlacksmithHelpOpen, setIsBlacksmithHelpOpen] = useState(false);
     const [isEnhancementResultModalOpen, setIsEnhancementResultModalOpen] = useState(false);
     const [isInsufficientActionPointsModalOpen, setIsInsufficientActionPointsModalOpen] = useState(false);
+    const [isOpponentInsufficientActionPointsModalOpen, setIsOpponentInsufficientActionPointsModalOpen] = useState(false);
     const [isActionPointModalOpen, setIsActionPointModalOpen] = useState(false);
 
     useEffect(() => {
@@ -1747,7 +1784,13 @@ export const useApp = () => {
                     }
                     return;
                 }
-                showError(errorMessage);
+                if (typeof errorMessage === 'string' && isOpponentInsufficientActionPointsError(errorMessage)) {
+                    setIsOpponentInsufficientActionPointsModalOpen(true);
+                } else if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
+                    setIsInsufficientActionPointsModalOpen(true);
+                } else {
+                    showError(errorMessage);
+                }
                 if (action.type === 'TOGGLE_EQUIP_ITEM' || action.type === 'USE_ITEM') {
                     setUpdateTrigger(prev => prev + 1);
                 }
@@ -1758,8 +1801,10 @@ export const useApp = () => {
                 if (result.error || result.message) {
                     const errorMessage = result.message || result.error || '서버 오류가 발생했습니다.';
                     console.error(`[handleAction] ${action.type} - Server returned error:`, errorMessage);
-                    // 행동력/액션 포인트 부족 시 전용 모달로 안내 (상점 구매 유도)
-                    if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
+                    // 상대 행동력 부족은 본인 충전 모달과 구분
+                    if (typeof errorMessage === 'string' && isOpponentInsufficientActionPointsError(errorMessage)) {
+                        setIsOpponentInsufficientActionPointsModalOpen(true);
+                    } else if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
                         setIsInsufficientActionPointsModalOpen(true);
                     } else {
                         showError(errorMessage);
@@ -1785,7 +1830,7 @@ export const useApp = () => {
                     const postRedirect = sessionStorage.getItem('postGameRedirect');
                     if (postRedirect) {
                         sessionStorage.removeItem('postGameRedirect');
-                        setTimeout(() => { window.location.hash = postRedirect; }, 0);
+                        setTimeout(() => { replaceAppHash(postRedirect); }, 0);
                     }
                 }
                 // SPECTATE_GAME 성공 시 서버가 반환한 전체 게임 데이터를 상태에 넣고 게임 페이지로 이동 (중립 관전)
@@ -2244,7 +2289,7 @@ export const useApp = () => {
                         if (window.location.hash !== targetHash) {
                             console.log(`[handleAction] ${action.type} - Redirecting to tournament:`, redirectToTournament);
                             setTimeout(() => {
-                                window.location.hash = targetHash;
+                                navigateFromGameIfApplicable(targetHash);
                             }, 200);
                                 } else {
                             console.log(`[handleAction] ${action.type} - Already at ${targetHash}, skipping redirect`);
@@ -2260,7 +2305,7 @@ export const useApp = () => {
                     if (window.location.hash !== redirectTo) {
                         console.log(`[handleAction] ${action.type} - Redirecting to:`, redirectTo);
                         setTimeout(() => {
-                            window.location.hash = redirectTo;
+                            navigateFromGameIfApplicable(redirectTo);
                         }, 200);
                     } else {
                         console.log(`[handleAction] ${action.type} - Already at ${redirectTo}, skipping redirect`);
@@ -2393,9 +2438,18 @@ export const useApp = () => {
                                 if (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD' || !currentGames[effectiveGameId]) {
                                     console.log('[handleAction] Updating tower game:', effectiveGameId, 'gameStatus:', game.gameStatus, 'action type:', action.type, 'existing game status:', currentGames[effectiveGameId]?.gameStatus);
                                     const isRefresh = action.type === 'TOWER_REFRESH_PLACEMENT';
-                                    const nextGame = isRefresh && game.boardState
+                                    let nextGame = isRefresh && game.boardState
                                         ? { ...game, boardState: (game.boardState as any[][]).map(row => [...row]), blackPatternStones: Array.isArray(game.blackPatternStones) ? [...game.blackPatternStones] : game.blackPatternStones, whitePatternStones: Array.isArray(game.whitePatternStones) ? [...game.whitePatternStones] : game.whitePatternStones }
                                         : game;
+                                    const existingTower = currentGames[effectiveGameId];
+                                    if (
+                                        existingTower &&
+                                        (action.type === 'START_HIDDEN_PLACEMENT' ||
+                                            action.type === 'START_SCANNING' ||
+                                            action.type === 'SCAN_BOARD')
+                                    ) {
+                                        nextGame = mergeTowerServerGameWithClientBoardIfStale(nextGame, existingTower);
+                                    }
                                     return { ...currentGames, [effectiveGameId]: nextGame };
                                 }
                                 return currentGames;
@@ -3435,7 +3489,7 @@ export const useApp = () => {
                                                     console.log('[WebSocket] Current user status updated to waiting, routing to postGameRedirect:', postGameRedirect);
                                                     sessionStorage.removeItem('postGameRedirect');
                                                     setTimeout(() => {
-                                                        window.location.hash = postGameRedirect;
+                                                        replaceAppHash(postGameRedirect);
                                                     }, 100);
                                                 } else {
                                                     const mode = currentUserStatus.mode;
@@ -3458,14 +3512,14 @@ export const useApp = () => {
                                                             if (waitingRoomMode) {
                                                                 console.log('[WebSocket] Routing to waiting room based on game mode:', waitingRoomMode);
                                                                 setTimeout(() => {
-                                                                    window.location.hash = `#/waiting/${waitingRoomMode}`;
+                                                                    replaceAppHash(`#/waiting/${waitingRoomMode}`);
                                                                 }, 100);
                                                             }
                                                         }
                                                     } else if (mode) {
                                                         console.warn('[WebSocket] Individual game mode detected, redirecting to profile:', mode);
                                                         setTimeout(() => {
-                                                            window.location.hash = '#/profile';
+                                                            replaceAppHash('#/profile');
                                                         }, 100);
                                                     }
                                                 }
@@ -3977,6 +4031,14 @@ export const useApp = () => {
                                                 };
                                             }
                                         }
+                                        if (
+                                            existingGame &&
+                                            (game.gameStatus === 'hidden_placing' ||
+                                                game.gameStatus === 'scanning' ||
+                                                game.gameStatus === 'missile_selecting')
+                                        ) {
+                                            mergedGame = mergeTowerServerGameWithClientBoardIfStale(mergedGame, existingGame);
+                                        }
                                         // 21층 이상 자동계가: totalTurns를 moveHistory에서 항상 계산해 남은 턴 표시가 줄어들도록 함
                                         const autoScoringTurns = (mergedGame.settings as any)?.autoScoringTurns;
                                         if (autoScoringTurns && Array.isArray(mergedGame.moveHistory)) {
@@ -4237,7 +4299,7 @@ export const useApp = () => {
                                 else if (serverGameCategory === 'singleplayer') redirectHash = '#/singleplayer';
                                 console.log(`[WebSocket] Game deleted (category: ${serverGameCategory ?? 'unknown'}), routing to ${redirectHash}`);
                                 setTimeout(() => {
-                                    window.location.hash = redirectHash;
+                                    replaceAppHash(redirectHash);
                                 }, 100);
                             }
                             return;
@@ -4567,7 +4629,7 @@ export const useApp = () => {
             if (postRedirect) {
                 sessionStorage.removeItem('postGameRedirect');
                 if (currentHash !== postRedirect) {
-                    window.location.hash = postRedirect;
+                    replaceAppHash(postRedirect);
                 }
                 return;
             }
@@ -4578,7 +4640,7 @@ export const useApp = () => {
                     targetHash = `#/waiting/${encodeURIComponent(currentUserWithStatus.mode)}`;
                 }
                 if (currentHash !== targetHash) {
-                    window.location.hash = targetHash;
+                    replaceAppHash(targetHash);
                 }
                 return;
             }
@@ -4767,7 +4829,7 @@ export const useApp = () => {
                 setLiveGames(prev => ({ ...prev, [g.id]: g }));
             }
         }
-        window.location.hash = '#/profile';
+        replaceAppHash('#/profile');
     }, [applyUserUpdate]);
     
     const openEnhancingItem = useCallback((item: InventoryItem) => {
@@ -5090,6 +5152,7 @@ export const useApp = () => {
             tournamentScoreChange,
             refinementResult,
             isInsufficientActionPointsModalOpen,
+            isOpponentInsufficientActionPointsModalOpen,
             isActionPointModalOpen,
         },
         handlers: {
@@ -5116,6 +5179,8 @@ export const useApp = () => {
             openActionPointModal: () => setIsActionPointModalOpen(true),
             closeActionPointModal: () => setIsActionPointModalOpen(false),
             closeInsufficientActionPointsModal: () => setIsInsufficientActionPointsModalOpen(false),
+            openOpponentInsufficientActionPointsModal: () => setIsOpponentInsufficientActionPointsModalOpen(true),
+            closeOpponentInsufficientActionPointsModal: () => setIsOpponentInsufficientActionPointsModalOpen(false),
             closeItemObtained: () => {
                 setLastUsedItemResult(null);
                 setTournamentScoreChange(null);

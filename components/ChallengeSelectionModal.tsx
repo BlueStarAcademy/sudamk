@@ -1,6 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { GameMode, UserWithStatus, GameSettings, Negotiation } from '../types';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../constants';
+import {
+  SPECIAL_GAME_MODES,
+  PLAYFUL_GAME_MODES,
+  DEFAULT_GAME_SETTINGS,
+  STRATEGIC_ACTION_POINT_COST,
+  PLAYFUL_ACTION_POINT_COST,
+  SELF_INSUFFICIENT_AP_HEADING,
+  OPPONENT_INSUFFICIENT_AP_INLINE_HEADING,
+  formatMatchActionPointsLine,
+} from '../constants';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
   CAPTURE_TARGETS, TTAMOK_CAPTURE_TARGETS, SPEED_BOARD_SIZES, SPEED_TIME_LIMITS, BASE_STONE_COUNTS,
@@ -150,7 +159,10 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
 
   const availableGames = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
   const actionPointCost = lobbyType === 'strategic' ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
-  const hasEnoughAP = (currentUser?.actionPoints?.current ?? 0) >= actionPointCost;
+  const myAp = currentUser?.actionPoints?.current ?? 0;
+  const oppAp = opponent.actionPoints?.current ?? 0;
+  const selfMeetsAp = !!currentUser?.isAdmin || myAp >= actionPointCost;
+  const opponentMeetsAp = !!opponent.isAdmin || oppAp >= actionPointCost;
   
   // 친선전 표시 (현재 협상 시스템은 모두 친선전)
   const isCasual = true;
@@ -988,6 +1000,64 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               )}
             </div>
 
+            {!isWaitingForResponse && (
+              <div
+                className="flex-shrink-0 space-y-2"
+                style={{ marginTop: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}
+              >
+                {!selfMeetsAp && currentUser && (
+                  <div
+                    className="rounded-lg border border-amber-600/45 bg-amber-900/35 text-amber-100"
+                    style={{ padding: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
+                  >
+                    <p
+                      className="font-semibold text-center"
+                      style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px` }}
+                    >
+                      {SELF_INSUFFICIENT_AP_HEADING}
+                    </p>
+                    <p
+                      className="text-center text-amber-200/95 mt-1"
+                      style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor))}px` }}
+                    >
+                      {formatMatchActionPointsLine(actionPointCost, myAp)}
+                    </p>
+                    <p
+                      className="text-center text-amber-200/80 mt-1"
+                      style={{ fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
+                    >
+                      행동력을 충전한 뒤 다시 시도해 주세요.
+                    </p>
+                  </div>
+                )}
+                {!opponentMeetsAp && (
+                  <div
+                    className="rounded-lg border border-orange-700/50 bg-orange-950/40 text-orange-100"
+                    style={{ padding: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
+                  >
+                    <p
+                      className="font-semibold text-center"
+                      style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px` }}
+                    >
+                      {OPPONENT_INSUFFICIENT_AP_INLINE_HEADING}
+                    </p>
+                    <p
+                      className="text-center text-orange-200/95 mt-1"
+                      style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor))}px` }}
+                    >
+                      {formatMatchActionPointsLine(actionPointCost, oppAp)}
+                    </p>
+                    <p
+                      className="text-center text-orange-200/80 mt-1"
+                      style={{ fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
+                    >
+                      상대가 충전한 뒤 다시 신청해 주세요.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* 하단 버튼 */}
             <div 
               className="border-t border-gray-700 flex justify-end flex-shrink-0"
@@ -1021,7 +1091,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               ) : (
                 <Button 
                   onClick={handleChallenge} 
-                  disabled={!selectedMode || !hasEnoughAP}
+                  disabled={!selectedMode || !selfMeetsAp || !opponentMeetsAp}
                   className="!text-sm"
                   style={{ 
                     fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`,

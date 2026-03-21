@@ -233,7 +233,11 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 return { error: '오늘 구매 한도를 초과했습니다.' };
             }
 
-            const cost = ACTION_POINT_PURCHASE_COSTS_DIAMONDS[purchasesToday];
+            const costTier = Math.min(purchasesToday, ACTION_POINT_PURCHASE_COSTS_DIAMONDS.length - 1);
+            const cost = ACTION_POINT_PURCHASE_COSTS_DIAMONDS[costTier];
+            if (cost == null || !Number.isFinite(cost)) {
+                return { error: '행동력 충전 가격 설정 오류입니다.' };
+            }
             if (user.diamonds < cost && !user.isAdmin) {
                 return { error: '다이아가 부족합니다.' };
             }

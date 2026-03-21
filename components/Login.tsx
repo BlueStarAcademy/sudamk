@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { replaceAppHash } from '../utils/appUtils.js';
 import { getApiUrl } from '../utils/apiConfig.js';
 
 const loginPrimaryBtnClass =
@@ -97,11 +98,11 @@ const Login: React.FC = () => {
       }
       // 진행 중인 경기가 있으면 게임으로 이동, 없으면 닉네임/프로필
       if (data.activeGame) {
-        window.location.hash = `#/game/${data.activeGame.id}`;
+        replaceAppHash(`#/game/${data.activeGame.id}`);
       } else if (!data.user.nickname || data.user.nickname.startsWith('user_')) {
-        window.location.hash = '#/set-nickname';
+        replaceAppHash('#/set-nickname');
       } else {
-        window.location.hash = '#/profile';
+        replaceAppHash('#/profile');
       }
     } catch (err: any) {
       console.error('[Login] Login error:', err);

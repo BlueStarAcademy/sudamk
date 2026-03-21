@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { getApiUrl } from '../utils/apiConfig.js';
+import { replaceAppHash } from '../utils/appUtils.js';
 
 const KakaoCallback: React.FC = () => {
     const { setCurrentUserAndRoute } = useAppContext();
@@ -39,9 +40,9 @@ const KakaoCallback: React.FC = () => {
                 
                 // 닉네임이 없거나 임시 닉네임이면 닉네임 설정 화면으로, 아니면 프로필로
                 if (!data.user.nickname || data.user.nickname.startsWith('user_')) {
-                    window.location.hash = '#/set-nickname';
+                    replaceAppHash('#/set-nickname');
                 } else {
-                    window.location.hash = '#/profile';
+                    replaceAppHash('#/profile');
                 }
             } catch (err: any) {
                 console.error('Kakao callback error:', err);

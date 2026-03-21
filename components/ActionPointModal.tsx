@@ -48,7 +48,8 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
     const costIndex = Math.min(purchasesToday, ACTION_POINT_PURCHASE_COSTS_DIAMONDS.length - 1);
     const currentCost = ACTION_POINT_PURCHASE_COSTS_DIAMONDS[costIndex] ?? ACTION_POINT_PURCHASE_COSTS_DIAMONDS[ACTION_POINT_PURCHASE_COSTS_DIAMONDS.length - 1];
     const canPurchaseByLimit = purchasesToday < MAX_ACTION_POINT_PURCHASES_PER_DAY;
-    const canAfford = currentUser.diamonds >= currentCost;
+    const diamondBalance = Number(currentUser.diamonds ?? 0);
+    const canAfford = Number.isFinite(diamondBalance) && diamondBalance >= currentCost;
 
     const handleOpenUseQuantity = (sample: InventoryItem) => {
         setItemToUse(sample);

@@ -9,6 +9,7 @@ import { AvatarInfo, BorderInfo } from '../types.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
+import { replaceAppHash } from '../utils/appUtils.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -303,8 +304,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         if (isProcessing) return;
         setIsProcessing(true);
         sessionStorage.setItem('postGameRedirect', '#/tower');
-        // 라우팅을 먼저 설정하여 홈화면이 보이지 않도록 함
-        window.location.hash = '#/tower';
+        replaceAppHash('#/tower');
         try {
             // onAction이 완료될 때까지 기다림 (Promise 반환)
             await onAction({ type: 'LEAVE_AI_GAME', payload: { gameId: session.id } });

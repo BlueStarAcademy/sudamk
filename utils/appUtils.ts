@@ -6,6 +6,33 @@ export type AppRoute = {
     params: any;
 };
 
+/**
+ * 경기장(4뎁스)에서 대기실·홈 등으로 나갈 때 사용.
+ * `location.hash` 대입은 스택에 경기장 URL을 남겨 뒤로가기 시 경기장으로 돌아가므로, 현재 항목을 교체한다.
+ * replaceState는 hashchange를 발생시키지 않아 수동으로 디스패치한다.
+ */
+export function replaceAppHash(hash: string): void {
+    const normalized = hash.startsWith('#') ? hash : `#${hash}`;
+    const base = window.location.pathname + window.location.search;
+    const newUrl = base + normalized;
+    const currentFull = base + window.location.hash;
+    if (currentFull === newUrl) return;
+    window.history.replaceState(window.history.state, '', newUrl);
+    window.dispatchEvent(new Event('hashchange'));
+}
+
+/** 현재 URL이 경기장이고 목적지가 경기장이 아니면 replace, 그 외에는 일반 해시 이동(스택 추가). */
+export function navigateFromGameIfApplicable(targetHash: string): void {
+    const h = targetHash.startsWith('#') ? targetHash : `#${targetHash}`;
+    const onGame = window.location.hash.startsWith('#/game/');
+    const toGame = h.startsWith('#/game/');
+    if (onGame && !toGame) {
+        replaceAppHash(h);
+    } else {
+        window.location.hash = h;
+    }
+}
+
 export function parseHash(hash: string): AppRoute {
     const path = hash.replace(/^#\/?/, '');
     const [view, ...rest] = path.split('/');

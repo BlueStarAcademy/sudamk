@@ -4,6 +4,7 @@ import Button from '../Button.js';
 import { SINGLE_PLAYER_STAGES } from '../../constants';
 import AlertModal from '../AlertModal.js';
 import ConfirmModal from '../ConfirmModal.js';
+import { replaceAppHash } from '../../utils/appUtils.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     setShowResultModal?: (show: boolean) => void;
@@ -246,7 +247,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                 console.error('[SinglePlayerControls] Failed to leave AI game:', error);
             } finally {
                 setTimeout(() => {
-                    window.location.hash = '#/singleplayer';
+                    replaceAppHash('#/singleplayer');
                 }, 100);
             }
         };

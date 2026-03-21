@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { containsProfanity } from '../profanity.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { replaceAppHash } from '../utils/appUtils.js';
 import { getApiUrl } from '../utils/apiConfig.js';
 
 const registerPrimaryBtnClass =
@@ -70,7 +71,7 @@ const Register: React.FC = () => {
             const data = await response.json();
             setCurrentUserAndRoute(data.user);
             // 가입 후 최초 로그인 시 닉네임 설정 화면으로 이동 (임시 닉네임 user_xxx 사용)
-            window.location.hash = '#/set-nickname';
+            replaceAppHash('#/set-nickname');
         } catch (err: any) {
             setError(err.message);
         } finally {

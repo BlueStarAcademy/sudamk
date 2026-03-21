@@ -1,6 +1,7 @@
 import React from 'react';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import { SELF_INSUFFICIENT_AP_HEADING, SELF_INSUFFICIENT_AP_DETAIL } from '../constants.js';
 
 interface InsufficientActionPointsModalProps {
     onClose: () => void;
@@ -33,10 +34,13 @@ const InsufficientActionPointsModal: React.FC<InsufficientActionPointsModalProps
             <div className="p-4 space-y-4">
                 <div className="space-y-2">
                     <p className="text-center text-gray-200 font-semibold">
-                        행동력이 부족해서 충전이 필요합니다.
+                        {SELF_INSUFFICIENT_AP_HEADING}
+                    </p>
+                    <p className="text-center text-gray-300 text-sm">
+                        {SELF_INSUFFICIENT_AP_DETAIL}
                     </p>
                     <p className="text-center text-gray-400 text-sm whitespace-pre-line">
-                        아래 방법 중 하나로 바로 충전할 수 있습니다.
+                        아래에서 충전할 수 있습니다.
                         {'\n'}- 상점 → 소모품 탭 → 행동력 일일 구매
                         {'\n'}- 다이아를 이용한 즉시 충전
                     </p>

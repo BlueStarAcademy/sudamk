@@ -3,6 +3,7 @@ import Button from './Button.js';
 import { containsProfanity } from '../profanity.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { getApiUrl } from '../utils/apiConfig.js';
+import { replaceAppHash } from '../utils/appUtils.js';
 
 const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 6;
@@ -16,7 +17,7 @@ const SetNickname: React.FC = () => {
     useEffect(() => {
         // 이미 닉네임이 설정되어 있으면 프로필로 이동
         if (currentUser && currentUser.nickname && !currentUser.nickname.startsWith('user_')) {
-            window.location.hash = '#/profile';
+            replaceAppHash('#/profile');
         }
     }, [currentUser]);
 
@@ -59,7 +60,6 @@ const SetNickname: React.FC = () => {
 
             const data = await response.json();
             setCurrentUserAndRoute(data.user);
-            window.location.hash = '#/profile';
         } catch (err: any) {
             setError(err.message);
         } finally {

@@ -2,7 +2,6 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSession, User, AnimationData, GameMode, RecommendedMove, ServerAction } from '../types.js';
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
-import { audioService } from '../services/audioService.js';
 
 const AnimatedBonusText: React.FC<{
     animation: Extract<AnimationData, { type: 'bonus_text' }>;
@@ -412,6 +411,22 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
     );
 };
 
+/** 미사일로 움직이는 출발 칸 돌의 히든 표시 방식 (내 시점 기준 스캔 목록 사용) */
+function classifyMissileFromStone(
+    from: Point,
+    moveHistory: Move[] | undefined,
+    hiddenMoves: { [moveIndex: number]: boolean } | undefined,
+    permanentlyRevealedStones: Point[] | undefined,
+    myRevealedStones: Point[] | undefined
+): 'normal' | 'unrevealed_hidden' | 'scan_only_hidden' | 'revealed_hidden' {
+    if (!moveHistory?.length || !hiddenMoves) return 'normal';
+    const moveIndex = moveHistory.findIndex(m => m.x === from.x && m.y === from.y);
+    if (moveIndex === -1 || !hiddenMoves[moveIndex]) return 'normal';
+    if (permanentlyRevealedStones?.some(p => p.x === from.x && p.y === from.y)) return 'revealed_hidden';
+    if (myRevealedStones?.some(p => p.x === from.x && p.y === from.y)) return 'scan_only_hidden';
+    return 'unrevealed_hidden';
+}
+
 // --- Go Board Component ---
 interface GoBoardProps {
   boardState: BoardState;
@@ -533,23 +548,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const padding = cell_size / 2;
     const stone_radius = cell_size * 0.47;
     
-    // 히든 돌 미사일 애니메이션 소리 재생 (애니메이션은 보이지 않음). 계가/종료 중에는 재생 안 함.
     const isScoringOrEnded = gameStatus === 'scoring' || gameStatus === 'ended' || gameStatus === 'no_contest';
-    useEffect(() => {
-        if (isScoringOrEnded) return;
-        if (animation && (animation.type === 'missile' || animation.type === 'hidden_missile')) {
-            if (!moveHistory || !hiddenMoves) return;
-            const moveIndex = moveHistory.findIndex(m => m.x === animation.from.x && m.y === animation.from.y);
-            if (moveIndex === -1) return;
-            const isHidden = !!hiddenMoves[moveIndex];
-            const isRevealed = permanentlyRevealedStones?.some(p => p.x === animation.from.x && p.y === animation.from.y);
-            
-            // 공개되지 않은 히든 돌이면 소리만 재생
-            if (isHidden && !isRevealed) {
-                audioService.launchMissile();
-            }
-        }
-    }, [animation, moveHistory, hiddenMoves, permanentlyRevealedStones, isScoringOrEnded]);
 
     // 미사일 애니메이션 완료 감지 및 처리
     useEffect(() => {
@@ -1285,39 +1284,53 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 {renderMissileLaunchPreview()}
                 {/* 계가/결과 모달 중에는 미사일 등 애니메이션 미표시 — 최종 보드만 표시 */}
                 {animation && !isScoringOrEnded && (() => {
-                    // 히든 돌인지 확인 (공개되지 않은 히든 돌)
-                    const isHiddenStone = (animation.type === 'missile' || animation.type === 'hidden_missile') && (() => {
-                        if (!moveHistory || !hiddenMoves) return false;
-                        const moveIndex = moveHistory.findIndex(m => m.x === animation.from.x && m.y === animation.from.y);
-                        if (moveIndex === -1) return false;
-                        const isHidden = !!hiddenMoves[moveIndex];
-                        const isRevealed = permanentlyRevealedStones?.some(p => p.x === animation.from.x && p.y === animation.from.y);
-                        return isHidden && !isRevealed;
-                    })();
-
-                    // 히든 돌이면 애니메이션을 숨기고 소리만 재생
-                    if (isHiddenStone) {
-                        return null; // 애니메이션 렌더링하지 않음
-                    }
-
                     return (
                         <>
-                            {animation.type === 'missile' && (
-                                <AnimatedMissileStone 
-                                    key={`missile-${animation.from.x}-${animation.from.y}-${animation.to.x}-${animation.to.y}-${animation.startTime}`}
-                                    animation={animation} 
-                                    stone_radius={stone_radius} 
-                                    toSvgCoords={toSvgCoords} 
-                                />
-                            )}
-                            {animation.type === 'hidden_missile' && (
-                                <AnimatedHiddenMissile 
-                                    key={`hidden-missile-${animation.from.x}-${animation.from.y}-${animation.to.x}-${animation.to.y}-${animation.startTime}`}
-                                    animation={animation} 
-                                    stone_radius={stone_radius} 
-                                    toSvgCoords={toSvgCoords} 
-                                />
-                            )}
+                            {(animation.type === 'missile' || animation.type === 'hidden_missile') && (() => {
+                                const fromKind = classifyMissileFromStone(
+                                    animation.from,
+                                    moveHistory,
+                                    hiddenMoves,
+                                    permanentlyRevealedStones,
+                                    myRevealedStones
+                                );
+                                // 완전 비공개 히든: 날아가는 돌·불꽃 없음 (발사음은 Game.tsx에서 1회)
+                                if (fromKind === 'unrevealed_hidden') {
+                                    return null;
+                                }
+                                const animKey = `missile-flight-${animation.from.x}-${animation.from.y}-${animation.to.x}-${animation.to.y}-${animation.startTime}`;
+                                if (fromKind === 'scan_only_hidden') {
+                                    return (
+                                        <g key={animKey} opacity={0.52} style={{ pointerEvents: 'none' }}>
+                                            <AnimatedHiddenMissile
+                                                animation={animation}
+                                                stone_radius={stone_radius}
+                                                toSvgCoords={toSvgCoords}
+                                            />
+                                        </g>
+                                    );
+                                }
+                                if (fromKind === 'revealed_hidden') {
+                                    return (
+                                        <AnimatedHiddenMissile
+                                            key={animKey}
+                                            animation={animation}
+                                            stone_radius={stone_radius}
+                                            toSvgCoords={toSvgCoords}
+                                        />
+                                    );
+                                }
+                                // 일반 돌 (서버가 상대 히든 공개 등으로 hidden_missile 타입을 쓴 경우 포함)
+                                const asMissile = { ...animation, type: 'missile' as const };
+                                return (
+                                    <AnimatedMissileStone
+                                        key={animKey}
+                                        animation={asMissile}
+                                        stone_radius={stone_radius}
+                                        toSvgCoords={toSvgCoords}
+                                    />
+                                );
+                            })()}
                             {animation.type === 'scan' && !isSpectator && animation.playerId === currentUser.id && <AnimatedScanMarker animation={animation} toSvgCoords={toSvgCoords} stone_radius={stone_radius} />}
                             {animation.type === 'hidden_reveal' && animation.stones.map((s, i) => ( <Stone key={`reveal-${i}`} player={s.player} cx={toSvgCoords(s.point).cx} cy={toSvgCoords(s.point).cy} isKnownHidden isNewlyRevealed animationClass="sparkle-animation" radius={stone_radius} /> ))}
                             {animation.type === 'bonus_text' && <AnimatedBonusText animation={animation} toSvgCoords={toSvgCoords} cellSize={cell_size} />}
