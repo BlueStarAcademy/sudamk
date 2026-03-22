@@ -7,6 +7,8 @@ interface SgfViewerProps {
     showLastMoveOnly?: boolean;
     sgfContent?: string | null;
     isRotated?: boolean;
+    /** 저장 기보 재생: 0=빈 판, N=앞에서부터 N수까지 표시. 지정 시 timeElapsed 비율 계산은 사용하지 않음 */
+    replayMoveCount?: number;
 }
 
 interface SgfData {
@@ -75,7 +77,7 @@ const findGroup = (startX: number, startY: number, playerColor: Player, board: P
     return { stones, liberties };
 };
 
-const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showLastMoveOnly, sgfContent, isRotated = false }) => {
+const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showLastMoveOnly, sgfContent, isRotated = false, replayMoveCount }) => {
     const [sgfData, setSgfData] = useState<SgfData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -128,6 +130,10 @@ const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showL
     const currentMoveIndex = useMemo(() => {
         if (!sgfData) return 0;
         if (showLastMoveOnly) return sgfData.moves.length;
+        if (replayMoveCount !== undefined) {
+            const n = sgfData.moves.length;
+            return Math.max(0, Math.min(replayMoveCount, n));
+        }
         // timeElapsed가 0이면 돌을 표시하지 않음 (경기 시작 전)
         // timeElapsed가 1 이상이면 진행 상황에 따라 돌 표시
         if (timeElapsed <= 0) return 0;
@@ -136,7 +142,7 @@ const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showL
         const progress = Math.max(0, Math.min(1, timeElapsed / totalDuration));
         const moveCount = Math.max(1, Math.floor(progress * sgfData.moves.length));
         return Math.min(moveCount, sgfData.moves.length);
-    }, [timeElapsed, sgfData, totalDuration, showLastMoveOnly]);
+    }, [timeElapsed, sgfData, totalDuration, showLastMoveOnly, replayMoveCount]);
     
     const boardState = useMemo(() => {
         if (!sgfData) return [];

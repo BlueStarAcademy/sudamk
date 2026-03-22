@@ -4129,6 +4129,17 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 });
             }
 
+            {
+                const { ensurePrismaConnected } = await import('./prismaClient.js');
+                if (!(await ensurePrismaConnected())) {
+                    clearTimeout(timeout);
+                    return res.status(503).json({
+                        message:
+                            '데이터베이스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+                    });
+                }
+            }
+
             // Allow registration without auth
             if (req.body.type === 'REGISTER') {
                  const result = await handleAction(volatileState, req.body);
@@ -4224,6 +4235,17 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             res.status(200).json({ success: true, ...result.clientResponse });
         } catch (e: any) {
             clearTimeout(timeout);
+            const { prismaErrorImpliesEngineNotConnected } = await import('./prismaClient.js');
+            if (prismaErrorImpliesEngineNotConnected(e)) {
+                console.warn(`[API] Action ${req.body?.type}: Prisma engine not ready (503)`);
+                if (!res.headersSent) {
+                    return res.status(503).json({
+                        message:
+                            '데이터베이스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+                    });
+                }
+                return;
+            }
             console.error(`[API] Action error for ${req.body?.type}:`, e);
             console.error(`[API] Error stack:`, e.stack);
             console.error(`[API] Error details:`, {

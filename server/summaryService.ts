@@ -310,9 +310,9 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
                 ];
                 
                 // 현재 보유량 확인 및 최대 보유수량에 도달하지 않은 아이템만 필터링
+                const { countTowerLobbyInventoryQty } = await import('./modes/towerPlayerHidden.js');
                 const availableItems = towerItems.filter(towerItem => {
-                    const inventoryItem = user.inventory.find(inv => inv.name === towerItem.name && inv.type === 'consumable');
-                    const currentQuantity = inventoryItem?.quantity || 0;
+                    const currentQuantity = countTowerLobbyInventoryQty(user.inventory, [towerItem.name]);
                     return currentQuantity < towerItem.maxOwned;
                 });
                 
@@ -334,6 +334,7 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
                     // 선택된 아이템 생성
                     const towerItemInstance = createConsumableItemInstance(selectedItem.name);
                     if (towerItemInstance) {
+                        (towerItemInstance as InventoryItem & { source?: string }).source = 'tower';
                         const { success, updatedInventory, finalItemsToAdd } = addItemsToInventory([...user.inventory], user.inventorySlots, [towerItemInstance]);
                         
                         if (success) {
@@ -485,10 +486,11 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     await db.saveGame(game);
     
     // summary가 설정된 후 최신 게임 상태를 다시 가져와서 브로드캐스트
-    const freshGame = await db.getLiveGame(game.id);
+    let freshGame = await db.getLiveGame(game.id);
     if (!freshGame) {
-        console.error(`[endGame] Could not retrieve fresh game ${game.id} after summary processing`);
-        return;
+        // PVE/타워 등: DB 지연·직렬화 이슈 시에도 메모리 세션으로 계가(analysisResult) 전달
+        console.warn(`[endGame] getLiveGame missed ${game.id} after save; broadcasting in-memory session (category=${game.gameCategory})`);
+        freshGame = game;
     }
     
     clearAiSession(game.id);

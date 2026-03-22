@@ -5,6 +5,7 @@ import { SINGLE_PLAYER_STAGES } from '../../constants';
 import AlertModal from '../AlertModal.js';
 import ConfirmModal from '../ConfirmModal.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
+import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     setShowResultModal?: (show: boolean) => void;
@@ -105,8 +106,12 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     
     const handleUseHidden = React.useCallback(() => {
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
-        onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
-    }, [gameStatus, session.id, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
+        const clientSync = buildPveItemActionClientSync(session);
+        onAction({
+            type: 'START_HIDDEN_PLACEMENT',
+            payload: { gameId: session.id, ...(clientSync ? { clientSync } : {}) },
+        });
+    }, [session, gameStatus, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     // 스캔 아이템: 상대(백/AI)에 미공개 히든돌이 1개라도 있을 때만 활성화
     const myScansLeft = session.scans_p1 ?? scanCountSetting;
@@ -147,8 +152,12 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     
     const handleUseScan = React.useCallback(() => {
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
-        onAction({ type: 'START_SCANNING', payload: { gameId: session.id } });
-    }, [gameStatus, session.id, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
+        const clientSync = buildPveItemActionClientSync(session);
+        onAction({
+            type: 'START_SCANNING',
+            payload: { gameId: session.id, ...(clientSync ? { clientSync } : {}) },
+        });
+    }, [session, gameStatus, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     // 미사일 아이템
     const myMissilesLeft = session.missiles_p1 ?? missileCountSetting;

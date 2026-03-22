@@ -3,8 +3,21 @@ import {
     AdminLog, Announcement, OverrideAnnouncement, InventoryItem,
     QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentState, UserWithStatus, EquipmentPreset, GameSettings, CommentaryLine, HomeBoardPost
 } from './entities.js';
-import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState } from './enums.js';
+import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move } from './enums.js';
 import type { WinReason } from './enums.js';
+
+/** 싱글/탑 PVE: 클라 전용 수순 반영 후 서버 캐시가 뒤처질 때 히든·스캔 액션과 함께 전송 */
+export type PveItemActionClientSync = {
+    boardState: BoardState;
+    moveHistory: Move[];
+    hiddenMoves?: Record<string, boolean>;
+    permanentlyRevealedStones?: Point[];
+    aiInitialHiddenStone?: Point | null;
+    currentPlayer?: Player;
+    captures?: LiveGameSession['captures'];
+    koInfo?: LiveGameSession['koInfo'] | null;
+    totalTurns?: number;
+};
 
 export type ChatMessage = {
   id: string;
@@ -147,9 +160,9 @@ export type ServerAction =
     | { type: 'UPDATE_KOMI_BID', payload: { gameId: string, bid: KomiBid } }
     | { type: 'CONFIRM_BASE_REVEAL', payload: { gameId: string } }
     // Hidden Go
-    | { type: 'START_HIDDEN_PLACEMENT', payload: { gameId: string } }
-    | { type: 'START_SCANNING', payload: { gameId: string } }
-    | { type: 'SCAN_BOARD', payload: { gameId: string, x: number, y: number } }
+    | { type: 'START_HIDDEN_PLACEMENT', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
+    | { type: 'START_SCANNING', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
+    | { type: 'SCAN_BOARD', payload: { gameId: string; x: number; y: number; clientSync?: PveItemActionClientSync } }
     // Missile Go
     | { type: 'START_MISSILE_SELECTION', payload: { gameId: string } }
     // Scoring (PVE games only)

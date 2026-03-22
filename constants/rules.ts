@@ -75,7 +75,8 @@ export const PLAYFUL_ACTION_BUTTONS_LATE: ActionButton[] = [
 ];
 
 // --- No Contest Rules ---
-export const NO_CONTEST_MOVE_THRESHOLD = 20; // 전략바둑 20턴 이내 무효처리
+/** 전략 PVP: 유효 착수(패 제외)가 이 값 미만일 때 기권·계가 요청 시 무효 대국 (UI「10수 미만」과 동일) */
+export const NO_CONTEST_MOVE_THRESHOLD = 10;
 export const NO_CONTEST_TIME_THRESHOLD_SECONDS = 180;
 export const NO_CONTEST_MANNER_PENALTY = 20;
 export const NO_CONTEST_RANKING_PENALTY = 50;

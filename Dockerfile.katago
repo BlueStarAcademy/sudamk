@@ -66,6 +66,12 @@ RUN echo "=== Starting KataGo download ===" && \
 FROM base AS runner
 WORKDIR /app
 ENV PORT=4001
+# 전용 워커: 로컬 KataGo만 사용 (KATAGO_API_URL 설정 시 query() 거부됨)
+ENV KATAGO_STANDALONE_SERVICE=true
+ENV KATAGO_WARMUP_ON_START=true
+ENV KATAGO_MAX_VISITS=400
+ENV KATAGO_NUM_ANALYSIS_THREADS=2
+ENV KATAGO_NUM_SEARCH_THREADS=4
 ENV KATAGO_MODEL_URL=https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b28c512nbt-s12524070656-d5742834759.bin.gz
 
 # Copy production dependencies

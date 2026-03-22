@@ -589,11 +589,9 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             const now = Date.now();
             
-            // 현재 보유 개수 확인 (도전의 탑 전용 아이템만 합산)
-            const inventory = user.inventory || [];
-            const currentOwned = inventory
-                .filter((inv: any) => (inv.name === itemInfo.name || inv.id === itemInfo.name) && inv.source === 'tower')
-                .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
+            // 현재 보유 개수: 대기실과 동일 (source === 'tower' 또는 구 스택 source 없음)
+            const { countTowerLobbyInventoryQty } = await import('../modes/towerPlayerHidden.js');
+            const currentOwned = countTowerLobbyInventoryQty(user.inventory, [itemInfo.name, itemId]);
 
             // 보유 제한 확인
             if (!user.isAdmin && currentOwned + quantity > itemInfo.maxOwned) {

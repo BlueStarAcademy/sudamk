@@ -7,16 +7,15 @@ import {
     ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS, CURLING_STONE_COUNTS, HIDDEN_BOARD_SIZES, THIEF_BOARD_SIZES,
     MISSILE_BOARD_SIZES, MISSILE_COUNTS, SPECIAL_GAME_MODES, DEFAULT_GAME_SETTINGS, aiUserId, DICE_GO_ITEM_COUNTS, CURLING_ITEM_COUNTS, ALKKAGI_ITEM_COUNTS, ALKKAGI_ROUNDS,
     CURLING_ROUNDS, AVATAR_POOL, BORDER_POOL,
-    PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST,
-    SELF_INSUFFICIENT_AP_HEADING,
-    OPPONENT_INSUFFICIENT_AP_INLINE_HEADING,
-    formatMatchActionPointsLine,
+    PLAYFUL_GAME_MODES,     STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST,
 } from '../constants.js';
 import { audioService } from '../services/audioService.js';
 import { loadWasmGnuGo, shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import Avatar from './Avatar.js';
+import { useAppContext } from '../hooks/useAppContext.js';
+import { projectActionPointsCurrent } from '../services/effectService.js';
 
 interface NegotiationModalProps {
   negotiation: Negotiation;
@@ -223,6 +222,16 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   }, [onAction, settings, negotiation.mode]);
 
   const onAccept = () => onAction({ type: 'ACCEPT_NEGOTIATION', payload: { negotiationId: negotiation.id, settings } });
+  const tryAccept = () => {
+    if (!currentUser.isAdmin) {
+      const ap = projectActionPointsCurrent(currentUser as User, Date.now());
+      if (ap < actionPointCost) {
+        handlers.openActionPointModal();
+        return;
+      }
+    }
+    onAccept();
+  };
   const onPropose = () => onAction({ type: 'UPDATE_NEGOTIATION', payload: { negotiationId: negotiation.id, settings } });
   const onSendChallenge = () => saveSettingsAndAct({ type: 'SEND_CHALLENGE', payload: { negotiationId: negotiation.id, settings } });
   const onStartAiGame = () => {
@@ -239,7 +248,17 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     const useClientSideAi = goModes.has(negotiation.mode) && shouldUseClientSideAi();
     saveSettingsAndAct({ type: 'START_AI_GAME', payload: { mode: negotiation.mode, settings: { ...settings, useClientSideAi } } });
   };
-  
+  const tryStartAiGame = () => {
+    if (!currentUser.isAdmin) {
+      const ap = projectActionPointsCurrent(currentUser as User, Date.now());
+      if (ap < actionPointCost) {
+        handlers.openActionPointModal();
+        return;
+      }
+    }
+    onStartAiGame();
+  };
+
   const title = useMemo(() => {
     const modeName = negotiation.mode;
     const casualPrefix = isCasual ? '[친선전] ' : '';
@@ -248,10 +267,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     return `${casualPrefix}대국 설정 (${modeName})`;
   }, [negotiation.mode, negotiation.rematchOfGameId, isAiGame, isCasual]);
 
-  const hasEnoughAP = !!currentUser.isAdmin || currentUser.actionPoints.current >= actionPointCost;
-  const opponentMeetsAp = isAiGame || !!opponent.isAdmin || (opponent.actionPoints?.current ?? 0) >= actionPointCost;
-  const showSelfApNotice = !hasEnoughAP && (isAiGame || isCreatingDraft || isMyTurnToRespond);
-  const showOpponentApNotice = !isAiGame && !opponentMeetsAp && (isCreatingDraft || isMyTurnToRespond);
+  const showApInfoFooter = isCasual && (isAiGame || isCreatingDraft || isMyTurnToRespond);
 
   const renderButtons = () => {
     const baseButtonClasses = "flex-1";
@@ -260,7 +276,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         return (
              <div className="flex justify-end gap-4">
                 <Button onClick={onDecline} colorScheme="red" className={baseButtonClasses}>취소</Button>
-                <Button onClick={onStartAiGame} colorScheme="green" className={baseButtonClasses} disabled={!hasEnoughAP}>
+                <Button onClick={tryStartAiGame} colorScheme="green" className={baseButtonClasses}>
                     시작하기 (⚡{actionPointCost})
                 </Button>
             </div>
@@ -272,7 +288,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
       return (
         <div className="flex justify-between items-center gap-4">
           <Button onClick={onDecline} colorScheme="red" className={baseButtonClasses}>취소</Button>
-          <Button onClick={onSendChallenge} disabled={isMixModeInvalid || !hasEnoughAP || !opponentMeetsAp} colorScheme="green" className={baseButtonClasses}>
+          <Button onClick={onSendChallenge} disabled={isMixModeInvalid} colorScheme="green" className={baseButtonClasses}>
             대국 신청 (⚡{actionPointCost})
           </Button>
         </div>
@@ -284,7 +300,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         <div className="flex justify-between items-center gap-4">
             <Button onClick={onDecline} colorScheme="red" className={baseButtonClasses}>거절</Button>
             <Button onClick={onPropose} disabled={!settingsHaveChanged} colorScheme="yellow" className={baseButtonClasses}>수정 제안</Button>
-            <Button onClick={onAccept} disabled={settingsHaveChanged || !hasEnoughAP || !opponentMeetsAp} colorScheme="green" className={baseButtonClasses}>
+            <Button onClick={tryAccept} disabled={settingsHaveChanged} colorScheme="green" className={baseButtonClasses}>
                 수락 (⚡{actionPointCost})
             </Button>
         </div>
@@ -346,22 +362,12 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         )}
         <p className="text-center text-yellow-300 mb-4">{getStatusText()} <CountdownDisplay deadline={negotiation.deadline} /></p>
 
-        {(showSelfApNotice || showOpponentApNotice) && (
-          <div className="space-y-2 mb-4">
-            {showSelfApNotice && (
-              <div className="p-3 rounded-lg bg-amber-900/35 border border-amber-600/45 text-center text-sm">
-                <p className="font-semibold text-amber-100">{SELF_INSUFFICIENT_AP_HEADING}</p>
-                <p className="text-amber-200/95 mt-1">{formatMatchActionPointsLine(actionPointCost, currentUser.actionPoints.current)}</p>
-                <p className="text-amber-200/80 text-xs mt-1">행동력을 충전한 뒤 다시 시도해 주세요.</p>
-              </div>
-            )}
-            {showOpponentApNotice && (
-              <div className="p-3 rounded-lg bg-orange-950/40 border border-orange-700/50 text-center text-sm">
-                <p className="font-semibold text-orange-100">{OPPONENT_INSUFFICIENT_AP_INLINE_HEADING}</p>
-                <p className="text-orange-200/95 mt-1">{formatMatchActionPointsLine(actionPointCost, opponent.actionPoints?.current ?? 0)}</p>
-                <p className="text-orange-200/80 text-xs mt-1">상대가 충전할 때까지 기다리거나 나중에 다시 신청해 주세요.</p>
-              </div>
-            )}
+        {showApInfoFooter && (
+          <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-600/50 text-center text-sm text-slate-200 mb-4">
+            <p>
+              대국 확정 시 양측에서 행동력 <span className="text-amber-300 font-semibold">⚡{actionPointCost}</span>가 소모됩니다.
+              수락·AI 시작 시 부족하면 행동력 관리 창이 열립니다.
+            </p>
           </div>
         )}
 

@@ -2,7 +2,7 @@
 import { getGoLogic } from './goLogic.js';
 import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_BUTTONS_EARLY, STRATEGIC_ACTION_BUTTONS_MID, STRATEGIC_ACTION_BUTTONS_LATE, PLAYFUL_ACTION_BUTTONS_EARLY, PLAYFUL_ACTION_BUTTONS_MID, PLAYFUL_ACTION_BUTTONS_LATE, RANDOM_DESCRIPTIONS, ALKKAGI_TURN_TIME_LIMIT, ALKKAGI_PLACEMENT_TIME_LIMIT, TIME_BONUS_SECONDS_PER_POINT } from '../constants';
 import * as types from '../types/index.js';
-import { analyzeGame } from './kataGoService.js';
+import { analyzeGame, getScoringKataGoLimits } from './kataGoService.js';
 import type { LiveGameSession, AppState, Negotiation, ActionButton, GameMode } from '../types/index.js';
 import { GameCategory } from '../types/index.js';
 import { aiUserId, makeAiMove, getAiUser } from './aiPlayer.js';
@@ -133,16 +133,31 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
 
     // 싱글플레이어 게임에서는 NO_CONTEST 체크를 건너뜀 (자동 계가 등으로 인해 moveHistory가 초기화될 수 있음)
     const isSinglePlayer = game.isSinglePlayer && !game.gameCategory; // 도전의 탑은 제외
-    
+
+    /** 패(-1,-1)는 제외한 착수 수 — 「10수 미만」 규정과 동일하게 셈 */
+    const strategicStoneMoveCount = (game.moveHistory || []).filter(
+        (m) => m && m.x !== -1 && m.y !== -1
+    ).length;
+
     if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode) && 
         !isSinglePlayer && // 싱글플레이어 게임 제외
-        game.moveHistory.length < NO_CONTEST_MOVE_THRESHOLD && 
+        strategicStoneMoveCount < NO_CONTEST_MOVE_THRESHOLD && 
         !hasUsedMissile && 
         !hasUsedScan) {
         game.gameStatus = 'no_contest';
+        game.shortGameNoContest = true;
         if (!game.noContestInitiatorIds) game.noContestInitiatorIds = [];
         if (!game.noContestInitiatorIds.includes(game.player1.id)) game.noContestInitiatorIds.push(game.player1.id);
         if (!game.noContestInitiatorIds.includes(game.player2.id)) game.noContestInitiatorIds.push(game.player2.id);
+        try {
+            await db.saveGame(game);
+            const { broadcastToGameParticipants } = await import('./socket.js');
+            const gameToBroadcast = { ...game };
+            delete (gameToBroadcast as any).boardState;
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+        } catch (e: any) {
+            console.error(`[getGameResult] Failed to persist/broadcast short-game no_contest for ${game.id}:`, e?.message || e);
+        }
         return game;
     }
     
@@ -260,9 +275,12 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                     boardState: game.boardState,
                     moveHistory: game.moveHistory,
                 }));
+                const scoringLim = getScoringKataGoLimits();
                 const p = analyzeGame(snapshot as types.LiveGameSession, {
                     includePolicy: false,
                     includeOwnership: true,
+                    maxVisits: scoringLim.maxVisits,
+                    maxTimeSec: scoringLim.maxTimeSec,
                 }).catch((e) => {
                     // 프리컴퓨트 실패는 치명적이지 않음. 본 분석 단계에서 정상 재시도됨.
                     throw e;
@@ -383,10 +401,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const ENABLE_MANUAL_SCORING_FALLBACK = String(process.env.ENABLE_MANUAL_SCORING_FALLBACK || '').toLowerCase() === 'true';
     const SCORING_FALLBACK_AFTER_MS = parseInt(process.env.KATAGO_SCORING_FALLBACK_AFTER_MS || '0', 10);
     // 계가 전용: 약 3초 안에 끝나도록 제한 (연출은 클라이언트 5초 유지). env로 오버라이드 가능.
-    const scoringMaxVisitsRaw = (process.env.KATAGO_SCORING_MAX_VISITS || '').trim();
-    const scoringMaxTimeSecRaw = (process.env.KATAGO_SCORING_MAX_TIME_SEC || '').trim();
-    const SCORING_MAX_VISITS = scoringMaxVisitsRaw ? parseInt(scoringMaxVisitsRaw, 10) : 120;
-    const SCORING_MAX_TIME_SEC = scoringMaxTimeSecRaw ? parseInt(scoringMaxTimeSecRaw, 10) : 3;
+    const scoringLimits = getScoringKataGoLimits();
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
     const finalizeAndEndGame = async (freshGame: types.LiveGameSession, baseAnalysis: types.AnalysisResult, source: 'katago' | 'manual') => {
@@ -439,7 +454,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         if (!ENABLE_MANUAL_SCORING_FALLBACK || !(SCORING_FALLBACK_AFTER_MS > 0)) return;
         try {
             let freshGame: types.LiveGameSession | null = null;
-            if (game.isSinglePlayer) {
+            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer') {
                 const { getCachedGame } = await import('./gameCache.js');
                 freshGame = await getCachedGame(game.id);
             }
@@ -462,10 +477,10 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     }
 
     // KataGo 기반 계가:
-    // - scoring 전용 빠른 옵션으로 먼저 시도 (maxTime/maxVisits)
-    // - 수동 계가 폴백은 기본 비활성화(정확성 우선). 켜려면 ENABLE_MANUAL_SCORING_FALLBACK=true
-    // - 일시적 오류 시 최대 4회 재시도, 1초 간격
-    const KATAGO_MAX_ATTEMPTS = 4;
+    // - scoring 전용 빠른 옵션(maxTime/maxVisits) + HTTP 레벨에서 짧은 타임아웃(kataGoService)
+    // - 일시 오류 시 재시도: 기본 2회·350ms (4회×1초면 체감만 길어짐). env로 조정 가능.
+    const KATAGO_MAX_ATTEMPTS = Math.max(1, Math.min(6, parseInt(process.env.KATAGO_SCORING_MAX_ATTEMPTS || '2', 10)));
+    const KATAGO_SCORING_RETRY_DELAY_MS = Math.max(0, parseInt(process.env.KATAGO_SCORING_RETRY_DELAY_MS || '350', 10));
     const runAnalysisWithRetries = async (attempt = 1): Promise<types.AnalysisResult> => {
         try {
             // 히든돌 최종 공개 애니메이션 중 미리 시작한 분석이 있으면 재사용
@@ -479,14 +494,17 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             const opts: any = {
                 includePolicy: false,
                 includeOwnership: true,
-                maxVisits: SCORING_MAX_VISITS,
-                maxTimeSec: SCORING_MAX_TIME_SEC,
+                maxVisits: scoringLimits.maxVisits,
+                maxTimeSec: scoringLimits.maxTimeSec,
             };
             return await analyzeGame(game, opts);
         } catch (err: any) {
             if (attempt < KATAGO_MAX_ATTEMPTS) {
-                console.warn(`[getGameResult] KataGo attempt ${attempt}/${KATAGO_MAX_ATTEMPTS} failed for game ${game.id}, retrying in 1s:`, err?.message);
-                await new Promise(r => setTimeout(r, 1000));
+                console.warn(
+                    `[getGameResult] KataGo attempt ${attempt}/${KATAGO_MAX_ATTEMPTS} failed for game ${game.id}, retrying in ${KATAGO_SCORING_RETRY_DELAY_MS}ms:`,
+                    err?.message
+                );
+                await new Promise(r => setTimeout(r, KATAGO_SCORING_RETRY_DELAY_MS));
                 return runAnalysisWithRetries(attempt + 1);
             }
             throw err;
@@ -502,13 +520,12 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             }
             const analysisDuration = Date.now() - analysisStartTime;
             console.log(`[getGameResult] KataGo 분석(API) 소요: ${(analysisDuration / 1000).toFixed(2)}초 (${analysisDuration}ms), game ${game.id} — fresh game state 조회 중...`);
-            // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기 (DB에 저장되지 않을 수 있음)
+            // 싱글/타워/singleplayer 카테고리는 메모리 캐시 우선 (DB에 없을 수 있음 — 탑은 isSinglePlayer=false)
             let freshGame = null;
-            if (game.isSinglePlayer) {
+            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer') {
                 const { getCachedGame } = await import('./gameCache.js');
                 freshGame = await getCachedGame(game.id);
             }
-            // 캐시에서 못 찾으면 DB에서 찾기
             if (!freshGame) {
                 freshGame = await db.getLiveGame(game.id);
             }
@@ -518,7 +535,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             }
             
             // 게임 상태가 playing으로 변경되었으면 다시 scoring으로 변경 (게임 루프가 재시작한 경우)
-            if (freshGame.gameStatus === 'playing' && freshGame.isSinglePlayer && freshGame.stageId) {
+            if (
+                freshGame.gameStatus === 'playing' &&
+                (freshGame.isSinglePlayer || freshGame.gameCategory === 'tower' || freshGame.gameCategory === 'singleplayer') &&
+                freshGame.stageId
+            ) {
                 console.log(`[getGameResult] Game ${game.id} was reset to playing during analysis, restoring scoring state`);
                 
                 // 보존된 게임 상태 복원
@@ -626,7 +647,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         }
 
         let freshGame: types.LiveGameSession | null = null;
-        if (game.isSinglePlayer) {
+        if (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer') {
             const { getCachedGame } = await import('./gameCache.js');
             freshGame = await getCachedGame(game.id);
         }
@@ -971,8 +992,11 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             const processedMap = new Map<string, LiveGameSession>();
             for (const g of results) processedMap.set(g.id, g);
             const mergedMultiPlayer = multiPlayerGames.map(g => processedMap.get(g.id) ?? g);
+            const mergedIds = new Set(mergedMultiPlayer.map(g => g.id));
+            // 동일 PVE 게임을 merged 뒤에 다시 넣으면 Map 병합 시 스냅샷이 덮어써져 hidden_final_reveal→scoring 등이 되돌아가는 버그가 난다.
             const pveGames = games.filter(game => {
                 if (!game || !game.id) return false;
+                if (mergedIds.has(game.id)) return false;
                 return game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
             });
             return [...mergedMultiPlayer, ...pveGames];

@@ -404,6 +404,8 @@ export type GameRecord = {
   id: string;
   gameId: string;
   mode: GameMode;
+  /** 기보를 저장한 유저의 착색 (구 기록에는 없을 수 있음) */
+  myColor?: Player;
   opponent: {
     id: string;
     nickname: string;
@@ -756,6 +758,8 @@ export type LiveGameSession = {
   aiHiddenItemsUsedCount?: number;
   aiHiddenItemAnimationEndTime?: number;
   noContestInitiatorIds?: string[];
+  /** 전략 PVP: 10수 미만 규정에 따른 무효 대국(기보 저장 제외 등에 사용) */
+  shortGameNoContest?: boolean;
   currentActionButtons: { [playerId: string]: any[] }; // ActionButton
   actionButtonCooldownDeadline?: { [playerId: string]: number | undefined };
   actionButtonUses?: { [playerId: string]: number };

@@ -409,6 +409,9 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             windowId="sp-summary-redesigned"
             initialWidth={isMobile ? 600 : 900}
             initialHeight={undefined}
+            modal={!isInsideScaledCanvas}
+            closeOnOutsideClick={!isInsideScaledCanvas}
+            defaultPosition={isInsideScaledCanvas ? { x: 400, y: 0 } : { x: 0, y: 0 }}
         >
             <div className={`text-white ${isMobile ? 'text-sm' : 'text-[clamp(0.875rem,2.5vw,1.125rem)]'} flex flex-col`}>
                 {/* Title */}

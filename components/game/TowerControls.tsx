@@ -5,6 +5,15 @@ import ConfirmModal from '../ConfirmModal.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
+import {
+    countTowerLobbyInventoryQty,
+    TOWER_ITEM_TURN_ADD_NAMES,
+    TOWER_ITEM_MISSILE_NAMES,
+    TOWER_ITEM_HIDDEN_NAMES,
+    TOWER_ITEM_SCAN_NAMES,
+    TOWER_ITEM_REFRESH_NAMES,
+} from '../../utils/towerLobbyInventory.js';
+import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     showResultModal?: boolean;
@@ -59,9 +68,14 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     // 훅은 early return 이전에 항상 호출 (React 규칙: 훅 개수/순서 일정 유지)
     const showMissileAndHiddenForHook = floor >= 21;
     const scanCountSettingForHook = showMissileAndHiddenForHook ? ((session.settings as any)?.scanCount ?? (stage?.scanCount ?? 0)) : 0;
-    const myScansLeftForHook = (session as any).scans_p1 ?? scanCountSettingForHook;
+    /** 대기실과 동일: 배지 숫자는 항상 가방(인벤) 수. 사용 가능은 세션 잔여와 함께 판단 */
+    const inventory = currentUser?.inventory || [];
+    const getItemCount = (namesOrIds: readonly string[]): number => countTowerLobbyInventoryQty(inventory, namesOrIds);
+    const scanInventoryCount = showMissileAndHiddenForHook ? getItemCount(TOWER_ITEM_SCAN_NAMES) : 0;
+    const sessionScansLeft = (session as any).scans_p1 as number | undefined;
+    const outOfSessionScans = sessionScansLeft !== undefined && sessionScansLeft <= 0;
     const canScan = React.useMemo(() => {
-        if (!showMissileAndHiddenForHook || myScansLeftForHook <= 0) return false;
+        if (!showMissileAndHiddenForHook || scanInventoryCount <= 0 || outOfSessionScans) return false;
         const board = session.boardState;
         if (!Array.isArray(board) || board.length === 0) return false;
         const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
@@ -85,19 +99,27 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });
-    }, [showMissileAndHiddenForHook, myScansLeftForHook, session.boardState, session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
+    }, [showMissileAndHiddenForHook, scanInventoryCount, outOfSessionScans, session.boardState, session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
 
     if (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') {
         const isWinner = session.winner === Player.Black;
         const nextFloor = floor < 100 ? floor + 1 : null;
-        // 클리어 직후 towerFloor가 아직 반영되지 않았을 수 있으므로, 이번 게임에서 이겼으면 다음 층 허용
-        const canTryNext = isWinner && nextFloor !== null;
-        
-        const retryActionPointCost = stage?.actionPointCost ?? 0;
-        const nextFloorActionPointCost = nextFloor ? TOWER_STAGES.find(s => {
-            const stageFloor = parseInt(s.id.replace('tower-', ''));
-            return stageFloor === nextFloor;
-        })?.actionPointCost ?? 0 : 0;
+        const nextStageForEnded = nextFloor
+            ? TOWER_STAGES.find(s => {
+                  const stageFloor = parseInt(s.id.replace('tower-', ''));
+                  return stageFloor === nextFloor;
+              })
+            : null;
+        const userTowerFloor = currentUser.towerFloor ?? 0;
+        const isFloorCleared = floor <= userTowerFloor;
+        // TowerSummaryModal과 동일: 승리했거나 현재 층을 이미 클리어한 적 있으면 다음 층 진행 가능
+        const canTryNext = !!nextStageForEnded && (isWinner || isFloorCleared);
+
+        const baseRetryApCost = stage?.actionPointCost ?? 0;
+        const baseNextFloorApCost = nextStageForEnded?.actionPointCost ?? 0;
+        const effectiveRetryApCost = isFloorCleared ? 0 : baseRetryApCost;
+        const isNextFloorAlreadyCleared = nextFloor != null && userTowerFloor >= nextFloor;
+        const effectiveNextFloorApCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
 
         const handleShowResults = () => {
             if (setShowResultModal) {
@@ -156,10 +178,10 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                         결과 보기
                     </Button>
                     <Button onClick={handleRetry} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap`}>
-                        재도전 {retryActionPointCost > 0 && `(⚡${retryActionPointCost})`}
+                        재도전 {effectiveRetryApCost > 0 && `(⚡${effectiveRetryApCost})`}
                     </Button>
                     <Button onClick={handleNextFloor} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap`} disabled={!canTryNext}>
-                        다음 층{canTryNext && nextFloor ? `: ${nextFloor}층` : ''}{nextFloorActionPointCost > 0 && ` (⚡${nextFloorActionPointCost})`}
+                        다음 층{canTryNext && nextFloor ? `: ${nextFloor}층` : ''}{effectiveNextFloorApCost > 0 && ` (⚡${effectiveNextFloorApCost})`}
                     </Button>
                     <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap`}>
                         나가기
@@ -218,23 +240,18 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         }
     };
 
-    // 도전의 탑 아이템: 로비·가방과 동일하게 이름/id 기준으로 보유 개수 합산 (source 무관)
-    const inventory = currentUser?.inventory || [];
-    const getItemCount = (namesOrIds: string | string[]): number => {
-        const list = Array.isArray(namesOrIds) ? namesOrIds : [namesOrIds];
-        return (inventory as any[])
-            .filter((inv: any) => list.some((n: string) => inv.name === n || inv.id === n))
-            .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
-    };
-
-    const isMyTurn = session.currentPlayer === Player.Black;
     const gameStatus = session.gameStatus;
+    const isMyTurn = session.currentPlayer === Player.Black;
+    const lastMove = session.moveHistory?.length ? session.moveHistory[session.moveHistory.length - 1] : null;
+    const lastMoveWasBlack = !!(lastMove && lastMove.player === Player.Black);
+    const allowScanAfterMyMove = gameStatus === 'playing' && lastMoveWasBlack && !isMyTurn;
+    const canStartScanTurn = isMyTurn || allowScanAfterMyMove;
     const showTurnAdd = floor <= 20; // 1~20층에서만 턴 추가 아이템 표시
     // 도전의 탑 전체(1~100층)에서 통과 비활성: 1~20층 따내기 턴 제한, 21층+ 자동 계가
     const passAllowed = false;
 
     // 턴 추가 아이템 (1~20층, 제한 없음) - 로비·가방과 동기화
-    const turnAddCount = showTurnAdd ? getItemCount(['턴 추가', '턴증가', 'turn_add', 'turn_add_item']) : 0;
+    const turnAddCount = showTurnAdd ? getItemCount(TOWER_ITEM_TURN_ADD_NAMES) : 0;
     const turnAddDisabled = gameStatus !== 'playing' || turnAddCount <= 0;
     
     const handleUseTurnAdd = () => {
@@ -248,39 +265,68 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         onAction({ type: 'TOWER_ADD_TURNS', payload: { gameId: session.id } });
     };
 
-    // 미사일 아이템 (21층 이상, 최대 2개) - 로비·가방과 동기화
-    const missileCount = showMissileAndHiddenForHook ? getItemCount(['미사일', 'missile']) : 0;
-    const missileMaxCount = 2;
-    const myMissilesLeft = session.missiles_p1 ?? missileCount;
-    const missileDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
+    // 미사일 (21층+): 배지는 대기실과 동일하게 인벤 수, 사용은 세션 잔여도 확인
+    const missileCount = showMissileAndHiddenForHook ? getItemCount(TOWER_ITEM_MISSILE_NAMES) : 0;
+    const missileMaxCount = (stage as { missileCount?: number } | undefined)?.missileCount ?? (session.settings as { missileCount?: number })?.missileCount ?? 2;
+    const outOfSessionMissiles = session.missiles_p1 !== undefined && session.missiles_p1 <= 0;
+    const missileDisabled =
+        isMoveInFlight ||
+        isBoardLocked ||
+        hasPendingRevealResolution ||
+        !isMyTurn ||
+        gameStatus !== 'playing' ||
+        missileCount <= 0 ||
+        outOfSessionMissiles;
     
     const handleUseMissile = () => {
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
         onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
     };
     
-    // 히든 아이템 (21층 이상, 최대 2개) - 로비·가방과 동기화
-    const hiddenCount = showMissileAndHiddenForHook ? getItemCount(['히든', 'hidden']) : 0;
-    const hiddenMaxCount = 2;
-    // 히든 아이템 (스캔 아이템처럼 개수 기반)
-    const hiddenLeft = session.hidden_stones_p1 ?? hiddenCount;
-    const hiddenDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
+    const hiddenCount = showMissileAndHiddenForHook ? getItemCount(TOWER_ITEM_HIDDEN_NAMES) : 0;
+    const hiddenMaxCount =
+        (stage as { hiddenStoneCount?: number } | undefined)?.hiddenStoneCount ??
+        (session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ??
+        2;
+    const outOfSessionHidden = session.hidden_stones_p1 !== undefined && session.hidden_stones_p1 <= 0;
+    const hiddenDisabled =
+        isMoveInFlight ||
+        isBoardLocked ||
+        hasPendingRevealResolution ||
+        !isMyTurn ||
+        gameStatus !== 'playing' ||
+        hiddenCount <= 0 ||
+        outOfSessionHidden;
     
     const handleUseHidden = () => {
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
-        onAction({ type: 'START_HIDDEN_PLACEMENT', payload: { gameId: session.id } });
+        const clientSync = buildPveItemActionClientSync(session);
+        onAction({
+            type: 'START_HIDDEN_PLACEMENT',
+            payload: { gameId: session.id, ...(clientSync ? { clientSync } : {}) },
+        });
     };
 
-    // 스캔 아이템 (21층 이상): 상대(AI)에 미공개 히든돌이 있을 때만 사용 가능 (canScan은 상단 useMemo로 정의)
-    const scanDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || myScansLeftForHook <= 0 || !canScan;
+    const scanDisabled =
+        isMoveInFlight ||
+        isBoardLocked ||
+        hasPendingRevealResolution ||
+        !canStartScanTurn ||
+        gameStatus !== 'playing' ||
+        scanInventoryCount <= 0 ||
+        outOfSessionScans ||
+        !canScan;
 
     const handleUseScan = () => {
-        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
-        onAction({ type: 'START_SCANNING', payload: { gameId: session.id } });
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !canStartScanTurn || gameStatus !== 'playing') return;
+        const clientSync = buildPveItemActionClientSync(session);
+        onAction({
+            type: 'START_SCANNING',
+            payload: { gameId: session.id, ...(clientSync ? { clientSync } : {}) },
+        });
     };
 
-    // 배치변경 아이템 (모든 층, 최대 5개) - 로비·가방과 동기화
-    const refreshCount = getItemCount(['배치 새로고침', '배치변경', 'reflesh', 'refresh']);
+    const refreshCount = getItemCount(TOWER_ITEM_REFRESH_NAMES);
     const refreshMaxCount = 5;
     const canUseRefresh = session.moveHistory && session.moveHistory.length === 0 && session.gameStatus === 'playing' && session.currentPlayer === Player.Black;
     const refreshDisabled = refreshCount <= 0 || !canUseRefresh;
@@ -394,7 +440,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                             onClick={handleUseMissile}
                             disabled={missileDisabled}
                             title="미사일 발사"
-                            count={myMissilesLeft}
+                            count={missileCount}
                             maxCount={missileMaxCount}
                         />
 						<span className={`text-[11px] font-semibold ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
@@ -410,7 +456,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                             onClick={handleUseHidden}
                             disabled={hiddenDisabled}
                             title="히든 스톤 배치"
-                            count={hiddenLeft}
+                            count={hiddenCount}
                             maxCount={hiddenMaxCount}
                         />
 						<span className={`text-[11px] font-semibold ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
@@ -426,7 +472,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                             onClick={handleUseScan}
                             disabled={scanDisabled}
                             title="스캔"
-                            count={myScansLeftForHook}
+                            count={scanInventoryCount}
                             maxCount={scanCountSettingForHook}
                         />
 						<span className={`text-[11px] font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>

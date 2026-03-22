@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import * as db from './db.js';
 // FIX: Import GameMode to resolve TS2304 error.
-import { type ServerAction, type User, type VolatileState, InventoryItem, Quest, QuestLog, Negotiation, Player, LeagueTier, TournamentType, GameMode } from '../shared/types/index.js';
+import { type ServerAction, type User, type VolatileState, InventoryItem, Quest, QuestLog, Negotiation, Player, LeagueTier, TournamentType, GameMode, type PveItemActionClientSync } from '../shared/types/index.js';
 import * as types from '../shared/types/index.js';
 import { volatileState } from './state.js';
 import { isDifferentDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST } from '../shared/utils/timeUtils.js';
@@ -11,6 +11,13 @@ import { updateGameStates } from './gameModes.js';
 import { DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ACTION_POINT_REGEN_INTERVAL_MS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES } from '../shared/constants';
 import { initializeGame } from './gameModes.js';
 import { handleStrategicGameAction } from './modes/standard.js';
+import {
+    towerP1ConsumableAllowance,
+    countTowerLobbyInventoryQty,
+    consumeOneTowerLobbyInventoryItem,
+    TOWER_LOBBY_SCAN_NAMES,
+    TOWER_LOBBY_HIDDEN_NAMES,
+} from './modes/towerPlayerHidden.js';
 import { handlePlayfulGameAction } from './modes/playful.js';
 import { createDefaultUser, createDefaultQuests } from './initialData.ts';
 import { containsProfanity } from '../profanity.js';
@@ -30,6 +37,45 @@ import { handleTowerAction } from './actions/towerActions.js';
 import { handleGuildAction } from './actions/guildActions.js';
 import { broadcast } from './socket.js';
 
+/** PVE: 클라(TOWER_CLIENT_MOVE 등)만 앞서 있는 판·hiddenMoves를 아이템 액션 직전 서버 세션에 반영 */
+function applyPveItemActionClientSync(game: types.LiveGameSession, payload: unknown): void {
+    const sync = (payload as { clientSync?: PveItemActionClientSync })?.clientSync;
+    if (!sync || typeof sync !== 'object') return;
+    if (!Array.isArray(sync.boardState) || sync.boardState.length === 0) return;
+    if (!Array.isArray(sync.moveHistory)) return;
+    game.boardState = sync.boardState.map((row: number[]) => [...row]);
+    game.moveHistory = sync.moveHistory.map((m) => ({ ...m }));
+    if (sync.hiddenMoves != null && typeof sync.hiddenMoves === 'object') {
+        game.hiddenMoves = { ...sync.hiddenMoves };
+    }
+    if (Array.isArray(sync.permanentlyRevealedStones)) {
+        game.permanentlyRevealedStones = sync.permanentlyRevealedStones.map((p) => ({ ...p }));
+    }
+    if (sync.aiInitialHiddenStone === null) {
+        (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone = undefined;
+    } else if (
+        sync.aiInitialHiddenStone &&
+        typeof (sync.aiInitialHiddenStone as { x?: number }).x === 'number' &&
+        typeof (sync.aiInitialHiddenStone as { y?: number }).y === 'number'
+    ) {
+        (game as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone = {
+            x: sync.aiInitialHiddenStone.x,
+            y: sync.aiInitialHiddenStone.y,
+        };
+    }
+    if (sync.currentPlayer !== undefined && sync.currentPlayer !== null) {
+        game.currentPlayer = sync.currentPlayer;
+    }
+    if (sync.captures && typeof sync.captures === 'object') {
+        game.captures = { ...game.captures, ...sync.captures } as typeof game.captures;
+    }
+    if ('koInfo' in sync) {
+        game.koInfo = sync.koInfo ?? null;
+    }
+    if (sync.totalTurns != null && Number.isFinite(sync.totalTurns)) {
+        game.totalTurns = sync.totalTurns;
+    }
+}
 
 export type HandleActionResult = { 
     clientResponse?: any;
@@ -279,19 +325,22 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 // 21층+: DB/캐시에서 불러온 게임에 아이템 수가 없으면 인벤토리 기준으로 복원
                 const s = (game.settings || {}) as any;
                 if ((game as any).missiles_p1 == null) {
-                    const inv = userData.inventory || [];
-                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
-                    (game as any).missiles_p1 = Math.min(s.missileCount ?? 2, countItems(['미사일', 'missile']));
+                    (game as any).missiles_p1 = towerP1ConsumableAllowance(
+                        countTowerLobbyInventoryQty(userData.inventory, ['미사일', 'missile', 'Missile']),
+                        s.missileCount ?? 2
+                    );
                 }
                 if ((game as any).hidden_stones_p1 == null) {
-                    const inv = userData.inventory || [];
-                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
-                    (game as any).hidden_stones_p1 = Math.min(s.hiddenStoneCount ?? 2, countItems(['히든', 'hidden']));
+                    (game as any).hidden_stones_p1 = towerP1ConsumableAllowance(
+                        countTowerLobbyInventoryQty(userData.inventory, ['히든', 'hidden', 'Hidden']),
+                        s.hiddenStoneCount ?? 2
+                    );
                 }
                 if ((game as any).scans_p1 == null) {
-                    const inv = userData.inventory || [];
-                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
-                    (game as any).scans_p1 = Math.min(s.scanCount ?? 2, countItems(['스캔', 'scan']));
+                    (game as any).scans_p1 = towerP1ConsumableAllowance(
+                        countTowerLobbyInventoryQty(userData.inventory, ['스캔', 'scan', 'Scan', 'SCAN', '스캔권', '스캔 아이템']),
+                        s.scanCount ?? 2
+                    );
                 }
                 if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
                     const { handleStrategicGameAction } = await import('./modes/strategic.js');
@@ -375,20 +424,31 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 // 21층+: DB/캐시에서 불러온 게임에 아이템 수가 없으면 인벤토리 기준으로 복원
                 const s = (game.settings || {}) as any;
                 if ((game as any).hidden_stones_p1 == null) {
-                    const inv = userData.inventory || [];
-                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
-                    (game as any).hidden_stones_p1 = Math.min(s.hiddenStoneCount ?? 2, countItems(['히든', 'hidden']));
+                    (game as any).hidden_stones_p1 = towerP1ConsumableAllowance(
+                        countTowerLobbyInventoryQty(userData.inventory, ['히든', 'hidden', 'Hidden']),
+                        s.hiddenStoneCount ?? 2
+                    );
                 }
                 if ((game as any).scans_p1 == null) {
-                    const inv = userData.inventory || [];
-                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
-                    (game as any).scans_p1 = Math.min(s.scanCount ?? 2, countItems(['스캔', 'scan']));
+                    (game as any).scans_p1 = towerP1ConsumableAllowance(
+                        countTowerLobbyInventoryQty(userData.inventory, ['스캔', 'scan', 'Scan', 'SCAN', '스캔권', '스캔 아이템']),
+                        s.scanCount ?? 2
+                    );
                 }
                 if ((game as any).missiles_p1 == null) {
-                    const inv = userData.inventory || [];
-                    const countItems = (names: string[]) => inv.filter((i: any) => names.some((n: string) => i.name === n || i.id === n)).reduce((sum: number, i: any) => sum + (i.quantity ?? 0), 0);
-                    (game as any).missiles_p1 = Math.min(s.missileCount ?? 2, countItems(['미사일', 'missile']));
+                    (game as any).missiles_p1 = towerP1ConsumableAllowance(
+                        countTowerLobbyInventoryQty(userData.inventory, ['미사일', 'missile', 'Missile']),
+                        s.missileCount ?? 2
+                    );
                 }
+            }
+            if (
+                (actionTypeStr === 'START_SCANNING' ||
+                    actionTypeStr === 'START_HIDDEN_PLACEMENT' ||
+                    actionTypeStr === 'SCAN_BOARD') &&
+                (game.gameCategory === 'tower' || game.isSinglePlayer)
+            ) {
+                applyPveItemActionClientSync(game, payload);
             }
             // 도전의 탑: PVE 히든/스캔은 towerPlayerHidden으로 처리 (싱글플레이와 동일 규칙)
             if (game.gameCategory === 'tower' && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
@@ -398,6 +458,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     const towerResult = handleTowerPlayerHiddenAction(volatileState, game, action, userData);
                     if (towerResult !== null) {
                         if (!(towerResult as any).error) {
+                            if (type === 'SCAN_BOARD' && consumeOneTowerLobbyInventoryItem(userData, TOWER_LOBBY_SCAN_NAMES)) {
+                                await db.updateUser(userData).catch((err) =>
+                                    console.error('[handleAction] tower SCAN_BOARD inventory save failed:', err)
+                                );
+                                const { broadcastUserUpdate } = await import('./socket.js');
+                                const { updateUserCache } = await import('./gameCache.js');
+                                broadcastUserUpdate(userData, ['inventory', 'gold', 'diamonds', 'towerFloor']);
+                                updateUserCache(userData);
+                            }
                             updateGameCache(game);
                             await db.saveGame(game);
                             const { broadcastToGameParticipants } = await import('./socket.js');
@@ -459,6 +528,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     const { handleStrategicGameAction } = await import('./modes/strategic.js');
                     const result = await handleStrategicGameAction(volatileState, game, action, userData);
                     if (result && !(result as any).error) {
+                        if ((payload as any)?.isHidden && consumeOneTowerLobbyInventoryItem(userData, TOWER_LOBBY_HIDDEN_NAMES)) {
+                            await db.updateUser(userData).catch((err) =>
+                                console.error('[handleAction] tower hidden PLACE_STONE inventory save failed:', err)
+                            );
+                            const { broadcastUserUpdate } = await import('./socket.js');
+                            const { updateUserCache } = await import('./gameCache.js');
+                            broadcastUserUpdate(userData, ['inventory', 'gold', 'diamonds', 'towerFloor']);
+                            updateUserCache(userData);
+                        }
                         updateGameCache(game);
                         await db.saveGame(game);
                         const { broadcastToGameParticipants } = await import('./socket.js');
@@ -481,14 +559,27 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             return { error: 'Game not found.' };
         }
         
-        // 도전의 탑 21층+: DB/캐시에서 불러온 게임에 missiles_p1/hidden_stones_p1이 없으면 설정값으로 초기화 (미사일/히든 사용 가능하도록)
+        // 도전의 탑 21층+: 세션 필드가 비어 있으면 대기실 인벤 기준으로만 채움 (무료 기본 개수 없음)
         if (game.gameCategory === 'tower' && (game as any).towerFloor >= 21 && game.settings) {
             const s = game.settings as any;
+            const inv = userData.inventory || [];
             if ((game as any).missiles_p1 == null && s.missileCount != null) {
-                (game as any).missiles_p1 = s.missileCount;
+                (game as any).missiles_p1 = towerP1ConsumableAllowance(
+                    countTowerLobbyInventoryQty(inv, ['미사일', 'missile', 'Missile']),
+                    s.missileCount ?? 2
+                );
             }
             if ((game as any).hidden_stones_p1 == null && s.hiddenStoneCount != null) {
-                (game as any).hidden_stones_p1 = s.hiddenStoneCount;
+                (game as any).hidden_stones_p1 = towerP1ConsumableAllowance(
+                    countTowerLobbyInventoryQty(inv, ['히든', 'hidden', 'Hidden']),
+                    s.hiddenStoneCount ?? 2
+                );
+            }
+            if ((game as any).scans_p1 == null && s.scanCount != null) {
+                (game as any).scans_p1 = towerP1ConsumableAllowance(
+                    countTowerLobbyInventoryQty(inv, ['스캔', 'scan', 'Scan', 'SCAN', '스캔권', '스캔 아이템']),
+                    s.scanCount ?? 2
+                );
             }
         }
         
@@ -564,14 +655,20 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
 
                 // KataGo를 사용한 계가 분석
-                const { analyzeGame } = await import('./kataGoService.js');
+                const { analyzeGame, getScoringKataGoLimits } = await import('./kataGoService.js');
                 const analysisGame = {
                     ...game,
                     boardState,
                     moveHistory,
                     settings: { ...game.settings, ...settings }
                 };
-                const analysis = await analyzeGame(analysisGame);
+                const lim = getScoringKataGoLimits();
+                const analysis = await analyzeGame(analysisGame, {
+                    includePolicy: false,
+                    includeOwnership: true,
+                    maxVisits: lim.maxVisits,
+                    maxTimeSec: lim.maxTimeSec,
+                });
                 // 싱글플레이어: 계가 완료 시 서버에서 endGame 호출하여 클리어/보상 저장 (다음 스테이지 잠금 해제, 골드/경험치 지급)
                 if (game.isSinglePlayer && game.stageId) {
                     const blackTotal = analysis?.scoreDetails?.black?.total ?? 0;
@@ -908,7 +1005,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         return handleTournamentAction(volatileState, action, userData);
     }
     if (['TOGGLE_EQUIP_ITEM', 'SELL_ITEM', 'ENHANCE_ITEM', 'DISASSEMBLE_ITEM', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'CRAFT_MATERIAL', 'COMBINE_ITEMS', 'REFINE_EQUIPMENT'].includes(type)) return handleInventoryAction(volatileState, action, userData);
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS'].includes(type)) return handleUserAction(volatileState, action, userData);
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD'].includes(type)) return handleUserAction(volatileState, action, userData);
     if (type.includes('SINGLE_PLAYER')) return handleSinglePlayerAction(volatileState, action, userData);
     if (type === 'MANNER_ACTION') return mannerService.handleMannerAction(volatileState, action, userData);
     // Guild actions are now handled above (before game actions)

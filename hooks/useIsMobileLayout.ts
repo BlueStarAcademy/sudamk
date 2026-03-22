@@ -87,27 +87,3 @@ export function useIsPortrait(): boolean {
 
     return isPortrait;
 }
-
-/** 세로 모드이면서 좁은 화면(모바일)일 때만 true. 가로 전용 오버레이 표시용. */
-export function useShowLandscapeOnlyOverlay(): boolean {
-    const [show, setShow] = useState(() => {
-        const { width, height } = getViewportSize();
-        return isPortraitViewport(width, height) && isHandheldWidth(width, 1025);
-    });
-
-    useEffect(() => {
-        const update = () => {
-            const { width, height } = getViewportSize();
-            setShow(isPortraitViewport(width, height) && isHandheldWidth(width, 1025));
-        };
-        update();
-        window.addEventListener('resize', update);
-        window.addEventListener('orientationchange', update);
-        return () => {
-            window.removeEventListener('resize', update);
-            window.removeEventListener('orientationchange', update);
-        };
-    }, []);
-
-    return show;
-}

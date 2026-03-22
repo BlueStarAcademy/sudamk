@@ -925,7 +925,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className="col-span-3 min-w-0 bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col overflow-hidden">
                             <HomeBoardPanel posts={homeBoardPosts || []} isAdmin={currentUserWithStatus.isAdmin} onAction={handlers.handleAction} />
                         </div>
-                        <div className="col-span-6 min-w-0 min-h-0 flex flex-col justify-end overflow-hidden">
+                        <div className="col-span-6 min-w-0 min-h-0 flex flex-col overflow-hidden">
                             {LobbyCards}
                         </div>
                     </div>

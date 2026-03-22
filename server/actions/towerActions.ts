@@ -458,25 +458,22 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             // 21층 이상: 미사일/히든 개수를 로비·가방 인벤토리와 동기화 (스테이지 상한 적용)
             const floor = game.towerFloor ?? 1;
             if (floor >= 21) {
+                const { initializeTowerPlayerHidden, towerP1ConsumableAllowance, countTowerLobbyInventoryQty } = await import('../modes/towerPlayerHidden.js');
                 const inv = user.inventory || [];
-                const countItems = (namesOrIds: string[]) =>
-                    inv.filter((item: any) => namesOrIds.some((n: string) => item.name === n || item.id === n))
-                        .reduce((sum: number, item: any) => sum + (item.quantity ?? 0), 0);
                 const missileCap = (game.settings as any).missileCount ?? 2;
                 const hiddenCap = (game.settings as any).hiddenStoneCount ?? 2;
                 const scanCap = (game.settings as any).scanCount ?? 2;
                 const aiHiddenCap = floor >= 51 ? Math.max(2, hiddenCap) : hiddenCap;
                 const aiHiddenItemTurns = planTowerAiHiddenTurns(floor, aiHiddenCap);
-                (game as any).missiles_p1 = Math.min(missileCap, countItems(['미사일', 'missile']));
-                (game as any).hidden_stones_p1 = Math.min(hiddenCap, countItems(['히든', 'hidden']));
-                (game as any).scans_p1 = Math.min(scanCap, countItems(['스캔', 'scan']));
+                (game as any).missiles_p1 = towerP1ConsumableAllowance(countTowerLobbyInventoryQty(inv, ['미사일', 'missile', 'Missile']), missileCap);
+                (game as any).hidden_stones_p1 = towerP1ConsumableAllowance(countTowerLobbyInventoryQty(inv, ['히든', 'hidden', 'Hidden']), hiddenCap);
+                (game as any).scans_p1 = towerP1ConsumableAllowance(countTowerLobbyInventoryQty(inv, ['스캔', 'scan', 'Scan', 'SCAN', '스캔권', '스캔 아이템']), scanCap);
                 (game as any).hidden_stones_p2 = aiHiddenCap;
                 (game as any).scans_p2 = (game.settings as any).scanCount ?? 0;
                 (game as any).aiHiddenItemTurns = aiHiddenItemTurns;
                 (game as any).aiHiddenItemsUsedCount = 0;
                 game.aiHiddenItemUsed = false;
                 game.aiHiddenItemTurn = aiHiddenItemTurns[0];
-                const { initializeTowerPlayerHidden } = await import('../modes/towerPlayerHidden.js');
                 initializeTowerPlayerHidden(game);
             }
             

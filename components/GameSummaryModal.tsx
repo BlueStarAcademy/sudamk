@@ -5,6 +5,8 @@ import { audioService } from '../services/audioService.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, SPECIAL_GAME_MODES } from '../constants';
+import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
+import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { getMannerRank as getMannerRankShared } from '../services/manner.js';
@@ -13,7 +15,10 @@ interface GameSummaryModalProps {
     session: LiveGameSession;
     currentUser: User;
     onConfirm: () => void;
-    onAction?: (action: ServerAction) => void;
+    onAction?: (action: ServerAction) => void | Promise<unknown>;
+    /** 저장된 기보 목록·삭제(기보 관리) */
+    onOpenGameRecordList?: () => void;
+    isSpectator?: boolean;
 }
 
 const getIsWinner = (session: LiveGameSession, currentUser: User): boolean | null => {
@@ -491,7 +496,7 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
 };
 
 
-const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUser, onConfirm, onAction }) => {
+const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUser, onConfirm, onAction, onOpenGameRecordList, isSpectator = false }) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
     const soundPlayed = useRef(false);
     // PC 레이아웃을 기준으로 렌더링합니다.
@@ -501,9 +506,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const mySummary = session.summary?.[currentUser.id];
     const isPlayful = PLAYFUL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
     const isStrategic = SPECIAL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
-    const isPVP = !session.isSinglePlayer && !session.isAiGame && !session.gameCategory;
-    const canSaveRecord = isStrategic && isPVP && (session.gameStatus === 'ended' || session.gameStatus === 'scoring');
-    const hasSavedRecord = currentUser.savedGameRecords?.some(r => r.gameId === session.id);
+    const canUseGameRecordUi = canSaveStrategicPvpGameRecord(session) && !isSpectator;
+    const { recordAlreadySaved, setSavedOptimistic } = useGameRecordSaveLock(session.id, currentUser.savedGameRecords);
     const recordCount = currentUser.savedGameRecords?.length ?? 0;
     const [savingRecord, setSavingRecord] = useState(false);
 
@@ -710,6 +714,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const initialMannerRank = mySummary ? getMannerRank(mySummary.manner.initial) : '';
     const finalMannerRank = mySummary ? getMannerRank(mySummary.manner.final) : '';
 
+    const recordBtnBase =
+        'relative overflow-hidden rounded-xl text-sm font-semibold tracking-wide transition-all duration-200 border focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0f14] disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed';
+    const recordSaveClass =
+        `${recordBtnBase} px-4 py-2.5 border-amber-500/40 bg-gradient-to-br from-slate-800 via-slate-900 to-zinc-950 text-amber-50/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_8px_28px_-10px_rgba(251,191,36,0.2)] hover:border-amber-400/55 hover:shadow-[0_12px_32px_-12px_rgba(251,191,36,0.28)] active:translate-y-px focus-visible:ring-amber-400/45`;
+    const recordManageClass =
+        `${recordBtnBase} px-4 py-2.5 border-cyan-500/35 bg-gradient-to-br from-slate-900/95 via-slate-950 to-[#06080d] text-cyan-50/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_22px_-8px_rgba(34,211,238,0.12)] hover:border-cyan-400/45 hover:shadow-[0_10px_28px_-10px_rgba(34,211,238,0.18)] active:translate-y-px focus-visible:ring-cyan-400/40`;
+
     return (
         <DraggableWindow title="대국 결과" onClose={onConfirm} initialWidth={isMobile ? 600 : 1000} windowId="game-summary">
             <div className={`text-white ${isMobile ? 'text-xs' : 'text-[clamp(0.75rem,2.5vw,1rem)]'} flex flex-col`}>
@@ -849,33 +860,52 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         </div>
                 </div>
                  
-                 {canSaveRecord && onAction && (
-                    <Button 
-                        onClick={async () => {
-                            if (savingRecord) return;
-                            if (recordCount >= 30 && !hasSavedRecord) {
-                                alert('기보는 최대 30개까지 저장할 수 있습니다. 기존 기보를 삭제한 후 다시 시도해주세요.');
-                                return;
-                            }
-                            setSavingRecord(true);
-                            try {
-                                onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId: session.id } });
-                            } catch (error) {
-                                console.error('Failed to save game record:', error);
-                            } finally {
-                                setSavingRecord(false);
-                            }
-                        }}
-                        disabled={savingRecord || hasSavedRecord}
-                        className={`w-full ${isMobile ? 'py-1.5 text-xs' : 'py-2'} mt-2 flex-shrink-0 ${hasSavedRecord ? 'opacity-50' : ''}`}
-                        style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
+                <div className="mt-4 flex w-full flex-shrink-0 flex-row flex-wrap items-center justify-center gap-2 sm:gap-3">
+                    {canUseGameRecordUi && onAction && (
+                        <button
+                            type="button"
+                            className={`${recordSaveClass} ${isMobile ? '!text-xs !py-2 !px-3' : ''}`}
+                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                            disabled={savingRecord || recordAlreadySaved}
+                            onClick={async () => {
+                                if (savingRecord || recordAlreadySaved) return;
+                                if (recordCount >= 10) {
+                                    alert(GAME_RECORD_SLOT_FULL_MESSAGE);
+                                    return;
+                                }
+                                setSavingRecord(true);
+                                try {
+                                    const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId: session.id } });
+                                    if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) return;
+                                    setSavedOptimistic(true);
+                                } catch (error) {
+                                    console.error('Failed to save game record:', error);
+                                } finally {
+                                    setSavingRecord(false);
+                                }
+                            }}
+                        >
+                            {savingRecord ? '저장 중...' : recordAlreadySaved ? '이미 저장됨' : '기보 저장'}
+                        </button>
+                    )}
+                    {canUseGameRecordUi && onOpenGameRecordList && (
+                        <button
+                            type="button"
+                            className={`${recordManageClass} ${isMobile ? '!text-xs !py-2 !px-3' : ''}`}
+                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                            onClick={() => onOpenGameRecordList()}
+                        >
+                            기보 관리
+                        </button>
+                    )}
+                    <Button
+                        onClick={onConfirm}
+                        className={`shrink-0 rounded-xl font-bold shadow-[0_6px_20px_-6px_rgba(251,191,36,0.35)] ${isMobile ? 'min-w-[6.5rem] py-2 text-xs' : 'min-w-[8.5rem] py-2.5 text-sm'}`}
+                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                     >
-                        {savingRecord ? '저장 중...' : hasSavedRecord ? '이미 저장됨' : '기보 저장'}
+                        확인
                     </Button>
-                )}
-                 <div className="flex justify-center mt-3 flex-shrink-0">
-                     <Button onClick={onConfirm} className={`${isMobile ? 'w-32 py-1.5 text-xs' : 'w-40 py-2 text-sm'} mx-auto`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>확인</Button>
-                 </div>
+                </div>
             </div>
         </DraggableWindow>
     );

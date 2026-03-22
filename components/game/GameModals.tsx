@@ -35,10 +35,11 @@ interface GameModalsProps extends GameProps {
     onHideConfirmModal: () => void;
     showResultModal: boolean;
     onCloseResults: () => void;
+    onOpenGameRecordList?: () => void;
 }
 
 const GameModals: React.FC<GameModalsProps> = (props) => {
-    const { session, currentUser, onAction, confirmModalType, onHideConfirmModal, showResultModal, onCloseResults, isSpectator, activeNegotiation, onlineUsers, onViewUser } = props;
+    const { session, currentUser, onAction, confirmModalType, onHideConfirmModal, showResultModal, onCloseResults, isSpectator, activeNegotiation, onlineUsers, onViewUser, onOpenGameRecordList } = props;
     const { gameStatus, mode, id: gameId } = session;
 
     const renderModals = () => {
@@ -117,8 +118,26 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         // 확인 버튼을 눌렀을 때 모달이 닫히도록 하기 위해 showResultModal이 명시적으로 false일 때는 모달을 표시하지 않음
         if ((showResultModal !== false && (showResultModal || gameStatus === 'ended' || gameStatus === 'no_contest')) && 
             !session.isSinglePlayer && session.gameCategory !== 'tower') {
-            if (gameStatus === 'ended') return <GameSummaryModal session={session} currentUser={currentUser} onConfirm={onCloseResults} onAction={onAction} />;
-            if (gameStatus === 'no_contest') return <NoContestModal session={session} currentUser={currentUser} onConfirm={onCloseResults} />;
+            if (gameStatus === 'ended') return (
+                <GameSummaryModal
+                    session={session}
+                    currentUser={currentUser}
+                    onConfirm={onCloseResults}
+                    onAction={onAction}
+                    onOpenGameRecordList={onOpenGameRecordList}
+                    isSpectator={isSpectator}
+                />
+            );
+            if (gameStatus === 'no_contest') return (
+                <NoContestModal
+                    session={session}
+                    currentUser={currentUser}
+                    onConfirm={onCloseResults}
+                    onAction={onAction}
+                    onOpenGameRecordList={onOpenGameRecordList}
+                    isSpectator={isSpectator}
+                />
+            );
         }
         return null;
     };

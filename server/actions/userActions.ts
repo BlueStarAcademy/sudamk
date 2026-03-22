@@ -7,6 +7,7 @@ import { UserStatus } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
+import { isStrategicPvpForGameRecord, isGameStatusSaveableForRecord, isShortGameStrategicNoContest } from '../../utils/strategicPvpGameRecord.js';
 import { randomUUID } from 'crypto';
 
 type HandleActionResult = {
@@ -358,20 +359,22 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const { gameId } = payload as { gameId: string };
             
             // 게임 조회
-            const game = await db.getGame(gameId);
+            const game = await db.getLiveGame(gameId);
             if (!game) {
                 return { error: '게임을 찾을 수 없습니다.' };
             }
             
-            // 전략바둑 PVP 게임만 저장 가능
-            const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
-            if (!isStrategicMode || game.isSinglePlayer || game.isAiGame || game.gameCategory) {
+            // 전략바둑 PVP만 (일반 로비는 gameCategory가 Normal일 수 있음 — truthy 체크 금지)
+            if (!isStrategicPvpForGameRecord(game)) {
                 return { error: '전략바둑 PVP 게임만 기보를 저장할 수 있습니다.' };
             }
-            
-            // 게임이 종료되었는지 확인
-            if (game.gameStatus !== 'ended' && game.gameStatus !== 'scoring') {
+
+            if (!isGameStatusSaveableForRecord(game.gameStatus)) {
                 return { error: '게임이 아직 종료되지 않았습니다.' };
+            }
+
+            if (game.gameStatus === 'no_contest' && isShortGameStrategicNoContest(game)) {
+                return { error: '10수 미만 무효 대국은 기보를 저장할 수 없습니다.' };
             }
             
             // 사용자가 게임 참가자인지 확인
@@ -379,13 +382,13 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 return { error: '게임 참가자만 기보를 저장할 수 있습니다.' };
             }
             
-            // 기보 개수 확인 (최대 30개)
+            // 기보 개수 확인 (최대 10개)
             if (!user.savedGameRecords) {
                 user.savedGameRecords = [];
             }
             
-            if (user.savedGameRecords.length >= 30) {
-                return { error: '기보는 최대 30개까지 저장할 수 있습니다. 기존 기보를 삭제한 후 다시 시도해주세요.' };
+            if (user.savedGameRecords.length >= 10) {
+                return { error: '기보는 최대 10개까지 저장할 수 있습니다. 기보 관리에서 예전 기보를 삭제한 뒤 다시 저장해 주세요.' };
             }
             
             // 이미 저장된 기보인지 확인
@@ -440,15 +443,15 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             // SGF 생성
             const sgfContent = generateSgfFromGame(game, user, opponentUser, analysisResult);
             
-            // 게임 결과 판정
+            // 저장한 유저의 착색 (목록에서 내 기준 승/패 표시용)
             const playerColor = game.blackPlayerId === user.id ? types.Player.Black : types.Player.White;
-            const gameResult = game.winner === playerColor ? 'win' : (game.winner === null ? 'draw' : 'loss');
             
             // 기보 저장
             const record: types.GameRecord = {
                 id: randomUUID(),
                 gameId: gameId,
                 mode: game.mode,
+                myColor: playerColor,
                 opponent: {
                     id: opponentUser.id,
                     nickname: opponentUser.nickname
@@ -474,7 +477,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['savedGameRecords']);
             
-            return { clientResponse: { success: true, recordId: record.id } };
+            const updatedUser = getSelectiveUserUpdate(user, 'SAVE_GAME_RECORD');
+            return { clientResponse: { success: true, recordId: record.id, updatedUser } };
         }
         case 'DELETE_GAME_RECORD': {
             const { recordId } = payload as { recordId: string };
@@ -499,7 +503,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['savedGameRecords']);
             
-            return { clientResponse: { success: true } };
+            const updatedUser = getSelectiveUserUpdate(user, 'DELETE_GAME_RECORD');
+            return { clientResponse: { success: true, updatedUser } };
         }
         case 'CHANGE_USERNAME': {
             const { newUsername, password } = payload as { newUsername: string; password: string };

@@ -180,8 +180,12 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     // (재도전에서 실패해도 한 번 클리어한 층이면 다음 층으로 진행 가능)
     const canTryNext = !!nextStage && (isWinner || isCleared);
     
-    const retryActionPointCost = currentStage?.actionPointCost ?? 0;
-    const nextFloorActionPointCost = nextStage?.actionPointCost ?? 0;
+    // 서버 START_TOWER_GAME과 동일: 이미 클리어한 층(floor <= userTowerFloor)은 행동력 0
+    const baseRetryApCost = currentStage?.actionPointCost ?? 0;
+    const baseNextFloorApCost = nextStage?.actionPointCost ?? 0;
+    const effectiveRetryActionPointCost = isCleared ? 0 : baseRetryApCost;
+    const isNextFloorAlreadyCleared = nextFloor != null && userTowerFloor >= nextFloor;
+    const effectiveNextFloorActionPointCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
 
     const failureReason = useMemo(() => {
         if (isWinner) return null;
@@ -357,6 +361,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="tower-summary-redesigned"
             initialWidth={900}
+            modal={!isInsideScaledCanvas}
+            closeOnOutsideClick={!isInsideScaledCanvas}
+            defaultPosition={isInsideScaledCanvas ? { x: 400, y: 0 } : { x: 0, y: 0 }}
         >
             <div className={`text-white ${isMobile ? 'text-sm' : 'text-[clamp(0.875rem,2.5vw,1.125rem)]'} flex flex-col ${isMobile ? 'max-h-[85vh]' : 'h-full'} overflow-y-auto w-full`}>
                 {/* Title */}
@@ -557,7 +564,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${canTryNext && !isProcessing ? 'border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
                         disabled={!canTryNext || isProcessing}
                     >
-                        {nextFloor ? `${nextFloor}층 도전` : '다음 층'} {nextFloorActionPointCost > 0 && `⚡${nextFloorActionPointCost}`}
+                        {nextFloor ? `${nextFloor}층 도전` : '다음 층'} {effectiveNextFloorActionPointCost > 0 && `⚡${effectiveNextFloorActionPointCost}`}
                     </Button>
                     <Button
                         onClick={handleRetry}
@@ -565,7 +572,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${!isProcessing ? 'border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-orange-500/90 to-red-500/90 text-white shadow-[0_12px_32px_-18px_rgba(245,158,11,0.85)] hover:from-amber-400 hover:to-red-400' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
                         disabled={isProcessing}
                     >
-                        재도전 {retryActionPointCost > 0 && `⚡${retryActionPointCost}`}
+                        재도전 {effectiveRetryActionPointCost > 0 && `⚡${effectiveRetryActionPointCost}`}
                     </Button>
                     <Button
                         onClick={handleExitToLobby}

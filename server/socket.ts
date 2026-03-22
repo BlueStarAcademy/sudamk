@@ -162,6 +162,13 @@ export const createWebSocketServer = (server: Server) => {
                 if (process.env.NODE_ENV === 'development') {
                     console.log(`[WebSocket] Starting initial state load (timeout: ${timeoutDuration}ms)`);
                 }
+
+                try {
+                    const { ensurePrismaConnected } = await import('./prismaClient.js');
+                    await ensurePrismaConnected();
+                } catch {
+                    // 이후 getAllActiveGames/KV가 빈 데이터·캐시로 폴백
+                }
                 
                 // 점진적 로딩: 유저 정보는 DB에서 미리 로드하지 않음 (온디맨드)
                 // id, status, mode만 전송 → 클라이언트가 /api/users/brief로 필요 시 요청

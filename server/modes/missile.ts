@@ -2,6 +2,12 @@
 import * as types from '../../types/index.js';
 import { getGoLogic } from '../goLogic.js';
 import { pauseGameTimer, resumeGameTimer } from './shared.js';
+import {
+    consumeOneTowerLobbyInventoryItem,
+    TOWER_LOBBY_MISSILE_NAMES,
+    scheduleTowerP1InventorySave,
+    persistTowerP1ConsumableDecrement,
+} from './towerPlayerHidden.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -130,6 +136,10 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
         const currentMissiles = game[missileKey] ?? 0;
         if (currentMissiles > 0) {
             game[missileKey] = currentMissiles - 1;
+        }
+
+        if (game.gameCategory === 'tower' && timedOutPlayerId === game.player1?.id) {
+            void persistTowerP1ConsumableDecrement(game.player1.id, 'missile');
         }
         
         // 원래 경기 시간 복원 (턴 유지)
@@ -430,9 +440,13 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             const missileKey = user.id === game.player1.id ? 'missiles_p1' : 'missiles_p2';
             let myMissilesLeft = game[missileKey];
             if (myMissilesLeft == null) {
-                // 도전의 탑 등: DB/캐시에서 미설정일 수 있음 → 설정 상한으로 허용
-                myMissilesLeft = game.settings.missileCount ?? 0;
-                (game as any)[missileKey] = myMissilesLeft;
+                if (game.gameCategory === 'tower') {
+                    myMissilesLeft = 0;
+                    (game as any)[missileKey] = 0;
+                } else {
+                    myMissilesLeft = game.settings.missileCount ?? 0;
+                    (game as any)[missileKey] = myMissilesLeft;
+                }
             }
             if (myMissilesLeft <= 0) {
                 console.warn(`[Missile Go] START_MISSILE_SELECTION failed: no missiles left, gameId=${game.id}`);
@@ -618,6 +632,12 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             // 미사일 아이템 개수 감소
             const missileKey = user.id === game.player1.id ? 'missiles_p1' : 'missiles_p2';
             game[missileKey] = (game[missileKey] ?? 0) - 1;
+
+            if (game.gameCategory === 'tower' && user.id === game.player1?.id) {
+                if (consumeOneTowerLobbyInventoryItem(user, TOWER_LOBBY_MISSILE_NAMES)) {
+                    scheduleTowerP1InventorySave(user);
+                }
+            }
             
             // 미사일 아이템은 턴을 사용하는 행동이 아니므로 totalTurns를 증가시키지 않음
             

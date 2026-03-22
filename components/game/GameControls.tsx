@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useGameRecordSaveLock } from '../../hooks/useGameRecordSaveLock.js';
 import { GameMode, LiveGameSession, ServerAction, GameProps, Player, User, Point, GameStatus, AppSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
+import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../../utils/strategicPvpGameRecord.js';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
 import Dice from '../Dice.js';
@@ -83,7 +85,7 @@ interface GameControlsProps {
     session: LiveGameSession;
     isMyTurn: boolean;
     isSpectator: boolean;
-    onAction: (action: ServerAction) => void;
+    onAction: (action: ServerAction) => void | Promise<unknown>;
     setShowResultModal: (show: boolean) => void;
     setConfirmModalType: (type: 'resign' | null) => void;
     onOpenRematchSettings?: () => void;
@@ -101,6 +103,7 @@ interface GameControlsProps {
     resumeCountdown?: number;
     pauseButtonCooldown?: number;
     onPauseToggle?: () => void;
+    onOpenGameRecordList?: () => void;
 }
 
 const formatCooldown = (ms: number) => {
@@ -432,7 +435,7 @@ const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
 
 
 const GameControls: React.FC<GameControlsProps> = (props) => {
-    const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, onOpenRematchSettings, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, onPauseToggle } = props;
+    const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, onOpenRematchSettings, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, onPauseToggle, onOpenGameRecordList } = props;
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
     const isMixMode = mode === GameMode.Mix;
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
@@ -440,6 +443,12 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const isAiLobbyGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+    const [savingGameRecord, setSavingGameRecord] = useState(false);
+    const { recordAlreadySaved, setSavedOptimistic } = useGameRecordSaveLock(gameId, currentUser.savedGameRecords);
+    const savedRecordCount = currentUser.savedGameRecords?.length ?? 0;
+    const showStrategicGameRecordActions =
+        !isSpectator &&
+        canSaveStrategicPvpGameRecord(session);
     // 일반 AI 대국(대기실 'AI와 대결하기')에서만 사용되는 수동 일시정지/재개 플래그
     const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
     // 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
@@ -938,6 +947,45 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 <Button onClick={() => setShowResultModal(true)} colorScheme="none" className={getLuxuryButtonClasses('accent')}>결과 보기</Button>
                                 {isAiLobbyGame && onOpenRematchSettings && (
                                     <Button onClick={onOpenRematchSettings} colorScheme="none" className={getLuxuryButtonClasses('success')}>재대결</Button>
+                                )}
+                                {showStrategicGameRecordActions && (onAction || onOpenGameRecordList) && (
+                                    <>
+                                        {onAction && (
+                                            <Button
+                                                onClick={async () => {
+                                                    if (savingGameRecord || recordAlreadySaved) return;
+                                                    if (savedRecordCount >= 10) {
+                                                        alert(GAME_RECORD_SLOT_FULL_MESSAGE);
+                                                        return;
+                                                    }
+                                                    setSavingGameRecord(true);
+                                                    try {
+                                                        const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId } });
+                                                        if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) return;
+                                                        setSavedOptimistic(true);
+                                                    } catch (e) {
+                                                        console.error(e);
+                                                    } finally {
+                                                        setSavingGameRecord(false);
+                                                    }
+                                                }}
+                                                disabled={savingGameRecord || recordAlreadySaved}
+                                                colorScheme="none"
+                                                className={`${getLuxuryButtonClasses('accent')} ${recordAlreadySaved ? 'opacity-50' : ''}`}
+                                            >
+                                                {savingGameRecord ? '저장 중...' : recordAlreadySaved ? '이미 저장됨' : '기보 저장'}
+                                            </Button>
+                                        )}
+                                        {onOpenGameRecordList && (
+                                            <Button
+                                                onClick={() => onOpenGameRecordList()}
+                                                colorScheme="none"
+                                                className={getLuxuryButtonClasses('neutral')}
+                                            >
+                                                기보 관리
+                                            </Button>
+                                        )}
+                                    </>
                                 )}
                             </>
                         ) : (

@@ -29,6 +29,7 @@ import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import Button from './components/Button.js';
 import ToggleSwitch from './components/ui/ToggleSwitch.js';
+import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
@@ -319,16 +320,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     const storedMoveCount = Array.isArray(parsed.moveHistory) ? parsed.moveHistory.length : 0;
                     const serverMoveCount = Array.isArray(next.moveHistory) ? next.moveHistory.length : 0;
                     const canPreferStoredVisualState = storedMoveCount >= serverMoveCount;
-                    const itemModeStatuses: GameStatus[] = [
+                    // 스토리지는 useEffect 저장보다 한 틱 늦게 갱신될 수 있음. scanning_animating·missile_animating을 여기 넣으면
+                    // 서버가 이미 playing인데 저장분이 애니메이션 상태라 본경기를 덮어 "스캔 연속 사용 후 재개 불가"가 된다.
+                    const storedItemModeRecoveryStatuses: GameStatus[] = [
                         'hidden_placing',
                         'scanning',
-                        'scanning_animating',
                         'hidden_reveal_animating',
                         'hidden_final_reveal',
                         'missile_selecting',
-                        'missile_animating',
                     ];
-                    if (itemModeStatuses.includes(parsed.gameStatus) && !itemModeStatuses.includes(next.gameStatus)) {
+                    if (storedItemModeRecoveryStatuses.includes(parsed.gameStatus) && !storedItemModeRecoveryStatuses.includes(next.gameStatus)) {
                         next = {
                             ...next,
                             gameStatus: parsed.gameStatus,
@@ -492,7 +493,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         switch (gameStatus) {
             case 'dice_turn_rolling': return session.turnOrderRolls?.[currentUser.id] === null;
             case 'dice_turn_choice': return session.turnChooserId === currentUser.id;
-            case 'playing': case 'hidden_placing': case 'scanning': case 'missile_selecting': 
+            case 'scanning': {
+                if (myPlayerEnum === Player.None) return false;
+                if (myPlayerEnum === currentPlayer) return true;
+                // 서버(towerPlayerHidden / singlePlayerHidden): 내 착수 직후 턴은 AI로 넘어갔지만 START_SCANNING 허용 — 스캔 좌표 클릭도 동일하게 허용
+                if ((session.isSinglePlayer || isTower) && session.moveHistory?.length) {
+                    const last = session.moveHistory[session.moveHistory.length - 1];
+                    if (last && last.player === myPlayerEnum) return true;
+                }
+                return false;
+            }
+            case 'playing': case 'hidden_placing': case 'missile_selecting': 
             case 'alkkagi_placement': case 'alkkagi_playing': case 'curling_playing':
             case 'dice_rolling': case 'dice_placing': case 'thief_rolling': case 'thief_placing':
                 return myPlayerEnum !== Player.None && myPlayerEnum === currentPlayer;
@@ -502,7 +513,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             default: return false;
         }
-    }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings]);
+    }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings, isTower]);
     
     // --- Sound Effects ---
     const prevIsMyTurn = usePrevious(isMyTurn);
@@ -1011,6 +1022,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             payload.boardState = restoredBoardState || session.boardState;
             payload.moveHistory = session.moveHistory || [];
             if (payload.isHidden) audioService.stopScanBgm();
+        }
+
+        if (actionType === 'SCAN_BOARD' && (isTower || isSinglePlayer)) {
+            const sync = buildPveItemActionClientSync(session);
+            if (sync) payload.clientSync = sync;
         }
 
         if (actionType) {
@@ -1819,6 +1835,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         onOpenRematchSettings: (session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer')
             ? () => setIsAiRematchModalOpen(true)
             : undefined,
+        onOpenGameRecordList: handlers.openGameRecordList,
     };
 
     if (isSinglePlayer) {
@@ -1967,6 +1984,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     onHideConfirmModal={() => setConfirmModalType(null)}
                     showResultModal={showResultModal}
                     onCloseResults={handleCloseResults}
+                    onOpenGameRecordList={handlers.openGameRecordList}
                 />
             </div>
         );
@@ -2129,6 +2147,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     onHideConfirmModal={() => setConfirmModalType(null)}
                     showResultModal={showResultModal}
                     onCloseResults={handleCloseResults}
+                    onOpenGameRecordList={handlers.openGameRecordList}
                 />
             </div>
         );
@@ -2322,6 +2341,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 onHideConfirmModal={() => setConfirmModalType(null)}
                 showResultModal={showResultModal}
                 onCloseResults={handleCloseResults}
+                onOpenGameRecordList={handlers.openGameRecordList}
             />
         </div>
     );

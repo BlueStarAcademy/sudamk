@@ -72,17 +72,30 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
     }
 
     switch (game.gameStatus) {
-        case 'scanning_animating':
-            if (game.animation && now > game.animation.startTime + game.animation.duration) {
-                // 스캔 사용 후 턴이 넘어가지 않도록, 스캔을 사용한 플레이어가 그대로 턴을 유지
-                const scanUserId = (game.animation as { type: 'scan'; playerId: string }).playerId;
-                const scanPlayerEnum = scanUserId === game.blackPlayerId ? types.Player.Black : (scanUserId === game.whitePlayerId ? types.Player.White : game.currentPlayer);
-                game.currentPlayer = scanPlayerEnum;
+        case 'scanning_animating': {
+            // PVP(hidden.ts)와 동일: animation이 비정상적으로 사라져도 본경기로 복귀 (무한 scanning_animating 방지)
+            const anim = game.animation;
+            const scanEnded =
+                !anim ||
+                anim.type !== 'scan' ||
+                now >= anim.startTime + anim.duration;
+            if (scanEnded) {
+                if (anim && anim.type === 'scan') {
+                    const scanUserId = (anim as { type: 'scan'; playerId: string }).playerId;
+                    const scanPlayerEnum =
+                        scanUserId === game.blackPlayerId
+                            ? types.Player.Black
+                            : scanUserId === game.whitePlayerId
+                              ? types.Player.White
+                              : game.currentPlayer;
+                    game.currentPlayer = scanPlayerEnum;
+                }
                 game.animation = null;
                 game.gameStatus = 'playing';
                 (game as any)._itemTimeoutStateChanged = true;
             }
             break;
+        }
         case 'hidden_reveal_animating':
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
                 const { pendingCapture } = game;
@@ -389,6 +402,10 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
                 if (isAiInitialHiddenStone) {
                     if (!(game as any).scannedAiInitialHiddenByUser) (game as any).scannedAiInitialHiddenByUser = {};
                     (game as any).scannedAiInitialHiddenByUser[user.id] = true;
+                }
+                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                if (!game.permanentlyRevealedStones.some(p => p.x === x && p.y === y)) {
+                    game.permanentlyRevealedStones.push({ x, y });
                 }
             }
             game.animation = { type: 'scan', point: { x, y }, success, startTime: now, duration: 2000, playerId: user.id };

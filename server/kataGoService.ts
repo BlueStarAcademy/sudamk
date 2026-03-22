@@ -761,7 +761,18 @@ export const initializeKataGo = async (): Promise<void> => {
         console.log('[KataGo] Local environment detected. Will attempt to use local KataGo process if available.');
     }
 
-    // 배포 환경에서 로컬 프로세스 사용하는 경우에만 초기화
+    // 메인 게임 서버(Railway)만 해당. 전용 KataGo 컨테이너는 KATAGO_STANDALONE_SERVICE=true 로 이 경고를 끈다.
+    const isStandaloneKatagoWorker = String(process.env.KATAGO_STANDALONE_SERVICE || '').toLowerCase() === 'true';
+    if (
+        !isStandaloneKatagoWorker &&
+        (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY) &&
+        process.env.NODE_ENV === 'production'
+    ) {
+        console.warn(
+            '[KataGo] Railway 프로덕션(게임 서버): 계가를 빠르게 하려면 메인 서비스에 KATAGO_API_URL을 Railway KataGo 서비스 공개 URL로 설정하세요 ' +
+                '(예: https://your-katago.up.railway.app). 비워 두면 이 인스턴스에서 로컬 엔진을 띄우며 대부분의 웹 인스턴스에서는 계가가 실패하거나 매우 느립니다.'
+        );
+    }
     console.log('[KataGo] Attempting to initialize local KataGo process...');
     try {
         const manager = getKataGoManager();
@@ -774,6 +785,17 @@ export const initializeKataGo = async (): Promise<void> => {
         // 초기화 실패해도 서버는 계속 실행 (KataGo 없이도 서버는 동작 가능)
     }
 };
+
+/** 계가 전용 KataGo 한도. 프리컴퓨트·REQUEST_SCORING·getGameResult 본 분석에 동일 적용 (옵션 누락 시 KATAGO_MAX_TIME_SEC 기본 20초가 들어가 체감 지연 발생 방지). */
+export function getScoringKataGoLimits(): { maxVisits: number; maxTimeSec: number } {
+    const visitsRaw = (process.env.KATAGO_SCORING_MAX_VISITS || '').trim();
+    const timeRaw = (process.env.KATAGO_SCORING_MAX_TIME_SEC || '').trim();
+    let maxVisits = visitsRaw ? parseInt(visitsRaw, 10) : 120;
+    let maxTimeSec = timeRaw ? parseInt(timeRaw, 10) : 3;
+    if (!Number.isFinite(maxVisits) || maxVisits <= 0) maxVisits = 120;
+    if (!Number.isFinite(maxTimeSec) || maxTimeSec <= 0) maxTimeSec = 3;
+    return { maxVisits, maxTimeSec };
+}
 
 export const analyzeGame = async (
     session: LiveGameSession,
@@ -924,12 +946,40 @@ export const analyzeGame = async (
         };
     }
 
+    /** 계가·REQUEST_SCORING 등: policy 끄고 ownership만 쓰는 호출 → 짧은 HTTP 타임아웃·적은 재시도 */
+    const isScoringHttpProfile =
+        options?.includePolicy === false && (options?.includeOwnership !== false);
+    const engineBudgetSec = options?.maxTimeSec
+        ?? (isScoringHttpProfile
+            ? getScoringKataGoLimits().maxTimeSec
+            : parseInt(process.env.KATAGO_MAX_TIME_SEC || '20', 10));
+
+    const scoringHttpTimeoutParsed = parseInt(process.env.KATAGO_SCORING_HTTP_TIMEOUT_MS || '', 10);
+    const httpTransportOpts: { timeoutMs: number; maxRetries: number; retryDelayMs: number } = isScoringHttpProfile
+        ? {
+              timeoutMs:
+                  Number.isFinite(scoringHttpTimeoutParsed) && scoringHttpTimeoutParsed > 0
+                      ? scoringHttpTimeoutParsed
+                      : Math.min(12000, Math.max(4500, engineBudgetSec * 1000 + 2500)),
+              maxRetries: Math.max(0, Math.min(3, parseInt(process.env.KATAGO_SCORING_HTTP_RETRIES || '1', 10))),
+              retryDelayMs: Math.max(100, parseInt(process.env.KATAGO_SCORING_HTTP_RETRY_DELAY_MS || '400', 10)),
+          }
+        : {
+              timeoutMs: parseInt(process.env.KATAGO_HTTP_TIMEOUT_MS || '35000', 10),
+              maxRetries: Math.max(0, Math.min(5, parseInt(process.env.KATAGO_HTTP_RETRIES || '2', 10))),
+              retryDelayMs: Math.max(200, parseInt(process.env.KATAGO_HTTP_RETRY_DELAY_MS || '1000', 10)),
+          };
+
     // HTTP API를 사용하는 경우 queryKataGoViaHttp 함수 정의 (재시도 로직 포함)
-    // 계가 정확도를 위해 KataGo 성공 시까지 재시도 (절대 틀리지 않게)
-    const queryKataGoViaHttp = async (analysisQuery: any, apiUrl?: string, retryCount: number = 0): Promise<any> => {
-        const MAX_RETRIES = 2; // 최대 2번 재시도 (총 3번 시도) - 계가 대기 시간 단축
-        const RETRY_DELAY_MS = 1000; // 재시도 전 1초 대기
-        
+    const queryKataGoViaHttp = async (
+        analysisQuery: any,
+        apiUrl: string | undefined,
+        retryCount: number,
+        clientOpts: { timeoutMs: number; maxRetries: number; retryDelayMs: number }
+    ): Promise<any> => {
+        const MAX_RETRIES = clientOpts.maxRetries;
+        const RETRY_DELAY_MS = clientOpts.retryDelayMs;
+
         let urlToUse = apiUrl || KATAGO_API_URL || (analysisQuery.__fallbackUrl ? analysisQuery.__fallbackUrl : undefined);
         if (!urlToUse) {
             throw new Error('KATAGO_API_URL is not set. Please configure KATAGO_API_URL environment variable.');
@@ -945,7 +995,7 @@ export const analyzeGame = async (
         const cleanQuery = { ...analysisQuery };
         delete cleanQuery.__fallbackUrl;
         
-        console.log(`[KataGo HTTP] Sending analysis query to ${urlToUse}, queryId=${cleanQuery.id}, attempt=${retryCount + 1}/${MAX_RETRIES + 1}`);
+        console.log(`[KataGo HTTP] Sending analysis query to ${urlToUse}, queryId=${cleanQuery.id}, attempt=${retryCount + 1}/${MAX_RETRIES + 1}, httpTimeoutMs=${clientOpts.timeoutMs}`);
         
         try {
             const response = await new Promise<any>((resolve, reject) => {
@@ -960,8 +1010,7 @@ export const analyzeGame = async (
                 
                 const postData = JSON.stringify(cleanQuery);
                 
-                // KataGo maxTime(20초) + 네트워크 여유. 수동 계가로 넘어가지 않으므로 타임아웃 시 재시도됨.
-                const timeoutMs = parseInt(process.env.KATAGO_HTTP_TIMEOUT_MS || '35000', 10); // 35초
+                const timeoutMs = clientOpts.timeoutMs;
                 const timeoutSeconds = timeoutMs / 1000;
                 
                 const options = {
@@ -1033,7 +1082,7 @@ export const analyzeGame = async (
             if (isRetryableError && retryCount < MAX_RETRIES) {
                 console.warn(`[KataGo HTTP] Retryable error occurred (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${error.message}. Retrying in ${RETRY_DELAY_MS}ms...`);
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-                return queryKataGoViaHttp(analysisQuery, apiUrl, retryCount + 1);
+                return queryKataGoViaHttp(analysisQuery, apiUrl, retryCount + 1, clientOpts);
             }
             
             // 재시도 불가능하거나 최대 재시도 횟수 초과
@@ -1070,9 +1119,9 @@ export const analyzeGame = async (
             console.log(`[KataGo] Using HTTP API: ${KATAGO_API_URL}`);
             const startTime = Date.now();
             try {
-                response = await queryKataGoViaHttp(query);
+                response = await queryKataGoViaHttp(query, undefined, 0, httpTransportOpts);
                 const duration = Date.now() - startTime;
-                console.log(`[KataGo] 계가 API 호출 소요: ${(duration / 1000).toFixed(2)}초 (${duration}ms)`);
+                console.log(`[KataGo] KataGo HTTP 호출 소요: ${(duration / 1000).toFixed(2)}초 (${duration}ms)`);
             } catch (httpError: any) {
                 const duration = Date.now() - startTime;
                 console.error(`[KataGo] HTTP API request failed after ${(duration / 1000).toFixed(2)}초 (${duration}ms):`, httpError.message);
@@ -1086,9 +1135,9 @@ export const analyzeGame = async (
                 if (KATAGO_API_URL) {
                     console.log(`[KataGo] Local environment detected. Using HTTP API: ${KATAGO_API_URL}`);
                     const startTime = Date.now();
-                    response = await queryKataGoViaHttp(query, KATAGO_API_URL);
+                    response = await queryKataGoViaHttp(query, KATAGO_API_URL, 0, httpTransportOpts);
                     const duration = Date.now() - startTime;
-                    console.log(`[KataGo] 계가 API 호출 소요: ${(duration / 1000).toFixed(2)}초 (${duration}ms)`);
+                    console.log(`[KataGo] KataGo HTTP 호출 소요: ${(duration / 1000).toFixed(2)}초 (${duration}ms)`);
                 } else {
                     // 로컬 환경에서 KATAGO_API_URL이 없으면 로컬 프로세스 사용 시도
                     console.log(`[KataGo] Local environment detected. Attempting to use local KataGo process...`);

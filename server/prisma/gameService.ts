@@ -1,4 +1,4 @@
-import prisma from "../prismaClient.js";
+import prisma, { prismaErrorImpliesEngineNotConnected } from "../prismaClient.js";
 import type { LiveGameSession, GameStatus } from "../../types/index.js";
 
 const ENDED_STATUSES: GameStatus[] = ["ended", "no_contest"];
@@ -52,7 +52,9 @@ export async function ensurePrismaEngineReady(): Promise<void> {
           return;
         } catch (e: unknown) {
           const msg = (e as { message?: string })?.message ?? '';
-          if (msg.includes(ENGINE_NOT_CONNECTED) && attempt < MAX_ENGINE_RETRIES - 1) {
+          const engineNotReady =
+            msg.includes(ENGINE_NOT_CONNECTED) || prismaErrorImpliesEngineNotConnected(e);
+          if (engineNotReady && attempt < MAX_ENGINE_RETRIES - 1) {
             await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
             continue;
           }
@@ -265,6 +267,9 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
 
     return await Promise.race([queryPromise, timeoutPromise]);
   } catch (error: any) {
+    if (prismaErrorImpliesEngineNotConnected(error) || error?.message?.includes?.(ENGINE_NOT_CONNECTED)) {
+      return [];
+    }
     // 연결 오류 시 재시도
     if (error.code === 'P1017' || error.message?.includes('closed the connection')) {
       console.warn('[gameService] Database connection lost, retrying...');
@@ -302,7 +307,9 @@ export async function getAllActiveGames(): Promise<LiveGameSession[]> {
         return []; // 재시도 실패 시 빈 배열 반환
       }
     }
-    console.error('[gameService] Error fetching active games:', error);
+    if (!prismaErrorImpliesEngineNotConnected(error)) {
+      console.error('[gameService] Error fetching active games:', error);
+    }
     return []; // 다른 오류 시에도 빈 배열 반환
   }
 }
@@ -454,6 +461,7 @@ export async function saveGame(game: LiveGameSession): Promise<void> {
  */
 export async function cleanupOrphanedGamesInDb(): Promise<number> {
   try {
+    await ensurePrismaEngineReady();
     const result = await prisma.liveGame.deleteMany({
       where: { isEnded: false },
     });
@@ -462,6 +470,9 @@ export async function cleanupOrphanedGamesInDb(): Promise<number> {
     }
     return result.count;
   } catch (error: any) {
+    if (prismaErrorImpliesEngineNotConnected(error) || error?.message?.includes?.(ENGINE_NOT_CONNECTED)) {
+      return 0;
+    }
     console.error('[gameService] cleanupOrphanedGamesInDb error:', error?.message || error);
     return 0;
   }

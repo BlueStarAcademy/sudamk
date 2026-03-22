@@ -692,10 +692,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                         )}
                     </div>
 
-                    {/* Game Settings */}
-                    <div className="flex-1 min-h-0 overflow-hidden">
+                    {/* Game Settings — flex-1 + overflow-hidden만 있으면 아래쪽(초읽기 등)이 잘림 */}
+                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                         <h4 className="font-semibold text-gray-300 mb-2 flex-shrink-0" style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}>대국 설정</h4>
-                        {renderGameSettings()}
+                        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
+                            {renderGameSettings()}
+                        </div>
                     </div>
 
                     {/* Bottom Buttons */}

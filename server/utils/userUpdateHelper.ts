@@ -46,6 +46,8 @@ export function getSelectiveUserUpdate(
         'CONFIRM_STAT_ALLOCATION': ['spentStatPoints'],
         'SAVE_PRESET': ['equipmentPresets'],
         'APPLY_PRESET': ['equipment', 'inventory'],
+        'SAVE_GAME_RECORD': ['savedGameRecords'],
+        'DELETE_GAME_RECORD': ['savedGameRecords'],
         
         // 보상 관련
         'CLAIM_QUEST_REWARD': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],

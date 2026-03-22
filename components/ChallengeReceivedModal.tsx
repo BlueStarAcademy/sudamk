@@ -1,13 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { GameMode, UserWithStatus, GameSettings, Negotiation, ServerAction } from '../types.js';
+import { GameMode, UserWithStatus, GameSettings, Negotiation, ServerAction, User } from '../types.js';
 import {
   SPECIAL_GAME_MODES,
   PLAYFUL_GAME_MODES,
   DEFAULT_GAME_SETTINGS,
   STRATEGIC_ACTION_POINT_COST,
   PLAYFUL_ACTION_POINT_COST,
-  SELF_INSUFFICIENT_AP_HEADING,
-  formatMatchActionPointsLine,
 } from '../constants.js';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
@@ -23,6 +21,7 @@ import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import Avatar from './Avatar.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { projectActionPointsCurrent } from '../services/effectService.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants.js';
 
 interface ChallengeReceivedModalProps {
@@ -44,14 +43,25 @@ const ChallengeReceivedModal: React.FC<ChallengeReceivedModalProps> = ({
   onClose,
   onAction
 }) => {
-  const { onlineUsers } = useAppContext();
+  const { onlineUsers, handlers } = useAppContext();
   
   const challenger = negotiation.challenger;
   const [settings, setSettings] = useState<GameSettings>(negotiation.settings);
   const selectedMode = negotiation.mode;
   const actionPointCost = SPECIAL_GAME_MODES.some(m => m.mode === selectedMode) ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
-  const myAp = currentUser?.actionPoints?.current ?? 0;
-  const hasEnoughAP = !!currentUser?.isAdmin || myAp >= actionPointCost;
+  const myApProjected = projectActionPointsCurrent(currentUser as User, Date.now());
+  const hasEnoughAP = !!currentUser?.isAdmin || myApProjected >= actionPointCost;
+
+  const handleAcceptClick = () => {
+    if (!currentUser?.isAdmin) {
+      const ap = projectActionPointsCurrent(currentUser as User, Date.now());
+      if (ap < actionPointCost) {
+        handlers.openActionPointModal();
+        return;
+      }
+    }
+    onAccept(negotiation.settings);
+  };
   
   // negotiation.settings가 변경되면 로컬 state 업데이트
   useEffect(() => {
@@ -697,21 +707,18 @@ const ChallengeReceivedModal: React.FC<ChallengeReceivedModalProps> = ({
               </div>
             </div>
 
-            {!hasEnoughAP && (
-              <div
-                className="mt-2 lg:mt-3 p-2 lg:p-3 rounded-lg bg-amber-900/35 border border-amber-600/45 text-amber-100 flex-shrink-0"
-              >
-                <p className="font-semibold text-center" style={{ fontSize: `${Math.max(10, Math.round(12 * 0.85))}px` }}>
-                  {SELF_INSUFFICIENT_AP_HEADING}
-                </p>
-                <p className="text-center text-amber-200/95 mt-1" style={{ fontSize: `${Math.max(9, Math.round(11 * 0.85))}px` }}>
-                  {formatMatchActionPointsLine(actionPointCost, myAp)}
-                </p>
-                <p className="text-center text-amber-200/80 text-xs mt-1">
-                  수락 시에도 행동력(⚡)이 소모됩니다. 충전한 뒤 수락해 주세요.
-                </p>
-              </div>
-            )}
+            <div
+              className="mt-2 lg:mt-3 p-2 lg:p-3 rounded-lg bg-slate-800/50 border border-slate-600/50 text-slate-200 flex-shrink-0"
+            >
+              <p className="text-center text-xs lg:text-sm">
+                수락 시 행동력 <span className="text-amber-300 font-semibold">⚡{actionPointCost}</span>가 소모됩니다.
+                {!currentUser?.isAdmin && !hasEnoughAP && (
+                  <span className="block mt-1 text-amber-200/95">
+                    현재 추정 행동력이 부족합니다. 수락을 누르면 행동력 관리 창이 열립니다.
+                  </span>
+                )}
+              </p>
+            </div>
 
             {/* 하단 버튼 */}
             <div className="mt-2 lg:mt-4 border-t border-gray-700 pt-2 lg:pt-4 flex justify-between gap-2 lg:gap-3">
@@ -726,10 +733,10 @@ const ChallengeReceivedModal: React.FC<ChallengeReceivedModalProps> = ({
                 수정 제안
               </Button>
               <Button 
-                onClick={() => onAccept(negotiation.settings)} 
+                onClick={handleAcceptClick}
                 colorScheme="green" 
                 className="!py-1.5 flex-1"
-                disabled={settingsHaveChanged || !hasEnoughAP}
+                disabled={settingsHaveChanged}
                 style={{ fontSize: `${Math.max(10, Math.round(12 * 0.85))}px` }}
               >
                 수락 (⚡{actionPointCost})

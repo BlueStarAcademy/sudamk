@@ -40,14 +40,16 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({ currentUser, 
     };
 
     const getResultText = (record: GameRecord) => {
-        const isPlayerBlack = record.gameResult.winner === Player.Black;
-        const isPlayerWhite = record.gameResult.winner === Player.White;
         const isDraw = record.gameResult.winner === Player.None;
-        
-        // 현재 사용자가 흑인지 백인지 판단 (간단히 winner로 추정)
-        // 실제로는 게임 기록에 playerColor 정보가 있어야 하지만, 여기서는 winner로 추정
         if (isDraw) return { text: '무승부', color: 'text-gray-400' };
-        if (isPlayerBlack) return { text: '흑 승', color: 'text-blue-400' };
+        const my = record.myColor;
+        if (my === Player.Black || my === Player.White) {
+            const iWon = record.gameResult.winner === my;
+            if (iWon) return { text: '승', color: 'text-green-400' };
+            return { text: '패', color: 'text-red-400' };
+        }
+        // 구 기록: 보드 결과만 표시
+        if (record.gameResult.winner === Player.Black) return { text: '흑 승', color: 'text-blue-400' };
         return { text: '백 승', color: 'text-yellow-400' };
     };
 
@@ -76,7 +78,6 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({ currentUser, 
         }
 
         const result = getResultText(record);
-        const isWin = record.gameResult.winner !== Player.None;
 
         return (
             <div
@@ -145,7 +146,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({ currentUser, 
                     <div className="flex items-center gap-4">
                         <div className="text-lg font-bold text-white">저장된 기보</div>
                         <div className="text-sm text-gray-400">
-                            {records.length} / 30
+                            {records.length} / 10
                         </div>
                     </div>
                 </div>

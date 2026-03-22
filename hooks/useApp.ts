@@ -52,12 +52,25 @@ function mergeTowerServerGameWithClientBoardIfStale(
         captures: clientGame.captures ?? serverGame.captures,
         koInfo: clientGame.koInfo ?? serverGame.koInfo,
         hiddenMoves: clientGame.hiddenMoves ?? serverGame.hiddenMoves,
+        ...((clientGame as { aiInitialHiddenStone?: { x: number; y: number } | null }).aiInitialHiddenStone !== undefined
+            ? {
+                  aiInitialHiddenStone: (clientGame as { aiInitialHiddenStone?: { x: number; y: number } | null })
+                      .aiInitialHiddenStone,
+              }
+            : {}),
         permanentlyRevealedStones: clientGame.permanentlyRevealedStones ?? serverGame.permanentlyRevealedStones,
         blackPatternStones: clientGame.blackPatternStones ?? serverGame.blackPatternStones,
         whitePatternStones: clientGame.whitePatternStones ?? serverGame.whitePatternStones,
         revealedHiddenMoves: clientGame.revealedHiddenMoves ?? serverGame.revealedHiddenMoves,
         serverRevision: Math.max(clientGame.serverRevision ?? 0, serverGame.serverRevision ?? 0),
     };
+}
+
+/** INITIAL_STATE 스냅샷이 pending인데 로컬 세션이 이미 진행 중이면 덮어쓰지 않음 (재연결·서버 목록 시차로 계가 직후 타워 설명 모달이 뜨는 현상 방지) */
+function shouldKeepLocalSessionOverIncomingPending(prevG: LiveGameSession, incoming: LiveGameSession): boolean {
+    if ((incoming.gameStatus || '') !== 'pending') return false;
+    const s = prevG.gameStatus || '';
+    return s === 'playing' || s === 'scoring' || s === 'hidden_final_reveal' || s === 'ended' || s === 'no_contest';
 }
 
 export const useApp = () => {
@@ -1300,6 +1313,7 @@ export const useApp = () => {
                         updateGameState(prev => {
                             const g = prev[gameId];
                             if (!g) return prev;
+                            if (g.gameStatus === 'scoring') return prev;
                             return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
                         });
                     }
@@ -1525,6 +1539,7 @@ export const useApp = () => {
                             updateGameState(prev => {
                                 const g = prev[gameId];
                                 if (!g) return prev;
+                                if (g.gameStatus === 'scoring') return prev;
                                 return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
                             });
                         }
@@ -1809,12 +1824,17 @@ export const useApp = () => {
                     } else {
                         showError(errorMessage);
                     }
-                    return;
+                    return { error: errorMessage } as HandleActionResult;
                 }
                 // LEAVE_AI_GAME 성공 시 로컬 상태에서 해당 게임 제거 및 사용자 gameId 해제 → 전략/놀이 대기실로 이동
                 if (action.type === 'LEAVE_AI_GAME') {
                     const gameId = (action.payload as { gameId?: string })?.gameId;
                     if (gameId) {
+                        try {
+                            sessionStorage.removeItem(`gameState_${gameId}`);
+                        } catch {
+                            /* ignore */
+                        }
                         const inTower = towerGames[gameId];
                         const inSingle = singlePlayerGames[gameId];
                         const inLive = liveGames[gameId];
@@ -2422,12 +2442,24 @@ export const useApp = () => {
                                 } catch (_) { /* ignore */ }
                             }
                             setSinglePlayerGames(currentGames => {
-                                const shouldUpdate = action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD' || !currentGames[effectiveGameId];
+                                const shouldUpdate = action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD' || action.type === 'START_SINGLE_PLAYER_GAME' || !currentGames[effectiveGameId];
                                 if (shouldUpdate) {
                                     const isRefresh = action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT';
                                     const nextGame = isRefresh && game.boardState
                                         ? { ...game, boardState: (game.boardState as any[][]).map(row => [...row]), blackPatternStones: Array.isArray(game.blackPatternStones) ? [...game.blackPatternStones] : game.blackPatternStones, whitePatternStones: Array.isArray(game.whitePatternStones) ? [...game.whitePatternStones] : game.whitePatternStones }
                                         : game;
+                                    if (action.type === 'START_SINGLE_PLAYER_GAME') {
+                                        for (const id of Object.keys(currentGames)) {
+                                            if (id !== effectiveGameId) {
+                                                try {
+                                                    sessionStorage.removeItem(`gameState_${id}`);
+                                                } catch {
+                                                    /* ignore */
+                                                }
+                                            }
+                                        }
+                                        return { [effectiveGameId]: nextGame };
+                                    }
                                     return { ...currentGames, [effectiveGameId]: nextGame };
                                 }
                                 return currentGames;
@@ -2435,7 +2467,7 @@ export const useApp = () => {
                         } else if (isTowerGame) {
                             setTowerGames(currentGames => {
                                 // CONFIRM·배치변경·턴 추가·스캔/히든 아이템 사용 시 게임 상태가 바뀌었으므로 업데이트
-                                if (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD' || !currentGames[effectiveGameId]) {
+                                if (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD' || action.type === 'START_TOWER_GAME' || !currentGames[effectiveGameId]) {
                                     console.log('[handleAction] Updating tower game:', effectiveGameId, 'gameStatus:', game.gameStatus, 'action type:', action.type, 'existing game status:', currentGames[effectiveGameId]?.gameStatus);
                                     const isRefresh = action.type === 'TOWER_REFRESH_PLACEMENT';
                                     let nextGame = isRefresh && game.boardState
@@ -2449,6 +2481,18 @@ export const useApp = () => {
                                             action.type === 'SCAN_BOARD')
                                     ) {
                                         nextGame = mergeTowerServerGameWithClientBoardIfStale(nextGame, existingTower);
+                                    }
+                                    if (action.type === 'START_TOWER_GAME') {
+                                        for (const id of Object.keys(currentGames)) {
+                                            if (id !== effectiveGameId) {
+                                                try {
+                                                    sessionStorage.removeItem(`gameState_${id}`);
+                                                } catch {
+                                                    /* ignore */
+                                                }
+                                            }
+                                        }
+                                        return { [effectiveGameId]: nextGame };
                                     }
                                     return { ...currentGames, [effectiveGameId]: nextGame };
                                 }
@@ -2563,10 +2607,16 @@ export const useApp = () => {
                         // 게임 객체가 있으면 즉시 상태에 추가
                         if (towerGame) {
                             setTowerGames(currentGames => {
-                                if (!currentGames[towerGameId]) {
-                                    return { ...currentGames, [towerGameId]: towerGame };
+                                for (const id of Object.keys(currentGames)) {
+                                    if (id !== towerGameId) {
+                                        try {
+                                            sessionStorage.removeItem(`gameState_${id}`);
+                                        } catch {
+                                            /* ignore */
+                                        }
+                                    }
                                 }
-                                return currentGames;
+                                return { [towerGameId]: towerGame };
                             });
                         }
                         
@@ -2944,10 +2994,14 @@ export const useApp = () => {
                 if (otherData.singlePlayerGames !== undefined) {
                     const incoming = otherData.singlePlayerGames || {};
                     setSinglePlayerGames(prev => {
-                        const next = { ...incoming };
-                        for (const id of Object.keys(next)) {
-                            const fromPayload = next[id];
+                        const next = { ...prev, ...incoming };
+                        for (const id of Object.keys(incoming)) {
+                            let fromPayload = next[id];
                             if (!fromPayload) continue;
+                            if (prev[id] && shouldKeepLocalSessionOverIncomingPending(prev[id], incoming[id])) {
+                                next[id] = { ...fromPayload, ...prev[id] };
+                                fromPayload = next[id];
+                            }
                             const isSingleOrTowerStage = (fromPayload.isSinglePlayer || fromPayload.gameCategory === 'tower') && (fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
                             const needsRestore = isSingleOrTowerStage && (fromPayload.totalTurns == null || fromPayload.totalTurns === 0);
                             const needsCurrentPlayerRestore = isSingleOrTowerStage;
@@ -3001,10 +3055,14 @@ export const useApp = () => {
                 if (otherData.towerGames !== undefined) {
                     const incoming = otherData.towerGames || {};
                     setTowerGames(prev => {
-                        const next = { ...incoming };
-                        for (const id of Object.keys(next)) {
-                            const fromPayload = next[id];
+                        const next = { ...prev, ...incoming };
+                        for (const id of Object.keys(incoming)) {
+                            let fromPayload = next[id];
                             if (!fromPayload) continue;
+                            if (prev[id] && shouldKeepLocalSessionOverIncomingPending(prev[id], incoming[id])) {
+                                next[id] = { ...fromPayload, ...prev[id] };
+                                fromPayload = next[id];
+                            }
                             const isTowerStage = fromPayload.gameCategory === 'tower' && (fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
                             const needsRestore = isTowerStage && (fromPayload.totalTurns == null || fromPayload.totalTurns === 0);
                             const needsCurrentPlayerRestore = isTowerStage;
@@ -3566,7 +3624,22 @@ export const useApp = () => {
                                 // 주사위/도둑 굴리기 애니메이션: moveHistory가 안 바뀌어도 반영 (두 번째 턴부터 애니 안 나오는 버그 방지)
                                 const isDiceRollAnimationUpdate = game.gameStatus === 'dice_rolling_animating' || game.gameStatus === 'thief_rolling_animating' || game.animation?.type === 'dice_roll_main';
                                 const isScoringOrRevealUpdate = game.gameStatus === 'scoring' || game.gameStatus === 'hidden_final_reveal';
-                                if (!hasNewMoves && !isPlayfulBoardUpdate && !isDiceRollAnimationUpdate && !isScoringOrRevealUpdate && now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS) {
+                                const isTerminalGameUpdate = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';
+                                // 싱글/타워: 스캔 애니메이션 종료 후 playing 전환은 수순이 그대로라 쓰로틀에 걸리면 클라이언트가 scanning_animating에 고정되는 버그 방지
+                                const existingForThrottle =
+                                    singlePlayerGamesRef.current[gameId] ?? towerGamesRef.current[gameId];
+                                const isScanAnimExitToPlaying =
+                                    existingForThrottle?.gameStatus === 'scanning_animating' &&
+                                    game.gameStatus === 'playing';
+                                if (
+                                    !hasNewMoves &&
+                                    !isPlayfulBoardUpdate &&
+                                    !isDiceRollAnimationUpdate &&
+                                    !isScoringOrRevealUpdate &&
+                                    !isTerminalGameUpdate &&
+                                    !isScanAnimExitToPlaying &&
+                                    now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS
+                                ) {
                                     return;
                                 }
                                 lastGameUpdateTimeRef.current[gameId] = now;
@@ -3847,6 +3920,7 @@ export const useApp = () => {
                                                                         setSinglePlayerGames(prev => {
                                                                             const g = prev[gameId];
                                                                             if (!g) return prev;
+                                                                            if (g.gameStatus === 'scoring') return prev;
                                                                             return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
                                                                         });
                                                                     }
@@ -3953,14 +4027,16 @@ export const useApp = () => {
                                             
                                             // 서버가 계가/히든 공개로 전환한 경우는 항상 반영 (공개할 히든 없이 바로 계가 시 멈춤 방지)
                                             const isServerScoringOrReveal = game.gameStatus === 'scoring' || game.gameStatus === 'hidden_final_reveal';
+                                            // 종료 패킷은 analysisResult·summary·winner를 실어 오므로 반드시 반영 (무시 시 모달·영토 표시가 비는 버그)
+                                            const isServerEndedOrNoContest = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';
                                             // 서버가 아이템 사용 모드로 전환한 경우도 항상 반영 (히든/미사일/스캔 버튼 클릭 후 화면 전환)
                                             const isServerItemMode = game.gameStatus === 'hidden_placing' || game.gameStatus === 'missile_selecting' || game.gameStatus === 'scanning';
                                             // 서버가 미사일 애니메이션 중인 상태를 보낸 경우 반영 (LAUNCH_MISSILE 직후 애니메이션 재생·완료 신호 전송을 위해)
                                             const isServerMissileAnimating = game.gameStatus === 'missile_animating';
                                             // 서버가 미사일/스캔 애니메이션 종료 후 playing으로 복귀한 경우 항상 반영 (애니메이션 멈춤·게임 재개)
                                             const isServerExitingAnimation = (existingGame.gameStatus === 'missile_animating' || existingGame.gameStatus === 'scanning' || existingGame.gameStatus === 'scanning_animating') && game.gameStatus === 'playing';
-                                            // 클라이언트가 더 많은 수를 두었거나, 같은 수를 두었지만 클라이언트의 serverRevision이 더 크면 무시 (단, 계가/공개/아이템모드/애니종료 전환은 제외)
-                                            if (!isServerScoringOrReveal && !isServerItemMode && !isServerMissileAnimating && !isServerExitingAnimation && (localMoveHistoryLength > serverMoveHistoryLength || 
+                                            // 클라이언트가 더 많은 수를 두었거나, 같은 수를 두었지만 클라이언트의 serverRevision이 더 크면 무시 (단, 계가/공개/종료/아이템모드/애니종료 전환은 제외)
+                                            if (!isServerScoringOrReveal && !isServerEndedOrNoContest && !isServerItemMode && !isServerMissileAnimating && !isServerExitingAnimation && (localMoveHistoryLength > serverMoveHistoryLength || 
                                                 (localMoveHistoryLength === serverMoveHistoryLength && localServerRevision >= serverRevision))) {
                                                 // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
                                                 if (process.env.NODE_ENV === 'development') {
@@ -4014,6 +4090,21 @@ export const useApp = () => {
                                             if (existingGame.blackPatternStones?.length) mergedGame.blackPatternStones = existingGame.blackPatternStones;
                                             if (existingGame.whitePatternStones?.length) mergedGame.whitePatternStones = existingGame.whitePatternStones;
                                         }
+                                        // 종료 패킷에 analysisResult가 빠진 경우(직렬화/재조회 이슈), 직전 scoring 단계에서 받은 system 결과 유지
+                                        if (
+                                            (mergedGame.gameStatus === 'ended' || mergedGame.gameStatus === 'no_contest') &&
+                                            existingGame?.analysisResult &&
+                                            (existingGame.analysisResult as any)['system'] &&
+                                            (!(mergedGame as any).analysisResult || !(mergedGame as any).analysisResult['system'])
+                                        ) {
+                                            mergedGame = {
+                                                ...mergedGame,
+                                                analysisResult: {
+                                                    ...((mergedGame as any).analysisResult || {}),
+                                                    system: (existingGame.analysisResult as any)['system'],
+                                                } as any,
+                                            };
+                                        }
                                         // 스캔 애니메이션 종료(scanning_animating → playing) 시 보드/수순 보존 (대국 복원)
                                         const wasTowerScanningAnimating = existingGame?.gameStatus === 'scanning_animating' && game.gameStatus === 'playing';
                                         if (wasTowerScanningAnimating && existingGame) {
@@ -4045,6 +4136,21 @@ export const useApp = () => {
                                             const validMoves = mergedGame.moveHistory.filter((m: any) => m.x !== -1 && m.y !== -1);
                                             mergedGame = { ...mergedGame, totalTurns: validMoves.length };
                                         }
+                                        // 서버 계가/종료 브로드캐스트는 boardState·수순을 생략하는 경우가 많음 → 클라 보드/수순 유지 (analysisResult는 서버 페이로드 유지)
+                                        if ((mergedGame.gameStatus === 'scoring' || mergedGame.gameStatus === 'ended' || mergedGame.gameStatus === 'no_contest') && existingGame) {
+                                            const sb = mergedGame.boardState;
+                                            const serverBoardOk = Array.isArray(sb) && sb.length > 0 && sb[0] && Array.isArray(sb[0]) && sb[0].length > 0;
+                                            const eb = existingGame.boardState;
+                                            const exBoardOk = Array.isArray(eb) && eb.length > 0 && eb[0] && Array.isArray(eb[0]) && eb[0].length > 0;
+                                            if (!serverBoardOk && exBoardOk) {
+                                                mergedGame = { ...mergedGame, boardState: existingGame.boardState };
+                                            }
+                                            const sm = mergedGame.moveHistory;
+                                            const exm = existingGame.moveHistory;
+                                            if ((!Array.isArray(sm) || sm.length === 0) && Array.isArray(exm) && exm.length > 0) {
+                                                mergedGame = { ...mergedGame, moveHistory: existingGame.moveHistory };
+                                            }
+                                        }
                                         updatedGames[gameId] = mergedGame;
 
                                         // 그누고(AI) 수: 1초 지연 후 표시 (유저 수는 클라이언트에서 즉시 반영됨)
@@ -4059,19 +4165,15 @@ export const useApp = () => {
                                             const isScoringInUpdate = gameToApply.gameStatus === 'scoring';
                                             towerGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
                                                 delete towerGnugoDelayTimeoutRef.current[gameId];
-                                                // 마지막 AI 수가 보드에 보인 뒤 계가 진행: scoring이면 먼저 'playing'으로 보드만 표시
+                                                // 서버가 이미 scoring이면 playing→scoring 깜빡임은 ScoringOverlay를 두 번 마운트시킴 → 즉시 scoring 반영
                                                 if (isScoringInUpdate) {
-                                                    const withPlaying = { ...gameToApply, gameStatus: 'playing' as const };
-                                                    setTowerGames(prev => ({ ...prev, [gameId]: withPlaying }));
-                                                    lastGameUpdateMoveCountRef.current[gameId] = withPlaying.moveHistory?.length ?? 0;
-                                                    towerGameSignaturesRef.current[gameId] = stableStringify(withPlaying);
-                                                    const scoringDelay = 500;
-                                                    towerScoringDelayTimeoutRef.current[gameId] = setTimeout(() => {
-                                                        setTowerGames(prev => ({ ...prev, [gameId]: gameToApply }));
-                                                        lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
-                                                        towerGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
+                                                    if (towerScoringDelayTimeoutRef.current[gameId] != null) {
+                                                        clearTimeout(towerScoringDelayTimeoutRef.current[gameId]);
                                                         delete towerScoringDelayTimeoutRef.current[gameId];
-                                                    }, scoringDelay);
+                                                    }
+                                                    setTowerGames(prev => ({ ...prev, [gameId]: gameToApply }));
+                                                    lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
+                                                    towerGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
                                                 } else {
                                                     setTowerGames(prev => ({ ...prev, [gameId]: gameToApply }));
                                                     lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
@@ -4748,11 +4850,19 @@ export const useApp = () => {
 
     // --- Misc UseEffects ---
     useEffect(() => {
-        const setVh = () => document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
-        setVh();
-        window.addEventListener('resize', setVh);
-        window.addEventListener('orientationchange', setVh);
-        return () => { window.removeEventListener('resize', setVh); window.removeEventListener('orientationchange', setVh); };
+        const updateViewportVars = () => {
+            const height = window.innerHeight;
+            // vh 보정 (모바일 브라우저 주소창 등 대응)
+            document.documentElement.style.setProperty('--vh', `${height * 0.01}px`);
+        };
+
+        updateViewportVars();
+        window.addEventListener('resize', updateViewportVars);
+        window.addEventListener('orientationchange', updateViewportVars);
+        return () => {
+            window.removeEventListener('resize', updateViewportVars);
+            window.removeEventListener('orientationchange', updateViewportVars);
+        };
     }, []);
 
     useEffect(() => {

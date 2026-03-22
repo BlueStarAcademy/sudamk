@@ -32,55 +32,6 @@ const AnimatedBonusText: React.FC<{
     );
 };
 
-const OwnershipOverlay: React.FC<{
-    ownershipMap: number[][];
-    toSvgCoords: (p: Point) => { cx: number; cy: number };
-    cellSize: number;
-}> = ({ ownershipMap, toSvgCoords, cellSize }) => {
-    return (
-        <g style={{ pointerEvents: 'none' }} className="animate-fade-in">
-            {ownershipMap.map((row, y) => row.map((value, x) => {
-                // value is from -10 to 10. Corresponds to -1.0 to 1.0 probability.
-                // 공배(중립 빈 점)는 표시하지 않음 — 7 이상/-7 이하만 확정 영토로 표시 (일본식 계가 느낌)
-                const TERRITORY_THRESHOLD = 7;
-                if (Math.abs(value) < TERRITORY_THRESHOLD) return null;
-
-                const { cx, cy } = toSvgCoords({ x, y });
-                const absValue = Math.abs(value);
-                const prob = absValue / 10; // 0.7 ~ 1.0 (7~10)
-
-                // 영향력(소유 확률)에 따라 사각형 크기 차이를 뚜렷하게: 28% ~ 82% (7일 때 작게, 10일 때 크게)
-                const sizeMin = 0.28;
-                const sizeMax = 0.82;
-                const size = cellSize * (sizeMin + (sizeMax - sizeMin) * prob);
-                const opacity = Math.min(0.9, prob * 0.75 + 0.2);
-                const fill = value > 0 
-                    ? `rgba(0, 0, 0, ${opacity})` 
-                    : `rgba(255, 255, 255, ${opacity})`;
-                const stroke = value > 0 
-                    ? `rgba(0, 0, 0, ${opacity * 0.5})` 
-                    : `rgba(255, 255, 255, ${opacity * 0.5})`;
-
-                return (
-                    <rect
-                        key={`${x}-${y}`}
-                        x={cx - size / 2}
-                        y={cy - size / 2}
-                        width={size}
-                        height={size}
-                        fill={fill}
-                        stroke={stroke}
-                        strokeWidth={size * 0.05}
-                        rx={size * 0.15} // 더 작은 모서리 반경 (더 고급스럽게)
-                        style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}
-                    />
-                );
-            }))}
-        </g>
-    );
-};
-
-
 // --- Animated Components ---
 const AnimatedMissileStone: React.FC<{
     animation: Extract<AnimationData, { type: 'missile' }>;
@@ -683,13 +634,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         return [];
     }, [safeBoardSize]);
 
-    // 좌표 변환 함수 (회전 시 180도 회전)
-    const transformPoint = (p: Point): Point => {
-        if (!isRotated) return p;
-        return { x: safeBoardSize - 1 - p.x, y: safeBoardSize - 1 - p.y };
-    };
-    
-    // SVG 전체가 회전되므로 좌표 변환은 필요 없음 (SVG transform으로 처리)
+    // 클릭 좌표: svg.getScreenCTM()이 부모 div의 CSS rotate(180deg)까지 반영하므로
+    // matrixTransform(inverse) 결과가 이미 게임 좌표계와 일치한다. 여기서 다시 뒤집으면 착점이 반전된다.
     const toSvgCoords = (p: Point) => ({
         cx: padding + p.x * cell_size,
         cy: padding + p.y * cell_size,
@@ -706,18 +652,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         const ctm = svg.getScreenCTM();
         if (ctm) {
             const transformedPt = pt.matrixTransform(ctm.inverse());
-            const x = Math.round((transformedPt.x - padding) / cell_size);
-            const y = Math.round((transformedPt.y - padding) / cell_size);
+            const fx = (transformedPt.x - padding) / cell_size;
+            const fy = (transformedPt.y - padding) / cell_size;
+            // 가장 가까운 교차점으로 스냅 후 [0, size)로 클램프 — 모서리는 살짝 밀린 클릭이 round로 size/-1이 되어 무시되던 문제 방지
+            const x = Math.min(safeBoardSize - 1, Math.max(0, Math.round(fx)));
+            const y = Math.min(safeBoardSize - 1, Math.max(0, Math.round(fy)));
+            const snapTol = 0.52;
+            if (Math.abs(fx - x) > snapTol || Math.abs(fy - y) > snapTol) return null;
 
-            if (x >= 0 && x < safeBoardSize && y >= 0 && y < safeBoardSize) {
-                // 화면 좌표를 보드 좌표로 변환한 후, 회전이 적용되어 있다면 역변환하여 원본 좌표로 변환
-                const screenPoint = { x, y };
-                if (isRotated) {
-                    // 회전된 화면에서의 좌표를 원본 좌표로 변환
-                    return transformPoint(screenPoint);
-                }
-                return screenPoint;
-            }
+            return { x, y };
         }
         return null;
     };
@@ -802,16 +745,19 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 }
             }
         } else if (!isBoardDisabled && boardPos) {
-            // 클라이언트 측 착점 검증 강화 (치명적 버그 방지)
+            // 스캔: 교차점만 지정하면 되므로 돌이 있는 자리(구석 등)도 클릭 허용 — isOpponentHiddenStoneAtPos는 playing/hidden_placing 전용이라 여기서는 항상 false였음
+            if (gameStatus === 'scanning') {
+                onBoardClick(boardPos.x, boardPos.y);
+                return;
+            }
+
             const stoneAtPos = displayBoardState[boardPos.y]?.[boardPos.x];
             
-            // 자신의 돌 위에 착점 시도 차단
             if (stoneAtPos === myPlayerEnum) {
                 console.error(`[GoBoard] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${boardPos.x}, ${boardPos.y}), myPlayerEnum=${myPlayerEnum}`);
                 return;
             }
             
-            // 상대방 돌 위에 착점 시도 차단 (히든 돌 제외)
             if (stoneAtPos !== Player.None && !isOpponentHiddenStoneAtPos(boardPos)) {
                 console.error(`[GoBoard] CRITICAL BUG PREVENTION: Attempted to place stone on occupied position at (${boardPos.x}, ${boardPos.y}), stoneAtPos=${stoneAtPos}`);
                 return;
@@ -868,7 +814,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     
                     // 영토 표시 사각형 (잡은 쪽의 색상)
                     const cellSize = (boardSizePx - padding * 2) / safeBoardSize;
-                    const size = cellSize * 0.6; // 영토 표시와 동일한 크기
+                    const size = cellSize * 0.38; // 돌 위에 얹는 작은 사각형
                     const opacity = 0.85;
                     const fill = capturingPlayer === Player.Black 
                         ? `rgba(0, 0, 0, ${opacity})` 
@@ -879,7 +825,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                     return (
                         <g key={`ds-${i}`} style={{ zIndex: 10 }}>
-                            {/* 영토 표시 사각형 (잡은 쪽의 색상) - 돌 위에 표시 */}
                             <rect
                                 x={cx - size / 2}
                                 y={cy - size / 2}
@@ -904,7 +849,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (!showTerritoryOverlay || !analysisResult) return null;
 
         const cellSize = (boardSizePx - padding * 2) / safeBoardSize;
-        const size = cellSize * 0.6;
+        const size = cellSize * 0.36;
         const opacity = 0.85;
         const TERRITORY_THRESHOLD = 7; // ownershipMap: -10~10, 7 이상이면 흑 영토, -7 이하면 백 영토
 
@@ -920,8 +865,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const { cx, cy } = toSvgCoords({ x, y });
                     const absValue = Math.abs(value);
                     const prob = absValue / 10;
-                    const sizeMin = 0.28;
-                    const sizeMax = 0.82;
+                    const sizeMin = 0.14;
+                    const sizeMax = 0.4;
                     const rectSize = cellSize * (sizeMin + (sizeMax - sizeMin) * prob);
 
                     const isBlackTerritory = value > 0;
@@ -938,6 +883,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         } else if (analysisResult.blackConfirmed?.length || analysisResult.whiteConfirmed?.length) {
             // 수동 계가: blackConfirmed/whiteConfirmed 기반
             const renderTerritoryPoint = (p: Point, isBlack: boolean, key: string) => {
+                if (displayBoardState[p.y]?.[p.x] !== Player.None) return null;
                 const { cx, cy } = toSvgCoords(p);
                 const fill = isBlack ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
                 const stroke = isBlack ? `rgba(0, 0, 0, ${opacity * 0.5})` : `rgba(255, 255, 255, ${opacity * 0.5})`;
@@ -947,8 +893,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     </g>
                 );
             };
-            analysisResult.blackConfirmed?.forEach((p, i) => markers.push(renderTerritoryPoint(p, true, `territory-b-${i}`)));
-            analysisResult.whiteConfirmed?.forEach((p, i) => markers.push(renderTerritoryPoint(p, false, `territory-w-${i}`)));
+            analysisResult.blackConfirmed?.forEach((p, i) => {
+                const node = renderTerritoryPoint(p, true, `territory-b-${i}`);
+                if (node) markers.push(node);
+            });
+            analysisResult.whiteConfirmed?.forEach((p, i) => {
+                const node = renderTerritoryPoint(p, false, `territory-w-${i}`);
+                if (node) markers.push(node);
+            });
         }
 
         if (markers.length === 0) return null;
@@ -1143,14 +1095,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 ))}
                 {starPoints.map((p, i) => <circle key={i} {...toSvgCoords(p)} r={safeBoardSize > 9 ? 6 : 4} fill="#54432a" />)}
                 
-                {showTerritoryOverlay && analysisResult?.ownershipMap && (
-                     <OwnershipOverlay ownershipMap={analysisResult.ownershipMap} toSvgCoords={toSvgCoords} cellSize={cell_size} />
-                )}
-
                 {displayBoardState.map((row, y) => row.map((player, x) => {
                     if (player === Player.None) return null;
-                    // 계가 결과: 사석인 칸은 돌을 그리지 않음 (마지막 착점으로 잡힌 돌이 살아있는 것처럼 보이는 현상 방지)
-                    if (showTerritoryOverlay && analysisResult?.deadStones?.some(d => d.x === x && d.y === y)) return null;
                     const { cx, cy } = toSvgCoords({ x, y });
                     
                     // 미사일 선택 가능 여부는 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
@@ -1337,8 +1283,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         </>
                     );
                 })()}
-                {renderDeadStoneMarkers()}
                 {renderTerritoryMarkers()}
+                {renderDeadStoneMarkers()}
                 {showHintOverlay && !isBoardDisabled && analysisResult?.recommendedMoves?.map(move => ( <RecommendedMoveMarker key={`rec-${move.order}`} move={move} toSvgCoords={toSvgCoords} cellSize={cell_size} onClick={onBoardClick} /> ))}
             </svg>
             </div>

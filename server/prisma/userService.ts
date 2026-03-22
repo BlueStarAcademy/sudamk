@@ -1,4 +1,4 @@
-import prisma from "../prismaClient.js";
+import prisma, { prismaErrorImpliesEngineNotConnected } from "../prismaClient.js";
 import type { Prisma } from "@prisma/client";
 import type { User } from "../../types/index.js";
 import { deserializeUser, serializeUser, PrismaUserWithStatus } from "./userAdapter.js";
@@ -80,12 +80,17 @@ export async function listUsers(options?: { includeEquipment?: boolean; includeI
     return rows.map(mapUser);
   } catch (error: any) {
     // Prisma 엔진 미연결 시 준비 후 재시도
-    if (error?.message?.includes('Engine is not yet connected')) {
-      await ensurePrismaEngineReady();
-      const rows = await prisma.user.findMany({
-        include: { guildMember: true }
-      });
-      return rows.map(mapUser);
+    if (error?.message?.includes('Engine is not yet connected') || prismaErrorImpliesEngineNotConnected(error)) {
+      try {
+        await ensurePrismaEngineReady();
+        const rows = await prisma.user.findMany({
+          include: { guildMember: true }
+        });
+        return rows.map(mapUser);
+      } catch (e2) {
+        console.warn('[userService] listUsers retry failed:', (e2 as { message?: string })?.message ?? e2);
+        return [];
+      }
     }
     // equipment/inventory 로드 실패 시 없이 재시도
     const rows = await prisma.user.findMany({
@@ -133,6 +138,7 @@ export async function getUsersBrief(ids: string[]): Promise<Array<{ id: string; 
   if (!ids.length) return [];
   const uniqueIds = [...new Set(ids)].slice(0, 200); // 최대 200명
   try {
+    await ensurePrismaEngineReady();
     const rows = await prisma.user.findMany({
       where: { id: { in: uniqueIds } },
       select: { id: true, nickname: true, status: true }
@@ -147,7 +153,9 @@ export async function getUsersBrief(ids: string[]): Promise<Array<{ id: string; 
       };
     });
   } catch (error: any) {
-    console.warn('[userService] getUsersBrief error:', error?.message);
+    const msg = error?.message ?? '';
+    if (msg.includes('Engine is not yet connected') || prismaErrorImpliesEngineNotConnected(error)) return [];
+    console.warn('[userService] getUsersBrief error:', msg);
     return [];
   }
 }

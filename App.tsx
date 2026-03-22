@@ -43,6 +43,15 @@ import OpponentInsufficientActionPointsModal from './components/OpponentInsuffic
 import InstallPrompt from './components/InstallPrompt.js';
 import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
 
+/**
+ * 세로로 든 폰에서 전체 UI를 CSS로 90° 돌리면( index.css 의 sudamr-handheld-* )
+ * 브라우저/OS는 여전히 세로 뷰포트로 키보드·포커스를 잡아 입력이 뒤집히거나 엇나갑니다.
+ * 기본은 끔 — 실제 가로로 기기를 돌리거나 세로 레이아웃을 씁니다.
+ * 예전 동작이 필요하면 빌드 시 VITE_HANDHELD_CSS_ROTATE=true 로 켤 수 있음.
+ */
+const USE_HANDHELD_CSS_ORIENTATION_WRAPPER =
+    import.meta.env.VITE_HANDHELD_CSS_ROTATE === 'true';
+
 // Lazy 로드된 모달을 위한 로딩 컴포넌트
 const ModalLoadingFallback = () => null;
 
@@ -226,13 +235,18 @@ const AppContent: React.FC = () => {
         return () => ro.disconnect();
     }, []);
 
-    // 휴대기기에서는 모든 화면에서 강제 가로 모드(랜드스케이프) 적용
+    // 휴대기기: CSS 전체 회전과 같이 쓰면 키보드 방향이 꼬이므로, 래퍼 사용 시에만 시도
     useEffect(() => {
+        if (!USE_HANDHELD_CSS_ORIENTATION_WRAPPER) return;
         if (typeof window === 'undefined' || !isHandheld) return;
         const orient = (window as any).screen?.orientation;
         if (!orient?.lock) return;
 
+        let lastLockAttempt = 0;
         const tryLockLandscape = () => {
+            const now = Date.now();
+            if (now - lastLockAttempt < 400) return;
+            lastLockAttempt = now;
             orient.lock('landscape').catch(() => {
                 orient.lock('landscape-primary').catch(() => {});
             });
@@ -244,10 +258,18 @@ const AppContent: React.FC = () => {
 
         tryLockLandscape();
         window.addEventListener('orientationchange', tryLockLandscape);
-        window.addEventListener('visibilitychange', onVisibilityChange);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        orient.addEventListener?.('change', tryLockLandscape);
+        // 사용자 제스처 뒤에만 lock이 되는 브라우저 대비 — 짧게 스로틀하여 반복 시도
+        const onGesture = () => tryLockLandscape();
+        document.addEventListener('touchstart', onGesture, { passive: true, capture: true });
+        document.addEventListener('click', onGesture, { capture: true });
         return () => {
             window.removeEventListener('orientationchange', tryLockLandscape);
-            window.removeEventListener('visibilitychange', onVisibilityChange);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            orient.removeEventListener?.('change', tryLockLandscape);
+            document.removeEventListener('touchstart', onGesture, { capture: true } as AddEventListenerOptions);
+            document.removeEventListener('click', onGesture, { capture: true } as AddEventListenerOptions);
         };
     }, [isHandheld]);
 
@@ -275,8 +297,16 @@ const AppContent: React.FC = () => {
             <div className="flex-1 flex items-center justify-center min-h-0">
                 <div
                     ref={containerRef}
-                    className="w-full h-full max-w-full max-h-full aspect-[16/9] overflow-hidden relative"
+                    className="w-full h-full max-w-full max-h-full aspect-[16/9] overflow-hidden relative flex items-center justify-center min-h-0"
                 >
+                    {/* 스케일된 실제 픽셀 크기로 클립하면 transform과 부모 높이의 소수점 차이로 생기는 하단 틈/배경 끊김을 막는다 */}
+                    <div
+                        className="relative shrink-0 overflow-hidden"
+                        style={{
+                            width: DESIGN_W * scale,
+                            height: DESIGN_H * scale,
+                        }}
+                    >
                     <div
                         className="absolute left-0 top-0 flex flex-col"
                         style={{
@@ -316,7 +346,7 @@ const AppContent: React.FC = () => {
                                 <Router />
                             </main>
                         ) : (
-                            <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden bg-tertiary bg-[url('/images/bg/loginbg.png')] bg-cover bg-center px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
+                            <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden bg-transparent px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
                                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/82 via-black/65 to-black/78" />
                                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_14%,rgba(180,140,80,0.14),transparent_48%)]" />
                                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_50%_at_50%_92%,rgba(30,58,95,0.18),transparent_52%)]" />
@@ -454,12 +484,14 @@ const AppContent: React.FC = () => {
                                                                   (activeNegotiation.challenger.id === currentUserWithStatus.id && 
                                                                    activeNegotiation.proposerId === activeNegotiation.challenger.id &&
                                                                    (activeNegotiation.turnCount ?? 0) > 0));
-                                    const isChallengerWaiting = activeNegotiation.challenger.id === currentUserWithStatus.id && 
-                                                                activeNegotiation.status === 'pending' && 
-                                                                activeNegotiation.proposerId === activeNegotiation.opponent.id &&
-                                                                activeNegotiation.turnCount === 0;
-                                    
-                                    if (isChallengerWaiting) {
+                                    /** 신청자: draft·초기 pending은 대기실 ChallengeSelectionModal에서만 표시. App의 NegotiationModal이 끼어들면 신청 직후 깜빡임 발생 */
+                                    const isChallengerOwnsModal =
+                                        activeNegotiation.challenger.id === currentUserWithStatus.id &&
+                                        (activeNegotiation.status === 'draft' ||
+                                            (activeNegotiation.status === 'pending' &&
+                                                activeNegotiation.proposerId === activeNegotiation.opponent.id &&
+                                                activeNegotiation.turnCount === 0));
+                                    if (isChallengerOwnsModal) {
                                         return null;
                                     }
                                     
@@ -571,13 +603,145 @@ const AppContent: React.FC = () => {
                         )}
                         <InstallPrompt />
                     </div>
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
+const HANDHELD_MAX_W = 1024;
+
+function readScreenOrientation(): { type: string; angle: number | null } {
+    const so = typeof screen !== 'undefined' ? (screen as Screen & { orientation?: { type?: string; angle?: number } }).orientation : undefined;
+    const type = typeof so?.type === 'string' ? so.type : '';
+    const angle = typeof so?.angle === 'number' ? so.angle : null;
+    return { type, angle };
+}
+
+function isPortraitSecondaryLayout(w: number, h: number, type: string, angle: number | null): boolean {
+    if (w > h) return false;
+    if (type === 'portrait-secondary') return true;
+    if (angle === 180 || angle === -180) return true;
+    const wo = (window as Window & { orientation?: number }).orientation;
+    if (typeof wo === 'number' && (wo === 180 || wo === -180)) return true;
+    return false;
+}
+
+/**
+ * 실제 가로(w>h)일 때 한쪽 방향(secondary)에서만 UI를 180° 돌려 주소창·기기 방향과 맞춤.
+ * 브라우저마다 type/angle/window.orientation 조합이 달라 여러 경로를 본다.
+ */
+function computeHandheldLandscapeFlip180(w: number, h: number, type: string, angle: number | null): boolean {
+    if (w <= h) return false;
+    const t = (type || '').toLowerCase();
+
+    const isApple =
+        /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && (navigator as Navigator & { maxTouchPoints?: number }).maxTouchPoints > 1);
+
+    if (t.includes('landscape') && t.includes('secondary')) return true;
+    // iOS: primary면 보통 각도와 일치. Android Chrome은 type이 landscape-primary에 고정되는 기기가 있어
+    // 여기서 false로 끝내면 한쪽 가로에서 angle/window.orientation을 영원히 안 본다 → 한쪽만 안 뒤집힘.
+    if (isApple && (t === 'landscape-primary' || (t.includes('landscape') && t.includes('primary')))) return false;
+
+    const normAngle = angle === null ? null : ((((angle % 360) + 360) % 360) as number);
+    if (normAngle !== null) {
+        if (isApple) {
+            if (normAngle === 270) return true;
+            if (normAngle === 90) return false;
+            if (normAngle === 180) return true;
+        } else {
+            // Android: Chrome angle 해석을 window.orientation 과 맞춤(90↔270 기준 반전)
+            if (normAngle === 90) return true;
+            if (normAngle === 270) return false;
+            if (normAngle === 180) return true;
+        }
+    }
+
+    const wo = (window as Window & { orientation?: number }).orientation;
+    if (typeof wo === 'number') {
+        if (isApple) {
+            // iOS: 가로 양방향이 90 / -90 — 한쪽이 주소창·노치와 맞지 않으면 아래 두 줄을 서로 바꿔 조정
+            if (wo === 90) return true;
+            if (wo === -90) return false;
+        } else {
+            // Android Chrome: 주소창 방향과 맞추기 위해 90일 때만 180° 보정
+            if (wo === 90) return true;
+            if (wo === -90 || wo === 270) return false;
+        }
+    }
+
+    return false;
+}
+
+/** 좁은 화면 + 세로 뷰포트일 때 .app-container를 회전시켜 PC와 같은 가로 캔버스가 곧바로 보이게 함 */
 const App: React.FC = () => {
+    useEffect(() => {
+        const clearClasses = () => {
+            const el = document.documentElement;
+            el.classList.remove(
+                'sudamr-handheld-portrait-lock',
+                'sudamr-handheld-portrait-secondary',
+                'sudamr-handheld-real-landscape',
+            );
+            el.style.removeProperty('--sudamr-landscape-ui-rotate');
+        };
+
+        const sync = () => {
+            if (!USE_HANDHELD_CSS_ORIENTATION_WRAPPER) {
+                clearClasses();
+                return;
+            }
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const handheld = w <= HANDHELD_MAX_W;
+            const portrait = w <= h;
+            const { type, angle } = readScreenOrientation();
+
+            const portraitLock = handheld && portrait;
+            const portraitSecondary = portraitLock && isPortraitSecondaryLayout(w, h, type, angle);
+            const realLandscape = handheld && !portrait;
+
+            const el = document.documentElement;
+            el.classList.toggle('sudamr-handheld-portrait-lock', portraitLock);
+            el.classList.toggle('sudamr-handheld-portrait-secondary', portraitSecondary);
+
+            if (realLandscape && !portraitLock) {
+                el.classList.add('sudamr-handheld-real-landscape');
+                const flip = computeHandheldLandscapeFlip180(w, h, type, angle);
+                el.style.setProperty('--sudamr-landscape-ui-rotate', flip ? '180deg' : '0deg');
+            } else {
+                el.classList.remove('sudamr-handheld-real-landscape');
+                el.style.removeProperty('--sudamr-landscape-ui-rotate');
+            }
+        };
+
+        const syncSoon = () => {
+            sync();
+            requestAnimationFrame(sync);
+            [16, 50, 120, 280].forEach((ms) => window.setTimeout(sync, ms));
+        };
+
+        sync();
+        window.addEventListener('resize', sync);
+        window.addEventListener('orientationchange', syncSoon);
+        const mq = window.matchMedia?.('(orientation: portrait)');
+        mq?.addEventListener('change', syncSoon);
+        const so = typeof screen !== 'undefined' ? (screen as Screen & { orientation?: EventTarget }).orientation : undefined;
+        so?.addEventListener?.('change', syncSoon as EventListener);
+        const vv = window.visualViewport;
+        vv?.addEventListener('resize', sync);
+        return () => {
+            window.removeEventListener('resize', sync);
+            window.removeEventListener('orientationchange', syncSoon);
+            mq?.removeEventListener('change', syncSoon);
+            so?.removeEventListener?.('change', syncSoon as EventListener);
+            vv?.removeEventListener('resize', sync);
+            clearClasses();
+        };
+    }, []);
+
     return (
         <div className="app-container">
             <AppProvider>

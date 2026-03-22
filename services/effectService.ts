@@ -138,3 +138,27 @@ export const calculateUserEffects = (user: User): CalculatedEffects => {
     
     return calculatedEffects;
 };
+
+/**
+ * 서버/목록 스냅샷 시각 이후 자연 회복분을 반영한 현재 행동력(클라이언트 추정).
+ * 대기실 유저 목록 등 상대 정보는 주기적으로만 갱신되므로, 신청 모달 등에서 본인과 동일한 기준으로 비교할 때 사용.
+ */
+export const projectActionPointsCurrent = (user: User | null | undefined, nowMs: number = Date.now()): number => {
+    if (!user?.actionPoints) return 0;
+    if (user.isAdmin) return Math.max(user.actionPoints.current ?? 0, 1);
+    const effects = calculateUserEffects(user);
+    const maxAp = effects.maxActionPoints;
+    const cur = user.actionPoints.current ?? 0;
+    if (cur >= maxAp) return maxAp;
+    const lastUpdate = user.lastActionPointUpdate;
+    if (lastUpdate === undefined || lastUpdate === null || lastUpdate === 0) {
+        return Math.min(cur, maxAp);
+    }
+    const regenInterval =
+        effects.actionPointRegenInterval > 0 ? effects.actionPointRegenInterval : ACTION_POINT_REGEN_INTERVAL_MS;
+    const elapsedMs = nowMs - lastUpdate;
+    if (elapsedMs <= 0) return Math.min(cur, maxAp);
+    const pointsToAdd = Math.floor(elapsedMs / regenInterval);
+    if (pointsToAdd <= 0) return Math.min(cur, maxAp);
+    return Math.min(maxAp, cur + pointsToAdd);
+};

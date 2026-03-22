@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { GameRecord, Player } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -13,9 +13,16 @@ interface GameRecordViewerModalProps {
 const GameRecordViewerModal: React.FC<GameRecordViewerModalProps> = ({ record, onClose }) => {
     const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
     const [isBoardRotated, setIsBoardRotated] = useState(false);
-    
-    // SGF에서 총 수순 계산 (간단한 추정)
-    const totalMoves = (record.sgfContent.match(/;([BW])\[/g) || []).length;
+
+    useEffect(() => {
+        setCurrentMoveIndex(0);
+        setIsBoardRotated(false);
+    }, [record.id]);
+
+    const totalMoves = useMemo(() => {
+        const m = record.sgfContent.match(/;[BW]\[[a-s]{2}\]/g);
+        return m ? m.length : 0;
+    }, [record.sgfContent]);
     const canGoBack = currentMoveIndex > 0;
     const canGoForward = currentMoveIndex < totalMoves;
     
@@ -114,11 +121,12 @@ const GameRecordViewerModal: React.FC<GameRecordViewerModalProps> = ({ record, o
                     </button>
                     <div className="bg-gray-900 rounded-lg p-4" style={{ minHeight: '400px' }}>
                         <SgfViewer 
-                            timeElapsed={currentMoveIndex}
+                            timeElapsed={0}
                             fileIndex={null}
                             showLastMoveOnly={false}
                             sgfContent={record.sgfContent}
                             isRotated={isBoardRotated}
+                            replayMoveCount={currentMoveIndex}
                         />
                     </div>
                 </div>

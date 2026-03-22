@@ -238,6 +238,23 @@ const reconnectPrisma = async (): Promise<boolean> => {
 /** MainLoop 등에서 연결 실패 시 수동 재연결 트리거 (재시도 간격 내 한 번만 유의미) */
 export const tryReconnect = (): Promise<boolean> => reconnectPrisma();
 
+/** Promise.race 타임아웃 전용 — `message.includes('timeout')`와 구분해 재연결(disconnect) 트리거 금지 */
+export const PRISMA_HEALTH_CHECK_RACE_TIMEOUT = '__prisma_health_check_race_timeout__';
+
+const ENGINE_NOT_CONNECTED_FRAG = 'Engine is not yet connected';
+
+/** PrismaClientUnknownRequestError 등 message/cause에 엔진 미연결 문구가 있는지 */
+export function prismaErrorImpliesEngineNotConnected(e: unknown): boolean {
+  if (e == null || typeof e !== 'object') return false;
+  const parts: string[] = [];
+  let cur: any = e;
+  for (let i = 0; cur && i < 8; i++) {
+    if (typeof cur.message === 'string') parts.push(cur.message);
+    cur = cur.cause;
+  }
+  return parts.join('\n').includes(ENGINE_NOT_CONNECTED_FRAG);
+}
+
 /**
  * Prisma 엔진이 쿼리를 받을 수 있는지 확인.
  * 실패 시 $connect() 후 대기·프로브 재시도 (재연결 직후 MainLoop가 "engine not ready"로 무한 스킵하는 버그 방지).
@@ -276,26 +293,35 @@ const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.i
 const connectionCheckInterval = isRailway ? 10000 : 15000; // Railway: 10초, 로컬: 15초
 
 if (_databaseUrl) {
-  setInterval(async () => {
+  // 부팅·초기화와 겹치면 SELECT 1이 느려질 수 있음 — 즉시 주기 실행 시 race timeout이 $disconnect를 유발하지 않도록 지연 시작
+  const healthCheckStartupDelayMs = isRailway ? 25_000 : 12_000;
+  const healthCheckQueryTimeoutMs = isRailway ? 12_000 : 6_000;
+
+  const runConnectionHealthCheck = async () => {
     try {
       await Promise.race([
         prisma.$queryRaw`SELECT 1`,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)) // 3초 타임아웃
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(PRISMA_HEALTH_CHECK_RACE_TIMEOUT)), healthCheckQueryTimeoutMs)
+        ),
       ]);
-      // 연결 성공 시 실패 카운터 리셋
       if (consecutiveConnectionFailures > 0) {
         consecutiveConnectionFailures = 0;
       }
     } catch (error: any) {
-      // Engine not yet connected: skip (no reconnect), avoids spam before first $connect()
+      // 느린 쿼리/부하: 실제 끊김이 아님 — 절대 reconnect(=disconnect)하지 않음
+      if (error?.message === PRISMA_HEALTH_CHECK_RACE_TIMEOUT) {
+        return;
+      }
       if (error.message?.includes?.('Engine is not yet connected')) {
         return;
       }
       const isConnectionError =
         error.code === 'P1017' ||
         error.code === 'P1001' ||
+        error.code === 'P1008' ||
+        error.code === 'P2024' ||
         error.message?.includes('closed the connection') ||
-        error.message?.includes('timeout') ||
         error.message?.includes("Can't reach database server") ||
         error.kind === 'Closed';
 
@@ -303,7 +329,6 @@ if (_databaseUrl) {
         console.warn('[Prisma] Connection lost or timeout, attempting to reconnect...');
         const reconnected = await reconnectPrisma();
         if (!reconnected && consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
-          // 연속 실패가 너무 많으면 프로세스 종료 (Railway가 재시작)
           console.error('[Prisma] CRITICAL: Too many reconnection failures. Exiting for Railway restart.');
           process.stderr.write('[CRITICAL] Database connection lost - exiting for restart\n');
           setTimeout(() => {
@@ -312,7 +337,11 @@ if (_databaseUrl) {
         }
       }
     }
-  }, connectionCheckInterval);
+  };
+
+  setTimeout(() => {
+    setInterval(runConnectionHealthCheck, connectionCheckInterval);
+  }, healthCheckStartupDelayMs);
 }
 
 // 프로세스 종료 시 정리

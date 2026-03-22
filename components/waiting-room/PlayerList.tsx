@@ -36,6 +36,21 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
     const [challengeTargetUser, setChallengeTargetUser] = useState<UserWithStatus | null>(null);
     const [isRejectionSettingsModalOpen, setIsRejectionSettingsModalOpen] = useState(false);
     const me = users.find(user => user.id === currentUser.id);
+
+    // 상대가 수정 제안하면 App에서 ChallengeReceivedModal이 뜨므로, 신청서 모달은 닫아 중복을 막음
+    useEffect(() => {
+        if (!isChallengeSelectionModalOpen || !challengeTargetUser) return;
+        const n = negotiations.find(
+            (neg) => neg.challenger.id === currentUser.id && neg.opponent.id === challengeTargetUser.id
+        );
+        if (
+            n?.status === 'pending' &&
+            n.proposerId === currentUser.id &&
+            (n.turnCount ?? 0) > 0
+        ) {
+            setIsChallengeSelectionModalOpen(false);
+        }
+    }, [negotiations, isChallengeSelectionModalOpen, challengeTargetUser, currentUser.id]);
     const otherUsers = users.filter(user => user.id !== currentUser.id).sort((a,b) => a.nickname.localeCompare(b.nickname));
 
     const canChallenge = (targetUser: UserWithStatus) => {

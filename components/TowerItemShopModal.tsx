@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { UserWithStatus } from '../types.js';
 import Button from './Button.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
+import { countTowerLobbyInventoryQty } from '../utils/towerLobbyInventory.js';
 
 interface TowerItem {
     itemId: string;
@@ -76,12 +77,8 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
     const [selectedItem, setSelectedItem] = useState<TowerItem | null>(TOWER_ITEMS[0]);
     const [cart, setCart] = useState<Record<string, number>>({});
 
-    // 현재 보유 개수 계산
-    const getCurrentOwned = (itemId: string): number => {
-        const inventory = currentUser.inventory || [];
-        const item = inventory.find((inv: any) => inv.name === itemId || inv.id === itemId);
-        return item?.quantity ?? 0;
-    };
+    const getCurrentOwned = (itemId: string): number =>
+        countTowerLobbyInventoryQty(currentUser.inventory, [itemId]);
 
     // 오늘(KST) 구매한 개수 계산 — 서버와 동일 키(itemId)·날짜 기준
     const getTodayPurchased = (itemId: string): number => {

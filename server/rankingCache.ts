@@ -1,5 +1,6 @@
 // 랭킹 데이터 캐싱 시스템
 import * as db from './db.js';
+import { prismaErrorImpliesEngineNotConnected } from './prismaClient.js';
 import { ensurePrismaEngineReady } from './prisma/gameService.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/index.js';
 
@@ -177,18 +178,25 @@ export async function buildRankingCache(): Promise<RankingCache> {
             
             return await Promise.race([buildPromise, overallTimeout]);
         } catch (error: any) {
-            console.error('[RankingCache] ========== ERROR BUILDING RANKING CACHE ==========');
-            console.error('[RankingCache] Error:', error);
-            console.error('[RankingCache] Error message:', error?.message);
-            console.error('[RankingCache] Error stack:', error?.stack);
-            console.error('[RankingCache] Error code:', error?.code);
-            const memUsage = process.memoryUsage();
-            const memUsageMB = {
-                rss: Math.round(memUsage.rss / 1024 / 1024),
-                heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024)
-            };
-            console.error(`[RankingCache] Memory at error: RSS=${memUsageMB.rss}MB, Heap=${memUsageMB.heapUsed}MB`);
-            console.error('[RankingCache] =================================================');
+            const engineNotReady = prismaErrorImpliesEngineNotConnected(error);
+            if (engineNotReady) {
+                console.warn(
+                    '[RankingCache] Prisma engine not ready; returning stale or empty cache (no full dump)'
+                );
+            } else {
+                console.error('[RankingCache] ========== ERROR BUILDING RANKING CACHE ==========');
+                console.error('[RankingCache] Error:', error);
+                console.error('[RankingCache] Error message:', error?.message);
+                console.error('[RankingCache] Error stack:', error?.stack);
+                console.error('[RankingCache] Error code:', error?.code);
+                const memUsage = process.memoryUsage();
+                const memUsageMB = {
+                    rss: Math.round(memUsage.rss / 1024 / 1024),
+                    heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024)
+                };
+                console.error(`[RankingCache] Memory at error: RSS=${memUsageMB.rss}MB, Heap=${memUsageMB.heapUsed}MB`);
+                console.error('[RankingCache] =================================================');
+            }
             
             // 메모리 부족 에러인 경우
             if (error?.code === 'ENOMEM' || error?.message?.includes('out of memory')) {

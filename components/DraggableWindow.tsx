@@ -29,16 +29,39 @@ interface DraggableWindowProps {
 
     variant?: 'default' | 'store';
 
+    /** 저장된 위치가 없을 때 사용 (스케일 캔버스에서 보드 옆에 두기 등) */
+    defaultPosition?: { x: number; y: number };
+
 }
 
 
 
 const SETTINGS_KEY = 'draggableWindowSettings';
 
+/** App.tsx 스케일 캔버스: 드래그는 client 픽셀, translate는 설계 픽셀이라 비율·경계를 맞춘다 */
+function getScaledCanvasDragMetrics(): {
+    boundsW: number;
+    boundsH: number;
+    ratioX: number;
+    ratioY: number;
+} | null {
+    if (typeof document === 'undefined') return null;
+    const root = document.getElementById('sudamr-modal-root');
+    if (!root) return null;
+    const r = root.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return null;
+    return {
+        boundsW: root.offsetWidth,
+        boundsH: root.offsetHeight,
+        ratioX: root.offsetWidth / r.width,
+        ratioY: root.offsetHeight / r.height,
+    };
+}
+
 // 전역 z-index 카운터: 최상위 모달이 항상 가장 높은 z-index를 가지도록 함
 let globalZIndexCounter = 10000;
 
-const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onClose, children, initialWidth = 800, initialHeight, modal = true, closeOnOutsideClick = true, isTopmost = true, headerContent, zIndex, variant = 'default' }) => {
+const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onClose, children, initialWidth = 800, initialHeight, modal = true, closeOnOutsideClick = true, isTopmost = true, headerContent, zIndex, variant = 'default', defaultPosition = { x: 0, y: 0 } }) => {
     // isTopmost가 true일 때는 전역 카운터를 사용하여 항상 최상위에 표시
     const [effectiveZIndex, setEffectiveZIndex] = useState(() => {
         if (isTopmost) {
@@ -81,10 +104,6 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
     const effectiveIsCompactViewport = isInsideScaledCanvas ? false : isCompactViewport;
 
     const [rememberPosition, setRememberPosition] = useState(true);
-
-    
-
-    const [scale, setScale] = useState(1);
 
     
 
@@ -229,9 +248,6 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         return Math.max(0.25, Math.min(0.95, scale));
     }, [effectiveIsCompactViewport, isInsideScaledCanvas, windowWidth, windowHeight, initialWidth, initialHeight]);
 
-
-
-
     useEffect(() => {
 
         positionRef.current = position;
@@ -262,7 +278,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
                 } else {
 
-                    setPosition({ x: 0, y: 0 });
+                    setPosition({ ...defaultPosition });
 
                 }
 
@@ -276,13 +292,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
             console.error("Failed to load window settings from localStorage", e);
 
-            setPosition({ x: 0, y: 0 });
+            setPosition({ ...defaultPosition });
 
         }
 
         setIsInitialized(true);
 
-    }, [windowId, effectiveIsCompactViewport]);
+    }, [windowId, effectiveIsCompactViewport, defaultPosition.x, defaultPosition.y]);
 
 
 
@@ -328,11 +344,15 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
 
 
-        const dx = clientX - dragStartPos.current.x;
+        let dx = clientX - dragStartPos.current.x;
 
-        const dy = clientY - dragStartPos.current.y;
+        let dy = clientY - dragStartPos.current.y;
 
-
+        const metrics = getScaledCanvasDragMetrics();
+        if (metrics) {
+            dx *= metrics.ratioX;
+            dy *= metrics.ratioY;
+        }
 
         let newX = initialWindowPos.current.x + dx;
 
@@ -342,7 +362,14 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
         const { offsetWidth, offsetHeight } = windowRef.current;
 
-        const { innerWidth, innerHeight } = window;
+        let innerWidth = window.innerWidth;
+
+        let innerHeight = window.innerHeight;
+
+        if (metrics) {
+            innerWidth = metrics.boundsW;
+            innerHeight = metrics.boundsH;
+        }
 
 
 
@@ -528,7 +555,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
 
 
-    const transformStyle = `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px)) scale(${isDragging ? scale * 1.02 : scale})`;
+    const transformStyle = `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`;
 
 
 

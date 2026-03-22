@@ -11,6 +11,14 @@ import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
 import QuickAccessSidebar from './QuickAccessSidebar.js';
 import TowerItemShopModal from './TowerItemShopModal.js';
 import DraggableWindow from './DraggableWindow.js';
+import {
+    countTowerLobbyInventoryQty,
+    TOWER_ITEM_TURN_ADD_NAMES,
+    TOWER_ITEM_MISSILE_NAMES,
+    TOWER_ITEM_HIDDEN_NAMES,
+    TOWER_ITEM_SCAN_NAMES,
+    TOWER_ITEM_REFRESH_NAMES,
+} from '../utils/towerLobbyInventory.js';
 
 // 월간 보상 구간 (매월 1일 0시 KST 지급, 역대 최고 층수 아님 월간 최고 층수 기준)
 const TOWER_MONTHLY_REWARD_TIERS = [
@@ -425,18 +433,14 @@ const TowerLobby: React.FC = () => {
                         <div className="flex flex-row gap-1.5 justify-center items-center flex-wrap">
                             {(() => {
                                 const inventory = currentUserWithStatus?.inventory || [];
-                                // 도전의 탑 전용 아이템: 이름/id 일치하는 모든 스택 합산 (상점·가방과 동일, source 무관)
-                                const getItemCount = (namesOrIds: string[]): number => {
-                                    return (inventory as any[])
-                                        .filter((inv: any) => namesOrIds.some((n: string) => inv.name === n || inv.id === n))
-                                        .reduce((sum: number, inv: any) => sum + (inv.quantity ?? 0), 0);
-                                };
+                                const getItemCount = (namesOrIds: readonly string[]): number =>
+                                    countTowerLobbyInventoryQty(inventory, namesOrIds);
                                 const items = [
-                                    { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(['턴 추가', 'addturn', '턴증가', 'turn_add', 'turn_add_item']) },
-                                    { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(['미사일', 'missile']) },
-                                    { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(['히든', 'hidden']) },
-                                    { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(['스캔', 'scan']) },
-                                    { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(['배치 새로고침', '배치변경', 'reflesh', 'refresh']) }
+                                    { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
+                                    { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
+                                    { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
+                                    { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
+                                    { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
                                 ];
                                 return items.map((item, index) => (
                                     <button
@@ -496,15 +500,20 @@ const TowerLobby: React.FC = () => {
                             
                             if (!stage) return null;
                             
-                            // 목표 정보
+                            // 목표 정보 (툴팁·표시용)
                             const getTargetInfo = () => {
                                 if (stage.blackTurnLimit) {
                                     return `흑 ${stage.targetScore?.black ?? 0}개 따내기 (${stage.blackTurnLimit}턴 제한)`;
-                                } else if (stage.autoScoringTurns) {
-                                    return `자동계가 (최대 ${stage.autoScoringTurns}수, 남은 턴 0이 되면)`;
+                                }
+                                if (stage.autoScoringTurns != null && stage.autoScoringTurns > 0) {
+                                    return `[${stage.autoScoringTurns}수 계가] 해당 수까지 두면 자동 계가`;
                                 }
                                 return '승리';
                             };
+                            const autoScoringLabel =
+                                floor >= 21 && stage.autoScoringTurns != null && stage.autoScoringTurns > 0
+                                    ? `[${stage.autoScoringTurns}수 계가]`
+                                    : null;
                             
                             // 보상 정보
                             const reward = stage.rewards.firstClear;
@@ -639,29 +648,35 @@ const TowerLobby: React.FC = () => {
                                             </div>
                                         )}
                                         
-                                        {/* 21-100층: 일반돌과 문양돌 표시 */}
+                                        {/* 21-100층: 일반돌·문양돌 + 계가까지 수 */}
                                         {!isCaptureMode && (
-                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                                {/* 흑돌 */}
-                                                <div className="flex items-center gap-1">
-                                                    <img src="/images/single/Black.png" alt="흑돌" className="w-5 h-5 sm:w-6 sm:h-6" />
-                                                    <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">{stage.placements.black}</span>
-                                                </div>
-                                                {/* 백돌 */}
-                                                <div className="flex items-center gap-1">
-                                                    <img src="/images/single/White.png" alt="백돌" className="w-5 h-5 sm:w-6 sm:h-6" />
-                                                    <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">{stage.placements.white}</span>
-                                                </div>
-                                                    {/* 흑 문양돌 (항상 표시) */}
+                                            <div
+                                                className="flex flex-col gap-0.5 flex-shrink-0 min-w-0"
+                                                title={getTargetInfo()}
+                                            >
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <div className="flex items-center gap-1">
+                                                        <img src="/images/single/Black.png" alt="흑돌" className="w-5 h-5 sm:w-6 sm:h-6" />
+                                                        <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">{stage.placements.black}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <img src="/images/single/White.png" alt="백돌" className="w-5 h-5 sm:w-6 sm:h-6" />
+                                                        <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">{stage.placements.white}</span>
+                                                    </div>
                                                     <div className="flex items-center gap-1">
                                                         <img src="/images/single/BlackDouble.png" alt="흑 문양돌" className="w-5 h-5 sm:w-6 sm:h-6" />
                                                         <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">×{stage.placements.blackPattern}</span>
                                                     </div>
-                                                    {/* 백 문양돌 (항상 표시) */}
                                                     <div className="flex items-center gap-1">
                                                         <img src="/images/single/WhiteDouble.png" alt="백 문양돌" className="w-5 h-5 sm:w-6 sm:h-6" />
                                                         <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">×{stage.placements.whitePattern}</span>
                                                     </div>
+                                                </div>
+                                                {autoScoringLabel && (
+                                                    <span className="text-[10px] sm:text-xs text-sky-300 font-bold whitespace-nowrap tracking-tight">
+                                                        {autoScoringLabel}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
                                         

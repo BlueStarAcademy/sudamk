@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { GameMode, UserWithStatus, GameSettings, Negotiation } from '../types';
 import {
   SPECIAL_GAME_MODES,
@@ -6,9 +6,6 @@ import {
   DEFAULT_GAME_SETTINGS,
   STRATEGIC_ACTION_POINT_COST,
   PLAYFUL_ACTION_POINT_COST,
-  SELF_INSUFFICIENT_AP_HEADING,
-  OPPONENT_INSUFFICIENT_AP_INLINE_HEADING,
-  formatMatchActionPointsLine,
 } from '../constants';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
@@ -34,14 +31,19 @@ interface ChallengeSelectionModalProps {
   currentUser?: UserWithStatus;
 }
 
+/** 서버 negotiationActions: SEND_CHALLENGE 후 deadline = now + 60000 */
+const CHALLENGE_NEGOTIATION_WINDOW_SEC = 60;
+
 const GameCard: React.FC<{ 
     mode: GameMode, 
     image: string, 
     onSelect: (mode: GameMode) => void,
     isSelected: boolean,
     isRejected: boolean,
-    scaleFactor?: number
-}> = ({ mode, image, onSelect, isSelected, isRejected, scaleFactor = 1 }) => {
+    scaleFactor?: number;
+    /** 상대 응답 대기 중에는 카드 변경 불가 */
+    interactionLocked?: boolean;
+}> = ({ mode, image, onSelect, isSelected, isRejected, scaleFactor = 1, interactionLocked = false }) => {
     const [imgError, setImgError] = useState(false);
     
     // 스케일에 따른 크기 계산 (더 컴팩트하게)
@@ -50,18 +52,21 @@ const GameCard: React.FC<{
     const fontSize = Math.max(8, Math.round(10 * scaleFactor));
     const titleFontSize = Math.max(9, Math.round(11 * scaleFactor));
 
+    const noClick = isRejected || interactionLocked;
     return (
         <div
             className={`bg-panel text-on-panel rounded-lg flex flex-col items-center text-center transition-all transform ${
                 isRejected 
                     ? 'opacity-50 cursor-not-allowed grayscale pointer-events-none' 
+                    : interactionLocked && !isSelected
+                    ? 'opacity-55 cursor-default shadow-lg'
                     : isSelected
-                    ? 'ring-2 ring-primary hover:-translate-y-1 shadow-lg cursor-pointer'
+                    ? `ring-2 ring-primary shadow-lg ${interactionLocked ? '' : 'hover:-translate-y-1 cursor-pointer'}`
                     : 'hover:-translate-y-1 shadow-lg cursor-pointer'
             }`}
             style={{ padding: `${padding}px`, gap: `${Math.max(4, Math.round(8 * scaleFactor))}px` }}
             onClick={() => {
-                if (!isRejected) {
+                if (!noClick) {
                     onSelect(mode);
                 }
             }}
@@ -116,6 +121,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   const [settings, setSettings] = useState<GameSettings>(DEFAULT_GAME_SETTINGS);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [windowHeight, setWindowHeight] = useState(window.innerHeight);
+  const hadNegotiationForThisOpponentRef = useRef(false);
   
   // 브라우저 크기에 따라 창 크기 계산
   useEffect(() => {
@@ -152,54 +158,57 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       return neg.challenger.id === currentUser.id && neg.opponent.id === opponent.id;
     }) as Negotiation | undefined || null;
   }, [currentUser, opponent.id, negotiations]);
+
+  useEffect(() => {
+    if (currentNegotiation) hadNegotiationForThisOpponentRef.current = true;
+  }, [currentNegotiation]);
+
+  /** 수락·거절·타임아웃 등으로 협상이 사라지면 모달 닫기 (신청 전에는 동작하지 않음) */
+  useEffect(() => {
+    if (!hadNegotiationForThisOpponentRef.current) return;
+    if (currentNegotiation) return;
+    onClose();
+  }, [currentNegotiation, onClose]);
   
-  // pending 또는 draft 상태인지 확인
-  const isPendingOrDraft = currentNegotiation && (currentNegotiation.status === 'pending' || currentNegotiation.status === 'draft');
+  /** 초기 신청 후 상대(수락/거절) 차례 — 서버가 proposerId를 opponent로 둠 */
   const isWaitingForResponse = currentNegotiation?.status === 'pending' && currentNegotiation?.proposerId === opponent.id;
 
   const availableGames = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
   const actionPointCost = lobbyType === 'strategic' ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
-  const myAp = currentUser?.actionPoints?.current ?? 0;
-  const oppAp = opponent.actionPoints?.current ?? 0;
-  const selfMeetsAp = !!currentUser?.isAdmin || myAp >= actionPointCost;
-  const opponentMeetsAp = !!opponent.isAdmin || oppAp >= actionPointCost;
-  
+
   // 친선전 표시 (현재 협상 시스템은 모두 친선전)
   const isCasual = true;
 
   // 상대방이 대기실에서 나갔는지 확인
+  // — 신청 후 상대는 'negotiating'이 되므로, 응답 대기 중에는 이 상태를 허용해야 모달이 바로 닫히지 않음
   useEffect(() => {
+    if (isWaitingForResponse) return;
     const currentOpponent = onlineUsers.find(u => u.id === opponent.id);
-    // 상대방이 더 이상 온라인이 아니거나, 대기 가능한 상태가 아니면 모달 닫기
-    if (!currentOpponent || (currentOpponent.status !== 'waiting' && currentOpponent.status !== 'online' && currentOpponent.status !== 'resting')) {
+    const allowed: string[] = ['waiting', 'online', 'resting'];
+    // 협상 시작 후 userStatuses와 negotiations가 따로 도착하면 한 틱 동안 상대만 negotiating으로 보일 수 있음 → 모달이 잠깐 닫히지 않도록
+    if (currentNegotiation || hadNegotiationForThisOpponentRef.current) {
+      allowed.push('negotiating');
+    }
+    if (!currentOpponent || !allowed.includes(currentOpponent.status)) {
       onClose();
     }
-  }, [onlineUsers, opponent.id, onClose]);
+  }, [onlineUsers, opponent.id, onClose, isWaitingForResponse, currentNegotiation]);
 
-    // negotiation이 종료되면 모달 닫기 (수락/거절/게임 시작/타임아웃)
-  useEffect(() => {
-    // negotiation이 사라졌거나 상태가 변경되었으면 모달 닫기
-    // negotiation이 accepted되면 게임이 시작되고 negotiation이 사라지므로,
-    // negotiation이 없어지면 모달을 닫음
-    if (!currentNegotiation && isWaitingForResponse) {
-      // negotiation이 없는데 이전에 응답을 기다리고 있었으면 종료된 것 (타임아웃 또는 수락/거절)
-      // 약간의 지연을 두고 확인하여 WebSocket 업데이트 지연을 고려
-      const timeout = setTimeout(() => {
-        // negotiations를 다시 확인
-        const negotiationsArray = Array.isArray(negotiations) ? negotiations : Object.values(negotiations || {});
-        const stillNoNegotiation = !negotiationsArray.find((n: any) => 
-          (n as Negotiation).challenger.id === currentUser?.id && 
-          (n as Negotiation).opponent.id === opponent.id && 
-          ((n as Negotiation).status === 'pending' || (n as Negotiation).status === 'draft')
-        );
-        if (stillNoNegotiation) {
-          console.log('[ChallengeSelectionModal] Negotiation disappeared, closing modal');
-          onClose();
-        }
-      }, 500);
-      return () => clearTimeout(timeout);
+  const withdrawNegotiationAndClose = useCallback(() => {
+    if (currentNegotiation?.id) {
+      handlers.handleAction({ type: 'DECLINE_NEGOTIATION', payload: { negotiationId: currentNegotiation.id } });
     }
-  }, [currentNegotiation, isWaitingForResponse, onClose, negotiations, currentUser, opponent.id]);
+    onClose();
+  }, [currentNegotiation?.id, handlers, onClose]);
+
+  /** 상대 응답 대기 중에는 X/바깥 클릭으로 닫지 않음 — 신청 취소만 허용 */
+  const handleAttemptClose = useCallback(() => {
+    if (isWaitingForResponse) return;
+    if (currentNegotiation?.status === 'draft' && currentNegotiation.id) {
+      handlers.handleAction({ type: 'DECLINE_NEGOTIATION', payload: { negotiationId: currentNegotiation.id } });
+    }
+    onClose();
+  }, [isWaitingForResponse, currentNegotiation?.status, currentNegotiation?.id, handlers, onClose]);
   
   // negotiation이 업데이트되면 selectedMode와 settings 동기화
   useEffect(() => {
@@ -243,45 +252,35 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
     return availableGames.find(game => game.mode === selectedMode) || null;
   }, [selectedMode, availableGames]);
 
-  // 30초 타임아웃 시각화
+  // 60초 응답 창 (수신 모달 ChallengeReceivedModal 과 동일, 서버 deadline 과 일치)
   const negotiationDeadline = currentNegotiation?.deadline;
-  const [timeRemaining, setTimeRemaining] = useState<number>(30);
+  const [timeRemaining, setTimeRemaining] = useState<number>(CHALLENGE_NEGOTIATION_WINDOW_SEC);
   
-  // negotiationDeadline이 변경되면 timeRemaining 업데이트
   useEffect(() => {
-    if (negotiationDeadline) {
+    if (negotiationDeadline && isWaitingForResponse) {
       const remaining = Math.max(0, Math.ceil((negotiationDeadline - Date.now()) / 1000));
-      const newTimeRemaining = Math.min(remaining, 30);
-      setTimeRemaining(newTimeRemaining);
-    } else {
-      // deadline이 없으면 30초로 초기화
-      setTimeRemaining(30);
+      setTimeRemaining(Math.min(remaining, CHALLENGE_NEGOTIATION_WINDOW_SEC));
+    } else if (!isWaitingForResponse) {
+      setTimeRemaining(CHALLENGE_NEGOTIATION_WINDOW_SEC);
     }
-  }, [negotiationDeadline]);
+  }, [negotiationDeadline, isWaitingForResponse]);
   
-  // 타이머 업데이트
   useEffect(() => {
-    if (!negotiationDeadline && !isWaitingForResponse) return;
-    
-    // deadline이 없지만 응답을 기다리는 중이면 기본 30초 타이머 시작
-    const startTime = negotiationDeadline ? negotiationDeadline : (Date.now() + 30000);
-    
-    const interval = setInterval(() => {
+    if (!isWaitingForResponse || !negotiationDeadline) return;
+    const startTime = negotiationDeadline;
+    const tick = () => {
       const remaining = Math.max(0, Math.ceil((startTime - Date.now()) / 1000));
-      const newTimeRemaining = Math.min(remaining, 30);
-      setTimeRemaining(newTimeRemaining);
-      
-      // 시간이 0초가 되면 모달 닫기
-      if (newTimeRemaining <= 0) {
-        console.log('[ChallengeSelectionModal] Time expired, closing modal');
-        onClose();
-      }
-    }, 100);
-    
+      setTimeRemaining(Math.min(remaining, CHALLENGE_NEGOTIATION_WINDOW_SEC));
+    };
+    tick();
+    const interval = setInterval(tick, 100);
     return () => clearInterval(interval);
-  }, [negotiationDeadline, isWaitingForResponse, onClose]);
+  }, [isWaitingForResponse, negotiationDeadline]);
   
-  const progressPercentage = (timeRemaining / 30) * 100;
+  const progressPercentage =
+    CHALLENGE_NEGOTIATION_WINDOW_SEC > 0
+      ? (timeRemaining / CHALLENGE_NEGOTIATION_WINDOW_SEC) * 100
+      : 0;
 
   const handleGameSelect = (mode: GameMode) => {
     setSelectedMode(mode);
@@ -769,7 +768,13 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   };
 
   return (
-    <DraggableWindow title="대국 신청" windowId="challenge-selection" onClose={onClose} initialWidth={calculatedWidth} initialHeight={calculatedHeight}>
+    <DraggableWindow
+      title="대국 신청"
+      windowId="challenge-selection"
+      onClose={handleAttemptClose}
+      initialWidth={calculatedWidth}
+      initialHeight={calculatedHeight}
+    >
       <div 
         onMouseDown={(e) => e.stopPropagation()} 
         className="h-full flex flex-col overflow-hidden"
@@ -793,99 +798,56 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 : `${opponent.nickname}님에게 대국을 신청합니다.`}
             </p>
             
-            {isWaitingForResponse && selectedGameDefinition ? (
-              <>
-                {/* 타임아웃 카운트다운 */}
-                {negotiationDeadline && (
-                  <div className="flex-shrink-0" style={{ marginBottom: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}>
-                    <div 
-                      className="bg-gray-800/50 rounded-lg border border-gray-700"
-                      style={{ padding: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
+            {isWaitingForResponse && negotiationDeadline && (
+              <div className="flex-shrink-0" style={{ marginBottom: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}>
+                <div 
+                  className="bg-gray-800/50 rounded-lg border border-gray-700"
+                  style={{ padding: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
+                >
+                  <div className="flex items-center justify-between" style={{ marginBottom: `${Math.max(6, Math.round(6 * scaleFactor))}px` }}>
+                    <span className="text-gray-400" style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor))}px` }}>
+                      응답 남은 시간
+                    </span>
+                    <span 
+                      className={`font-bold ${timeRemaining <= 5 ? 'text-red-400' : timeRemaining <= 10 ? 'text-yellow-400' : 'text-green-400'}`}
+                      style={{ fontSize: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}
                     >
-                      <div className="flex items-center justify-between" style={{ marginBottom: `${Math.max(6, Math.round(6 * scaleFactor))}px` }}>
-                        <span className="text-gray-400" style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor))}px` }}>
-                          응답 남은 시간
-                        </span>
-                        <span 
-                          className={`font-bold ${timeRemaining <= 5 ? 'text-red-400' : timeRemaining <= 10 ? 'text-yellow-400' : 'text-green-400'}`}
-                          style={{ fontSize: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}
-                        >
-                          {timeRemaining}초
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full overflow-hidden" style={{ height: `${Math.max(8, Math.round(12 * scaleFactor))}px` }}>
-                        <div 
-                          className={`h-full transition-all duration-100 ${timeRemaining <= 5 ? 'bg-red-500' : timeRemaining <= 10 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                          style={{ width: `${progressPercentage}%` }}
-                        />
-                      </div>
-                    </div>
+                      {timeRemaining}초
+                    </span>
                   </div>
-                )}
-                
-                {/* 게임 이미지 */}
-                <div className="flex-shrink-0" style={{ marginBottom: `${Math.max(10, Math.round(14 * scaleFactor))}px` }}>
-                  <div 
-                    className="w-full bg-tertiary rounded-lg flex items-center justify-center overflow-hidden shadow-inner relative"
-                    style={{ height: `${Math.max(120, Math.round(160 * scaleFactor))}px` }}
-                  >
-                    <img 
-                      src={selectedGameDefinition.image} 
-                      alt={selectedMode || ''} 
-                      className="w-full h-full object-contain"
+                  <div className="w-full bg-gray-700 rounded-full overflow-hidden" style={{ height: `${Math.max(8, Math.round(12 * scaleFactor))}px` }}>
+                    <div 
+                      className={`h-full transition-all duration-100 ${timeRemaining <= 5 ? 'bg-red-500' : timeRemaining <= 10 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                      style={{ width: `${progressPercentage}%` }}
                     />
                   </div>
-                  <h3 
-                    className="text-center font-bold text-primary mt-2"
-                    style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor))}px` }}
-                  >
-                    {selectedMode}
-                  </h3>
                 </div>
-                
-                {/* 게임 설명 */}
-                <div className="flex-grow overflow-y-auto" style={{ paddingRight: `${Math.max(4, Math.round(8 * scaleFactor))}px` }}>
-                  <h4 
-                    className="font-semibold text-gray-300"
-                    style={{ 
-                      marginBottom: `${Math.max(8, Math.round(12 * scaleFactor))}px`,
-                      fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`
-                    }}
-                  >
-                    게임 설명
-                  </h4>
-                  <p 
-                    className="text-tertiary leading-relaxed"
-                    style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px` }}
-                  >
-                    {selectedGameDefinition.description || '선택된 게임에 대한 설명이 없습니다.'}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div 
-                className="flex-1 grid grid-cols-2 overflow-y-auto min-h-0"
-                style={{ 
-                  gap: `${Math.max(6, Math.round(12 * scaleFactor))}px`,
-                  paddingRight: `${Math.max(4, Math.round(8 * scaleFactor))}px`
-                }}
-              >
-                {availableGames.map((game) => {
-                  const isRejected = opponent.rejectedGameModes?.includes(game.mode) || false;
-                  return (
-                    <GameCard
-                      key={game.mode}
-                      mode={game.mode}
-                      image={game.image}
-                      onSelect={handleGameSelect}
-                      isSelected={selectedMode === game.mode}
-                      isRejected={isRejected}
-                      scaleFactor={scaleFactor}
-                    />
-                  );
-                })}
               </div>
             )}
+
+            <div 
+              className="flex-1 grid grid-cols-2 overflow-y-auto min-h-0"
+              style={{ 
+                gap: `${Math.max(6, Math.round(12 * scaleFactor))}px`,
+                paddingRight: `${Math.max(4, Math.round(8 * scaleFactor))}px`
+              }}
+            >
+              {availableGames.map((game) => {
+                const isRejected = opponent.rejectedGameModes?.includes(game.mode) || false;
+                return (
+                  <GameCard
+                    key={game.mode}
+                    mode={game.mode}
+                    image={game.image}
+                    onSelect={handleGameSelect}
+                    isSelected={selectedMode === game.mode}
+                    isRejected={isRejected}
+                    scaleFactor={scaleFactor}
+                    interactionLocked={isWaitingForResponse}
+                  />
+                );
+              })}
+            </div>
           </div>
 
           {/* 우측 패널: 프로필 + 전적 + 협상 설정 */}
@@ -974,8 +936,8 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               )}
             </div>
 
-            {/* 협상 설정 */}
-            <div className="flex-1 min-h-0 overflow-hidden">
+            {/* 협상 설정 — 신청 작성 중에도 스크롤 가능해야 제한시간 아래 초읽기 등이 보임 (overflow-hidden만 있으면 잘림) */}
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <h4 
                 className="font-semibold text-gray-300 flex-shrink-0"
                 style={{ 
@@ -985,78 +947,16 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               >
                 대국 설정
               </h4>
-              {isWaitingForResponse ? (
-                <div 
-                  className="overflow-y-auto"
-                  style={{ 
-                    gap: `${Math.max(8, Math.round(12 * scaleFactor))}px`,
-                    paddingRight: `${Math.max(8, Math.round(8 * scaleFactor))}px`
-                  }}
-                >
-                  {renderGameSettings()}
-                </div>
-              ) : (
-                renderGameSettings()
-              )}
-            </div>
-
-            {!isWaitingForResponse && (
               <div
-                className="flex-shrink-0 space-y-2"
-                style={{ marginTop: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}
+                className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+                style={{
+                  gap: `${Math.max(8, Math.round(12 * scaleFactor))}px`,
+                  paddingRight: `${Math.max(8, Math.round(8 * scaleFactor))}px`,
+                }}
               >
-                {!selfMeetsAp && currentUser && (
-                  <div
-                    className="rounded-lg border border-amber-600/45 bg-amber-900/35 text-amber-100"
-                    style={{ padding: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
-                  >
-                    <p
-                      className="font-semibold text-center"
-                      style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px` }}
-                    >
-                      {SELF_INSUFFICIENT_AP_HEADING}
-                    </p>
-                    <p
-                      className="text-center text-amber-200/95 mt-1"
-                      style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor))}px` }}
-                    >
-                      {formatMatchActionPointsLine(actionPointCost, myAp)}
-                    </p>
-                    <p
-                      className="text-center text-amber-200/80 mt-1"
-                      style={{ fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
-                    >
-                      행동력을 충전한 뒤 다시 시도해 주세요.
-                    </p>
-                  </div>
-                )}
-                {!opponentMeetsAp && (
-                  <div
-                    className="rounded-lg border border-orange-700/50 bg-orange-950/40 text-orange-100"
-                    style={{ padding: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
-                  >
-                    <p
-                      className="font-semibold text-center"
-                      style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px` }}
-                    >
-                      {OPPONENT_INSUFFICIENT_AP_INLINE_HEADING}
-                    </p>
-                    <p
-                      className="text-center text-orange-200/95 mt-1"
-                      style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor))}px` }}
-                    >
-                      {formatMatchActionPointsLine(actionPointCost, oppAp)}
-                    </p>
-                    <p
-                      className="text-center text-orange-200/80 mt-1"
-                      style={{ fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px` }}
-                    >
-                      상대가 충전한 뒤 다시 신청해 주세요.
-                    </p>
-                  </div>
-                )}
+                {renderGameSettings()}
               </div>
-            )}
+            </div>
 
             {/* 하단 버튼 */}
             <div 
@@ -1067,39 +967,54 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 gap: `${Math.max(8, Math.round(12 * scaleFactor))}px`
               }}
             >
-              <Button 
-                onClick={onClose} 
-                className="!text-sm"
-                style={{ 
-                  fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`,
-                  padding: `${Math.max(6, Math.round(8 * scaleFactor))}px ${Math.max(12, Math.round(16 * scaleFactor))}px`
-                }}
-              >
-                취소
-              </Button>
               {isWaitingForResponse ? (
-                <Button 
-                  disabled
-                  className="!text-sm"
-                  style={{ 
-                    fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`,
-                    padding: `${Math.max(6, Math.round(8 * scaleFactor))}px ${Math.max(12, Math.round(16 * scaleFactor))}px`
-                  }}
-                >
-                  응답 대기 중...
-                </Button>
+                <>
+                  <Button
+                    onClick={withdrawNegotiationAndClose}
+                    colorScheme="red"
+                    className="!text-sm"
+                    style={{ 
+                      fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`,
+                      padding: `${Math.max(6, Math.round(8 * scaleFactor))}px ${Math.max(12, Math.round(16 * scaleFactor))}px`
+                    }}
+                  >
+                    신청 취소
+                  </Button>
+                  <Button
+                    disabled
+                    className="!text-sm opacity-70 cursor-not-allowed"
+                    style={{ 
+                      fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`,
+                      padding: `${Math.max(6, Math.round(8 * scaleFactor))}px ${Math.max(12, Math.round(16 * scaleFactor))}px`
+                    }}
+                  >
+                    신청 중
+                  </Button>
+                </>
               ) : (
-                <Button 
-                  onClick={handleChallenge} 
-                  disabled={!selectedMode || !selfMeetsAp || !opponentMeetsAp}
-                  className="!text-sm"
-                  style={{ 
-                    fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`,
-                    padding: `${Math.max(6, Math.round(8 * scaleFactor))}px ${Math.max(12, Math.round(16 * scaleFactor))}px`
-                  }}
-                >
-                  대국 신청 (⚡{actionPointCost})
-                </Button>
+                <>
+                  <Button 
+                    onClick={handleAttemptClose} 
+                    className="!text-sm"
+                    style={{ 
+                      fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`,
+                      padding: `${Math.max(6, Math.round(8 * scaleFactor))}px ${Math.max(12, Math.round(16 * scaleFactor))}px`
+                    }}
+                  >
+                    취소
+                  </Button>
+                  <Button 
+                    onClick={handleChallenge} 
+                    disabled={!selectedMode}
+                    className="!text-sm"
+                    style={{ 
+                      fontSize: `${Math.max(11, Math.round(14 * scaleFactor))}px`,
+                      padding: `${Math.max(6, Math.round(8 * scaleFactor))}px ${Math.max(12, Math.round(16 * scaleFactor))}px`
+                    }}
+                  >
+                    대국 신청 (⚡{actionPointCost})
+                  </Button>
+                </>
               )}
             </div>
           </div>
