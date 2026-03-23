@@ -156,7 +156,7 @@ export type ServerAction =
     | { type: 'CONFIRM_CAPTURE_REVEAL', payload: { gameId: string } }
     // Base Go
     | { type: 'PLACE_BASE_STONE', payload: { gameId: string; x: number; y: number } }
-    | { type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload?: never }
+    | { type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId: string } }
     | { type: 'UPDATE_KOMI_BID', payload: { gameId: string, bid: KomiBid } }
     | { type: 'CONFIRM_BASE_REVEAL', payload: { gameId: string } }
     // Hidden Go

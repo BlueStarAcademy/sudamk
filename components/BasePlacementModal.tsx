@@ -42,7 +42,7 @@ const BasePlacementModal: React.FC<BasePlacementModalProps> = ({ session, curren
                 
                 {!isDonePlacing && (
                     <Button 
-                        onClick={() => onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY' })}
+                        onClick={() => onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId: session.id } })}
                         colorScheme="yellow"
                         className="w-full mt-4 !text-sm !py-2"
                     >

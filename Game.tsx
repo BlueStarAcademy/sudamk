@@ -143,6 +143,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevAnimationType = usePrevious(session.animation?.type);
     const warningSoundPlayedForTurn = useRef(false);
     const prevMoveCount = usePrevious(session.moveHistory?.length);
+    const myBaseStoneCountForUnlock = useMemo(() => {
+        if (gameStatus !== 'base_placement') return undefined;
+        const stones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
+        return stones?.length ?? 0;
+    }, [gameStatus, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2]);
+    const prevMyBaseStoneCountForUnlock = usePrevious(myBaseStoneCountForUnlock);
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
     const isSinglePlayer = session.isSinglePlayer;
     const isTower = session.gameCategory === 'tower';
@@ -329,7 +335,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         'hidden_final_reveal',
                         'missile_selecting',
                     ];
-                    if (storedItemModeRecoveryStatuses.includes(parsed.gameStatus) && !storedItemModeRecoveryStatuses.includes(next.gameStatus)) {
+                    // sessionStorage는 useEffect보다 한 틱 늦게 갱신될 수 있음. 서버/세션이 이미 playing·스캔 연출 종료 등으로
+                    // 앞서 나간 경우 저장된 scanning 등으로 덮으면 스캔 후 본경기로 복귀하지 못한다.
+                    const serverDismissesStoredItemModeRecovery = [
+                        'playing',
+                        'scanning_animating',
+                        'missile_animating',
+                        'hidden_reveal_animating',
+                        'hidden_final_reveal',
+                        'scoring',
+                        'ended',
+                        'no_contest',
+                    ].includes(next.gameStatus);
+                    if (
+                        !serverDismissesStoredItemModeRecovery &&
+                        storedItemModeRecoveryStatuses.includes(parsed.gameStatus) &&
+                        !storedItemModeRecoveryStatuses.includes(next.gameStatus)
+                    ) {
                         next = {
                             ...next,
                             gameStatus: parsed.gameStatus,
@@ -596,6 +618,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return () => window.clearTimeout(id);
     }, [session.gameStatus, session.revealAnimationEndTime, session.pendingCapture, session.id, isSinglePlayer, isTower, handlers.handleAction]);
 
+    // 싱글/타워: 스캔 결과 애니메이션 종료 시 본경기(playing) 복귀 — 서버 updateGameStates/WS가 늦어도 착수 가능하도록
+    useEffect(() => {
+        if (!(isSinglePlayer || isTower)) return;
+        if (session.gameStatus !== 'scanning_animating') return;
+        const anim = session.animation as { type?: string; startTime?: number; duration?: number } | null | undefined;
+        const finish = () => {
+            handlers.handleAction({
+                type: 'LOCAL_PVE_SCAN_ANIMATION_COMPLETE',
+                payload: { gameId: session.id, gameType: isTower ? 'tower' : 'singleplayer' },
+            } as any);
+        };
+        if (!anim || anim.type !== 'scan') {
+            const id = window.setTimeout(finish, 50);
+            return () => window.clearTimeout(id);
+        }
+        const end = (anim.startTime ?? 0) + (anim.duration ?? 2000);
+        const remaining = Math.max(0, end - Date.now());
+        const id = window.setTimeout(finish, remaining + 50);
+        return () => window.clearTimeout(id);
+    }, [isSinglePlayer, isTower, session.id, session.gameStatus, session.animation, handlers.handleAction]);
+
     // 계가 턴 히든 공개(hidden_final_reveal) 애니메이션 종료 시 로컬에서 즉시 scoring으로 전환 → 계가 연출(ScoringOverlay) 표시
     useEffect(() => {
         if (!(isSinglePlayer || isTower)) return;
@@ -710,10 +753,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const currentMoveCount = session.moveHistory?.length ?? 0;
         const moveIncreased = prevMoveCount !== undefined && currentMoveCount > prevMoveCount;
         const statusChanged = prevGameStatus !== undefined && prevGameStatus !== gameStatus;
-        if (moveIncreased || statusChanged) {
+        // 베이스돌 배치: moveHistory/phase가 안 바뀌어도 서버가 baseStones_p1/p2를 갱신하므로 그때 잠금 해제
+        const basePlacementAck =
+            gameStatus === 'base_placement' &&
+            myBaseStoneCountForUnlock !== undefined &&
+            prevMyBaseStoneCountForUnlock !== undefined &&
+            myBaseStoneCountForUnlock > prevMyBaseStoneCountForUnlock;
+        if (moveIncreased || statusChanged || basePlacementAck) {
             setIsMoveInFlight(false);
         }
-    }, [isMoveInFlight, session.moveHistory?.length, prevMoveCount, gameStatus, prevGameStatus]);
+    }, [isMoveInFlight, session.moveHistory?.length, prevMoveCount, gameStatus, prevGameStatus, myBaseStoneCountForUnlock, prevMyBaseStoneCountForUnlock]);
 
 
     const isItemModeActive = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(gameStatus);

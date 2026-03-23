@@ -32,12 +32,18 @@ const GTP_GENMOVE_TIMEOUT_MS = Math.max(10000, parseInt(process.env.GNUGO_GENMOV
 // 반드시 GNUGO_API_URL을 명시적으로 설정하는 것을 권장합니다.
 const IS_LOCAL = process.env.NODE_ENV !== 'production';
 let GNUGO_API_URL: string | undefined = process.env.GNUGO_API_URL?.trim();
+const GNUGO_API_TIMEOUT_MS = Math.max(3000, parseInt(process.env.GNUGO_API_TIMEOUT_MS || '12000', 10));
+const GNUGO_API_RETRY_COUNT = Math.max(0, parseInt(process.env.GNUGO_API_RETRY_COUNT || '1', 10));
+const GNUGO_API_FAILURE_COOLDOWN_MS = Math.max(5000, parseInt(process.env.GNUGO_API_FAILURE_COOLDOWN_MS || '30000', 10));
+const GNUGO_API_FAILURE_THRESHOLD = Math.max(1, parseInt(process.env.GNUGO_API_FAILURE_THRESHOLD || '3', 10));
 
 // 프로토콜이 없으면 자동으로 https:// 추가
 if (GNUGO_API_URL && !GNUGO_API_URL.match(/^https?:\/\//)) {
     GNUGO_API_URL = `https://${GNUGO_API_URL}`;
 }
 const USE_HTTP_API = !!GNUGO_API_URL && GNUGO_API_URL.trim() !== '';
+let httpApiConsecutiveFailures = 0;
+let httpApiDisabledUntil = 0;
 
 /** 동시에 처리할 GnuGo 프로세스 수. 2 이상이면 풀 사용, 동시 요청이 느려지지 않음. */
 const GNUGO_POOL_SIZE = Math.max(1, parseInt(process.env.GNUGO_POOL_SIZE || '4', 10));
@@ -331,7 +337,7 @@ async function generateGnuGoMoveViaHttp(request: GenerateMoveRequest, apiUrl?: s
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(requestData)
             },
-            timeout: 5000
+            timeout: GNUGO_API_TIMEOUT_MS
         };
         
         const req = httpModule.request(options, (res) => {
@@ -388,17 +394,35 @@ export async function generateGnuGoMove(request: GenerateMoveRequest): Promise<P
     
     // Try HTTP API first if available
     if (USE_HTTP_API && GNUGO_API_URL) {
-        try {
-            console.log(`[GnuGo Service] Using HTTP API: ${GNUGO_API_URL}`);
-            return await generateGnuGoMoveViaHttp(request);
-        } catch (error: any) {
-            const msg = error?.message || String(error);
-            console.warn('[GnuGo Service] HTTP API failed:', msg);
-            if (msg.includes('ECONNREFUSED') || msg.includes('timeout') || msg.includes('ENOTFOUND')) {
-                console.warn('[GnuGo Service] GnuGo 서비스 연결 실패. GNUGO_API_URL 확인: ' + (GNUGO_API_URL ? '설정됨' : '미설정'));
+        const now = Date.now();
+        if (now < httpApiDisabledUntil) {
+            const remaining = httpApiDisabledUntil - now;
+            console.warn(`[GnuGo Service] HTTP API temporarily disabled (${remaining}ms left) after repeated failures`);
+        } else {
+            for (let attempt = 0; attempt <= GNUGO_API_RETRY_COUNT; attempt++) {
+                try {
+                    console.log(`[GnuGo Service] Using HTTP API: ${GNUGO_API_URL} (attempt ${attempt + 1}/${GNUGO_API_RETRY_COUNT + 1}, timeout=${GNUGO_API_TIMEOUT_MS}ms)`);
+                    const move = await generateGnuGoMoveViaHttp(request);
+                    httpApiConsecutiveFailures = 0;
+                    httpApiDisabledUntil = 0;
+                    return move;
+                } catch (error: any) {
+                    const msg = error?.message || String(error);
+                    console.warn(`[GnuGo Service] HTTP API failed (attempt ${attempt + 1}):`, msg);
+                    const isConnectionIssue = msg.includes('ECONNREFUSED') || msg.includes('timeout') || msg.includes('ENOTFOUND') || msg.includes('EAI_AGAIN') || msg.includes('socket hang up');
+                    if (attempt < GNUGO_API_RETRY_COUNT) continue;
+                    httpApiConsecutiveFailures += 1;
+                    if (isConnectionIssue && httpApiConsecutiveFailures >= GNUGO_API_FAILURE_THRESHOLD) {
+                        httpApiDisabledUntil = Date.now() + GNUGO_API_FAILURE_COOLDOWN_MS;
+                        console.warn(`[GnuGo Service] Connection failures ${httpApiConsecutiveFailures}회 누적. ${GNUGO_API_FAILURE_COOLDOWN_MS}ms 동안 HTTP API 호출을 중단합니다.`);
+                    }
+                    if (isConnectionIssue) {
+                        console.warn('[GnuGo Service] GnuGo 서비스 연결 실패. GNUGO_API_URL 확인: ' + (GNUGO_API_URL ? '설정됨' : '미설정'));
+                    }
+                }
             }
-            // Fall through to local process (로컬 없으면 goAiBot fallback으로 전달)
         }
+        // Fall through to local process (로컬 없으면 goAiBot fallback으로 전달)
     }
     
     // Use local process pool
@@ -451,6 +475,9 @@ export function isGnuGoAvailable(): boolean {
 /** 전략바둑/싱글플레이에서 GnuGo 사용 가능 여부 요약 (로그·디버깅용) */
 export function getGnuGoStatusSummary(): { available: boolean; reason: string } {
     if (USE_HTTP_API && GNUGO_API_URL) {
+        if (Date.now() < httpApiDisabledUntil) {
+            return { available: true, reason: `HTTP API 일시 중단 중 (${Math.ceil((httpApiDisabledUntil - Date.now()) / 1000)}s 남음), 이후 재시도: ${GNUGO_API_URL}` };
+        }
         return { available: true, reason: `HTTP API 사용: ${GNUGO_API_URL}` };
     }
     if (gnuGoManager.isReady && processPool.length > 0) {
