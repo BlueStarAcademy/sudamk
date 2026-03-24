@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { GameMode, ServerAction, GameSettings, Player, AlkkagiPlacementType } from '../../types.js';
@@ -23,9 +23,10 @@ interface AiChallengeModalProps {
 const GameCard: React.FC<{ 
     mode: GameMode, 
     image: string, 
+    displayName: string,
     onSelect: (mode: GameMode) => void,
     isSelected: boolean,
-}> = ({ mode, image, onSelect, isSelected }) => {
+}> = ({ mode, image, displayName, onSelect, isSelected }) => {
     const [imgError, setImgError] = useState(false);
 
     return (
@@ -45,12 +46,12 @@ const GameCard: React.FC<{
                 {!imgError ? (
                     <img 
                         src={image} 
-                        alt={mode} 
+                        alt={displayName} 
                         className="w-full h-full object-contain"
                         onError={() => setImgError(true)} 
                     />
                 ) : (
-                    <span style={{ fontSize: '10px' }}>{mode}</span>
+                    <span style={{ fontSize: '10px' }}>{displayName}</span>
                 )}
             </div>
             <div className="flex-grow flex flex-col w-full">
@@ -58,7 +59,7 @@ const GameCard: React.FC<{
                     className="font-bold leading-tight text-primary"
                     style={{ fontSize: '11px', marginBottom: '2px' }}
                 >
-                    {mode}
+                    {displayName}
                 </h3>
             </div>
         </div>
@@ -69,6 +70,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
     const availableGameModes = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(availableGameModes[0]?.mode || null);
     const [settings, setSettings] = useState<GameSettings>(DEFAULT_GAME_SETTINGS);
+    const prevSelectedGameModeRef = useRef<GameMode | null>(null);
 
     const actionPointCost = useMemo(() => {
         if (!selectedGameMode) return STRATEGIC_ACTION_POINT_COST;
@@ -101,6 +103,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                         parsed.alkkagiSlowItemCount = parsed.alkkagiItemCount;
                         parsed.alkkagiAimingLineItemCount = parsed.alkkagiItemCount;
                     }
+                    if (parsed.mixedModes && parsed.mixedModes.includes(GameMode.Base) && parsed.mixedModes.includes(GameMode.Capture)) {
+                        parsed.mixedModes = parsed.mixedModes.filter((m: GameMode) => m !== GameMode.Base);
+                    }
                     setSettings({ ...DEFAULT_GAME_SETTINGS, ...parsed });
                 } catch {
                     setSettings({ ...DEFAULT_GAME_SETTINGS });
@@ -114,6 +119,29 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
     const handleSettingChange = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
         setSettings(prev => {
             const newSettings = { ...prev, [key]: value };
+            if (newSettings.mixedModes) {
+                const isBaseSelected = newSettings.mixedModes.includes(GameMode.Base);
+                const isCaptureSelected = newSettings.mixedModes.includes(GameMode.Capture);
+                if (isBaseSelected && isCaptureSelected) {
+                    newSettings.mixedModes = newSettings.mixedModes.filter(m => m !== GameMode.Base);
+                }
+            }
+            if (selectedGameMode) {
+                localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(newSettings));
+            }
+            return newSettings;
+        });
+    };
+
+    const handleMixedModeChange = (subMode: GameMode, checked: boolean) => {
+        setSettings(prev => {
+            let nextMixed = checked
+                ? [...(prev.mixedModes || []), subMode]
+                : (prev.mixedModes || []).filter(m => m !== subMode);
+            if (nextMixed.includes(GameMode.Base) && nextMixed.includes(GameMode.Capture)) {
+                nextMixed = nextMixed.filter(m => m !== GameMode.Base);
+            }
+            const newSettings = { ...prev, mixedModes: nextMixed };
             if (selectedGameMode) {
                 localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(newSettings));
             }
@@ -126,8 +154,35 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         if (lobbyType === 'strategic') loadWasmGnuGo().catch(() => {});
     }, [lobbyType]);
 
+    // 믹스로 전환 시 mixedModes가 비어 있으면 PVP 기본과 같이 유효한 조합을 채움 (신청 화면에서 규칙 선택이 보이도록)
+    useEffect(() => {
+        if (selectedGameMode !== GameMode.Mix) {
+            prevSelectedGameModeRef.current = selectedGameMode;
+            return;
+        }
+        const justEnteredMix = prevSelectedGameModeRef.current !== GameMode.Mix;
+        prevSelectedGameModeRef.current = selectedGameMode;
+        if (!justEnteredMix) return;
+
+        setSettings(prev => {
+            if (prev.mixedModes && prev.mixedModes.length >= 2) return prev;
+            const defaults = DEFAULT_GAME_SETTINGS.mixedModes?.filter(Boolean) ?? [];
+            const nextMixed =
+                prev.mixedModes && prev.mixedModes.length === 1
+                    ? [...prev.mixedModes, defaults.find(m => !prev.mixedModes!.includes(m)) ?? GameMode.Hidden]
+                    : (defaults.length >= 2 ? defaults : [GameMode.Hidden, GameMode.Speed]);
+            const next = { ...prev, mixedModes: nextMixed };
+            localStorage.setItem(`preferredGameSettings_${GameMode.Mix}`, JSON.stringify(next));
+            return next;
+        });
+    }, [selectedGameMode]);
+
     const handleChallenge = () => {
         if (selectedGameMode) {
+            if (selectedGameMode === GameMode.Mix && (!settings.mixedModes || settings.mixedModes.length < 2)) {
+                window.alert('믹스룰은 규칙을 2개 이상 선택해야 합니다.');
+                return;
+            }
             // Gnugo 대체 엔진(lightGoAi)을 브라우저에서 실행해 서버 부하를 줄임.
             // 바둑(착수) 모드만 클라이언트 AI 사용. 놀이바둑은 서버만 사용.
             const goModes: GameMode[] = [
@@ -189,6 +244,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         const showBaseStones = selectedGameMode === GameMode.Base;
         const showHiddenStones = selectedGameMode === GameMode.Hidden;
         const showMissileCount = selectedGameMode === GameMode.Missile;
+        const showMixModeSelection = selectedGameMode === GameMode.Mix;
         const showDiceGoSettings = selectedGameMode === GameMode.Dice;
         const showAlkkagiSettings = selectedGameMode === GameMode.Alkkagi;
         const showCurlingSettings = selectedGameMode === GameMode.Curling;
@@ -235,6 +291,114 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                         </select>
                     </div>
                 )}
+
+                {showMixModeSelection && (() => {
+                    const isBaseSelected = settings.mixedModes?.includes(GameMode.Base);
+                    const isCaptureSelected = settings.mixedModes?.includes(GameMode.Capture);
+                    return (
+                        <div className="w-full border-t border-gray-700 pt-3 mt-1 space-y-3">
+                            <div>
+                                <h3 className="font-semibold text-gray-300 mb-1" style={{ fontSize: `${Math.max(11, Math.round(13 * mobileTextScale))}px` }}>
+                                    믹스룰 조합 (2개 이상 선택)
+                                </h3>
+                                <p className="text-gray-500 text-xs leading-snug">
+                                    PVP 신청 화면과 같이, 함께 적용할 규칙을 고릅니다. (클래식 바둑은 기본으로 포함됩니다.)
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                {SPECIAL_GAME_MODES.filter(m => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map(m => {
+                                    const isDisabledByConflict =
+                                        (m.mode === GameMode.Base && isCaptureSelected) ||
+                                        (m.mode === GameMode.Capture && isBaseSelected);
+                                    return (
+                                        <label
+                                            key={m.mode}
+                                            className={`flex items-center gap-2 p-2 bg-gray-700/50 rounded-md text-gray-200 ${isDisabledByConflict ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                            style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.mixedModes?.includes(m.mode) ?? false}
+                                                onChange={e => handleMixedModeChange(m.mode, e.target.checked)}
+                                                disabled={isDisabledByConflict}
+                                                className="w-4 h-4 flex-shrink-0"
+                                            />
+                                            <span className="leading-tight">{m.name}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            {settings.mixedModes?.includes(GameMode.Base) && (
+                                <div className="grid grid-cols-2 gap-2 items-center">
+                                    <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>베이스돌 개수</label>
+                                    <select
+                                        value={settings.baseStones}
+                                        onChange={e => handleSettingChange('baseStones', parseInt(e.target.value, 10))}
+                                        className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                                        style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                                    >
+                                        {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            {settings.mixedModes?.includes(GameMode.Hidden) && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-2 items-center">
+                                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>히든돌 개수</label>
+                                        <select
+                                            value={settings.hiddenStoneCount}
+                                            onChange={e => handleSettingChange('hiddenStoneCount', parseInt(e.target.value, 10))}
+                                            className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                                            style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                                        >
+                                            {HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 items-center">
+                                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>스캔 개수</label>
+                                        <select
+                                            value={settings.scanCount ?? 5}
+                                            onChange={e => handleSettingChange('scanCount', parseInt(e.target.value, 10))}
+                                            className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                                            style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                                        >
+                                            {SCAN_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+                            {settings.mixedModes?.includes(GameMode.Missile) && (
+                                <div className="grid grid-cols-2 gap-2 items-center">
+                                    <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>미사일 개수</label>
+                                    <select
+                                        value={settings.missileCount ?? 3}
+                                        onChange={e => handleSettingChange('missileCount', parseInt(e.target.value, 10))}
+                                        className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                                        style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                                    >
+                                        {MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            {settings.mixedModes?.includes(GameMode.Capture) && (
+                                <div className="grid grid-cols-2 gap-2 items-center">
+                                    <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>따내기 목표</label>
+                                    <select
+                                        value={settings.captureTarget}
+                                        onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value, 10))}
+                                        className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                                        style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                                    >
+                                        {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            {settings.mixedModes && settings.mixedModes.length < 2 && (
+                                <p className="text-amber-300/90 text-xs">규칙을 2개 이상 선택해 주세요.</p>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {showBoardSize && (
                     <div className="grid grid-cols-2 gap-2 items-center">
@@ -662,6 +826,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                                 key={game.mode}
                                 mode={game.mode}
                                 image={game.image}
+                                displayName={game.name ?? String(game.mode)}
                                 onSelect={setSelectedGameMode}
                                 isSelected={selectedGameMode === game.mode}
                             />

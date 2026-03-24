@@ -2,7 +2,97 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
-import { GuildWar as GuildWarType, User } from '../../types/index.js';
+import { GuildWar as GuildWarType } from '../../types/index.js';
+import { replaceAppHash } from '../../utils/appUtils.js';
+import {
+    BLACK_BASE_STONE_IMG,
+    WHITE_BASE_STONE_IMG,
+    BLACK_HIDDEN_STONE_IMG,
+} from '../../assets.js';
+import {
+    getGuildWarStarConditionLines,
+    GUILD_WAR_PERSONAL_DAILY_ATTEMPTS,
+    GUILD_WAR_HIDDEN_STONE_COUNT,
+    GUILD_WAR_SCAN_COUNT,
+    GUILD_WAR_MISSILE_COUNT,
+    AVATAR_POOL,
+    ADMIN_USER_ID,
+} from '../../constants/index.js';
+import { getTodayKSTDateString } from '../../utils/timeUtils.js';
+
+const GUILD_WAR_PERSONAL_DAILY_LIMIT = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
+
+const GUILD_WAR_TICKET_IMG = '/images/guild/warticket.png';
+const GUILD_WAR_BOARD_IMG = '/images/guild/guildwar/board.png';
+const GUILD_WAR_BLUE_FLAG = '/images/guild/guildwar/blueflag.png';
+const GUILD_WAR_RED_FLAG = '/images/guild/guildwar/redflag.png';
+const GUILD_WAR_STAR_IMG = '/images/guild/guildwar/clearstar.png';
+const GUILD_WAR_EMPTY_STAR_IMG = '/images/guild/guildwar/emptystar.png';
+const GUILD_WAR_MISSILE_ICON = '/images/button/missile.png';
+const GUILD_WAR_HIDDEN_ICON = '/images/button/hidden.png';
+const GUILD_WAR_SCAN_ICON = '/images/button/scan.png';
+const GUILD_WAR_CAPTURE_TURN_LIMIT = 15;
+const GUILD_WAR_AUTO_SCORING_TURN_LIMIT = 60;
+const GUILD_WAR_BOARD_ORDER = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'] as const;
+const getGuildWarBoardMode = (boardId: string): 'capture' | 'hidden' | 'missile' => {
+    if (boardId === 'top-left' || boardId === 'top-mid' || boardId === 'top-right') return 'capture';
+    if (boardId === 'mid-left' || boardId === 'center' || boardId === 'mid-right') return 'missile';
+    return 'hidden';
+};
+
+type InitialStoneCounts = {
+    blackPlain: number;
+    whitePlain: number;
+    blackMarked: number;
+    whiteMarked: number;
+};
+
+function parseInitialStoneCounts(board: any): InitialStoneCounts {
+    const raw = board?.initialStones?.[0] ?? board?.initialStones;
+    if (!raw || typeof raw !== 'object') {
+        return { blackPlain: 0, whitePlain: 0, blackMarked: 0, whiteMarked: 0 };
+    }
+    const hasSplit =
+        'blackPlain' in raw ||
+        'blackMarked' in raw ||
+        'whitePlain' in raw ||
+        'whiteMarked' in raw;
+    if (hasSplit) {
+        return {
+            blackPlain: Number(raw.blackPlain ?? 0) || 0,
+            whitePlain: Number(raw.whitePlain ?? 0) || 0,
+            blackMarked: Number(raw.blackMarked ?? 0) || 0,
+            whiteMarked: Number(raw.whiteMarked ?? 0) || 0,
+        };
+    }
+    return {
+        blackPlain: Number(raw.black ?? 0) || 0,
+        whitePlain: Number(raw.white ?? 0) || 0,
+        blackMarked: 0,
+        whiteMarked: 0,
+    };
+}
+
+const PlainBlackStoneIcon: React.FC<{ className?: string }> = ({ className = 'w-7 h-7' }) => (
+    <svg className={`${className} shrink-0 drop-shadow-md`} viewBox="0 0 32 32" aria-hidden>
+        <circle cx="16" cy="16" r="13" fill="#0f172a" stroke="rgba(255,255,255,0.14)" strokeWidth="1" />
+    </svg>
+);
+
+const PlainWhiteStoneIcon: React.FC<{ className?: string }> = ({ className = 'w-7 h-7' }) => (
+    <svg className={`${className} shrink-0 drop-shadow-md`} viewBox="0 0 32 32" aria-hidden>
+        <circle cx="16" cy="16" r="13" fill="#f8f6f0" stroke="rgba(0,0,0,0.2)" strokeWidth="1" />
+    </svg>
+);
+
+/** /api/action 응답은 { success, ...clientResponse }로 평탄화되어 최상위에 필드가 올 수 있음 */
+function readGuildWarApiResult(result: any) {
+    const war = result?.activeWar ?? result?.clientResponse?.activeWar;
+    const guildsData = result?.guilds ?? result?.clientResponse?.guilds ?? {};
+    const guildWarTicketSummary =
+        result?.guildWarTicketSummary ?? result?.clientResponse?.guildWarTicketSummary ?? null;
+    return { war, guildsData, guildWarTicketSummary };
+}
 
 interface Board {
     id: string;
@@ -13,8 +103,20 @@ interface Board {
     highestScorer?: string;
     scoreDiff?: number;
     initialStones?: { black: number; white: number };
-    ownerGuildId?: string; // 점령한 길드 ID
+    initialStoneCounts: InitialStoneCounts;
+    ownerGuildId?: string;
     gameMode?: 'capture' | 'hidden' | 'missile';
+    /** 점령 길드 소속 기록 보유자 닉네임 */
+    occupierNickname?: string;
+    occupierAvatarUrl?: string;
+    occupierLevel?: number;
+    occupierCaptures?: number;
+    occupierScoreDiff?: number;
+    occupierIsMyGuild?: boolean;
+    /** 이 바둑판에서 우리 길드가 도전한 총 횟수 */
+    myGuildBoardAttempts?: number;
+    /** 이 바둑판에서 상대 길드가 도전한 총 횟수 */
+    opponentGuildBoardAttempts?: number;
 }
 
 const GuildWar = () => {
@@ -24,12 +126,18 @@ const GuildWar = () => {
     const [myGuild, setMyGuild] = useState<any>(null);
     const [opponentGuild, setOpponentGuild] = useState<any>(null);
     const [boards, setBoards] = useState<Board[]>([]);
-    const [myMembersChallenging, setMyMembersChallenging] = useState<{ name: string, board: string }[]>([]);
-    const [opponentMembersChallenging, setOpponentMembersChallenging] = useState<{ name: string, board: string }[]>([]);
+    const [myMembersChallenging, setMyMembersChallenging] = useState<{ name: string, board: string, level: number, avatarUrl: string }[]>([]);
+    const [opponentMembersChallenging, setOpponentMembersChallenging] = useState<{ name: string, board: string, level: number, avatarUrl: string }[]>([]);
     const [myDailyAttempts, setMyDailyAttempts] = useState(0);
-    const [opponentDailyAttempts, setOpponentDailyAttempts] = useState(0);
+    /** 출전 명단 기준 당일 사용/총 도전권 (상황판) */
+    const [myTeamTickets, setMyTeamTickets] = useState({ used: 0, total: 0 });
+    const [opponentTeamTickets, setOpponentTeamTickets] = useState({ used: 0, total: 0, unknown: false });
     const [remainingTime, setRemainingTime] = useState<string>('');
     const [isDemoMode, setIsDemoMode] = useState(false);
+    const isDemoModeRef = useRef(false);
+    useEffect(() => {
+        isDemoModeRef.current = isDemoMode;
+    }, [isDemoMode]);
 
     // handlers.handleAction을 ref로 저장하여 무한 루프 방지
     const handleActionRef = useRef(handlers.handleAction);
@@ -63,12 +171,13 @@ const GuildWar = () => {
                     console.error('[GuildWar] Failed to fetch war data:', result.error);
                     return;
                 }
-                
-                const war = result?.clientResponse?.activeWar;
-                // guilds를 의존성에서 제거하고 result에서 받은 데이터만 사용
-                const guildsData = result?.clientResponse?.guilds || {};
-                
+
+                const { war, guildsData, guildWarTicketSummary } = readGuildWarApiResult(result);
+
                 if (!war) {
+                    if (isDemoModeRef.current) {
+                        return;
+                    }
                     // 활성 길드전이 없음
                     setActiveWar(null);
                     setMyGuild(null);
@@ -77,7 +186,8 @@ const GuildWar = () => {
                     setIsDemoMode(false);
                     return;
                 }
-                
+
+                setIsDemoMode(false);
                 setActiveWar(war);
                 
                 // 내 길드와 상대 길드 정보
@@ -102,7 +212,10 @@ const GuildWar = () => {
                     'bottom-right': '우하귀',
                 };
                 
-                const convertedBoards: Board[] = Object.entries(war.boards || {}).map(([boardId, board]: [string, any]) => {
+                const convertedBoards: Board[] = GUILD_WAR_BOARD_ORDER
+                    .filter((boardId) => !!(war.boards || {})[boardId])
+                    .map((boardId) => {
+                    const board = (war.boards || {})[boardId] as any;
                     const isGuild1 = war.guild1Id === myGuildId;
                     const myStars = isGuild1 ? (board.guild1Stars || 0) : (board.guild2Stars || 0);
                     const opponentStars = isGuild1 ? (board.guild2Stars || 0) : (board.guild1Stars || 0);
@@ -148,7 +261,38 @@ const GuildWar = () => {
                     const bestResult = myBestResult || opponentBestResult;
                     const userMap = new Map(allUsers.map(u => [u.id, u]));
                     const bestUser = bestResult ? userMap.get(bestResult.userId) : null;
-                    
+                    const initialStoneCounts = parseInitialStoneCounts(board);
+
+                    let occupierNickname: string | undefined;
+                    let occupierIsMyGuild = false;
+                    if (ownerGuildId) {
+                        occupierIsMyGuild = ownerGuildId === myGuildId;
+                        const holderResult =
+                            ownerGuildId === war.guild1Id ? board.guild1BestResult : board.guild2BestResult;
+                        if (holderResult) {
+                            const occUser = userMap.get(holderResult.userId);
+                            const uid = String(holderResult.userId ?? '');
+                            occupierNickname =
+                                occUser?.nickname ??
+                                (uid.includes('bot') || uid === 'demo-bot' ? 'AI 선수' : '알 수 없음');
+                            const avatarId = (occUser as any)?.avatarId;
+                            const avatarUrl = AVATAR_POOL.find((a: any) => a.id === avatarId)?.url;
+                            (board as any).occupierAvatarUrl = avatarUrl || '/images/guild/profile/icon1.png';
+                            (board as any).occupierLevel = (Number((occUser as any)?.strategyLevel ?? 0) || 0) + (Number((occUser as any)?.playfulLevel ?? 0) || 0);
+                            (board as any).occupierCaptures = Number(holderResult.captures ?? 0) || 0;
+                            (board as any).occupierScoreDiff = typeof holderResult.scoreDiff === 'number'
+                                ? holderResult.scoreDiff
+                                : undefined;
+                        }
+                    }
+
+                    const myGuildBoardAttempts = isGuild1
+                        ? (board.guild1Attempts ?? 0)
+                        : (board.guild2Attempts ?? 0);
+                    const opponentGuildBoardAttempts = isGuild1
+                        ? (board.guild2Attempts ?? 0)
+                        : (board.guild1Attempts ?? 0);
+
                     return {
                         id: boardId,
                         name: boardNames[boardId] || boardId,
@@ -157,9 +301,21 @@ const GuildWar = () => {
                         boardSize: board.boardSize || 13,
                         highestScorer: bestUser?.nickname,
                         scoreDiff: bestResult?.scoreDiff,
-                        initialStones: board.initialStones?.[0] || { black: 0, white: 0 },
+                        initialStones: board.initialStones?.[0] || {
+                            black: initialStoneCounts.blackPlain,
+                            white: initialStoneCounts.whitePlain,
+                        },
+                        initialStoneCounts,
                         ownerGuildId,
                         gameMode: board.gameMode,
+                        occupierNickname,
+                        occupierAvatarUrl: (board as any).occupierAvatarUrl,
+                        occupierLevel: (board as any).occupierLevel,
+                        occupierCaptures: (board as any).occupierCaptures,
+                        occupierScoreDiff: (board as any).occupierScoreDiff,
+                        occupierIsMyGuild,
+                        myGuildBoardAttempts,
+                        opponentGuildBoardAttempts,
                     };
                 });
                 
@@ -167,8 +323,8 @@ const GuildWar = () => {
                 
                 // 도전 중인 멤버 정보
                 const userMap = new Map(allUsers.map(u => [u.id, u]));
-                const myChallengers: { name: string, board: string }[] = [];
-                const opponentChallengers: { name: string, board: string }[] = [];
+                const myChallengers: { name: string, board: string, level: number, avatarUrl: string }[] = [];
+                const opponentChallengers: { name: string, board: string, level: number, avatarUrl: string }[] = [];
                 
                 Object.entries(war.boards || {}).forEach(([boardId, board]: [string, any]) => {
                     const boardName = boardNames[boardId] || boardId;
@@ -177,16 +333,20 @@ const GuildWar = () => {
                     const opponentChallengerIds = isGuild1 ? board.guild2Challengers : board.guild1Challengers;
                     
                     myChallengerIds?.forEach((userId: string) => {
-                        const user = userMap.get(userId);
+                        const user = userMap.get(userId) as any;
                         if (user) {
-                            myChallengers.push({ name: user.nickname, board: boardName });
+                            const level = (Number(user.strategyLevel ?? 0) || 0) + (Number(user.playfulLevel ?? 0) || 0);
+                            const avatarUrl = AVATAR_POOL.find((a: any) => a.id === user.avatarId)?.url || '/images/guild/profile/icon1.png';
+                            myChallengers.push({ name: user.nickname, board: boardName, level, avatarUrl });
                         }
                     });
                     
                     opponentChallengerIds?.forEach((userId: string) => {
-                        const user = userMap.get(userId);
+                        const user = userMap.get(userId) as any;
                         if (user) {
-                            opponentChallengers.push({ name: user.nickname, board: boardName });
+                            const level = (Number(user.strategyLevel ?? 0) || 0) + (Number(user.playfulLevel ?? 0) || 0);
+                            const avatarUrl = AVATAR_POOL.find((a: any) => a.id === user.avatarId)?.url || '/images/guild/profile/icon1.png';
+                            opponentChallengers.push({ name: user.nickname, board: boardName, level, avatarUrl });
                         }
                     });
                 });
@@ -194,18 +354,25 @@ const GuildWar = () => {
                 setMyMembersChallenging(myChallengers);
                 setOpponentMembersChallenging(opponentChallengers);
                 
-                // 하루 도전 횟수 계산
-                const today = new Date().toISOString().split('T')[0];
-                const myAttempts = war.dailyAttempts?.[currentUserWithStatus.id]?.[today] || 0;
+                const todayKST = getTodayKSTDateString();
+                const uid = currentUserWithStatus.isAdmin ? ADMIN_USER_ID : currentUserWithStatus.id;
+                const myAttempts = war.dailyAttempts?.[uid]?.[todayKST] || 0;
                 setMyDailyAttempts(myAttempts);
-                
-                // 상대 길드의 총 도전 횟수 계산 (모든 멤버 합산)
-                const opponentGuildMembers = opponentGuildData?.members || [];
-                const opponentTotalAttempts = opponentGuildMembers.reduce((sum: number, member: any) => {
-                    const attempts = war.dailyAttempts?.[member.userId]?.[today] || 0;
-                    return sum + attempts;
-                }, 0);
-                setOpponentDailyAttempts(opponentTotalAttempts);
+
+                if (guildWarTicketSummary) {
+                    setMyTeamTickets({
+                        used: guildWarTicketSummary.myRoster.used,
+                        total: guildWarTicketSummary.myRoster.total,
+                    });
+                    setOpponentTeamTickets({
+                        used: guildWarTicketSummary.opponentRoster.used,
+                        total: guildWarTicketSummary.opponentRoster.total,
+                        unknown: !!guildWarTicketSummary.opponentRoster.unknown,
+                    });
+                } else {
+                    setMyTeamTickets({ used: 0, total: 0 });
+                    setOpponentTeamTickets({ used: 0, total: 0, unknown: false });
+                }
                 
                 // 남은 시간 계산
                 if (war.endTime) {
@@ -257,8 +424,8 @@ const GuildWar = () => {
         // 데모 모드에서는 도전 횟수 제한 없음
         if (!isDemoMode) {
             // 하루 도전 횟수 확인
-            if (myDailyAttempts >= 3) {
-                alert('오늘 도전 횟수를 모두 사용했습니다. (하루 3회)');
+            if (myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) {
+                alert(`오늘 도전 횟수를 모두 사용했습니다. (하루 ${GUILD_WAR_PERSONAL_DAILY_LIMIT}회)`);
                 return;
             }
         }
@@ -276,9 +443,9 @@ const GuildWar = () => {
             if (result?.error) {
                 alert(result.error);
             } else {
-                // 게임 시작 성공 - 게임 화면으로 이동
-                if (result?.clientResponse?.gameId) {
-                    window.location.hash = `#/game/${result.clientResponse.gameId}`;
+                const gameId = result?.gameId ?? result?.clientResponse?.gameId;
+                if (gameId) {
+                    window.location.hash = `#/game/${gameId}`;
                 }
             }
         } catch (error) {
@@ -295,11 +462,12 @@ const GuildWar = () => {
         }
         
         const myGuildId = currentUserWithStatus.guildId;
-        const myGuildData = guilds[myGuildId];
-        if (!myGuildData) {
-            alert('길드 정보를 찾을 수 없습니다.');
-            return;
-        }
+        const myGuildData = guilds[myGuildId] ?? {
+            id: myGuildId,
+            name: '내 길드',
+            icon: '/images/guild/profile/icon1.png',
+            members: [],
+        };
         
         // 데모용 가짜 전쟁 데이터 생성
         const demoWar: any = {
@@ -313,7 +481,7 @@ const GuildWar = () => {
         };
         
         // 9개 바둑판 초기화
-        const boardIds = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'];
+        const boardIds = [...GUILD_WAR_BOARD_ORDER];
         const boardNames: Record<string, string> = {
             'top-left': '좌상귀',
             'top-mid': '상변',
@@ -325,10 +493,9 @@ const GuildWar = () => {
             'bottom-mid': '하변',
             'bottom-right': '우하귀',
         };
-        const gameModes: ('capture' | 'hidden' | 'missile')[] = ['capture', 'hidden', 'missile'];
         
         boardIds.forEach(boardId => {
-            const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
+            const gameMode = getGuildWarBoardMode(boardId);
             demoWar.boards[boardId] = {
                 boardSize: 13,
                 gameMode: gameMode,
@@ -344,6 +511,14 @@ const GuildWar = () => {
                 },
                 guild1Attempts: 0,
                 guild2Attempts: 3, // 봇은 이미 3번 공격 완료
+                initialStones: [
+                    {
+                        blackPlain: 2,
+                        whitePlain: 2,
+                        blackMarked: 1,
+                        whiteMarked: 1,
+                    },
+                ],
             };
         });
         
@@ -357,14 +532,27 @@ const GuildWar = () => {
         // 바둑판 데이터 변환
         const convertedBoards: Board[] = boardIds.map(boardId => {
             const board = demoWar.boards[boardId];
+            const initialStoneCounts = parseInitialStoneCounts(board);
+            const ownerG = board.guild2BestResult ? demoOpponentGuild.id : undefined;
             return {
                 id: boardId,
                 name: boardNames[boardId],
                 myStars: board.guild1Stars || 0,
                 opponentStars: board.guild2Stars || 0,
                 boardSize: board.boardSize || 13,
-                ownerGuildId: board.guild2BestResult ? demoOpponentGuild.id : undefined,
+                ownerGuildId: ownerG,
                 gameMode: board.gameMode,
+                initialStoneCounts,
+                initialStones: board.initialStones?.[0],
+                occupierNickname: board.guild2BestResult ? '데모 봇' : undefined,
+                occupierAvatarUrl: board.guild2BestResult ? '/images/guild/profile/icon1.png' : undefined,
+                occupierLevel: 0,
+                occupierCaptures: board.guild2BestResult?.captures,
+                occupierScoreDiff: board.guild2BestResult?.scoreDiff,
+                occupierIsMyGuild: false,
+                myGuildBoardAttempts: board.guild1Attempts ?? 0,
+                opponentGuildBoardAttempts: board.guild2Attempts ?? 0,
+                scoreDiff: board.guild2BestResult?.scoreDiff,
             };
         });
         
@@ -374,16 +562,45 @@ const GuildWar = () => {
         setBoards(convertedBoards);
         setIsDemoMode(true);
         setMyDailyAttempts(0);
-        setOpponentDailyAttempts(27); // 봇은 모든 공격권 사용
+        const demoRosterN = Math.min(10, myGuildData.members?.length || 1);
+        setMyTeamTickets({ used: 0, total: demoRosterN * GUILD_WAR_PERSONAL_DAILY_LIMIT });
+        setOpponentTeamTickets({ used: 0, total: 0, unknown: true });
         setRemainingTime('데모 모드');
     };
     
+    const StarDisplay = ({ count, total = 3, size = 'w-6 h-6' }: { count: number, total?: number, size?: string }) => {
+        const stars = [];
+        for (let i = 0; i < count; i++) {
+            stars.push(<img key={`filled-${i}`} src="/images/guild/guildwar/clearstar.png" alt="filled star" className={size} />);
+        }
+        for (let i = count; i < total; i++) {
+            stars.push(<img key={`empty-${i}`} src="/images/guild/guildwar/emptystar.png" alt="empty star" className={size} />);
+        }
+        return <div className="flex justify-center">{stars}</div>;
+    };
+    
+    // 총 별 개수 계산
+    const totalMyStars = boards.reduce((sum, b) => sum + b.myStars, 0);
+    const totalOpponentStars = boards.reduce((sum, b) => sum + b.opponentStars, 0);
+    // 동률(별 합계) 시 비교용 집점수 합계
+    const isGuild1ForHouseScore = !!activeWar && !!myGuild && activeWar.guild1Id === myGuild.id;
+    let myTotalHouseScore = 0;
+    let opponentTotalHouseScore = 0;
+    if (activeWar && myGuild) {
+        Object.values(activeWar.boards || {}).forEach((board: any) => {
+            const myBest = isGuild1ForHouseScore ? board.guild1BestResult : board.guild2BestResult;
+            const oppBest = isGuild1ForHouseScore ? board.guild2BestResult : board.guild1BestResult;
+            myTotalHouseScore += Number(myBest?.score ?? 0) || 0;
+            opponentTotalHouseScore += Number(oppBest?.score ?? 0) || 0;
+        });
+    }
+
     // 활성 길드전이 없을 때
     if (!activeWar || !myGuild || !opponentGuild) {
         return (
             <div className="h-full w-full flex flex-col bg-tertiary text-primary p-4 bg-cover bg-center" style={{ backgroundImage: "url('/images/guild/guildwar/warmap.png')" }}>
                 <header className="flex justify-between items-center mb-4 flex-shrink-0">
-                    <BackButton onClick={() => window.location.hash = '#/guild'} />
+                    <BackButton onClick={() => replaceAppHash('#/guild')} />
                     <h1 className="text-3xl font-bold text-white" style={{textShadow: '2px 2px 5px black'}}>길드 전쟁</h1>
                 </header>
                 <main className="flex-1 flex items-center justify-center">
@@ -403,87 +620,287 @@ const GuildWar = () => {
         );
     }
 
-    const StarDisplay = ({ count, total = 3, size = 'w-6 h-6' }: { count: number, total?: number, size?: string }) => {
-        const stars = [];
-        for (let i = 0; i < count; i++) {
-            stars.push(<img key={`filled-${i}`} src="/images/guild/guildwar/clearstar.png" alt="filled star" className={size} />);
-        }
-        for (let i = count; i < total; i++) {
-            stars.push(<img key={`empty-${i}`} src="/images/guild/guildwar/emptystar.png" alt="empty star" className={size} />);
-        }
-        return <div className="flex justify-center">{stars}</div>;
-    };
-    
-    // 총 별 개수 계산
-    const totalMyStars = boards.reduce((sum, b) => sum + b.myStars, 0);
-    const totalOpponentStars = boards.reduce((sum, b) => sum + b.opponentStars, 0);
-    const totalStars = totalMyStars + totalOpponentStars;
-    const myStarPercent = totalStars > 0 ? (totalMyStars / totalStars) * 100 : 50;
-    
-    // 총 점수 계산 (별 개수로 대체)
-    const myTotalScore = totalMyStars;
-    const opponentTotalScore = totalOpponentStars;
+    const personalTicketTotal = GUILD_WAR_PERSONAL_DAILY_LIMIT;
+    const personalTicketsRemaining = isDemoMode
+        ? personalTicketTotal
+        : Math.max(0, personalTicketTotal - myDailyAttempts);
 
     const StatusAndViewerPanel: React.FC<{
         team: 'blue' | 'red';
-        challengingMembers: { name: string, board: string }[];
-        usedTickets: number;
-        totalTickets: number;
+        challengingMembers: { name: string, board: string, level: number, avatarUrl: string }[];
+        /** 출전 명단 기준 길드원 총 도전권 (당일 사용/총량) */
+        teamUsedTickets: number;
+        teamTotalTickets: number;
+        teamTicketsUnknown?: boolean;
         board: Board | null;
-    }> = ({ team, challengingMembers, usedTickets, totalTickets, board }) => {
+        /** 우리편(블루) 상세: 남은 개인 도전권 N/최대 */
+        personalTicketsRemaining?: number;
+        personalTicketsTotal?: number;
+    }> = ({
+        team,
+        challengingMembers,
+        teamUsedTickets,
+        teamTotalTickets,
+        teamTicketsUnknown,
+        board,
+        personalTicketsRemaining: myTicketsLeft,
+        personalTicketsTotal: myTicketsMax,
+    }) => {
         const isBlue = team === 'blue';
         const panelClasses = isBlue ? 'bg-blue-900/50 border-blue-700' : 'bg-red-900/50 border-red-700';
         const textClasses = isBlue ? 'text-blue-300' : 'text-red-300';
         const secondaryTextClasses = isBlue ? 'text-blue-200' : 'text-red-200';
+        const perspectiveStars = board ? (isBlue ? board.myStars : board.opponentStars) : 0;
+        const perspectiveAttempts = board
+            ? (isBlue ? (board.myGuildBoardAttempts ?? 0) : (board.opponentGuildBoardAttempts ?? 0))
+            : 0;
 
         return (
-            <div className={`h-full w-full flex flex-col gap-4 ${panelClasses} border-2 rounded-lg p-4`}>
-                <div className="h-1/2 flex flex-col border-b-2 border-gray-500/50 pb-2">
-                    <h2 className={`text-xl font-bold text-center ${textClasses} pb-2 mb-2`}>상황판</h2>
-                    <div className="space-y-3">
-                         <div>
-                            <h3 className={`font-semibold ${secondaryTextClasses}`}>사용된 도전권</h3>
-                            <p className="text-lg">{usedTickets} / {totalTickets}</p>
+            <div className={`flex-1 min-h-0 w-full flex flex-col gap-2 ${panelClasses} border-2 rounded-lg p-2 sm:p-2.5`}>
+                <div className="shrink-0">
+                    <h2 className={`text-sm font-bold text-center ${textClasses} mb-1`}>상황판</h2>
+                    <div className="space-y-1.5">
+                        <div className={`rounded-lg border px-2 py-1.5 ${isBlue ? 'bg-blue-950/45 border-blue-800/70' : 'bg-red-950/45 border-red-800/70'}`}>
+                            <p className={`text-[10px] sm:text-[11px] font-semibold ${secondaryTextClasses}`}>
+                                {isBlue ? '길드원 총 도전권' : '상대 총 도전권'}
+                            </p>
+                            <div className="mt-1 flex items-center justify-between gap-2">
+                                <img src={GUILD_WAR_TICKET_IMG} alt="" className="w-5 h-5 sm:w-6 sm:h-6 object-contain opacity-95 shrink-0" />
+                                <span className="tabular-nums font-black text-white text-lg sm:text-xl leading-none">
+                                    {teamTicketsUnknown ? '—' : `${teamUsedTickets}/${teamTotalTickets}`}
+                                </span>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className={`font-semibold ${secondaryTextClasses}`}>점령중인 길드원</h3>
-                            <ul className="text-sm list-disc list-inside pl-2">
-                                {challengingMembers.map((m, i) => <li key={i}>{m.name} - {m.board}</li>)}
-                                {challengingMembers.length === 0 && <p className="text-xs text-gray-400">없음</p>}
-                            </ul>
+                        <div className={`rounded-lg border px-2 py-1.5 ${isBlue ? 'bg-blue-950/30 border-blue-800/60' : 'bg-red-950/30 border-red-800/60'}`}>
+                            <p className={`text-[10px] sm:text-[11px] font-semibold ${secondaryTextClasses}`}>현재 점령자</p>
+                            {board?.ownerGuildId && board.occupierNickname ? (
+                                <div className="mt-1 flex items-center justify-between gap-2 min-w-0">
+                                    <img
+                                        src={board.occupierAvatarUrl || '/images/guild/profile/icon1.png'}
+                                        alt=""
+                                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-white/30 shadow shrink-0"
+                                    />
+                                    <div className="min-w-0 flex-1 text-right">
+                                        <span className="text-sm sm:text-base font-bold text-slate-100 truncate block" title={board.occupierNickname}>
+                                            {board.occupierNickname}
+                                        </span>
+                                        <span className="text-[10px] sm:text-[11px] text-slate-200/85">
+                                            Lv.{Math.max(0, Number(board.occupierLevel ?? 0) || 0)}
+                                        </span>
+                                        {(board.gameMode === 'capture' || board.gameMode === 'hidden' || board.gameMode === 'missile') && (
+                                            <span className="text-[10px] sm:text-[11px] text-amber-200/90">
+                                                {board.gameMode === 'capture'
+                                                    ? `점령 기록: 따낸 돌 ${board.occupierCaptures ?? 0}개`
+                                                    : `점령 기록: 집 차이 ${board.occupierScoreDiff ?? 0}집`}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <span className="text-xs text-slate-500">없음</span>
+                            )}
                         </div>
                     </div>
                 </div>
-                <div className="h-1/2 flex flex-col pt-2">
-                    <h2 className={`text-xl font-bold text-center ${textClasses} pb-2 mb-2`}>상세 정보</h2>
-                    <div className="flex-grow bg-black/30 rounded-md p-3 text-xs flex flex-col justify-center items-center">
+
+                <div className="flex-1 min-h-0 flex flex-col pt-1 border-t border-gray-500/40">
+                    <div className="flex-1 min-h-0 bg-gradient-to-b from-black/45 via-black/35 to-black/50 rounded-xl p-2.5 sm:p-3 text-xs flex flex-col items-stretch overflow-y-auto border border-white/10 shadow-inner backdrop-blur-sm">
                         {board ? (
-                            <div className="space-y-1 text-left w-full">
-                                <p><strong>맵:</strong> {board.name} ({board.boardSize}줄)</p>
-                                <p><strong>게임 모드:</strong> {
-                                    board.gameMode === 'capture' ? '따내기 바둑' :
-                                    board.gameMode === 'hidden' ? '히든 바둑' :
-                                    board.gameMode === 'missile' ? '미사일 바둑' : '알 수 없음'
-                                }</p>
-                                <p><strong>초기 배치:</strong> 흑 {board.initialStones?.black || 0} / 백 {board.initialStones?.white || 0}</p>
-                                <p><strong>현재 점령자:</strong> {board.highestScorer || '없음'}</p>
-                                {board.highestScorer && board.scoreDiff !== undefined && (
-                                    <p><strong>점수 차이:</strong> {board.scoreDiff}집</p>
-                                )}
-                                {board.highestScorer && (
-                                    <p><strong>별 개수:</strong> 내 길드 {board.myStars} / 상대 {board.opponentStars}</p>
-                                )}
-                                {team === 'blue' && (
+                            <div className="w-full space-y-3 text-left">
+                                <div className="text-center">
+                                    <div className="flex flex-wrap items-center justify-center gap-2">
+                                        <div className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-600/90 via-amber-500/85 to-yellow-600/90 border border-amber-300/50 shadow-[0_0_20px_rgba(251,191,36,0.25)]">
+                                            <span className="text-sm sm:text-base font-black tracking-wide text-stone-900 drop-shadow-sm">
+                                                {board.name}
+                                            </span>
+                                        </div>
+                                        <div
+                                            className="inline-flex items-center gap-0.5"
+                                            title={`${isBlue ? '우리' : '상대'} 길드 별 ${Math.min(3, perspectiveStars)}/3`}
+                                            aria-label={`${isBlue ? '우리' : '상대'} 길드 별 ${Math.min(3, perspectiveStars)}개`}
+                                        >
+                                            {[0, 1, 2].map((i) => (
+                                                <img
+                                                    key={i}
+                                                    src={i < Math.min(3, Math.max(0, perspectiveStars)) ? GUILD_WAR_STAR_IMG : GUILD_WAR_EMPTY_STAR_IMG}
+                                                    alt=""
+                                                    className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow"
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {(() => {
+                                    const modeIcon =
+                                        board.gameMode === 'hidden'
+                                            ? BLACK_HIDDEN_STONE_IMG
+                                            : board.gameMode === 'missile'
+                                              ? GUILD_WAR_MISSILE_ICON
+                                              : GUILD_WAR_BOARD_IMG;
+                                    const modeLabel =
+                                        board.gameMode === 'capture'
+                                            ? '따내기 바둑'
+                                            : board.gameMode === 'hidden'
+                                              ? '히든 바둑'
+                                              : board.gameMode === 'missile'
+                                                ? '미사일 바둑'
+                                                : '바둑';
+                                    return (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="flex items-center gap-2 rounded-lg bg-slate-900/55 border border-slate-600/40 px-2.5 py-2">
+                                                <img src={modeIcon} alt="" className="w-8 h-8 object-contain shrink-0 rounded-md bg-black/20 p-0.5" />
+                                                <div>
+                                                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">모드</p>
+                                                    <p className="text-sm font-bold text-sky-100">{modeLabel}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 rounded-lg bg-slate-900/55 border border-slate-600/40 px-2.5 py-2">
+                                                <img src={GUILD_WAR_BOARD_IMG} alt="" className="w-8 h-8 object-contain shrink-0 rounded-md bg-black/20 p-1" />
+                                                <div>
+                                                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">바둑판</p>
+                                                    <p className="text-sm font-bold text-sky-100">{board.boardSize}줄</p>
+                                                </div>
+                                            </div>
+                                            <div className="col-span-2 flex items-center gap-2 rounded-lg bg-slate-900/55 border border-slate-600/40 px-2.5 py-2">
+                                                <img src="/images/icon/timer.png" alt="" className="w-7 h-7 object-contain shrink-0 rounded-md bg-black/20 p-1" />
+                                                <div>
+                                                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">턴 제한</p>
+                                                    <p className="text-sm font-bold text-sky-100">
+                                                        {board.gameMode === 'capture'
+                                                            ? `${GUILD_WAR_CAPTURE_TURN_LIMIT}턴`
+                                                            : `계가까지 ${GUILD_WAR_AUTO_SCORING_TURN_LIMIT}턴`}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                <div className="rounded-lg bg-amber-950/35 border border-amber-600/30 px-2.5 py-2">
+                                    <p className="text-[10px] uppercase tracking-wider text-amber-200/90 font-semibold mb-1.5 flex items-center gap-1">
+                                        <img src={GUILD_WAR_STAR_IMG} alt="" className="w-3.5 h-3.5 opacity-95" />
+                                        별 획득 조건
+                                    </p>
+                                    <ul className="space-y-1.5 text-[10px] sm:text-[11px] text-amber-50/95 leading-snug">
+                                        {getGuildWarStarConditionLines(board.gameMode).map((line, i) => (
+                                            <li key={i}>{line}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                <div className="rounded-lg bg-slate-900/45 border border-slate-600/35 px-2.5 py-2">
+                                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1.5 text-center">초기 배치</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { key: 'bp', label: '흑돌', icon: <PlainBlackStoneIcon />, n: board.initialStoneCounts.blackPlain },
+                                            { key: 'wp', label: '백돌', icon: <PlainWhiteStoneIcon />, n: board.initialStoneCounts.whitePlain },
+                                            {
+                                                key: 'bm',
+                                                label: '문양 흑',
+                                                icon: (
+                                                    <img
+                                                        src={BLACK_BASE_STONE_IMG}
+                                                        alt=""
+                                                        className="w-7 h-7 rounded-full object-cover ring-2 ring-amber-500/45 shadow-md shrink-0"
+                                                    />
+                                                ),
+                                                n: board.initialStoneCounts.blackMarked,
+                                            },
+                                            {
+                                                key: 'wm',
+                                                label: '문양 백',
+                                                icon: (
+                                                    <img
+                                                        src={WHITE_BASE_STONE_IMG}
+                                                        alt=""
+                                                        className="w-7 h-7 rounded-full object-cover ring-2 ring-sky-200/50 shadow-md shrink-0"
+                                                    />
+                                                ),
+                                                n: board.initialStoneCounts.whiteMarked,
+                                            },
+                                        ].map((row) => (
+                                            <div
+                                                key={row.key}
+                                                className="flex items-center gap-2 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5"
+                                            >
+                                                {row.icon}
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-[9px] text-slate-400 leading-tight">{row.label}</p>
+                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{row.n}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-lg bg-slate-900/45 border border-slate-600/35 px-2.5 py-2">
+                                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1.5 text-center">아이템</p>
+                                    {board.gameMode === 'capture' ? (
+                                        <p className="text-center text-xs text-slate-400">아이템 없음</p>
+                                    ) : board.gameMode === 'hidden' ? (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="flex items-center gap-2 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5">
+                                                <img src={GUILD_WAR_HIDDEN_ICON} alt="" className="w-6 h-6 object-contain shrink-0" />
+                                                <div>
+                                                    <p className="text-[9px] text-slate-400">히든</p>
+                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{GUILD_WAR_HIDDEN_STONE_COUNT}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5">
+                                                <img src={GUILD_WAR_SCAN_ICON} alt="" className="w-6 h-6 object-contain shrink-0" />
+                                                <div>
+                                                    <p className="text-[9px] text-slate-400">스캔</p>
+                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{GUILD_WAR_SCAN_COUNT}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 gap-2">
+                                            <div className="flex items-center gap-2 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5">
+                                                <img src={GUILD_WAR_MISSILE_ICON} alt="" className="w-6 h-6 object-contain shrink-0" />
+                                                <div>
+                                                    <p className="text-[9px] text-slate-400">미사일</p>
+                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{GUILD_WAR_MISSILE_COUNT}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-2 rounded-lg bg-indigo-950/40 border border-indigo-500/25 px-2.5 py-2">
+                                    <img src={GUILD_WAR_TICKET_IMG} alt="" className="w-7 h-7 object-contain shrink-0 drop-shadow" />
+                                    <div className="flex-1 text-right">
+                                        <p className="text-[10px] text-indigo-200/80 font-semibold">
+                                            맵 도전 횟수
+                                        </p>
+                                        <p className="text-base font-black tabular-nums text-indigo-100">
+                                            {perspectiveAttempts.toLocaleString()}회
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {team === 'blue' && myTicketsMax != null && myTicketsLeft != null && (
                                     <button
+                                        type="button"
                                         onClick={() => handleBoardClick(board)}
-                                        disabled={!isDemoMode && myDailyAttempts >= 3}
-                                        className={`mt-2 w-full py-2 px-3 rounded-lg font-semibold text-sm transition-all ${
-                                            (!isDemoMode && myDailyAttempts >= 3)
+                                        disabled={!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT}
+                                        className={`mt-2 w-full py-2 px-2 rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 flex-wrap ${
+                                            (!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT)
                                                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                                                 : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98]'
                                         }`}
                                     >
-                                        {(!isDemoMode && myDailyAttempts >= 3) ? '도전 횟수 소진' : '도전하기'}
+                                        <span className="flex items-center gap-1 shrink-0">
+                                            <img src={GUILD_WAR_TICKET_IMG} alt="" className="w-6 h-6 object-contain drop-shadow" />
+                                            <span className={`tabular-nums font-bold ${(!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) ? 'text-gray-300' : 'text-amber-100'}`}>
+                                                {myTicketsLeft}/{myTicketsMax}
+                                            </span>
+                                        </span>
+                                        <span className="opacity-80 hidden min-[380px]:inline" aria-hidden>·</span>
+                                        <span className="leading-tight text-center">
+                                            {(!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) ? '도전 횟수 소진' : '도전하기'}
+                                        </span>
                                     </button>
                                 )}
                             </div>
@@ -507,7 +924,7 @@ const GuildWar = () => {
                          setOpponentGuild(null);
                          setBoards([]);
                      } else {
-                         window.location.hash = '#/guild';
+                         replaceAppHash('#/guild');
                      }
                  }} />
                 <h1 className="text-3xl font-bold text-white" style={{textShadow: '2px 2px 5px black'}}>
@@ -521,55 +938,61 @@ const GuildWar = () => {
             </header>
             <main className="flex-1 grid grid-cols-5 gap-4 min-h-0">
                 {/* Left Panel */}
-                <div className="col-span-1">
+                <div className="col-span-1 min-h-0 flex flex-col">
                     <StatusAndViewerPanel
                         team="blue"
                         challengingMembers={myMembersChallenging}
-                        usedTickets={myDailyAttempts}
-                        totalTickets={3}
+                        teamUsedTickets={myTeamTickets.used}
+                        teamTotalTickets={myTeamTickets.total}
                         board={selectedBoard}
+                        personalTicketsRemaining={personalTicketsRemaining}
+                        personalTicketsTotal={personalTicketTotal}
                     />
                 </div>
 
                 {/* Center Panel */}
                 <div className="col-span-3 flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex flex-col items-center">
-                            <div className="relative w-20 h-28">
+                    <div className="grid grid-cols-[176px_minmax(0,1fr)_176px] items-start gap-4 mb-4">
+                        <div className="w-44 justify-self-start flex flex-col items-center">
+                            <div className="relative w-24 h-32">
                                 <img src="/images/guild/guildwar/blueteam.png" alt="Blue Team Flag" className="w-full h-full" />
-                                <img src={myGuild.icon || myGuild.emblem || '/images/guild/profile/icon1.png'} alt="My Guild Emblem" className="absolute top-6 left-4 w-12 h-12 object-contain" />
+                                <img src={myGuild.icon || myGuild.emblem || '/images/guild/profile/icon1.png'} alt="My Guild Emblem" className="absolute top-[30px] left-1/2 -translate-x-1/2 w-14 h-14 object-contain" />
                             </div>
                             <div className="bg-black/60 px-3 py-1 rounded-md -mt-5 z-10 shadow-lg">
-                                <span className="font-bold text-white">{myGuild.name}</span>
+                                <span className="font-bold text-white block max-w-[150px] truncate text-center">{myGuild.name}</span>
                             </div>
                         </div>
                         
-                        <div className="flex-1 mx-4 flex flex-col items-center gap-1 -translate-y-2">
-                             <div className="flex items-center justify-center w-full gap-4 text-white" style={{ textShadow: '2px 2px 4px black' }}>
-                                <span className="text-5xl font-black">{totalMyStars}</span>
-                                <img src="/images/guild/guildwar/clearstar.png" alt="star" className="w-10 h-10" />
-                                <span className="text-5xl font-black text-gray-400">:</span>
-                                <img src="/images/guild/guildwar/clearstar.png" alt="star" className="w-10 h-10" />
-                                <span className="text-5xl font-black">{totalOpponentStars}</span>
-                            </div>
-                            
-                            <div className="w-full h-4 bg-red-700/80 rounded-full flex relative border-2 border-black/50 shadow-inner mt-1">
-                                <div className="h-full bg-blue-500/90 rounded-full" style={{ width: `${myStarPercent}%`, transition: 'width 0.5s ease-in-out' }}></div>
-                            </div>
-
-                            <div className="flex items-center justify-between w-full text-xs font-semibold text-white mt-1" style={{ textShadow: '1px 1px 2px black' }}>
-                                <span>별 합계: {totalMyStars}</span>
-                                <span>별 합계: {totalOpponentStars}</span>
+                        <div className="w-full flex flex-col items-center gap-2 pt-1">
+                            <div className="w-full max-w-[560px] rounded-2xl border border-amber-300/35 bg-gradient-to-b from-black/55 via-black/45 to-black/55 shadow-[0_10px_30px_rgba(0,0,0,0.45)] px-5 py-3">
+                                <div className="grid grid-cols-[1fr_auto_1fr] items-center text-white" style={{ textShadow: '2px 2px 4px black' }}>
+                                    <div className="justify-self-center inline-flex items-center justify-end gap-2 min-w-[120px]">
+                                        <img src={GUILD_WAR_STAR_IMG} alt="star" className="w-8 h-8" />
+                                        <span className="text-4xl font-black tabular-nums">{totalMyStars}</span>
+                                    </div>
+                                    <span className="mx-4 text-xl font-extrabold text-amber-200/90">VS</span>
+                                    <div className="justify-self-center inline-flex items-center justify-start gap-2 min-w-[120px]">
+                                        <span className="text-4xl font-black tabular-nums">{totalOpponentStars}</span>
+                                        <img src={GUILD_WAR_STAR_IMG} alt="star" className="w-8 h-8" />
+                                    </div>
+                                </div>
+                                <div className="mt-2 flex items-center justify-end text-[12px] font-semibold text-slate-100/95">
+                                    <span className="text-amber-200/95">동점 시 집점수 비교</span>
+                                </div>
+                                <div className="mt-1 flex items-center justify-between text-sm font-bold text-cyan-100 tabular-nums">
+                                    <span>집점수 {myTotalHouseScore}</span>
+                                    <span>집점수 {opponentTotalHouseScore}</span>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex flex-col items-center">
-                            <div className="relative w-20 h-28">
+                        <div className="w-44 justify-self-end flex flex-col items-center">
+                            <div className="relative w-24 h-32">
                                 <img src="/images/guild/guildwar/redteam.png" alt="Red Team Flag" className="w-full h-full" />
-                                <img src={opponentGuild.icon || opponentGuild.emblem || '/images/guild/profile/icon1.png'} alt="Opponent Guild Emblem" className="absolute top-6 left-4 w-12 h-12 object-contain" />
+                                <img src={opponentGuild.icon || opponentGuild.emblem || '/images/guild/profile/icon1.png'} alt="Opponent Guild Emblem" className="absolute top-[30px] left-1/2 -translate-x-1/2 w-14 h-14 object-contain" />
                             </div>
                              <div className="bg-black/60 px-3 py-1 rounded-md -mt-5 z-10 shadow-lg">
-                                <span className="font-bold text-white">{opponentGuild.name}</span>
+                                <span className="font-bold text-white block max-w-[150px] truncate text-center">{opponentGuild.name}</span>
                             </div>
                         </div>
                     </div>
@@ -627,12 +1050,13 @@ const GuildWar = () => {
                 </div>
 
                 {/* Right Panel */}
-                <div className="col-span-1">
+                <div className="col-span-1 min-h-0 flex flex-col">
                      <StatusAndViewerPanel
                         team="red"
                         challengingMembers={opponentMembersChallenging}
-                        usedTickets={opponentDailyAttempts}
-                        totalTickets={3}
+                        teamUsedTickets={opponentTeamTickets.used}
+                        teamTotalTickets={opponentTeamTickets.total}
+                        teamTicketsUnknown={opponentTeamTickets.unknown}
                         board={selectedBoard}
                     />
                 </div>

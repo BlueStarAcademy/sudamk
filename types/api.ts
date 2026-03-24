@@ -344,7 +344,8 @@ export type ServerAction =
     | { type: 'GUILD_BUY_SHOP_ITEM', payload: { shopItemId: string; itemId?: string; quantity?: number } }
     | { type: 'GUILD_CHECK_IN', payload?: never }
     | { type: 'GUILD_CLAIM_CHECK_IN_REWARD', payload: { userId?: string; milestoneIndex: number } }
-    | { type: 'START_GUILD_WAR', payload?: { targetGuildId?: string } }
+    | { type: 'SET_GUILD_WAR_PARTICIPATION', payload: { enabled: boolean } }
+    | { type: 'START_GUILD_WAR', payload?: { targetGuildId?: string; participantUserIds?: string[] } }
     | { type: 'END_GUILD_WAR', payload: { warId: string } }
     | { type: 'CANCEL_GUILD_WAR', payload?: never }
     | { type: 'GET_GUILD_INFO', payload?: never }

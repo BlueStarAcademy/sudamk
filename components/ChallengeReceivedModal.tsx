@@ -694,7 +694,7 @@ const ChallengeReceivedModal: React.FC<ChallengeReceivedModalProps> = ({
                               }}
                               className="w-4 h-4"
                             />
-                            <span className="text-gray-300" style={{ fontSize: `${Math.max(9, Math.round(11 * 0.85))}px` }}>{modeDef.mode}</span>
+                            <span className="text-gray-300" style={{ fontSize: `${Math.max(9, Math.round(11 * 0.85))}px` }}>{modeDef.name}</span>
                           </label>
                         );
                       })}

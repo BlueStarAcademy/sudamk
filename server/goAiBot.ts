@@ -1483,7 +1483,9 @@ export async function makeGoAiBotMove(
     // (GnuGo 경로에서는 isItemMode가 위 블록에서 정의되지 않으므로 여기서 정의)
     const isItemModeHere = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(game.gameStatus);
     const blackTurnLimit = (game.settings as any)?.blackTurnLimit;
-    if (!isItemModeHere && game.isSinglePlayer && game.stageId && blackTurnLimit !== undefined && aiPlayerEnum === types.Player.White && game.gameStatus === 'playing') {
+    const isGuildWarCapture = (game as any).gameCategory === 'guildwar' && game.mode === types.GameMode.Capture;
+    const shouldApplyBlackTurnLimit = (game.isSinglePlayer && game.stageId) || isGuildWarCapture;
+    if (!isItemModeHere && shouldApplyBlackTurnLimit && blackTurnLimit !== undefined && aiPlayerEnum === types.Player.White && game.gameStatus === 'playing') {
         const blackMoves = game.moveHistory.filter(m => m.player === types.Player.Black && m.x !== -1 && m.y !== -1).length;
         if (blackMoves >= blackTurnLimit) {
             // 자동 계가 스테이지에서 총 턴 수가 이미 도달했으면 계가로 승패가 갈리므로 턴 제한 패배 적용 안 함
@@ -1505,7 +1507,7 @@ export async function makeGoAiBotMove(
                 // 흑이 이미 목표 따낸 돌을 달성했다면 턴 제한 패배를 적용하지 않고,
                 // 이전에 처리된 capture_limit 결과(또는 이후 계가 결과)를 그대로 따른다.
                 if (!(hasBlackTarget && blackCaptures >= (targetForBlack as number))) {
-                    console.log(`[GoAiBot] SinglePlayer blackTurnLimit reached after AI move: blackMoves=${blackMoves}, limit=${blackTurnLimit}, mission fail (no scoring)`);
+                    console.log(`[GoAiBot] blackTurnLimit reached after AI move: blackMoves=${blackMoves}, limit=${blackTurnLimit}, gameCategory=${(game as any).gameCategory}`);
                     await summaryService.endGame(game, types.Player.White, 'timeout');
                     return;
                 }

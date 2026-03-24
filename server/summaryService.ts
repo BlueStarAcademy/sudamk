@@ -483,6 +483,14 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     }
 
     game.statsUpdated = true;
+
+    try {
+        const { applyGuildWarBoardAfterGame } = await import('./guildWarBoardResult.js');
+        await applyGuildWarBoardAfterGame(game);
+    } catch (e: any) {
+        console.error(`[endGame] applyGuildWarBoardAfterGame failed for ${game.id}:`, e?.message);
+    }
+
     await db.saveGame(game);
     
     // summary가 설정된 후 최신 게임 상태를 다시 가져와서 브로드캐스트

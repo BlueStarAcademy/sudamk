@@ -1414,7 +1414,16 @@ export const makeAiMove = async (game: LiveGameSession) => {
         ];
         const useMoveCountForSession = !(moveExecuted && playfulModesNoMoveHistory.includes(game.mode));
         const finalMoveCount = useMoveCountForSession ? (game.moveHistory?.length ?? initialMoveCount) : -1;
-        finishAiProcessing(game.id, finalMoveCount);
+        // makeGoAiBotMove 등이 수를 두지 않고 return(히든 연출, placing 등)해도 finish만 호출하면
+        // lastProcessedMoveCount === moveHistory 길이가 되어 shouldProcessAiTurn이 영구 false → AI 영구 정지.
+        // moveHistory가 늘지 않았을 때는 세션 카운트를 갱신하지 않고 잠금만 해제한다.
+        const moveHistoryAdvanced =
+            useMoveCountForSession && finalMoveCount > initialMoveCount;
+        if (useMoveCountForSession && !moveHistoryAdvanced) {
+            cancelAiProcessing(game.id);
+        } else {
+            finishAiProcessing(game.id, finalMoveCount);
+        }
     } catch (error) {
         console.error(`[makeAiMove] Error processing AI move for game ${game.id}:`, error);
         cancelAiProcessing(game.id);

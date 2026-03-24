@@ -45,7 +45,9 @@ export function parseHash(hash: string): AppRoute {
         case 'singleplayer': return { view: 'singleplayer', params: {} };
         case 'guild': return { view: 'guild', params: {} };
         case 'guildboss': return { view: 'guildboss', params: {} };
-        case 'guildwar': return { view: 'guildwar', params: {} };
+        case 'guildwar':
+        case 'guldwar': // 흔한 오타
+            return { view: 'guildwar', params: {} };
         case 'tower': return { view: 'tower', params: {} };
         case 'admin': return { view: 'admin', params: {} };
         case 'register': return { view: 'register', params: {} };

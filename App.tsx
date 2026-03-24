@@ -329,6 +329,8 @@ const AppContent: React.FC = () => {
                                 top: 0,
                                 width: DESIGN_W,
                                 height: DESIGN_H,
+                                // 비어 있을 때도 전역을 덮어 main(길드전 등) 클릭을 삼키지 않도록. 포털 자식은 기본 pointer-events:auto로 정상 수신.
+                                pointerEvents: 'none',
                             }}
                         />
                         

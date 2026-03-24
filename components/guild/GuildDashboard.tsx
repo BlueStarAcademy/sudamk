@@ -7,7 +7,7 @@ import Button from '../Button.js';
 import GuildHomePanel, { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
 import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
-import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID } from '../../constants/index.js';
+import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT } from '../../constants/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import GuildResearchPanel from './GuildResearchPanel.js';
 import GuildMissionsPanel from './GuildMissionsPanel.js';
@@ -20,7 +20,7 @@ import GuildWarRewardModal from './GuildWarRewardModal.js';
 import GuildWarMatchingModal from './GuildWarMatchingModal.js';
 import GuildWarCancelConfirmModal from './GuildWarCancelConfirmModal.js';
 import GuildWarApplicationDayOnlyModal from './GuildWarApplicationDayOnlyModal.js';
-import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getKSTDay, getTodayKSTDateString } from '../../utils/timeUtils.js';
+import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getKSTDay, getTodayKSTDateString, getKSTFullYear, getKSTMonth } from '../../utils/timeUtils.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 
 // 고급 버튼 스타일 (길드 패널용)
@@ -692,7 +692,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
 };
 
 const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, className }) => {
-    const { currentUserWithStatus, handlers, guilds } = useAppContext();
+    const { currentUserWithStatus, handlers, guilds, allUsers } = useAppContext();
     const [showRewardModal, setShowRewardModal] = React.useState(false);
     const [activeWar, setActiveWar] = React.useState<any>(null);
     const [opponentGuild, setOpponentGuild] = React.useState<any>(null);
@@ -717,7 +717,33 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     const [showCancelConfirmModal, setShowCancelConfirmModal] = React.useState(false);
     const [showApplicationDayOnlyModal, setShowApplicationDayOnlyModal] = React.useState(false);
     const [nextApplicationDayLabel, setNextApplicationDayLabel] = React.useState('');
-    const GUILD_WAR_MAX_ATTEMPTS = 3; // 기본 표시용 (실제는 전쟁별 2/3)
+    const [showWarParticipantPicker, setShowWarParticipantPicker] = React.useState(false);
+    const [warParticipantSelectedIds, setWarParticipantSelectedIds] = React.useState<string[]>([]);
+    const [participantSortKey, setParticipantSortKey] = React.useState<'level' | 'contribution' | 'name'>('level');
+    const [participantSortOrder, setParticipantSortOrder] = React.useState<'asc' | 'desc'>('desc');
+    const [isGuildRoute, setIsGuildRoute] = React.useState(() => window.location.hash === '#/guild');
+    const [isUpdatingWarParticipation, setIsUpdatingWarParticipation] = React.useState(false);
+
+    React.useEffect(() => {
+        const onHashChange = () => {
+            const onGuild = window.location.hash === '#/guild';
+            setIsGuildRoute(onGuild);
+            if (!onGuild) {
+                // 다른 화면으로 이동하면 전역 오버레이가 남아 클릭을 막지 않도록 강제 종료
+                setShowWarParticipantPicker(false);
+                setIsStarting(false);
+            }
+        };
+        window.addEventListener('hashchange', onHashChange);
+        return () => window.removeEventListener('hashchange', onHashChange);
+    }, []);
+
+    React.useEffect(() => {
+        if (!showWarParticipantPicker) return;
+        // 네트워크/상태 꼬임으로 모달이 남아 전역 클릭을 막는 상황 방지
+        const t = setTimeout(() => setIsStarting(false), 10000);
+        return () => clearTimeout(t);
+    }, [showWarParticipantPicker]);
     
     // 길드장/부길드장 권한 확인 (관리자는 effectiveUserId로 비교 - 서버와 동일)
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
@@ -727,6 +753,44 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     }, [guild.members, effectiveUserId]);
     
     const canStartWar = guild.leaderId === effectiveUserId || myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
+    const myWarParticipationEnabled = (currentUserWithStatus as any)?.guildWarParticipationEnabled !== false;
+    const currentWarMonthKey = React.useMemo(
+        () => `${getKSTFullYear(Date.now())}-${String(getKSTMonth(Date.now()) + 1).padStart(2, '0')}`,
+        []
+    );
+    const myWarMonthlyCount = Number((currentUserWithStatus as any)?.guildWarMonthlyParticipations?.[currentWarMonthKey] ?? 0) || 0;
+    const userMap = React.useMemo(() => new Map((allUsers || []).map((u) => [u.id, u])), [allUsers]);
+    const warParticipantCandidates = React.useMemo(() => {
+        const list = (guild.members || [])
+            .filter((m) => {
+                const u = userMap.get(m.userId) as any;
+                const monthlyCount = Number(u?.guildWarMonthlyParticipations?.[currentWarMonthKey] ?? 0) || 0;
+                return u?.guildWarParticipationEnabled !== false && monthlyCount < GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT;
+            })
+            .map((m) => {
+            const u = userMap.get(m.userId) as any;
+            const strategicLevel = Number(u?.strategyLevel ?? 0) || 0;
+            const playfulLevel = Number(u?.playfulLevel ?? 0) || 0;
+            const level = strategicLevel + playfulLevel;
+            const nickname = m.nickname || u?.nickname || m.userId;
+            const avatarUrl = AVATAR_POOL.find((a: any) => a.id === u?.avatarId)?.url || '/images/guild/profile/icon1.png';
+                return {
+                    userId: m.userId,
+                    nickname,
+                    level,
+                    contribution: Number(m.contributionTotal ?? 0) || 0,
+                    monthlyWarCount: Number(u?.guildWarMonthlyParticipations?.[currentWarMonthKey] ?? 0) || 0,
+                    avatarUrl,
+                };
+            });
+        const dir = participantSortOrder === 'asc' ? 1 : -1;
+        list.sort((a, b) => {
+            if (participantSortKey === 'level') return (a.level - b.level) * dir || a.nickname.localeCompare(b.nickname, 'ko');
+            if (participantSortKey === 'contribution') return (a.contribution - b.contribution) * dir || a.nickname.localeCompare(b.nickname, 'ko');
+            return a.nickname.localeCompare(b.nickname, 'ko') * dir;
+        });
+        return list;
+    }, [guild.members, userMap, participantSortKey, participantSortOrder, currentWarMonthKey]);
 
     // guild.guildWarMatching 변경 시 동기화 (broadcast, GET_GUILD_WAR_DATA 등으로 길드가 갱신된 경우)
     React.useEffect(() => {
@@ -826,9 +890,9 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                 setOpponentGuild(opponentGuildData ?? null);
                 
                 // 하루 도전 횟수 계산
-                const today = new Date().toISOString().split('T')[0];
+                const todayKST = getTodayKSTDateString();
                 if (effectiveUserId) {
-                    const attempts = war.dailyAttempts?.[effectiveUserId]?.[today] || 0;
+                    const attempts = war.dailyAttempts?.[effectiveUserId]?.[todayKST] || 0;
                     setMyWarAttempts(attempts);
                 } else {
                     setMyWarAttempts(0);
@@ -942,7 +1006,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
         return () => clearInterval(interval);
     }, [warActionCooldown]);
     
-    const myWarTickets = GUILD_WAR_MAX_ATTEMPTS - myWarAttempts;
+    const myWarTickets = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS - myWarAttempts;
     // 데모 모드(DEMO_GUILD_WAR)에서는 공격권/매칭 상태와 관계없이 activeWar만 있으면 입장 가능하게 허용
     const canEnterWar = DEMO_GUILD_WAR
         ? !!activeWar
@@ -969,6 +1033,41 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
         }
     };
     
+    const openWarParticipantPicker = () => {
+        const n = Math.min(GUILD_WAR_MAX_PARTICIPANTS, warParticipantCandidates.length);
+        setWarParticipantSelectedIds(warParticipantCandidates.slice(0, n).map((m) => m.userId));
+        setShowWarParticipantPicker(true);
+    };
+
+    const handleToggleMyWarParticipation = async () => {
+        if (!guild?.id || isUpdatingWarParticipation) return;
+        setIsUpdatingWarParticipation(true);
+        try {
+            const result = await handlers.handleAction({
+                type: 'SET_GUILD_WAR_PARTICIPATION',
+                payload: { enabled: !myWarParticipationEnabled },
+            } as const) as any;
+            if (result?.error) {
+                alert(result.error);
+            } else {
+                await handlers.handleAction({ type: 'GET_GUILD_WAR_DATA' } as const);
+            }
+        } catch (error) {
+            console.error('[WarPanel] Toggle participation failed:', error);
+            alert('전쟁 참여 설정 변경에 실패했습니다.');
+        } finally {
+            setIsUpdatingWarParticipation(false);
+        }
+    };
+
+    const toggleWarParticipant = (userId: string) => {
+        setWarParticipantSelectedIds((prev) => {
+            if (prev.includes(userId)) return prev.filter((id) => id !== userId);
+            if (prev.length >= GUILD_WAR_MAX_PARTICIPANTS) return prev;
+            return [...prev, userId];
+        });
+    };
+
     const handleStartWar = async () => {
         if (!canStartWar) return;
         const kstDay = getKSTDay(Date.now());
@@ -990,10 +1089,32 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
             alert(`전쟁 취소 후 1시간이 지나야 신청할 수 있습니다. (남은 시간: ${cooldownRemaining})`);
             return;
         }
+        if (!DEMO_GUILD_WAR && (guild.members?.length ?? 0) < GUILD_WAR_MIN_PARTICIPANTS) {
+            alert(`길드전 신청은 길드원이 ${GUILD_WAR_MIN_PARTICIPANTS}명 이상일 때 가능합니다.`);
+            return;
+        }
+        if (warParticipantCandidates.length < GUILD_WAR_MIN_PARTICIPANTS) {
+            alert(`참여로 설정된 길드원이 ${GUILD_WAR_MIN_PARTICIPANTS}명 이상이어야 신청할 수 있습니다.`);
+            return;
+        }
+        openWarParticipantPicker();
+    };
+
+    const confirmWarParticipantsAndStart = async () => {
+        const ids = [...new Set(warParticipantSelectedIds)];
+        if (ids.length < GUILD_WAR_MIN_PARTICIPANTS || ids.length > GUILD_WAR_MAX_PARTICIPANTS) {
+            alert(`출전 길드원을 ${GUILD_WAR_MIN_PARTICIPANTS}~${GUILD_WAR_MAX_PARTICIPANTS}명 선택해 주세요.`);
+            return;
+        }
+        setShowWarParticipantPicker(false);
         setIsStarting(true);
         matchingJustStartedAtRef.current = 0;
         try {
-            const result = await handlers.handleAction({ type: 'START_GUILD_WAR' }) as any;
+            const startWarAction =
+                ids.length > 0
+                    ? ({ type: 'START_GUILD_WAR' as const, payload: { participantUserIds: ids } })
+                    : ({ type: 'START_GUILD_WAR' as const });
+            const result = (await handlers.handleAction(startWarAction)) as any;
             if (result?.error) {
                 const isAlreadyMatching = result.error.includes('이미 매칭') || result.error.includes('이미 참가');
                 if (isAlreadyMatching) {
@@ -1231,7 +1352,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                                         </div>
                                         {(myRecordInCurrentWar || myWarAttempts > 0) && (
                                             <div className="text-[10px] text-amber-300/90 border-t border-stone-600/40 pt-0.5 mt-0.5">
-                                                내 기록: {(myRecordInCurrentWar?.attempts ?? myWarAttempts)}/{(myRecordInCurrentWar?.maxAttempts ?? GUILD_WAR_MAX_ATTEMPTS)} 공격권{myRecordInCurrentWar?.contributedStars != null && myRecordInCurrentWar.contributedStars > 0 ? ` · ${myRecordInCurrentWar.contributedStars}별 기여` : ''}
+                                                내 기록: {(myRecordInCurrentWar?.attempts ?? myWarAttempts)}/{(myRecordInCurrentWar?.maxAttempts ?? GUILD_WAR_PERSONAL_DAILY_ATTEMPTS)} 공격권{myRecordInCurrentWar?.contributedStars != null && myRecordInCurrentWar.contributedStars > 0 ? ` · ${myRecordInCurrentWar.contributedStars}별 기여` : ''}
                                             </div>
                                         )}
                                         <div className="flex gap-1 mt-0.5">
@@ -1349,12 +1470,22 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                         {/* 입장 + 전쟁 참여 + 전쟁 취소 버튼 - 하단 고정 */}
                         <div className={`flex-shrink-0 ${isMobile ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'} border-t border-stone-600/40 flex flex-wrap justify-center gap-2`}>
                             <button
+                                type="button"
+                                onClick={() => void handleToggleMyWarParticipation()}
+                                disabled={isUpdatingWarParticipation}
+                                className={isUpdatingWarParticipation ? guildPanelBtn.disabled : (myWarParticipationEnabled ? guildPanelBtn.participate : guildPanelBtn.cancel)}
+                                title="길드전 출전 의사 설정"
+                            >
+                                <span className="text-xs">{myWarParticipationEnabled ? '✅' : '⛔'}</span>
+                                <span>{myWarParticipationEnabled ? '전쟁 참여' : '전쟁 불참'}</span>
+                            </button>
+                            <button
                                 onClick={() => window.location.hash = '#/guildwar'}
                                 disabled={!canEnterWar}
                                 className={canEnterWar ? guildPanelBtn.war : guildPanelBtn.disabled}
                             >
                                 <img src="/images/guild/warticket.png" alt="길드전 공격권" className="w-4 h-4" />
-                                <span>{myWarTickets}/{GUILD_WAR_MAX_ATTEMPTS}</span>
+                                <span>{myWarTickets}/{GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}</span>
                                 <span>입장</span>
                             </button>
                             {DEMO_GUILD_WAR && (
@@ -1423,6 +1554,9 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                                 </button>
                             )}
                         </div>
+                        <div className="mt-1 text-center text-[11px] text-stone-400">
+                            이번달 내 출전 횟수 {myWarMonthlyCount}/{GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1453,6 +1587,116 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                 onClose={() => setShowApplicationDayOnlyModal(false)}
                 nextApplicationDayLabel={nextApplicationDayLabel || '월요일 또는 목요일 0:00 ~ 23:00'}
             />
+        )}
+        {showWarParticipantPicker && isGuildRoute && createPortal(
+            <div
+                className="fixed inset-0 z-[12000] flex items-center justify-center bg-black/70 p-4 pointer-events-auto"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="war-participant-picker-title"
+                onClick={() => !isStarting && setShowWarParticipantPicker(false)}
+            >
+                <div
+                    className="w-full max-w-md rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-4 max-h-[85vh] flex flex-col pointer-events-auto"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <h2 id="war-participant-picker-title" className="text-lg font-bold text-amber-200 text-center mb-1">
+                        출전 길드원 선택
+                    </h2>
+                    <p className="text-[11px] text-stone-400 text-center mb-3">
+                        출전 명단 {GUILD_WAR_MIN_PARTICIPANTS}~{GUILD_WAR_MAX_PARTICIPANTS}명을 선택하세요. (1인당 하루 {GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}회 도전)
+                    </p>
+                    <p className="text-[10px] text-stone-500 text-center -mt-2 mb-2">
+                        참여 설정 + 월 {GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT}회 미만 길드원 {warParticipantCandidates.length}명
+                    </p>
+                    <div className="mb-2 grid grid-cols-2 gap-2">
+                        <select
+                            value={participantSortKey}
+                            onChange={(e) => setParticipantSortKey(e.target.value as 'level' | 'contribution' | 'name')}
+                            className="bg-stone-800 border border-stone-600 rounded px-2 py-1.5 text-xs text-stone-200"
+                        >
+                            <option value="level">레벨순</option>
+                            <option value="contribution">기여도순</option>
+                            <option value="name">가나다순</option>
+                        </select>
+                        <select
+                            value={participantSortOrder}
+                            onChange={(e) => setParticipantSortOrder(e.target.value as 'asc' | 'desc')}
+                            className="bg-stone-800 border border-stone-600 rounded px-2 py-1.5 text-xs text-stone-200"
+                        >
+                            <option value="asc">오름차순</option>
+                            <option value="desc">내림차순</option>
+                        </select>
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 mb-3 border border-stone-700/60 rounded-lg p-2">
+                        {warParticipantCandidates.length === 0 && (
+                            <div className="text-center text-xs text-stone-500 py-6">참여로 설정된 길드원이 없습니다.</div>
+                        )}
+                        {warParticipantCandidates.map((m) => {
+                            const checked = warParticipantSelectedIds.includes(m.userId);
+                            const reachedMax = warParticipantSelectedIds.length >= GUILD_WAR_MAX_PARTICIPANTS;
+                            const disabled = !checked && reachedMax;
+                            return (
+                                <label
+                                    key={m.userId}
+                                    className={`flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer text-sm ${
+                                        checked
+                                            ? 'bg-amber-900/30 text-amber-100'
+                                            : disabled
+                                              ? 'bg-stone-800/30 text-stone-500 cursor-not-allowed'
+                                              : 'bg-stone-800/50 text-stone-300 hover:bg-stone-800'
+                                    }`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-stone-500"
+                                        checked={checked}
+                                        disabled={disabled}
+                                        onChange={() => toggleWarParticipant(m.userId)}
+                                    />
+                                    <img src={m.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover border border-stone-500 shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold">{m.nickname}</p>
+                                        <p className="text-[10px] text-stone-400">
+                                            Lv.{m.level} · 누적기여 {m.contribution.toLocaleString()} · 이번달 {m.monthlyWarCount}/{GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT}
+                                        </p>
+                                    </div>
+                                </label>
+                            );
+                        })}
+                    </div>
+                    <div className="text-center text-xs text-stone-400 mb-2">
+                        선택 {warParticipantSelectedIds.length}명
+                        <span>
+                            {' '}
+                            / 필요 {GUILD_WAR_MIN_PARTICIPANTS}~{GUILD_WAR_MAX_PARTICIPANTS}명
+                        </span>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                        <button
+                            type="button"
+                            disabled={isStarting}
+                            className="px-3 py-2 rounded-lg bg-stone-700 text-stone-200 text-sm disabled:opacity-50"
+                            onClick={() => setShowWarParticipantPicker(false)}
+                        >
+                            취소
+                        </button>
+                        <button
+                            type="button"
+                            disabled={
+                                isStarting ||
+                                warParticipantSelectedIds.length < GUILD_WAR_MIN_PARTICIPANTS ||
+                                warParticipantSelectedIds.length > GUILD_WAR_MAX_PARTICIPANTS
+                            }
+                            className="px-3 py-2 rounded-lg bg-amber-700 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => void confirmWarParticipantsAndStart()}
+                        >
+                            {isStarting ? '신청 중…' : '신청'}
+                        </button>
+                    </div>
+                </div>
+            </div>,
+            document.getElementById('sudamr-modal-root') ?? document.body
         )}
         </>
     );

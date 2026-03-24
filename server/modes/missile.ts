@@ -14,8 +14,9 @@ type HandleActionResult = types.HandleActionResult;
 export const initializeMissile = (game: types.LiveGameSession) => {
     const isMissileMode = game.mode === types.GameMode.Missile || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Missile));
     if (isMissileMode) {
-        game.missiles_p1 = game.settings.missileCount;
-        game.missiles_p2 = game.settings.missileCount;
+        const cap = game.settings.missileCount ?? 3;
+        game.missiles_p1 = cap;
+        game.missiles_p2 = cap;
     }
 };
 

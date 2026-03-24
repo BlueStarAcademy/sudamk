@@ -113,7 +113,15 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
     const handleClickOutside = useCallback((event: MouseEvent) => {
 
-        if (onClose && closeOnOutsideClick && isTopmost && windowRef.current && !windowRef.current.contains(event.target as Node)) {
+        if (
+            onClose &&
+            closeOnOutsideClick &&
+            isTopmost &&
+            windowRef.current
+        ) {
+            const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+            const clickedInside = path.includes(windowRef.current) || windowRef.current.contains(event.target as Node);
+            if (clickedInside) return;
             // 클릭된 요소가 다른 DraggableWindow 내부에 있는지 확인
             const target = event.target as HTMLElement;
             if (target) {
@@ -589,7 +597,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                     className={`${
                         isInsideScaledCanvas ? 'absolute' : 'fixed'
                     } inset-0 bg-black/50 ${!isTopmost ? 'backdrop-blur-sm' : ''}`}
-                    style={{ zIndex: effectiveZIndex - 1 }}
+                    style={{ zIndex: effectiveZIndex - 1, pointerEvents: 'auto' }}
                 />
             )}
             <div
@@ -618,6 +626,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                     transformOrigin: 'center',
                     boxShadow: !isStoreVariant && isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : undefined,
                     zIndex: effectiveZIndex,
+                    pointerEvents: 'auto',
                 }}
             >
                 {!isTopmost && (

@@ -6,6 +6,59 @@ import type { InventoryItem } from '../types/index.js';
 import { GUILD_BOSS_1_IMG, GUILD_BOSS_2_IMG, GUILD_BOSS_3_IMG, GUILD_BOSS_4_IMG, GUILD_BOSS_5_IMG, BOSS_SKILL_ICON_MAP } from '../../assets.js';
 
 
+/** 길드전 AI 대국 규칙 (server/actions/guildActions START_GUILD_WAR_GAME과 동일) */
+export const GUILD_WAR_CAPTURE_TARGET = 10;
+export const GUILD_WAR_HIDDEN_STONE_COUNT = 3;
+export const GUILD_WAR_SCAN_COUNT = 2;
+export const GUILD_WAR_MISSILE_COUNT = 3;
+
+/** 길드전 출전 명단: 신청 시 길드원 수(최소~최대) */
+export const GUILD_WAR_MIN_PARTICIPANTS = 5;
+export const GUILD_WAR_MAX_PARTICIPANTS = 10;
+
+/** 길드전 1인당 하루 도전 가능 횟수 */
+export const GUILD_WAR_PERSONAL_DAILY_ATTEMPTS = 3;
+/** 길드전 1인당 월간 출전 가능 횟수 (KST 기준 월) */
+export const GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT = 5;
+
+/** 승리 시 별(따내기): 내 따낸 돌 수 기준 */
+export const GUILD_WAR_STAR_CAPTURE_TIER2_MIN = 5;
+export const GUILD_WAR_STAR_CAPTURE_TIER3_MIN = 15;
+
+/** 승리 시 별: 계가(히든·미사일) — 승자 집 합계 − 패자 집 합계 기준 */
+export const GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF = 5;
+export const GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF = 15;
+
+/** 길드전 상세 패널용 간단 별 규칙 (서버 `guildWarBoardResult`와 동일 의미) */
+export function getGuildWarStarConditionLines(
+    gameMode: 'capture' | 'hidden' | 'missile' | undefined
+): string[] {
+    const mode = gameMode ?? 'capture';
+    const c2 = GUILD_WAR_STAR_CAPTURE_TIER2_MIN;
+    const c3 = GUILD_WAR_STAR_CAPTURE_TIER3_MIN;
+    const t2 = GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF;
+    const t3 = GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF;
+    if (mode === 'capture') {
+        return [
+            '★ 승리시',
+            `★ 따낸 돌 ${c2}개`,
+            `★ 따낸 돌 ${c3}개`,
+        ];
+    }
+    if (mode === 'hidden') {
+        return [
+            '★ 승리시',
+            `★ 집차이 ${t2}집이상`,
+            `★ 집차이 ${t3}집이상`,
+        ];
+    }
+    return [
+        '★ 승리시',
+        `★ 집차이 ${t2}집이상`,
+        `★ 집차이 ${t3}집이상`,
+    ];
+}
+
 export const GUILD_CREATION_COST = 500; // Diamonds (무분별한 길드 창설 방지)
 export const GUILD_NAME_CHANGE_COST = 200; // Diamonds
 export const GUILD_NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days

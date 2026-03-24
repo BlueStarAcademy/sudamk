@@ -40,9 +40,12 @@ export const createDefaultSpentStatPoints = (): Record<CoreStat, number> => ({
 
 export const createDefaultInventory = (): InventoryItem[] => [];
 
+/** 랭킹전·시즌 티어와 동일한 시즌 시작 레이팅 (신규 계정은 0이 아닌 1200으로 시작해야 ELO·표시가 맞음) */
+export const DEFAULT_RANKING_SCORE_SEASON_START = 1200;
+
 const allGameModes = [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES].map(m => m.mode);
 export const defaultStats: User['stats'] = allGameModes.reduce((acc, mode) => {
-    acc[mode] = { wins: 0, losses: 0, rankingScore: 0 };
+    acc[mode] = { wins: 0, losses: 0, rankingScore: DEFAULT_RANKING_SCORE_SEASON_START };
     return acc;
 }, {} as Record<GameMode, { wins: number; losses: number; rankingScore: number }>);
 
@@ -92,6 +95,12 @@ export const createDefaultUser = (id: string, username: string, nickname: string
         ownedBorders: ['default', 'simple_black'],
         previousSeasonTier: null,
         seasonHistory: {},
+        // dailyRankings.score는 1200 대비 델타 — 신규는 0 델타로 시즌 점수 1200과 동일
+        dailyRankings: {
+            strategic: { rank: 0, score: 0, lastUpdated: now },
+            playful: { rank: 0, score: 0, lastUpdated: now },
+        },
+        cumulativeRankingScore: { standard: 0, playful: 0 },
         tournamentScore: 0,
         league: LeagueTier.Sprout,
         // weeklyCompetitors 제거됨 - 던전 시스템으로 변경

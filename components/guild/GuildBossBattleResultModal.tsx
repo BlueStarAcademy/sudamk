@@ -4,7 +4,7 @@ import type { GuildBossBattleResult as GuildBossBattleResultType } from '../../t
 import { ItemGrade } from '../../types/enums.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import { gradeBackgrounds, slotNames, EQUIPMENT_POOL } from '../../constants/items.js';
+import { gradeBackgrounds, EQUIPMENT_POOL } from '../../constants/items.js';
 import { GUILD_BOSS_GRADE_NAMES } from '../../constants/index.js';
 
 interface GuildBossBattleResultModalProps {
@@ -21,14 +21,83 @@ interface RewardCard {
     grade?: ItemGrade;
     isSpecial?: boolean; // 5등급 보상 또는 전설 이상 장비
     equipment?: {
-        slot?: string;
         fullName?: string;
         item?: { name?: string; image?: string; slot?: string; grade?: ItemGrade };
     };
 }
 
+/** 카드 앞면 내용 — 3D 플립 후에는 동일 UI를 2D로만 그려 텍스트·아이콘 선명도 유지 */
+const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
+    <>
+        {card.type === 'guildXp' ? (
+            <div className="flex w-full flex-col items-center justify-center">
+                <div
+                    className={`text-xl font-black ${card.isSpecial ? 'text-yellow-200' : 'text-blue-400'}`}
+                    style={{
+                        textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 10px rgba(59,130,246,0.5)',
+                        letterSpacing: '3px',
+                    }}
+                >
+                    EXP
+                </div>
+                {card.quantity !== undefined && (
+                    <div className={`mt-0.5 text-[10px] font-bold ${card.isSpecial ? 'text-yellow-200' : 'text-blue-300'}`}>
+                        {card.quantity.toLocaleString()}
+                    </div>
+                )}
+            </div>
+        ) : card.type === 'equipment' ? (
+            <>
+                <img
+                    src={card.image}
+                    alt={card.name}
+                    decoding="async"
+                    className={`mb-1 h-9 w-9 object-contain sm:h-10 sm:w-10 ${card.isSpecial ? 'drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]' : ''}`}
+                    style={{ imageRendering: 'auto' }}
+                />
+                <div className="w-full px-0.5 text-center">
+                    <div className={`mb-0.5 text-[10px] font-semibold leading-tight sm:text-[11px] ${card.isSpecial ? 'text-yellow-100' : 'text-white'}`}>
+                        {card.equipment?.fullName || card.name}
+                    </div>
+                    {card.quantity !== undefined && (
+                        <div className={`text-[11px] font-bold sm:text-xs ${card.isSpecial ? 'text-yellow-200' : 'text-gray-200'}`}>
+                            {card.quantity.toLocaleString()}
+                        </div>
+                    )}
+                </div>
+            </>
+        ) : (
+            <>
+                <img
+                    src={card.image}
+                    alt={card.name}
+                    decoding="async"
+                    className={`mb-1 h-9 w-9 object-contain sm:h-10 sm:w-10 ${card.isSpecial ? 'drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]' : ''}`}
+                    style={{ imageRendering: 'auto' }}
+                />
+                <div className="text-center">
+                    <div className={`mb-0.5 text-[10px] font-semibold leading-tight sm:text-[11px] ${card.isSpecial ? 'text-yellow-100' : 'text-white'}`}>
+                        {card.name}
+                    </div>
+                    {card.quantity !== undefined && (
+                        <div className={`text-[11px] font-bold sm:text-xs ${card.isSpecial ? 'text-yellow-200' : 'text-gray-200'}`}>
+                            {card.quantity.toLocaleString()}
+                        </div>
+                    )}
+                </div>
+            </>
+        )}
+        {card.isSpecial && (
+            <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 animate-bounce">
+                <span className="text-[8px]">⭐</span>
+            </div>
+        )}
+    </>
+);
+
 const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({ result, onClose, isTopmost }) => {
     const [cardsFlipped, setCardsFlipped] = useState(false);
+    const [flipSettled, setFlipSettled] = useState(false);
     const [rewardCards, setRewardCards] = useState<RewardCard[]>([]);
     
     const hpPercentAfter = (result.bossHpAfter / result.bossMaxHp) * 100;
@@ -129,7 +198,6 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
 
             let equipmentName = equipmentItem?.name ?? (rewards.equipment as any).name;
             let equipmentImage = equipmentItem?.image ?? (rewards.equipment as any).image;
-            let equipmentSlot = equipmentItem?.slot ?? (rewards.equipment as any).slot;
 
             // 서버에서 실제 장비 정보가 없으면(등급만 있는 경우) 해당 등급의 표시용 장비 1개 선택
             if (!equipmentName || !equipmentImage) {
@@ -138,7 +206,6 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 if (template) {
                     equipmentName = equipmentName || template.name;
                     equipmentImage = equipmentImage || template.image;
-                    equipmentSlot = equipmentSlot ?? template.slot;
                 }
             }
 
@@ -148,14 +215,17 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 ? (equipmentImage.startsWith('/') ? equipmentImage : `/${equipmentImage}`)
                 : (gradeBackgrounds[gradeKey] || '/images/equipments/normalbgi.png');
 
+            const rawEqQty = (equipmentItem as { quantity?: number } | undefined)?.quantity;
+            const equipmentQty = typeof rawEqQty === 'number' && rawEqQty > 0 ? rawEqQty : 1;
+
             cards.push({
                 type: 'equipment',
                 name: displayName,
+                quantity: equipmentQty,
                 image: imagePath,
                 grade: equipmentGrade,
                 isSpecial: isSpecialEquipment,
                 equipment: {
-                    slot: equipmentSlot ? slotNames[equipmentSlot as keyof typeof slotNames] : undefined,
                     fullName: displayName,
                     item: equipmentItem,
                 },
@@ -165,9 +235,17 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         setRewardCards(cards);
         
         // 카드 뒤집기 애니메이션 시작
-        setTimeout(() => {
+        const flipStart = window.setTimeout(() => {
             setCardsFlipped(true);
         }, 300);
+        // 3D transform은 정지 후에도 글자/아이콘이 흐릿해질 수 있어, 전환 종료 뒤 2D 레이아웃으로 전환
+        const flipDone = window.setTimeout(() => {
+            setFlipSettled(true);
+        }, 300 + 700 + 80);
+        return () => {
+            window.clearTimeout(flipStart);
+            window.clearTimeout(flipDone);
+        };
     }, []);
     
     const MATERIAL_IMAGES: Record<string, string> = {
@@ -233,106 +311,63 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                         {rewardCards.map((card, index) => (
                             <div
                                 key={index}
-                                className={`relative h-24 perspective-1000 ${card.isSpecial ? 'z-10' : ''}`}
+                                className={`relative h-24 ${card.isSpecial ? 'z-10' : ''}`}
                                 style={{
                                     animationDelay: `${index * 100}ms`,
                                 }}
                             >
-                                <div
-                                    className={`relative w-full h-full transition-transform duration-700 transform-style-preserve-3d ${
-                                        cardsFlipped ? 'rotate-y-180' : ''
-                                    } ${card.isSpecial ? 'scale-110' : ''}`}
-                                    style={{
-                                        transformStyle: 'preserve-3d',
-                                    }}
-                                >
-                                    {/* 카드 뒷면 (물음표) */}
+                                {flipSettled ? (
                                     <div
-                                        className={`absolute inset-0 backface-hidden rounded-lg border-2 ${
+                                        className={`relative flex h-full w-full flex-col items-center justify-center rounded-lg border-2 p-1 shadow-lg [transform:none] [filter:none] ${
                                             card.isSpecial
-                                                ? 'bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.8)]'
-                                                : 'bg-gradient-to-br from-indigo-600 to-purple-700 border-indigo-400'
-                                        } flex items-center justify-center shadow-lg`}
+                                                ? 'bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.8)] ring-2 ring-yellow-200/60'
+                                                : 'border-gray-600 bg-gradient-to-br from-gray-800 to-gray-900'
+                                        }`}
                                         style={{
-                                            transform: 'rotateY(0deg)',
-                                            backfaceVisibility: 'hidden',
+                                            WebkitFontSmoothing: 'subpixel-antialiased',
                                         }}
                                     >
-                                        <span className="text-3xl font-bold text-white/80">?</span>
+                                        <RewardCardFrontContent card={card} />
                                     </div>
-                                    
-                                    {/* 카드 앞면 (보상) */}
-                                    <div
-                                        className={`absolute inset-0 backface-hidden rounded-lg border-2 ${
-                                            card.isSpecial
-                                                ? 'bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.8)] animate-pulse'
-                                                : 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-600'
-                                        } flex flex-col items-center justify-center p-1 shadow-lg`}
-                                        style={{
-                                            transform: 'rotateY(180deg)',
-                                            backfaceVisibility: 'hidden',
-                                        }}
-                                    >
-                                        {/* 길드 경험치는 EXP 텍스트 디자인으로 표시 */}
-                                        {card.type === 'guildXp' ? (
-                                            <div className="flex flex-col items-center justify-center w-full">
-                                                <div className={`text-xl font-black ${card.isSpecial ? 'text-yellow-200' : 'text-blue-400'}`} style={{
-                                                    textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 10px rgba(59,130,246,0.5)',
-                                                    letterSpacing: '3px',
-                                                }}>
-                                                    EXP
-                                                </div>
-                                                {card.quantity !== undefined && (
-                                                    <div className={`text-[10px] font-bold mt-0.5 ${card.isSpecial ? 'text-yellow-200' : 'text-blue-300'}`}>
-                                                        {card.quantity.toLocaleString()}
-                                                    </div>
-                                                )}
+                                ) : (
+                                    <div className="perspective-1000 relative h-full w-full">
+                                        <div
+                                            className={`relative h-full w-full transition-transform duration-700 transform-style-preserve-3d ${
+                                                cardsFlipped ? 'rotate-y-180' : ''
+                                            }`}
+                                            style={{
+                                                transformStyle: 'preserve-3d',
+                                            }}
+                                        >
+                                            <div
+                                                className={`absolute inset-0 backface-hidden flex items-center justify-center rounded-lg border-2 shadow-lg ${
+                                                    card.isSpecial
+                                                        ? 'border-yellow-300 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 shadow-[0_0_20px_rgba(255,215,0,0.8)]'
+                                                        : 'border-indigo-400 bg-gradient-to-br from-indigo-600 to-purple-700'
+                                                }`}
+                                                style={{
+                                                    transform: 'rotateY(0deg)',
+                                                    backfaceVisibility: 'hidden',
+                                                }}
+                                            >
+                                                <span className="text-3xl font-bold text-white/80">?</span>
                                             </div>
-                                        ) : card.type === 'equipment' ? (
-                                            <>
-                                                <img
-                                                    src={card.image}
-                                                    alt={card.name}
-                                                    className={`w-8 h-8 object-contain mb-1 ${card.isSpecial ? 'drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]' : ''}`}
-                                                />
-                                                <div className="text-center w-full px-0.5">
-                                                    <div className={`text-[9px] font-semibold mb-0.5 leading-tight ${card.isSpecial ? 'text-yellow-100' : 'text-white'}`}>
-                                                        {/* 장비 이름 우선순위: equipment.fullName > card.name (실제 장비 이름 표시) */}
-                                                        {card.equipment?.fullName || card.name}
-                                                    </div>
-                                                    {card.equipment?.slot && (
-                                                        <div className={`text-[8px] ${card.isSpecial ? 'text-yellow-200/80' : 'text-gray-300'}`}>
-                                                            {card.equipment.slot}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <img
-                                                    src={card.image}
-                                                    alt={card.name}
-                                                    className={`w-8 h-8 object-contain mb-1 ${card.isSpecial ? 'drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]' : ''}`}
-                                                />
-                                                <div className="text-center">
-                                                    <div className={`text-[10px] font-semibold mb-0.5 leading-tight ${card.isSpecial ? 'text-yellow-100' : 'text-white'}`}>
-                                                        {card.name}
-                                                    </div>
-                                                    {card.quantity !== undefined && (
-                                                        <div className={`text-[11px] font-bold ${card.isSpecial ? 'text-yellow-200' : 'text-gray-200'}`}>
-                                                            {card.quantity.toLocaleString()}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
-                                        {card.isSpecial && (
-                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center animate-bounce">
-                                                <span className="text-[8px]">⭐</span>
+                                            <div
+                                                className={`absolute inset-0 backface-hidden flex flex-col items-center justify-center rounded-lg border-2 p-1 shadow-lg ${
+                                                    card.isSpecial
+                                                        ? 'border-yellow-300 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 shadow-[0_0_20px_rgba(255,215,0,0.8)]'
+                                                        : 'border-gray-600 bg-gradient-to-br from-gray-800 to-gray-900'
+                                                }`}
+                                                style={{
+                                                    transform: 'rotateY(180deg)',
+                                                    backfaceVisibility: 'hidden',
+                                                }}
+                                            >
+                                                <RewardCardFrontContent card={card} />
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -352,26 +387,38 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                             </span>
                         </div>
                     </div>
-                    {result.previousRank !== undefined && result.currentRank !== undefined && (
-                        <div className="pt-2 border-t border-amber-500/30">
-                            <div className="flex justify-between items-center">
-                                <span className="text-amber-200/80">순위:</span>
-                                <div className="flex items-center gap-2">
-                                    {result.previousRank && (
-                                        <span className="text-amber-300/70 text-xs">이전: {result.previousRank}위</span>
+                    <div className="pt-2 border-t border-amber-500/30">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-amber-200/80">누적 피해 순위</span>
+                            <div className="flex max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs sm:text-sm">
+                                <span className="text-amber-300/85">
+                                    이전:{' '}
+                                    {typeof result.previousRank === 'number' ? (
+                                        <span className="font-semibold text-amber-200">{result.previousRank}위</span>
+                                    ) : (
+                                        <span className="text-amber-200/65">기록 없음</span>
                                     )}
-                                    <span className="font-bold text-amber-300">
-                                        {result.currentRank ? `${result.currentRank}위` : '-'}
-                                    </span>
-                                    {result.previousRank && result.currentRank && result.previousRank !== result.currentRank && (
-                                        <span className={`text-xs font-semibold ${result.currentRank < result.previousRank ? 'text-green-400' : 'text-red-400'}`}>
-                                            ({result.currentRank < result.previousRank ? '↑' : '↓'} {Math.abs(result.currentRank - result.previousRank)})
+                                </span>
+                                <span className="text-amber-200/45" aria-hidden>
+                                    →
+                                </span>
+                                <span className="font-bold text-amber-300">
+                                    현재:{' '}
+                                    {typeof result.currentRank === 'number' ? `${result.currentRank}위` : '—'}
+                                </span>
+                                {typeof result.previousRank === 'number' &&
+                                    typeof result.currentRank === 'number' &&
+                                    result.previousRank !== result.currentRank && (
+                                        <span
+                                            className={`font-semibold ${result.currentRank < result.previousRank ? 'text-green-400' : 'text-red-400'}`}
+                                        >
+                                            ({result.currentRank < result.previousRank ? '↑' : '↓'}{' '}
+                                            {Math.abs(result.currentRank - result.previousRank)})
                                         </span>
                                     )}
-                                </div>
                             </div>
                         </div>
-                    )}
+                    </div>
                 </div>
                 
                 <div className="flex-shrink-0 mt-4 flex justify-center">

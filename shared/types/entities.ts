@@ -369,6 +369,10 @@ export type User = {
   bonusStatPoints?: number;
   singlePlayerMissions?: Record<string, SinglePlayerMissionState>;
   guildId?: string;
+  /** 길드전 출전 의사 (미설정은 참여로 간주) */
+  guildWarParticipationEnabled?: boolean;
+  /** 길드전 월간 출전 횟수 (KST 기준, key: YYYY-MM) */
+  guildWarMonthlyParticipations?: Record<string, number>;
   blacksmithLevel: number;
   blacksmithXp: number;
   cumulativeRankingScore?: Record<string, number>;

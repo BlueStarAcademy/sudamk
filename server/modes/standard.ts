@@ -19,6 +19,11 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
         case types.GameMode.Standard:
         case types.GameMode.Speed:
         case types.GameMode.Mix:
+            // 믹스룰에 히든/미사일이 포함돼도 이전에는 초기화를 건너뛰어 missiles_p1/p2·스캔이 비어 UI에 아이템이 안 보이는 문제가 있었음
+            if (game.mode === types.GameMode.Mix) {
+                initializeHidden(game);
+                initializeMissile(game);
+            }
             if (game.isAiGame) {
                 const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
                 if (humanPlayerColor === types.Player.Black) {

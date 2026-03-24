@@ -152,6 +152,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
     const isSinglePlayer = session.isSinglePlayer;
     const isTower = session.gameCategory === 'tower';
+    const isGuildWarGame = session.gameCategory === 'guildwar';
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
     const showMoveConfirmPanel = !isPlayfulMode;
     const aiHiddenTurnsFromSession = (session as any).aiHiddenItemTurns;
@@ -2204,6 +2205,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // PVP 게임 배경 이미지 결정
     const pvpBackgroundClass = useMemo(() => {
+        if (isGuildWarGame) {
+            return '';
+        }
         if (SPECIAL_GAME_MODES.some(m => m.mode === mode)) {
             return 'bg-strategic-background';
         }
@@ -2211,14 +2215,29 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return 'bg-playful-background';
         }
         return 'bg-tertiary';
-    }, [mode]);
+    }, [mode, isGuildWarGame]);
 
     // AI 게임도 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
     // isPausableAiGame은 위에서 이미 정의됨
     const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame) ? isPaused : false;
 
     return (
-        <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full min-h-0 ${pvpBackgroundClass}`} style={{ height: '100%', maxHeight: '100%', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
+        <div
+            className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full min-h-0 ${pvpBackgroundClass}`}
+            style={{
+                height: '100%',
+                maxHeight: '100%',
+                paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px',
+                ...(isGuildWarGame
+                    ? {
+                          backgroundImage: "url('/images/guild/guildwar/warmap.png')",
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
+                      }
+                    : {}),
+            }}
+        >
             {session.disconnectionState && <DisconnectionModal session={session} currentUser={currentUser} />}
             {isAiRematchModalOpen && (
                 <AiChallengeModal

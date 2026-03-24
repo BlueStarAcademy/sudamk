@@ -25,8 +25,8 @@ import { replaceAppHash } from '../utils/appUtils.js';
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
     const { activeGame, singlePlayerGames, towerGames, liveGames, currentUser } = useAppContext();
     const [hasTimedOut, setHasTimedOut] = useState(false);
-    // 새로고침(F5) 시 재입장 API 대기(2.5초) + 응답 시간을 위해 6초로 설정
-    const maxWaitTime = 6000;
+    // 새로고침(F5) 시 재입장은 INITIAL_STATE 직후 지연(약 2.5초) + 네트워크 여유
+    const maxWaitTime = 10000;
     
     // activeGame이 로드되면 즉시 렌더링 (status 기반 또는 URL 폴백)
     if (activeGame && activeGame.id === gameId) {

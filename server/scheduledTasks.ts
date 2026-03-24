@@ -7,6 +7,7 @@ import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_
 import { randomUUID } from 'crypto';
 import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate } from '../shared/utils/timeUtils.js';
 import { DEMO_GUILD_WAR } from '../shared/constants/auth.js';
+import { GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT } from '../shared/constants/index.js';
 import { resetAndGenerateQuests } from './gameActions.js';
 import * as tournamentService from './tournamentService.js';
 import { calculateTotalStats } from './statService.js';
@@ -23,6 +24,35 @@ let lastDailyRankingUpdateTimestamp: number | null = null;
 let lastDailyQuestResetTimestamp: number | null = null;
 let lastTowerRankingRewardTimestamp: number | null = null;
 let lastGuildWarMatchTimestamp: number | null = null;
+const GUILD_WAR_BOARD_IDS = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'] as const;
+
+function getGuildWarBoardMode(boardId: string): 'capture' | 'hidden' | 'missile' {
+    if (boardId === 'top-left' || boardId === 'top-mid' || boardId === 'top-right') return 'capture';
+    if (boardId === 'mid-left' || boardId === 'center' || boardId === 'mid-right') return 'missile';
+    return 'hidden';
+}
+
+async function increaseGuildWarMonthlyParticipationCounts(userIds: string[], now: number): Promise<void> {
+    if (!Array.isArray(userIds) || userIds.length === 0) return;
+    const monthKey = `${getKSTFullYear(now)}-${String(getKSTMonth(now) + 1).padStart(2, '0')}`;
+    const uniq = [...new Set(userIds.filter((id) => typeof id === 'string' && id.length > 0))];
+    if (uniq.length === 0) return;
+    const { broadcastUserUpdate } = await import('./socket.js');
+    for (const id of uniq) {
+        const u = await db.getUser(id, { includeEquipment: false, includeInventory: false }) as any;
+        if (!u) continue;
+        if (!u.guildWarMonthlyParticipations || typeof u.guildWarMonthlyParticipations !== 'object') {
+            u.guildWarMonthlyParticipations = {};
+        }
+        const current = Number(u.guildWarMonthlyParticipations[monthKey] ?? 0) || 0;
+        u.guildWarMonthlyParticipations[monthKey] = Math.min(
+            GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT,
+            current + 1
+        );
+        await db.updateUser(u);
+        broadcastUserUpdate(u, ['guildWarMonthlyParticipations']);
+    }
+}
 
 /** @deprecated 경쟁상대 시스템 - 던전으로 대체됨. 호환용 확장 타입 */
 type UserWithWeeklyCompetitors = types.User & {
@@ -2132,8 +2162,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     if (DEMO_GUILD_WAR) {
         const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
         const botGuildId = await getOrCreateBotGuildForWar();
-        const boardIds = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'];
-        const gameModes: ('capture' | 'hidden' | 'missile')[] = ['capture', 'hidden', 'missile'];
+        const boardIds = [...GUILD_WAR_BOARD_IDS];
         (guilds as Record<string, any>)[botGuildId] = (guilds as Record<string, any>)[botGuildId] || {
             id: botGuildId,
             name: '[시스템]길드전AI',
@@ -2141,13 +2170,16 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             members: [],
             leaderId: botGuildId,
         };
+        const { takePendingParticipantsOrDefault } = await import('./guildWarParticipants.js');
         for (const guildId of matchingQueue) {
             const g = guilds[guildId];
             if (!g) continue;
+            const guild1ParticipantIds = takePendingParticipantsOrDefault(g);
+            delete (g as any).guildWarPendingParticipantIds;
             const dbWar = await createGuildWar(guildId, botGuildId);
             const boards: Record<string, any> = {};
             for (const boardId of boardIds) {
-                const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
+                const gameMode = getGuildWarBoardMode(boardId);
                 const botStars = Math.floor(Math.random() * 2) + 2;
                 const botScoreDiff = Math.floor(Math.random() * 11) + 5;
                 boards[boardId] = {
@@ -2178,12 +2210,16 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 maxAttemptsPerGuild,
                 guild1TotalAttempts: 0,
                 guild2TotalAttempts: maxAttemptsPerGuild,
+                guild1ParticipantIds,
+                guild2ParticipantIds: [],
+                dailyAttempts: {},
                 result: undefined,
                 boards,
                 isBotGuild: true,
                 createdAt: now,
                 updatedAt: now,
             };
+            await increaseGuildWarMonthlyParticipationCounts(guild1ParticipantIds, now);
             activeWars.push(war);
             matchedGuildIds.push(guildId);
             delete (g as any).guildWarMatching;
@@ -2203,6 +2239,8 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         return;
     }
     
+    const { takePendingParticipantsOrDefault } = await import('./guildWarParticipants.js');
+
     // 짝수 개의 길드 매칭
     const matchedPairs = Math.floor(matchingQueue.length / 2);
     for (let i = 0; i < matchedPairs; i++) {
@@ -2216,6 +2254,11 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             console.warn(`[GuildWarMatch] One of the guilds not found: ${guild1Id} or ${guild2Id}`);
             continue;
         }
+
+        const guild1ParticipantIds = takePendingParticipantsOrDefault(guild1);
+        const guild2ParticipantIds = takePendingParticipantsOrDefault(guild2);
+        delete (guild1 as any).guildWarPendingParticipantIds;
+        delete (guild2 as any).guildWarPendingParticipantIds;
         
         // DB에 GuildWar 생성
         const { createGuildWar } = await import('./prisma/guildRepository.js');
@@ -2223,11 +2266,10 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         
         // 9개 바둑판 초기화
         const boards: Record<string, any> = {};
-        const boardIds = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'];
-        const gameModes: ('capture' | 'hidden' | 'missile')[] = ['capture', 'hidden', 'missile'];
+        const boardIds = [...GUILD_WAR_BOARD_IDS];
         
         for (const boardId of boardIds) {
-            const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
+            const gameMode = getGuildWarBoardMode(boardId);
             boards[boardId] = {
                 boardSize: 13,
                 gameMode: gameMode,
@@ -2251,11 +2293,16 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             maxAttemptsPerGuild,
             guild1TotalAttempts: 0,
             guild2TotalAttempts: 0,
+            guild1ParticipantIds,
+            guild2ParticipantIds,
+            dailyAttempts: {},
             result: undefined,
             boards: boards,
             createdAt: now,
             updatedAt: now,
         };
+        await increaseGuildWarMonthlyParticipationCounts(guild1ParticipantIds, now);
+        await increaseGuildWarMonthlyParticipationCounts(guild2ParticipantIds, now);
         activeWars.push(war);
         matchedGuildIds.push(guild1Id, guild2Id);
         delete (guild1 as any).guildWarMatching;
@@ -2274,17 +2321,19 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             // DB FK용 봇 길드 (없으면 생성)
             const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
             const botGuildId = await getOrCreateBotGuildForWar();
+
+            const guild1ParticipantIds = takePendingParticipantsOrDefault(remainingGuild);
+            delete (remainingGuild as any).guildWarPendingParticipantIds;
             
             // DB에 GuildWar 생성
             const dbWar = await createGuildWar(remainingGuildId, botGuildId);
             
             // 9개 바둑판 초기화 및 봇 길드 초기 상태 설정
             const boards: Record<string, any> = {};
-            const boardIds = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'];
-            const gameModes: ('capture' | 'hidden' | 'missile')[] = ['capture', 'hidden', 'missile'];
+            const boardIds = [...GUILD_WAR_BOARD_IDS];
             
             for (const boardId of boardIds) {
-                const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
+                const gameMode = getGuildWarBoardMode(boardId);
                 const botStars = Math.floor(Math.random() * 2) + 2; // 2~3개
                 const botScoreDiff = Math.floor(Math.random() * 11) + 5; // 5~15집 차
                 boards[boardId] = {
@@ -2316,12 +2365,16 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 maxAttemptsPerGuild,
                 guild1TotalAttempts: 0,
                 guild2TotalAttempts: maxAttemptsPerGuild, // 봇은 전부 사용한 것처럼
+                guild1ParticipantIds,
+                guild2ParticipantIds: [],
+                dailyAttempts: {},
                 result: undefined,
                 boards: boards,
                 isBotGuild: true,
                 createdAt: now,
                 updatedAt: now,
             };
+            await increaseGuildWarMonthlyParticipationCounts(guild1ParticipantIds, now);
             
             activeWars.push(war);
             matchedGuildIds.push(remainingGuildId);
@@ -2377,6 +2430,7 @@ export async function resetGuildWarAttemptsAtMidnightForDemo(now: number = Date.
     let updated = false;
     for (const war of activeWars) {
         if (war.status !== 'active') continue;
+        war.dailyAttempts = {};
         war.guild1TotalAttempts = 0;
         war.guild2TotalAttempts = 0;
         updated = true;
@@ -2396,6 +2450,10 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
     const guild = guilds[guildId];
     if (!guild) return null;
 
+    const { takePendingParticipantsOrDefault } = await import('./guildWarParticipants.js');
+    const guild1ParticipantIds = takePendingParticipantsOrDefault(guild);
+    delete (guild as any).guildWarPendingParticipantIds;
+
     const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
     const botGuildId = await getOrCreateBotGuildForWar();
 
@@ -2405,11 +2463,10 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
     const maxAttemptsPerGuild = 2;
 
     const dbWar = await createGuildWar(guildId, botGuildId);
-    const boardIds = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'];
-    const gameModes: ('capture' | 'hidden' | 'missile')[] = ['capture', 'hidden', 'missile'];
+    const boardIds = [...GUILD_WAR_BOARD_IDS];
     const boards: Record<string, any> = {};
     for (const boardId of boardIds) {
-        const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
+        const gameMode = getGuildWarBoardMode(boardId);
         const botStars = Math.floor(Math.random() * 2) + 2;
         const botScoreDiff = Math.floor(Math.random() * 11) + 5;
         boards[boardId] = {
@@ -2441,12 +2498,16 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
         maxAttemptsPerGuild,
         guild1TotalAttempts: 0,
         guild2TotalAttempts: maxAttemptsPerGuild,
+        guild1ParticipantIds,
+        guild2ParticipantIds: [],
+        dailyAttempts: {},
         result: undefined,
         boards,
         isBotGuild: true,
         createdAt: now,
         updatedAt: now,
     };
+    await increaseGuildWarMonthlyParticipationCounts(guild1ParticipantIds, now);
 
     (guilds as Record<string, any>)[botGuildId] = {
         id: botGuildId,
@@ -2461,6 +2522,7 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
     await db.setKV('activeGuildWars', allActiveWars);
     await db.setKV('guilds', guilds);
 
+    const { broadcast } = await import('./socket.js');
     await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
     await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
     console.log(`[GuildWarDemo] Created demo war: ${guild.name} (${guildId}) vs bot guild`);

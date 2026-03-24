@@ -540,7 +540,10 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                     const isCaptureSelected = settings.mixedModes?.includes(GameMode.Capture);
                     return (
                         <div className="col-span-2 pt-2 border-t border-gray-700">
-                            <h3 className="font-semibold text-gray-300 mb-2">믹스룰 조합 (2개 이상 선택)</h3>
+                            <h3 className="font-semibold text-gray-300 mb-1">믹스룰 조합 (2개 이상 선택)</h3>
+                            <p className="text-gray-500 text-xs mb-2 leading-snug">
+                                함께 적용할 규칙을 고릅니다. (클래식 바둑은 기본으로 포함됩니다.)
+                            </p>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                                 {SPECIAL_GAME_MODES.filter(m => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map(m => {
                                     const isDisabledByConflict = 
@@ -556,7 +559,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                                 disabled={isReadOnly || isDisabledByConflict} 
                                                 className="w-4 h-4"
                                             />
-                                            <span>{m.mode}</span>
+                                            <span className="leading-tight">{m.name}</span>
                                         </label>
                                     );
                                 })}

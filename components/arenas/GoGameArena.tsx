@@ -76,6 +76,10 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     }, [session.revealedHiddenMoves, session.moveHistory]);
 
     const backgroundClass = useMemo(() => {
+        if (session.gameCategory === 'guildwar') {
+            // 길드전은 Game.tsx에서 별도 전용 배경을 그리므로 경기장 패널은 투명 처리
+            return 'bg-transparent';
+        }
         // AI 게임인 경우 배경을 투명하게 (전략바둑, 놀이바둑 대기실에서 생성된 게임)
         const isAiGameFromLobby = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
         const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);

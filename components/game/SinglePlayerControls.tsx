@@ -147,8 +147,15 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         return hasOpponentUnrevealedHidden;
     }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
     
-    // 스캔 모드 진입: 스캔 개수 있고 내 턴이면 항상 가능 (상대 히든 유무는 보드 클릭 시 성공/실패로 처리)
-    const scanDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0;
+    // 상대 미공개 히든이 없으면 비활성 (착수로 발각된 경우 등은 canScan이 false)
+    const scanDisabled =
+        isMoveInFlight ||
+        isBoardLocked ||
+        hasPendingRevealResolution ||
+        !isMyTurn ||
+        gameStatus !== 'playing' ||
+        myScansLeft <= 0 ||
+        !canScan;
     
     const handleUseScan = React.useCallback(() => {
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;

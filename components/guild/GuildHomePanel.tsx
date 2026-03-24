@@ -31,6 +31,11 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
     const { handlers, currentUserWithStatus } = useAppContext();
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
 
+    const [guildCoinRewardModal, setGuildCoinRewardModal] = useState<{
+        amount: number;
+        attendeeCount: number;
+    } | null>(null);
+
     const now = Date.now();
     const myCheckInTimestamp = guild.checkIns?.[effectiveUserId ?? currentUserWithStatus!.id];
     const hasCheckedInToday = myCheckInTimestamp ? isSameDayKST(myCheckInTimestamp, now) : false;
@@ -54,14 +59,32 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
     };
     
     const [claimingIndex, setClaimingIndex] = useState<number | null>(null);
-    const handleClaimMilestone = (index: number) => {
+    const handleClaimMilestone = async (index: number) => {
         if (claimingIndex !== null) return;
         setClaimingIndex(index);
-        handlers.handleAction({ type: 'GUILD_CLAIM_CHECK_IN_REWARD', payload: { milestoneIndex: index } })
-            .finally(() => setClaimingIndex(null));
+        try {
+            const result = await handlers.handleAction({
+                type: 'GUILD_CLAIM_CHECK_IN_REWARD',
+                payload: { milestoneIndex: index },
+            }) as any;
+            if (result?.error) {
+                alert(result.error);
+                return;
+            }
+            const coins = typeof result?.gainedGuildCoins === 'number' ? result.gainedGuildCoins : 0;
+            if (coins > 0) {
+                const milestone = GUILD_CHECK_IN_MILESTONE_REWARDS[index];
+                if (milestone) {
+                    setGuildCoinRewardModal({ amount: coins, attendeeCount: milestone.count });
+                }
+            }
+        } finally {
+            setClaimingIndex(null);
+        }
     };
 
     return (
+        <>
         <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-2 sm:p-4 rounded-xl flex flex-col h-full border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
             <div className="relative z-10 flex flex-col h-full min-h-0">
@@ -135,6 +158,48 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
                 </div>
             </div>
         </div>
+        {guildCoinRewardModal && (
+            <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+                onClick={() => setGuildCoinRewardModal(null)}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="guild-checkin-coin-title"
+            >
+                <div
+                    className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl border-2 border-amber-500/55 shadow-2xl max-w-sm w-full p-5 sm:p-6 relative"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        type="button"
+                        onClick={() => setGuildCoinRewardModal(null)}
+                        className="absolute top-3 right-3 text-tertiary hover:text-primary transition-colors text-2xl font-bold leading-none"
+                        aria-label="닫기"
+                    >
+                        ×
+                    </button>
+                    <h2 id="guild-checkin-coin-title" className="text-lg sm:text-xl font-bold text-highlight text-center mb-3 pr-6">
+                        길드 코인 획득
+                    </h2>
+                    <p className="text-sm text-primary text-center leading-relaxed mb-4">
+                        오늘 출석 인원 <span className="font-bold text-amber-300">{guildCoinRewardModal.attendeeCount}명</span> 달성 보상으로 길드 코인{' '}
+                        <span className="font-bold text-yellow-300">{guildCoinRewardModal.amount.toLocaleString()}개</span>를 받았습니다.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 py-3 mb-4 rounded-lg bg-amber-950/40 border border-amber-600/30">
+                        <img src="/images/guild/tokken.png" alt="" className="w-10 h-10 drop-shadow-md" />
+                        <span className="text-2xl font-bold text-yellow-300">+{guildCoinRewardModal.amount.toLocaleString()}</span>
+                    </div>
+                    <Button
+                        onClick={() => setGuildCoinRewardModal(null)}
+                        colorScheme="none"
+                        className={`${getLuxuryButtonClasses('success')} w-full !py-2 !text-sm`}
+                    >
+                        확인
+                    </Button>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 

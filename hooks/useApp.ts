@@ -73,6 +73,14 @@ function shouldKeepLocalSessionOverIncomingPending(prevG: LiveGameSession, incom
     return s === 'playing' || s === 'scoring' || s === 'hidden_final_reveal' || s === 'ended' || s === 'no_contest';
 }
 
+/** WebSocket INITIAL_STATE에서 boardState를 떼어내므로, 격자가 없으면 F5 후에도 /api/game/rejoin으로 전체 판·수순을 받아야 한다. */
+function hasHydratedBoardGridForRejoin(game: LiveGameSession | undefined): boolean {
+    const b = game?.boardState;
+    if (!b || !Array.isArray(b) || b.length === 0) return false;
+    const row0 = b[0];
+    return Array.isArray(row0) && row0.length > 0;
+}
+
 export const useApp = () => {
     // --- State Management ---
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -1111,6 +1119,37 @@ export const useApp = () => {
                 const g = prev[gameId];
                 if (!g || g.gameStatus !== 'hidden_final_reveal') return prev;
                 return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const, animation: null, revealAnimationEndTime: undefined } };
+            });
+            return;
+        }
+
+        /** 싱글/타워: 스캔 연출 종료 후 본경기 복귀 (서버 루프·WS 지연 시 scanning_animating에 고정되는 현상 방지) */
+        if ((action as any).type === 'LOCAL_PVE_SCAN_ANIMATION_COMPLETE') {
+            const { gameId, gameType } = (action as any).payload as { gameId: string; gameType: 'tower' | 'singleplayer' };
+            const updateGameState = gameType === 'tower' ? setTowerGames : setSinglePlayerGames;
+            const now = Date.now();
+            updateGameState(prev => {
+                const g = prev[gameId];
+                if (!g || g.gameStatus !== 'scanning_animating') return prev;
+                const anim = g.animation as { type?: string; playerId?: string; startTime?: number; duration?: number } | null | undefined;
+                if (anim?.type === 'scan' && typeof anim.startTime === 'number' && typeof anim.duration === 'number') {
+                    if (now < anim.startTime + anim.duration) return prev;
+                }
+                let currentPlayer = g.currentPlayer;
+                if (anim?.type === 'scan' && anim.playerId) {
+                    const uid = anim.playerId;
+                    if (uid === g.blackPlayerId) currentPlayer = Player.Black;
+                    else if (uid === g.whitePlayerId) currentPlayer = Player.White;
+                }
+                return {
+                    ...prev,
+                    [gameId]: {
+                        ...g,
+                        gameStatus: 'playing' as const,
+                        animation: null,
+                        currentPlayer,
+                    },
+                };
             });
             return;
         }
@@ -2779,7 +2818,8 @@ export const useApp = () => {
                     result.guild || 
                     result.gameId ||
                     result.donationResult ||
-                    result.clientResponse?.donationResult
+                    result.clientResponse?.donationResult ||
+                    result.guilds
                 )) {
                     return result;
                 }
@@ -4774,7 +4814,7 @@ export const useApp = () => {
             return;
         }
         const gameInStore = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
-        if (gameInStore) {
+        if (gameInStore && hasHydratedBoardGridForRejoin(gameInStore)) {
             setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
             return;
         }

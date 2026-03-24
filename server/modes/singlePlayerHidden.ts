@@ -296,7 +296,10 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
 
     const { type, payload } = action;
     const now = Date.now();
-    const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
+    let myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
+    if (myPlayerEnum === types.Player.None && game.player1?.id === user.id) {
+        myPlayerEnum = types.Player.Black;
+    }
     const isMyTurn = myPlayerEnum === game.currentPlayer;
 
     switch(type) {

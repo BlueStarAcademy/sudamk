@@ -1002,6 +1002,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 return { error: 'Invalid single player game.' };
             }
             console.log(`[handleSinglePlayerAction] ${type}: Game found, gameStatus=${game.gameStatus}, currentPlayer=${game.currentPlayer}`);
+            const { applyPveItemActionClientSync } = await import('../pveItemSync.js');
+            applyPveItemActionClientSync(game, payload);
             const { handleSinglePlayerHiddenAction } = await import('../modes/singlePlayerHidden.js');
             console.log(`[handleSinglePlayerAction] Before handleSinglePlayerHiddenAction: gameStatus=${game.gameStatus}, type=${type}`);
             const result = handleSinglePlayerHiddenAction(volatileState, game, action, user);

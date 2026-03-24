@@ -333,6 +333,60 @@ interface BossPanelProps {
     damageNumbers: { id: number; text: string; color: string; isHeal: boolean; isCrit?: boolean }[];
 }
 
+const BossSkillTile: React.FC<{ skill: GuildBossInfo['skills'][number]; className?: string }> = ({ skill, className = '' }) => (
+    <button
+        type="button"
+        className={`group/skill relative shrink-0 border-none bg-transparent p-0 outline-none transition hover:opacity-95 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-xl ${className}`}
+        aria-label={`${skill.name}. ${skill.description}`}
+    >
+        <div className="flex aspect-square h-full w-full min-h-0 min-w-0 items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-black/40">
+            <img src={skill.image || ''} alt="" className="h-full w-full object-contain p-0.5 sm:p-1" />
+        </div>
+        <div
+            className="pointer-events-none absolute bottom-full left-1/2 z-[70] mb-2 w-56 max-w-[min(18rem,85vw)] -translate-x-1/2 rounded-2xl border border-amber-500/40 bg-gray-950/95 px-3 py-2.5 text-left opacity-0 shadow-xl backdrop-blur-sm transition-opacity duration-150 group-hover/skill:opacity-100 group-focus-visible/skill:opacity-100 group-active/skill:opacity-100"
+            role="tooltip"
+        >
+            <div
+                className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-amber-500/40 bg-gray-950/95"
+                aria-hidden
+            />
+            <p className="relative font-bold text-amber-200">{skill.name}</p>
+            <p className="relative mt-1 text-xs leading-snug text-white" style={{ textShadow: '1px 1px 2px black' }}>
+                {skill.description}
+            </p>
+        </div>
+    </button>
+);
+
+const BossRecommendedStatsTip: React.FC<{ stats: CoreStat[] }> = ({ stats }) => (
+    <button
+        type="button"
+        className="group/tip relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-400/35 bg-black/60 text-2xl shadow-md outline-none transition hover:border-amber-300/50 hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-amber-400/70 active:scale-95 sm:h-12 sm:w-12 sm:text-3xl"
+        aria-label={`보스 공략 추천 능력치: ${stats.join(', ')}`}
+    >
+        <span className="select-none leading-none" aria-hidden>
+            💡
+        </span>
+        <div
+            className="pointer-events-none absolute bottom-[calc(100%+0.6rem)] left-1/2 z-[60] w-max max-w-[min(18rem,calc(100vw-3rem))] -translate-x-1/2 rounded-2xl border border-amber-500/40 bg-gray-950/95 px-3 py-2.5 text-left opacity-0 shadow-xl backdrop-blur-sm transition-opacity duration-150 group-hover/tip:opacity-100 group-focus-visible/tip:opacity-100 group-active/tip:opacity-100"
+            role="tooltip"
+        >
+            <p className="mb-1 text-center text-[10px] font-bold uppercase tracking-wide text-amber-300/90">추천 능력치</p>
+            <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-xs font-semibold text-white" style={{ textShadow: '1px 1px 2px black' }}>
+                {stats.map((stat) => (
+                    <span key={stat} className="whitespace-nowrap">
+                        {stat}
+                    </span>
+                ))}
+            </div>
+            <div
+                className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-amber-500/40 bg-gray-950/95"
+                aria-hidden
+            />
+        </div>
+    </button>
+);
+
 const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers }) => {
     const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
 
@@ -362,25 +416,17 @@ const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers })
                     </div>
                 </div>
                 
-                <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-4 p-2">
-                    <div className="flex items-center gap-1">
-                        {boss.skills.map((skill, index) => (
-                            <div key={skill.id} className="relative group/skill">
-                                <img src={skill.image || ''} alt={skill.name} className="w-10 h-10" />
-                                <div className="absolute bottom-full mb-2 left-0 w-48 bg-black/80 text-white text-xs rounded-lg p-2 opacity-0 group-hover/skill:opacity-100 transition-opacity pointer-events-none z-50">
-                                    <p className="font-bold text-yellow-300">{skill.name}</p>
-                                    <p>{skill.description}</p>
-                                </div>
-                            </div>
+                <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-3 p-2 sm:gap-4">
+                    <div
+                        className="flex max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1.5 overflow-visible rounded-xl border border-white/20 bg-black/45 p-1.5 shadow-lg sm:gap-2 sm:p-2"
+                        aria-label="보스 스킬"
+                    >
+                        {boss.skills.map((skill) => (
+                            <BossSkillTile key={skill.id} skill={skill} className="h-14 w-14 shrink-0 sm:h-16 sm:w-16 md:h-[4.5rem] md:w-[4.5rem]" />
                         ))}
                     </div>
-                    <div className="w-px h-8 bg-gray-500/50"></div>
-                    <div className="flex items-center gap-2">
-                        <span title="추천 능력치" className="text-xl">💡</span>
-                        <div className="flex flex-wrap gap-x-2 text-sm text-white" style={{ textShadow: '1px 1px 2px black' }}>
-                            {boss.recommendedStats.map(stat => <span key={stat}>{stat}</span>)}
-                        </div>
-                    </div>
+                    <div className="h-10 w-px shrink-0 bg-gray-500/50 sm:h-12"></div>
+                    <BossRecommendedStatsTip stats={boss.recommendedStats} />
                 </div>
             </div>
         </div>
@@ -569,11 +615,13 @@ const GuildBoss: React.FC = () => {
 
         if (logIndex >= simulationResult.battleLog.length) {
             const timer = setTimeout(async () => {
+                // 서버 totalDamageLog 키는 관리자일 때 effectiveUserId(ADMIN_USER_ID)와 통일됨 — 클라 id와 불일치 시 순위 0으로 나오던 문제 방지
+                const rankUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : (currentUserWithStatus?.id ?? '');
                 // 현재 순위 계산 (보스전 전)
                 const currentRanking = Object.entries(myGuild?.guildBossState?.totalDamageLog || {})
                     .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
                     .sort((a, b) => b.damage - a.damage);
-                const prevRank = currentRanking.findIndex(r => r.userId === currentUserWithStatus?.id) + 1;
+                const prevRank = rankUserId ? currentRanking.findIndex((r) => r.userId === rankUserId) + 1 : 0;
                 setPreviousRank(prevRank > 0 ? prevRank : null);
 
                 const finalResult = { ...simulationResult, damageDealt: currentBattleDamage, bossName: currentBoss.name };
@@ -602,18 +650,20 @@ const GuildBoss: React.FC = () => {
                     });
                 }
                 
-                // 보스전 후 순위 계산
-                const updatedGuild = (actionResult as any)?.clientResponse?.guilds?.[myGuild?.id ?? ''] || myGuild;
+                // 보스전 후 순위 계산 (응답의 guilds가 있으면 최신 로그 사용)
+                const guildsPayload = (actionResult as any)?.clientResponse?.guilds ?? (actionResult as any)?.guilds;
+                const updatedGuild =
+                    (guildsPayload && myGuild?.id ? guildsPayload[myGuild.id] : null) || myGuild;
                 const updatedRanking = Object.entries(updatedGuild?.guildBossState?.totalDamageLog || {})
                     .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
                     .sort((a, b) => b.damage - a.damage);
-                const newRank = updatedRanking.findIndex(r => r.userId === currentUserWithStatus?.id) + 1;
-                
-                setBattleResult({ 
-                    ...resultToUse, 
+                const newRank = rankUserId ? updatedRanking.findIndex((r) => r.userId === rankUserId) + 1 : 0;
+
+                setBattleResult({
+                    ...resultToUse,
                     bossName: currentBoss.name,
-                    previousRank: prevRank > 0 ? prevRank : null, 
-                    currentRank: newRank > 0 ? newRank : null 
+                    previousRank: prevRank > 0 ? prevRank : null,
+                    currentRank: newRank > 0 ? newRank : null,
                 });
                 setShowResultModal(true);
                 setIsSimulating(false);

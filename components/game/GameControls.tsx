@@ -755,7 +755,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             // 게임 종류에 따라 적절한 로비/대기실로 라우팅 (전략/놀이 대기실 AI를 먼저 판별해 싱글·탑으로 잘못 나가는 버그 방지)
             let redirectHash: string | null = null;
 
-            if (session.gameCategory === 'tower') {
+            if (session.gameCategory === 'guildwar') {
+                redirectHash = '#/guildwar';
+            } else if (session.gameCategory === 'tower') {
                 redirectHash = '#/tower';
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
