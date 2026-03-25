@@ -11,6 +11,7 @@ import * as summaryService from './summaryService.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import * as db from './db.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
+import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 import { generateGnuGoMove, isGnuGoAvailable } from './gnugoService.js';
 
 /**
@@ -800,7 +801,7 @@ export async function makeGoAiBotMove(
                     if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                         const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                        const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                        const isFischer = isFischerStyleTimeControl(game as any);
                         const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
                         game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
                         game.turnStartTime = now;
@@ -893,7 +894,11 @@ export async function makeGoAiBotMove(
         !!stageIdStr &&
         (stageIdStr.startsWith('중급') || stageIdStr.startsWith('고급') || stageIdStr.startsWith('유단자'));
 
-    const wantGnuGo = isStrategicAiGame || isSinglePlayerGnugoStage;
+    // 길드전에서는 gnuGo가 제대로 동작하지 않는 경우가 있어(서버 환경/보드 마스킹 등),
+    // 싱글플레이/도전의 탑에서만 gnuGo를 우선 사용하도록 제한한다.
+    // 길드전 AI는 항상 내부 goAiBot(휴리스틱)로만 진행.
+    const isGuildWarAiGame = (game as any).gameCategory === 'guildwar';
+    const wantGnuGo = !isGuildWarAiGame && (isStrategicAiGame || isSinglePlayerGnugoStage);
     const gnuGoAvailable = isGnuGoAvailable();
     if (wantGnuGo && !gnuGoAvailable) {
         const reason = process.env.GNUGO_API_URL ? 'GnuGo API URL set but local process pool not ready' : 'GNUGO_API_URL not set (deploy backend with GNUGO_API_URL pointing to your GnuGo service)';
@@ -1001,7 +1006,7 @@ export async function makeGoAiBotMove(
             if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                 const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                const isFischer = isFischerStyleTimeControl(game as any);
                 const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
                 if (isNextInByoyomi) {
                     game.turnDeadline = now + (game.settings.byoyomiTime ?? 30) * 1000;
@@ -1119,7 +1124,7 @@ export async function makeGoAiBotMove(
                     if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                         const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                        const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                        const isFischer = isFischerStyleTimeControl(game as any);
                         const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
                         game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
                         game.turnStartTime = now;
@@ -1540,7 +1545,7 @@ export async function makeGoAiBotMove(
         if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
             const timeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
             const byoyomiKey = game.currentPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-            const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+            const isFischer = isFischerStyleTimeControl(game as any);
             const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0 && !isFischer;
             
             if (isNextInByoyomi) {

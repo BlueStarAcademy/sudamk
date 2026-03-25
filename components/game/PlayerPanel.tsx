@@ -93,9 +93,11 @@ const TimeBar: React.FC<{ timeLeft: number; totalTime: number; byoyomiTime: numb
     );
 };
 
-/** PVP 실시간 대국만 시간 제어 적용; AI/싱글/탑은 경과 시간만 표시 */
+/** 시간 제어 표시: PVP 기본 + 길드전 AI 대국(유저만 시간제어 표시) */
 const showTimeControl = (session: GameProps['session']): boolean => {
-    return !!(session && !session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer');
+    if (!session) return false;
+    if (session.gameCategory === 'guildwar' && session.isAiGame) return true;
+    return !!(!session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer');
 };
 
 interface SinglePlayerPanelProps {
@@ -404,6 +406,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     const isLeftAi = session.isAiGame && leftPlayerUser.id === aiUserId;
     const isRightAi = session.isAiGame && rightPlayerUser.id === aiUserId;
+    const isGuildWarAi = session.gameCategory === 'guildwar' && session.isAiGame;
+    const leftShowElapsedOnly = isGuildWarAi ? isLeftAi : !enforceTime;
+    const rightShowElapsedOnly = isGuildWarAi ? isRightAi : !enforceTime;
     
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
 
@@ -519,7 +524,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     mode={mode}
                     isSinglePlayer={isSinglePlayer}
                     isMobile={isMobile}
-                    showElapsedOnly={!enforceTime}
+                    showElapsedOnly={leftShowElapsedOnly}
                     isCurrentUser={leftPlayerUser.id === currentUser?.id}
                 />
             </div>
@@ -569,7 +574,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 mode={mode}
                 isSinglePlayer={isSinglePlayer}
                 isMobile={isMobile}
-                showElapsedOnly={!enforceTime}
+                showElapsedOnly={rightShowElapsedOnly}
                 isCurrentUser={rightPlayerUser.id === currentUser?.id}
             />
             </div>

@@ -12,6 +12,76 @@ export const GUILD_WAR_HIDDEN_STONE_COUNT = 3;
 export const GUILD_WAR_SCAN_COUNT = 2;
 export const GUILD_WAR_MISSILE_COUNT = 3;
 
+/** 길드 전쟁 경기장 공통: 메인 시계(분) + 피셔 증가(초/수) */
+export const GUILD_WAR_MAIN_TIME_MINUTES = 5;
+export const GUILD_WAR_FISCHER_INCREMENT_SECONDS = 3;
+
+/** 길드전 9칸 보드 ID (표시 순서: 좌상귀 → 우하귀) */
+export const GUILD_WAR_BOARD_ORDER = [
+    'top-left',
+    'top-mid',
+    'top-right',
+    'mid-left',
+    'center',
+    'mid-right',
+    'bottom-left',
+    'bottom-mid',
+    'bottom-right',
+] as const;
+
+/** 길드전 맵 칸 표시명 (봇 이름·사이드바에 사용) */
+export const GUILD_WAR_BOARD_DISPLAY_NAMES: Record<(typeof GUILD_WAR_BOARD_ORDER)[number], string> = {
+    'top-left': '좌상귀',
+    'top-mid': '상변',
+    'top-right': '우상귀',
+    'mid-left': '좌변',
+    center: '중앙',
+    'mid-right': '우변',
+    'bottom-left': '좌하귀',
+    'bottom-mid': '하변',
+    'bottom-right': '우하귀',
+};
+
+export function getGuildWarBoardDisplayName(boardId: string): string {
+    return (GUILD_WAR_BOARD_DISPLAY_NAMES as Record<string, string>)[boardId] ?? boardId;
+}
+
+/** 길드전 상대 AI 표시명 — 예: "좌상귀 봇" */
+export function getGuildWarAiBotDisplayName(boardId: string): string {
+    return `${getGuildWarBoardDisplayName(boardId)} 봇`;
+}
+
+/**
+ * 칸별 고정 대국 모드 (서버 매칭·클라 UI·과거 KV 데이터 보정에 동일 적용)
+ * - 상단 3칸: 따내기
+ * - 중단 3칸: 미사일
+ * - 하단 3칸: 히든
+ */
+export function getGuildWarBoardMode(boardId: string): 'capture' | 'hidden' | 'missile' {
+    if (boardId === 'top-left' || boardId === 'top-mid' || boardId === 'top-right') return 'capture';
+    if (boardId === 'mid-left' || boardId === 'center' || boardId === 'mid-right') return 'missile';
+    return 'hidden';
+}
+
+/**
+ * activeGuildWars 등에 남은 예전 랜덤 gameMode를 현재 규칙으로 맞춤.
+ * @returns 변경이 있었으면 true (KV 재저장 권장)
+ */
+export function normalizeGuildWarBoardModes(war: { boards?: Record<string, any> } | null | undefined): boolean {
+    if (!war?.boards || typeof war.boards !== 'object') return false;
+    let changed = false;
+    for (const boardId of GUILD_WAR_BOARD_ORDER) {
+        const b = war.boards[boardId];
+        if (!b || typeof b !== 'object') continue;
+        const correct = getGuildWarBoardMode(boardId);
+        if (b.gameMode !== correct) {
+            b.gameMode = correct;
+            changed = true;
+        }
+    }
+    return changed;
+}
+
 /** 길드전 출전 명단: 신청 시 길드원 수(최소~최대) */
 export const GUILD_WAR_MIN_PARTICIPANTS = 5;
 export const GUILD_WAR_MAX_PARTICIPANTS = 10;
@@ -29,7 +99,7 @@ export const GUILD_WAR_STAR_CAPTURE_TIER3_MIN = 15;
 export const GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF = 5;
 export const GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF = 15;
 
-/** 길드전 상세 패널용 간단 별 규칙 (서버 `guildWarBoardResult`와 동일 의미) */
+/** 길드전 상세 패널용 간단 별 규칙 (`shared/utils/guildWarAttemptMetrics`·서버 보드 갱신과 동일 의미) */
 export function getGuildWarStarConditionLines(
     gameMode: 'capture' | 'hidden' | 'missile' | undefined
 ): string[] {

@@ -17,6 +17,10 @@ import {
     GUILD_WAR_MISSILE_COUNT,
     AVATAR_POOL,
     ADMIN_USER_ID,
+    GUILD_WAR_BOARD_ORDER,
+    getGuildWarBoardMode,
+    GUILD_WAR_MAIN_TIME_MINUTES,
+    GUILD_WAR_FISCHER_INCREMENT_SECONDS,
 } from '../../constants/index.js';
 import { getTodayKSTDateString } from '../../utils/timeUtils.js';
 
@@ -33,12 +37,6 @@ const GUILD_WAR_HIDDEN_ICON = '/images/button/hidden.png';
 const GUILD_WAR_SCAN_ICON = '/images/button/scan.png';
 const GUILD_WAR_CAPTURE_TURN_LIMIT = 15;
 const GUILD_WAR_AUTO_SCORING_TURN_LIMIT = 60;
-const GUILD_WAR_BOARD_ORDER = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'] as const;
-const getGuildWarBoardMode = (boardId: string): 'capture' | 'hidden' | 'missile' => {
-    if (boardId === 'top-left' || boardId === 'top-mid' || boardId === 'top-right') return 'capture';
-    if (boardId === 'mid-left' || boardId === 'center' || boardId === 'mid-right') return 'missile';
-    return 'hidden';
-};
 
 type InitialStoneCounts = {
     blackPlain: number;
@@ -307,7 +305,7 @@ const GuildWar = () => {
                         },
                         initialStoneCounts,
                         ownerGuildId,
-                        gameMode: board.gameMode,
+                        gameMode: getGuildWarBoardMode(boardId),
                         occupierNickname,
                         occupierAvatarUrl: (board as any).occupierAvatarUrl,
                         occupierLevel: (board as any).occupierLevel,
@@ -762,15 +760,23 @@ const GuildWar = () => {
                                                     <p className="text-sm font-bold text-sky-100">{board.boardSize}줄</p>
                                                 </div>
                                             </div>
-                                            <div className="col-span-2 flex items-center gap-2 rounded-lg bg-slate-900/55 border border-slate-600/40 px-2.5 py-2">
+                                            <div className="col-span-2 flex items-center gap-3 rounded-lg bg-slate-900/55 border border-slate-600/40 px-2.5 py-2">
                                                 <img src="/images/icon/timer.png" alt="" className="w-7 h-7 object-contain shrink-0 rounded-md bg-black/20 p-1" />
-                                                <div>
-                                                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">턴 제한</p>
-                                                    <p className="text-sm font-bold text-sky-100">
-                                                        {board.gameMode === 'capture'
-                                                            ? `${GUILD_WAR_CAPTURE_TURN_LIMIT}턴`
-                                                            : `계가까지 ${GUILD_WAR_AUTO_SCORING_TURN_LIMIT}턴`}
-                                                    </p>
+                                                <div className="flex-1 grid grid-cols-2 gap-3">
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">턴 제한</p>
+                                                        <p className="text-sm font-bold text-sky-100 whitespace-nowrap">
+                                                            {board.gameMode === 'capture'
+                                                                ? `${GUILD_WAR_CAPTURE_TURN_LIMIT}턴`
+                                                                : `계가까지 ${GUILD_WAR_AUTO_SCORING_TURN_LIMIT}턴`}
+                                                        </p>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">대국 시계</p>
+                                                        <p className="text-sm font-bold text-sky-100 whitespace-nowrap">
+                                                            {GUILD_WAR_MAIN_TIME_MINUTES}분(피셔 {GUILD_WAR_FISCHER_INCREMENT_SECONDS}초)
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

@@ -49,6 +49,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToPro
         }
     }
 
+    const handleGuildWarRechargeToday = () => {
+        const targetUserId = currentUser.id;
+        if (window.confirm(`[${currentUser.nickname}] 님의 길드전 오늘 도전횟수를 초기화(충전)할까요?`)) {
+            onAction({
+                type: 'ADMIN_GUILD_WAR_RECHARGE_DAILY_ATTEMPTS',
+                payload: { targetUserId },
+            });
+        }
+    };
+
     return (
         <div className="bg-primary text-primary">
             <header className="flex justify-between items-center mb-8">
@@ -124,6 +134,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToPro
                     className="w-full"
                 >
                     전체 유저 챔피언십 초기화
+                </Button>
+            </div>
+
+            <div className="mt-8 bg-panel border border-color p-6 rounded-lg shadow-lg">
+                <h2 className="text-xl font-semibold mb-4 border-b border-color pb-2 text-on-panel">길드전 도전횟수 충전(오늘)</h2>
+                <p className="text-sm text-gray-400 mb-4">관리자 테스트용으로 오늘 날짜의 길드전 도전횟수를 즉시 초기화합니다. (남은 횟수 MAX)</p>
+                <Button
+                    onClick={handleGuildWarRechargeToday}
+                    colorScheme="orange"
+                    variant="outline"
+                    className="w-full"
+                >
+                    내 길드전 오늘 도전횟수 충전
                 </Button>
             </div>
 

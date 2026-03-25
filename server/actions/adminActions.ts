@@ -11,10 +11,12 @@ import { containsProfanity } from '../../profanity.js';
 import { broadcast } from '../socket.js';
 import { calculateTotalStats } from '../statService.js';
 import * as tournamentService from '../tournamentService.js';
-import { getStartOfDayKST } from '../../utils/timeUtils.js';
+import { getStartOfDayKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { clearAiSession } from '../aiSessionManager.js';
 import { getCachedUser, updateUserCache, removeUserFromCache } from '../gameCache.js';
 import { invalidateUserCache } from '../db.js';
+import { ADMIN_USER_ID } from '../../shared/constants/auth.js';
+import { GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../../shared/constants/guildConstants.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -1164,6 +1166,53 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     message: '사용자의 길드 정보가 초기화되었습니다.',
                     updatedUser,
                     targetUserId: targetUser.id
+                }
+            };
+        }
+
+        case 'ADMIN_GUILD_WAR_RECHARGE_DAILY_ATTEMPTS': {
+            const { targetUserId } = payload as { targetUserId: string };
+            const targetUser = await db.getUser(targetUserId);
+            if (!targetUser) return { error: '대상 사용자를 찾을 수 없습니다.' };
+            if (!targetUser.guildId) return { error: '대상 사용자는 길드에 가입되어 있지 않습니다.' };
+
+            const todayKST = getTodayKSTDateString();
+            const canonicalTargetUserId = targetUser.isAdmin ? ADMIN_USER_ID : targetUser.id;
+
+            const activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
+            let updatedWarCount = 0;
+
+            for (const war of activeWars) {
+                if (war?.status !== 'active') continue;
+                if (war?.guild1Id !== targetUser.guildId && war?.guild2Id !== targetUser.guildId) continue;
+
+                if (!war.dailyAttempts) war.dailyAttempts = {};
+                if (!war.dailyAttempts[canonicalTargetUserId]) war.dailyAttempts[canonicalTargetUserId] = {};
+
+                const prev = war.dailyAttempts[canonicalTargetUserId][todayKST] ?? 0;
+                if (prev !== 0) {
+                    war.dailyAttempts[canonicalTargetUserId][todayKST] = 0; // usedToday=0 => 남은 횟수 MAX
+                    updatedWarCount++;
+                }
+            }
+
+            await db.setKV('activeGuildWars', activeWars);
+
+            if (updatedWarCount > 0) {
+                broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });
+            }
+
+            await createAdminLog(user, 'guild_war_recharge_daily_attempts', targetUser, {
+                targetUserId: targetUser.id,
+                canonicalTargetUserId,
+                todayKST,
+                updatedWarCount,
+                rechargeToMax: GUILD_WAR_PERSONAL_DAILY_ATTEMPTS
+            });
+
+            return {
+                clientResponse: {
+                    message: `길드전 오늘 도전횟수를 초기화했습니다. (남은 횟수: ${GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}회)`
                 }
             };
         }

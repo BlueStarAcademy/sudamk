@@ -504,6 +504,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
+    const isGuildWar = session.gameCategory === 'guildwar';
+    const guildWarStars = mySummary?.guildWarStars ?? 0;
     const isPlayful = PLAYFUL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
     const isStrategic = SPECIAL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
     const canUseGameRecordUi = canSaveStrategicPvpGameRecord(session) && !isSpectator;
@@ -722,9 +724,23 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         `${recordBtnBase} px-4 py-2.5 border-cyan-500/35 bg-gradient-to-br from-slate-900/95 via-slate-950 to-[#06080d] text-cyan-50/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_22px_-8px_rgba(34,211,238,0.12)] hover:border-cyan-400/45 hover:shadow-[0_10px_28px_-10px_rgba(34,211,238,0.18)] active:translate-y-px focus-visible:ring-cyan-400/40`;
 
     return (
-        <DraggableWindow title="대국 결과" onClose={onConfirm} initialWidth={isMobile ? 600 : 1000} windowId="game-summary">
+        <DraggableWindow title={isGuildWar ? '길드 전쟁 결과' : '대국 결과'} onClose={onConfirm} initialWidth={isMobile ? 600 : 1000} windowId="game-summary">
             <div className={`text-white ${isMobile ? 'text-xs' : 'text-[clamp(0.75rem,2.5vw,1rem)]'} flex flex-col`}>
                 <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-black text-center mb-2 sm:mb-3 tracking-widest ${color} flex-shrink-0`} style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}>{title}</h1>
+                {isGuildWar && (
+                    <div className="flex justify-center items-center gap-1.5 mb-3 flex-shrink-0" aria-label={`획득 별 ${guildWarStars}개`}>
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mr-1">획득 별</span>
+                        {[0, 1, 2].map((i) => (
+                            <img
+                                key={i}
+                                src={i < guildWarStars ? '/images/guild/guildwar/clearstar.png' : '/images/guild/guildwar/emptystar.png'}
+                                alt=""
+                                className="w-9 h-9 sm:w-10 sm:h-10 object-contain drop-shadow"
+                            />
+                        ))}
+                        <span className="text-sm font-bold text-amber-100/95 tabular-nums ml-1">{guildWarStars}/3</span>
+                    </div>
+                )}
                 
                 <div className={`flex flex-row gap-2 sm:gap-3`}>
                     {/* Left Panel: Game Content */}
@@ -738,7 +754,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     {/* Right Panel: 내 대국 결과 & 보상 (전략/놀이바둑 공통 항상 표시, 보상 없을 때도 동일 UI) */}
                     <div className={`w-1/2 flex flex-col gap-2 sm:gap-3`}>
                             <div className={`bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg flex flex-col gap-1`}>
-                                <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-2 border-b border-gray-700 pb-1`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>내 대국 결과</h2>
+                                <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-2 border-b border-gray-700 pb-1`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{isGuildWar ? '보상·기록' : '내 대국 결과'}</h2>
                                 <div className="flex items-center gap-1.5 sm:gap-2">
                                     <Avatar userId={currentUser.id} userName={currentUser.nickname} size={isMobile ? Math.round(24 * mobileImageScale) : 48} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                                     <div>
@@ -776,7 +792,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                         </div>
                                     </div>
                                 )}
-                                {mySummary ? (
+                                {isGuildWar ? (
+                                    <p className="text-center text-[11px] text-slate-400 leading-snug px-1">
+                                        길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
+                                    </p>
+                                ) : mySummary ? (
                                     <div className={`grid grid-cols-2 gap-1 text-center`}>
                                         <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
                                             <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>랭킹 점수</p>
@@ -820,7 +840,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                 )}
                             </div>
                             <div className={`bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg space-y-2 flex-shrink-0`}>
-                                <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 border-b border-gray-700 pb-1 mb-2`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>획득 보상</h2>
+                                <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 border-b border-gray-700 pb-1 mb-2`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{isGuildWar ? '길드 전쟁 보상' : '획득 보상'}</h2>
                                 <div className={`flex gap-1.5 sm:gap-3 justify-center items-stretch`}>
                                     <div className={`${isMobile ? 'w-16 h-16' : 'w-32 h-32'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
                                         <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-5 h-5' : 'w-12 h-12'} mb-0.5`} />
@@ -847,11 +867,15 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                                 </div>
                                             )}
                                         </div>
-                                    ) : (
+                                    ) : isGuildWar && (mySummary?.gold ?? 0) > 0 ? null : (
                                         <div className={`${isMobile ? 'w-16 h-16' : 'w-32 h-32'} bg-gray-800/50 border-2 border-gray-700/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg gap-1`}>
                                             <p className={`text-gray-500 text-center font-semibold ${isMobile ? 'text-[8px]' : 'text-xs'}`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>보상 없음</p>
                                             <p className={`text-gray-500 text-center ${isMobile ? 'text-[6px]' : 'text-[10px]'}`} style={{ fontSize: isMobile ? `${6 * mobileTextScale}px` : undefined }}>
-                                                {(session.isAiGame || !session.gameCategory) ? 'AI 대국·친선전은 보상이 지급되지 않습니다.' : '이 경기에서는 보상이 없습니다.'}
+                                                {isGuildWar
+                                                    ? '별을 획득하지 못해 골드가 지급되지 않았습니다.'
+                                                    : (session.isAiGame || !session.gameCategory)
+                                                      ? 'AI 대국·친선전은 보상이 지급되지 않습니다.'
+                                                      : '이 경기에서는 보상이 없습니다.'}
                                             </p>
                                         </div>
                                     )}

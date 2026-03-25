@@ -370,7 +370,7 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
         
         // 단계별 범위 보상 누적 (승리/패배 구분, 랜덤)
         if (completedMatch.isUserMatch && completedMatch.winner) {
-            const stage = state.currentStageAttempt || 1;
+            const stage = ensureDungeonStageAttemptForRewards(state, user, state.type as TournamentType);
             const isWin = completedMatch.winner.id === user.id;
             
             // 동네바둑리그: 골드 범위 (승 80~150/패 40~75 @1단계 → 승 1000~3000/패 500~1500 @10단계)
@@ -1643,6 +1643,116 @@ export const createDungeonStageBot = (
     };
     
     return bot;
+};
+
+/**
+ * 던전 모드에서 stage가 누락된 경우를 방어하기 위한 stage 추정 로직.
+ * - 1) tournamentState.title에 'X단계'가 있으면 그 값을 사용
+ * - 2) 없으면 user.dungeonProgress[type]의 unlockedStages 중 최댓값 사용
+ * - 3) 최종 fallback: 1
+ */
+export const inferDungeonStageAttempt = (
+    tournamentState: TournamentState,
+    user: User,
+    dungeonType: TournamentType
+): number => {
+    const title = tournamentState?.title ?? '';
+    const m = title.match(/(\d+)\s*단계/);
+    if (m?.[1]) {
+        const parsed = Number(m[1]);
+        if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 10) return parsed;
+    }
+
+    const progress = user.dungeonProgress?.[dungeonType];
+    const unlocked = progress?.unlockedStages;
+    if (Array.isArray(unlocked) && unlocked.length > 0) {
+        const maxUnlocked = Math.max(...unlocked);
+        const clamped = Math.min(10, Math.max(1, Math.floor(maxUnlocked)));
+        if (!Number.isNaN(clamped)) return clamped;
+    }
+
+    const currentStage = progress?.currentStage;
+    if (typeof currentStage === 'number' && currentStage >= 1 && currentStage <= 10) return currentStage;
+
+    return 1;
+};
+
+/**
+ * 매치 시작 시점에 stage/봇 능력치가 누락된 경우를 방어.
+ * - currentStageAttempt를 채우고
+ * - 유저를 제외한 상대 봇의 CoreStat을 stage 범위로 재생성
+ */
+export const ensureDungeonStageAttemptForMatchStart = (
+    tournamentState: TournamentState,
+    user: User,
+    dungeonType: TournamentType
+): number => {
+    const existing = tournamentState.currentStageAttempt;
+    const wasMissing = !(typeof existing === 'number' && existing >= 1 && existing <= 10);
+    if (!wasMissing) return existing as number;
+
+    const stage = inferDungeonStageAttempt(tournamentState, user, dungeonType);
+    tournamentState.currentStageAttempt = stage;
+
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[DungeonStageAutoFix][matchStart] stage missing -> inferred stage=${stage}`, {
+            dungeonType,
+            tournamentTitle: tournamentState?.title,
+            userDungeonProgress: user?.dungeonProgress?.[dungeonType]
+                ? {
+                    currentStage: user.dungeonProgress[dungeonType].currentStage,
+                    unlockedStages: user.dungeonProgress[dungeonType].unlockedStages,
+                }
+                : null
+        });
+    }
+
+    // UI에 단계가 보이도록 title도 보정
+    tournamentState.title = `${TOURNAMENT_DEFINITIONS[dungeonType].name} ${stage}단계`;
+
+    // 유저 제외 봇들의 능력치를 stage에 맞춰 재설정
+    tournamentState.players?.forEach(p => {
+        if (!p || p.id === user.id) return;
+        const regenerated = createDungeonStageBot(
+            stage,
+            dungeonType,
+            p.id,
+            p.nickname,
+            { id: p.avatarId },
+            { id: p.borderId }
+        );
+        p.stats = regenerated.stats;
+        p.originalStats = regenerated.originalStats;
+        // condition은 기존 값을 유지 (컨디션 부여 로직과 충돌 방지)
+    });
+
+    return stage;
+};
+
+/**
+ * 매치 완료 시점 보상 계산을 위한 stage 누락 방어.
+ * - currentStageAttempt만 채우고
+ * - 이미 진행된 매치 결과(시뮬레이션)는 건드리지 않음
+ */
+export const ensureDungeonStageAttemptForRewards = (
+    tournamentState: TournamentState,
+    user: User,
+    dungeonType: TournamentType
+): number => {
+    const existing = tournamentState.currentStageAttempt;
+    const wasMissing = !(typeof existing === 'number' && existing >= 1 && existing <= 10);
+    if (!wasMissing) return existing as number;
+    const stage = inferDungeonStageAttempt(tournamentState, user, dungeonType);
+    tournamentState.currentStageAttempt = stage;
+
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[DungeonStageAutoFix][rewards] stage missing -> inferred stage=${stage}`, {
+            dungeonType,
+            tournamentTitle: tournamentState?.title
+        });
+    }
+
+    return stage;
 };
 
 /**

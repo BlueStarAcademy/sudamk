@@ -856,6 +856,14 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             // 던전 모드와 일반 토너먼트 모두 첫 경기 시작 이후 자동 진행 활성화
             tournamentState.autoAdvanceEnabled = true;
+
+            // [B] stage 누락 방어:
+            // currentStageAttempt가 비어있으면 stage를 추정해서 채우고,
+            // 가능하면 상대 봇 CoreStat도 stage에 맞게 재생성한다.
+            if (!tournamentState.currentStageAttempt) {
+                const { ensureDungeonStageAttemptForMatchStart } = await import('../tournamentService.js');
+                ensureDungeonStageAttemptForMatchStart(tournamentState, freshUser, type);
+            }
             
             // 유저의 다음 경기 찾기 (상태 확인 전에 먼저 찾기)
             let userMatch: types.Match | null = null;

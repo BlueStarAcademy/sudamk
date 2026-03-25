@@ -16,6 +16,7 @@ import {
     cancelAiProcessing,
 } from './aiSessionManager.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
+import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
 
 
 export const aiUserId = 'ai-player-01';
@@ -81,6 +82,14 @@ export const getAiUser = (mode: GameMode): User => {
     return {
         ...baseAiUser,
         nickname: aiNicknames[mode] || 'AI 봇',
+    };
+};
+
+/** 길드 전쟁: 칸 이름 + "봇" (예: 좌상귀 봇) */
+export const getAiUserForGuildWar = (mode: GameMode, boardId: string): User => {
+    return {
+        ...getAiUser(mode),
+        nickname: getGuildWarAiBotDisplayName(boardId),
     };
 };
 

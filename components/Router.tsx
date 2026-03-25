@@ -27,20 +27,9 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
     const [hasTimedOut, setHasTimedOut] = useState(false);
     // 새로고침(F5) 시 재입장은 INITIAL_STATE 직후 지연(약 2.5초) + 네트워크 여유
     const maxWaitTime = 10000;
-    
-    // activeGame이 로드되면 즉시 렌더링 (status 기반 또는 URL 폴백)
-    if (activeGame && activeGame.id === gameId) {
-        return <Game session={activeGame} />;
-    }
-    
-    // 재입장으로 스토어에만 있고 activeGame 폴백 전에 올 수 있는 경우: 스토어에서 직접 세션 사용
-    const allGames = { ...(liveGames || {}), ...(singlePlayerGames || {}), ...(towerGames || {}) };
-    const currentGame = allGames[gameId];
-    if (currentGame && currentUser && (currentGame.player1?.id === currentUser.id || currentGame.player2?.id === currentUser.id)) {
-        return <Game session={currentGame} />;
-    }
-    
+
     // 타임아웃 처리 (게임이 스토어에 있고 참가자면 경기장 유지 — 종료/계가 후 새로고침 시에도 화면 유지)
+    // 조기 return보다 위에 두어 훅 순서가 렌더마다 동일하도록 함 (도전의 탑 다음 층 등 전환 시 필수)
     useEffect(() => {
         const timeout = setTimeout(() => {
             if (!activeGame || activeGame.id !== gameId) {
@@ -57,14 +46,26 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
                 }, 100);
             }
         }, maxWaitTime);
-        
+
         return () => clearTimeout(timeout);
     }, [gameId, activeGame, singlePlayerGames, towerGames, liveGames, currentUser]);
-    
+
+    // activeGame이 로드되면 즉시 렌더링 (status 기반 또는 URL 폴백)
+    if (activeGame && activeGame.id === gameId) {
+        return <Game session={activeGame} />;
+    }
+
+    // 재입장으로 스토어에만 있고 activeGame 폴백 전에 올 수 있는 경우: 스토어에서 직접 세션 사용
+    const allGames = { ...(liveGames || {}), ...(singlePlayerGames || {}), ...(towerGames || {}) };
+    const currentGame = allGames[gameId];
+    if (currentGame && currentUser && (currentGame.player1?.id === currentUser.id || currentGame.player2?.id === currentUser.id)) {
+        return <Game session={currentGame} />;
+    }
+
     if (hasTimedOut) {
         return <div className="flex items-center justify-center h-full">게임을 찾을 수 없습니다. 프로필로 이동합니다...</div>;
     }
-    
+
     return <div className="flex items-center justify-center h-full">게임 정보 동기화 중...</div>;
 };
 
@@ -152,7 +153,7 @@ const Router: React.FC = () => {
                 
                 // activeGame이 없으면 GameRouteLoader에서 대기
                 // handleAction에서 게임을 즉시 상태에 추가하므로, 상태 업데이트를 기다림
-                return <GameRouteLoader gameId={gameId} />;
+                return <GameRouteLoader key={gameId} gameId={gameId} />;
             }
             console.warn("Router: No game ID in route. Redirecting to profile.");
             setTimeout(() => {

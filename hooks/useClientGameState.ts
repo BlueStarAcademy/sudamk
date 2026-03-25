@@ -4,6 +4,7 @@
  */
 
 import { Player, LiveGameSession, Point, GameMode } from '../types/index.js';
+import { getFischerIncrementSeconds } from '../shared/utils/gameTimeControl.js';
 
 export type GameType = 'tower' | 'singleplayer';
 
@@ -177,8 +178,7 @@ export function updateGameStateAfterMove(
     let updatedTurnDeadline = game.turnDeadline;
     let updatedTurnStartTime = game.turnStartTime;
 
-    const isFischer = game.mode === GameMode.Speed || (game.mode === GameMode.Mix && game.settings?.mixedModes?.includes(GameMode.Speed));
-    const timeIncrement = isFischer ? (game.settings?.timeIncrement || 0) : 0;
+    const timeIncrement = getFischerIncrementSeconds(game as any);
     const byoyomiTime = game.settings?.byoyomiTime ?? 0;
 
     if (movePlayer === Player.Black) {

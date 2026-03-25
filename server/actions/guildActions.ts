@@ -14,7 +14,7 @@ import {
 } from '../../types/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
-import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_CAPTURE_TARGET, GUILD_WAR_HIDDEN_STONE_COUNT, GUILD_WAR_SCAN_COUNT, GUILD_WAR_MISSILE_COUNT, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT } from '../../shared/constants/index.js';
+import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_CAPTURE_TARGET, GUILD_WAR_HIDDEN_STONE_COUNT, GUILD_WAR_SCAN_COUNT, GUILD_WAR_MISSILE_COUNT, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT, getGuildWarBoardMode, normalizeGuildWarBoardModes } from '../../shared/constants/index.js';
 import { EquipmentSlot, ItemGrade } from '../../types/enums.js';
 import { generateNewItem } from './inventoryActions.js';
 import * as currencyService from '../currencyService.js';
@@ -1770,6 +1770,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && 
                 w.status === 'active'
             );
+            if (activeWar && normalizeGuildWarBoardModes(activeWar)) {
+                await db.setKV('activeGuildWars', activeWars);
+            }
             
             // ?�음 매칭 ?�짜 가?�오�?(길드???�정?�어 ?�으�??�용, ?�으�?계산)
             if (false) {
@@ -1929,14 +1932,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             let activeWar: any = null;
             let board: any = null;
+            const normalizedBoardMode = getGuildWarBoardMode(boardId);
             
             if (isDemo) {
-                // 데모 모드: 클라이언트에서 전달된 보드 정보 사용
-                // 데모 모드에서는 서버에서 전쟁 데이터를 확인하지 않음
-                const { gameMode: clientGameMode } = payload;
+                // 데모 모드에서도 보드 ID 기준 모드로 강제
                 board = {
                     boardSize: 13,
-                    gameMode: clientGameMode || 'capture', // 클라이언트에서 전달받은 게임 모드
+                    gameMode: normalizedBoardMode,
                 };
             } else {
                 // 실제 모드: 활성 전쟁 확인
@@ -1955,6 +1957,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 if (!board) {
                     return { error: '바둑판을 찾을 수 없습니다.' };
                 }
+                board.gameMode = normalizedBoardMode;
 
                 const todayKST = getTodayKSTDateString();
                 const isWarG1 = activeWar.guild1Id === user.guildId;
@@ -1978,32 +1981,35 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             // 게임 모드 및 설정
             const { GameMode, Player } = await import('../../types/enums.js');
-            const { getAiUser, aiUserId } = await import('../aiPlayer.js');
+            const { getAiUser, getAiUserForGuildWar, aiUserId } = await import('../aiPlayer.js');
             const { initializeGame } = await import('../gameModes.js');
             const { randomUUID } = await import('crypto');
             
             let gameMode: GameMode;
-            if (board.gameMode === 'capture') {
+            if (normalizedBoardMode === 'capture') {
                 gameMode = GameMode.Capture;
-            } else if (board.gameMode === 'hidden') {
+            } else if (normalizedBoardMode === 'hidden') {
                 gameMode = GameMode.Hidden;
-            } else if (board.gameMode === 'missile') {
+            } else if (normalizedBoardMode === 'missile') {
                 gameMode = GameMode.Missile;
             } else {
                 gameMode = GameMode.Standard;
             }
             
-            // AI 유저 생성
-            const aiUser = getAiUser(gameMode);
+            // AI 유저 생성 (칸 이름 기반 봇 표시명 — 데모·실전 공통)
+            const aiUser =
+                typeof boardId === 'string' && boardId.length > 0
+                    ? getAiUserForGuildWar(gameMode, boardId)
+                    : getAiUser(gameMode);
             
             // 게임 설정
             const gameSettings = {
                 boardSize: board.boardSize || 13,
                 komi: 0.5,
-                timeLimit: 5,
-                byoyomiTime: 30,
-                byoyomiCount: 3,
-                timeIncrement: 0,
+                timeLimit: GUILD_WAR_MAIN_TIME_MINUTES,
+                byoyomiTime: 0,
+                byoyomiCount: 0,
+                timeIncrement: GUILD_WAR_FISCHER_INCREMENT_SECONDS,
                 aiDifficulty: 5, // 중간 난이도
             };
             

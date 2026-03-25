@@ -699,6 +699,8 @@ export type GameSummary = {
   overallRecord?: { wins: number; losses: number; aiWins?: number; aiLosses?: number; };
   gold?: number;
   items?: InventoryItem[];
+  /** 길드 전쟁 AI 대국 종료 시 획득 별(0~3) */
+  guildWarStars?: number;
 };
 
 

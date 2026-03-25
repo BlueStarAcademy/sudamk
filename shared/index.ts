@@ -4,4 +4,6 @@
 export * from './types/index.js';
 export * from './constants/index.js';
 export * from './utils/timeUtils.js';
+export * from './utils/gameTimeControl.js';
+export * from './utils/guildWarAttemptMetrics.js';
 

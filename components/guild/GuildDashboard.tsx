@@ -218,10 +218,10 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
 
             {/* 기부 횟수 선택 모달 - createPortal로 document.body에 렌더링 */}
             {donationModal && createPortal(
-                <div className="fixed inset-0 flex items-center justify-center z-[99999]" style={{ isolation: 'isolate' }}>
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDonationModal(null)} />
+                <div className="fixed inset-0 flex items-center justify-center z-[99999] pointer-events-auto" style={{ isolation: 'isolate' }}>
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-0 pointer-events-auto" onClick={() => setDonationModal(null)} />
                     <div 
-                        className={`relative rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden border-2 ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
+                        className={`relative z-10 rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden border-2 pointer-events-auto ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
                         onClick={e => e.stopPropagation()}
                     >
                         {/* 헤더 - 그라데이션 */}

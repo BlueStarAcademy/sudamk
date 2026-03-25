@@ -5,7 +5,7 @@ import * as types from '../types/index.js';
 import { analyzeGame, getScoringKataGoLimits } from './kataGoService.js';
 import type { LiveGameSession, AppState, Negotiation, ActionButton, GameMode } from '../types/index.js';
 import { GameCategory } from '../types/index.js';
-import { aiUserId, makeAiMove, getAiUser } from './aiPlayer.js';
+import { aiUserId, makeAiMove, getAiUser, getAiUserForGuildWar } from './aiPlayer.js';
 import { syncAiSession } from './aiSessionManager.js';
 // FIX: The imported functions were not found. They are now exported from `standard.ts` with the correct names.
 import { initializeStrategicGame, updateStrategicGameState } from './modes/standard.js';
@@ -1077,16 +1077,22 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             const needsP1Load = !game.player1 || !game.player1.nickname;
             const needsP2Load = game.player2.id !== aiUserId && (!game.player2 || !game.player2.nickname);
             
+            const guildWarBoardId = (game as any).gameCategory === 'guildwar' ? ((game as any).guildWarBoardId as string | undefined) : undefined;
+            const aiUserResolved =
+                guildWarBoardId && String(guildWarBoardId).length > 0
+                    ? getAiUserForGuildWar(game.mode, guildWarBoardId)
+                    : getAiUser(game.mode);
+
             if (needsP1Load || needsP2Load) {
                 const [p1, p2] = await Promise.all([
                     needsP1Load ? withTimeout(getCachedUser(game.player1.id), USER_LOAD_DEADLINE_MS, null) : Promise.resolve(null),
-                    game.player2.id === aiUserId ? Promise.resolve(getAiUser(game.mode)) : (needsP2Load ? withTimeout(getCachedUser(game.player2.id), USER_LOAD_DEADLINE_MS, null) : Promise.resolve(null))
+                    game.player2.id === aiUserId ? Promise.resolve(aiUserResolved) : (needsP2Load ? withTimeout(getCachedUser(game.player2.id), USER_LOAD_DEADLINE_MS, null) : Promise.resolve(null))
                 ]);
                 if (p1) game.player1 = p1;
                 if (p2) game.player2 = p2;
             } else if (game.player2.id === aiUserId) {
                 // AI 유저는 항상 최신 상태로 유지
-                game.player2 = getAiUser(game.mode);
+                game.player2 = aiUserResolved;
             }
 
             const players = [game.player1, game.player2].filter(p => p.id !== aiUserId);

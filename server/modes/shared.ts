@@ -7,6 +7,7 @@ import { aiUserId } from '../aiPlayer.js';
 import { updateQuestProgress } from '../questService.js';
 import * as types from '../../types/index.js';
 import { broadcast } from '../socket.js';
+import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 
 // AI 대국 일시정지/재개 쿨다운 (서버 메모리 기반)
 // - "일시정지" 후 5초가 지나야 "대국 재개" 허용
@@ -29,12 +30,16 @@ const MIN_BYOYOMI_COUNT = 1;
 export const hasTimeControl = (s: { timeLimit?: number; byoyomiCount?: number; byoyomiTime?: number }) =>
     (s.timeLimit ?? 0) > 0 || ((s.byoyomiCount ?? 0) > 0 && (s.byoyomiTime ?? 0) > 0);
 
-/** PVP 실시간 대국에만 시간 제어 적용. AI/싱글/탑에서는 false. */
-export const shouldEnforceTimeControl = (game: types.LiveGameSession): boolean =>
-    !game.isAiGame &&
-    !game.isSinglePlayer &&
-    game.gameCategory !== 'tower' &&
-    game.gameCategory !== 'singleplayer';
+/** PVP 실시간 대국에만 시간 제어 적용. 길드 전쟁(AI 대국)은 피셔 제한시간 적용을 위해 예외. 싱글/일반 AI/탑은 false. */
+export const shouldEnforceTimeControl = (game: types.LiveGameSession): boolean => {
+    if ((game as any).gameCategory === 'guildwar' && game.isAiGame) return true;
+    return (
+        !game.isAiGame &&
+        !game.isSinglePlayer &&
+        game.gameCategory !== 'tower' &&
+        game.gameCategory !== 'singleplayer'
+    );
+};
 
 export const transitionToPlaying = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'playing';
@@ -187,7 +192,7 @@ export const resumeGameTimer = (game: types.LiveGameSession, now: number, player
             game.turnStartTime = now;
         } else {
             // 시간이 0이면 초읽기 모드 확인
-            const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+            const isFischer = isFischerStyleTimeControl(game as any);
             const byoyomiKey = playerToResume === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
             const isInByoyomi = game[byoyomiKey] > 0 && game.settings.byoyomiCount > 0 && !isFischer;
             

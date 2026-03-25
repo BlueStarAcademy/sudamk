@@ -1,6 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { pauseGameTimer, resumeGameTimer } from './shared.js';
+import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -111,7 +112,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                     if (game.settings?.timeLimit > 0 && game.pausedTurnTimeLeft !== undefined) {
                         const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         game[timeKey] = game.pausedTurnTimeLeft;
-                        const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                        const isFischer = isFischerStyleTimeControl(game as any);
                         const byoyomiTime = game.settings.byoyomiTime ?? 0;
                         const isInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
                         if (isInByoyomi && byoyomiTime > 0) {
@@ -178,7 +179,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                         if (game.pausedTurnTimeLeft) {
                             game[aiTimeKey] = game.pausedTurnTimeLeft;
                         }
-                        const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                        const isFischer = isFischerStyleTimeControl(game as any);
                         const isInByoyomi = game[aiTimeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
                         if (isInByoyomi) {
                             game.turnDeadline = now + game.settings.byoyomiTime * 1000;
@@ -220,7 +221,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 
                 if (game.settings.timeLimit > 0) {
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                    const fischerIncrement = (game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed))) ? (game.settings.timeIncrement || 0) : 0;
+                    const fischerIncrement = getFischerIncrementSeconds(game as any);
                     
                     if (game.pausedTurnTimeLeft) {
                         game[timeKey] = game.pausedTurnTimeLeft + fischerIncrement;
@@ -231,7 +232,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 
                 if (game.settings.timeLimit > 0) {
                     const nextTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                    const isFischer = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+                    const isFischer = isFischerStyleTimeControl(game as any);
                     const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
                     if (isNextInByoyomi) {
                         game.turnDeadline = now + game.settings.byoyomiTime * 1000;

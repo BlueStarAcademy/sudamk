@@ -13,6 +13,8 @@ import * as effectService from './effectService.js';
 import { randomUUID } from 'crypto';
 // FIX: Correctly import aiUser and getAiUser.
 import { aiUserId, getAiUser } from './aiPlayer.js';
+import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
+import { computeGuildWarAttemptMetrics, getGuildWarMatchGoldReward } from '../shared/utils/guildWarAttemptMetrics.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
 import * as guildService from './guildService.js';
 
@@ -824,6 +826,13 @@ const processPlayerSummary = async (
     const updatedPlayer: User = JSON.parse(JSON.stringify(player)); // Create a deep mutable copy
     const { mode, winReason, isAiGame } = game;
 
+    const isGuildWarAi = (game as any).gameCategory === 'guildwar' && isAiGame && !isNoContest;
+    let guildWarStars: number | undefined;
+    if (isGuildWarAi) {
+        const humanEnum = player.id === game.blackPlayerId ? Player.Black : Player.White;
+        guildWarStars = computeGuildWarAttemptMetrics(game, humanEnum, isWinner).stars;
+    }
+
     // --- XP and Level ---
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const isPlayful = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
@@ -876,6 +885,10 @@ const processPlayerSummary = async (
     // 랭킹전이 아닌 PVP(전략바둑·놀이바둑 친선전)에서는 경험치도 25%로 감소
     if (!isNoContest && !game.isRankedGame && !isAiGame && (isStrategic || isPlayful)) {
         xpGain = Math.round(xpGain * 0.25);
+    }
+    // 길드 전쟁: 별 0개(실패)면 경험치 없음
+    if (isGuildWarAi && guildWarStars === 0) {
+        xpGain = 0;
     }
     // --- END NEW LOGIC ---
 
@@ -1029,6 +1042,15 @@ const processPlayerSummary = async (
         ? { gold: 0, items: [] }
         : calculateGameRewards(game, updatedPlayer, isWinner, isDraw, itemDropBonus, materialDropBonus, rewardMultiplier, effects);
 
+    if (isGuildWarAi) {
+        const stars = guildWarStars ?? 0;
+        const demo = !!(game as any).isDemo;
+        rewards = {
+            gold: demo ? 0 : getGuildWarMatchGoldReward(game.mode, stars),
+            items: [],
+        };
+    }
+
     // 랭킹전 매칭이 아닌 PVP(전략바둑·놀이바둑 친선전)에서는 보상을 25%로 감소. 랭킹전만 100% 보상.
     if (!isNoContest && !game.isRankedGame && !isAiGame) {
         rewards.gold = Math.round(rewards.gold * 0.25);
@@ -1106,7 +1128,8 @@ const processPlayerSummary = async (
         },
         gold: rewards.gold,
         items: rewards.items,
-        level: levelSummary
+        level: levelSummary,
+        ...(guildWarStars !== undefined ? { guildWarStars } : {}),
     };
 
     return { summary, updatedPlayer };
@@ -1123,11 +1146,21 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
     const isNoContest = game.gameStatus === 'no_contest';
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
 
-    const p1 = player1.id === aiUserId ? getAiUser(game.mode) : await db.getUser(player1.id);
+    const guildWarBoardId =
+        (game as any).gameCategory === 'guildwar' ? ((game as any).guildWarBoardId as string | undefined) : undefined;
+    const aiUserForSummary = (boardId: string | undefined) => {
+        const base = getAiUser(game.mode);
+        if (boardId) {
+            return { ...base, nickname: getGuildWarAiBotDisplayName(boardId) };
+        }
+        return base;
+    };
+
+    const p1 = player1.id === aiUserId ? aiUserForSummary(guildWarBoardId) : await db.getUser(player1.id);
     // 싱글플레이 게임의 경우 player2는 이미 스테이지별로 설정된 AI 유저이므로 덮어쓰지 않음
     const p2 = game.isSinglePlayer 
         ? player2  // 싱글플레이: 기존 player2 유지
-        : (player2.id === aiUserId ? getAiUser(game.mode) : await db.getUser(player2.id));
+        : (player2.id === aiUserId ? aiUserForSummary(guildWarBoardId) : await db.getUser(player2.id));
 
     if (!p1 || !p2) {
         console.error(`[Summary] Could not find one or more users from DB for game ${game.id}`);

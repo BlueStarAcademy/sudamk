@@ -7,7 +7,7 @@ import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_
 import { randomUUID } from 'crypto';
 import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate } from '../shared/utils/timeUtils.js';
 import { DEMO_GUILD_WAR } from '../shared/constants/auth.js';
-import { GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT } from '../shared/constants/index.js';
+import { GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT, GUILD_WAR_BOARD_ORDER, getGuildWarBoardMode } from '../shared/constants/index.js';
 import { resetAndGenerateQuests } from './gameActions.js';
 import * as tournamentService from './tournamentService.js';
 import { calculateTotalStats } from './statService.js';
@@ -24,13 +24,6 @@ let lastDailyRankingUpdateTimestamp: number | null = null;
 let lastDailyQuestResetTimestamp: number | null = null;
 let lastTowerRankingRewardTimestamp: number | null = null;
 let lastGuildWarMatchTimestamp: number | null = null;
-const GUILD_WAR_BOARD_IDS = ['top-left', 'top-mid', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-mid', 'bottom-right'] as const;
-
-function getGuildWarBoardMode(boardId: string): 'capture' | 'hidden' | 'missile' {
-    if (boardId === 'top-left' || boardId === 'top-mid' || boardId === 'top-right') return 'capture';
-    if (boardId === 'mid-left' || boardId === 'center' || boardId === 'mid-right') return 'missile';
-    return 'hidden';
-}
 
 async function increaseGuildWarMonthlyParticipationCounts(userIds: string[], now: number): Promise<void> {
     if (!Array.isArray(userIds) || userIds.length === 0) return;
@@ -2162,7 +2155,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     if (DEMO_GUILD_WAR) {
         const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
         const botGuildId = await getOrCreateBotGuildForWar();
-        const boardIds = [...GUILD_WAR_BOARD_IDS];
+        const boardIds = [...GUILD_WAR_BOARD_ORDER];
         (guilds as Record<string, any>)[botGuildId] = (guilds as Record<string, any>)[botGuildId] || {
             id: botGuildId,
             name: '[시스템]길드전AI',
@@ -2266,7 +2259,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         
         // 9개 바둑판 초기화
         const boards: Record<string, any> = {};
-        const boardIds = [...GUILD_WAR_BOARD_IDS];
+        const boardIds = [...GUILD_WAR_BOARD_ORDER];
         
         for (const boardId of boardIds) {
             const gameMode = getGuildWarBoardMode(boardId);
@@ -2330,7 +2323,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             
             // 9개 바둑판 초기화 및 봇 길드 초기 상태 설정
             const boards: Record<string, any> = {};
-            const boardIds = [...GUILD_WAR_BOARD_IDS];
+            const boardIds = [...GUILD_WAR_BOARD_ORDER];
             
             for (const boardId of boardIds) {
                 const gameMode = getGuildWarBoardMode(boardId);
@@ -2463,7 +2456,7 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
     const maxAttemptsPerGuild = 2;
 
     const dbWar = await createGuildWar(guildId, botGuildId);
-    const boardIds = [...GUILD_WAR_BOARD_IDS];
+    const boardIds = [...GUILD_WAR_BOARD_ORDER];
     const boards: Record<string, any> = {};
     for (const boardId of boardIds) {
         const gameMode = getGuildWarBoardMode(boardId);

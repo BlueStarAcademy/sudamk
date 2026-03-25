@@ -269,6 +269,7 @@ export type ServerAction =
     | { type: 'ADMIN_RESET_CHAMPIONSHIP_ALL', payload: { targetUserId: string } }
     | { type: 'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP', payload?: Record<string, never> }
     | { type: 'ADMIN_CLEAR_USER_GUILD', payload: { targetUserId: string } }
+    | { type: 'ADMIN_GUILD_WAR_RECHARGE_DAILY_ATTEMPTS', payload: { targetUserId: string } }
     | { type: 'ADMIN_CREATE_HOME_BOARD_POST', payload: { title: string; content: string; isPinned: boolean } }
     | { type: 'ADMIN_UPDATE_HOME_BOARD_POST', payload: { postId: string; title: string; content: string; isPinned: boolean } }
     | { type: 'ADMIN_DELETE_HOME_BOARD_POST', payload: { postId: string } }

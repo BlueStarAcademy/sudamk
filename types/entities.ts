@@ -700,6 +700,8 @@ export type GameSummary = {
   overallRecord?: { wins: number; losses: number; aiWins?: number; aiLosses?: number; };
   gold?: number;
   items?: InventoryItem[];
+  /** 길드 전쟁 AI 대국 종료 시 획득 별(0~3) */
+  guildWarStars?: number;
 };
 
 
@@ -920,7 +922,26 @@ export type AdminLog = {
   adminNickname: string;
   targetUserId: string;
   targetNickname: string;
-  action: 'reset_stats' | 'reset_full' | 'delete_user' | 'force_logout' | 'force_delete_game' | 'send_mail' | 'set_game_description' | 'update_user_details' | 'apply_sanction' | 'lift_sanction' | 'force_win' | 'reset_tournament_session' | 'reset_dungeon_progress' | 'reset_championship_all' | 'clear_user_guild' | 'create_home_board_post' | 'update_home_board_post' | 'delete_home_board_post';
+  action:
+    | 'reset_stats'
+    | 'reset_full'
+    | 'delete_user'
+    | 'force_logout'
+    | 'force_delete_game'
+    | 'send_mail'
+    | 'set_game_description'
+    | 'update_user_details'
+    | 'apply_sanction'
+    | 'lift_sanction'
+    | 'force_win'
+    | 'reset_tournament_session'
+    | 'reset_dungeon_progress'
+    | 'reset_championship_all'
+    | 'clear_user_guild'
+    | 'guild_war_recharge_daily_attempts'
+    | 'create_home_board_post'
+    | 'update_home_board_post'
+    | 'delete_home_board_post';
   backupData: Partial<User> | { status: UserStatusInfo } | LiveGameSession | { mailTitle: string } | SanctionLogData | { gameId: string, winnerId: string } | { postId: string, title: string } | { oldGuildId: string | undefined };
 };
 

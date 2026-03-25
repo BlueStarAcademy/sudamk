@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 // FIX: Import missing types from the centralized types file.
-import { LiveGameSession, Player, GameMode } from '../types/index.js';
+import { LiveGameSession, Player } from '../types/index.js';
+import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 
 interface ClientTimerOptions {
     isPaused?: boolean;
@@ -93,7 +94,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             ? (session.blackTimeLeft != null ? coerce(session.blackTimeLeft) : defaultTimeForTurn)
             : (session.whiteTimeLeft != null ? coerce(session.whiteTimeLeft) : defaultTimeForTurn);
 
-        const isFischer = session.mode === GameMode.Speed || (session.mode === GameMode.Mix && session.settings?.mixedModes?.includes(GameMode.Speed));
+        const isFischer = isFischerStyleTimeControl(session as any);
         const byoyomiTimeSec = (session.settings?.byoyomiTime ?? 0) as number;
         const byoyomiPeriodsLeft = curPlayer === Player.Black
             ? (session.blackByoyomiPeriodsLeft ?? session.settings?.byoyomiCount ?? 0)
@@ -187,7 +188,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             }
 
             // 피셔 방식 확인
-            const isFischer = session.mode === GameMode.Speed || (session.mode === GameMode.Mix && session.settings?.mixedModes?.includes(GameMode.Speed));
+            const isFischer = isFischerStyleTimeControl(session as any);
             
             if (isSharedDeadlinePhase) {
                 setClientTimes({ black: newTimeLeft, white: newTimeLeft });

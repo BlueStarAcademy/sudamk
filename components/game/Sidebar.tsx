@@ -18,6 +18,7 @@ import Button from '../Button.js';
 import Avatar from '../Avatar.js';
 import { containsProfanity } from '../../profanity.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 
 
 interface SidebarProps extends GameProps {
@@ -88,14 +89,15 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
        
         // 도전의 탑: 제한시간/초읽기는 무제한이므로 표시하지 않음
         const isTowerGame = (session as any).gameCategory === 'tower';
+        const isFischer = isFischerStyleTimeControl(session as any);
         if (!isTowerGame && !modesWithoutTime.includes(mode)) {
             if (settings.timeLimit > 0) {
                 details.push(renderSetting("제한시간", `${settings.timeLimit}분`));
-                details.push(renderSetting("초읽기", mode === GameMode.Speed ? `${settings.timeIncrement}초 피셔` : `${settings.byoyomiTime}초 ${settings.byoyomiCount}회`));
+                details.push(renderSetting("초읽기", isFischer ? `${settings.timeIncrement}초 피셔` : `${settings.byoyomiTime}초 ${settings.byoyomiCount}회`));
             } else {
                 details.push(renderSetting("제한시간", "없음"));
                 if (settings.byoyomiTime > 0 && settings.byoyomiCount > 0) {
-                    details.push(renderSetting("초읽기", mode === GameMode.Speed ? `${settings.timeIncrement}초 피셔` : `${settings.byoyomiTime}초 ${settings.byoyomiCount}회`));
+                    details.push(renderSetting("초읽기", isFischer ? `${settings.timeIncrement}초 피셔` : `${settings.byoyomiTime}초 ${settings.byoyomiCount}회`));
                 }
             }
         }

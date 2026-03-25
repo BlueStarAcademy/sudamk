@@ -22,6 +22,9 @@ import SinglePlayerGameDescriptionModal from './components/SinglePlayerGameDescr
 import SinglePlayerSidebar from './components/game/SinglePlayerSidebar.js';
 import TowerControls from './components/game/TowerControls.js';
 import TowerSidebar from './components/game/TowerSidebar.js';
+import GuildWarMissileTowerControls from './components/game/GuildWarMissileTowerControls.js';
+import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
+import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
 import { ScoringOverlay } from './components/game/ScoringOverlay.js';
 import { useClientTimer } from './hooks/useClientTimer.js';
 import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
@@ -153,6 +156,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isSinglePlayer = session.isSinglePlayer;
     const isTower = session.gameCategory === 'tower';
     const isGuildWarGame = session.gameCategory === 'guildwar';
+    const isGuildWarTowerStyleUi =
+        isGuildWarGame && (mode === GameMode.Missile || mode === GameMode.Hidden);
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
     const showMoveConfirmPanel = !isPlayfulMode;
     const aiHiddenTurnsFromSession = (session as any).aiHiddenItemTurns;
@@ -174,7 +179,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     );
     const nextAiHiddenItemTurn = plannedAiHiddenTurns[aiHiddenItemsUsedCount];
     const isTowerHiddenStage = isTower && (session.towerFloor ?? 0) >= 21 && plannedAiHiddenTurns.length > 0;
-    const isAiHiddenPresentationStage = (isSinglePlayer && ((session.settings?.hiddenStoneCount ?? 0) > 0)) || isTowerHiddenStage;
+    const isGuildWarHiddenPresentation =
+        isGuildWarGame && mode === GameMode.Hidden && ((session.settings?.hiddenStoneCount ?? 0) > 0);
+    const isAiHiddenPresentationStage =
+        (isSinglePlayer && ((session.settings?.hiddenStoneCount ?? 0) > 0)) ||
+        isTowerHiddenStage ||
+        isGuildWarHiddenPresentation;
     // 전략바둑 AI/PVP 수순 제한: 새로고침 후 totalTurns·moveHistory 복원/저장에 포함
     const hasStrategicTurnLimit = (session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0;
     
@@ -1074,7 +1084,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (payload.isHidden) audioService.stopScanBgm();
         }
 
-        if (actionType === 'SCAN_BOARD' && (isTower || isSinglePlayer)) {
+        if (actionType === 'SCAN_BOARD' && (isTower || isSinglePlayer || isGuildWarGame)) {
             const sync = buildPveItemActionClientSync(session);
             if (sync) payload.clientSync = sync;
         }
@@ -1095,7 +1105,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 currentUser: currentUser.id
             });
         }
-    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, isMoveInFlight, isTower, isSinglePlayer]);
+    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame]);
 
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
@@ -2281,6 +2291,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         showLastMoveMarker={settings.features.lastMoveMarker}
                                         isBoardRotated={isBoardRotated}
                                         onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
+                                        showBoardGlow={
+                                            isGuildWarTowerStyleUi &&
+                                            (gameStatus === 'hidden_placing' || isAiHiddenPresentationActive)
+                                        }
                                     />
                                 </div>
                                 {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
@@ -2338,7 +2352,28 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 sidebarNotification={hasNewMessage}
                                 onAction={handlers.handleAction}
                             />
-                            <GameControls {...gameControlsProps} />
+                            {isGuildWarTowerStyleUi && mode === GameMode.Missile ? (
+                                <GuildWarMissileTowerControls
+                                    session={session}
+                                    onAction={handlers.handleAction}
+                                    setShowResultModal={setShowResultModal}
+                                    setConfirmModalType={setConfirmModalType}
+                                    isMoveInFlight={isMoveInFlight}
+                                    isBoardLocked={isBoardLocked}
+                                />
+                            ) : isGuildWarTowerStyleUi && mode === GameMode.Hidden ? (
+                                <GuildWarHiddenTowerControls
+                                    session={session}
+                                    onAction={handlers.handleAction}
+                                    currentUser={currentUserWithStatus}
+                                    setShowResultModal={setShowResultModal}
+                                    setConfirmModalType={setConfirmModalType}
+                                    isMoveInFlight={isMoveInFlight}
+                                    isBoardLocked={isBoardLocked}
+                                />
+                            ) : (
+                                <GameControls {...gameControlsProps} />
+                            )}
                         </div>
                     </div>
                 </main>
@@ -2352,16 +2387,29 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         {!isRightSidebarCollapsed && (
                             <div className="flex h-full items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
                                 <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-                                    <Sidebar
-                                        {...gameProps}
-                                        onLeaveOrResign={handleLeaveOrResignClick}
-                                        isNoContestLeaveAvailable={isNoContestLeaveAvailable}
-                                        onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
-                                        isPaused={effectivePaused}
-                                        resumeCountdown={resumeCountdown}
-                                        pauseButtonCooldown={pauseButtonCooldown}
-                                        pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
-                                    />
+                                    {isGuildWarTowerStyleUi ? (
+                                        <GuildWarTowerSidebar
+                                            session={sessionWithRestoredPatternStones}
+                                            gameChat={gameChat}
+                                            onAction={handlers.handleAction}
+                                            currentUser={currentUserWithStatus}
+                                            onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                                            isPaused={effectivePaused}
+                                            resumeCountdown={resumeCountdown}
+                                            pauseButtonCooldown={pauseButtonCooldown}
+                                        />
+                                    ) : (
+                                        <Sidebar
+                                            {...gameProps}
+                                            onLeaveOrResign={handleLeaveOrResignClick}
+                                            isNoContestLeaveAvailable={isNoContestLeaveAvailable}
+                                            onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                                            isPaused={effectivePaused}
+                                            resumeCountdown={resumeCountdown}
+                                            pauseButtonCooldown={pauseButtonCooldown}
+                                            pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -2382,17 +2430,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 {isMobile && (
                     <>
                         <div className={`fixed top-0 right-0 h-full w-[280px] bg-secondary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                            <Sidebar
-                                {...gameProps}
-                                onLeaveOrResign={handleLeaveOrResignClick}
-                                isNoContestLeaveAvailable={isNoContestLeaveAvailable}
-                                onClose={() => setIsMobileSidebarOpen(false)}
-                                onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
-                                isPaused={effectivePaused}
-                                resumeCountdown={resumeCountdown}
-                                pauseButtonCooldown={pauseButtonCooldown}
-                                pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
-                            />
+                            {isGuildWarTowerStyleUi ? (
+                                <GuildWarTowerSidebar
+                                    session={sessionWithRestoredPatternStones}
+                                    gameChat={gameChat}
+                                    onAction={handlers.handleAction}
+                                    currentUser={currentUserWithStatus}
+                                    onClose={() => setIsMobileSidebarOpen(false)}
+                                    onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                                    isPaused={effectivePaused}
+                                    resumeCountdown={resumeCountdown}
+                                    pauseButtonCooldown={pauseButtonCooldown}
+                                />
+                            ) : (
+                                <Sidebar
+                                    {...gameProps}
+                                    onLeaveOrResign={handleLeaveOrResignClick}
+                                    isNoContestLeaveAvailable={isNoContestLeaveAvailable}
+                                    onClose={() => setIsMobileSidebarOpen(false)}
+                                    onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                                    isPaused={effectivePaused}
+                                    resumeCountdown={resumeCountdown}
+                                    pauseButtonCooldown={pauseButtonCooldown}
+                                    pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
+                                />
+                            )}
                         </div>
                         {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
                     </>

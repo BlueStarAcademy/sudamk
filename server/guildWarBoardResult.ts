@@ -1,12 +1,7 @@
 import type { LiveGameSession } from '../shared/types/index.js';
-import { Player, GameMode } from '../shared/types/enums.js';
+import { Player } from '../shared/types/enums.js';
 import * as db from './db.js';
-import {
-    GUILD_WAR_STAR_CAPTURE_TIER2_MIN,
-    GUILD_WAR_STAR_CAPTURE_TIER3_MIN,
-    GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF,
-    GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF,
-} from '../shared/constants/index.js';
+import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
 
 type GuildWarAttemptRecord = {
     userId: string;
@@ -17,48 +12,6 @@ type GuildWarAttemptRecord = {
     completedAt: number;
 };
 
-function scoreModeStarsFromDiff(diff: number): number {
-    if (diff >= GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF) return 3;
-    if (diff >= GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF) return 2;
-    return 1;
-}
-
-export function computeGuildWarAttemptMetrics(
-    game: LiveGameSession,
-    humanEnum: Player,
-    humanWon: boolean
-): { stars: number; captures: number; scoreDiff?: number } {
-    const aiEnum = humanEnum === Player.Black ? Player.White : Player.Black;
-    const captures = game.captures?.[humanEnum] ?? 0;
-
-    if (!humanWon) {
-        return { stars: 0, captures };
-    }
-
-    if (game.mode === GameMode.Capture) {
-        const opCap = game.captures?.[aiEnum] ?? 0;
-        const margin = captures - opCap;
-        const stars =
-            captures >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN
-                ? 3
-                : captures >= GUILD_WAR_STAR_CAPTURE_TIER2_MIN
-                  ? 2
-                  : 1;
-        return { stars, captures, scoreDiff: margin };
-    }
-
-    const fs = game.finalScores;
-    if (fs && typeof fs.black === 'number' && typeof fs.white === 'number') {
-        const myTotal = humanEnum === Player.Black ? fs.black : fs.white;
-        const opTotal = humanEnum === Player.Black ? fs.white : fs.black;
-        const diff = myTotal - opTotal;
-        const stars = scoreModeStarsFromDiff(diff);
-        return { stars, captures, scoreDiff: Math.round(diff * 10) / 10 };
-    }
-
-    return { stars: 1, captures };
-}
-
 function isNewAttemptBetter(prev: GuildWarAttemptRecord, cand: GuildWarAttemptRecord): boolean {
     if (cand.stars !== prev.stars) return cand.stars > prev.stars;
     if (cand.captures !== prev.captures) return cand.captures > prev.captures;
@@ -67,6 +20,8 @@ function isNewAttemptBetter(prev: GuildWarAttemptRecord, cand: GuildWarAttemptRe
     if (cd !== pd) return cd > pd;
     return cand.completedAt < prev.completedAt;
 }
+
+export { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
 
 /** 길드전 한 판 종료 시 activeGuildWars 보드 기록·별 갱신 */
 export async function applyGuildWarBoardAfterGame(game: LiveGameSession): Promise<void> {
