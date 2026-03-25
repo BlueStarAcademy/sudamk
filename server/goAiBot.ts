@@ -12,7 +12,7 @@ import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import * as db from './db.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
-import { generateGnuGoMove, isGnuGoAvailable } from './gnugoService.js';
+import { generateKataServerMove, isKataServerAvailable } from './kataServerService.js';
 
 /**
  * AI 봇 단계별 특성 정의
@@ -886,74 +886,44 @@ export async function makeGoAiBotMove(
     }
     
     let selectedMove: Point | null = null;
+    let scoredMoves: Array<{ move: Point; score: number }> = [];
 
-    // 1) 전략바둑 AI 대국 또는 싱글플레이 중급/고급: GnuGo 서비스 우선 사용
-    const stageIdStr = typeof game.stageId === 'string' ? game.stageId.trim() : '';
-    const isSinglePlayerGnugoStage =
-        !!game.isSinglePlayer &&
-        !!stageIdStr &&
-        (stageIdStr.startsWith('중급') || stageIdStr.startsWith('고급') || stageIdStr.startsWith('유단자'));
-
-    // 길드전에서는 gnuGo가 제대로 동작하지 않는 경우가 있어(서버 환경/보드 마스킹 등),
-    // 싱글플레이/도전의 탑에서만 gnuGo를 우선 사용하도록 제한한다.
-    // 길드전 AI는 항상 내부 goAiBot(휴리스틱)로만 진행.
+    // 0) KataServer 레벨봇: 길드전 제외 모든 바둑 봇 게임에서 사용
     const isGuildWarAiGame = (game as any).gameCategory === 'guildwar';
-    const wantGnuGo = !isGuildWarAiGame && (isStrategicAiGame || isSinglePlayerGnugoStage);
-    const gnuGoAvailable = isGnuGoAvailable();
-    if (wantGnuGo && !gnuGoAvailable) {
-        const reason = process.env.GNUGO_API_URL ? 'GnuGo API URL set but local process pool not ready' : 'GNUGO_API_URL not set (deploy backend with GNUGO_API_URL pointing to your GnuGo service)';
-        console.log(
-            `[makeGoAiBotMove] ${isStrategicAiGame ? '전략바둑 AI' : 'Single player'} — GnuGo 미사용. ${reason}. 내부 goAiBot(휴리스틱) 사용 level=${aiLevel}.`
-        );
-    }
-    if (wantGnuGo && gnuGoAvailable) {
+    const wantKataServer = !isGuildWarAiGame && isKataServerAvailable();
+    if (wantKataServer && !selectedMove) {
         try {
-            const boardSize = game.settings.boardSize || 19;
-            // 싱글플레이·도전의 탑 히든바둑: 유저의 히든 수는 수순에서 통과(-1,-1)로 치환해 AI가 위치를 알 수 없게 함 (유저 통과로 인식)
-            const useHiddenMaskForGnuGo = (isHiddenMode && shouldMaskUserHiddenFromAi(game));
-            const moveHistory = useHiddenMaskForGnuGo
+            const kataLevel = game.settings.kataServerLevel ?? aiLevel;
+            // 히든바둑: 유저 미공개 히든 수는 통과(-1,-1)로 마스킹
+            const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
+            const moveHistory = useHiddenMask
                 ? getMoveHistoryForAi(game, aiPlayerEnum)
                 : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
 
-            // 싱글플레이 히든바둑: AI가 볼 보드는 유저 미공개 히든 돌을 빈 칸으로 처리
-            const boardState = useHiddenMaskForGnuGo
-                ? (getBoardStateForAi(game, aiPlayerEnum) || []) as unknown as number[][]
-                : (game.boardState || []) as unknown as number[][];
-
-            const playerStr = aiPlayerEnum === types.Player.White ? 'white' : 'black';
-            console.log(
-                `[makeGoAiBotMove] Requesting move from GnuGo service (level=${aiLevel}) for game ${game.id}, boardSize=${boardSize}, player=${playerStr}${isSinglePlayerGnugoStage ? ', singlePlayer(중급/고급)' : ''}`
-            );
-
-            const gnugoMove = await generateGnuGoMove({
-                boardState,
-                boardSize,
-                player: playerStr,
+            const kataMove = await generateKataServerMove({
+                boardSize: game.settings.boardSize || 19,
+                player: aiPlayerEnum === types.Player.White ? 'white' : 'black',
                 moveHistory,
-                level: aiLevel
+                level: kataLevel,
+                komi: game.settings.komi,
+                gameId: game.id,
             });
+            selectedMove = { x: kataMove.x, y: kataMove.y };
 
-            selectedMove = { x: gnugoMove.x, y: gnugoMove.y };
-            // 싱글플레이·탑 히든: 유저 통과로만 인식 — GnuGo가 유저 미공개 히든 칸 또는 그 인접 칸을 반환하면 휴리스틱으로 대체
-            if (isHiddenMode && shouldMaskUserHiddenFromAi(game) && selectedMove &&
+            // 히든바둑: 유저 미공개 히든 칸 또는 인접 칸에 착수하면 휴리스틱으로 대체
+            if (useHiddenMask && selectedMove &&
                 isOnOrAdjacentToUserUnrevealedHidden(game, selectedMove.x, selectedMove.y, aiPlayerEnum)) {
-                console.log(`[makeGoAiBotMove] GnuGo returned move on/near user's unrevealed hidden (${selectedMove.x},${selectedMove.y}), falling back to heuristic`);
+                console.log(`[makeGoAiBotMove] KataServer returned move on/near user's unrevealed hidden (${selectedMove.x},${selectedMove.y}), falling back to heuristic`);
                 selectedMove = null;
-            }
-            if (isStrategicAiGame && selectedMove) {
-                console.log(`[makeGoAiBotMove] 전략바둑 AI: GnuGo 수 적용 완료 game=${game.id} (${gnugoMove.x},${gnugoMove.y})`);
-            }
-            if (isSinglePlayerGnugoStage) {
-                console.log(`[makeGoAiBotMove] GnuGo move used for single player stage ${game.stageId}`);
+            } else {
+                console.log(`[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${kataMove.x},${kataMove.y})`);
             }
         } catch (err: any) {
-            console.error(
-                `[makeGoAiBotMove] GnuGo 서비스 실패 → 내부 goAiBot(휴리스틱)으로 대체. game=${game.id}, error=${err?.message || String(err)}`
-            );
+            console.error(`[makeGoAiBotMove] KataServer 실패 → 내부 휴리스틱 폴백. game=${game.id}, error=${err?.message}`);
         }
     }
 
-    // 2) GnuGo 사용에 실패했거나 GnuGo를 사용할 수 없는 경우: 기존 goAiBot 휴리스틱 사용
+    // 1) KataServer 실패 시 내부 goAiBot 휴리스틱 폴백
     if (!selectedMove) {
         const profile = getGoAiBotProfile(aiLevel);
 
@@ -1042,9 +1012,11 @@ export async function makeGoAiBotMove(
             return;
         }
     }
+    } // end of if (!selectedMove) - heuristic path
 
+    // 이후 sections 2-4는 휴리스틱 전용이므로 selectedMove가 없을 때만 실행
+    if (!selectedMove) {
     // 2. 살리기 바둑 모드일 때는 공격적인 로직 사용
-    let scoredMoves: Array<{ move: Point; score: number }>;
     if (isSurvivalMode && aiPlayerEnum === Player.White) {
         // 살리기 바둑: AI(백)가 유저(흑)의 돌을 적극적으로 잡으러 오는 전략 사용
         scoredMoves = scoreMovesForAggressiveCapture(
@@ -1094,7 +1066,7 @@ export async function makeGoAiBotMove(
     }
 
     // 4. 선택된 수 실행 전에 유저의 돌 위에 착점하는지 확인 (싱글플레이 모드)
-    if (game.isSinglePlayer || game.gameCategory === 'tower') {
+    if ((game.isSinglePlayer || game.gameCategory === 'tower') && selectedMove) {
         const { x, y } = selectedMove;
         const stoneAtTarget = game.boardState[y]?.[x];
         
@@ -1161,7 +1133,13 @@ export async function makeGoAiBotMove(
             console.log(`[GoAiBot] Replaced invalid move with valid move at (${selectedMove.x}, ${selectedMove.y})`);
         }
     }
-    
+    } // end of if (!selectedMove) - sections 2-4
+
+    if (!selectedMove) {
+        console.error(`[makeGoAiBotMove] No move selected after all strategies, game=${game.id}`);
+        return;
+    }
+
     // 4-1. 히든 돌 위에 착점하는지 확인 (히든바둑 모드: 싱글플레이·탑)
     if (isHiddenMode && shouldMaskUserHiddenFromAi(game)) {
         const { x, y } = selectedMove;
@@ -1284,7 +1262,6 @@ export async function makeGoAiBotMove(
         game.koInfo,
         game.moveHistory.length
     );
-
     if (!result.isValid) {
         // 유효하지 않은 수를 선택한 경우, 유효한 수 중에서 대체
         // 유저의 돌 위에 두는 수는 제외
@@ -1364,13 +1341,14 @@ export async function makeGoAiBotMove(
     }
 
     // 7. 살리기 바둑 모드에서 승리 조건 확인
-    if (isSurvivalMode && aiPlayerEnum === Player.White) {
+    const isSurvivalModeCheck = (game.settings as any)?.isSurvivalMode === true;
+    if (isSurvivalModeCheck && aiPlayerEnum === Player.White) {
         // 백(AI)의 턴 수 증가 (백이 한 수를 둘 때마다)
         const whiteTurnsPlayed = ((game as any).whiteTurnsPlayed || 0) + 1;
         (game as any).whiteTurnsPlayed = whiteTurnsPlayed;
         const survivalTurns = (game.settings as any)?.survivalTurns || 0;
         
-        console.log(`[Survival Go] White move completed - turns: ${whiteTurnsPlayed}/${survivalTurns}, gameStatus: ${game.gameStatus}, isSurvivalMode: ${isSurvivalMode}`);
+        console.log(`[Survival Go] White move completed - turns: ${whiteTurnsPlayed}/${survivalTurns}, gameStatus: ${game.gameStatus}, isSurvivalMode: ${isSurvivalModeCheck}`);
         
         if (survivalTurns > 0 && game.gameStatus === 'playing') {
             // 백이 목표점수를 달성했는지 먼저 체크 (목표 달성 시 백 승리)
@@ -1485,7 +1463,7 @@ export async function makeGoAiBotMove(
     }
     
     // 싱글플레이 따내기 바둑: 흑(유저) 턴 수 제한 도달 시 AI 수 후 계가 없이 미션 실패 처리
-    // (GnuGo 경로에서는 isItemMode가 위 블록에서 정의되지 않으므로 여기서 정의)
+    // (isItemMode가 위 블록에서 정의되지 않을 수 있으므로 여기서 별도 정의)
     const isItemModeHere = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(game.gameStatus);
     const blackTurnLimit = (game.settings as any)?.blackTurnLimit;
     const isGuildWarCapture = (game as any).gameCategory === 'guildwar' && game.mode === types.GameMode.Capture;
@@ -4256,5 +4234,4 @@ function canGroupBeSaved(
 
     // 기본적으로 살릴 수 있다고 판단
     return true;
-}
 }

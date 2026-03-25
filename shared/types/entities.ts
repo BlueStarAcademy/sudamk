@@ -577,6 +577,8 @@ export type GameSettings = {
   aiDifficulty?: number; // 1-5 (싱글/탑)
   /** Gnugo AI 레벨 1~10 (전략바둑 AI 대국) */
   goAiBotLevel?: number;
+  /** KataServer 레벨봇 레벨 (-31~9). 미설정 시 goAiBotLevel 사용 */
+  kataServerLevel?: number;
   /** 전략바둑 대국 시 계가까지 턴 제한 (해당 턴 수가 되면 자동으로 KataGo 계가 진행). 0/미설정 시 제한 없음 */
   scoringTurnLimit?: number;
 };

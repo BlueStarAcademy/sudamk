@@ -257,19 +257,32 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         const showGoAiLevel = lobbyType === 'strategic';
         const showScoringTurnLimit = showGoAiLevel && selectedGameMode !== GameMode.Capture;
 
+        const AI_LEVELS = [
+            { value: -31, label: '1단계 (입문)' },
+            { value: -25, label: '2단계 (초보)' },
+            { value: -21, label: '3단계 (하급)' },
+            { value: -15, label: '4단계 (초급)' },
+            { value: -12, label: '5단계 (중급)' },
+            { value: -8,  label: '6단계 (중상급)' },
+            { value: -3,  label: '7단계 (상급)' },
+            { value: -1,  label: '8단계 (고급)' },
+            { value: 3,   label: '9단계 (최상급)' },
+            { value: 5,   label: '10단계 (고수)' },
+        ];
+
         return (
             <div className="h-full flex flex-col gap-2 overflow-y-auto pr-2">
                 {showGoAiLevel && (
                     <div className="grid grid-cols-2 gap-2 items-center">
                         <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>AI 난이도</label>
-                        <select 
-                            value={settings.goAiBotLevel ?? 5} 
-                            onChange={e => handleSettingChange('goAiBotLevel', parseInt(e.target.value, 10) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)}
+                        <select
+                            value={settings.kataServerLevel ?? -12}
+                            onChange={e => handleSettingChange('kataServerLevel', parseInt(e.target.value, 10))}
                             className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                             style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
                         >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => (
-                                <option key={level} value={level}>{level}단계</option>
+                            {AI_LEVELS.map(({ value, label }) => (
+                                <option key={value} value={value}>{label}</option>
                             ))}
                         </select>
                     </div>
