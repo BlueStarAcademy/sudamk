@@ -187,6 +187,14 @@ class AiProcessingQueue {
             const { broadcastToGameParticipants } = await import('./socket.js');
             broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
 
+            // 히든 아이템 연출(6초) 동안 makeGoAiBotMove가 대기 반환한 경우,
+            // 연출 종료 후 실제 AI 착수를 위해 같은 게임을 다시 큐에 넣는다.
+            if (game.aiHiddenItemAnimationEndTime && Date.now() < game.aiHiddenItemAnimationEndTime) {
+                const delayMs = Math.max(100, game.aiHiddenItemAnimationEndTime - Date.now() + 50);
+                setTimeout(() => this.enqueue(gameId), delayMs);
+                return;
+            }
+
             // 주사위 바둑/도둑과 경찰: 남은 돌이 있으면 1초 후 한 개씩 두는 연출을 위해 재등록
             if ((game.gameStatus === 'dice_placing' || game.gameStatus === 'thief_placing') && (game.stonesToPlace ?? 0) > 0) {
                 setTimeout(() => this.enqueue(gameId), 1000);

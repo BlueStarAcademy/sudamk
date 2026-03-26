@@ -17,6 +17,12 @@ export const initializeHidden = (game: types.LiveGameSession) => {
 };
 
 export const updateHiddenState = (game: types.LiveGameSession, now: number) => {
+    const isStrategicAiGame =
+        !!game.isAiGame &&
+        !game.isSinglePlayer &&
+        (game as any).gameCategory !== 'tower' &&
+        (game as any).gameCategory !== 'singleplayer' &&
+        (game as any).gameCategory !== 'guildwar';
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
 
     if (isItemMode && game.itemUseDeadline && now > game.itemUseDeadline) {
@@ -99,7 +105,7 @@ export const updateHiddenState = (game: types.LiveGameSession, now: number) => {
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
                         const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                        const wasAiInitialHidden = game.isSinglePlayer && (game as any).aiInitialHiddenStone &&
+                        const wasAiInitialHidden = (game.isSinglePlayer || isStrategicAiGame) && (game as any).aiInitialHiddenStone &&
                             (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
                         
                         let points = 1;
@@ -175,10 +181,17 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
     // 도전의 탑/싱글: 유저가 방금 둔 직후(턴이 AI로 넘어갔지만 AI가 아직 두기 전)에도 히든/스캔 허용 (싱글플레이와 동일)
     const lastMove = game.moveHistory?.length ? game.moveHistory[game.moveHistory.length - 1] : null;
     const lastMoveWasMine = lastMove && (lastMove as { player?: number }).player === myPlayerEnum;
+    const isStrategicAiGame =
+        !!game.isAiGame &&
+        !game.isSinglePlayer &&
+        (game as any).gameCategory !== 'tower' &&
+        (game as any).gameCategory !== 'singleplayer' &&
+        (game as any).gameCategory !== 'guildwar';
     const allowItemAfterMyMove =
         (game.isSinglePlayer ||
             (game as any).gameCategory === 'tower' ||
-            (game as any).gameCategory === 'guildwar') &&
+            (game as any).gameCategory === 'guildwar' ||
+            isStrategicAiGame) &&
         game.gameStatus === 'playing' &&
         lastMoveWasMine &&
         !isMyTurn;

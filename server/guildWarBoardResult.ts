@@ -9,11 +9,15 @@ type GuildWarAttemptRecord = {
     captures: number;
     score?: number;
     scoreDiff?: number;
+    maxSingleCapture?: number;
     completedAt: number;
 };
 
 function isNewAttemptBetter(prev: GuildWarAttemptRecord, cand: GuildWarAttemptRecord): boolean {
     if (cand.stars !== prev.stars) return cand.stars > prev.stars;
+    const cs = cand.score ?? -1e15;
+    const ps = prev.score ?? -1e15;
+    if (cs !== ps) return cs > ps;
     if (cand.captures !== prev.captures) return cand.captures > prev.captures;
     const cd = cand.scoreDiff ?? -1e15;
     const pd = prev.scoreDiff ?? -1e15;
@@ -37,7 +41,7 @@ export async function applyGuildWarBoardAfterGame(game: LiveGameSession): Promis
     const isDraw = game.winner === Player.None;
     const humanWon = !isDraw && game.winner === humanEnum;
 
-    const { stars, captures, scoreDiff } = computeGuildWarAttemptMetrics(game, humanEnum, humanWon);
+    const { stars, captures, score, scoreDiff, maxSingleCapture } = computeGuildWarAttemptMetrics(game, humanEnum, humanWon);
 
     const user = await db.getUser(humanId);
     const userGuildId = user?.guildId;
@@ -70,7 +74,9 @@ export async function applyGuildWarBoardAfterGame(game: LiveGameSession): Promis
             userId: humanId,
             stars,
             captures,
+            score,
             scoreDiff,
+            maxSingleCapture,
             completedAt,
         };
         const prev = board[keyBest] as GuildWarAttemptRecord | null | undefined;

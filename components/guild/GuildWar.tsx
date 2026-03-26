@@ -235,11 +235,11 @@ const GuildWar = () => {
                             } else if (board.guild2BestResult.captures > board.guild1BestResult.captures) {
                                 ownerGuildId = war.guild2Id;
                             } else {
-                                // 집 차이 비교
-                                if (board.guild1BestResult.scoreDiff !== undefined && board.guild2BestResult.scoreDiff !== undefined) {
-                                    if (board.guild1BestResult.scoreDiff > board.guild2BestResult.scoreDiff) {
+                                // 집점수 비교 (동점 시 남은시간 보너스 포함된 score 사용)
+                                if (board.guild1BestResult.score !== undefined && board.guild2BestResult.score !== undefined) {
+                                    if (board.guild1BestResult.score > board.guild2BestResult.score) {
                                         ownerGuildId = war.guild1Id;
-                                    } else if (board.guild2BestResult.scoreDiff > board.guild1BestResult.scoreDiff) {
+                                    } else if (board.guild2BestResult.score > board.guild1BestResult.score) {
                                         ownerGuildId = war.guild2Id;
                                     }
                                 }
@@ -296,7 +296,7 @@ const GuildWar = () => {
                         name: boardNames[boardId] || boardId,
                         myStars,
                         opponentStars,
-                        boardSize: board.boardSize || 13,
+                        boardSize: getGuildWarBoardMode(boardId) === 'capture' ? 9 : (board.boardSize || 13),
                         highestScorer: bestUser?.nickname,
                         scoreDiff: bestResult?.scoreDiff,
                         initialStones: board.initialStones?.[0] || {
@@ -495,7 +495,7 @@ const GuildWar = () => {
         boardIds.forEach(boardId => {
             const gameMode = getGuildWarBoardMode(boardId);
             demoWar.boards[boardId] = {
-                boardSize: 13,
+                boardSize: gameMode === 'capture' ? 9 : 13,
                 gameMode: gameMode,
                 guild1Stars: 0,
                 guild2Stars: Math.floor(Math.random() * 2) + 2, // 봇이 2-3개 별 획득
@@ -509,14 +509,9 @@ const GuildWar = () => {
                 },
                 guild1Attempts: 0,
                 guild2Attempts: 3, // 봇은 이미 3번 공격 완료
-                initialStones: [
-                    {
-                        blackPlain: 2,
-                        whitePlain: 2,
-                        blackMarked: 1,
-                        whiteMarked: 1,
-                    },
-                ],
+                initialStones: gameMode === 'capture'
+                    ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
+                    : undefined,
             };
         });
         

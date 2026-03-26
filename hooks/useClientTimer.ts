@@ -56,9 +56,19 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             return;
         }
 
-        // pending 상태의 게임은 시간이 흐르지 않도록 함
-        if (session.gameStatus === 'pending') {
-            // pending 상태에서는 설정에서 기본값 사용
+        // 대국 시작 전 상태에서는 시간이 흐르지 않도록 동결
+        const preStartStatuses = [
+            'pending',
+            'base_game_start_confirmation',
+            'komi_bid_reveal',
+            'nigiri_reveal',
+            'color_start_confirmation'
+        ];
+        if (preStartStatuses.includes(session.gameStatus)) {
+            // 이전 턴의 deadline 문맥이 남아 있으면 카운트다운이 재개될 수 있어 초기화
+            deadlineRef.current = null;
+            byoyomiDeadlineRef.current = null;
+            // 서버 시간이 있으면 그대로, 없으면 설정 기본값 사용
             const defaultTime = session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0;
             const blackTime = session.blackTimeLeft ? coerce(session.blackTimeLeft) : defaultTime;
             const whiteTime = session.whiteTimeLeft ? coerce(session.whiteTimeLeft) : defaultTime;

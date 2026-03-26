@@ -392,7 +392,15 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
     }, [guild.guildBossState]);
     
     const currentHp = guild.guildBossState?.currentBossHp ?? guild.guildBossState?.hp ?? currentBoss?.maxHp ?? 0;
-    const hpPercent = (currentHp / currentBoss.maxHp) * 100;
+    const maxHp = currentBoss.maxHp ?? 0;
+    const hpPercent = maxHp > 0 ? (currentHp / maxHp) * 100 : 0;
+    const clampedHpPercent = Math.max(0, Math.min(100, hpPercent));
+    const remainingHp = Math.max(0, Math.ceil(currentHp));
+    const formatHpWithK = (value: number) => {
+        const kValue = value / 1000;
+        if (Number.isInteger(kValue)) return `${kValue.toLocaleString()}k`;
+        return `${kValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 1 })}k`;
+    };
     const [timeLeft, setTimeLeft] = useState('');
     
     // 보스전 티켓 계산 (일일 2회, KST 기준 날짜 변경 시 2/2 회복)
@@ -512,25 +520,29 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                     <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-2 w-full`}>
                         {/* 왼쪽: 보스 이미지 + 스킬(아래 가로 배치) */}
                         <div className={`flex flex-col ${isMobile ? 'items-center' : 'flex-1 min-w-0'} gap-2`}>
-                            <div className="flex flex-col items-center">
-                                {/* 보스 이미지 (확대) */}
-                                <div className="flex flex-col items-center flex-shrink-0">
-                                    <div className={`${isMobile ? 'w-24 h-24' : 'w-36 h-36'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center border border-stone-600/50 shadow-lg`}>
-                                        <img src={currentBoss.image} alt={currentBoss.name} className={`${isMobile ? 'w-20 h-20' : 'w-32 h-32'} drop-shadow-lg object-contain`} />
-                                    </div>
-                                    {/* 체력 바 */}
-                                    <div className={`${isMobile ? 'w-24' : 'w-36'} ${isMobile ? 'mt-1' : 'mt-1.5'} relative`}>
-                                        <div className={`w-full bg-gray-700/50 rounded-full ${isMobile ? 'h-1.5' : 'h-2'} border border-gray-600/50 overflow-hidden shadow-inner relative`}>
-                                            <div 
-                                                className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
-                                                style={{ width: `${hpPercent}%` }}
-                                            ></div>
-                                            <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[9px]' : 'text-[10px]'} font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]`} style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
-                                                {hpPercent.toFixed(1)}%
-                                            </span>
+                                    <div className="flex flex-col items-center">
+                                        {/* 보스 이미지 (확대) */}
+                                        <div className="flex flex-col items-center flex-shrink-0">
+                                            <div className={`${isMobile ? 'w-28 h-28' : 'w-44 h-44'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center border border-stone-600/50 shadow-lg`}>
+                                                <img src={currentBoss.image} alt={currentBoss.name} className={`${isMobile ? 'w-24 h-24' : 'w-36 h-36'} drop-shadow-lg object-contain`} />
+                                            </div>
+                                            {/* 체력 바 */}
+                                            <div className={`${isMobile ? 'w-28' : 'w-44'} ${isMobile ? 'mt-1' : 'mt-1.5'} relative`}>
+                                                <div className={`w-full bg-gray-700/50 rounded-full ${isMobile ? 'h-2' : 'h-3'} border border-gray-600/50 overflow-hidden shadow-inner relative`}>
+                                                    <div
+                                                        className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
+                                                        style={{ width: `${clampedHpPercent}%` }}
+                                                    ></div>
+                                                    <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[10px]' : 'text-[12px]'} font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]`} style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
+                                                        {clampedHpPercent.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                                {/* 체력 게이지 하단 수치 */}
+                                                <div className={`${isMobile ? 'mt-1 text-[10px]' : 'mt-1.5 text-[13px]'} font-semibold text-stone-200/90 text-center`}>
+                                                    남은 체력: {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
                                 {/* 스킬들 - 이미지 아래 가로 배치 */}
                                 {currentBoss.skills && currentBoss.skills.length > 0 && (
                                     <div className={`flex relative ${isMobile ? 'flex-row gap-1 mt-1' : 'flex-row gap-2 mt-2'} items-center justify-center`}>
@@ -538,7 +550,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                                         <div key={skill.id} className="relative">
                                             <div
                                                 ref={(el) => { skillIconRefs.current[skill.id] = el; }}
-                                                className={`${isMobile ? 'w-7 h-7' : 'w-10 h-10'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-lg flex items-center justify-center border border-stone-600/50 shadow-lg cursor-pointer hover:scale-110 transition-transform`}
+                                                        className={`${isMobile ? 'w-9 h-9' : 'w-12 h-12'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-lg flex items-center justify-center border border-stone-600/50 shadow-lg cursor-pointer hover:scale-110 transition-transform`}
                                             onMouseEnter={(e) => {
                                                 if (tooltipHideTimeoutRef.current) {
                                                     clearTimeout(tooltipHideTimeoutRef.current);
@@ -560,10 +572,10 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                                             }}
                                             onClick={() => setClickedSkill(clickedSkill?.id === skill.id ? null : skill)}
                                         >
-                                                <img src={skill.image} alt={skill.name} className={`${isMobile ? 'w-5 h-5' : 'w-8 h-8'} object-contain drop-shadow-md`} />
+                                                        <img src={skill.image} alt={skill.name} className={`${isMobile ? 'w-7 h-7' : 'w-10 h-10'} object-contain drop-shadow-md`} />
                                                 {skill.type === 'passive' && (
-                                                    <div className={`absolute -top-0.5 -right-0.5 ${isMobile ? 'w-1.5 h-1.5' : 'w-2 h-2'} bg-purple-500 rounded-full flex items-center justify-center`}>
-                                                        <span className={`${isMobile ? 'text-[4px]' : 'text-[5px]'} text-white font-bold`}>P</span>
+                                                            <div className={`absolute -top-0.5 -right-0.5 ${isMobile ? 'w-2 h-2' : 'w-2.5 h-2.5'} bg-purple-500 rounded-full flex items-center justify-center`}>
+                                                                <span className={`${isMobile ? 'text-[5px]' : 'text-[6px]'} text-white font-bold`}>P</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -590,7 +602,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                                                 }}
                                             >
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <img src={skill.image} alt={skill.name} className="w-8 h-8 object-contain" />
+                                                    <img src={skill.image} alt={skill.name} className="w-10 h-10 object-contain" />
                                                     <div>
                                                         <h4 className="text-sm font-bold text-highlight">{skill.name}</h4>
                                                         <span className={`text-[10px] ${skill.type === 'active' ? 'text-blue-400' : 'text-purple-400'}`}>
@@ -606,7 +618,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                                     </div>
                                 )}
                                 {/* 남은 시간: 보스 이미지 패널 너비만큼만 사용 (모바일 6rem / 데스크 9rem) */}
-                                <div className={`${isMobile ? 'mt-1 w-24' : 'mt-2 w-36'} flex shrink-0 justify-center`}>
+                                <div className={`${isMobile ? 'mt-1 w-28' : 'mt-2 w-44'} flex shrink-0 justify-center`}>
                                     <p className={`w-full ${isMobile ? 'text-[10px]' : 'text-sm'} text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
                                 </div>
                             </div>

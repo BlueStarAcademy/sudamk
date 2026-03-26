@@ -56,8 +56,23 @@ function calculateMissilePath(
         
         const stoneAtNext = game.boardState[next.y]?.[next.x];
         
-        // 빈 칸이면 계속 이동
+        // moveHistory도 확인하여 보드 동기화 지연 상태의 돌을 감지
+        const moveAtNext = game.moveHistory.find(m => m.x === next.x && m.y === next.y);
+        const isOpponentMoveAtNext = moveAtNext && moveAtNext.player === opponentEnum;
+
+        // 빈 칸이면 계속 이동 (단, moveHistory에 상대 돌이 있으면 충돌 처리)
         if (stoneAtNext === types.Player.None) {
+            if (isOpponentMoveAtNext) {
+                const moveIndex = game.moveHistory.findIndex(m => m.x === next.x && m.y === next.y);
+                const isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+                const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === next.x && p.y === next.y);
+                // 미공개 히든은 통과
+                if (isHiddenStone && !isPermanentlyRevealed) {
+                    current = next;
+                    continue;
+                }
+                break;
+            }
             current = next;
             continue;
         }

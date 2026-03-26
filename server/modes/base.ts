@@ -13,6 +13,17 @@ export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.baseStones_p1 = [];
     game.baseStones_p2 = [];
     game.settings.komi = 0.5; // Base komi for bidding
+    // Base 모드의 실제 시계는 시작 확인 이후(playing)부터 흐르게 유지
+    game.turnDeadline = undefined;
+    game.turnStartTime = undefined;
+    game.pausedTurnTimeLeft = undefined;
+    game.preGameConfirmations = {};
+
+    // AI 대국: 봇의 베이스돌은 시작 즉시 랜덤으로 모두 배치해 둔다.
+    if (game.isAiGame) {
+        const aiBaseKey: 'baseStones_p1' | 'baseStones_p2' = game.player1.id === aiUserId ? 'baseStones_p1' : 'baseStones_p2';
+        placeRemainingStonesRandomly(game, aiBaseKey);
+    }
 };
 
 // Helper function to check if a stone placement would result in immediate capture
@@ -215,27 +226,14 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
     game.baseStones_p2 = validP2Stones;
     game.basePlacementDeadline = undefined;
 
-    // AI 게임: 흑선 가져오기 미니게임 건너뛰기 (설정에서 이미 결정됨)
-    if (game.isAiGame) {
-        const humanColor = game.settings.player1Color ?? types.Player.Black;
-        const p1 = game.player1;
-        const p2 = game.player2;
-        if (humanColor === types.Player.Black) {
-            game.blackPlayerId = p1.id;
-            game.whitePlayerId = p2.id;
-        } else {
-            game.whitePlayerId = p1.id;
-            game.blackPlayerId = p2.id;
-        }
-        game.finalKomi = game.settings.komi ?? 0.5;
-        transitionToPlaying(game, now);
-        return;
-    }
-
     game.gameStatus = 'komi_bidding';
     game.komiBiddingDeadline = now + 30000;
     game.komiBids = { [game.player1.id]: null, [game.player2.id]: null };
     game.komiBiddingRound = 1;
+    // 입찰 중에는 시간 비활성 유지
+    game.turnDeadline = undefined;
+    game.turnStartTime = undefined;
+    game.pausedTurnTimeLeft = undefined;
 };
 
 
@@ -259,6 +257,18 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
         case 'komi_bidding': {
             const p1Id = game.player1.id;
             const p2Id = game.player2.id;
+            // AI 대국: 유저 입찰이 들어오면 봇 입찰을 자동으로 채워 즉시 공개 단계로 진행
+            if (game.isAiGame && game.komiBids) {
+                const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
+                const humanId = aiId === p1Id ? p2Id : p1Id;
+                if (game.komiBids[humanId] != null && game.komiBids[aiId] == null) {
+                    const humanBid = game.komiBids[humanId]!;
+                    const preferredColor = humanBid.color === types.Player.Black ? types.Player.White : types.Player.Black;
+                    // 0.5~7.5 집 범위에서 랜덤(0.5 단위). 사람이 선택한 색과 반대로 우선 입찰.
+                    const randomHalfKomi = Math.max(0.5, Math.min(7.5, (Math.floor(Math.random() * 15) + 1) / 2));
+                    game.komiBids[aiId] = { color: preferredColor, komi: randomHalfKomi };
+                }
+            }
             const bothHaveBid = game.komiBids?.[p1Id] != null && game.komiBids?.[p2Id] != null;
             const deadlinePassed = game.komiBiddingDeadline && now > game.komiBiddingDeadline;
         
@@ -354,6 +364,10 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                     game.komiBiddingRound = undefined;
                     game.basePlacementDeadline = undefined;
                     game.komiBidRevealProcessed = undefined;
+                    // 시작 확인 전까지는 시계 비활성 유지
+                    game.turnDeadline = undefined;
+                    game.turnStartTime = undefined;
+                    game.pausedTurnTimeLeft = undefined;
                 }
             }
             break;
@@ -395,6 +409,14 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
              if (game.gameStatus !== 'base_game_start_confirmation') return { error: "Not in confirmation phase." };
              if (!game.preGameConfirmations) game.preGameConfirmations = {};
              game.preGameConfirmations[user.id] = true;
+             // AI 대국 안전장치:
+             // 일부 케이스에서 AI 확인 플래그가 참가자 키와 어긋나 "상대방 확인 대기 중"에 머무를 수 있으므로
+             // 유저가 확인을 누른 시점에 상대(AI) 확인을 보정하고 즉시 시작 전환한다.
+             if (game.isAiGame) {
+                const opponentId = game.player1.id === user.id ? game.player2.id : game.player1.id;
+                game.preGameConfirmations[opponentId] = true;
+                transitionToPlaying(game, now);
+             }
              return {};
     }
     return null;

@@ -578,7 +578,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             if (isHidden) {
                 // 히든 아이템 개수 확인 및 감소 (스캔 아이템처럼)
                 const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
-                const currentHidden = game[hiddenKey] ?? 0;
+                const currentHidden = game[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;
                 if (currentHidden <= 0) {
                     return { error: "No hidden stones left." };
                 }

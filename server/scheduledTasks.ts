@@ -2176,8 +2176,11 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 const botStars = Math.floor(Math.random() * 2) + 2;
                 const botScoreDiff = Math.floor(Math.random() * 11) + 5;
                 boards[boardId] = {
-                    boardSize: 13,
+                    boardSize: gameMode === 'capture' ? 9 : 13,
                     gameMode,
+                    initialStones: gameMode === 'capture'
+                        ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
+                        : undefined,
                     guild1Stars: 0,
                     guild2Stars: botStars,
                     guild1BestResult: null,
@@ -2264,8 +2267,11 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         for (const boardId of boardIds) {
             const gameMode = getGuildWarBoardMode(boardId);
             boards[boardId] = {
-                boardSize: 13,
+                boardSize: gameMode === 'capture' ? 9 : 13,
                 gameMode: gameMode,
+                initialStones: gameMode === 'capture'
+                    ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
+                    : undefined,
                 guild1Stars: 0,
                 guild2Stars: 0,
                 guild1BestResult: null,
@@ -2330,8 +2336,11 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 const botStars = Math.floor(Math.random() * 2) + 2; // 2~3개
                 const botScoreDiff = Math.floor(Math.random() * 11) + 5; // 5~15집 차
                 boards[boardId] = {
-                    boardSize: 13,
+                    boardSize: gameMode === 'capture' ? 9 : 13,
                     gameMode: gameMode,
+                    initialStones: gameMode === 'capture'
+                        ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
+                        : undefined,
                     guild1Stars: 0,
                     guild2Stars: botStars,
                     guild1BestResult: null,
@@ -2463,8 +2472,11 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
         const botStars = Math.floor(Math.random() * 2) + 2;
         const botScoreDiff = Math.floor(Math.random() * 11) + 5;
         boards[boardId] = {
-            boardSize: 13,
+            boardSize: gameMode === 'capture' ? 9 : 13,
             gameMode: gameMode,
+            initialStones: gameMode === 'capture'
+                ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
+                : undefined,
             guild1Stars: 0,
             guild2Stars: botStars,
             guild1BestResult: null,
@@ -2552,10 +2564,10 @@ export async function processGuildWarEnd(): Promise<void> {
             guild2Stars += boardGuild2Stars;
             
             if (board.guild1BestResult) {
-                guild1Score += board.guild1BestResult.captures || 0;
+                guild1Score += Number(board.guild1BestResult.score ?? 0) || 0;
             }
             if (board.guild2BestResult) {
-                guild2Score += board.guild2BestResult.captures || 0;
+                guild2Score += Number(board.guild2BestResult.score ?? 0) || 0;
             }
         }
         

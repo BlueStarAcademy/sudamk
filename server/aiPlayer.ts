@@ -1394,6 +1394,9 @@ export const makeAiMove = async (game: LiveGameSession) => {
                         const parts = String(currentPlayerId).split('-');
                         const stageNum = parseInt(parts[3], 10);
                         difficulty = !Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10 ? stageNum : 1;
+                    } else if ((game as any).gameCategory === 'guildwar') {
+                        // 길드전은 모든 경기장을 전략바둑 AI 3단계로 고정
+                        difficulty = 3;
                     } else if (game.isSinglePlayer || isTower) {
                         difficulty = (game.settings.aiDifficulty || 1);
                     } else if ((game.settings as any)?.goAiBotLevel !== undefined) {

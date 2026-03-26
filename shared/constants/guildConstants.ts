@@ -92,8 +92,8 @@ export const GUILD_WAR_PERSONAL_DAILY_ATTEMPTS = 3;
 export const GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT = 5;
 
 /** 승리 시 별(따내기): 내 따낸 돌 수 기준 */
-export const GUILD_WAR_STAR_CAPTURE_TIER2_MIN = 5;
-export const GUILD_WAR_STAR_CAPTURE_TIER3_MIN = 15;
+export const GUILD_WAR_STAR_CAPTURE_TIER2_MIN = 3;
+export const GUILD_WAR_STAR_CAPTURE_TIER3_MIN = 5;
 
 /** 승리 시 별: 계가(히든·미사일) — 승자 집 합계 − 패자 집 합계 기준 */
 export const GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF = 5;
@@ -111,8 +111,8 @@ export function getGuildWarStarConditionLines(
     if (mode === 'capture') {
         return [
             '★ 승리시',
-            `★ 따낸 돌 ${c2}개`,
-            `★ 따낸 돌 ${c3}개`,
+            `★ 한 번에 ${c2}돌 따내기`,
+            `★ 한 번에 ${c3}돌 따내기`,
         ];
     }
     if (mode === 'hidden') {

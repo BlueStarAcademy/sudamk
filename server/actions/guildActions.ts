@@ -1937,8 +1937,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             if (isDemo) {
                 // 데모 모드에서도 보드 ID 기준 모드로 강제
                 board = {
-                    boardSize: 13,
+                    boardSize: normalizedBoardMode === 'capture' ? 9 : 13,
                     gameMode: normalizedBoardMode,
+                    initialStones: normalizedBoardMode === 'capture'
+                        ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
+                        : undefined,
                 };
             } else {
                 // 실제 모드: 활성 전쟁 확인
@@ -1958,6 +1961,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     return { error: '바둑판을 찾을 수 없습니다.' };
                 }
                 board.gameMode = normalizedBoardMode;
+                board.boardSize = normalizedBoardMode === 'capture' ? 9 : 13;
+                if (normalizedBoardMode === 'capture' && !board.initialStones) {
+                    board.initialStones = [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }];
+                }
 
                 const todayKST = getTodayKSTDateString();
                 const isWarG1 = activeWar.guild1Id === user.guildId;
@@ -2004,13 +2011,14 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             // 게임 설정
             const gameSettings = {
-                boardSize: board.boardSize || 13,
+                boardSize: board.boardSize || (normalizedBoardMode === 'capture' ? 9 : 13),
                 komi: 0.5,
                 timeLimit: GUILD_WAR_MAIN_TIME_MINUTES,
                 byoyomiTime: 0,
                 byoyomiCount: 0,
                 timeIncrement: GUILD_WAR_FISCHER_INCREMENT_SECONDS,
-                aiDifficulty: 5, // 중간 난이도
+                aiDifficulty: 3, // 길드전은 전략바둑 AI 3단계
+                goAiBotLevel: 3,
             };
             
             // 게임 모드별 추가 설정
@@ -2047,6 +2055,47 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             (game as any).guildWarBoardId = boardId;
             if (isDemo) {
                 (game as any).isDemo = true;
+            }
+
+            // 길드전 따내기 맵: 초기 랜덤 배치 (흑3/백3/문양흑2/문양백2)
+            if (normalizedBoardMode === 'capture') {
+                const initialCfg = board?.initialStones?.[0] ?? board?.initialStones ?? {};
+                const blackPlain = Math.max(0, Number(initialCfg.blackPlain ?? 3) || 3);
+                const whitePlain = Math.max(0, Number(initialCfg.whitePlain ?? 3) || 3);
+                const blackMarked = Math.max(0, Number(initialCfg.blackMarked ?? 2) || 2);
+                const whiteMarked = Math.max(0, Number(initialCfg.whiteMarked ?? 2) || 2);
+
+                const totalNeeded = blackPlain + whitePlain + blackMarked + whiteMarked;
+                const size = Number(game.settings.boardSize ?? 9) || 9;
+                const allPoints: Array<{ x: number; y: number }> = [];
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) allPoints.push({ x, y });
+                }
+                for (let i = allPoints.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [allPoints[i], allPoints[j]] = [allPoints[j], allPoints[i]];
+                }
+                const selected = allPoints.slice(0, Math.min(totalNeeded, allPoints.length));
+                let idx = 0;
+                const take = (n: number) => {
+                    const points = selected.slice(idx, idx + n);
+                    idx += n;
+                    return points;
+                };
+                const blackPlainPoints = take(blackPlain);
+                const whitePlainPoints = take(whitePlain);
+                const blackMarkedPoints = take(blackMarked);
+                const whiteMarkedPoints = take(whiteMarked);
+
+                for (const p of blackPlainPoints) game.boardState[p.y][p.x] = Player.Black;
+                for (const p of whitePlainPoints) game.boardState[p.y][p.x] = Player.White;
+                for (const p of blackMarkedPoints) game.boardState[p.y][p.x] = Player.Black;
+                for (const p of whiteMarkedPoints) game.boardState[p.y][p.x] = Player.White;
+
+                game.baseStones = [
+                    ...blackMarkedPoints.map((p) => ({ ...p, player: Player.Black })),
+                    ...whiteMarkedPoints.map((p) => ({ ...p, player: Player.White })),
+                ];
             }
             
             // 게임 저장

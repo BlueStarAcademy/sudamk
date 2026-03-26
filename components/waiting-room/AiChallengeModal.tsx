@@ -9,7 +9,7 @@ import {
   HIDDEN_STONE_COUNTS, SCAN_COUNTS, MISSILE_BOARD_SIZES, MISSILE_COUNTS,
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
-  OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS
+  OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode, getScoringTurnLimitOptionsByBoardSize
 } from '../../constants/gameSettings.js';
 import Avatar from '../Avatar.js';
 import { shouldUseClientSideAi, loadWasmGnuGo } from '../../services/wasmGnuGo.js';
@@ -115,6 +115,22 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
             }
         }
     }, [selectedGameMode]);
+
+    useEffect(() => {
+        if (!selectedGameMode) return;
+        const boardSizeOptions = getStrategicBoardSizesByMode(selectedGameMode);
+        if (!boardSizeOptions.includes(settings.boardSize)) {
+            handleSettingChange('boardSize', boardSizeOptions[0] as GameSettings['boardSize']);
+        }
+    }, [selectedGameMode, settings.boardSize]);
+
+    useEffect(() => {
+        const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
+        const currentLimit = settings.scoringTurnLimit ?? 0;
+        if (!scoringTurnLimitOptions.includes(currentLimit)) {
+            handleSettingChange('scoringTurnLimit', scoringTurnLimitOptions[0]);
+        }
+    }, [settings.boardSize, settings.scoringTurnLimit]);
 
     const handleSettingChange = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
         setSettings(prev => {
@@ -270,6 +286,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
             { value: 5,   label: '10단계 (고수)' },
         ];
 
+        const boardSizeOptions = selectedGameMode != null ? getStrategicBoardSizesByMode(selectedGameMode) : BOARD_SIZES;
+        const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
+
         return (
             <div className="h-full flex flex-col gap-2 overflow-y-auto pr-2">
                 {showGoAiLevel && (
@@ -297,10 +316,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                             className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                             style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
                         >
-                            <option value={0}>없음</option>
-                            <option value={40}>40턴</option>
-                            <option value={60}>60턴</option>
-                            <option value={100}>100턴</option>
+                            {scoringTurnLimitOptions.map(limit => (
+                                <option key={limit} value={limit}>
+                                    {limit === 0 ? '제한없음(서로통과)' : `${limit}수`}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 )}
@@ -423,12 +443,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                             style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
                         >
                             {(selectedGameMode === GameMode.Omok || selectedGameMode === GameMode.Ttamok ? OMOK_BOARD_SIZES : 
-                                selectedGameMode === GameMode.Capture ? CAPTURE_BOARD_SIZES : 
-                                selectedGameMode === GameMode.Speed ? SPEED_BOARD_SIZES : 
-                                selectedGameMode === GameMode.Hidden ? HIDDEN_BOARD_SIZES : 
                                 selectedGameMode === GameMode.Thief ? [9, 13, 19] : 
-                                selectedGameMode === GameMode.Missile ? MISSILE_BOARD_SIZES : 
-                                BOARD_SIZES).map(size => (
+                                boardSizeOptions).map(size => (
                                 <option key={size} value={size}>{size}줄</option>
                             ))}
                         </select>

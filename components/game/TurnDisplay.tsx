@@ -12,6 +12,8 @@ interface TurnDisplayProps {
     onOpenSidebar?: () => void;
     sidebarNotification?: boolean;
     onAction?: (action: ServerAction) => void;
+    /** 패(코) 등 규칙 안내 — 전광판 스타일로 잠시 표시 */
+    boardRuleFlashMessage?: string | null;
 }
 
 function usePrevious<T>(value: T): T | undefined {
@@ -126,6 +128,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     onOpenSidebar,
     sidebarNotification = false,
     onAction,
+    boardRuleFlashMessage = null,
 }) => {
     const [timeLeft, setTimeLeft] = useState(30);
     const [percentage, setPercentage] = useState(100);
@@ -252,6 +255,22 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     const showSidebarButton = Boolean(isMobile && onOpenSidebar);
     const paddingClass = showSidebarButton ? 'pr-12' : '';
 
+    if (boardRuleFlashMessage) {
+        return wrapContent(
+            `${baseClasses} ${themeClasses} px-4 gap-1.5 min-h-[3rem] border-2 border-amber-400/55`,
+            <div className="w-full overflow-hidden flex-shrink-0 relative min-h-[1.5rem] flex items-center justify-center">
+                <div
+                    className={`font-bold tracking-wider text-[clamp(0.8rem,2.5vmin,1rem)] text-center px-1 text-amber-100`}
+                    style={{
+                        textShadow: '0 0 10px rgba(251, 191, 36, 0.55), 0 0 18px rgba(251, 191, 36, 0.3)',
+                    }}
+                >
+                    {boardRuleFlashMessage}
+                </div>
+            </div>
+        );
+    }
+
     const sidebarToggle = showSidebarButton ? (
         <button
             type="button"
@@ -331,7 +350,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             itemText = "발사할 바둑돌을 선택하세요. 선택후 방향을 선택하면 날아갑니다.";
         }
 
-        const percentage = (timeLeft / 30) * 100;
+        const percentage = Math.max(0, Math.min(100, (timeLeft / 30) * 100));
         
         // 전광판 스타일로 아이템 사용시간 표시
         const tickerText = `${itemText} ${timeLeft}초`;
@@ -350,8 +369,11 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                         <span className="inline-block">{tickerText}</span>
                     </div>
                 </div>
-                <div className={`w-full bg-tertiary rounded-full h-[clamp(0.5rem,1.5vh,0.75rem)] relative overflow-hidden border-2 ${isSinglePlayer ? 'border-black/20' : 'border-tertiary'} flex-shrink-0`}>
-                    <div className="absolute inset-0 bg-highlight rounded-full" style={{ width: `${percentage}%`, transition: 'width 0.5s linear' }}></div>
+                <div className={`w-full rounded-full h-[clamp(0.5rem,1.5vh,0.75rem)] relative overflow-hidden border-2 ${isSinglePlayer ? 'bg-stone-900/70 border-black/20' : 'bg-tertiary border-tertiary'} flex-shrink-0`}>
+                    <div
+                        className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-400 to-amber-300"
+                        style={{ width: `${percentage}%`, transition: 'width 0.5s linear' }}
+                    />
                 </div>
             </>
         );

@@ -13,7 +13,7 @@ import {
   HIDDEN_STONE_COUNTS, SCAN_COUNTS, MISSILE_BOARD_SIZES, MISSILE_COUNTS,
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
-  OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS
+  OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode
 } from '../constants/gameSettings';
 import { AlkkagiPlacementType, AlkkagiLayoutType } from '../types';
 import Button from './Button';
@@ -303,6 +303,14 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  useEffect(() => {
+    if (!selectedMode) return;
+    const boardSizeOptions = getStrategicBoardSizesByMode(selectedMode);
+    if (!boardSizeOptions.includes(settings.boardSize)) {
+      handleSettingChange('boardSize', boardSizeOptions[0] as GameSettings['boardSize']);
+    }
+  }, [selectedMode, settings.boardSize]);
+
   const handleChallenge = async () => {
     if (!selectedMode) return;
 
@@ -372,6 +380,8 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       padding: `${Math.max(4, Math.round(6 * scaleFactor))}px`
     };
 
+    const boardSizeOptions = selectedMode != null ? getStrategicBoardSizesByMode(selectedMode) : BOARD_SIZES;
+
     return (
       <div 
         className="h-full"
@@ -398,12 +408,8 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               style={inputStyle}
             >
               {(selectedMode === GameMode.Omok || selectedMode === GameMode.Ttamok ? OMOK_BOARD_SIZES : 
-                selectedMode === GameMode.Capture ? CAPTURE_BOARD_SIZES : 
-                selectedMode === GameMode.Speed ? SPEED_BOARD_SIZES : 
-                selectedMode === GameMode.Hidden ? HIDDEN_BOARD_SIZES : 
                 selectedMode === GameMode.Thief ? [9, 13, 19] : 
-                selectedMode === GameMode.Missile ? MISSILE_BOARD_SIZES : 
-                BOARD_SIZES).map(size => (
+                boardSizeOptions).map(size => (
                 <option key={size} value={size}>{size}줄</option>
               ))}
             </select>

@@ -565,11 +565,23 @@ export function getGoAiBotProfile(level: number): GoAiBotProfile {
  * @param game 현재 게임 상태
  * @param aiLevel AI 봇 단계 (1~10)
  */
-/** 싱글플레이 또는 도전의 탑(인간 vs AI)에서 유저 히든을 AI에게 숨길지 여부 */
+/** AI 대국에서 유저 히든을 AI에게 숨길지 여부 */
 function shouldMaskUserHiddenFromAi(game: types.LiveGameSession): boolean {
     const isHiddenMode = game.mode === types.GameMode.Hidden ||
         (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
-    return !!(isHiddenMode && (game.isSinglePlayer || (game as any).gameCategory === 'tower'));
+    if (!isHiddenMode) return false;
+
+    const category = (game as any).gameCategory;
+    const isSingleOrTower = game.isSinglePlayer || category === 'tower';
+    // 전략바둑 AI 대국: 유저 히든을 AI가 모르게 처리 (유저가 통과한 것처럼 인식)
+    const isStrategicAiGame =
+        !!game.isAiGame &&
+        !game.isSinglePlayer &&
+        category !== 'tower' &&
+        category !== 'singleplayer' &&
+        category !== 'guildwar';
+
+    return isSingleOrTower || isStrategicAiGame;
 }
 
 /**
@@ -741,6 +753,11 @@ export async function makeGoAiBotMove(
         !game.isSinglePlayer &&
         (game as any).gameCategory !== 'tower' &&
         (game as any).gameCategory !== 'singleplayer';
+
+    // AI 히든 아이템 연출 진행 중에는 실제 착수를 하지 않고 대기한다.
+    if (game.aiHiddenItemAnimationEndTime != null && now < game.aiHiddenItemAnimationEndTime) {
+        return;
+    }
 
     // AI 히든 아이템 연출 종료 후 실제 히든 수 두기
     if (game.aiHiddenItemAnimationEndTime != null && now >= game.aiHiddenItemAnimationEndTime) {

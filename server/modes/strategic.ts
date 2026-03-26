@@ -426,6 +426,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
             
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : (myPlayerEnum === types.Player.White ? types.Player.Black : types.Player.None);
+            const isStrategicAiGame =
+                !!game.isAiGame &&
+                !game.isSinglePlayer &&
+                game.gameCategory !== 'tower' &&
+                game.gameCategory !== 'singleplayer' &&
+                game.gameCategory !== 'guildwar';
             
             // 싱글플레이/도전의탑/AI 게임에서는 서버의 실제 boardState를 기준으로 체크 (돌 사라짐 버그 방지)
             let serverBoardState = game.boardState;
@@ -535,7 +541,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             if (isHidden) {
                 // 히든 아이템 개수 확인 및 감소 (스캔 아이템처럼)
                 const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
-                const currentHidden = game[hiddenKey] ?? 0;
+                const currentHidden = game[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;
                 if (currentHidden <= 0) {
                     return { error: "No hidden stones left." };
                 }
@@ -578,7 +584,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 // 착수금지 이유에 따른 명확한 에러 메시지
                 let errorMessage = '착수할 수 없는 위치입니다.';
                 if (result.reason === 'ko') {
-                    errorMessage = '코 금지입니다. 같은 위치에 바로 다시 둘 수 없습니다.';
+                    errorMessage = '패 모양입니다. 바로 다시 따낼 수 없습니다.';
                 } else if (result.reason === 'suicide') {
                     errorMessage = '자충수입니다. 자신의 돌이 죽는 수는 둘 수 없습니다.';
                 } else if (result.reason === 'occupied') {
@@ -634,8 +640,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         }
                     }
                 }
-                // 싱글플레이: AI 초기 히든돌이 따낸 경우 공개 애니메이션 대상에 포함
-                if (game.isSinglePlayer && (game as any).aiInitialHiddenStone) {
+                // 싱글/전략 AI 대국: AI 초기 히든돌이 따낸 경우 공개 애니메이션 대상에 포함
+                if ((game.isSinglePlayer || isStrategicAiGame) && (game as any).aiInitialHiddenStone) {
                     const aiHidden = (game as any).aiInitialHiddenStone;
                     const isCaptured = result.capturedStones.some(s => s.x === aiHidden.x && s.y === aiHidden.y);
                     if (isCaptured) {
@@ -712,7 +718,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     let points = 1;
                     let wasHiddenForJustCaptured = false; // default for justCaptured
 
-                    if (game.isSinglePlayer) {
+                    if (game.isSinglePlayer || isStrategicAiGame) {
                         const patternStones = capturedPlayerEnum === types.Player.Black ? game.blackPatternStones : game.whitePatternStones;
                         if (patternStones) {
                             const patternIndex = patternStones.findIndex(p => p.x === stone.x && p.y === stone.y);

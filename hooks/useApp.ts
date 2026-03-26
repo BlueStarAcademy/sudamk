@@ -81,6 +81,17 @@ function hasHydratedBoardGridForRejoin(game: LiveGameSession | undefined): boole
     return Array.isArray(row0) && row0.length > 0;
 }
 
+/** PLACE_STONE 패(코) 불가 — Game 전광판으로 안내하므로 전역 에러 모달은 생략 */
+function shouldSuppressModalForKoPlaceStone(action: ServerAction, errorMessage: string): boolean {
+    if (action.type !== 'PLACE_STONE') return false;
+    return (
+        errorMessage.includes('패 모양') ||
+        errorMessage.includes('코 금지') ||
+        (errorMessage.includes('바로') && errorMessage.includes('따낼')) ||
+        (errorMessage.includes('같은 위치') && errorMessage.includes('다시'))
+    );
+}
+
 export const useApp = () => {
     // --- State Management ---
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -1842,7 +1853,7 @@ export const useApp = () => {
                     setIsOpponentInsufficientActionPointsModalOpen(true);
                 } else if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
                     setIsInsufficientActionPointsModalOpen(true);
-                } else {
+                } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                     showError(errorMessage);
                 }
                 if (action.type === 'TOGGLE_EQUIP_ITEM' || action.type === 'USE_ITEM') {
@@ -1860,7 +1871,7 @@ export const useApp = () => {
                         setIsOpponentInsufficientActionPointsModalOpen(true);
                     } else if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
                         setIsInsufficientActionPointsModalOpen(true);
-                    } else {
+                    } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                         showError(errorMessage);
                     }
                     return { error: errorMessage } as HandleActionResult;

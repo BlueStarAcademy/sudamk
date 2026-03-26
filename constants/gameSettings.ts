@@ -8,6 +8,37 @@ export const SPEED_BOARD_SIZES = [7, 9, 11, 13, 19];
 export const HIDDEN_BOARD_SIZES = [19, 13, 11, 9, 7];
 export const THIEF_BOARD_SIZES = [9, 13, 19];
 export const MISSILE_BOARD_SIZES = [19, 13, 9];
+export const STRATEGIC_CLASSIC_SPEED_BOARD_SIZES = [9, 13, 19] as const;
+export const STRATEGIC_SPECIAL_BOARD_SIZES = [9, 11, 13] as const;
+
+export const getStrategicBoardSizesByMode = (mode: GameMode): readonly number[] => {
+  if (mode === GameMode.Standard || mode === GameMode.Speed) return STRATEGIC_CLASSIC_SPEED_BOARD_SIZES;
+  if (
+    mode === GameMode.Capture ||
+    mode === GameMode.Base ||
+    mode === GameMode.Hidden ||
+    mode === GameMode.Missile ||
+    mode === GameMode.Mix
+  ) {
+    return STRATEGIC_SPECIAL_BOARD_SIZES;
+  }
+  return BOARD_SIZES;
+};
+
+export const getScoringTurnLimitOptionsByBoardSize = (boardSize: number): readonly number[] => {
+  switch (boardSize) {
+    case 9:
+      return [0, 40, 50, 60, 70, 80];
+    case 11:
+      return [0, 50, 60, 70, 80, 90, 100];
+    case 13:
+      return [0, 60, 70, 80, 90, 100, 110, 120];
+    case 19:
+      return [0, 100, 120, 140, 160, 180, 200];
+    default:
+      return [0];
+  }
+};
 export const CAPTURE_TARGETS = [5, 10, 15, 20, 25, 30];
 export const CAPTURE_BID_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 export const TTAMOK_CAPTURE_TARGETS = [10, 20, 30];
