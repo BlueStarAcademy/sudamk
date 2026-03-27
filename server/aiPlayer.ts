@@ -1388,8 +1388,8 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     6: -8, 7: -3, 8: -1, 9: 3, 10: 5,
                 };
                 let aiLevel = (game.settings as any)?.kataServerLevel;
+                let difficulty = 1;
                 if (aiLevel == null) {
-                    let difficulty = 1;
                     if (isDungeonBot && currentPlayerId) {
                         const parts = String(currentPlayerId).split('-');
                         const stageNum = parseInt(parts[3], 10);
@@ -1405,8 +1405,16 @@ export const makeAiMove = async (game: LiveGameSession) => {
                         difficulty = (game.settings.aiDifficulty || 1);
                     }
                     aiLevel = DIFFICULTY_TO_KATA_LEVEL[difficulty] ?? -12;
+                } else if (aiLevel >= 1 && aiLevel <= 10) {
+                    difficulty = aiLevel;
+                } else {
+                    const rev = Object.entries(DIFFICULTY_TO_KATA_LEVEL).find(([, v]) => v === aiLevel);
+                    difficulty = rev
+                        ? Math.max(1, Math.min(10, parseInt(rev[0], 10)))
+                        : 3;
                 }
-                await makeGoAiBotMove(game, aiLevel);
+                // makeGoAiBotMove: 프로필·휴리스틱은 1~10 단계 (Kata 레벨은 makeGoAiBotMove 내부에서 매핑)
+                await makeGoAiBotMove(game, Math.max(1, Math.min(10, difficulty)));
                 moveExecuted = true;
             } else if (!game.isSinglePlayer) {
                 const strategicModes: GameMode[] = [

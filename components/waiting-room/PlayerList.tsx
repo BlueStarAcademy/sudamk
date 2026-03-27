@@ -54,8 +54,13 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
     const otherUsers = users.filter(user => user.id !== currentUser.id).sort((a,b) => a.nickname.localeCompare(b.nickname));
 
     const canChallenge = (targetUser: UserWithStatus) => {
-        // The current user must be in the waiting room to use this UI
-        if (currentUser.status !== 'waiting') {
+        // 서버가 CHALLENGE_USER에서 waiting으로 보정하므로 online/resting도 신청 허용
+        // (취소 직후 상태 동기화 지연으로 버튼이 잠기는 현상 방지)
+        const canRequesterChallenge =
+            currentUser.status === 'waiting' ||
+            currentUser.status === 'resting' ||
+            currentUser.status === 'online';
+        if (!canRequesterChallenge) {
             return false;
         }
         // The target user can be either in the waiting room or online (in profile)
@@ -221,11 +226,16 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
                             });
                             
                             const result = await response.json();
-                            if (result.error) {
-                                if (typeof result.error === 'string' && isOpponentInsufficientActionPointsError(result.error)) {
+                            const serverError =
+                                (typeof result?.error === 'string' && result.error) ||
+                                (typeof result?.message === 'string' && result.message) ||
+                                (!response.ok ? '대국 신청 생성에 실패했습니다.' : '');
+
+                            if (serverError) {
+                                if (isOpponentInsufficientActionPointsError(serverError)) {
                                     handlers.openOpponentInsufficientActionPointsModal();
                                 } else {
-                                    alert(result.error);
+                                    alert(serverError);
                                 }
                                 return;
                             }

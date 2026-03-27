@@ -19,6 +19,7 @@ import Avatar from '../Avatar.js';
 import { containsProfanity } from '../../profanity.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { getGuildWarBoardMode, getGuildWarStarConditionLines } from '../../shared/constants/guildConstants.js';
 
 
 interface SidebarProps extends GameProps {
@@ -226,6 +227,7 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
 
 const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ session, onlineUsers, currentUser, onClose, onAction, onViewUser }) => {
     const { player1, player2, blackPlayerId, whitePlayerId, gameStatus, isAiGame } = session;
+    const isGuildWarGame = session.gameCategory === 'guildwar';
 
     // Derive players and spectators from the live onlineUsers list for accuracy
     const playersInRoom = useMemo(() => {
@@ -265,7 +267,7 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
                     title={!isMe ? `${user.nickname} 프로필 보기` : ''}
                 >
                     <span className="font-semibold truncate text-sm">{user.nickname}</span>
-                    {isGameEnded && isOpponent && !isAiGame && (
+                    {isGameEnded && isOpponent && !isAiGame && !isGuildWarGame && (
                          <Button
                             onClick={(e) => { e?.stopPropagation(); handleRematch(user.id); }}
                             disabled={rematchRequested}
@@ -608,6 +610,26 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     );
 };
 
+const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession }> = ({ session }) => {
+    if (session.gameCategory !== 'guildwar') return null;
+    const boardId = (session as any).guildWarBoardId as string | undefined;
+    const boardMode = boardId ? getGuildWarBoardMode(boardId) : undefined;
+    const lines = getGuildWarStarConditionLines(boardMode);
+
+    return (
+        <div className="bg-gray-800 p-2 rounded-md border border-yellow-600/40">
+            <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300">별 획득 조건</h3>
+            <div className="space-y-1">
+                {lines.map((line) => (
+                    <div key={line} className="text-xs text-gray-200">
+                        {line}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const Sidebar: React.FC<SidebarProps> = (props) => {
     const { session, onLeaveOrResign, isNoContestLeaveAvailable, isSpectator, onTogglePause, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, pauseDisabledBecauseAiTurn = false } = props;
     const { gameStatus } = session;
@@ -624,6 +646,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
             <div className="flex-shrink-0 space-y-2">
                 <GameInfoPanel session={session} onClose={props.onClose} onOpenSettings={props.onOpenSettings} />
                 <UserListPanel {...props} />
+                <GuildWarStarConditionsPanel session={session} />
             </div>
             <div className="flex-1 mt-2 min-h-0">
                 <ChatPanel {...props} />

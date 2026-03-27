@@ -81,7 +81,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     neg => (neg.opponent.id === opponent.id || neg.challenger.id === opponent.id) && neg.status === 'pending'
                 );
                 if (isOpponentInPendingNegotiation) {
-                    return { error: '상대방은 현재 다른 대국 신청을 처리 중입니다.' };
+                    return { error: '상대방이 대국 협상중입니다.' };
                 }
 
                 if (opponent.actionPoints.current < getActionPointCost(mode) && !opponent.isAdmin) {
@@ -140,7 +140,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             if (isOpponentAlreadyInNegotiation) {
                 delete volatileState.negotiations[negotiationId];
                 volatileState.userStatuses[user.id].status = UserStatus.Waiting;
-                return { error: '상대방이 다른 대국 신청을 먼저 받았습니다. 잠시 후 다시 시도해주세요.' };
+                return { error: '상대방이 대국 협상중입니다.' };
             }
 
             if (opponent.id !== aiUserId) {

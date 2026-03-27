@@ -1118,6 +1118,41 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if (actionType) {
             console.log('[Game] Sending action:', { actionType, payload, isMyTurn, myPlayerEnum, currentPlayer, gameStatus });
+            // 전략 AI/길드전 AI 대국: 서버 응답 전에도 유저 수를 즉시 보드에 반영
+            if (actionType === 'PLACE_STONE' &&
+                session.isAiGame &&
+                !session.isSinglePlayer &&
+                session.gameCategory !== 'tower' &&
+                gameStatus === 'playing' &&
+                x >= 0 &&
+                y >= 0) {
+                const boardStateToUse = restoredBoardState || session.boardState;
+                if (boardStateToUse && Array.isArray(boardStateToUse) && boardStateToUse.length > 0) {
+                    try {
+                        const moveResult = processMoveClient(
+                            boardStateToUse,
+                            { x, y, player: myPlayerEnum },
+                            session.koInfo,
+                            session.moveHistory?.length || 0
+                        );
+                        if (moveResult.isValid) {
+                            handlers.handleAction({
+                                type: 'AI_GAME_CLIENT_MOVE',
+                                payload: {
+                                    gameId,
+                                    x,
+                                    y,
+                                    newBoardState: moveResult.newBoardState,
+                                    capturedStones: moveResult.capturedStones,
+                                    newKoInfo: moveResult.newKoInfo,
+                                }
+                            } as any);
+                        }
+                    } catch (e) {
+                        console.warn('[Game] AI_GAME_CLIENT_MOVE optimistic update skipped:', e);
+                    }
+                }
+            }
             setIsMoveInFlight(true);
             void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction)).then((res) => {
                 if (res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error) {
@@ -1338,7 +1373,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (['ended', 'no_contest', 'rematch_pending'].includes(gameStatus)) {
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
             // AI/일반 게임 종료 후 나가기 시 해당 종류의 대기실로 이동 (전략/놀이 대기실 AI를 먼저 판별해 싱글·탑으로 잘못 나가는 버그 방지)
-            if (session.gameCategory === 'tower') {
+            if (session.gameCategory === 'guildwar') {
+                sessionStorage.setItem('postGameRedirect', '#/guildwar');
+            } else if (session.gameCategory === 'tower') {
                 sessionStorage.setItem('postGameRedirect', '#/tower');
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
@@ -1982,7 +2019,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         resumeCountdown: isPausableAiGame ? resumeCountdown : undefined,
         pauseButtonCooldown: isPausableAiGame ? pauseButtonCooldown : undefined,
         onPauseToggle: isPausableAiGame ? handlePauseToggle : undefined,
-        onOpenRematchSettings: (session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer')
+        onOpenRematchSettings: (session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer' && session.gameCategory !== 'guildwar')
             ? () => setIsAiRematchModalOpen(true)
             : undefined,
         onOpenGameRecordList: handlers.openGameRecordList,

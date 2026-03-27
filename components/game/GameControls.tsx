@@ -442,7 +442,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isGameActive = ACTIVE_GAME_STATUSES.includes(gameStatus);
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
-    const isAiLobbyGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+    const isAiLobbyGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer' && session.gameCategory !== 'guildwar';
     const [savingGameRecord, setSavingGameRecord] = useState(false);
     const { recordAlreadySaved, setSavedOptimistic } = useGameRecordSaveLock(gameId, currentUser.savedGameRecords);
     const savedRecordCount = currentUser.savedGameRecords?.length ?? 0;

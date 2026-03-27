@@ -177,6 +177,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
   const meta = useMemo(() => getModeMeta(session.mode), [session.mode]);
   const winConditions = useMemo(() => getWinConditions(session), [session]);
   const settingsRows = useMemo(() => getSettingsRows(session), [session]);
+  const isGuildWarAi = session.gameCategory === 'guildwar';
 
   const handleStart = () => {
     onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
@@ -254,9 +255,11 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
         </div>
 
         <div className="p-5 border-t border-color bg-tertiary/10 flex gap-3">
-          <Button onClick={handleLeave} colorScheme="gray" className="w-full">
-            나가기
-          </Button>
+          {!isGuildWarAi && (
+            <Button onClick={handleLeave} colorScheme="gray" className="w-full">
+              나가기
+            </Button>
+          )}
           <Button onClick={handleStart} colorScheme="purple" className="w-full">
             경기 시작
           </Button>

@@ -35,7 +35,6 @@ const GUILD_WAR_EMPTY_STAR_IMG = '/images/guild/guildwar/emptystar.png';
 const GUILD_WAR_MISSILE_ICON = '/images/button/missile.png';
 const GUILD_WAR_HIDDEN_ICON = '/images/button/hidden.png';
 const GUILD_WAR_SCAN_ICON = '/images/button/scan.png';
-const GUILD_WAR_CAPTURE_TURN_LIMIT = 15;
 const GUILD_WAR_AUTO_SCORING_TURN_LIMIT = 60;
 
 type InitialStoneCounts = {
@@ -43,6 +42,19 @@ type InitialStoneCounts = {
     whitePlain: number;
     blackMarked: number;
     whiteMarked: number;
+};
+
+const getGuildWarCaptureTurnLimitByBoardId = (boardId: string): number => {
+    if (boardId === 'top-left') return 25;
+    if (boardId === 'top-mid') return 20;
+    if (boardId === 'top-right') return 15;
+    return 15;
+};
+
+const getGuildWarCaptureInitialStoneCountsByBoardId = (boardId: string): InitialStoneCounts => {
+    if (boardId === 'top-mid') return { blackPlain: 4, whitePlain: 4, blackMarked: 3, whiteMarked: 3 };
+    if (boardId === 'top-right') return { blackPlain: 5, whitePlain: 5, blackMarked: 4, whiteMarked: 4 };
+    return { blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }; // top-left 기본
 };
 
 function parseInitialStoneCounts(board: any): InitialStoneCounts {
@@ -259,7 +271,17 @@ const GuildWar = () => {
                     const bestResult = myBestResult || opponentBestResult;
                     const userMap = new Map(allUsers.map(u => [u.id, u]));
                     const bestUser = bestResult ? userMap.get(bestResult.userId) : null;
-                    const initialStoneCounts = parseInitialStoneCounts(board);
+                    let initialStoneCounts = parseInitialStoneCounts(board);
+                    if (getGuildWarBoardMode(boardId) === 'capture') {
+                        const fallbackCapture = getGuildWarCaptureInitialStoneCountsByBoardId(boardId);
+                        // 기존 전쟁 데이터가 구규칙값이거나 미기록일 수 있어, 상단 3칸은 현재 규칙값을 우선 표시
+                        initialStoneCounts = {
+                            blackPlain: fallbackCapture.blackPlain,
+                            whitePlain: fallbackCapture.whitePlain,
+                            blackMarked: fallbackCapture.blackMarked,
+                            whiteMarked: fallbackCapture.whiteMarked,
+                        };
+                    }
 
                     let occupierNickname: string | undefined;
                     let occupierIsMyGuild = false;
@@ -510,7 +532,7 @@ const GuildWar = () => {
                 guild1Attempts: 0,
                 guild2Attempts: 3, // 봇은 이미 3번 공격 완료
                 initialStones: gameMode === 'capture'
-                    ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
+                    ? [getGuildWarCaptureInitialStoneCountsByBoardId(boardId)]
                     : undefined,
             };
         });
@@ -762,7 +784,7 @@ const GuildWar = () => {
                                                         <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">턴 제한</p>
                                                         <p className="text-sm font-bold text-sky-100 whitespace-nowrap">
                                                             {board.gameMode === 'capture'
-                                                                ? `${GUILD_WAR_CAPTURE_TURN_LIMIT}턴`
+                                                                ? `${getGuildWarCaptureTurnLimitByBoardId(board.id)}턴`
                                                                 : `계가까지 ${GUILD_WAR_AUTO_SCORING_TURN_LIMIT}턴`}
                                                         </p>
                                                     </div>

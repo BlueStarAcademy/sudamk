@@ -351,6 +351,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
     const [skillTooltipPos, setSkillTooltipPos] = useState<{ top: number; left: number } | null>(null);
     const skillIconRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const tooltipHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [showBossParticipantsModal, setShowBossParticipantsModal] = useState(false);
 
     useEffect(() => () => {
         if (tooltipHideTimeoutRef.current) clearTimeout(tooltipHideTimeoutRef.current);
@@ -359,14 +360,10 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
     // 서버와 동일한 키 사용(관리자는 ADMIN_USER_ID로 저장됨) — 나의 기록 갱신 정확도
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
 
-    // 나의 기록 계산
-    const { myDamage, myRank, totalParticipants } = useMemo(() => {
-        if (!guild.guildBossState?.totalDamageLog || !currentUserWithStatus) {
-            return { myDamage: 0, myRank: null, totalParticipants: 0 };
-        }
-        
+    const bossParticipantRanking = useMemo(() => {
+        if (!guild.guildBossState?.totalDamageLog) return [];
         const damageLog = guild.guildBossState.totalDamageLog || {} as Record<string, number>;
-        const fullRanking = Object.entries(damageLog)
+        return Object.entries(damageLog)
             .map(([userId, damage]: [string, any]) => {
                 let member = guild.members?.find((m: GuildMember) => m.userId === userId);
                 if (!member && userId === ADMIN_USER_ID) {
@@ -376,16 +373,22 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                 return { userId, nickname, damage: typeof damage === 'number' ? damage : 0 };
             })
             .sort((a, b) => b.damage - a.damage);
-        
-        const myRankIndex = fullRanking.findIndex(r => r.userId === effectiveUserId);
-        const myData = myRankIndex !== -1 ? { ...fullRanking[myRankIndex], rank: myRankIndex + 1 } : null;
+    }, [guild.guildBossState?.totalDamageLog, guild.members]);
+
+    // 나의 기록 계산
+    const { myDamage, myRank, totalParticipants } = useMemo(() => {
+        if (!guild.guildBossState?.totalDamageLog || !currentUserWithStatus) {
+            return { myDamage: 0, myRank: null, totalParticipants: 0 };
+        }
+        const myRankIndex = bossParticipantRanking.findIndex(r => r.userId === effectiveUserId);
+        const myData = myRankIndex !== -1 ? { ...bossParticipantRanking[myRankIndex], rank: myRankIndex + 1 } : null;
         
         return {
             myDamage: myData?.damage || 0,
             myRank: myData?.rank || null,
-            totalParticipants: fullRanking.length,
+            totalParticipants: bossParticipantRanking.length,
         };
-    }, [guild.guildBossState?.totalDamageLog, guild.members, currentUserWithStatus, effectiveUserId]);
+    }, [guild.guildBossState?.totalDamageLog, currentUserWithStatus, effectiveUserId, bossParticipantRanking]);
     const currentBoss = useMemo(() => {
         if (!guild.guildBossState) return GUILD_BOSSES[0];
         return GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId) || GUILD_BOSSES[0];
@@ -518,28 +521,24 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                     
                     {/* 가로로 둘로 나눔: 왼쪽(보스+스킬) | 오른쪽(내 기록) */}
                     <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-2 w-full`}>
-                        {/* 왼쪽: 보스 이미지 + 스킬(아래 가로 배치) */}
-                        <div className={`flex flex-col ${isMobile ? 'items-center' : 'flex-1 min-w-0'} gap-2`}>
-                                    <div className="flex flex-col items-center">
+                        {/* 왼쪽: 보스 이미지 + 스킬(아래 가로 배치) — 데스크톱에서 열 비중을 조금 더 주어 보스 이미지 확대 */}
+                        <div className={`flex flex-col ${isMobile ? 'items-center' : 'min-w-0 flex-[1.35]'} gap-2`}>
+                                    <div className="flex flex-col items-center w-full">
                                         {/* 보스 이미지 (확대) */}
-                                        <div className="flex flex-col items-center flex-shrink-0">
-                                            <div className={`${isMobile ? 'w-28 h-28' : 'w-44 h-44'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center border border-stone-600/50 shadow-lg`}>
-                                                <img src={currentBoss.image} alt={currentBoss.name} className={`${isMobile ? 'w-24 h-24' : 'w-36 h-36'} drop-shadow-lg object-contain`} />
-                                            </div>
-                                            {/* 체력 바 */}
-                                            <div className={`${isMobile ? 'w-28' : 'w-44'} ${isMobile ? 'mt-1' : 'mt-1.5'} relative`}>
-                                                <div className={`w-full bg-gray-700/50 rounded-full ${isMobile ? 'h-2' : 'h-3'} border border-gray-600/50 overflow-hidden shadow-inner relative`}>
-                                                    <div
-                                                        className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
-                                                        style={{ width: `${clampedHpPercent}%` }}
-                                                    ></div>
-                                                    <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[10px]' : 'text-[12px]'} font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]`} style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
-                                                        {clampedHpPercent.toFixed(1)}%
-                                                    </span>
-                                                </div>
-                                                {/* 체력 게이지 하단 수치 */}
-                                                <div className={`${isMobile ? 'mt-1 text-[10px]' : 'mt-1.5 text-[13px]'} font-semibold text-stone-200/90 text-center`}>
-                                                    남은 체력: {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)}
+                                        <div className="flex flex-col items-center flex-shrink-0 w-full max-w-[min(100%,18rem)]">
+                                            <div className={`relative ${isMobile ? 'w-32 h-32' : 'w-full aspect-square max-h-[min(18rem,calc(50vh-8rem))]'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center border border-stone-600/50 shadow-lg overflow-hidden`}>
+                                                <img src={currentBoss.image} alt={currentBoss.name} className={`${isMobile ? 'w-28 h-28' : 'h-[92%] w-[92%] max-h-[min(16.5rem,calc(50vh-9rem))]'} drop-shadow-lg object-contain`} />
+                                                {/* 체력: 수치는 게이지 바로 위, 게이지는 이미지 하단 오버레이 */}
+                                                <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch ${isMobile ? 'gap-0.5 px-1.5 pb-1.5 pt-6' : 'gap-1 px-2 pb-2 pt-8'} bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
+                                                    <div className={`text-center font-bold tabular-nums text-white ${isMobile ? 'text-[10px]' : 'text-[12px]'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
+                                                        {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
+                                                    </div>
+                                                    <div className={`w-full bg-gray-800/85 rounded-full ${isMobile ? 'h-2' : 'h-3'} border border-gray-600/60 overflow-hidden shadow-inner`}>
+                                                        <div
+                                                            className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
+                                                            style={{ width: `${clampedHpPercent}%` }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -618,14 +617,14 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                                     </div>
                                 )}
                                 {/* 남은 시간: 보스 이미지 패널 너비만큼만 사용 (모바일 6rem / 데스크 9rem) */}
-                                <div className={`${isMobile ? 'mt-1 w-28' : 'mt-2 w-44'} flex shrink-0 justify-center`}>
+                                <div className={`${isMobile ? 'mt-1 w-full max-w-[8rem]' : 'mt-2 w-full'} flex shrink-0 justify-center`}>
                                     <p className={`w-full ${isMobile ? 'text-[10px]' : 'text-sm'} text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
                                 </div>
                             </div>
                         </div>
                         
                         {/* 오른쪽: 내 기록 + 입장 버튼(하단 중앙) */}
-                        <div className={`flex flex-col ${isMobile ? 'w-full' : 'flex-1 min-w-0'} justify-center gap-2`}>
+                        <div className={`flex flex-col ${isMobile ? 'w-full' : 'min-w-0 flex-[0.95]'} justify-center gap-2`}>
                             <div className={`bg-stone-800/50 rounded-lg ${isMobile ? 'px-1.5 py-0.5' : 'px-3 py-2'}`}>
                                 <div className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 ${isMobile ? 'mb-0.5' : 'mb-2'} font-semibold`}>나의 기록</div>
                                 <div className={`flex flex-col ${isMobile ? 'gap-0.5' : 'gap-1.5'}`}>
@@ -665,6 +664,14 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                                     <span>입장</span>
                                 </button>
                             </div>
+                            <div className={`flex justify-center ${isMobile ? 'mt-0.5' : 'mt-1'}`}>
+                                <button
+                                    onClick={() => setShowBossParticipantsModal(true)}
+                                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-md border border-cyan-500/40 bg-cyan-900/20 hover:bg-cyan-800/30 text-cyan-200 text-xs font-semibold transition-colors"
+                                >
+                                    참여길드원
+                                </button>
+                            </div>
                         </div>
                     </div>
                     
@@ -694,6 +701,40 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
                                 >
                                     닫기
                                 </button>
+                            </div>
+                        </div>
+                    )}
+                    {showBossParticipantsModal && (
+                        <div
+                            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                            onClick={() => setShowBossParticipantsModal(false)}
+                        >
+                            <div
+                                className="bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 border-2 border-stone-600/60 rounded-xl shadow-2xl p-4 w-[min(92vw,28rem)] max-h-[70vh] flex flex-col"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-base font-bold text-highlight">참여 길드원 기록</h3>
+                                    <button
+                                        onClick={() => setShowBossParticipantsModal(false)}
+                                        className="text-stone-300 hover:text-white text-lg leading-none"
+                                        aria-label="닫기"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                                {bossParticipantRanking.length > 0 ? (
+                                    <div className="overflow-y-auto pr-1 space-y-1">
+                                        {bossParticipantRanking.map((row, index) => (
+                                            <div key={row.userId} className="flex items-center justify-between rounded-md bg-stone-800/50 px-2 py-1.5 text-sm">
+                                                <span className="text-stone-200">{index + 1}위 · {row.nickname}</span>
+                                                <span className="font-bold text-amber-300 tabular-nums">{row.damage.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center text-sm text-stone-400 py-8">아직 참여 기록이 없습니다.</div>
+                                )}
                             </div>
                         </div>
                     )}

@@ -10,6 +10,14 @@ import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { getMannerRank as getMannerRankShared } from '../services/manner.js';
+import {
+    getGuildWarBoardMode,
+    GUILD_WAR_STAR_CAPTURE_TIER2_MIN,
+    GUILD_WAR_STAR_CAPTURE_TIER3_MIN,
+    GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF,
+    GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF,
+} from '../shared/constants/guildConstants.js';
+import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
 
 interface GameSummaryModalProps {
     session: LiveGameSession;
@@ -506,6 +514,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const mySummary = session.summary?.[currentUser.id];
     const isGuildWar = session.gameCategory === 'guildwar';
     const guildWarStars = mySummary?.guildWarStars ?? 0;
+    const blackTurnLimit = Number((session.settings as any)?.blackTurnLimit ?? 0);
+    const blackMoves = (session.moveHistory || []).filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
+    const isGuildWarCaptureTurnLimitLoss =
+        isGuildWar &&
+        session.mode === GameMode.Capture &&
+        blackTurnLimit > 0 &&
+        blackMoves >= blackTurnLimit &&
+        winner === Player.White;
     const isPlayful = PLAYFUL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
     const isStrategic = SPECIAL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
     const canUseGameRecordUi = canSaveStrategicPvpGameRecord(session) && !isSpectator;
@@ -558,15 +574,17 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         if (isWinner) {
             let title = '승리';
             if (winReason === 'resign') title = '기권승';
-            if (winReason === 'timeout') title = '시간승';
+            if (winReason === 'capture_limit' && isGuildWarCaptureTurnLimitLoss) title = '턴승';
+            if (winReason === 'timeout') title = isGuildWarCaptureTurnLimitLoss ? '턴승' : '시간승';
             return { title, color: 'text-green-400' };
         } else {
             let title = '패배';
             if (winReason === 'resign') title = '기권패';
-            if (winReason === 'timeout') title = '시간패';
+            if (winReason === 'capture_limit' && isGuildWarCaptureTurnLimitLoss) title = '턴패';
+            if (winReason === 'timeout') title = isGuildWarCaptureTurnLimitLoss ? '턴패' : '시간패';
             return { title, color: 'text-red-400' };
         }
-    }, [isWinner, isDraw, winReason, winnerUser]);
+    }, [isWinner, isDraw, winReason, winnerUser, isGuildWarCaptureTurnLimitLoss]);
     
     const analysisResult = session.analysisResult?.['system']; // System analysis is used for final scores
 
@@ -597,10 +615,20 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
             const message = isWinner ? "상대방의 기권으로 승리했습니다." : "기권 패배했습니다.";
             return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'}`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>{message}</p>;
         }
+
+        if (winReason === 'capture_limit' && isGuildWarCaptureTurnLimitLoss) {
+            if (isWinner) {
+                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 제한 턴이 모두 소진되어 승리했습니다.</p>;
+            }
+            return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
+        }
         
         // 시간 패배/승리 처리
         if (winReason === 'timeout') {
             if (!isWinner) {
+                if (isGuildWarCaptureTurnLimitLoss) {
+                    return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
+                }
                 // 패배한 경우
                 if (session.stageId) {
                     // stageId가 있으면 제한 턴 체크
@@ -628,6 +656,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                 // 일반 게임에서 시간 패배한 경우
                 return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>시간이 다 되어 패배했습니다.</p>;
             } else {
+                if (isGuildWarCaptureTurnLimitLoss) {
+                    return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 제한 턴이 모두 소진되어 승리했습니다.</p>;
+                }
                 // 승리한 경우
                 return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 시간이 다 되어 승리했습니다.</p>;
             }
@@ -713,6 +744,46 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         );
     }
 
+    const renderGuildWarStarConditions = () => {
+        if (!isGuildWar) return null;
+        const boardId = (session as any).guildWarBoardId as string | undefined;
+        const mode = getGuildWarBoardMode(boardId ?? 'top-left');
+        const humanWon = isWinner === true;
+        const humanEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
+        const metrics = computeGuildWarAttemptMetrics(session as any, humanEnum as any, humanWon);
+        const maxSingleCapture = metrics.maxSingleCapture ?? 0;
+        const scoreDiff = metrics.scoreDiff ?? 0;
+
+        const rows =
+            mode === 'capture'
+                ? [
+                    { label: '승리', ok: humanWon },
+                    { label: `한 번에 ${GUILD_WAR_STAR_CAPTURE_TIER2_MIN}돌 따내기`, ok: humanWon && maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER2_MIN },
+                    { label: `한 번에 ${GUILD_WAR_STAR_CAPTURE_TIER3_MIN}돌 따내기`, ok: humanWon && maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN },
+                ]
+                : [
+                    { label: '승리', ok: humanWon },
+                    { label: `집차이 ${GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF}집 이상`, ok: humanWon && scoreDiff >= GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF },
+                    { label: `집차이 ${GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF}집 이상`, ok: humanWon && scoreDiff >= GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF },
+                ];
+
+        return (
+            <div className="mt-2 rounded-md border border-amber-500/35 bg-amber-900/10 p-2">
+                <p className="text-[11px] text-amber-200/90 font-semibold mb-1">별 달성 조건</p>
+                <div className="space-y-1">
+                    {rows.map((row) => (
+                        <div key={row.label} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-200">{row.label}</span>
+                            <span className={row.ok ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
+                                {row.ok ? '성공' : '실패'}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     const initialMannerRank = mySummary ? getMannerRank(mySummary.manner.initial) : '';
     const finalMannerRank = mySummary ? getMannerRank(mySummary.manner.final) : '';
 
@@ -748,6 +819,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-2 border-b border-gray-700 pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>경기 내용</h2>
                         <div>
                             {renderGameContent()}
+                            {renderGuildWarStarConditions()}
                         </div>
                     </div>
                     

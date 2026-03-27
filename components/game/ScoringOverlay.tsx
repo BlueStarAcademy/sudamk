@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
-/** 계가 예상 소요 시간(ms). 진행 막대 및 "약 N초 남음"에 사용. 실제 KataGo 분석 시간에 맞춰야 100% 후 "곧 완료" 대기 구간이 생기지 않음. 결과 수신 시 연출 즉시 종료됨 */
-export const SCORING_PROGRESS_DURATION_MS = 5_000;
+/** 계가 예상 소요 시간(ms). 진행 막대 및 "약 N초 남음"에 사용. 결과 수신 시 연출 즉시 종료됨 */
+export const SCORING_PROGRESS_DURATION_MS = 3_000;
 const SCAN_CYCLE_MS = 4_000; // 좌→우 스캔 1회 주기
 
 /** 계가 중 오버레이: 스피너 + 텍스트 + 진행 막대. 결과 수신 시 부모에서 언마운트되어 즉시 종료 */

@@ -2022,14 +2022,19 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             };
             
             // 게임 모드별 추가 설정
-            if (board.gameMode === 'capture') {
+            if (normalizedBoardMode === 'capture') {
+                const captureTurnLimitByBoardId: Record<string, number> = {
+                    'top-left': 25, // 좌상귀
+                    'top-mid': 20,  // 상변
+                    'top-right': 15, // 우상귀
+                };
                 (gameSettings as any).captureTarget = GUILD_WAR_CAPTURE_TARGET;
-                (gameSettings as any).blackTurnLimit = 15;
-            } else if (board.gameMode === 'hidden') {
+                (gameSettings as any).blackTurnLimit = captureTurnLimitByBoardId[boardId] ?? 15;
+            } else if (normalizedBoardMode === 'hidden') {
                 (gameSettings as any).hiddenStoneCount = GUILD_WAR_HIDDEN_STONE_COUNT;
                 (gameSettings as any).scanCount = GUILD_WAR_SCAN_COUNT;
                 (gameSettings as any).autoScoringTurns = 60;
-            } else if (board.gameMode === 'missile') {
+            } else if (normalizedBoardMode === 'missile') {
                 (gameSettings as any).missileCount = GUILD_WAR_MISSILE_COUNT;
                 (gameSettings as any).autoScoringTurns = 60;
             }
@@ -2059,11 +2064,17 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             // 길드전 따내기 맵: 초기 랜덤 배치 (흑3/백3/문양흑2/문양백2)
             if (normalizedBoardMode === 'capture') {
-                const initialCfg = board?.initialStones?.[0] ?? board?.initialStones ?? {};
-                const blackPlain = Math.max(0, Number(initialCfg.blackPlain ?? 3) || 3);
-                const whitePlain = Math.max(0, Number(initialCfg.whitePlain ?? 3) || 3);
-                const blackMarked = Math.max(0, Number(initialCfg.blackMarked ?? 2) || 2);
-                const whiteMarked = Math.max(0, Number(initialCfg.whiteMarked ?? 2) || 2);
+                // 대기실 상황판과 실제 입장 시 규칙을 1:1로 고정 동기화
+                const captureInitialCountsByBoardId: Record<string, { blackPlain: number; whitePlain: number; blackMarked: number; whiteMarked: number }> = {
+                    'top-left': { blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }, // 좌상귀
+                    'top-mid': { blackPlain: 4, whitePlain: 4, blackMarked: 3, whiteMarked: 3 },  // 상변
+                    'top-right': { blackPlain: 5, whitePlain: 5, blackMarked: 4, whiteMarked: 4 }, // 우상귀
+                };
+                const initialCfg = captureInitialCountsByBoardId[boardId] ?? captureInitialCountsByBoardId['top-left'];
+                const blackPlain = initialCfg.blackPlain;
+                const whitePlain = initialCfg.whitePlain;
+                const blackMarked = initialCfg.blackMarked;
+                const whiteMarked = initialCfg.whiteMarked;
 
                 const totalNeeded = blackPlain + whitePlain + blackMarked + whiteMarked;
                 const size = Number(game.settings.boardSize ?? 9) || 9;

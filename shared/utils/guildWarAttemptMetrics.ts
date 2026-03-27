@@ -37,7 +37,10 @@ export function computeGuildWarAttemptMetrics(
     if (game.mode === GameMode.Capture) {
         const opCap = game.captures?.[aiEnum] ?? 0;
         const margin = captures - opCap;
-        const maxSingleCapture = getMaxSingleCaptureForPlayer(game, humanEnum);
+        const trackedMaxSingleCapture = Number((game as any)?.maxSingleCaptureByPlayer?.[humanEnum] ?? 0) || 0;
+        const maxSingleCapture = trackedMaxSingleCapture > 0
+            ? trackedMaxSingleCapture
+            : getMaxSingleCaptureForPlayer(game, humanEnum);
         const stars =
             maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN
                 ? 3

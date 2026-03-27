@@ -759,6 +759,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             if (result.capturedStones.length > 0) {
+                // 길드전 별 판정(한 번에 따낸 최대 개수) 정확도를 위해 실시간 최대값 저장
+                const captureCountThisMove = result.capturedStones.length;
+                const maxSingleCaptureByPlayer = ((game as any).maxSingleCaptureByPlayer ??= {});
+                const prevMaxForPlayer = Number(maxSingleCaptureByPlayer[myPlayerEnum] ?? 0) || 0;
+                if (captureCountThisMove > prevMaxForPlayer) {
+                    maxSingleCaptureByPlayer[myPlayerEnum] = captureCountThisMove;
+                }
                 if (!game.justCaptured) game.justCaptured = [];
                 for (const stone of result.capturedStones) {
                     const capturedPlayerEnum = opponentPlayerEnum;

@@ -905,12 +905,27 @@ export async function makeGoAiBotMove(
     let selectedMove: Point | null = null;
     let scoredMoves: Array<{ move: Point; score: number }> = [];
 
+    // Kata API 레벨(음수 등)과 goAiBot 프로필 단계(1~10)는 별도. 호출부가 1~10만 넘기면 여기서 Kata 레벨로 변환.
+    const DIFFICULTY_TO_KATA_LEVEL: Record<number, number> = {
+        1: -31, 2: -25, 3: -21, 4: -15, 5: -12,
+        6: -8, 7: -3, 8: -1, 9: 3, 10: 5,
+    };
+    const kataToProfileLevel = Object.entries(DIFFICULTY_TO_KATA_LEVEL).find(([, v]) => v === aiLevel);
+    const goAiProfileLevel =
+        aiLevel >= 1 && aiLevel <= 10
+            ? aiLevel
+            : kataToProfileLevel
+                ? Math.max(1, Math.min(10, parseInt(kataToProfileLevel[0], 10)))
+                : 3;
+
     // 0) KataServer 레벨봇: 길드전 제외 모든 바둑 봇 게임에서 사용
     const isGuildWarAiGame = (game as any).gameCategory === 'guildwar';
     const wantKataServer = !isGuildWarAiGame && isKataServerAvailable();
     if (wantKataServer && !selectedMove) {
         try {
-            const kataLevel = game.settings.kataServerLevel ?? aiLevel;
+            const kataLevel =
+                game.settings.kataServerLevel ??
+                (aiLevel >= 1 && aiLevel <= 10 ? DIFFICULTY_TO_KATA_LEVEL[aiLevel] : aiLevel);
             // 히든바둑: 유저 미공개 히든 수는 통과(-1,-1)로 마스킹
             const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
             const moveHistory = useHiddenMask
@@ -942,7 +957,7 @@ export async function makeGoAiBotMove(
 
     // 1) KataServer 실패 시 내부 goAiBot 휴리스틱 폴백
     if (!selectedMove) {
-        const profile = getGoAiBotProfile(aiLevel);
+        const profile = getGoAiBotProfile(goAiProfileLevel);
 
         // AI가 볼 수 있는 보드·수순 (유저의 미공개 히든은 빈 칸/통과로만 인식, 공개 시 재인식)
         const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
@@ -959,7 +974,7 @@ export async function makeGoAiBotMove(
         const isSurvivalMode = (game.settings as any)?.isSurvivalMode === true;
     
         // 낮은 난이도(1-3)는 간단한 휴리스틱 사용으로 성능 최적화
-        const useFastHeuristic = aiLevel <= 3;
+        const useFastHeuristic = goAiProfileLevel <= 3;
     
         // 1. 모든 유효한 수 찾기 (KataGo 사용 안함)
         // 낮은 난이도는 샘플링으로 유효한 수 찾기 (성능 최적화)
@@ -1024,15 +1039,54 @@ export async function makeGoAiBotMove(
             }
             return;
         } else {
-            console.log('[GoAiBot] No valid moves available. AI resigns.');
-            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+            console.log('[GoAiBot] No valid moves available. AI passes (non no-pass mode).');
+            game.passCount = (game.passCount ?? 0) + 1;
+            game.lastMove = { x: -1, y: -1 };
+            game.lastTurnStones = null;
+            game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
+            if (hasTimeControl(game.settings)) {
+                const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                if (game.turnDeadline) {
+                    game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
+                }
+            }
+            game.currentPlayer = opponentPlayerEnum;
+            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                const isFischer = isFischerStyleTimeControl(game as any);
+                const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
+                if (isNextInByoyomi) {
+                    game.turnDeadline = now + (game.settings.byoyomiTime ?? 30) * 1000;
+                } else {
+                    game.turnDeadline = now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
+                }
+                game.turnStartTime = now;
+            } else {
+                game.turnDeadline = undefined;
+                game.turnStartTime = undefined;
+            }
+            if (game.passCount >= 2) {
+                game.gameStatus = 'scoring';
+                game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                const gameToBroadcast = { ...game };
+                delete (gameToBroadcast as any).boardState;
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                const { getGameResult } = await import('./gameModes.js');
+                await getGameResult(game);
+            } else {
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                const gameToBroadcast = { ...game };
+                delete (gameToBroadcast as any).boardState;
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+            }
             return;
         }
     }
-    } // end of if (!selectedMove) - heuristic path
 
-    // 이후 sections 2-4는 휴리스틱 전용이므로 selectedMove가 없을 때만 실행
-    if (!selectedMove) {
     // 2. 살리기 바둑 모드일 때는 공격적인 로직 사용
     if (isSurvivalMode && aiPlayerEnum === Player.White) {
         // 살리기 바둑: AI(백)가 유저(흑)의 돌을 적극적으로 잡으러 오는 전략 사용
@@ -1140,8 +1194,44 @@ export async function makeGoAiBotMove(
                     }
                     return;
                 }
-                console.error('[GoAiBot] No valid moves after filtering user stones. AI resigns.');
-                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                console.log('[GoAiBot] No valid moves after filtering user stones. AI passes.');
+                game.passCount = (game.passCount ?? 0) + 1;
+                game.lastMove = { x: -1, y: -1 };
+                game.lastTurnStones = null;
+                game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
+                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                    const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                    if (game.turnDeadline) game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
+                }
+                game.currentPlayer = opponentPlayerEnum;
+                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                    const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                    const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                    const isFischer = isFischerStyleTimeControl(game as any);
+                    const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
+                    game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
+                    game.turnStartTime = now;
+                } else {
+                    game.turnDeadline = undefined;
+                    game.turnStartTime = undefined;
+                }
+                if (game.passCount >= 2) {
+                    game.gameStatus = 'scoring';
+                    game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    const g = { ...game };
+                    delete (g as any).boardState;
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
+                    const { getGameResult } = await import('./gameModes.js');
+                    await getGameResult(game);
+                } else {
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    const g = { ...game };
+                    delete (g as any).boardState;
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
+                }
                 return;
             }
             
@@ -1150,7 +1240,7 @@ export async function makeGoAiBotMove(
             console.log(`[GoAiBot] Replaced invalid move with valid move at (${selectedMove.x}, ${selectedMove.y})`);
         }
     }
-    } // end of if (!selectedMove) - sections 2-4
+    } // end of if (!selectedMove) - heuristic path
 
     if (!selectedMove) {
         console.error(`[makeGoAiBotMove] No move selected after all strategies, game=${game.id}`);
@@ -1321,8 +1411,44 @@ export async function makeGoAiBotMove(
             );
             console.log(`[GoAiBot] Replaced invalid move with fallback move at (${selectedMove.x}, ${selectedMove.y})`);
         } else {
-            console.warn('[GoAiBot] No valid fallback moves available. AI resigns.');
-            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+            console.warn('[GoAiBot] No valid fallback moves available. AI passes.');
+            game.passCount = (game.passCount ?? 0) + 1;
+            game.lastMove = { x: -1, y: -1 };
+            game.lastTurnStones = null;
+            game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
+            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                if (game.turnDeadline) game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
+            }
+            game.currentPlayer = opponentPlayerEnum;
+            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                const isFischer = isFischerStyleTimeControl(game as any);
+                const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
+                game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
+                game.turnStartTime = now;
+            } else {
+                game.turnDeadline = undefined;
+                game.turnStartTime = undefined;
+            }
+            if (game.passCount >= 2) {
+                game.gameStatus = 'scoring';
+                game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                const g = { ...game };
+                delete (g as any).boardState;
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
+                const { getGameResult } = await import('./gameModes.js');
+                await getGameResult(game);
+            } else {
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                const g = { ...game };
+                delete (g as any).boardState;
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
+            }
             return;
         }
     }
@@ -1508,7 +1634,8 @@ export async function makeGoAiBotMove(
                 // 이전에 처리된 capture_limit 결과(또는 이후 계가 결과)를 그대로 따른다.
                 if (!(hasBlackTarget && blackCaptures >= (targetForBlack as number))) {
                     console.log(`[GoAiBot] blackTurnLimit reached after AI move: blackMoves=${blackMoves}, limit=${blackTurnLimit}, gameCategory=${(game as any).gameCategory}`);
-                    await summaryService.endGame(game, types.Player.White, 'timeout');
+                    const loseReason: types.WinReason = isGuildWarCapture ? 'capture_limit' : 'timeout';
+                    await summaryService.endGame(game, types.Player.White, loseReason);
                     return;
                 }
             }
