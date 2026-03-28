@@ -1145,6 +1145,24 @@ input[type="range"]::-moz-range-thumb {
     background-color: rgb(var(--bg-tertiary));
 }
 
+/* --- Ad Container Styles --- */
+.ad-container {
+    flex-shrink: 0;
+    overflow: hidden;
+    text-align: center;
+}
+
+.ad-container .adsbygoogle {
+    margin: 0 auto;
+}
+
+/* 모바일: 하단 광고와 게임 조작 영역 사이 최소 16px 간격 */
+@media (max-width: 767px) {
+    .ad-bottom {
+        padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px);
+    }
+}
+
 @layer utilities {
   .title-glow {
     text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #ff00ff, 0 0 30px #ff00ff, 0 0 40px #ff00ff, 0 0 50px #ff00ff;

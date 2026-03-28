@@ -33,6 +33,7 @@ import { processMoveClient } from './client/goLogicClient.js';
 import Button from './components/Button.js';
 import ToggleSwitch from './components/ui/ToggleSwitch.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
+import { useAdContext } from './components/ads/AdProvider.js';
 
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
@@ -86,7 +87,7 @@ interface GameComponentProps {
 }
 
 const Game: React.FC<GameComponentProps> = ({ session }) => {
-    const { 
+    const {
         currentUser,
         currentUserWithStatus,
         handlers,
@@ -98,6 +99,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         settings,
         updateFeatureSetting,
     } = useAppContext();
+    const { showInterstitial } = useAdContext();
 
     const { id: gameId, currentPlayer, gameStatus, player1, player2, mode, blackPlayerId, whitePlayerId } = session;
 
@@ -498,6 +500,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             setShowResultModal(true);
             if (gameStatus === 'ended') {
                 setShowFinalTerritory(true);
+            }
+            // 게임 종료 후 전면 광고 트리거 (빈도 제한은 useAds에서 처리)
+            if (isTower) {
+                showInterstitial('tower_clear');
+            } else {
+                showInterstitial('game_end');
             }
         }
         

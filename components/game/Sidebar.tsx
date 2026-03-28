@@ -20,6 +20,7 @@ import { containsProfanity } from '../../profanity.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { getGuildWarBoardMode, getGuildWarStarConditionLines } from '../../shared/constants/guildConstants.js';
+import AdBanner from '../ads/AdBanner.js';
 
 
 interface SidebarProps extends GameProps {
@@ -647,6 +648,8 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                 <GameInfoPanel session={session} onClose={props.onClose} onOpenSettings={props.onOpenSettings} />
                 <UserListPanel {...props} />
                 <GuildWarStarConditionsPanel session={session} />
+                {/* PC 사이드바 광고 (300×250) */}
+                <AdBanner position="sidebar" />
             </div>
             <div className="flex-1 mt-2 min-h-0">
                 <ChatPanel {...props} />

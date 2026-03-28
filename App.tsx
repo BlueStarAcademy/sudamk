@@ -42,6 +42,9 @@ import InsufficientActionPointsModal from './components/InsufficientActionPoints
 import OpponentInsufficientActionPointsModal from './components/OpponentInsufficientActionPointsModal.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
+import AdProvider from './components/ads/AdProvider.js';
+import AdBanner from './components/ads/AdBanner.js';
+import AdInterstitial from './components/ads/AdInterstitial.js';
 
 /**
  * 세로로 든 폰에서 전체 UI를 CSS로 90° 돌리면( index.css 의 sudamr-handheld-* )
@@ -316,7 +319,15 @@ const AppContent: React.FC = () => {
                             transformOrigin: '0 0',
                         }}
                     >
-                        {currentUser && !isGameView && <Header />}
+                        {currentUser && !isGameView && (
+                            <>
+                                <Header />
+                                {/* 상단 배너 광고 — 로비/프로필 등 비게임 화면에서만 표시 (PC/태블릿) */}
+                                <div className="hidden sm:block flex-shrink-0">
+                                    <AdBanner position="top" className="py-1" />
+                                </div>
+                            </>
+                        )}
                         {/* 
                            Modals/portals that render into document.body will not be scaled.
                            We provide a dedicated portal target inside the scaled canvas.
@@ -603,6 +614,14 @@ const AppContent: React.FC = () => {
                                 )}
                             </>
                         )}
+                        {/* 하단 배너 광고 — 비게임 화면에서 표시 */}
+                        {currentUser && !isGameView && (
+                            <div className="flex-shrink-0">
+                                <AdBanner position="bottom" className="py-1" />
+                            </div>
+                        )}
+                        {/* 전면 광고 모달 */}
+                        <AdInterstitial />
                         <InstallPrompt />
                     </div>
                     </div>
@@ -746,9 +765,11 @@ const App: React.FC = () => {
 
     return (
         <div className="app-container">
-            <AppProvider>
-                <AppContent />
-            </AppProvider>
+            <AdProvider>
+                <AppProvider>
+                    <AppContent />
+                </AppProvider>
+            </AdProvider>
         </div>
     );
 };
