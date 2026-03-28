@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
+import Avatar from '../Avatar.js';
 import { GuildWar as GuildWarType } from '../../types/index.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import {
@@ -12,17 +13,27 @@ import {
 import {
     getGuildWarStarConditionLines,
     GUILD_WAR_PERSONAL_DAILY_ATTEMPTS,
-    GUILD_WAR_HIDDEN_STONE_COUNT,
-    GUILD_WAR_SCAN_COUNT,
-    GUILD_WAR_MISSILE_COUNT,
+    getGuildWarMissileCountByBoardId,
+    getGuildWarHiddenStoneCountByBoardId,
+    getGuildWarScanCountByBoardId,
+    getGuildWarAutoScoringTurnsByBoardId,
     AVATAR_POOL,
+    BORDER_POOL,
     ADMIN_USER_ID,
     GUILD_WAR_BOARD_ORDER,
     getGuildWarBoardMode,
     GUILD_WAR_MAIN_TIME_MINUTES,
     GUILD_WAR_FISCHER_INCREMENT_SECONDS,
+    getGuildWarAiBotDisplayName,
+    aiUserId,
+    getGuildWarCaptureInitialStones,
+    getGuildWarBoardLineSize,
+    getGuildWarCaptureTurnLimitByBoardId,
+    getGuildWarCaptureBlackTargetByBoardId,
+    GUILD_WAR_CAPTURE_AI_TARGET,
 } from '../../constants/index.js';
 import { getTodayKSTDateString } from '../../utils/timeUtils.js';
+import { getGuildWarBoardOwnerGuildId } from '../../shared/utils/guildWarBoardOwner.js';
 
 const GUILD_WAR_PERSONAL_DAILY_LIMIT = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
 
@@ -35,7 +46,9 @@ const GUILD_WAR_EMPTY_STAR_IMG = '/images/guild/guildwar/emptystar.png';
 const GUILD_WAR_MISSILE_ICON = '/images/button/missile.png';
 const GUILD_WAR_HIDDEN_ICON = '/images/button/hidden.png';
 const GUILD_WAR_SCAN_ICON = '/images/button/scan.png';
-const GUILD_WAR_AUTO_SCORING_TURN_LIMIT = 60;
+
+/** 서버 `GUILD_WAR_UPDATE` 브로드캐스트 → 대기실 즉시 GET_GUILD_WAR_DATA (hooks/useApp.ts에서 dispatch) */
+const GUILD_WAR_LOBBY_REFRESH_EVENT = 'sudamr:guild-war-update';
 
 type InitialStoneCounts = {
     blackPlain: number;
@@ -44,44 +57,8 @@ type InitialStoneCounts = {
     whiteMarked: number;
 };
 
-const getGuildWarCaptureTurnLimitByBoardId = (boardId: string): number => {
-    if (boardId === 'top-left') return 25;
-    if (boardId === 'top-mid') return 20;
-    if (boardId === 'top-right') return 15;
-    return 15;
-};
-
-const getGuildWarCaptureInitialStoneCountsByBoardId = (boardId: string): InitialStoneCounts => {
-    if (boardId === 'top-mid') return { blackPlain: 4, whitePlain: 4, blackMarked: 3, whiteMarked: 3 };
-    if (boardId === 'top-right') return { blackPlain: 5, whitePlain: 5, blackMarked: 4, whiteMarked: 4 };
-    return { blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }; // top-left 기본
-};
-
-function parseInitialStoneCounts(board: any): InitialStoneCounts {
-    const raw = board?.initialStones?.[0] ?? board?.initialStones;
-    if (!raw || typeof raw !== 'object') {
-        return { blackPlain: 0, whitePlain: 0, blackMarked: 0, whiteMarked: 0 };
-    }
-    const hasSplit =
-        'blackPlain' in raw ||
-        'blackMarked' in raw ||
-        'whitePlain' in raw ||
-        'whiteMarked' in raw;
-    if (hasSplit) {
-        return {
-            blackPlain: Number(raw.blackPlain ?? 0) || 0,
-            whitePlain: Number(raw.whitePlain ?? 0) || 0,
-            blackMarked: Number(raw.blackMarked ?? 0) || 0,
-            whiteMarked: Number(raw.whiteMarked ?? 0) || 0,
-        };
-    }
-    return {
-        blackPlain: Number(raw.black ?? 0) || 0,
-        whitePlain: Number(raw.white ?? 0) || 0,
-        blackMarked: 0,
-        whiteMarked: 0,
-    };
-}
+const getGuildWarCaptureInitialStoneCountsByBoardId = (boardId: string): InitialStoneCounts =>
+    getGuildWarCaptureInitialStones(boardId);
 
 const PlainBlackStoneIcon: React.FC<{ className?: string }> = ({ className = 'w-7 h-7' }) => (
     <svg className={`${className} shrink-0 drop-shadow-md`} viewBox="0 0 32 32" aria-hidden>
@@ -101,7 +78,48 @@ function readGuildWarApiResult(result: any) {
     const guildsData = result?.guilds ?? result?.clientResponse?.guilds ?? {};
     const guildWarTicketSummary =
         result?.guildWarTicketSummary ?? result?.clientResponse?.guildWarTicketSummary ?? null;
-    return { war, guildsData, guildWarTicketSummary };
+    const occupierProfileByUserId =
+        result?.occupierProfileByUserId ?? result?.clientResponse?.occupierProfileByUserId;
+    return { war, guildsData, guildWarTicketSummary, occupierProfileByUserId };
+}
+
+type GuildWarOccupierServerProfile = {
+    nickname: string;
+    avatarId?: string | null;
+    borderId?: string | null;
+    strategyLevel: number;
+    playfulLevel: number;
+};
+
+function guildWarOccupierHash(s: string): number {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h;
+}
+
+/** 전쟁·칸·봇 ID 기준 고정: 레벨 1~20, 프로필 이미지 */
+function guildWarBotSeededDisplay(warId: string, boardId: string, botUserId: string) {
+    const h = guildWarOccupierHash(`${warId}|${boardId}|${botUserId}`);
+    const level = (h % 20) + 1;
+    const pool = AVATAR_POOL.filter((a) => a.type === 'any');
+    const pick = pool.length ? pool[(h >>> 8) % pool.length] : AVATAR_POOL[0];
+    return { level, avatarUrl: pick.url };
+}
+
+function resolveHomeStyleAvatarUrl(avatarId: string | null | undefined): string {
+    if (avatarId == null || avatarId === '' || avatarId === 'default') {
+        return '/images/profiles/profile1.png';
+    }
+    return AVATAR_POOL.find((a) => a.id === avatarId)?.url || '/images/profiles/profile1.png';
+}
+
+function isGuildWarBotOccupierUserId(uid: string): boolean {
+    if (uid === aiUserId) return true;
+    if (uid === 'demo-bot') return true;
+    return uid.includes('demo-bot');
 }
 
 interface Board {
@@ -119,6 +137,8 @@ interface Board {
     /** 점령 길드 소속 기록 보유자 닉네임 */
     occupierNickname?: string;
     occupierAvatarUrl?: string;
+    /** 프로필(홈) 테두리 — BORDER_POOL id */
+    occupierBorderId?: string | null;
     occupierLevel?: number;
     occupierCaptures?: number;
     occupierScoreDiff?: number;
@@ -159,16 +179,23 @@ const GuildWar = () => {
     const isFetchingRef = useRef(false);
     const lastFetchTimeRef = useRef(0);
     const hasInitializedRef = useRef(false);
+    const pendingForceRef = useRef(false);
+    const fetchWarDataRef = useRef<(force?: boolean) => Promise<void>>(async () => {});
     const FETCH_COOLDOWN = 10000; // 10초 쿨다운
     
     // 길드전 데이터 가져오기
     useEffect(() => {
-        const fetchWarData = async () => {
+        lastFetchTimeRef.current = 0;
+
+        const fetchWarData = async (force = false) => {
             if (!currentUserWithStatus?.guildId) return;
-            
-            // 이미 fetch 중이거나 쿨다운 중이면 스킵
+
             const now = Date.now();
-            if (isFetchingRef.current || (now - lastFetchTimeRef.current < FETCH_COOLDOWN)) {
+            if (isFetchingRef.current) {
+                if (force) pendingForceRef.current = true;
+                return;
+            }
+            if (!force && now - lastFetchTimeRef.current < FETCH_COOLDOWN) {
                 return;
             }
             
@@ -182,7 +209,12 @@ const GuildWar = () => {
                     return;
                 }
 
-                const { war, guildsData, guildWarTicketSummary } = readGuildWarApiResult(result);
+                const { war, guildsData, guildWarTicketSummary, occupierProfileByUserId } =
+                    readGuildWarApiResult(result);
+                const occupierProfiles: Record<string, GuildWarOccupierServerProfile> =
+                    occupierProfileByUserId && typeof occupierProfileByUserId === 'object'
+                        ? occupierProfileByUserId
+                        : {};
 
                 if (!war) {
                     if (isDemoModeRef.current) {
@@ -232,56 +264,20 @@ const GuildWar = () => {
                     const myBestResult = isGuild1 ? board.guild1BestResult : board.guild2BestResult;
                     const opponentBestResult = isGuild1 ? board.guild2BestResult : board.guild1BestResult;
                     
-                    // 점령자 결정
-                    let ownerGuildId: string | undefined = undefined;
-                    if (board.guild1BestResult && board.guild2BestResult) {
-                        // 별 개수 비교
-                        if (board.guild1BestResult.stars > board.guild2BestResult.stars) {
-                            ownerGuildId = war.guild1Id;
-                        } else if (board.guild2BestResult.stars > board.guild1BestResult.stars) {
-                            ownerGuildId = war.guild2Id;
-                        } else {
-                            // 따낸 돌 비교
-                            if (board.guild1BestResult.captures > board.guild2BestResult.captures) {
-                                ownerGuildId = war.guild1Id;
-                            } else if (board.guild2BestResult.captures > board.guild1BestResult.captures) {
-                                ownerGuildId = war.guild2Id;
-                            } else {
-                                // 집점수 비교 (동점 시 남은시간 보너스 포함된 score 사용)
-                                if (board.guild1BestResult.score !== undefined && board.guild2BestResult.score !== undefined) {
-                                    if (board.guild1BestResult.score > board.guild2BestResult.score) {
-                                        ownerGuildId = war.guild1Id;
-                                    } else if (board.guild2BestResult.score > board.guild1BestResult.score) {
-                                        ownerGuildId = war.guild2Id;
-                                    }
-                                }
-                                // 먼저 도전 성공한 사람
-                                if (!ownerGuildId) {
-                                    ownerGuildId = board.guild1BestResult.completedAt < board.guild2BestResult.completedAt 
-                                        ? war.guild1Id : war.guild2Id;
-                                }
-                            }
-                        }
-                    } else if (board.guild1BestResult) {
-                        ownerGuildId = war.guild1Id;
-                    } else if (board.guild2BestResult) {
-                        ownerGuildId = war.guild2Id;
-                    }
+                    // 점령자: 별 → 집점수(score) → 먼저 기록(completedAt) — shared/utils/guildWarBoardOwner 와 서버 동일
+                    const ownerGuildId = getGuildWarBoardOwnerGuildId(board, war.guild1Id, war.guild2Id);
                     
                     const bestResult = myBestResult || opponentBestResult;
                     const userMap = new Map(allUsers.map(u => [u.id, u]));
                     const bestUser = bestResult ? userMap.get(bestResult.userId) : null;
-                    let initialStoneCounts = parseInitialStoneCounts(board);
-                    if (getGuildWarBoardMode(boardId) === 'capture') {
-                        const fallbackCapture = getGuildWarCaptureInitialStoneCountsByBoardId(boardId);
-                        // 기존 전쟁 데이터가 구규칙값이거나 미기록일 수 있어, 상단 3칸은 현재 규칙값을 우선 표시
-                        initialStoneCounts = {
-                            blackPlain: fallbackCapture.blackPlain,
-                            whitePlain: fallbackCapture.whitePlain,
-                            blackMarked: fallbackCapture.blackMarked,
-                            whiteMarked: fallbackCapture.whiteMarked,
-                        };
-                    }
+                    // 9칸 모두 열(좌/중/우) 기준 동일 규칙 — KV 미기록·구데이터와 무관하게 대기실 표시를 현재 규칙과 맞춤
+                    const rulesStones = getGuildWarCaptureInitialStoneCountsByBoardId(boardId);
+                    const initialStoneCounts: InitialStoneCounts = {
+                        blackPlain: rulesStones.blackPlain,
+                        whitePlain: rulesStones.whitePlain,
+                        blackMarked: rulesStones.blackMarked,
+                        whiteMarked: rulesStones.whiteMarked,
+                    };
 
                     let occupierNickname: string | undefined;
                     let occupierIsMyGuild = false;
@@ -290,15 +286,27 @@ const GuildWar = () => {
                         const holderResult =
                             ownerGuildId === war.guild1Id ? board.guild1BestResult : board.guild2BestResult;
                         if (holderResult) {
-                            const occUser = userMap.get(holderResult.userId);
                             const uid = String(holderResult.userId ?? '');
-                            occupierNickname =
-                                occUser?.nickname ??
-                                (uid.includes('bot') || uid === 'demo-bot' ? 'AI 선수' : '알 수 없음');
-                            const avatarId = (occUser as any)?.avatarId;
-                            const avatarUrl = AVATAR_POOL.find((a: any) => a.id === avatarId)?.url;
-                            (board as any).occupierAvatarUrl = avatarUrl || '/images/guild/profile/icon1.png';
-                            (board as any).occupierLevel = (Number((occUser as any)?.strategyLevel ?? 0) || 0) + (Number((occUser as any)?.playfulLevel ?? 0) || 0);
+                            const serv = occupierProfiles[uid];
+                            const occUser = userMap.get(holderResult.userId);
+                            if (isGuildWarBotOccupierUserId(uid)) {
+                                const seeded = guildWarBotSeededDisplay(String(war.id), boardId, uid);
+                                occupierNickname = getGuildWarAiBotDisplayName(boardId);
+                                (board as any).occupierAvatarUrl = seeded.avatarUrl;
+                                (board as any).occupierBorderId = 'default';
+                                (board as any).occupierLevel = seeded.level;
+                            } else {
+                                occupierNickname = serv?.nickname ?? occUser?.nickname ?? '알 수 없음';
+                                const avatarId = serv?.avatarId ?? (occUser as any)?.avatarId;
+                                (board as any).occupierAvatarUrl = resolveHomeStyleAvatarUrl(avatarId);
+                                const bId = serv?.borderId ?? (occUser as any)?.borderId ?? 'default';
+                                (board as any).occupierBorderId = bId || 'default';
+                                const st =
+                                    Number(serv?.strategyLevel ?? (occUser as any)?.strategyLevel ?? 0) || 0;
+                                const pl =
+                                    Number(serv?.playfulLevel ?? (occUser as any)?.playfulLevel ?? 0) || 0;
+                                (board as any).occupierLevel = st + pl;
+                            }
                             (board as any).occupierCaptures = Number(holderResult.captures ?? 0) || 0;
                             (board as any).occupierScoreDiff = typeof holderResult.scoreDiff === 'number'
                                 ? holderResult.scoreDiff
@@ -318,7 +326,7 @@ const GuildWar = () => {
                         name: boardNames[boardId] || boardId,
                         myStars,
                         opponentStars,
-                        boardSize: getGuildWarBoardMode(boardId) === 'capture' ? 9 : (board.boardSize || 13),
+                        boardSize: getGuildWarBoardLineSize(boardId),
                         highestScorer: bestUser?.nickname,
                         scoreDiff: bestResult?.scoreDiff,
                         initialStones: board.initialStones?.[0] || {
@@ -330,6 +338,7 @@ const GuildWar = () => {
                         gameMode: getGuildWarBoardMode(boardId),
                         occupierNickname,
                         occupierAvatarUrl: (board as any).occupierAvatarUrl,
+                        occupierBorderId: (board as any).occupierBorderId,
                         occupierLevel: (board as any).occupierLevel,
                         occupierCaptures: (board as any).occupierCaptures,
                         occupierScoreDiff: (board as any).occupierScoreDiff,
@@ -415,27 +424,42 @@ const GuildWar = () => {
                 console.error('[GuildWar] Error fetching war data:', error);
             } finally {
                 isFetchingRef.current = false;
+                if (pendingForceRef.current) {
+                    pendingForceRef.current = false;
+                    void fetchWarData(true);
+                }
             }
         };
+
+        fetchWarDataRef.current = fetchWarData;
         
         // 초기 로드 시에만 실행하고, 이후에는 interval만 사용
         if (!hasInitializedRef.current) {
             hasInitializedRef.current = true;
-            fetchWarData();
+            void fetchWarData();
         }
         
         // 30초마다 갱신 (초기 로드 후)
         const interval = setInterval(() => {
-            fetchWarData();
+            void fetchWarData();
         }, 30000);
         
         return () => {
             clearInterval(interval);
-            // 컴포넌트 언마운트 시에만 초기화 플래그 리셋
             hasInitializedRef.current = false;
+            isFetchingRef.current = false;
+            pendingForceRef.current = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUserWithStatus?.guildId]); // guilds와 allUsers를 의존성에서 제거하여 무한 루프 방지
+
+    useEffect(() => {
+        const onWarUpdate = () => {
+            void fetchWarDataRef.current?.(true);
+        };
+        window.addEventListener(GUILD_WAR_LOBBY_REFRESH_EVENT, onWarUpdate);
+        return () => window.removeEventListener(GUILD_WAR_LOBBY_REFRESH_EVENT, onWarUpdate);
+    }, []);
     
     // 바둑판 클릭 시 도전
     const handleBoardClick = async (board: Board) => {
@@ -517,7 +541,7 @@ const GuildWar = () => {
         boardIds.forEach(boardId => {
             const gameMode = getGuildWarBoardMode(boardId);
             demoWar.boards[boardId] = {
-                boardSize: gameMode === 'capture' ? 9 : 13,
+                boardSize: getGuildWarBoardLineSize(boardId),
                 gameMode: gameMode,
                 guild1Stars: 0,
                 guild2Stars: Math.floor(Math.random() * 2) + 2, // 봇이 2-3개 별 획득
@@ -531,9 +555,7 @@ const GuildWar = () => {
                 },
                 guild1Attempts: 0,
                 guild2Attempts: 3, // 봇은 이미 3번 공격 완료
-                initialStones: gameMode === 'capture'
-                    ? [getGuildWarCaptureInitialStoneCountsByBoardId(boardId)]
-                    : undefined,
+                initialStones: [getGuildWarCaptureInitialStoneCountsByBoardId(boardId)],
             };
         });
         
@@ -547,21 +569,25 @@ const GuildWar = () => {
         // 바둑판 데이터 변환
         const convertedBoards: Board[] = boardIds.map(boardId => {
             const board = demoWar.boards[boardId];
-            const initialStoneCounts = parseInitialStoneCounts(board);
+            const initialStoneCounts = getGuildWarCaptureInitialStoneCountsByBoardId(boardId);
             const ownerG = board.guild2BestResult ? demoOpponentGuild.id : undefined;
+            const botSeed = board.guild2BestResult
+                ? guildWarBotSeededDisplay(String(demoWar.id), boardId, 'demo-bot')
+                : null;
             return {
                 id: boardId,
                 name: boardNames[boardId],
                 myStars: board.guild1Stars || 0,
                 opponentStars: board.guild2Stars || 0,
-                boardSize: board.boardSize || 13,
+                boardSize: getGuildWarBoardLineSize(boardId),
                 ownerGuildId: ownerG,
                 gameMode: board.gameMode,
                 initialStoneCounts,
                 initialStones: board.initialStones?.[0],
-                occupierNickname: board.guild2BestResult ? '데모 봇' : undefined,
-                occupierAvatarUrl: board.guild2BestResult ? '/images/guild/profile/icon1.png' : undefined,
-                occupierLevel: 0,
+                occupierNickname: board.guild2BestResult ? getGuildWarAiBotDisplayName(boardId) : undefined,
+                occupierAvatarUrl: botSeed?.avatarUrl,
+                occupierBorderId: board.guild2BestResult ? 'default' : undefined,
+                occupierLevel: botSeed?.level,
                 occupierCaptures: board.guild2BestResult?.captures,
                 occupierScoreDiff: board.guild2BestResult?.scoreDiff,
                 occupierIsMyGuild: false,
@@ -690,17 +716,23 @@ const GuildWar = () => {
                             <p className={`text-[10px] sm:text-[11px] font-semibold ${secondaryTextClasses}`}>현재 점령자</p>
                             {board?.ownerGuildId && board.occupierNickname ? (
                                 <div className="mt-1 flex items-center justify-between gap-2 min-w-0">
-                                    <img
-                                        src={board.occupierAvatarUrl || '/images/guild/profile/icon1.png'}
-                                        alt=""
-                                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-white/30 shadow shrink-0"
+                                    <Avatar
+                                        userId={board.occupierNickname}
+                                        userName={board.occupierNickname}
+                                        avatarUrl={board.occupierAvatarUrl || '/images/profiles/profile1.png'}
+                                        borderUrl={
+                                            BORDER_POOL.find((b) => b.id === (board.occupierBorderId || 'default'))
+                                                ?.url ?? '#FFFFFF'
+                                        }
+                                        size={40}
+                                        className="shrink-0"
                                     />
                                     <div className="min-w-0 flex-1 text-right">
                                         <span className="text-sm sm:text-base font-bold text-slate-100 truncate block" title={board.occupierNickname}>
                                             {board.occupierNickname}
                                         </span>
                                         <span className="text-[10px] sm:text-[11px] text-slate-200/85">
-                                            Lv.{Math.max(0, Number(board.occupierLevel ?? 0) || 0)}
+                                            Lv.{Number(board.occupierLevel ?? 0) || 0}
                                         </span>
                                         {(board.gameMode === 'capture' || board.gameMode === 'hidden' || board.gameMode === 'missile') && (
                                             <span className="text-[10px] sm:text-[11px] text-amber-200/90">
@@ -763,6 +795,30 @@ const GuildWar = () => {
                                                 : '바둑';
                                     return (
                                         <div className="grid grid-cols-2 gap-2">
+                                            {board.gameMode === 'capture' && (
+                                                <div className="col-span-2 rounded-lg bg-slate-900/50 border border-amber-500/25 px-2.5 py-2.5">
+                                                    <p className="text-[10px] uppercase tracking-wider text-amber-200/90 font-semibold mb-2 text-center">
+                                                        따내기 목표
+                                                    </p>
+                                                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                                                        <div className="flex items-center gap-2 rounded-lg bg-black/35 border border-white/10 px-3 py-2">
+                                                            <PlainBlackStoneIcon className="w-8 h-8 sm:w-9 sm:h-9" />
+                                                            <span className="text-sm sm:text-base font-black tabular-nums text-amber-50">
+                                                                {getGuildWarCaptureBlackTargetByBoardId(board.id)}점
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest px-0.5">
+                                                            vs
+                                                        </span>
+                                                        <div className="flex items-center gap-2 rounded-lg bg-black/35 border border-white/10 px-3 py-2">
+                                                            <PlainWhiteStoneIcon className="w-8 h-8 sm:w-9 sm:h-9" />
+                                                            <span className="text-sm sm:text-base font-black tabular-nums text-amber-50">
+                                                                {GUILD_WAR_CAPTURE_AI_TARGET}점
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div className="flex items-center gap-2 rounded-lg bg-slate-900/55 border border-slate-600/40 px-2.5 py-2">
                                                 <img src={modeIcon} alt="" className="w-8 h-8 object-contain shrink-0 rounded-md bg-black/20 p-0.5" />
                                                 <div>
@@ -785,7 +841,7 @@ const GuildWar = () => {
                                                         <p className="text-sm font-bold text-sky-100 whitespace-nowrap">
                                                             {board.gameMode === 'capture'
                                                                 ? `${getGuildWarCaptureTurnLimitByBoardId(board.id)}턴`
-                                                                : `계가까지 ${GUILD_WAR_AUTO_SCORING_TURN_LIMIT}턴`}
+                                                                : `계가까지 ${getGuildWarAutoScoringTurnsByBoardId(board.id)}턴`}
                                                         </p>
                                                     </div>
                                                     <div className="min-w-0">
@@ -806,7 +862,7 @@ const GuildWar = () => {
                                         별 획득 조건
                                     </p>
                                     <ul className="space-y-1.5 text-[10px] sm:text-[11px] text-amber-50/95 leading-snug">
-                                        {getGuildWarStarConditionLines(board.gameMode).map((line, i) => (
+                                        {getGuildWarStarConditionLines(board.gameMode, board.id).map((line, i) => (
                                             <li key={i}>{line}</li>
                                         ))}
                                     </ul>
@@ -857,24 +913,23 @@ const GuildWar = () => {
                                     </div>
                                 </div>
 
+                                {board.gameMode !== 'capture' && (
                                 <div className="rounded-lg bg-slate-900/45 border border-slate-600/35 px-2.5 py-2">
                                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1.5 text-center">아이템</p>
-                                    {board.gameMode === 'capture' ? (
-                                        <p className="text-center text-xs text-slate-400">아이템 없음</p>
-                                    ) : board.gameMode === 'hidden' ? (
+                                    {board.gameMode === 'hidden' ? (
                                         <div className="grid grid-cols-2 gap-2">
                                             <div className="flex items-center gap-2 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5">
                                                 <img src={GUILD_WAR_HIDDEN_ICON} alt="" className="w-6 h-6 object-contain shrink-0" />
                                                 <div>
                                                     <p className="text-[9px] text-slate-400">히든</p>
-                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{GUILD_WAR_HIDDEN_STONE_COUNT}</p>
+                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{getGuildWarHiddenStoneCountByBoardId(board.id)}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5">
                                                 <img src={GUILD_WAR_SCAN_ICON} alt="" className="w-6 h-6 object-contain shrink-0" />
                                                 <div>
                                                     <p className="text-[9px] text-slate-400">스캔</p>
-                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{GUILD_WAR_SCAN_COUNT}</p>
+                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{getGuildWarScanCountByBoardId(board.id)}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -884,12 +939,13 @@ const GuildWar = () => {
                                                 <img src={GUILD_WAR_MISSILE_ICON} alt="" className="w-6 h-6 object-contain shrink-0" />
                                                 <div>
                                                     <p className="text-[9px] text-slate-400">미사일</p>
-                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{GUILD_WAR_MISSILE_COUNT}</p>
+                                                    <p className="text-sm font-bold tabular-nums text-amber-100">{getGuildWarMissileCountByBoardId(board.id)}</p>
                                                 </div>
                                             </div>
                                         </div>
                                     )}
                                 </div>
+                                )}
 
                                 <div className="flex items-center gap-2 rounded-lg bg-indigo-950/40 border border-indigo-500/25 px-2.5 py-2">
                                     <img src={GUILD_WAR_TICKET_IMG} alt="" className="w-7 h-7 object-contain shrink-0 drop-shadow" />

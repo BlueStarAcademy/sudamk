@@ -168,6 +168,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     showLastMoveMarker={showLastMoveMarker}
                     blackPatternStones={blackPatternStones}
                     whitePatternStones={whitePatternStones}
+                    consumedPatternIntersections={(session as any).consumedPatternIntersections}
                     isItemModeActive={isItemModeActive}
                     hiddenMoves={hiddenMoves}
                     moveHistory={moveHistory}

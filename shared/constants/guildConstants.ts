@@ -6,11 +6,155 @@ import type { InventoryItem } from '../types/index.js';
 import { GUILD_BOSS_1_IMG, GUILD_BOSS_2_IMG, GUILD_BOSS_3_IMG, GUILD_BOSS_4_IMG, GUILD_BOSS_5_IMG, BOSS_SKILL_ICON_MAP } from '../../assets.js';
 
 
-/** 길드전 AI 대국 규칙 (server/actions/guildActions START_GUILD_WAR_GAME과 동일) */
+/** 길드전 경기장 칸별 초기 돌(일반 흑/백 + 문양 흑/백). 대기실·KV·START_GUILD_WAR_GAME 배치와 동일해야 함 */
+export type GuildWarCaptureInitialStoneCounts = {
+    blackPlain: number;
+    whitePlain: number;
+    blackMarked: number;
+    whiteMarked: number;
+};
+
+/** 좌열(좌상귀·좌변·좌하귀) */
+const GUILD_WAR_ARENA_INITIAL_LEFT: GuildWarCaptureInitialStoneCounts = {
+    blackPlain: 5,
+    whitePlain: 5,
+    blackMarked: 5,
+    whiteMarked: 5,
+};
+/** 중열(상변·중앙·하변) */
+const GUILD_WAR_ARENA_INITIAL_MID: GuildWarCaptureInitialStoneCounts = {
+    blackPlain: 7,
+    whitePlain: 7,
+    blackMarked: 5,
+    whiteMarked: 5,
+};
+/** 우열(우상귀·우변·우하귀) */
+const GUILD_WAR_ARENA_INITIAL_RIGHT: GuildWarCaptureInitialStoneCounts = {
+    blackPlain: 10,
+    whitePlain: 10,
+    blackMarked: 5,
+    whiteMarked: 5,
+};
+
+function getGuildWarArenaColumnForBoardId(boardId: string): 'left' | 'mid' | 'right' {
+    if (
+        boardId === 'top-left' ||
+        boardId === 'mid-left' ||
+        boardId === 'bottom-left'
+    ) {
+        return 'left';
+    }
+    if (
+        boardId === 'top-mid' ||
+        boardId === 'center' ||
+        boardId === 'bottom-mid'
+    ) {
+        return 'mid';
+    }
+    if (
+        boardId === 'top-right' ||
+        boardId === 'mid-right' ||
+        boardId === 'bottom-right'
+    ) {
+        return 'right';
+    }
+    return 'left';
+}
+
+/**
+ * 길드전 9칸 공통: 열(좌/중/우)에 따라 초기 돌 개수.
+ * 따내기·미사일·히든 경기장 모두 동일 규칙으로 KV·인게임 배치에 사용.
+ */
+export function getGuildWarCaptureInitialStones(boardId: string): GuildWarCaptureInitialStoneCounts {
+    const col = getGuildWarArenaColumnForBoardId(boardId);
+    if (col === 'mid') return { ...GUILD_WAR_ARENA_INITIAL_MID };
+    if (col === 'right') return { ...GUILD_WAR_ARENA_INITIAL_RIGHT };
+    return { ...GUILD_WAR_ARENA_INITIAL_LEFT };
+}
+
+/**
+ * 길드전 9칸 바둑판 줄 수(변의 길이). 열 기준: 좌 9 · 중 11 · 우 13.
+ * 대기실·KV·START_GUILD_WAR_GAME·초기 돌 배치와 동일해야 함.
+ */
+export function getGuildWarBoardLineSize(boardId: string): number {
+    const col = getGuildWarArenaColumnForBoardId(boardId);
+    if (col === 'mid') return 11;
+    if (col === 'right') return 13;
+    return 9;
+}
+
+/** 하위 호환·참고용: 상단 3칸만 명시 (값은 열 규칙과 동일) */
+export const GUILD_WAR_CAPTURE_INITIAL_STONES_BY_BOARD_ID: Record<
+    'top-left' | 'top-mid' | 'top-right',
+    GuildWarCaptureInitialStoneCounts
+> = {
+    'top-left': { ...GUILD_WAR_ARENA_INITIAL_LEFT },
+    'top-mid': { ...GUILD_WAR_ARENA_INITIAL_MID },
+    'top-right': { ...GUILD_WAR_ARENA_INITIAL_RIGHT },
+};
+
+/** 길드전 따내기(상단) 흑(유저) 턴 제한 — 좌상귀·상변·우상귀 공통 */
+export const GUILD_WAR_CAPTURE_BLACK_TURN_LIMIT = 25;
+
+/** 상단 따내기 칸 턴 제한 표시·START_GUILD_WAR_GAME 공통 */
+export function getGuildWarCaptureTurnLimitByBoardId(_boardId: string): number {
+    return GUILD_WAR_CAPTURE_BLACK_TURN_LIMIT;
+}
+
+/** 길드전 따내기 백(AI) 승리 목표 포획 수 — 상단 3칸 공통 */
+export const GUILD_WAR_CAPTURE_AI_TARGET = 5;
+
+/**
+ * 길드전 따내기 흑 승리 목표 포획 수(칸별).
+ * 좌상귀 미지정 시 기존 단일 목표와 동일하게 10.
+ */
+export function getGuildWarCaptureBlackTargetByBoardId(boardId: string): number {
+    if (boardId === 'top-mid') return 12;
+    if (boardId === 'top-right') return 15;
+    if (boardId === 'top-left') return 10;
+    return 10;
+}
+
+/** @deprecated 호환용 — 신규는 {@link getGuildWarCaptureBlackTargetByBoardId} */
 export const GUILD_WAR_CAPTURE_TARGET = 10;
+/** 알 수 없는 boardId 폴백 — 칸별 값은 {@link getGuildWarHiddenStoneCountByBoardId} 등 사용 */
 export const GUILD_WAR_HIDDEN_STONE_COUNT = 3;
 export const GUILD_WAR_SCAN_COUNT = 2;
 export const GUILD_WAR_MISSILE_COUNT = 3;
+
+/** 미사일 경기장(중단 행): 좌변·중앙 2, 우변 3 */
+export function getGuildWarMissileCountByBoardId(boardId: string): number {
+    if (boardId === 'mid-left' || boardId === 'center') return 2;
+    if (boardId === 'mid-right') return 3;
+    return GUILD_WAR_MISSILE_COUNT;
+}
+
+/** 히든 경기장(하단 행): 히든 1 */
+export function getGuildWarHiddenStoneCountByBoardId(boardId: string): number {
+    if (boardId === 'bottom-left' || boardId === 'bottom-mid' || boardId === 'bottom-right') return 1;
+    return GUILD_WAR_HIDDEN_STONE_COUNT;
+}
+
+/** 히든 경기장(하단 행): 좌하귀 2, 하변 3, 우하귀 5 */
+export function getGuildWarScanCountByBoardId(boardId: string): number {
+    if (boardId === 'bottom-left') return 2;
+    if (boardId === 'bottom-mid') return 3;
+    if (boardId === 'bottom-right') return 5;
+    return GUILD_WAR_SCAN_COUNT;
+}
+
+/** 길드전 미사일·히든: 계가까지 유효 수 기본값 — 칸별은 {@link getGuildWarAutoScoringTurnsByBoardId} */
+export const GUILD_WAR_DEFAULT_AUTO_SCORING_TURNS = 60;
+
+/**
+ * 미사일·히든 경기장: 자동 계가까지 유효 수(수순).
+ * 중앙·하변 70, 우변·우하귀 80, 그 외 {@link GUILD_WAR_DEFAULT_AUTO_SCORING_TURNS}.
+ */
+export function getGuildWarAutoScoringTurnsByBoardId(boardId: string): number {
+    if (boardId === 'center' || boardId === 'bottom-mid') return 70;
+    if (boardId === 'mid-right' || boardId === 'bottom-right') return 80;
+    return GUILD_WAR_DEFAULT_AUTO_SCORING_TURNS;
+}
 
 /** 길드 전쟁 경기장 공통: 메인 시계(분) + 피셔 증가(초/수) */
 export const GUILD_WAR_MAIN_TIME_MINUTES = 5;
@@ -95,24 +239,76 @@ export const GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT = 5;
 export const GUILD_WAR_STAR_CAPTURE_TIER2_MIN = 3;
 export const GUILD_WAR_STAR_CAPTURE_TIER3_MIN = 5;
 
-/** 승리 시 별: 계가(히든·미사일) — 승자 집 합계 − 패자 집 합계 기준 */
+/** 승리 시 별: 계가(히든·미사일) 집차이 — 칸 미지정(좌변·좌하귀 등) 시 기본값 */
 export const GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF = 5;
 export const GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF = 15;
 
+/** 중앙·하변: ★2/★3 집차이 최소 */
+const GUILD_WAR_STAR_SCORE_DIFF_MID_COL = { tier2: 10, tier3: 20 } as const;
+/** 우변·우하귀 */
+const GUILD_WAR_STAR_SCORE_DIFF_RIGHT_COL = { tier2: 15, tier3: 25 } as const;
+
+export function getGuildWarStarScoreTier2MinDiff(boardId: string | undefined | null): number {
+    const id = boardId ?? '';
+    if (id === 'center' || id === 'bottom-mid') return GUILD_WAR_STAR_SCORE_DIFF_MID_COL.tier2;
+    if (id === 'mid-right' || id === 'bottom-right') return GUILD_WAR_STAR_SCORE_DIFF_RIGHT_COL.tier2;
+    return GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF;
+}
+
+export function getGuildWarStarScoreTier3MinDiff(boardId: string | undefined | null): number {
+    const id = boardId ?? '';
+    if (id === 'center' || id === 'bottom-mid') return GUILD_WAR_STAR_SCORE_DIFF_MID_COL.tier3;
+    if (id === 'mid-right' || id === 'bottom-right') return GUILD_WAR_STAR_SCORE_DIFF_RIGHT_COL.tier3;
+    return GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF;
+}
+
+/**
+ * 길드전 **한 경기장(한 판)** 종료 시 플레이어에게 지급하는 골드 — 그 판에서 획득한 별(0~3) 기준.
+ * - 0★(패배 또는 승리했으나 추가 조건 미달): 0
+ * - 따내기·클래식(표준) 모드: 아래 금액
+ * - 미사일 모드: 아래 금액 × {@link GUILD_WAR_MATCH_GOLD_MISSILE_MULT} (반올림)
+ * - 히든 모드: 아래 금액 × {@link GUILD_WAR_MATCH_GOLD_HIDDEN_MULT} (반올림)
+ *
+ * (전쟁 전체 승패에 따른 길드 보상은 `CLAIM_GUILD_WAR_REWARD` — 별 합산과 무관한 별도 랜덤 보상)
+ */
+export const GUILD_WAR_MATCH_GOLD_BY_STARS: Readonly<Record<0 | 1 | 2 | 3, number>> = {
+    0: 0,
+    1: 300,
+    2: 500,
+    3: 1000,
+};
+
+export const GUILD_WAR_MATCH_GOLD_MISSILE_MULT = 1.5;
+export const GUILD_WAR_MATCH_GOLD_HIDDEN_MULT = 2;
+
+/** 직렬화/구버전 데이터로 `gameCategory`가 빠져도 길드전 대국 보상·요약을 적용하기 위한 판별 */
+export function isGuildWarLiveSession(game: {
+    gameCategory?: string;
+    guildWarBoardId?: string;
+    guildWarId?: string;
+}): boolean {
+    const g = game as any;
+    if (g.gameCategory === 'guildwar') return true;
+    if (typeof g.guildWarBoardId === 'string' && g.guildWarBoardId.length > 0) return true;
+    if (typeof g.guildWarId === 'string' && g.guildWarId.length > 0) return true;
+    return false;
+}
+
 /** 길드전 상세 패널용 간단 별 규칙 (`shared/utils/guildWarAttemptMetrics`·서버 보드 갱신과 동일 의미) */
 export function getGuildWarStarConditionLines(
-    gameMode: 'capture' | 'hidden' | 'missile' | undefined
+    gameMode: 'capture' | 'hidden' | 'missile' | undefined,
+    boardId?: string | null
 ): string[] {
     const mode = gameMode ?? 'capture';
     const c2 = GUILD_WAR_STAR_CAPTURE_TIER2_MIN;
     const c3 = GUILD_WAR_STAR_CAPTURE_TIER3_MIN;
-    const t2 = GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF;
-    const t3 = GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF;
+    const t2 = getGuildWarStarScoreTier2MinDiff(boardId);
+    const t3 = getGuildWarStarScoreTier3MinDiff(boardId);
     if (mode === 'capture') {
         return [
             '★ 승리시',
-            `★ 한 번에 ${c2}돌 따내기`,
-            `★ 한 번에 ${c3}돌 따내기`,
+            `★ 한 번에 ${c2}돌 따내기 (패배해도 별 획득)`,
+            `★ 한 번에 ${c3}돌 따내기 (패배해도 별 획득)`,
         ];
     }
     if (mode === 'hidden') {

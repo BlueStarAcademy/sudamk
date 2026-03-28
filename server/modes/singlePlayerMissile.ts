@@ -877,7 +877,7 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 game.captures[myPlayerEnum] = (game.captures[myPlayerEnum] ?? 0) + captureResult.capturedStones.length;
                 if (!game.justCaptured) game.justCaptured = [];
                 for (const pt of captureResult.capturedStones) {
-                    game.justCaptured.push({ point: pt, player: opponentEnum, wasHidden: false });
+                    game.justCaptured.push({ point: pt, player: opponentEnum, wasHidden: false, capturePoints: 1 });
                 }
                 game.koInfo = captureResult.newKoInfo ?? undefined;
                 console.log(`[SinglePlayer Missile] LAUNCH_MISSILE: Captured ${captureResult.capturedStones.length} stone(s) by liberty rule at (${to.x}, ${to.y}), gameId=${game.id}`);

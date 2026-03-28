@@ -30,6 +30,37 @@ function getRewardItemImageUrl(itemName: string): string {
     return (material as any)?.image ?? '';
 }
 
+/** 서버 inferDungeonStageAttempt와 동일 — currentStageAttempt 누락 시에도 보상 버튼·COMPLETE_DUNGEON_STAGE 단계 일치 */
+function resolveDungeonStageAttempt(
+    tournamentState: TournamentState,
+    user: Pick<UserWithStatus, 'dungeonProgress'>,
+    dungeonType: TournamentType
+): number {
+    const existing = tournamentState.currentStageAttempt;
+    if (typeof existing === 'number' && existing >= 1 && existing <= 10) return existing;
+
+    const m = tournamentState.title?.match(/(\d+)\s*단계/);
+    if (m?.[1]) {
+        const parsed = Number(m[1]);
+        if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 10) return parsed;
+    }
+
+    const progress = user.dungeonProgress?.[dungeonType];
+    const unlocked = progress?.unlockedStages;
+    if (Array.isArray(unlocked) && unlocked.length > 0) {
+        const maxUnlocked = Math.max(...unlocked);
+        const clamped = Math.min(10, Math.max(1, Math.floor(maxUnlocked)));
+        if (!Number.isNaN(clamped)) return clamped;
+    }
+
+    const currentStage = progress?.currentStage;
+    if (typeof currentStage === 'number' && currentStage >= 1 && currentStage <= 10) return currentStage;
+
+    if (dungeonType === 'world' && tournamentState.status === 'eliminated') return 1;
+
+    return 1;
+}
+
 // Error Boundary for PlayerProfilePanel
 class PlayerProfilePanelErrorBoundary extends Component<
     { children: ReactNode; fallback?: ReactNode },
@@ -1229,10 +1260,12 @@ const FinalRewardPanel: React.FC<{
         const wins: Record<string, number> = {};
         tournamentState.players.forEach(p => { wins[p.id] = 0; });
 
-        rounds[0].matches.forEach(m => {
-            if (m.winner) {
-                wins[m.winner.id] = (wins[m.winner.id] || 0) + 1;
-            }
+        rounds.forEach(round => {
+            round.matches.forEach(m => {
+                if (m.winner) {
+                    wins[m.winner.id] = (wins[m.winner.id] || 0) + 1;
+                }
+            });
         });
 
         const sortedPlayers = [...tournamentState.players].sort((a, b) => wins[b.id] - wins[a.id]);
@@ -1315,9 +1348,9 @@ const FinalRewardPanel: React.FC<{
     }
     const scoreReward = scoreRewardInfo?.[scoreRewardKey] || 0;
     
-    // 챔피언십은 항상 던전(단계) 모드. 탈락 시 currentStageAttempt가 없을 수 있으므로 월드 16강 탈락은 1단계로 간주
-    const effectiveStageAttempt = tournamentState.currentStageAttempt ?? ((type === 'world' && isUserEliminated) ? 1 : 0);
-    const isDungeonMode = effectiveStageAttempt !== undefined && effectiveStageAttempt !== null && effectiveStageAttempt >= 1;
+    // 챔피언십 던전: currentStageAttempt가 JSON/구버전에서 빠져도 제목·dungeonProgress로 단계 복원 (동네/전국에서 보상 버튼 0단계로 숨겨지던 문제 방지)
+    const effectiveStageAttempt = resolveDungeonStageAttempt(tournamentState, currentUser, type);
+    const isDungeonMode = effectiveStageAttempt >= 1;
     
     const rewardClaimedKey = `${type}RewardClaimed` as keyof User;
     const isClaimed = !!currentUser[rewardClaimedKey];
@@ -2763,13 +2796,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         );
     }
     
-    // 던전 모드 확인 (currentStageAttempt가 있으면 던전 모드)
-    const isDungeonMode = tournament.currentStageAttempt !== undefined && tournament.currentStageAttempt !== null;
+    const resolvedDungeonStageAttempt = resolveDungeonStageAttempt(tournament, currentUser, tournament.type);
+    const isDungeonMode = resolvedDungeonStageAttempt >= 1;
     
-    // 던전 완료 시 보상 받기 핸들러 (월드 16강 탈락 등 currentStageAttempt가 없을 수 있으면 1단계로 간주)
     const handleCompleteDungeon = useCallback(async () => {
-        const effectiveStage = tournament.currentStageAttempt ?? (tournament.type === 'world' && tournament.status === 'eliminated' ? 1 : 0);
-        if (effectiveStage && (tournament.status === 'complete' || tournament.status === 'eliminated')) {
+        const effectiveStage = resolveDungeonStageAttempt(tournament, currentUser, tournament.type);
+        if (effectiveStage >= 1 && (tournament.status === 'complete' || tournament.status === 'eliminated')) {
             const stage = effectiveStage;
             const dungeonType = tournament.type;
             
@@ -4258,9 +4290,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 <div className="flex-1 text-center">
                     <h1 className="text-2xl font-bold">
                         {TOURNAMENT_DEFINITIONS[tournament.type].name}
-                        {tournament.currentStageAttempt && (
+                        {resolvedDungeonStageAttempt >= 1 && (
                             <span className="ml-2 text-xl text-yellow-400">
-                                {tournament.currentStageAttempt}단계
+                                {resolvedDungeonStageAttempt}단계
                             </span>
                         )}
                     </h1>

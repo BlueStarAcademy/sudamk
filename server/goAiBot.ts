@@ -13,6 +13,7 @@ import * as db from './db.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 import { generateKataServerMove, isKataServerAvailable } from './kataServerService.js';
+import { isPatternIntersectionPermanentlyConsumed } from '../shared/utils/patternStoneConsume.js';
 
 /**
  * AI 봇 단계별 특성 정의
@@ -292,7 +293,7 @@ const applyAiCaptureOutcome = (
         }
 
         game.captures[aiPlayerEnum] += points;
-        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden });
+        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden, capturePoints: points });
     }
 
     if (clearAiInitialHiddenStone) {
@@ -573,6 +574,8 @@ function shouldMaskUserHiddenFromAi(game: types.LiveGameSession): boolean {
 
     const category = (game as any).gameCategory;
     const isSingleOrTower = game.isSinglePlayer || category === 'tower';
+    /** 길드전 히든: 싱글/탑과 동일하게 유저 미공개 히든은 통과·빈칸으로만 인식 */
+    const isGuildWarHiddenAi = category === 'guildwar' && !!game.isAiGame;
     // 전략바둑 AI 대국: 유저 히든을 AI가 모르게 처리 (유저가 통과한 것처럼 인식)
     const isStrategicAiGame =
         !!game.isAiGame &&
@@ -581,7 +584,7 @@ function shouldMaskUserHiddenFromAi(game: types.LiveGameSession): boolean {
         category !== 'singleplayer' &&
         category !== 'guildwar';
 
-    return isSingleOrTower || isStrategicAiGame;
+    return isSingleOrTower || isGuildWarHiddenAi || isStrategicAiGame;
 }
 
 /**
@@ -679,7 +682,7 @@ function isOnOrAdjacentToUserUnrevealedHidden(
 
 /**
  * AI가 보드 상태를 볼 때 유저의 히든 돌을 빈 공간으로 처리하는 헬퍼 함수
- * 싱글플레이·도전의 탑(인간 vs AI) 히든바둑 모드에서 적용
+ * 싱글플레이·도전의 탑·길드전 히든(인간 vs AI)에서 {@link shouldMaskUserHiddenFromAi}가 참일 때 적용
  */
 function getBoardStateForAi(
     game: types.LiveGameSession,
@@ -718,6 +721,57 @@ function getBoardStateForAi(
     }
     
     return aiBoardState;
+}
+
+function isSinglePlayerOrTowerPve(game: types.LiveGameSession): boolean {
+    return !!game.isSinglePlayer || (game as any).gameCategory === 'tower';
+}
+
+/**
+ * 싱글/탑: 즉시 따낼 수 있는 수가 있으면 그중 가장 많이 따내는 수 (동점이면 문양돌 가중)
+ */
+function findBestImmediateCaptureMove(
+    boardState: types.BoardState,
+    koInfo: types.LiveGameSession['koInfo'],
+    moveHistoryLen: number,
+    aiPlayer: Player,
+    opponentPlayer: Player,
+    game: types.LiveGameSession
+): Point | null {
+    const size = boardState.length;
+    const pmOpts = { ignoreSuicide: true as const };
+    let best: Point | null = null;
+    let bestCount = -1;
+    let bestWeighted = -1;
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            if (boardState[y][x] !== types.Player.None) continue;
+            const r = processMove(
+                boardState,
+                { x, y, player: aiPlayer },
+                koInfo,
+                moveHistoryLen,
+                pmOpts
+            );
+            if (!r.isValid || r.capturedStones.length === 0) continue;
+            let w = 0;
+            for (const stone of r.capturedStones) {
+                const wasPattern =
+                    (opponentPlayer === types.Player.Black &&
+                        game.blackPatternStones?.some((p) => p.x === stone.x && p.y === stone.y)) ||
+                    (opponentPlayer === types.Player.White &&
+                        game.whitePatternStones?.some((p) => p.x === stone.x && p.y === stone.y));
+                w += wasPattern ? 3 : 1;
+            }
+            const n = r.capturedStones.length;
+            if (n > bestCount || (n === bestCount && w > bestWeighted)) {
+                bestCount = n;
+                bestWeighted = w;
+                best = { x, y };
+            }
+        }
+    }
+    return best;
 }
 
 export async function makeGoAiBotMove(
@@ -918,9 +972,11 @@ export async function makeGoAiBotMove(
                 ? Math.max(1, Math.min(10, parseInt(kataToProfileLevel[0], 10)))
                 : 3;
 
-    // 0) KataServer 레벨봇: 길드전 제외 모든 바둑 봇 게임에서 사용
+    // 0) KataServer 레벨봇: 길드전 제외. 싱글/탑 **따내기**는 목표가 따내기 점수이므로 Kata(정석 바둑) 대신 휴리스틱만 사용.
     const isGuildWarAiGame = (game as any).gameCategory === 'guildwar';
-    const wantKataServer = !isGuildWarAiGame && isKataServerAvailable();
+    const isSpOrTowerPve = isSinglePlayerOrTowerPve(game);
+    const skipKataForCapturePve = isSpOrTowerPve && game.mode === types.GameMode.Capture;
+    const wantKataServer = !isGuildWarAiGame && !skipKataForCapturePve && isKataServerAvailable();
     if (wantKataServer && !selectedMove) {
         try {
             const kataLevel =
@@ -952,6 +1008,39 @@ export async function makeGoAiBotMove(
             }
         } catch (err: any) {
             console.error(`[makeGoAiBotMove] KataServer 실패 → 내부 휴리스틱 폴백. game=${game.id}, error=${err?.message}`);
+        }
+    }
+
+    // Kata 수가 따내기를 놓친 경우(클래식/스피드 등): 싱글·탑에서는 즉시 따낼 수 있으면 최우선으로 교체
+    if (
+        selectedMove &&
+        isSpOrTowerPve &&
+        game.mode !== types.GameMode.Capture &&
+        !(isHiddenMode && shouldMaskUserHiddenFromAi(game))
+    ) {
+        const capMove = findBestImmediateCaptureMove(
+            game.boardState,
+            game.koInfo,
+            game.moveHistory.length,
+            aiPlayerEnum,
+            opponentPlayerEnum,
+            game
+        );
+        if (capMove) {
+            const kataCap = processMove(
+                game.boardState,
+                { ...selectedMove, player: aiPlayerEnum },
+                game.koInfo,
+                game.moveHistory.length,
+                { ignoreSuicide: true }
+            );
+            const nKata = kataCap.isValid ? kataCap.capturedStones.length : 0;
+            if (nKata === 0) {
+                selectedMove = capMove;
+                console.log(
+                    `[makeGoAiBotMove] SP/Tower: prefer immediate capture over non-capture Kata move → (${capMove.x},${capMove.y}), game=${game.id}`
+                );
+            }
         }
     }
 
@@ -1278,7 +1367,10 @@ export async function makeGoAiBotMove(
             if (originalPlayer === Player.Black || opponentPlayerEnum === Player.Black) {
                 // blackPatternStones에 추가 (이미 있으면 유지)
                 if (!game.blackPatternStones) game.blackPatternStones = [];
-                if (!game.blackPatternStones.some(p => p.x === x && p.y === y)) {
+                if (
+                    !isPatternIntersectionPermanentlyConsumed(game, { x, y }) &&
+                    !game.blackPatternStones.some(p => p.x === x && p.y === y)
+                ) {
                     game.blackPatternStones.push({ x, y });
                 }
                 // whitePatternStones에서 제거 (잘못 추가된 경우)
@@ -1288,7 +1380,10 @@ export async function makeGoAiBotMove(
             } else {
                 // 백의 히든 돌인 경우 (일반적으로는 발생하지 않지만 안전을 위해)
                 if (!game.whitePatternStones) game.whitePatternStones = [];
-                if (!game.whitePatternStones.some(p => p.x === x && p.y === y)) {
+                if (
+                    !isPatternIntersectionPermanentlyConsumed(game, { x, y }) &&
+                    !game.whitePatternStones.some(p => p.x === x && p.y === y)
+                ) {
                     game.whitePatternStones.push({ x, y });
                 }
                 // blackPatternStones에서 제거 (잘못 추가된 경우)
@@ -1302,6 +1397,7 @@ export async function makeGoAiBotMove(
             const prunePatternStones = () => {
                 if (game.blackPatternStones) {
                     game.blackPatternStones = game.blackPatternStones.filter(point => {
+                        if (isPatternIntersectionPermanentlyConsumed(game, point)) return false;
                         const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === point.x && p.y === point.y);
                         if (isPermanentlyRevealed) {
                             // 공개된 히든 돌의 경우, moveHistory에서 원래 플레이어 확인
@@ -1319,6 +1415,7 @@ export async function makeGoAiBotMove(
                 }
                 if (game.whitePatternStones) {
                     game.whitePatternStones = game.whitePatternStones.filter(point => {
+                        if (isPatternIntersectionPermanentlyConsumed(game, point)) return false;
                         const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === point.x && p.y === point.y);
                         if (isPermanentlyRevealed) {
                             // 공개된 히든 돌의 경우, moveHistory에서 원래 플레이어 확인
@@ -1887,16 +1984,14 @@ function scoreMovesByProfile(
         
         // 살리기와 따내기 중 선택 (미래를 내다본 판단에 따라)
         if (saveScore > 0 && captureScore > 0) {
-            // 둘 다 가능한 경우
-            if (saveScore >= 5000) {
+            if (isSinglePlayerOrTowerPve(game)) {
+                score += captureScore + saveScore * 0.25;
+            } else if (saveScore >= 5000) {
                 // 살릴 수 있는 그룹 - 살리기와 따내기를 같은 등급으로 처리하되, 살리기 우선
                 score += saveScore;
-                // 따내기도 추가 점수로 반영 (하지만 살리기보다는 낮게)
                 score += captureScore * 0.3;
             } else {
-                // 살릴 수 없는 그룹 - 따내기 우선
                 score += captureScore;
-                // 살리기도 약간 반영 (하지만 따내기보다는 낮게)
                 score += saveScore * 0.3;
             }
         } else if (saveScore > 0) {
@@ -2153,6 +2248,15 @@ function scoreMovesByProfile(
                 profile.calculationDepth - 1 // 이미 1수는 둔 상태이므로 -1
             );
             score += lookAheadScore * (profile.calculationDepth * 50); // 깊이에 따라 가중치 증가
+        }
+
+        if (
+            isSinglePlayerOrTowerPve(game) &&
+            testResultForSave.isValid &&
+            testResultForSave.capturedStones.length > 0 &&
+            score > -90000
+        ) {
+            score += 520000;
         }
 
         scoredMoves.push({ move, score });
@@ -2921,7 +3025,6 @@ function scoreMovesFast(
         let score = 0;
         const point: Point = { x: move.x, y: move.y };
 
-        // 0. 자신의 단수 그룹을 살리기 (최우선 - 따내기보다도 우선)
         const testResult = processMove(
             game.boardState,
             { ...point, player: aiPlayer },
@@ -2929,27 +3032,50 @@ function scoreMovesFast(
             game.moveHistory.length,
             { ignoreSuicide: true }
         );
-        if (testResult.isValid) {
-            const myGroupsBefore = logic.getAllGroups(aiPlayer, game.boardState);
-            const myGroupsAfter = logic.getAllGroups(aiPlayer, testResult.newBoardState);
-            for (const groupBefore of myGroupsBefore) {
-                if (groupBefore.libertyPoints.size === 1) {
-                    const matchingAfter = myGroupsAfter.find(ga =>
-                        ga.stones.some(ast => groupBefore.stones.some(bst => ast.x === bst.x && ast.y === bst.y))
-                    );
-                    if (matchingAfter && matchingAfter.libertyPoints.size > 1) {
-                        // 자신의 단수 그룹을 살린 경우 - 최우선 점수
-                        const groupSize = groupBefore.stones.length;
-                        score += 8000 + groupSize * 1000; // 매우 높은 점수로 최우선 처리
+        const captureScore = evaluateCaptureOpportunity(game, logic, point, aiPlayer, opponentPlayer);
+        const pveCaptureFirst = isSinglePlayerOrTowerPve(game);
+
+        if (pveCaptureFirst) {
+            // 싱글/탑: 즉시 따내기 > 단수 살리기 (Kata 미사용·저난이도 휴리스틱)
+            if (captureScore > 0) {
+                score += 48000 + captureScore * 2200;
+            }
+            if (testResult.isValid) {
+                const myGroupsBefore = logic.getAllGroups(aiPlayer, game.boardState);
+                const myGroupsAfter = logic.getAllGroups(aiPlayer, testResult.newBoardState);
+                for (const groupBefore of myGroupsBefore) {
+                    if (groupBefore.libertyPoints.size === 1) {
+                        const matchingAfter = myGroupsAfter.find(ga =>
+                            ga.stones.some(ast => groupBefore.stones.some(bst => ast.x === bst.x && ast.y === bst.y))
+                        );
+                        if (matchingAfter && matchingAfter.libertyPoints.size > 1) {
+                            const groupSize = groupBefore.stones.length;
+                            score += 9000 + groupSize * 700;
+                        }
                     }
                 }
             }
-        }
-
-        // 1. 즉시 따내기 기회 (가장 중요)
-        const captureScore = evaluateCaptureOpportunity(game, logic, point, aiPlayer, opponentPlayer);
-        if (captureScore > 0) {
-            score += 5000 + captureScore * 500; // 매우 높은 가중치
+        } else {
+            // 0. 자신의 단수 그룹을 살리기 (최우선 - 따내기보다도 우선)
+            if (testResult.isValid) {
+                const myGroupsBefore = logic.getAllGroups(aiPlayer, game.boardState);
+                const myGroupsAfter = logic.getAllGroups(aiPlayer, testResult.newBoardState);
+                for (const groupBefore of myGroupsBefore) {
+                    if (groupBefore.libertyPoints.size === 1) {
+                        const matchingAfter = myGroupsAfter.find(ga =>
+                            ga.stones.some(ast => groupBefore.stones.some(bst => ast.x === bst.x && ast.y === bst.y))
+                        );
+                        if (matchingAfter && matchingAfter.libertyPoints.size > 1) {
+                            const groupSize = groupBefore.stones.length;
+                            score += 8000 + groupSize * 1000;
+                        }
+                    }
+                }
+            }
+            // 1. 즉시 따내기 기회
+            if (captureScore > 0) {
+                score += 5000 + captureScore * 500;
+            }
         }
 
         // 2. 아타리(단수) 기회

@@ -1,10 +1,85 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { UserWithStatus, InventoryItem, ServerAction, ItemOption, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../../types.js';
 import Button from '../Button.js';
-import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, CONSUMABLE_ITEMS, CORE_STATS_DATA } from '../../constants';
+import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS, CORE_STATS_DATA } from '../../constants';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { calculateRefinementGoldCost } from '../../constants/rules.js';
+import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
+import { PortalHoverBubble } from '../PortalHoverBubble.js';
+
+const REFINEMENT_TICKET_DEFS: { id: 'type' | 'value' | 'mythic'; itemKey: keyof typeof MATERIAL_ITEMS }[] = [
+    { id: 'type', itemKey: '옵션 종류 변경권' },
+    { id: 'value', itemKey: '옵션 수치 변경권' },
+    { id: 'mythic', itemKey: '신화 옵션 변경권' },
+];
+
+/** 보유 변경권: 이미지 + 우하단 개수, 호버/누르고 있을 때 말풍선 */
+const RefinementOwnedTicketSlot: React.FC<{
+    id: string;
+    name: string;
+    description: string;
+    image: string;
+    count: number;
+}> = ({ id, name, description, image, count }) => {
+    const [pressed, setPressed] = useState(false);
+    const [hovered, setHovered] = useState(false);
+    const [bubbleHover, setBubbleHover] = useState(false);
+    const anchorRef = useRef<HTMLDivElement>(null);
+    const showBubble = hovered || pressed || bubbleHover;
+
+    useEffect(() => {
+        if (!pressed) return;
+        const end = () => setPressed(false);
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+        return () => {
+            window.removeEventListener('pointerup', end);
+            window.removeEventListener('pointercancel', end);
+        };
+    }, [pressed]);
+
+    return (
+        <div
+            ref={anchorRef}
+            className="relative flex flex-1 justify-center min-w-0 touch-manipulation"
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            onPointerDown={() => setPressed(true)}
+        >
+            <div className="relative w-8 h-8 shrink-0 cursor-help select-none">
+                <img src={image} alt="" className="w-8 h-8 object-contain pointer-events-none" draggable={false} />
+                <span className="absolute bottom-0 right-0 min-w-[15px] h-[14px] px-0.5 flex items-center justify-center rounded-sm bg-black/90 text-[9px] font-bold text-amber-300 leading-none tabular-nums ring-1 ring-amber-700/60">
+                    {count}
+                </span>
+            </div>
+
+            <PortalHoverBubble
+                show={showBubble}
+                anchorRef={anchorRef}
+                placement="top"
+                className="pointer-events-auto"
+                onBubblePointerEnter={() => setBubbleHover(true)}
+                onBubblePointerLeave={() => setBubbleHover(false)}
+            >
+                <div
+                    id={`refine-ticket-tip-${id}`}
+                    className="relative w-max max-w-[min(220px,calc(100vw-24px))] rounded-lg border border-amber-500 bg-zinc-900 px-2 py-1.5 text-left shadow-2xl ring-1 ring-black/50"
+                >
+                    <div className="text-[10px] font-bold text-amber-200 mb-0.5 pr-1">{name}</div>
+                    <p className="text-[9px] text-gray-100 leading-snug">{description}</p>
+                    <div
+                        className="absolute left-1/2 top-full -translate-x-1/2 -mt-px h-0 w-0 border-x-[6px] border-x-transparent border-t-[6px] border-t-amber-500"
+                        aria-hidden
+                    />
+                    <div
+                        className="absolute left-1/2 top-full -translate-x-1/2 mt-[-5px] h-0 w-0 border-x-[5px] border-x-transparent border-t-[5px] border-t-zinc-900"
+                        aria-hidden
+                    />
+                </div>
+            </PortalHoverBubble>
+        </div>
+    );
+};
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
@@ -149,7 +224,10 @@ const ItemDisplay: React.FC<{
                                 : 'hover:bg-gray-700/50 text-red-400'
                         }`}
                     >
-                        신{idx + 1}: {sub.display}
+                        <span className="inline-flex items-center gap-0.5 min-w-0 flex-wrap">
+                            신{idx + 1}:{' '}
+                            <MythicOptionAbbrev option={sub} textClassName="text-red-400" bubbleSide="right" />
+                        </span>
                     </button>
                 ))}
             </div>
@@ -192,10 +270,14 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
     const ticketCounts = useMemo(() => {
         if (!currentUser) return { type: 0, value: 0, mythic: 0 };
         const inventory = currentUser.inventory || [];
+        const countByName = (n: string) =>
+            inventory
+                .filter(i => i.name === n && (i.type === 'material' || i.type === 'consumable'))
+                .reduce((sum, i) => sum + (i.quantity || 0), 0);
         return {
-            type: inventory.filter(i => i.name === '옵션 종류 변경권').reduce((sum, i) => sum + (i.quantity || 0), 0),
-            value: inventory.filter(i => i.name === '옵션 수치 변경권').reduce((sum, i) => sum + (i.quantity || 0), 0),
-            mythic: inventory.filter(i => i.name === '신화 옵션 변경권').reduce((sum, i) => sum + (i.quantity || 0), 0),
+            type: countByName('옵션 종류 변경권'),
+            value: countByName('옵션 수치 변경권'),
+            mythic: countByName('신화 옵션 변경권'),
         };
     }, [currentUser]);
 
@@ -333,12 +415,13 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
     // 변경권 아이템 정보
     const ticketItemInfo = useMemo(() => {
         if (!refinementType) return null;
-        let ticketName = '';
-        if (refinementType === 'type') ticketName = '옵션 종류 변경권';
-        else if (refinementType === 'value') ticketName = '옵션 수치 변경권';
-        else if (refinementType === 'mythic') ticketName = '신화 옵션 변경권';
-        
-        return CONSUMABLE_ITEMS.find(item => item.name === ticketName);
+        const ticketName =
+            refinementType === 'type'
+                ? '옵션 종류 변경권'
+                : refinementType === 'value'
+                  ? '옵션 수치 변경권'
+                  : '신화 옵션 변경권';
+        return MATERIAL_ITEMS[ticketName] ?? null;
     }, [refinementType]);
 
     const clearRefinementTimers = () => {
@@ -439,9 +522,9 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
     return (
         <div className="flex flex-col h-full gap-2 p-2">
             {/* 좌우 분할 레이아웃 */}
-            <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
+            <div className="flex-1 grid grid-cols-2 gap-3 min-h-0 min-w-0">
                 {/* 좌측: 선택된 장비 표시 */}
-                <div className="flex flex-col bg-gray-800/50 rounded-lg p-2 min-h-0">
+                <div className="flex flex-col bg-gray-800/50 rounded-lg p-2 min-h-0 min-w-0">
                     <h3 className="text-xs font-bold mb-1 text-gray-300">선택된 장비</h3>
                     <div className="flex-1 min-h-0">
                         <ItemDisplay 
@@ -455,49 +538,63 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                     </div>
                 </div>
 
-                {/* 우측: 제련 정보 */}
-                <div className="flex flex-col bg-gray-800/50 rounded-lg p-2 min-h-0 overflow-y-auto">
-                    <h3 className="text-xs font-bold mb-2 text-gray-300">제련 정보</h3>
-                    
+                {/* 우측: 제련 정보 (grid 자식은 기본 min-width:auto라 내용이 잘릴 수 있어 min-w-0) */}
+                <div className="flex flex-col bg-gray-800/50 rounded-lg p-2 min-h-0 min-w-0">
+                    <h3 className="text-xs font-bold mb-2 text-gray-300 shrink-0">제련 정보</h3>
+                    <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
                     {selectedOption ? (
                         <div className="flex flex-col gap-2 text-xs">
                             {/* 선택된 옵션 표시 */}
                             <div className="bg-gray-900/50 p-1.5 rounded">
                                 <div className="text-gray-400 text-xs mb-0.5">선택된 옵션</div>
-                                <div className="text-yellow-300 font-semibold">{selectedOptionData?.display || 'N/A'}</div>
+                                <div className="text-yellow-300 font-semibold">
+                                    {selectedOption?.type === 'mythicSub' && selectedOptionData ? (
+                                        <MythicOptionAbbrev option={selectedOptionData} textClassName="text-yellow-300 font-semibold" />
+                                    ) : (
+                                        selectedOptionData?.display || 'N/A'
+                                    )}
+                                </div>
                             </div>
                             
-                            {/* 제련 타입 선택 버튼 (가로 배치) */}
-                            <div className="flex gap-2">
+                            {/* 제련 타입 선택 버튼 (좁은 열에서도 잘리지 않도록 grid + min-w-0, scale 제거) */}
+                            <div
+                                className={`grid w-full min-w-0 gap-1.5 ${
+                                    selectedOption.type === 'mythicSub'
+                                        ? 'grid-cols-1'
+                                        : selectedOption.type === 'main'
+                                          ? 'grid-cols-1'
+                                          : 'grid-cols-2'
+                                }`}
+                            >
                                 {(selectedOption.type === 'main' || selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
                                     <>
                                         <button
                                             onClick={() => setRefinementType('type')}
-                                            className={`group relative flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all duration-300 overflow-hidden ${
-                                                refinementType === 'type' 
-                                                    ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.6)] scale-105' 
+                                            className={`group relative min-w-0 w-full py-1.5 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-300 overflow-hidden ${
+                                                refinementType === 'type'
+                                                    ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-[0_0_16px_rgba(168,85,247,0.55)] ring-1 ring-white/30'
                                                     : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
                                             }`}
                                         >
-                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]"></div>
-                                            <span className="relative z-10 flex items-center justify-center gap-1">
-                                                <span className="text-sm">🔄</span>
-                                                종류변경
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]" />
+                                            <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
+                                                <span className="text-xs sm:text-sm shrink-0">🔄</span>
+                                                <span className="truncate">종류변경</span>
                                             </span>
                                         </button>
                                         {(selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
                                             <button
                                                 onClick={() => setRefinementType('value')}
-                                                className={`group relative flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all duration-300 overflow-hidden ${
-                                                    refinementType === 'value' 
-                                                        ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-[0_0_20px_rgba(20,184,166,0.6)] scale-105' 
+                                                className={`group relative min-w-0 w-full py-1.5 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-300 overflow-hidden ${
+                                                    refinementType === 'value'
+                                                        ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-[0_0_16px_rgba(20,184,166,0.55)] ring-1 ring-white/30'
                                                         : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
                                                 }`}
                                             >
-                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]"></div>
-                                                <span className="relative z-10 flex items-center justify-center gap-1">
-                                                    <span className="text-sm">📊</span>
-                                                    수치변경
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]" />
+                                                <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
+                                                    <span className="text-xs sm:text-sm shrink-0">📊</span>
+                                                    <span className="truncate">수치변경</span>
                                                 </span>
                                             </button>
                                         )}
@@ -506,16 +603,16 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                                 {selectedOption.type === 'mythicSub' && (
                                     <button
                                         onClick={() => setRefinementType('mythic')}
-                                        className={`group relative flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all duration-300 overflow-hidden ${
-                                            refinementType === 'mythic' 
-                                                ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-[0_0_20px_rgba(249,115,22,0.6)] scale-105' 
+                                        className={`group relative min-w-0 w-full py-1.5 px-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-300 overflow-hidden ${
+                                            refinementType === 'mythic'
+                                                ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-[0_0_16px_rgba(249,115,22,0.55)] ring-1 ring-white/30'
                                                 : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
                                         }`}
                                     >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]"></div>
-                                        <span className="relative z-10 flex items-center justify-center gap-1">
-                                            <span className="text-sm">✨</span>
-                                            신화 옵션 변경
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]" />
+                                        <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
+                                            <span className="text-xs sm:text-sm shrink-0">✨</span>
+                                            <span className="truncate">신화 옵션 변경</span>
                                         </span>
                                     </button>
                                 )}
@@ -532,11 +629,17 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                                             {availableOptions.length > 0 ? (
                                                 availableOptions.map((opt, idx) => (
                                                     <div key={idx} className="text-green-300">
-                                                        {opt.name}
-                                                        {opt.range && (
-                                                            <span className="text-yellow-300">
-                                                                {' '}{opt.range[0]}~{opt.range[1]}{opt.isPercentage ? '%' : ''}
-                                                            </span>
+                                                        {refinementType === 'mythic' ? (
+                                                            <MythicStatAbbrev stat={opt.type as MythicStat} textClassName="text-green-300" bubbleSide="right" />
+                                                        ) : (
+                                                            <>
+                                                                {opt.name}
+                                                                {opt.range && (
+                                                                    <span className="text-yellow-300">
+                                                                        {' '}{opt.range[0]}~{opt.range[1]}{opt.isPercentage ? '%' : ''}
+                                                                    </span>
+                                                                )}
+                                                            </>
                                                         )}
                                                     </div>
                                                 ))
@@ -552,14 +655,36 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                                         <div className="flex flex-wrap gap-2 items-center">
                                             {/* 변경권 */}
                                             {ticketItemInfo && (
-                                                <div className="flex items-center gap-1 bg-gray-800/50 p-1 rounded">
-                                                    <img 
-                                                        src={ticketItemInfo.image} 
+                                                <div
+                                                    className="flex items-center gap-1 bg-gray-800/50 p-1 rounded"
+                                                    title={`${ticketItemInfo.name}\n${ticketItemInfo.description}`}
+                                                >
+                                                    <img
+                                                        src={ticketItemInfo.image}
                                                         alt={ticketItemInfo.name}
                                                         className="w-6 h-6 object-contain"
                                                     />
-                                                    <span className={`text-xs ${ticketCounts[refinementType === 'type' ? 'type' : refinementType === 'value' ? 'value' : 'mythic'] >= requiredTickets ? 'text-white' : 'text-red-400'}`}>
-                                                        x{requiredTickets}
+                                                    <span
+                                                        className={`text-xs whitespace-nowrap ${
+                                                            ticketCounts[
+                                                                refinementType === 'type'
+                                                                    ? 'type'
+                                                                    : refinementType === 'value'
+                                                                      ? 'value'
+                                                                      : 'mythic'
+                                                            ] >= requiredTickets
+                                                                ? 'text-white'
+                                                                : 'text-red-400'
+                                                        }`}
+                                                    >
+                                                        {ticketCounts[
+                                                            refinementType === 'type'
+                                                                ? 'type'
+                                                                : refinementType === 'value'
+                                                                  ? 'value'
+                                                                  : 'mythic'
+                                                        ]}
+                                                        /{requiredTickets}
                                                     </span>
                                                 </div>
                                             )}
@@ -577,13 +702,13 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                                         </div>
                                     </div>
 
-                                    {/* 제련하기 버튼 */}
+                                    {/* 제련하기 버튼 (호버 scale 제거 + 폭 살짝 여유로 좌우 스크롤 방지) */}
                                     <button
                                         onClick={handleRefine}
                                         disabled={!canRefine || isRefining}
-                                        className={`group relative w-full py-2.5 px-4 rounded-lg text-xs font-bold transition-all duration-300 overflow-hidden ${
+                                        className={`group relative mx-auto block w-full max-w-[92%] min-w-0 py-2 px-2.5 rounded-lg text-xs font-bold transition-all duration-300 overflow-hidden ${
                                             canRefine && !isRefining
-                                                ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-[0_0_25px_rgba(251,146,60,0.7)] hover:shadow-[0_0_35px_rgba(251,146,60,0.9)] hover:scale-105'
+                                                ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-[0_0_14px_rgba(251,146,60,0.55)] hover:shadow-[0_0_20px_rgba(251,146,60,0.75)]'
                                                 : 'bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
                                         }`}
                                     >
@@ -613,6 +738,29 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                             좌측에서 옵션을 선택해주세요.
                         </div>
                     )}
+                    </div>
+
+                    <div
+                        className="mt-2 pt-1.5 border-t border-gray-600/60 shrink-0"
+                        role="group"
+                        aria-label="보유 옵션 변경권"
+                    >
+                        <div className="flex gap-1 justify-between items-end">
+                            {REFINEMENT_TICKET_DEFS.map(({ id, itemKey }) => {
+                                const def = MATERIAL_ITEMS[itemKey];
+                                return (
+                                    <RefinementOwnedTicketSlot
+                                        key={id}
+                                        id={id}
+                                        name={def.name}
+                                        description={def.description}
+                                        image={def.image}
+                                        count={ticketCounts[id]}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

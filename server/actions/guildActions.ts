@@ -14,7 +14,7 @@ import {
 } from '../../types/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
-import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_CAPTURE_TARGET, GUILD_WAR_HIDDEN_STONE_COUNT, GUILD_WAR_SCAN_COUNT, GUILD_WAR_MISSILE_COUNT, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT, getGuildWarBoardMode, normalizeGuildWarBoardModes } from '../../shared/constants/index.js';
+import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId } from '../../shared/constants/index.js';
 import { EquipmentSlot, ItemGrade } from '../../types/enums.js';
 import { generateNewItem } from './inventoryActions.js';
 import * as currencyService from '../currencyService.js';
@@ -1905,6 +1905,43 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 );
             }
 
+            /** 길드전 대기실 점령자 표시: usersMap에 없는 상대 길드원도 DB 기준 프로필·레벨 제공 */
+            let occupierProfileByUserId: Record<
+                string,
+                {
+                    nickname: string;
+                    avatarId?: string | null;
+                    borderId?: string | null;
+                    strategyLevel: number;
+                    playfulLevel: number;
+                }
+            > = {};
+            if (activeWar?.boards && typeof activeWar.boards === 'object') {
+                const { aiUserId: guildWarAiUserId } = await import('../aiPlayer.js');
+                const occIds = new Set<string>();
+                for (const b of Object.values(activeWar.boards as Record<string, any>)) {
+                    const u1 = b?.guild1BestResult?.userId;
+                    const u2 = b?.guild2BestResult?.userId;
+                    if (typeof u1 === 'string' && u1 && u1 !== guildWarAiUserId) occIds.add(u1);
+                    if (typeof u2 === 'string' && u2 && u2 !== guildWarAiUserId) occIds.add(u2);
+                }
+                const idList = [...occIds];
+                if (idList.length > 0) {
+                    const loaded = await Promise.all(idList.map((id) => db.getUser(id)));
+                    idList.forEach((id, i) => {
+                        const u = loaded[i];
+                        if (!u) return;
+                        occupierProfileByUserId[id] = {
+                            nickname: u.nickname || u.username || id,
+                            avatarId: u.avatarId ?? null,
+                            borderId: u.borderId ?? null,
+                            strategyLevel: Number(u.strategyLevel) || 0,
+                            playfulLevel: Number(u.playfulLevel) || 0,
+                        };
+                    });
+                }
+            }
+
             return {
                 clientResponse: {
                     activeWar,
@@ -1918,6 +1955,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     myRecordInCurrentWar,
                     myRecordInLastWar,
                     guildWarTicketSummary,
+                    occupierProfileByUserId,
                 },
             };
         }
@@ -1937,11 +1975,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             if (isDemo) {
                 // 데모 모드에서도 보드 ID 기준 모드로 강제
                 board = {
-                    boardSize: normalizedBoardMode === 'capture' ? 9 : 13,
+                    boardSize: getGuildWarBoardLineSize(boardId),
                     gameMode: normalizedBoardMode,
-                    initialStones: normalizedBoardMode === 'capture'
-                        ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
-                        : undefined,
+                    initialStones: [getGuildWarCaptureInitialStones(boardId)],
                 };
             } else {
                 // 실제 모드: 활성 전쟁 확인
@@ -1961,9 +1997,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     return { error: '바둑판을 찾을 수 없습니다.' };
                 }
                 board.gameMode = normalizedBoardMode;
-                board.boardSize = normalizedBoardMode === 'capture' ? 9 : 13;
-                if (normalizedBoardMode === 'capture' && !board.initialStones) {
-                    board.initialStones = [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }];
+                board.boardSize = getGuildWarBoardLineSize(boardId);
+                if (!board.initialStones || !Array.isArray(board.initialStones) || board.initialStones.length === 0) {
+                    board.initialStones = [getGuildWarCaptureInitialStones(boardId)];
                 }
 
                 const todayKST = getTodayKSTDateString();
@@ -2011,7 +2047,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             // 게임 설정
             const gameSettings = {
-                boardSize: board.boardSize || (normalizedBoardMode === 'capture' ? 9 : 13),
+                boardSize: board.boardSize || getGuildWarBoardLineSize(boardId),
                 komi: 0.5,
                 timeLimit: GUILD_WAR_MAIN_TIME_MINUTES,
                 byoyomiTime: 0,
@@ -2023,20 +2059,21 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             // 게임 모드별 추가 설정
             if (normalizedBoardMode === 'capture') {
-                const captureTurnLimitByBoardId: Record<string, number> = {
-                    'top-left': 25, // 좌상귀
-                    'top-mid': 20,  // 상변
-                    'top-right': 15, // 우상귀
-                };
-                (gameSettings as any).captureTarget = GUILD_WAR_CAPTURE_TARGET;
-                (gameSettings as any).blackTurnLimit = captureTurnLimitByBoardId[boardId] ?? 15;
+                (gameSettings as any).captureTargetBlack = getGuildWarCaptureBlackTargetByBoardId(boardId);
+                (gameSettings as any).captureTargetWhite = GUILD_WAR_CAPTURE_AI_TARGET;
+                (gameSettings as any).captureTarget = getGuildWarCaptureBlackTargetByBoardId(boardId);
+                (gameSettings as any).blackTurnLimit = getGuildWarCaptureTurnLimitByBoardId(boardId);
             } else if (normalizedBoardMode === 'hidden') {
-                (gameSettings as any).hiddenStoneCount = GUILD_WAR_HIDDEN_STONE_COUNT;
-                (gameSettings as any).scanCount = GUILD_WAR_SCAN_COUNT;
-                (gameSettings as any).autoScoringTurns = 60;
+                (gameSettings as any).hiddenStoneCount = getGuildWarHiddenStoneCountByBoardId(boardId);
+                (gameSettings as any).scanCount = getGuildWarScanCountByBoardId(boardId);
             } else if (normalizedBoardMode === 'missile') {
-                (gameSettings as any).missileCount = GUILD_WAR_MISSILE_COUNT;
-                (gameSettings as any).autoScoringTurns = 60;
+                (gameSettings as any).missileCount = getGuildWarMissileCountByBoardId(boardId);
+            }
+            if (normalizedBoardMode === 'hidden' || normalizedBoardMode === 'missile') {
+                const autoScoringTurns = getGuildWarAutoScoringTurnsByBoardId(boardId);
+                (gameSettings as any).autoScoringTurns = autoScoringTurns;
+                // strategic.ts / goAiBot 일부 경로는 scoringTurnLimit만 읽음
+                (gameSettings as any).scoringTurnLimit = autoScoringTurns;
             }
             
             // Negotiation 생성
@@ -2062,22 +2099,23 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 (game as any).isDemo = true;
             }
 
-            // 길드전 따내기 맵: 초기 랜덤 배치 (흑3/백3/문양흑2/문양백2)
-            if (normalizedBoardMode === 'capture') {
-                // 대기실 상황판과 실제 입장 시 규칙을 1:1로 고정 동기화
-                const captureInitialCountsByBoardId: Record<string, { blackPlain: number; whitePlain: number; blackMarked: number; whiteMarked: number }> = {
-                    'top-left': { blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }, // 좌상귀
-                    'top-mid': { blackPlain: 4, whitePlain: 4, blackMarked: 3, whiteMarked: 3 },  // 상변
-                    'top-right': { blackPlain: 5, whitePlain: 5, blackMarked: 4, whiteMarked: 4 }, // 우상귀
-                };
-                const initialCfg = captureInitialCountsByBoardId[boardId] ?? captureInitialCountsByBoardId['top-left'];
+            // 길드전 9칸 공통: 초기 랜덤 배치 (열 기준 흑/백/문양 — getGuildWarCaptureInitialStones 와 동일)
+            if (
+                normalizedBoardMode === 'capture' ||
+                normalizedBoardMode === 'hidden' ||
+                normalizedBoardMode === 'missile'
+            ) {
+                const initialCfg = getGuildWarCaptureInitialStones(boardId);
                 const blackPlain = initialCfg.blackPlain;
                 const whitePlain = initialCfg.whitePlain;
                 const blackMarked = initialCfg.blackMarked;
                 const whiteMarked = initialCfg.whiteMarked;
 
                 const totalNeeded = blackPlain + whitePlain + blackMarked + whiteMarked;
-                const size = Number(game.settings.boardSize ?? 9) || 9;
+                const size =
+                    Number(game.settings.boardSize) > 0
+                        ? Number(game.settings.boardSize)
+                        : getGuildWarBoardLineSize(boardId);
                 const allPoints: Array<{ x: number; y: number }> = [];
                 for (let y = 0; y < size; y++) {
                     for (let x = 0; x < size; x++) allPoints.push({ x, y });
@@ -2103,10 +2141,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 for (const p of blackMarkedPoints) game.boardState[p.y][p.x] = Player.Black;
                 for (const p of whiteMarkedPoints) game.boardState[p.y][p.x] = Player.White;
 
-                game.baseStones = [
-                    ...blackMarkedPoints.map((p) => ({ ...p, player: Player.Black })),
-                    ...whiteMarkedPoints.map((p) => ({ ...p, player: Player.White })),
-                ];
+                // 문양돌은 싱글/도전의 탑과 동일: 2점(baseStones 베이스돌 5점 규칙과 분리 — UI도 패턴 문양 사용)
+                game.blackPatternStones = blackMarkedPoints.map((p) => ({ ...p }));
+                game.whitePatternStones = whiteMarkedPoints.map((p) => ({ ...p }));
+                game.baseStones = undefined;
             }
             
             // 게임 저장

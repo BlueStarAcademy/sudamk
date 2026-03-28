@@ -387,41 +387,47 @@ export const SPECIAL_STATS_DATA: Record<SpecialStat, { name: string; description
     [SpecialStat.MaterialDropRate]: { name: '재료상자 획득확률 증가', description: '경기 승리 시 재료상자 획득 확률을 증가시킵니다.', isPercentage: true, range: [1, 3] },
 };
 
-export const MYTHIC_STATS_DATA: Record<MythicStat, { name: string; description: string; shortDescription: string; value: (range: [number, number]) => number; }> = {
+export const MYTHIC_STATS_DATA: Record<MythicStat, { name: string; description: string; shortDescription: string; abbrevLabel: string; value: (range: [number, number]) => number; }> = {
     [MythicStat.MannerActionCooldown]: { 
         name: '매너 액션 버튼 생성시간 감소', 
         description: '매너 액션 버튼 생성시간을 감소시킵니다.', 
         shortDescription: '매너액션 쿨타임 -30초', 
+        abbrevLabel: '매너액션 쿨감',
         value: () => 30 
     }, // Fixed 30s reduction
     [MythicStat.StrategicGoldBonus]: { 
         name: '전략 골드 보너스', 
         description: '전략 바둑 경기중 착수시 20%확률로 골드획득(10~50골드) 최대5회', 
         shortDescription: '전략바둑중 골드(10~50)획득 5회(20%)', 
+        abbrevLabel: '전략 골드',
         value: () => 1 
     },
     [MythicStat.PlayfulGoldBonus]: { 
         name: '놀이 골드 보너스', 
         description: '놀이 바둑 경기중 60초마다 20%확률로 골드획득(10~50골드) 최대5회', 
         shortDescription: '놀이바둑중 골드(10~50)획득 5회(20%)', 
+        abbrevLabel: '놀이 골드',
         value: () => 1 
     },
     [MythicStat.DiceGoOddBonus]: { 
         name: '주사위 홀/짝 보너스', 
         description: '주사위 바둑에서 홀/짝수 아이템 1개씩 추가', 
         shortDescription: '주사위바둑 홀/짝 아이템 +1개', 
+        abbrevLabel: '주사위 보너스',
         value: () => 1 
     },
     [MythicStat.AlkkagiSlowBonus]: { 
         name: '알까기 슬로우 보너스', 
         description: '알까기 및 바둑컬링에서 슬로우 아이템 1개추가', 
         shortDescription: '알까기/컬링 슬로우 +1개', 
+        abbrevLabel: '슬로우 보너스',
         value: () => 1 
     },
     [MythicStat.AlkkagiAimingBonus]: { 
         name: '알까기 조준선 보너스', 
         description: '알까기 및 바둑컬링에서 조준선 아이템 1개추가', 
         shortDescription: '알까기/컬링 조준선 +1개', 
+        abbrevLabel: '조준선 보너스',
         value: () => 1 
     },
 };

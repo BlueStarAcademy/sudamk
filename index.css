@@ -720,28 +720,45 @@ input, textarea {
   animation: dice-flicker 0.1s infinite;
 }
 
-/* --- Bonus Text Animation (Board) --- */
-@keyframes bonus-text-animation {
+/* --- Board bonus / 문양·히든 따내기 점수: GoBoard `capture-points-float-inner` + SVG 필터 --- */
+
+/* 문양·히든 따내기 보너스 (+2 / +5): 에메랄드 톤, 팝→부유→소멸 (글로우는 SVG 필터) */
+@keyframes capture-points-float-animation {
   0% {
-    transform: translateY(0) scale(0.5);
+    transform: translateY(16px) scale(0.22);
     opacity: 0;
   }
-  20% {
-    transform: translateY(-20px) scale(1.2);
+  9% {
     opacity: 1;
   }
-  80% {
-    transform: translateY(-40px) scale(1);
+  16% {
+    transform: translateY(-8px) scale(1.14);
+  }
+  26% {
+    transform: translateY(-14px) scale(0.98);
+  }
+  58% {
+    transform: translateY(-44px) scale(1.04);
     opacity: 1;
   }
   100% {
-    transform: translateY(-50px) scale(0.8);
+    transform: translateY(-84px) scale(0.88);
     opacity: 0;
   }
 }
 
-.bonus-text-animation {
-  animation: bonus-text-animation 2.5s ease-out forwards;
+.capture-points-float-inner {
+  animation: capture-points-float-animation 2.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform-origin: 0 0;
+}
+
+.capture-score-float-text {
+  font-family: "Outfit", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
 }
 
 

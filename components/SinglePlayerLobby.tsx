@@ -1,14 +1,33 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
-import Button from './Button.js';
 import ClassNavigationPanel from './singleplayer/ClassNavigationPanel.js';
 import StageGrid from './singleplayer/StageGrid.js';
 import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
 import { SinglePlayerLevel } from '../types.js';
+import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
+
+/** singlePlayerProgress(다음 플레이 스테이지 전역 인덱스)에 맞는 반 — 대기실 기본 탭 */
+function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLevel {
+    const n = SINGLE_PLAYER_STAGES.length;
+    if (n === 0) return SinglePlayerLevel.입문;
+    const idx = Math.min(Math.max(0, progress), n - 1);
+    return SINGLE_PLAYER_STAGES[idx].level;
+}
 
 const SinglePlayerLobby: React.FC = () => {
     const { currentUser, currentUserWithStatus } = useAppContext();
-    const [selectedClass, setSelectedClass] = useState<SinglePlayerLevel>(SinglePlayerLevel.입문);
+    const progressForDefault = currentUserWithStatus?.singlePlayerProgress ?? 0;
+    const defaultClass = useMemo(
+        () => defaultSinglePlayerLevelFromProgress(progressForDefault),
+        [progressForDefault]
+    );
+    const [overrideClass, setOverrideClass] = useState<SinglePlayerLevel | null>(null);
+
+    useEffect(() => {
+        setOverrideClass(null);
+    }, [progressForDefault]);
+
+    const selectedClass = overrideClass ?? defaultClass;
 
     const onBackToProfile = () => window.location.hash = '#/profile';
 
@@ -35,7 +54,7 @@ const SinglePlayerLobby: React.FC = () => {
                 <div className="col-span-4 flex flex-col min-h-0">
                     <ClassNavigationPanel 
                         selectedClass={selectedClass}
-                        onClassSelect={setSelectedClass}
+                        onClassSelect={setOverrideClass}
                     />
                 </div>
 

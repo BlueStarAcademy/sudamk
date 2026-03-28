@@ -12,10 +12,11 @@ import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { getMannerRank as getMannerRankShared } from '../services/manner.js';
 import {
     getGuildWarBoardMode,
+    isGuildWarLiveSession,
     GUILD_WAR_STAR_CAPTURE_TIER2_MIN,
     GUILD_WAR_STAR_CAPTURE_TIER3_MIN,
-    GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF,
-    GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF,
+    getGuildWarStarScoreTier2MinDiff,
+    getGuildWarStarScoreTier3MinDiff,
 } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
 
@@ -512,7 +513,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
-    const isGuildWar = session.gameCategory === 'guildwar';
+    const isGuildWar = isGuildWarLiveSession(session as any);
     const guildWarStars = mySummary?.guildWarStars ?? 0;
     const blackTurnLimit = Number((session.settings as any)?.blackTurnLimit ?? 0);
     const blackMoves = (session.moveHistory || []).filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
@@ -753,6 +754,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         const metrics = computeGuildWarAttemptMetrics(session as any, humanEnum as any, humanWon);
         const maxSingleCapture = metrics.maxSingleCapture ?? 0;
         const scoreDiff = metrics.scoreDiff ?? 0;
+        const scoreT2 = getGuildWarStarScoreTier2MinDiff(boardId);
+        const scoreT3 = getGuildWarStarScoreTier3MinDiff(boardId);
 
         const rows =
             mode === 'capture'
@@ -763,8 +766,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                 ]
                 : [
                     { label: '승리', ok: humanWon },
-                    { label: `집차이 ${GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF}집 이상`, ok: humanWon && scoreDiff >= GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF },
-                    { label: `집차이 ${GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF}집 이상`, ok: humanWon && scoreDiff >= GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF },
+                    { label: `집차이 ${scoreT2}집 이상`, ok: humanWon && scoreDiff >= scoreT2 },
+                    { label: `집차이 ${scoreT3}집 이상`, ok: humanWon && scoreDiff >= scoreT3 },
                 ];
 
         return (

@@ -71,15 +71,12 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
         return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
             if (!isHidden) return false;
             const move = session.moveHistory![parseInt(moveIndexStr, 10)];
-            if (!move || move.player !== opponentPlayerEnum) return false;
+            if (!move || move.player !== opponentPlayerEnum || move.x < 0 || move.y < 0) return false;
             const { x, y } = move;
-            const board = session.boardState;
-            if (!Array.isArray(board) || board.length === 0) return false;
-            if (board[y]?.[x] !== opponentPlayerEnum) return false;
             const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });
-    }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones, opponentPlayerEnum]);
+    }, [session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, opponentPlayerEnum]);
 
     const hiddenMaxCount = (session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ?? 3;
     const scanMaxCount = (session.settings as { scanCount?: number })?.scanCount ?? 2;

@@ -3,6 +3,10 @@ import * as db from '../db.js';
 import { getGameResult } from '../gameModes.js';
 import { pauseGameTimer, resumeGameTimer } from './shared.js';
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
+import {
+    consumeOpponentPatternStoneIfAny,
+    stripPatternStonesAtConsumedIntersections,
+} from '../../shared/utils/patternStoneConsume.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -16,7 +20,7 @@ export const initializeHidden = (game: types.LiveGameSession) => {
     }
 };
 
-export const updateHiddenState = (game: types.LiveGameSession, now: number) => {
+export const updateHiddenState = async (game: types.LiveGameSession, now: number) => {
     const isStrategicAiGame =
         !!game.isAiGame &&
         !game.isSinglePlayer &&
@@ -109,17 +113,29 @@ export const updateHiddenState = (game: types.LiveGameSession, now: number) => {
                             (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
                         
                         let points = 1;
+                        let wasHiddenForEntry = false;
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
-                        } else if (wasHidden || wasAiInitialHidden) {
-                            game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
-                            points = 5;
+                        } else {
+                            const pveLike =
+                                game.isSinglePlayer ||
+                                isStrategicAiGame ||
+                                (game as any).gameCategory === 'guildwar';
+                            const wasPattern = pveLike && consumeOpponentPatternStoneIfAny(game, stone, opponentPlayerEnum);
+                            if (wasPattern) {
+                                points = 2;
+                            } else if (wasHidden || wasAiInitialHidden) {
+                                game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
+                                points = 5;
+                                wasHiddenForEntry = true;
+                            }
                         }
                         game.captures[myPlayerEnum] += points;
         
-                        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden: wasHidden || wasAiInitialHidden });
+                        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden: wasHiddenForEntry || wasAiInitialHidden, capturePoints: points });
                     }
+                    stripPatternStonesAtConsumedIntersections(game);
                     
                     if (!game.newlyRevealed) game.newlyRevealed = [];
                     game.newlyRevealed.push(...pendingCapture.hiddenContributors.map(p => ({ point: p, player: myPlayerEnum })));
@@ -167,7 +183,7 @@ export const updateHiddenState = (game: types.LiveGameSession, now: number) => {
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
                 game.animation = null;
                 game.revealAnimationEndTime = undefined;
-                getGameResult(game); // Now trigger scoring
+                await getGameResult(game);
             }
             break;
     }

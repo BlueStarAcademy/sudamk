@@ -12,6 +12,7 @@ import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import SellItemConfirmModal from './SellItemConfirmModal.js';
 import SellMaterialBulkModal from './SellMaterialBulkModal.js';
 import UseQuantityModal from './UseQuantityModal.js';
+import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
 
 interface InventoryModalProps {
     currentUser: UserWithStatus;
@@ -618,10 +619,20 @@ const LocalItemDetailDisplay: React.FC<{
 
                         // display에 이미 범위값이 포함되어 있으면 추가하지 않음
                         const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
+                        const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
                         return (
                             <p key={type} className={`${colorClass} flex justify-between items-center`}>
                                 <span>
-                                    {current.display}{rangeText}
+                                    {isMythicOpt ? (
+                                        <>
+                                            <MythicOptionAbbrev option={current} textClassName={colorClass} />
+                                            {rangeText}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {current.display}{rangeText}
+                                        </>
+                                    )}
                                 </span>
                                 {difference !== 0 && (
                                     <span className={`font-bold ${differenceColorClass} text-right`}>{differenceText}</span>
@@ -635,10 +646,20 @@ const LocalItemDetailDisplay: React.FC<{
                         if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
                         // display에 이미 범위값이 포함되어 있으면 추가하지 않음
                         const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
+                        const isMythicNew = Object.values(MythicStat).includes(current.type as MythicStat);
                         return (
                             <p key={type} className={`${colorClass} flex justify-between items-center`}>
                                 <span>
-                                    {current.display}{rangeText}
+                                    {isMythicNew ? (
+                                        <>
+                                            <MythicOptionAbbrev option={current} textClassName={colorClass} />
+                                            {rangeText}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {current.display}{rangeText}
+                                        </>
+                                    )}
                                 </span> <span className="font-bold text-right">(New)</span>
                             </p>
                         );
@@ -649,9 +670,21 @@ const LocalItemDetailDisplay: React.FC<{
                         if (Object.values(MythicStat).includes(comparison.type as MythicStat)) colorClass = 'text-orange-400';
                         // display에 이미 범위값이 포함되어 있으면 추가하지 않음
                         const rangeText = comparison.range && !comparison.display.includes('[') ? ` [${comparison.range[0]}~${comparison.range[1]}]` : '';
+                        const isMythicRm = Object.values(MythicStat).includes(comparison.type as MythicStat);
                         return (
                             <p key={type} className={`${colorClass} line-through flex justify-between items-center`}>
-                                <span>{comparison.display}{rangeText}</span>
+                                <span>
+                                    {isMythicRm ? (
+                                        <>
+                                            <MythicOptionAbbrev option={comparison} textClassName={colorClass} />
+                                            {rangeText}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {comparison.display}{rangeText}
+                                        </>
+                                    )}
+                                </span>
                             </p>
                         );
                     }

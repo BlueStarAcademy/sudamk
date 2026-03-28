@@ -102,6 +102,15 @@ const mapRowToGame = (row: { id: string; data: unknown; status: string; category
     if (!game.gameCategory && row.category) {
       game.gameCategory = row.category as any;
     }
+    // 길드전: JSON에 guildWarId 등은 있는데 gameCategory가 빠진 구버전/누락 데이터 보정
+    const gw = game as any;
+    if (
+      (!game.gameCategory || game.gameCategory === "normal") &&
+      ((typeof gw.guildWarId === "string" && gw.guildWarId.length > 0) ||
+        (typeof gw.guildWarBoardId === "string" && gw.guildWarBoardId.length > 0))
+    ) {
+      game.gameCategory = "guildwar" as any;
+    }
     return game;
   } catch (error) {
     console.warn(`[gameService] Failed to parse game ${row.id}:`, error);
@@ -111,9 +120,16 @@ const mapRowToGame = (row: { id: string; data: unknown; status: string; category
 
 const deriveMeta = (game: LiveGameSession) => {
   const status: GameStatus = (game.gameStatus as GameStatus) ?? "pending";
+  const g = game as any;
+  const hasGuildWarKeys =
+    (typeof g.guildWarId === "string" && g.guildWarId.length > 0) ||
+    (typeof g.guildWarBoardId === "string" && g.guildWarBoardId.length > 0);
+  // gameCategory가 비어 있으면 deriveMeta가 'normal'로 덮어 길드전이 깨지는 것을 방지
   const category =
-    game.gameCategory ??
-    (game.isSinglePlayer ? "singleplayer" : game.gameCategory ?? "normal");
+    g.gameCategory === "guildwar" || hasGuildWarKeys
+      ? "guildwar"
+      : game.gameCategory ??
+        (game.isSinglePlayer ? "singleplayer" : "normal");
   const isEnded = ENDED_STATUSES.includes(status);
   return { status, category, isEnded };
 };
@@ -398,6 +414,14 @@ export async function getLiveGameByPlayerId(playerId: string): Promise<LiveGameS
 
 export async function saveGame(game: LiveGameSession): Promise<void> {
   try {
+    const gw = game as any;
+    if (
+      ((typeof gw.guildWarId === "string" && gw.guildWarId.length > 0) ||
+        (typeof gw.guildWarBoardId === "string" && gw.guildWarBoardId.length > 0)) &&
+      (!game.gameCategory || game.gameCategory === ("normal" as any))
+    ) {
+      game.gameCategory = "guildwar" as any;
+    }
     const { status, category, isEnded } = deriveMeta(game);
     await prisma.liveGame.upsert({
       where: { id: game.id },

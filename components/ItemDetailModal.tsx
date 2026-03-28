@@ -6,6 +6,7 @@ import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
 import { isActionPointConsumable } from '../constants/items';
+import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
 
 interface ItemDetailModalProps {
     item: InventoryItem;
@@ -127,7 +128,9 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, isOwnedByCurren
                     {item.options?.mythicSubs && item.options.mythicSubs.length > 0 && (
                         <div className="space-y-0.5">
                             {item.options.mythicSubs.map((opt, i) => (
-                                <p key={i} className="text-red-400">{opt.display}</p>
+                                <p key={i} className="text-red-400">
+                                    <MythicOptionAbbrev option={opt} textClassName="text-red-400" />
+                                </p>
                             ))}
                         </div>
                     )}

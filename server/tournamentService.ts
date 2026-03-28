@@ -347,6 +347,12 @@ const startNextMatchAutomatically = async (
     }
 };
 
+/** 완료 처리 시 nextRoundStartTime이 남으면 클라이언트가 카운트다운/다음 경기 대기로 멈춘 것처럼 보일 수 있음 */
+export const applyTournamentCompleteStatus = (state: TournamentState) => {
+    state.status = 'complete';
+    state.nextRoundStartTime = null;
+};
+
 export const processMatchCompletion = async (state: TournamentState, user: User, completedMatch: Match, roundIndex: number) => {
     console.log(`[processMatchCompletion] Called for user ${user.id}, tournament type: ${state.type}, roundIndex: ${roundIndex}, matchId: ${completedMatch.id}`);
     console.log(`[processMatchCompletion] Tournament status: ${state.status}, isDungeonMode: ${!!state.currentStageAttempt}, currentRoundRobinRound: ${state.currentRoundRobinRound}`);
@@ -539,7 +545,7 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
             }
             
             // 모든 경기 완료 후 complete 상태로 변경
-            state.status = 'complete';
+            applyTournamentCompleteStatus(state);
             console.log(`[processMatchCompletion] Dungeon mode: All matches completed after user elimination`);
             return;
         }
@@ -557,7 +563,7 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                 
                 if (allUserMatchesFinished) {
                     // 유저의 모든 경기가 완료되었으면 토너먼트 완료
-                    state.status = 'complete';
+                    applyTournamentCompleteStatus(state);
                     console.log(`[processMatchCompletion] Dungeon mode: All user matches completed for neighborhood tournament (5 matches)`);
                     return;
                 }
@@ -570,7 +576,7 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                 
                 // 5회차를 넘어가면 완료
                 if (currentRoundNum >= 5) {
-                    state.status = 'complete';
+                    applyTournamentCompleteStatus(state);
                     console.log(`[processMatchCompletion] Dungeon mode: All 5 rounds completed for neighborhood tournament`);
                     return;
                 }
@@ -587,7 +593,7 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                 
                 if (!nextRoundObj || nextRoundObj.matches.length === 0) {
                     console.error(`[processMatchCompletion] Next round not found or empty: ${nextRoundNum}회차, rounds.length=${state.rounds.length}`);
-                    state.status = 'complete';
+                    applyTournamentCompleteStatus(state);
                     return;
                 }
                 
@@ -597,12 +603,12 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                     const started = await startNextMatchAutomatically(state, user, nextRoundObj, nextUserMatch);
                     if (!started) {
                         console.error(`[processMatchCompletion] Failed to start next match automatically for round ${nextRoundNum}회차`);
-                        state.status = 'complete';
+                        applyTournamentCompleteStatus(state);
                     } else {
                         console.log(`[processMatchCompletion] Dungeon mode: Set countdown for next round (${nextRoundNum}회차) match`);
                     }
                 } else {
-                    state.status = 'complete';
+                    applyTournamentCompleteStatus(state);
                     console.log(`[processMatchCompletion] Dungeon mode: No more user matches in round ${nextRoundNum}회차`);
                 }
             } else {
@@ -621,13 +627,13 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                     const started = await startNextMatchAutomatically(state, user, nextRound, nextUserMatch.match);
                     if (!started) {
                         console.error(`[processMatchCompletion] Failed to start next match automatically`);
-                        state.status = 'complete';
+                        applyTournamentCompleteStatus(state);
                     } else {
                         console.log(`[processMatchCompletion] Dungeon mode: Set countdown for next match: roundIndex=${nextUserMatch.roundIndex}, matchIndex=${nextUserMatch.matchIndex}`);
                     }
                 } else {
                     // 다음 경기가 없으면 완료
-                    state.status = 'complete';
+                    applyTournamentCompleteStatus(state);
                     console.log(`[processMatchCompletion] Dungeon mode: No more matches, tournament complete`);
                 }
             }
@@ -794,14 +800,14 @@ export const startNextRound = (state: TournamentState, user: User) => {
 
         const currentRound = state.currentRoundRobinRound || 1;
         if (currentRound > 5) {
-            state.status = 'complete';
+            applyTournamentCompleteStatus(state);
             return;
         }
 
         // 현재 회차의 라운드 찾기 (name이 "1회차", "2회차" 등인 라운드)
         const currentRoundObj = state.rounds.find(r => r.name === `${currentRound}회차`);
         if (!currentRoundObj) {
-            state.status = 'complete';
+            applyTournamentCompleteStatus(state);
             return;
         }
         

@@ -1411,6 +1411,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             if (allUserMatchesFinished || allMatchesFinished) {
                 // 모든 경기가 완료되었으면 complete 상태로 설정
                 tournamentState.status = 'complete';
+                tournamentState.nextRoundStartTime = null;
                 // 경기 종료 시 모든 플레이어의 컨디션 초기화 (컨디션 회복제 낭비 방지)
                 tournamentState.players.forEach(p => {
                     p.condition = 1000;
@@ -1520,6 +1521,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     );
                     if (!hasNextUserMatch) {
                         tournamentState.status = 'complete';
+                        tournamentState.nextRoundStartTime = null;
                     }
                 }
             }
@@ -1775,6 +1777,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     dungeonState = fromVolatile;
                     (freshUser as any)[stateKey] = fromVolatile;
                 }
+            }
+            if (dungeonState) {
+                const { ensureDungeonStageAttemptForRewards } = await import('../tournamentService.js');
+                ensureDungeonStageAttemptForRewards(dungeonState, freshUser, dungeonType);
             }
             if (!dungeonState || dungeonState.currentStageAttempt !== stage) {
                 return { error: '진행 중인 던전이 없습니다.' };

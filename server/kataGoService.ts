@@ -957,10 +957,12 @@ export const analyzeGame = async (
     const scoringHttpTimeoutParsed = parseInt(process.env.KATAGO_SCORING_HTTP_TIMEOUT_MS || '', 10);
     const httpTransportOpts: { timeoutMs: number; maxRetries: number; retryDelayMs: number } = isScoringHttpProfile
         ? {
+              // 원격 KataGo는 엔진 maxTime 외에 네트워크·콜드스타트·ownership 직렬화 시간이 붙음.
+              // 예전 공식(엔진 3초 → 5.5초 HTTP)은 Railway 등에서 타임아웃·socket hang up을 유발해 계가가 멈춤.
               timeoutMs:
                   Number.isFinite(scoringHttpTimeoutParsed) && scoringHttpTimeoutParsed > 0
                       ? scoringHttpTimeoutParsed
-                      : Math.min(12000, Math.max(4500, engineBudgetSec * 1000 + 2500)),
+                      : Math.min(45000, Math.max(12000, engineBudgetSec * 1000 + 9000)),
               maxRetries: Math.max(0, Math.min(3, parseInt(process.env.KATAGO_SCORING_HTTP_RETRIES || '1', 10))),
               retryDelayMs: Math.max(100, parseInt(process.env.KATAGO_SCORING_HTTP_RETRY_DELAY_MS || '400', 10)),
           }
@@ -1070,14 +1072,22 @@ export const analyzeGame = async (
             
             return response;
         } catch (error: any) {
-            // 재시도 가능한 에러인지 확인 (네트워크 에러, 타임아웃 등)
-            const isRetryableError = error.message?.includes('timeout') || 
-                                   error.message?.includes('ECONNREFUSED') ||
-                                   error.message?.includes('ENOTFOUND') ||
-                                   error.message?.includes('ETIMEDOUT') ||
-                                   (error as any).code === 'ECONNREFUSED' ||
-                                   (error as any).code === 'ENOTFOUND' ||
-                                   (error as any).code === 'ETIMEDOUT';
+            // 재시도 가능한 에러인지 확인 (네트워크 에러, 타임아웃, 상대가 먼저 끊은 소켓 등)
+            const msg = String(error?.message ?? '');
+            const code = (error as any)?.code as string | undefined;
+            const isRetryableError =
+                msg.includes('timeout') ||
+                msg.includes('ECONNREFUSED') ||
+                msg.includes('ENOTFOUND') ||
+                msg.includes('ETIMEDOUT') ||
+                msg.includes('socket hang up') ||
+                msg.includes('ECONNRESET') ||
+                code === 'ECONNREFUSED' ||
+                code === 'ENOTFOUND' ||
+                code === 'ETIMEDOUT' ||
+                code === 'ECONNRESET' ||
+                code === 'EPIPE' ||
+                code === 'ECONNABORTED';
             
             if (isRetryableError && retryCount < MAX_RETRIES) {
                 console.warn(`[KataGo HTTP] Retryable error occurred (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${error.message}. Retrying in ${RETRY_DELAY_MS}ms...`);

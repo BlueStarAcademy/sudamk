@@ -7,7 +7,13 @@ import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_
 import { randomUUID } from 'crypto';
 import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate } from '../shared/utils/timeUtils.js';
 import { DEMO_GUILD_WAR } from '../shared/constants/auth.js';
-import { GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT, GUILD_WAR_BOARD_ORDER, getGuildWarBoardMode } from '../shared/constants/index.js';
+import {
+    GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT,
+    GUILD_WAR_BOARD_ORDER,
+    getGuildWarBoardMode,
+    getGuildWarCaptureInitialStones,
+    getGuildWarBoardLineSize,
+} from '../shared/constants/index.js';
 import { resetAndGenerateQuests } from './gameActions.js';
 import * as tournamentService from './tournamentService.js';
 import { calculateTotalStats } from './statService.js';
@@ -2176,11 +2182,9 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 const botStars = Math.floor(Math.random() * 2) + 2;
                 const botScoreDiff = Math.floor(Math.random() * 11) + 5;
                 boards[boardId] = {
-                    boardSize: gameMode === 'capture' ? 9 : 13,
+                    boardSize: getGuildWarBoardLineSize(boardId),
                     gameMode,
-                    initialStones: gameMode === 'capture'
-                        ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
-                        : undefined,
+                    initialStones: [getGuildWarCaptureInitialStones(boardId)],
                     guild1Stars: 0,
                     guild2Stars: botStars,
                     guild1BestResult: null,
@@ -2267,11 +2271,9 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         for (const boardId of boardIds) {
             const gameMode = getGuildWarBoardMode(boardId);
             boards[boardId] = {
-                boardSize: gameMode === 'capture' ? 9 : 13,
+                boardSize: getGuildWarBoardLineSize(boardId),
                 gameMode: gameMode,
-                initialStones: gameMode === 'capture'
-                    ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
-                    : undefined,
+                initialStones: [getGuildWarCaptureInitialStones(boardId)],
                 guild1Stars: 0,
                 guild2Stars: 0,
                 guild1BestResult: null,
@@ -2336,11 +2338,9 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 const botStars = Math.floor(Math.random() * 2) + 2; // 2~3개
                 const botScoreDiff = Math.floor(Math.random() * 11) + 5; // 5~15집 차
                 boards[boardId] = {
-                    boardSize: gameMode === 'capture' ? 9 : 13,
+                    boardSize: getGuildWarBoardLineSize(boardId),
                     gameMode: gameMode,
-                    initialStones: gameMode === 'capture'
-                        ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
-                        : undefined,
+                    initialStones: [getGuildWarCaptureInitialStones(boardId)],
                     guild1Stars: 0,
                     guild2Stars: botStars,
                     guild1BestResult: null,
@@ -2472,11 +2472,9 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
         const botStars = Math.floor(Math.random() * 2) + 2;
         const botScoreDiff = Math.floor(Math.random() * 11) + 5;
         boards[boardId] = {
-            boardSize: gameMode === 'capture' ? 9 : 13,
+            boardSize: getGuildWarBoardLineSize(boardId),
             gameMode: gameMode,
-            initialStones: gameMode === 'capture'
-                ? [{ blackPlain: 3, whitePlain: 3, blackMarked: 2, whiteMarked: 2 }]
-                : undefined,
+            initialStones: [getGuildWarCaptureInitialStones(boardId)],
             guild1Stars: 0,
             guild2Stars: botStars,
             guild1BestResult: null,

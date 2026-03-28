@@ -12,22 +12,26 @@ const AnimatedBonusText: React.FC<{
     const { cx, cy } = toSvgCoords(point);
     const fontSize = cellSize * 1.5;
 
+    const durS = Math.max(1.2, (animation.duration ?? 2500) / 1000);
     return (
-        <g style={{ pointerEvents: 'none' }} className="bonus-text-animation">
-            <text
-                x={cx}
-                y={cy}
-                textAnchor="middle"
-                dy=".35em"
-                fontSize={fontSize}
-                fontWeight="bold"
-                fill="url(#bonus-gradient)"
-                stroke="black"
-                strokeWidth="1.5px"
-                paintOrder="stroke"
-            >
-                {text}
-            </text>
+        <g style={{ pointerEvents: 'none' }} transform={`translate(${cx}, ${cy})`}>
+            <g className="capture-points-float-inner" style={{ animationDuration: `${durS}s` }}>
+                <text
+                    x={0}
+                    y={0}
+                    textAnchor="middle"
+                    dy=".35em"
+                    fontSize={fontSize}
+                    className="capture-score-float-text"
+                    fill="url(#capture-score-gradient)"
+                    stroke="#022c22"
+                    strokeWidth={Math.max(1.5, cellSize * 0.09)}
+                    paintOrder="stroke fill"
+                    filter="url(#capture-score-premium)"
+                >
+                    {text}
+                </text>
+            </g>
         </g>
     );
 };
@@ -408,10 +412,12 @@ interface GoBoardProps {
   myRevealedStones?: Point[];
   allRevealedStones?: { [playerId: string]: Point[] };
   newlyRevealed?: { point: Point, player: Player }[];
-  justCaptured?: { point: Point; player: Player; wasHidden: boolean }[];
+  justCaptured?: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number }[];
   permanentlyRevealedStones?: Point[];
   blackPatternStones?: Point[];
   whitePatternStones?: Point[];
+  /** 문양이 영구 소모된 교차점 — 같은 자리에 다시 두어도 문양 표시 안 함 */
+  consumedPatternIntersections?: Point[];
   // Analysis props
   analysisResult?: AnalysisResult | null;
   showTerritoryOverlay?: boolean;
@@ -438,8 +444,52 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         myPlayerEnum, gameStatus, highlightedPoints, highlightStyle = 'circle', myRevealedStones, allRevealedStones, newlyRevealed, isSpectator,
         analysisResult, showTerritoryOverlay = false, showHintOverlay = false, currentUser, blackPlayerNickname, whitePlayerNickname,
         currentPlayer, isItemModeActive, animation, mode, mixedModes, justCaptured, permanentlyRevealedStones, onAction, gameId,
-        showLastMoveMarker, blackPatternStones, whitePatternStones, isSinglePlayer = false, isRotated = false, pendingMove = null
+        showLastMoveMarker, blackPatternStones, whitePatternStones, consumedPatternIntersections, isSinglePlayer = false, isRotated = false, pendingMove = null
     } = props;
+    const [captureScoreFloats, setCaptureScoreFloats] = useState<{ id: string; point: Point; label: string }[]>([]);
+    /** 서버는 justCaptured를 누적하므로, 같은 교차점에서 보너스 점수(+2/+5) 플로트는 대국당 1회만 */
+    const shownCaptureBonusAtRef = useRef<Set<string>>(new Set());
+    const captureFloatTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+    useEffect(() => {
+        shownCaptureBonusAtRef.current = new Set();
+    }, [gameId]);
+
+    useEffect(() => {
+        return () => {
+            captureFloatTimeoutsRef.current.forEach(clearTimeout);
+            captureFloatTimeoutsRef.current = [];
+        };
+    }, []);
+
+    useEffect(() => {
+        const list = justCaptured ?? [];
+        if (list.length === 0) return;
+
+        const CAPTURE_FLOAT_MS = 2800;
+        const toAdd: { id: string; point: Point; label: string }[] = [];
+        for (const e of list) {
+            const pts = e.capturePoints ?? (e.wasHidden ? 5 : 1);
+            if (pts < 2) continue;
+            const posKey = `${e.point.x},${e.point.y}`;
+            if (shownCaptureBonusAtRef.current.has(posKey)) continue;
+            shownCaptureBonusAtRef.current.add(posKey);
+            toAdd.push({
+                id: `cap-${e.point.x}-${e.point.y}-${pts}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                point: e.point,
+                label: `+${pts}`,
+            });
+        }
+        if (toAdd.length === 0) return;
+        setCaptureScoreFloats((prev) => [...prev, ...toAdd]);
+        for (const f of toAdd) {
+            const t = setTimeout(() => {
+                setCaptureScoreFloats((prev) => prev.filter((x) => x.id !== f.id));
+            }, CAPTURE_FLOAT_MS);
+            captureFloatTimeoutsRef.current.push(t);
+        }
+    }, [justCaptured]);
+
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const [selectedMissileStone, setSelectedMissileStone] = useState<Point | null>(null);
     const [isDraggingMissile, setIsDraggingMissile] = useState(false);
@@ -1077,6 +1127,26 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         <stop offset="0%" stopColor="#fef08a" />
                         <stop offset="100%" stopColor="#f59e0b" />
                     </linearGradient>
+                    <linearGradient id="capture-score-gradient" x1="18%" y1="0%" x2="82%" y2="100%">
+                        <stop offset="0%" stopColor="#ecfdf5" />
+                        <stop offset="22%" stopColor="#a7f3d0" />
+                        <stop offset="48%" stopColor="#34d399" />
+                        <stop offset="78%" stopColor="#059669" />
+                        <stop offset="100%" stopColor="#064e3b" />
+                    </linearGradient>
+                    <filter id="capture-score-premium" x="-120%" y="-120%" width="340%" height="340%" colorInterpolationFilters="sRGB">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="5.5" result="blurWide" />
+                        <feFlood floodColor="#34d399" floodOpacity="0.42" result="colWide" />
+                        <feComposite in="colWide" in2="blurWide" operator="in" result="glowWide" />
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blurCore" />
+                        <feFlood floodColor="#6ee7b7" floodOpacity="0.75" result="colCore" />
+                        <feComposite in="colCore" in2="blurCore" operator="in" result="glowCore" />
+                        <feMerge>
+                            <feMergeNode in="glowWide" />
+                            <feMergeNode in="glowCore" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
                     <filter id="blue-glow" x="-50%" y="-50%" width="200%" height="200%">
                         <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
                         <feMerge>
@@ -1162,8 +1232,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // 히든 돌(공개 여부와 관계없이)은 히든 문양을 우선 표시하므로 패턴 문양을 표시하지 않음
                     let isPatternStone = false;
                     if (!isHiddenMove) {
-                        // 히든 돌이 아닌 경우에만 패턴 문양 확인 (actualPlayer 사용)
-                        isPatternStone = ((actualPlayer === Player.Black && blackPatternStones?.some(p => p.x === x && p.y === y)) || (actualPlayer === Player.White && whitePatternStones?.some(p => p.x === x && p.y === y))) ?? false;
+                        const patternConsumedHere = consumedPatternIntersections?.some((p) => p.x === x && p.y === y);
+                        if (!patternConsumedHere) {
+                            isPatternStone =
+                                ((actualPlayer === Player.Black && blackPatternStones?.some((p) => p.x === x && p.y === y)) ||
+                                    (actualPlayer === Player.White && whitePatternStones?.some((p) => p.x === x && p.y === y))) ??
+                                false;
+                        }
                     }
 
                     
@@ -1283,6 +1358,33 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         </>
                     );
                 })()}
+                {!isScoringOrEnded &&
+                    captureScoreFloats.map((f) => {
+                        const { cx, cy } = toSvgCoords(f.point);
+                        const fs = cell_size * 1.42;
+                        const sw = Math.max(1.6, cell_size * 0.1);
+                        return (
+                            <g key={f.id} transform={`translate(${cx}, ${cy})`} style={{ pointerEvents: 'none' }}>
+                                <g className="capture-points-float-inner">
+                                    <text
+                                        x={0}
+                                        y={0}
+                                        textAnchor="middle"
+                                        dy=".35em"
+                                        fontSize={fs}
+                                        className="capture-score-float-text"
+                                        fill="url(#capture-score-gradient)"
+                                        stroke="#022c22"
+                                        strokeWidth={sw}
+                                        paintOrder="stroke fill"
+                                        filter="url(#capture-score-premium)"
+                                    >
+                                        {f.label}
+                                    </text>
+                                </g>
+                            </g>
+                        );
+                    })}
                 {renderTerritoryMarkers()}
                 {renderDeadStoneMarkers()}
                 {showHintOverlay && !isBoardDisabled && analysisResult?.recommendedMoves?.map(move => ( <RecommendedMoveMarker key={`rec-${move.order}`} move={move} toSvgCoords={toSvgCoords} cellSize={cell_size} onClick={onBoardClick} /> ))}

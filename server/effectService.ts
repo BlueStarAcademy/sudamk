@@ -167,6 +167,28 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
     return calculatedEffects;
 };
 
+/**
+ * 장비 변경 후 행동력 max/current와 회복 타이머(lastActionPointUpdate)를 일치시킨다.
+ * 만땅( current >= max )이면 lastActionPointUpdate = 0,
+ * 그렇지 않고 last가 0이면(이전에 만땅이었음) 지금부터 회복이 돌도록 now로 설정.
+ */
+export function syncActionPointsStateAfterEquipmentChange(user: User): void {
+    if (!user.actionPoints) return;
+    const effects = calculateUserEffects(user);
+    const maxAp = effects.maxActionPoints;
+    user.actionPoints.max = maxAp;
+    user.actionPoints.current = Math.min(user.actionPoints.current, maxAp);
+
+    if (user.actionPoints.current >= maxAp) {
+        user.lastActionPointUpdate = 0;
+        return;
+    }
+    const lu = user.lastActionPointUpdate;
+    if (lu === 0 || lu === undefined || lu === null || (typeof lu === 'number' && Number.isNaN(lu))) {
+        user.lastActionPointUpdate = Date.now();
+    }
+}
+
 export const regenerateActionPoints = async (user: User): Promise<User> => {
     const effects = calculateUserEffects(user);
     const now = Date.now();

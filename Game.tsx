@@ -314,6 +314,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     permanentlyRevealedStones: session.permanentlyRevealedStones || [],
                     blackPatternStones: session.blackPatternStones,
                     whitePatternStones: session.whitePatternStones,
+                    consumedPatternIntersections: (session as any).consumedPatternIntersections,
                     hiddenMoves: session.hiddenMoves || {},
                     hidden_stones_p1: (session as any).hidden_stones_p1,
                     hidden_stones_p2: (session as any).hidden_stones_p2,
@@ -327,7 +328,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 console.error(`[Game] Failed to save game state to sessionStorage:`, e);
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, session.hiddenMoves, session.totalTurns, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
@@ -382,12 +383,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         };
                     }
                     const hasPattern = (session.blackPatternStones?.length ?? 0) > 0 || (session.whitePatternStones?.length ?? 0) > 0;
-                    if (!hasPattern || canPreferStoredVisualState) {
+                    const serverHasPatternField =
+                        Array.isArray(next.blackPatternStones) || Array.isArray(next.whitePatternStones);
+                    if ((!hasPattern || canPreferStoredVisualState) && !serverHasPatternField) {
                         const storedBlack = Array.isArray(parsed.blackPatternStones) ? parsed.blackPatternStones : null;
                         const storedWhite = Array.isArray(parsed.whitePatternStones) ? parsed.whitePatternStones : null;
                         if (storedBlack || storedWhite) {
                             next = { ...next, blackPatternStones: storedBlack ?? next.blackPatternStones, whitePatternStones: storedWhite ?? next.whitePatternStones };
                         }
+                    }
+                    if (
+                        !Array.isArray((next as any).consumedPatternIntersections) &&
+                        Array.isArray(parsed.consumedPatternIntersections)
+                    ) {
+                        next = { ...next, consumedPatternIntersections: parsed.consumedPatternIntersections } as any;
                     }
                     // 턴 제한 경기: totalTurns가 없거나 0이면 sessionStorage 값으로 복원 (남은 턴이 Max로 초기화되는 현상 방지)
                     const serverTotalTurns = next.totalTurns;
@@ -612,8 +621,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return () => clearInterval(id);
     }, [aiHiddenItemEffectEndTime]);
 
+    const isGuildWarHiddenClientEffects =
+        session.gameCategory === 'guildwar' && mode === GameMode.Hidden;
+
     useEffect(() => {
-        if (!(isSinglePlayer || isTower)) return;
+        if (!(isSinglePlayer || isTower || isGuildWarHiddenClientEffects)) return;
         const hasRevealToFinalize =
             !!session.revealAnimationEndTime &&
             (session.gameStatus === 'hidden_reveal_animating' || !!session.pendingCapture);
@@ -625,23 +637,26 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 type: 'LOCAL_HIDDEN_REVEAL_COMPLETE',
                 payload: {
                     gameId: session.id,
-                    gameType: isTower ? 'tower' : 'singleplayer'
+                    gameType: isTower ? 'tower' : isGuildWarHiddenClientEffects ? 'guildwar' : 'singleplayer'
                 }
             } as any);
         }, remaining + 50);
 
         return () => window.clearTimeout(id);
-    }, [session.gameStatus, session.revealAnimationEndTime, session.pendingCapture, session.id, isSinglePlayer, isTower, handlers.handleAction]);
+    }, [session.gameStatus, session.revealAnimationEndTime, session.pendingCapture, session.id, isSinglePlayer, isTower, isGuildWarHiddenClientEffects, handlers.handleAction]);
 
     // 싱글/타워: 스캔 결과 애니메이션 종료 시 본경기(playing) 복귀 — 서버 updateGameStates/WS가 늦어도 착수 가능하도록
     useEffect(() => {
-        if (!(isSinglePlayer || isTower)) return;
+        if (!(isSinglePlayer || isTower || isGuildWarHiddenClientEffects)) return;
         if (session.gameStatus !== 'scanning_animating') return;
         const anim = session.animation as { type?: string; startTime?: number; duration?: number } | null | undefined;
         const finish = () => {
             handlers.handleAction({
                 type: 'LOCAL_PVE_SCAN_ANIMATION_COMPLETE',
-                payload: { gameId: session.id, gameType: isTower ? 'tower' : 'singleplayer' },
+                payload: {
+                    gameId: session.id,
+                    gameType: isTower ? 'tower' : isGuildWarHiddenClientEffects ? 'guildwar' : 'singleplayer',
+                },
             } as any);
         };
         if (!anim || anim.type !== 'scan') {
@@ -652,21 +667,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const remaining = Math.max(0, end - Date.now());
         const id = window.setTimeout(finish, remaining + 50);
         return () => window.clearTimeout(id);
-    }, [isSinglePlayer, isTower, session.id, session.gameStatus, session.animation, handlers.handleAction]);
+    }, [isSinglePlayer, isTower, isGuildWarHiddenClientEffects, session.id, session.gameStatus, session.animation, handlers.handleAction]);
 
     // 계가 턴 히든 공개(hidden_final_reveal) 애니메이션 종료 시 로컬에서 즉시 scoring으로 전환 → 계가 연출(ScoringOverlay) 표시
     useEffect(() => {
-        if (!(isSinglePlayer || isTower)) return;
+        if (!(isSinglePlayer || isTower || isGuildWarHiddenClientEffects)) return;
         if (session.gameStatus !== 'hidden_final_reveal' || !session.revealAnimationEndTime) return;
         const remaining = Math.max(0, session.revealAnimationEndTime - Date.now());
         const id = window.setTimeout(() => {
             handlers.handleAction({
                 type: 'LOCAL_HIDDEN_FINAL_REVEAL_COMPLETE',
-                payload: { gameId: session.id, gameType: isTower ? 'tower' : 'singleplayer' }
+                payload: {
+                    gameId: session.id,
+                    gameType: isTower ? 'tower' : isGuildWarHiddenClientEffects ? 'guildwar' : 'singleplayer',
+                }
             } as any);
         }, remaining + 50);
         return () => window.clearTimeout(id);
-    }, [session.gameStatus, session.revealAnimationEndTime, session.id, isSinglePlayer, isTower, handlers.handleAction]);
+    }, [session.gameStatus, session.revealAnimationEndTime, session.id, isSinglePlayer, isTower, isGuildWarHiddenClientEffects, handlers.handleAction]);
 
     useEffect(() => {
         if (prevGameStatus === 'hidden_reveal_animating' && gameStatus === 'playing' && currentPlayer === Player.White) {
@@ -713,7 +731,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
                 payload: {
                     gameId: session.id,
-                    gameType: isTower ? 'tower' : 'singleplayer',
+                    gameType: isTower ? 'tower' : isGuildWarGame ? 'guildwar' : 'singleplayer',
                     point: { x: aiMove.x, y: aiMove.y },
                     // Reveal target belongs to the opponent of the AI placing this hidden stone.
                     player: opponentPlayerEnum,
@@ -730,6 +748,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         );
         if (!aiMoveResult.isValid) return;
         lastAiMoveRef.current = { gameId: session.id, moveHistoryLength, player: aiPlayerEnum, timestamp: Date.now() };
+        // 길드전은 liveGames만 사용하므로 싱글/탑 클라이언트 무브가 적용되지 않음 → 서버 PLACE_STONE(clientSideAi + 히든)으로 동기화
+        if (isGuildWarGame) {
+            handlers.handleAction({
+                type: 'PLACE_STONE',
+                payload: {
+                    gameId: session.id,
+                    x: aiMove.x,
+                    y: aiMove.y,
+                    isClientAiMove: true,
+                    isHidden: true,
+                },
+            } as ServerAction);
+            return;
+        }
         handlers.handleAction({
             type: isTower ? 'TOWER_CLIENT_MOVE' : 'SINGLE_PLAYER_CLIENT_MOVE',
             payload: {
@@ -742,7 +774,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 isHidden: true,
             },
         } as any);
-    }, [aiHiddenItemEffectEndTime, effectTick, session.id, session.gameStatus, session.currentPlayer, session.moveHistory?.length, session.koInfo, session.settings?.aiDifficulty, restoredBoardState, session.boardState, handlers.handleAction, isTower]);
+    }, [
+        aiHiddenItemEffectEndTime,
+        effectTick,
+        session.id,
+        session.gameStatus,
+        session.currentPlayer,
+        session.moveHistory?.length,
+        session.koInfo,
+        session.settings?.aiDifficulty,
+        restoredBoardState,
+        session.boardState,
+        handlers.handleAction,
+        isTower,
+        isGuildWarGame,
+    ]);
 
     useEffect(() => {
         const isGameOver = ['ended', 'no_contest', 'scoring'].includes(gameStatus);
@@ -1701,9 +1747,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             
             // 히든 모드에서는 유저의 미공개 히든 돌을 AI에게 빈칸처럼 보이게 처리한다.
             const boardStateToUse = restoredBoardState || session.boardState;
-            const boardStateForAi = (session.isSinglePlayer || session.gameCategory === 'tower')
-                ? getMaskedBoardForHiddenAi(session, boardStateToUse)
-                : boardStateToUse;
+            const boardStateForAi =
+                session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'guildwar'
+                    ? getMaskedBoardForHiddenAi(session, boardStateToUse)
+                    : boardStateToUse;
             const boardStateAtCalculation = JSON.parse(JSON.stringify(boardStateForAi));
             const actualBoardStateAtCalculation = JSON.parse(JSON.stringify(boardStateToUse));
             const koInfoAtCalculation = session.koInfo ? JSON.parse(JSON.stringify(session.koInfo)) : null;
@@ -1809,6 +1856,29 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 }
                             } as any);
                         } else {
+                        if (
+                            session.gameCategory === 'guildwar' &&
+                            isUnrevealedUserHiddenStoneAt(session, aiMove.x, aiMove.y)
+                        ) {
+                            lastAiMoveRef.current = {
+                                gameId: currentGameId,
+                                moveHistoryLength: moveHistoryLengthAtCalculation,
+                                player: currentPlayerAtCalculation,
+                                timestamp: Date.now(),
+                            };
+                            handlers.handleAction({
+                                type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
+                                payload: {
+                                    gameId: currentGameId,
+                                    gameType: 'guildwar',
+                                    point: { x: aiMove.x, y: aiMove.y },
+                                    player: Player.Black,
+                                    keepTurn: true,
+                                },
+                            } as any);
+                            aiMoveTimeoutRef.current = null;
+                            return;
+                        }
                         console.log('[Game] Sending AI move:', {
                             gameId: currentGameId,
                             x: aiMove.x,

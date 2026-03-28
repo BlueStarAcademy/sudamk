@@ -11,80 +11,83 @@ type HandleActionResult = {
     error?: string;
 };
 
-// Helper function to check if a stone placement would result in immediate capture
-const wouldBeImmediatelyCaptured = (board: BoardState, x: number, y: number, player: Player): boolean => {
-    // Try placing the stone
-    const result = processMove(
-        board,
-        { x, y, player },
-        null, // no ko info for initial placement
-        0, // move history length
-        { ignoreSuicide: true } // allow suicide for initial check
-    );
+const getBoardNeighbors = (boardSize: number, px: number, py: number): Point[] => {
+    const neighbors: Point[] = [];
+    if (px > 0) neighbors.push({ x: px - 1, y: py });
+    if (px < boardSize - 1) neighbors.push({ x: px + 1, y: py });
+    if (py > 0) neighbors.push({ x: px, y: py - 1 });
+    if (py < boardSize - 1) neighbors.push({ x: px, y: py + 1 });
+    return neighbors;
+};
 
-    if (!result.isValid) {
-        return true; // Invalid move, skip this position
-    }
+/** 연결 그룹과 호흡 좌표 목록 (빈점 기준) */
+const findGroupLibertiesOnBoard = (
+    currentBoard: BoardState,
+    boardSize: number,
+    startX: number,
+    startY: number,
+    playerColor: Player
+): { stones: Point[]; libertyCells: Point[] } | null => {
+    if (currentBoard[startY]?.[startX] !== playerColor) return null;
+    const q: Point[] = [{ x: startX, y: startY }];
+    const visitedStones = new Set([`${startX},${startY}`]);
+    const libertyPointKeys = new Set<string>();
+    const stones: Point[] = [{ x: startX, y: startY }];
 
-    // Check if the placed stone's group has only one liberty
-    // If so, check if opponent can capture it by playing at that liberty
-    const opponent = player === Player.Black ? Player.White : Player.Black;
-    const boardSize = board.length;
-    
-    // Get neighbors of the placed stone
-    const getNeighbors = (px: number, py: number) => {
-        const neighbors = [];
-        if (px > 0) neighbors.push({ x: px - 1, y: py });
-        if (px < boardSize - 1) neighbors.push({ x: px + 1, y: py });
-        if (py > 0) neighbors.push({ x: px, y: py - 1 });
-        if (py < boardSize - 1) neighbors.push({ x: px, y: py + 1 });
-        return neighbors;
-    };
+    while (q.length > 0) {
+        const { x: cx, y: cy } = q.shift()!;
+        for (const n of getBoardNeighbors(boardSize, cx, cy)) {
+            const key = `${n.x},${n.y}`;
+            const neighborContent = currentBoard[n.y][n.x];
 
-    // Find the group containing the placed stone
-    const findGroup = (startX: number, startY: number, playerColor: Player, currentBoard: BoardState) => {
-        if (currentBoard[startY]?.[startX] !== playerColor) return null;
-        const q: Point[] = [{ x: startX, y: startY }];
-        const visitedStones = new Set([`${startX},${startY}`]);
-        const libertyPoints = new Set<string>();
-        const stones: Point[] = [{ x: startX, y: startY }];
-
-        while (q.length > 0) {
-            const { x: cx, y: cy } = q.shift()!;
-            for (const n of getNeighbors(cx, cy)) {
-                const key = `${n.x},${n.y}`;
-                const neighborContent = currentBoard[n.y][n.x];
-
-                if (neighborContent === Player.None) {
-                    libertyPoints.add(key);
-                } else if (neighborContent === playerColor) {
-                    if (!visitedStones.has(key)) {
-                        visitedStones.add(key);
-                        q.push(n);
-                        stones.push(n);
-                    }
+            if (neighborContent === Player.None) {
+                libertyPointKeys.add(key);
+            } else if (neighborContent === playerColor) {
+                if (!visitedStones.has(key)) {
+                    visitedStones.add(key);
+                    q.push(n);
+                    stones.push(n);
                 }
             }
         }
-        return { stones, liberties: Array.from(libertyPoints).map(k => {
-            const [nx, ny] = k.split(',').map(Number);
-            return { x: nx, y: ny };
-        }) };
-    };
-
-    const myGroup = findGroup(x, y, player, result.newBoardState);
-    if (!myGroup) {
-        return true; // Couldn't find group, skip
     }
+    const libertyCells = Array.from(libertyPointKeys).map(k => {
+        const [nx, ny] = k.split(',').map(Number);
+        return { x: nx, y: ny };
+    });
+    return { stones, libertyCells };
+};
 
-    // 0 liberties = 즉시 따이는 모양 (자살/포석 즉시 잡힘) → 배치 불가
-    if (myGroup.liberties.length === 0) {
+/**
+ * 도전의 탑 초기 배치: 빈점에만 두고, 겹침 없음, 따냄 없음(실제 보드는 capture 미적용이므로 시뮬에서 따낼 수 있는 착점은 전부 금지),
+ * 자살(호흡 0) 금지, 한 수로 잡히는 단호흡도 금지.
+ */
+const isInvalidTowerInitialStonePlacement = (board: BoardState, x: number, y: number, player: Player): boolean => {
+    const boardSize = board.length;
+    if (y < 0 || y >= boardSize || x < 0 || x >= boardSize || board[y][x] !== Player.None) {
         return true;
     }
 
-    // If the group has only one liberty, check if opponent can capture by playing there
-    if (myGroup.liberties.length === 1) {
-        const liberty = myGroup.liberties[0];
+    const result = processMove(
+        board,
+        { x, y, player },
+        null,
+        0,
+        { ignoreSuicide: true }
+    );
+
+    if (!result.isValid) return true;
+
+    // 시뮬에선 따냄이 반영되지만 실제 배치는 board[y][x]=player 만 하므로, 따내는 착점이면 사석이 보드에 남는 버그가 난다.
+    if (result.capturedStones.length > 0) return true;
+
+    const myGroup = findGroupLibertiesOnBoard(result.newBoardState, boardSize, x, y, player);
+    if (!myGroup || myGroup.libertyCells.length === 0) return true;
+
+    const opponent = player === Player.Black ? Player.White : Player.Black;
+
+    if (myGroup.libertyCells.length === 1) {
+        const liberty = myGroup.libertyCells[0];
         const opponentResult = processMove(
             result.newBoardState,
             { x: liberty.x, y: liberty.y, player: opponent },
@@ -92,13 +95,26 @@ const wouldBeImmediatelyCaptured = (board: BoardState, x: number, y: number, pla
             1,
             { ignoreSuicide: false }
         );
-
-        // If opponent can capture our stone by playing at the liberty, it's a bad placement
         if (opponentResult.isValid && opponentResult.capturedStones.some(s => s.x === x && s.y === y)) {
             return true;
         }
     }
 
+    return false;
+};
+
+/** 생성된 전체 보드에 호흡 없는 그룹이 없는지 (이중 검증) */
+const towerBoardHasDeadGroup = (board: BoardState, boardSize: number): boolean => {
+    const visited = new Set<string>();
+    for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+            const c = board[y][x];
+            if (c === Player.None || visited.has(`${x},${y}`)) continue;
+            const g = findGroupLibertiesOnBoard(board, boardSize, x, y, c);
+            if (!g || g.libertyCells.length === 0) return true;
+            g.stones.forEach(s => visited.add(`${s.x},${s.y}`));
+        }
+    }
     return false;
 };
 
@@ -141,7 +157,7 @@ const placeStonesOnBoard = (board: BoardState, boardSize: number, count: number,
     for (const { x, y } of shuffled) {
         if (placedStones.length >= count) break;
         if (board[y][x] !== Player.None) continue;
-        if (wouldBeImmediatelyCaptured(board, x, y, player)) continue;
+        if (isInvalidTowerInitialStonePlacement(board, x, y, player)) continue;
         board[y][x] = player;
         placedStones.push({ x, y });
     }
@@ -156,7 +172,7 @@ const placePatternStonesOnBoard = (board: BoardState, boardSize: number, count: 
         for (let y = 0; y < boardSize; y++) {
             for (let x = 0; x < boardSize; x++) {
                 if (board[y][x] !== Player.None) continue;
-                if (wouldBeImmediatelyCaptured(board, x, y, player)) continue;
+                if (isInvalidTowerInitialStonePlacement(board, x, y, player)) continue;
                 empty.push({ x, y });
             }
         }
@@ -170,31 +186,60 @@ const placePatternStonesOnBoard = (board: BoardState, boardSize: number, count: 
 };
 
 const generateTowerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
-    const board = Array(stage.boardSize).fill(null).map(() => Array(stage.boardSize).fill(Player.None));
     const placements = stage.placements ?? { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
     const blackCount = placements.black ?? 0;
     const whiteCount = placements.white ?? 0;
     const blackPatternCount = placements.blackPattern ?? 0;
     const whitePatternCount = placements.whitePattern ?? 0;
 
-    // 흑돌 배치 (층별 정해진 개수만큼)
+    const maxAttempts = 40;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const board = Array(stage.boardSize).fill(null).map(() => Array(stage.boardSize).fill(Player.None));
+
+        const blackStones = placeStonesOnBoard(board, stage.boardSize, blackCount, Player.Black);
+        const whiteStones = placeStonesOnBoard(board, stage.boardSize, whiteCount, Player.White);
+
+        const blackPattern = placePatternStonesOnBoard(board, stage.boardSize, blackPatternCount, Player.Black, blackStones);
+        for (const p of blackPattern) {
+            board[p.y][p.x] = Player.Black;
+        }
+
+        const whitePattern = placePatternStonesOnBoard(board, stage.boardSize, whitePatternCount, Player.White, whiteStones);
+        for (const p of whitePattern) {
+            board[p.y][p.x] = Player.White;
+        }
+
+        const expectedStones = blackCount + whiteCount + blackPatternCount + whitePatternCount;
+        const actualStones = board.flat().filter(c => c !== Player.None).length;
+        const countsOk =
+            blackStones.length === blackCount &&
+            whiteStones.length === whiteCount &&
+            blackPattern.length === blackPatternCount &&
+            whitePattern.length === whitePatternCount &&
+            actualStones === expectedStones;
+
+        if (countsOk && !towerBoardHasDeadGroup(board, stage.boardSize)) {
+            return { board, blackPattern, whitePattern };
+        }
+    }
+
+    // 극히 협소한 설정에서만 도달 — 마지막 시도 결과라도 반환 (서버는 살아 있게)
+    console.warn('[generateTowerBoard] maxAttempts exhausted; using last shuffle', {
+        stageId: stage.id,
+        boardSize: stage.boardSize,
+        placements,
+    });
+    const board = Array(stage.boardSize).fill(null).map(() => Array(stage.boardSize).fill(Player.None));
     const blackStones = placeStonesOnBoard(board, stage.boardSize, blackCount, Player.Black);
-
-    // 백돌 배치 (층별 정해진 개수만큼)
     const whiteStones = placeStonesOnBoard(board, stage.boardSize, whiteCount, Player.White);
-
-    // 흑 문양돌 배치 (빈 칸에 개수만큼 랜덤 위치, 정확히 blackPatternCount개)
     const blackPattern = placePatternStonesOnBoard(board, stage.boardSize, blackPatternCount, Player.Black, blackStones);
     for (const p of blackPattern) {
         board[p.y][p.x] = Player.Black;
     }
-
-    // 백 문양돌 배치 (빈 칸에 개수만큼 랜덤 위치, 정확히 whitePatternCount개)
     const whitePattern = placePatternStonesOnBoard(board, stage.boardSize, whitePatternCount, Player.White, whiteStones);
     for (const p of whitePattern) {
         board[p.y][p.x] = Player.White;
     }
-
     return { board, blackPattern, whitePattern };
 };
 

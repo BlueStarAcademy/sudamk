@@ -15,6 +15,7 @@ import { randomUUID } from 'crypto';
 import { aiUserId, getAiUser } from './aiPlayer.js';
 import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics, getGuildWarMatchGoldReward } from '../shared/utils/guildWarAttemptMetrics.js';
+import { isGuildWarLiveSession } from '../shared/constants/guildConstants.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
 import * as guildService from './guildService.js';
 
@@ -826,9 +827,9 @@ const processPlayerSummary = async (
     const updatedPlayer: User = JSON.parse(JSON.stringify(player)); // Create a deep mutable copy
     const { mode, winReason, isAiGame } = game;
 
-    const isGuildWarAi = (game as any).gameCategory === 'guildwar' && isAiGame && !isNoContest;
+    const isGuildWarMatch = !isNoContest && isGuildWarLiveSession(game as any);
     let guildWarStars: number | undefined;
-    if (isGuildWarAi) {
+    if (isGuildWarMatch) {
         const humanEnum = player.id === game.blackPlayerId ? Player.Black : Player.White;
         guildWarStars = computeGuildWarAttemptMetrics(game, humanEnum, isWinner).stars;
     }
@@ -887,7 +888,7 @@ const processPlayerSummary = async (
         xpGain = Math.round(xpGain * 0.25);
     }
     // 길드 전쟁: 별 0개(실패)면 경험치 없음
-    if (isGuildWarAi && guildWarStars === 0) {
+    if (isGuildWarMatch && guildWarStars === 0) {
         xpGain = 0;
     }
     // --- END NEW LOGIC ---
@@ -1042,7 +1043,7 @@ const processPlayerSummary = async (
         ? { gold: 0, items: [] }
         : calculateGameRewards(game, updatedPlayer, isWinner, isDraw, itemDropBonus, materialDropBonus, rewardMultiplier, effects);
 
-    if (isGuildWarAi) {
+    if (isGuildWarMatch) {
         const stars = guildWarStars ?? 0;
         const demo = !!(game as any).isDemo;
         rewards = {

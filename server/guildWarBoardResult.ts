@@ -1,7 +1,12 @@
 import type { LiveGameSession } from '../shared/types/index.js';
 import { Player } from '../shared/types/enums.js';
 import * as db from './db.js';
+import { isGuildWarLiveSession } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
+import { isGuildWarAttemptStrictlyBetter } from '../shared/utils/guildWarBoardOwner.js';
+
+/** {@link ./aiPlayer.js} `aiUserId` 와 동일 — aiPlayer 모듈을 끌어오면 summaryService 순환 로딩 위험이 있음 */
+const AI_USER_ID = 'ai-player-01';
 
 type GuildWarAttemptRecord = {
     userId: string;
@@ -11,18 +16,6 @@ type GuildWarAttemptRecord = {
     scoreDiff?: number;
     maxSingleCapture?: number;
     completedAt: number;
-};
-
-function isNewAttemptBetter(prev: GuildWarAttemptRecord, cand: GuildWarAttemptRecord): boolean {
-    if (cand.stars !== prev.stars) return cand.stars > prev.stars;
-    const cs = cand.score ?? -1e15;
-    const ps = prev.score ?? -1e15;
-    if (cs !== ps) return cs > ps;
-    if (cand.captures !== prev.captures) return cand.captures > prev.captures;
-    const cd = cand.scoreDiff ?? -1e15;
-    const pd = prev.scoreDiff ?? -1e15;
-    if (cd !== pd) return cd > pd;
-    return cand.completedAt < prev.completedAt;
 }
 
 export { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
@@ -32,12 +25,24 @@ export async function applyGuildWarBoardAfterGame(game: LiveGameSession): Promis
     const warId = (game as any).guildWarId as string | undefined;
     const boardId = (game as any).guildWarBoardId as string | undefined;
     if (!warId || !boardId || (game as any).isDemo) return;
-    if ((game as any).gameCategory !== 'guildwar') return;
+    // processGameSummary는 guildWarId/보드Id만으로도 길드전으로 처리함 — 여기서 gameCategory만 보면
+    // DB 메타/복원 과정에서 category가 빠진 판은 보드·브로드캐스트가 영구히 스킵되는 버그가 난다.
+    if (!isGuildWarLiveSession(game as any)) return;
 
-    const humanId = game.player1?.id;
+    const blackId = game.blackPlayerId;
+    const whiteId = game.whitePlayerId;
+    const humanId =
+        blackId && blackId !== AI_USER_ID
+            ? blackId
+            : whiteId && whiteId !== AI_USER_ID
+              ? whiteId
+              : game.player1?.id;
     if (!humanId) return;
 
-    const humanEnum = game.blackPlayerId === humanId ? Player.Black : Player.White;
+    let humanEnum: Player;
+    if (blackId === humanId) humanEnum = Player.Black;
+    else if (whiteId === humanId) humanEnum = Player.White;
+    else return;
     const isDraw = game.winner === Player.None;
     const humanWon = !isDraw && game.winner === humanEnum;
 
@@ -68,7 +73,7 @@ export async function applyGuildWarBoardAfterGame(game: LiveGameSession): Promis
         delete board.challenging[humanId];
     }
 
-    if (humanWon && stars > 0) {
+    if (stars > 0) {
         const completedAt = Date.now();
         const candidate: GuildWarAttemptRecord = {
             userId: humanId,
@@ -80,7 +85,7 @@ export async function applyGuildWarBoardAfterGame(game: LiveGameSession): Promis
             completedAt,
         };
         const prev = board[keyBest] as GuildWarAttemptRecord | null | undefined;
-        if (!prev || isNewAttemptBetter(prev, candidate)) {
+        if (!prev || isGuildWarAttemptStrictlyBetter(prev, candidate)) {
             board[keyBest] = candidate;
             board[keyStars] = stars;
         }

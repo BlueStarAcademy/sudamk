@@ -5,6 +5,7 @@ import { InventoryItem, ItemGrade, ItemOption, CoreStat, SpecialStat, MythicStat
 import { audioService } from '../services/audioService.js';
 import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
 import { isActionPointConsumable } from '../constants/items';
+import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
 
 interface ItemObtainedModalProps {
     item: InventoryItem;
@@ -41,13 +42,17 @@ const getStarDisplayInfo = (stars: number) => {
     return { text: "", colorClass: "text-white" };
 };
 
-const OptionSection: React.FC<{ title: string; options: ItemOption[]; color: string; }> = ({ title, options, color }) => {
+const OptionSection: React.FC<{ title: string; options: ItemOption[]; color: string; mythic?: boolean }> = ({ title, options, color, mythic }) => {
     if (options.length === 0) return null;
     return (
         <div>
             <h5 className={`font-semibold ${color} border-b border-gray-600 pb-1 mb-1 text-sm`}>{title}</h5>
-            <ul className="list-disc list-inside space-y-0.5 text-gray-300 text-xs">
-                {options.map((opt, i) => <li key={i}>{opt.display}</li>)}
+            <ul className={`${mythic ? 'list-none space-y-0.5 text-xs' : 'list-disc list-inside space-y-0.5 text-gray-300 text-xs'}`}>
+                {options.map((opt, i) => (
+                    <li key={i} className={mythic ? 'text-gray-300' : undefined}>
+                        {mythic ? <MythicOptionAbbrev option={opt} textClassName="text-red-300" /> : opt.display}
+                    </li>
+                ))}
             </ul>
         </div>
     );
@@ -61,7 +66,7 @@ const renderOptions = (item: InventoryItem) => {
             <OptionSection title="주옵션" options={[main]} color="text-yellow-300" />
             <OptionSection title="전투 부옵션" options={combatSubs} color="text-blue-300" />
             <OptionSection title="특수 부옵션" options={specialSubs} color="text-green-300" />
-            <OptionSection title="신화 부옵션" options={mythicSubs} color="text-red-400" />
+            <OptionSection title="신화 부옵션" options={mythicSubs} color="text-red-400" mythic />
         </div>
     )
 };

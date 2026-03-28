@@ -614,7 +614,7 @@ const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession }> = ({ s
     if (session.gameCategory !== 'guildwar') return null;
     const boardId = (session as any).guildWarBoardId as string | undefined;
     const boardMode = boardId ? getGuildWarBoardMode(boardId) : undefined;
-    const lines = getGuildWarStarConditionLines(boardMode);
+    const lines = getGuildWarStarConditionLines(boardMode, boardId);
 
     return (
         <div className="bg-gray-800 p-2 rounded-md border border-yellow-600/40">

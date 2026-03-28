@@ -10,6 +10,10 @@ import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidde
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
 import { handleSharedAction, transitionToPlaying, hasTimeControl, shouldEnforceTimeControl } from './shared.js';
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
+import {
+    consumeOpponentPatternStoneIfAny,
+    stripPatternStonesAtConsumedIntersections,
+} from '../../shared/utils/patternStoneConsume.js';
 
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
@@ -51,11 +55,19 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
                     game.whitePlayerId = p1.id;
                     game.blackPlayerId = p2.id;
                 }
-                const baseTarget = game.settings.captureTarget || 20;
+                const st = game.settings as any;
+                const blackTarget =
+                    typeof st.captureTargetBlack === 'number'
+                        ? st.captureTargetBlack
+                        : (st.captureTarget ?? 20);
+                const whiteTarget =
+                    typeof st.captureTargetWhite === 'number'
+                        ? st.captureTargetWhite
+                        : (st.captureTarget ?? 20);
                 game.effectiveCaptureTargets = {
                     [types.Player.None]: 0,
-                    [types.Player.Black]: baseTarget,
-                    [types.Player.White]: baseTarget,
+                    [types.Player.Black]: blackTarget,
+                    [types.Player.White]: whiteTarget,
                 };
                 transitionToPlaying(game, now);
             } else {
@@ -223,7 +235,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
         }
     } else {
-        updateHiddenState(game, now);
+        await updateHiddenState(game, now);
         const missileStateChanged = updateMissileState(game, now);
         if (missileStateChanged) {
             (game as any)._missileStateChanged = true;
@@ -384,16 +396,40 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     if (!result.isValid) {
                         return { error: `Client-side AI move invalid: ${result.reason || 'invalid'}` };
                     }
+                    const isHiddenAiMove = !!(payload as any).isHidden;
+                    if (isHiddenAiMove) {
+                        const aiPlayerIdForHidden =
+                            aiPlayerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        const hiddenKeyForAi =
+                            aiPlayerIdForHidden === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+                        const curHiddenForAi =
+                            (game as any)[hiddenKeyForAi] ?? game.settings.hiddenStoneCount ?? 0;
+                        if (curHiddenForAi <= 0) {
+                            return { error: 'AI has no hidden stones remaining.' };
+                        }
+                    }
                     game.boardState = result.newBoardState;
                     game.moveHistory.push(move);
                     game.koInfo = result.newKoInfo;
-                    game.lastMove = { x, y };
+                    if (!isHiddenAiMove) {
+                        game.lastMove = { x, y };
+                    } else {
+                        if (!game.hiddenMoves) game.hiddenMoves = {};
+                        game.hiddenMoves[game.moveHistory.length - 1] = true;
+                        const aiPlayerId =
+                            aiPlayerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        const hiddenKey =
+                            aiPlayerId === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+                        const curHidden =
+                            (game as any)[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;
+                        (game as any)[hiddenKey] = Math.max(0, curHidden - 1);
+                    }
                     game.passCount = 0;
                     if (result.capturedStones.length > 0) {
                         game.captures[aiPlayerEnum] = (game.captures[aiPlayerEnum] ?? 0) + result.capturedStones.length;
                         if (!game.justCaptured) game.justCaptured = [];
                         for (const stone of result.capturedStones) {
-                            game.justCaptured.push({ point: stone, player: humanPlayerEnum, wasHidden: false });
+                            game.justCaptured.push({ point: stone, player: humanPlayerEnum, wasHidden: false, capturePoints: 1 });
                         }
                     }
                     game.currentPlayer = humanPlayerEnum;
@@ -414,6 +450,33 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     } else {
                         game.turnDeadline = undefined;
                         game.turnStartTime = undefined;
+                    }
+                    // 길드전 등: 계가까지 N수 — 클라이언트 AI 수도 totalTurns·자동 계가 반영
+                    const autoScoringAfterAi = (game.settings as any)?.autoScoringTurns as number | undefined;
+                    if (
+                        (game as any).gameCategory === 'guildwar' &&
+                        autoScoringAfterAi != null &&
+                        autoScoringAfterAi > 0
+                    ) {
+                        const validAfter = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1);
+                        game.totalTurns = validAfter.length;
+                        if (validAfter.length >= autoScoringAfterAi) {
+                            game.gameStatus = 'scoring';
+                            await db.saveGame(game);
+                            const { broadcastToGameParticipants } = await import('../socket.js');
+                            const gameToBroadcast = { ...game };
+                            delete (gameToBroadcast as any).boardState;
+                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                            try {
+                                await getGameResult(game);
+                            } catch (e: any) {
+                                console.error(
+                                    `[handleStandardAction] getGameResult failed after clientSideAiMove (guildwar autoScoring) for game ${game.id}:`,
+                                    e?.message
+                                );
+                            }
+                            return {};
+                        }
                     }
                     // 전략바둑: AI 수 적용 후 정해진 수순(scoringTurnLimit) 도달 시 계가 진행
                     const scoringTurnLimitAfterAi = game.settings.scoringTurnLimit;
@@ -533,7 +596,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.hiddenStoneCaptures[myPlayerEnum]++;
                 
                 if (!game.justCaptured) game.justCaptured = [];
-                game.justCaptured.push({ point: { x, y }, player: opponentPlayerEnum, wasHidden: true });
+                game.justCaptured.push({ point: { x, y }, player: opponentPlayerEnum, wasHidden: true, capturePoints: 5 });
                 
                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                 game.permanentlyRevealedStones.push({ x, y });
@@ -773,15 +836,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     let points = 1;
                     let wasHiddenForJustCaptured = false; // default for justCaptured
 
-                    if (game.isSinglePlayer) {
-                        const patternStones = capturedPlayerEnum === types.Player.Black ? game.blackPatternStones : game.whitePatternStones;
-                        if (patternStones) {
-                            const patternIndex = patternStones.findIndex(p => p.x === stone.x && p.y === stone.y);
-                            if (patternIndex !== -1) {
-                                points = 2; // Pattern stones are worth 2 points
-                                // Remove the pattern from the list so it's a one-time bonus
-                                patternStones.splice(patternIndex, 1);
-                            }
+                    if (game.isSinglePlayer || (game as any).gameCategory === 'guildwar') {
+                        if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
+                            points = 2;
                         }
                     } else { // PvP logic
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
@@ -801,8 +858,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
 
                     game.captures[myPlayerEnum] += points;
-                    game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured });
+                    game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured, capturePoints: points });
                 }
+                stripPatternStonesAtConsumedIntersections(game);
             }
 
             const playerWhoMoved = myPlayerEnum;
@@ -863,11 +921,18 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                  game.turnStartTime = undefined;
             }
 
-            // 싱글플레이/도전의 탑 자동 계가: 사용자가 돌을 놓은 후 totalTurns 업데이트 및 계가 트리거
-            const isAutoScoringMode = (game.isSinglePlayer || game.gameCategory === 'tower') && game.stageId;
+            // 싱글플레이/도전의 탑/길드전(히든·미사일) 자동 계가: 사용자가 돌을 놓은 후 totalTurns 업데이트 및 계가 트리거
+            const guildWarAutoScoring =
+                (game as any).gameCategory === 'guildwar' &&
+                (game.settings as any)?.autoScoringTurns != null &&
+                (game.settings as any)?.autoScoringTurns > 0;
+            const isAutoScoringMode =
+                ((game.isSinglePlayer || game.gameCategory === 'tower') && game.stageId) || guildWarAutoScoring;
             if (isAutoScoringMode) {
                 let autoScoringTurns: number | undefined;
-                if (game.gameCategory === 'tower') {
+                if (guildWarAutoScoring) {
+                    autoScoringTurns = (game.settings as any)?.autoScoringTurns;
+                } else if (game.gameCategory === 'tower') {
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns;
                 } else {
                     const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
@@ -883,7 +948,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     
                     // totalTurns가 autoScoringTurns 이상이면 계가 트리거 (사용자가 마지막 수를 둔 경우)
                     if (newTotalTurns >= autoScoringTurns) {
-                        const gameType = game.gameCategory === 'tower' ? 'Tower' : 'SinglePlayer';
+                        const gameType = game.gameCategory === 'tower'
+                            ? 'Tower'
+                            : guildWarAutoScoring
+                              ? 'GuildWar'
+                              : 'SinglePlayer';
                         console.log(`[handleStandardAction] Auto-scoring triggered (user placed last stone): totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, ${gameType}`);
                         game.gameStatus = 'scoring';
                         await db.saveGame(game);

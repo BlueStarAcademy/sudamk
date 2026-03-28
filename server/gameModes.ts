@@ -305,6 +305,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         whiteTimeLeft: game.whiteTimeLeft,
         blackPatternStones: game.blackPatternStones ? JSON.parse(JSON.stringify(game.blackPatternStones)) : null,
         whitePatternStones: game.whitePatternStones ? JSON.parse(JSON.stringify(game.whitePatternStones)) : null,
+        consumedPatternIntersections: (game as any).consumedPatternIntersections
+            ? JSON.parse(JSON.stringify((game as any).consumedPatternIntersections))
+            : null,
         captures: game.captures ? JSON.parse(JSON.stringify(game.captures)) : null,
         baseStoneCaptures: game.baseStoneCaptures ? JSON.parse(JSON.stringify(game.baseStoneCaptures)) : null,
         hiddenStoneCaptures: game.hiddenStoneCaptures ? JSON.parse(JSON.stringify(game.hiddenStoneCaptures)) : null,
@@ -373,6 +376,8 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         whiteTimeLeft: preservedTimeInfo.whiteTimeLeft ?? game.whiteTimeLeft,
         blackPatternStones: preservedGameState.blackPatternStones || game.blackPatternStones,
         whitePatternStones: preservedGameState.whitePatternStones || game.whitePatternStones,
+        consumedPatternIntersections:
+            preservedGameState.consumedPatternIntersections || (game as any).consumedPatternIntersections,
         captures: preservedGameState.captures || game.captures,
         baseStoneCaptures: preservedGameState.baseStoneCaptures || game.baseStoneCaptures,
         hiddenStoneCaptures: preservedGameState.hiddenStoneCaptures || game.hiddenStoneCaptures,
@@ -431,6 +436,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             whiteTimeLeft: timeInfoForBroadcast?.whiteTimeLeft ?? freshGame.whiteTimeLeft,
             blackPatternStones: preservedStateForBroadcast?.blackPatternStones || freshGame.blackPatternStones,
             whitePatternStones: preservedStateForBroadcast?.whitePatternStones || freshGame.whitePatternStones,
+            consumedPatternIntersections:
+                preservedStateForBroadcast?.consumedPatternIntersections ||
+                (freshGame as any).consumedPatternIntersections,
             captures: preservedStateForBroadcast?.captures || freshGame.captures,
             baseStoneCaptures: preservedStateForBroadcast?.baseStoneCaptures || freshGame.baseStoneCaptures,
             hiddenStoneCaptures: preservedStateForBroadcast?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
@@ -559,6 +567,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                     if (preservedState.whitePatternStones) {
                         freshGame.whitePatternStones = preservedState.whitePatternStones;
                     }
+                    if (preservedState.consumedPatternIntersections) {
+                        (freshGame as any).consumedPatternIntersections = preservedState.consumedPatternIntersections;
+                    }
                     if (preservedState.captures) {
                         freshGame.captures = preservedState.captures;
                     }
@@ -610,6 +621,8 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                     whiteTimeLeft: (freshGame as any).preservedTimeInfo?.whiteTimeLeft ?? freshGame.whiteTimeLeft,
                     blackPatternStones: preservedState?.blackPatternStones || freshGame.blackPatternStones,
                     whitePatternStones: preservedState?.whitePatternStones || freshGame.whitePatternStones,
+                    consumedPatternIntersections:
+                        preservedState?.consumedPatternIntersections || (freshGame as any).consumedPatternIntersections,
                     captures: preservedState?.captures || freshGame.captures,
                     baseStoneCaptures: preservedState?.baseStoneCaptures || freshGame.baseStoneCaptures,
                     hiddenStoneCaptures: preservedState?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,

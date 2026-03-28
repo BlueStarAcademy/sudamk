@@ -536,33 +536,23 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const myPlayerEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
     const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
 
+    // 서버 START_SCANNING과 동일: 상대 히든 수가 수순에 있고 아직 영구 공개되지 않았으면 스캔 가능.
+    // (온라인 브로드캐스트에 boardState가 없을 때 로컬 보드가 비어 있어 스캔이 막히는 문제 방지)
     const canScan = useMemo(() => {
         if (!session.hiddenMoves || !session.moveHistory) {
             return false;
         }
-    
-        // Check if there is AT LEAST ONE opponent hidden stone on the board that has NOT been permanently revealed.
         return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
             if (!isHidden) return false;
-            
-            const move = session.moveHistory[parseInt(moveIndexStr)];
-            if (!move || move.player !== opponentPlayerEnum) {
+            const move = session.moveHistory[parseInt(moveIndexStr, 10)];
+            if (!move || move.player !== opponentPlayerEnum || move.x < 0 || move.y < 0) {
                 return false;
             }
-    
             const { x, y } = move;
-    
-            // Condition 1: The stone must still be on the board.
-            if (session.boardState[y]?.[x] !== opponentPlayerEnum) {
-                return false;
-            }
-    
-            // Condition 2: The stone must NOT be permanently revealed to everyone.
-            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
-            
+            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });
-    }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones, opponentPlayerEnum]);
+    }, [session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, opponentPlayerEnum]);
     
     const luxuryButtonBase = "relative overflow-hidden whitespace-normal break-keep text-[clamp(0.6rem,2vmin,0.85rem)] px-[clamp(0.45rem,1.6vmin,0.85rem)] py-[clamp(0.32rem,1.1vmin,0.6rem)] rounded-xl backdrop-blur-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-1";
 

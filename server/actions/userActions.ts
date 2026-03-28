@@ -9,6 +9,7 @@ import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
 import { isStrategicPvpForGameRecord, isGameStatusSaveableForRecord, isShortGameStrategicNoContest } from '../../utils/strategicPvpGameRecord.js';
 import { randomUUID } from 'crypto';
+import * as effectService from '../effectService.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -340,6 +341,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             // 장비 일관성 검증 및 수정
             const { validateAndFixEquipmentConsistency } = await import('./inventoryActions.js');
             validateAndFixEquipmentConsistency(user);
+            effectService.syncActionPointsStateAfterEquipmentChange(user);
 
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'APPLY_PRESET');
@@ -351,7 +353,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['equipment', 'inventory']);
+            broadcastUserUpdate(user, ['equipment', 'inventory', 'actionPoints', 'lastActionPointUpdate']);
             
             return { clientResponse: { updatedUser } };
         }

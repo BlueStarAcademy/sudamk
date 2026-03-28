@@ -181,6 +181,9 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 hiddenMoves={session.hiddenMoves}
                 moveHistory={session.moveHistory}
                 baseStones={session.baseStones}
+                blackPatternStones={session.blackPatternStones}
+                whitePatternStones={session.whitePatternStones}
+                consumedPatternIntersections={(session as any).consumedPatternIntersections}
                 myPlayerEnum={myPlayerEnum}
                 gameStatus={gameStatus}
                 currentPlayer={session.currentPlayer}

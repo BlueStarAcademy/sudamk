@@ -897,10 +897,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             // 장비 일관성 검증 및 수정
             validateAndFixEquipmentConsistency(user);
 
-            const effects = effectService.calculateUserEffects(user);
-            user.actionPoints.max = effects.maxActionPoints;
-            user.actionPoints.current = Math.min(user.actionPoints.current, user.actionPoints.max);
-            
+            effectService.syncActionPointsStateAfterEquipmentChange(user);
+
             // 사용자 캐시 업데이트 (즉시 반영)
             const { updateUserCache } = await import('../gameCache.js');
             updateUserCache(user);
@@ -915,7 +913,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'equipment', 'actionPoints']);
+            broadcastUserUpdate(user, ['inventory', 'equipment', 'actionPoints', 'lastActionPointUpdate']);
             
             return { clientResponse: { updatedUser } };
         }
@@ -1274,8 +1272,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 return { error: '유효하지 않은 제련 타입입니다.' };
             }
             
-            // 변경권 개수 확인 및 소모
-            const ticketItems = user.inventory.filter(i => i.name === ticketName && i.type === 'consumable');
+            // 변경권 개수 확인 및 소모 (재료 슬롯 type: material + 구버전 consumable 호환)
+            const ticketItems = user.inventory.filter(
+                i => i.name === ticketName && (i.type === 'material' || i.type === 'consumable')
+            );
             const totalTickets = ticketItems.reduce((sum, i) => sum + (i.quantity || 0), 0);
             
             if (totalTickets < requiredTickets) {
@@ -1286,7 +1286,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             let remainingToRemove = requiredTickets;
             for (let i = user.inventory.length - 1; i >= 0 && remainingToRemove > 0; i--) {
                 const invItem = user.inventory[i];
-                if (invItem.name === ticketName && invItem.type === 'consumable') {
+                if (invItem.name === ticketName && (invItem.type === 'material' || invItem.type === 'consumable')) {
                     const itemQuantity = invItem.quantity || 1;
                     if (itemQuantity <= remainingToRemove) {
                         remainingToRemove -= itemQuantity;

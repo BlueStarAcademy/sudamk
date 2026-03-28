@@ -3,8 +3,9 @@ import React, { memo, useEffect, useMemo, useState, useRef } from 'react';
 import { UserWithStatus } from '../types.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
-import { getMannerEffects } from '../services/effectService.js';
+import { calculateUserEffects } from '../services/effectService.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
+import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIconKey } from './resourceIcons.js';
 
@@ -37,7 +38,10 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus }> = ({ user }) =
     // actionPoints가 없으면 타이머 표시 안 함
     if (!actionPoints) return null;
     
-    const regenInterval = useMemo(() => getMannerEffects(user).actionPointRegenInterval, [user]);
+    const regenInterval = useMemo(() => {
+        const e = calculateUserEffects(user);
+        return e.actionPointRegenInterval > 0 ? e.actionPointRegenInterval : ACTION_POINT_REGEN_INTERVAL_MS;
+    }, [user]);
 
     useEffect(() => {
         if (!actionPoints || actionPoints.current >= actionPoints.max) {

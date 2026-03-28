@@ -122,7 +122,7 @@ const makeSimpleCaptureAiMove = (game: types.LiveGameSession) => {
                                         (humanPlayer === Player.White && game.whitePatternStones?.some(p => p.x === stone.x && p.y === stone.y));
                 const points = wasPatternStone ? 2 : 1;
                 game.captures[aiPlayer] += points;
-                game.justCaptured.push({ point: stone, player: humanPlayer, wasHidden: false });
+                game.justCaptured.push({ point: stone, player: humanPlayer, wasHidden: false, capturePoints: points });
             }
         }
         
@@ -440,7 +440,7 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
                     lastCaptureStones = result.capturedStones;
                     if (!game.justCaptured) game.justCaptured = [];
                     for (const stone of result.capturedStones) {
-                        game.justCaptured.push({ point: stone, player: types.Player.White, wasHidden: false });
+                        game.justCaptured.push({ point: stone, player: types.Player.White, wasHidden: false, capturePoints: 1 });
                     }
                 }
                 
@@ -786,7 +786,7 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                     if (result.capturedStones.length > 0) {
                         if (!game.justCaptured) game.justCaptured = [];
                         for (const stone of result.capturedStones) {
-                            game.justCaptured.push({ point: stone, player: myRole === 'thief' ? types.Player.White : types.Player.Black, wasHidden: false });
+                            game.justCaptured.push({ point: stone, player: myRole === 'thief' ? types.Player.White : types.Player.Black, wasHidden: false, capturePoints: 1 });
                         }
                         
                         if (myRole === 'police') {

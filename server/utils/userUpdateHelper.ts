@@ -20,7 +20,7 @@ export function getSelectiveUserUpdate(
         // 인벤토리 관련
         'USE_ITEM': ['inventory', 'gold', 'diamonds', 'actionPoints'],
         'USE_ALL_ITEMS_OF_TYPE': ['inventory', 'gold', 'diamonds', 'actionPoints'],
-        'TOGGLE_EQUIP_ITEM': ['inventory', 'equipment', 'actionPoints'],
+        'TOGGLE_EQUIP_ITEM': ['inventory', 'equipment', 'actionPoints', 'lastActionPointUpdate'],
         'SELL_ITEM': ['inventory', 'gold'],
         'COMBINE_ITEMS': ['inventory', 'blacksmithLevel', 'blacksmithXp'],
         'ENHANCE_ITEM': ['inventory', 'gold', 'diamonds', 'blacksmithLevel', 'blacksmithXp'],
@@ -45,7 +45,7 @@ export function getSelectiveUserUpdate(
         'RESET_STAT_POINTS': ['spentStatPoints', 'gold', 'lastStatResetDate', 'statResetCountToday'],
         'CONFIRM_STAT_ALLOCATION': ['spentStatPoints'],
         'SAVE_PRESET': ['equipmentPresets'],
-        'APPLY_PRESET': ['equipment', 'inventory'],
+        'APPLY_PRESET': ['equipment', 'inventory', 'actionPoints', 'lastActionPointUpdate'],
         'SAVE_GAME_RECORD': ['savedGameRecords'],
         'DELETE_GAME_RECORD': ['savedGameRecords'],
         

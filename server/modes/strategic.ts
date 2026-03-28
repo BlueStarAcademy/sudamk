@@ -12,6 +12,10 @@ import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidde
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
 import { handleSharedAction, transitionToPlaying, hasTimeControl, shouldEnforceTimeControl } from './shared.js';
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
+import {
+    consumeOpponentPatternStoneIfAny,
+    stripPatternStonesAtConsumedIntersections,
+} from '../../shared/utils/patternStoneConsume.js';
 
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
@@ -114,7 +118,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
     updateNigiriState(game, now);
     updateCaptureState(game, now);
     updateBaseState(game, now);
-    updateHiddenState(game, now);
+    await updateHiddenState(game, now);
     updateMissileState(game, now);
 };
 
@@ -336,7 +340,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         game.captures[aiPlayerEnum] = (game.captures[aiPlayerEnum] ?? 0) + result.capturedStones.length;
                         if (!game.justCaptured) game.justCaptured = [];
                         for (const stone of result.capturedStones) {
-                            game.justCaptured.push({ point: stone, player: humanPlayerEnum, wasHidden: false });
+                            game.justCaptured.push({ point: stone, player: humanPlayerEnum, wasHidden: false, capturePoints: 1 });
                         }
                     }
                     game.currentPlayer = humanPlayerEnum;
@@ -498,7 +502,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.hiddenStoneCaptures[myPlayerEnum]++;
                 
                 if (!game.justCaptured) game.justCaptured = [];
-                game.justCaptured.push({ point: { x, y }, player: opponentPlayerEnum, wasHidden: true });
+                game.justCaptured.push({ point: { x, y }, player: opponentPlayerEnum, wasHidden: true, capturePoints: 5 });
                 
                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                 game.permanentlyRevealedStones.push({ x, y });
@@ -725,27 +729,23 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     let points = 1;
                     let wasHiddenForJustCaptured = false; // default for justCaptured
 
-                    if (game.isSinglePlayer || isStrategicAiGame) {
-                        const patternStones = capturedPlayerEnum === types.Player.Black ? game.blackPatternStones : game.whitePatternStones;
-                        if (patternStones) {
-                            const patternIndex = patternStones.findIndex(p => p.x === stone.x && p.y === stone.y);
-                            if (patternIndex !== -1) {
-                                points = 2; // Pattern stones are worth 2 points
-                                // Remove the pattern from the list so it's a one-time bonus
-                                patternStones.splice(patternIndex, 1);
-                            }
-                        }
-                        // 싱글플레이: 따낸 돌이 히든(또는 AI 초기 히든)이면 영구 공개 및 5점
-                        const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
-                        const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                        const wasAiInitialHidden = (game as any).aiInitialHiddenStone && (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
-                        if (wasHidden || wasAiInitialHidden) {
-                            game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
-                            points = 5;
-                            wasHiddenForJustCaptured = true;
-                            if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                            if (!game.permanentlyRevealedStones.some(p => p.x === stone.x && p.y === stone.y)) {
-                                game.permanentlyRevealedStones.push(stone);
+                    if (game.isSinglePlayer || isStrategicAiGame || (game as any).gameCategory === 'guildwar') {
+                        const wasPatternStone = consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum);
+                        if (wasPatternStone) {
+                            points = 2;
+                        } else {
+                            // 싱글/탑/길드전: 히든·AI초기히든은 5점 (문양돌과 겹치면 문양 점수 우선 — 위에서 처리됨)
+                            const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
+                            const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+                            const wasAiInitialHidden = (game as any).aiInitialHiddenStone && (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
+                            if (wasHidden || wasAiInitialHidden) {
+                                game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
+                                points = 5;
+                                wasHiddenForJustCaptured = true;
+                                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                                if (!game.permanentlyRevealedStones.some(p => p.x === stone.x && p.y === stone.y)) {
+                                    game.permanentlyRevealedStones.push(stone);
+                                }
                             }
                         }
                     } else { // PvP logic
@@ -766,8 +766,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
 
                     game.captures[myPlayerEnum] += points;
-                    game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured });
+                    game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured, capturePoints: points });
                 }
+                stripPatternStonesAtConsumedIntersections(game);
             }
 
             const playerWhoMoved = myPlayerEnum;

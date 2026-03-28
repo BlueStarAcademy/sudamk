@@ -5,6 +5,7 @@
 
 import { Player, LiveGameSession, Point, GameMode } from '../types/index.js';
 import { getFischerIncrementSeconds } from '../shared/utils/gameTimeControl.js';
+import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../shared/utils/patternStoneConsume.js';
 
 export type GameType = 'tower' | 'singleplayer';
 
@@ -264,10 +265,13 @@ export function updateGameStateAfterMove(
 
     let updatedBlackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : undefined;
     let updatedWhitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : undefined;
+    let consumedPatternSlice: { consumedPatternIntersections?: Point[] | null } = {
+        consumedPatternIntersections: game.consumedPatternIntersections ? [...game.consumedPatternIntersections] : undefined,
+    };
     const updatedCaptures = { ...(game.captures || {}) };
     const updatedHiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) } as typeof game.hiddenStoneCaptures;
     let updatedPermanentlyRevealedStones = [...(game.permanentlyRevealedStones || [])];
-    const justCapturedEntries: { point: Point; player: Player; wasHidden: boolean }[] = [];
+    const justCapturedEntries: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number }[] = [];
 
     if (stonesToReveal.length === 0) {
         for (const stone of capturedStones) {
@@ -284,22 +288,23 @@ export function updateGameStateAfterMove(
             let points = 1;
             let wasHidden = false;
 
-            if (wasHiddenMove || wasAiInitialHidden) {
-                points = 5;
-                wasHidden = true;
-                updatedHiddenStoneCaptures[movePlayer] = (updatedHiddenStoneCaptures[movePlayer] || 0) + 1;
-                updatedPermanentlyRevealedStones = upsertPoint(updatedPermanentlyRevealedStones, stone);
-            } else if (isPatternStone) {
+            if (isPatternStone) {
                 points = 2;
                 if (opponentPlayer === Player.Black) {
                     updatedBlackPatternStones = updatedBlackPatternStones?.filter(p => !isSamePoint(p, stone));
                 } else {
                     updatedWhitePatternStones = updatedWhitePatternStones?.filter(p => !isSamePoint(p, stone));
                 }
+                recordPatternStoneConsumed(consumedPatternSlice, stone);
+            } else if (wasHiddenMove || wasAiInitialHidden) {
+                points = 5;
+                wasHidden = true;
+                updatedHiddenStoneCaptures[movePlayer] = (updatedHiddenStoneCaptures[movePlayer] || 0) + 1;
+                updatedPermanentlyRevealedStones = upsertPoint(updatedPermanentlyRevealedStones, stone);
             }
 
             updatedCaptures[movePlayer] = (updatedCaptures[movePlayer] || 0) + points;
-            justCapturedEntries.push({ point: stone, player: opponentPlayer, wasHidden });
+            justCapturedEntries.push({ point: stone, player: opponentPlayer, wasHidden, capturePoints: points });
         }
     } else {
         for (const stone of stonesToReveal) {
@@ -331,6 +336,16 @@ export function updateGameStateAfterMove(
         }
     }
 
+    const patternScratch: LiveGameSession = {
+        ...game,
+        blackPatternStones: updatedBlackPatternStones,
+        whitePatternStones: updatedWhitePatternStones,
+        consumedPatternIntersections: consumedPatternSlice.consumedPatternIntersections ?? undefined,
+    };
+    stripPatternStonesAtConsumedIntersections(patternScratch);
+    updatedBlackPatternStones = patternScratch.blackPatternStones;
+    updatedWhitePatternStones = patternScratch.whitePatternStones;
+
     const updatedGame: LiveGameSession = {
         ...game,
         boardState: newBoardState,
@@ -340,6 +355,7 @@ export function updateGameStateAfterMove(
         captures: updatedCaptures,
         blackPatternStones: updatedBlackPatternStones,
         whitePatternStones: updatedWhitePatternStones,
+        consumedPatternIntersections: patternScratch.consumedPatternIntersections,
         currentPlayer: nextPlayer,
         serverRevision: (game.serverRevision || 0) + 1,
         blackTimeLeft: updatedBlackTimeLeft,

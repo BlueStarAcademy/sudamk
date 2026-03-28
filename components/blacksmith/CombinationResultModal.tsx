@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { MythicOptionAbbrev } from '../MythicStatAbbrev.js';
 import DraggableWindow from '../DraggableWindow';
 import { InventoryItem, ItemGrade } from '../../types';
 import ResourceActionButton from '../ui/ResourceActionButton';
@@ -78,7 +79,11 @@ const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
                 )}
                 {item.options?.mythicSubs && item.options.mythicSubs.length > 0 && (
                      <div className="space-y-0.5">
-                        {item.options.mythicSubs.map((opt, i) => <p key={`m-${i}`} className="text-red-400">{opt.display}</p>)}
+                        {item.options.mythicSubs.map((opt, i) => (
+                            <p key={`m-${i}`} className="text-red-400">
+                                <MythicOptionAbbrev option={opt} textClassName="text-red-400" />
+                            </p>
+                        ))}
                     </div>
                 )}
             </div>

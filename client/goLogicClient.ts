@@ -65,8 +65,13 @@ export function processMoveClient(
         return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
     }
     
-    // 코 금지 체크
-    if (koInfo && koInfo.point.x === x && koInfo.point.y === y && koInfo.turn === moveHistoryLength) {
+    // 코 금지 체크 (복원/구버전 데이터에서 point 누락 시 접근 오류 방지)
+    if (
+        koInfo?.point != null &&
+        koInfo.turn === moveHistoryLength &&
+        koInfo.point.x === x &&
+        koInfo.point.y === y
+    ) {
         return { isValid: false, reason: 'ko', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
     }
 

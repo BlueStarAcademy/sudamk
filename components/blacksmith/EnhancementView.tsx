@@ -5,6 +5,7 @@ import Button from '../Button.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { ENHANCEMENT_SUCCESS_RATES, ENHANCEMENT_COSTS, MATERIAL_ITEMS, ENHANCEMENT_FAIL_BONUS_RATES, GRADE_LEVEL_REQUIREMENTS, calculateEnhancementGoldCost } from '../../constants';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { MythicOptionAbbrev } from '../MythicStatAbbrev.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
@@ -133,7 +134,9 @@ const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAni
                 {item.options?.mythicSubs && item.options.mythicSubs.length > 0 && (
                      <div className="space-y-0.5">
                         {item.options.mythicSubs.map((opt, i) => (
-                            <p key={`m-${i}`} className="text-red-400">{opt.display}</p>
+                            <p key={`m-${i}`} className="text-red-400">
+                                <MythicOptionAbbrev option={opt} textClassName="text-red-400" />
+                            </p>
                         ))}
                     </div>
                 )}

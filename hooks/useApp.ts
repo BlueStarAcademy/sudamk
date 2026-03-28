@@ -61,6 +61,8 @@ function mergeTowerServerGameWithClientBoardIfStale(
         permanentlyRevealedStones: clientGame.permanentlyRevealedStones ?? serverGame.permanentlyRevealedStones,
         blackPatternStones: clientGame.blackPatternStones ?? serverGame.blackPatternStones,
         whitePatternStones: clientGame.whitePatternStones ?? serverGame.whitePatternStones,
+        consumedPatternIntersections:
+            (clientGame as any).consumedPatternIntersections ?? (serverGame as any).consumedPatternIntersections,
         revealedHiddenMoves: clientGame.revealedHiddenMoves ?? serverGame.revealedHiddenMoves,
         serverRevision: Math.max(clientGame.serverRevision ?? 0, serverGame.serverRevision ?? 0),
     };
@@ -551,6 +553,23 @@ export const useApp = () => {
             const effects = calculateUserEffects(currentUser);
             const now = Date.now();
             const calculatedMaxAP = effects.maxActionPoints;
+
+            // 현재 < 최대인데 last가 0이면(만땅에서 최대만 올라간 직후 등) 회복 타이머를 즉시 시작
+            if (currentUser.actionPoints.current < calculatedMaxAP) {
+                const lu = currentUser.lastActionPointUpdate;
+                if (lu === 0 || lu === undefined || lu === null) {
+                    setCurrentUser(prev => {
+                        if (!prev?.actionPoints) return prev;
+                        const e2 = calculateUserEffects(prev);
+                        const maxAp = e2.maxActionPoints;
+                        if (prev.actionPoints.current >= maxAp) return prev;
+                        const pLu = prev.lastActionPointUpdate;
+                        if (pLu !== 0 && pLu !== undefined && pLu !== null) return prev;
+                        return { ...prev, lastActionPointUpdate: Date.now() };
+                    });
+                    return;
+                }
+            }
             
             // 행동력이 최대치가 아니고, lastActionPointUpdate가 유효한 경우에만 계산
             if (currentUser.actionPoints.current < calculatedMaxAP && currentUser.lastActionPointUpdate !== 0) {
@@ -585,7 +604,7 @@ export const useApp = () => {
         }, 1000); // 1초마다 체크
         
         return () => clearInterval(intervalId);
-    }, [currentUser?.actionPoints?.current, currentUser?.lastActionPointUpdate, currentUser?.id]);
+    }, [currentUser?.actionPoints?.current, currentUser?.lastActionPointUpdate, currentUser?.id, currentUser?.equipment]);
     
     const currentUserWithStatus: UserWithStatus | null = useMemo(() => {
         // updateTrigger와 actionPointUpdateTrigger를 dependency에 포함시켜 강제 리렌더링 보장
@@ -1078,12 +1097,17 @@ export const useApp = () => {
         if ((action as any).type === 'LOCAL_HIDDEN_REVEAL_TRIGGER') {
             const { gameId, gameType, point, player, keepTurn } = (action as any).payload as {
                 gameId: string;
-                gameType: 'tower' | 'singleplayer';
+                gameType: 'tower' | 'singleplayer' | 'guildwar';
                 point: Point;
                 player: Player;
                 keepTurn?: boolean;
             };
-            const updateGameState = gameType === 'tower' ? setTowerGames : setSinglePlayerGames;
+            const updateGameState =
+                gameType === 'guildwar'
+                    ? setLiveGames
+                    : gameType === 'tower'
+                      ? setTowerGames
+                      : setSinglePlayerGames;
             const now = Date.now();
 
             updateGameState(currentGames => {
@@ -1124,8 +1148,16 @@ export const useApp = () => {
         }
 
         if ((action as any).type === 'LOCAL_HIDDEN_FINAL_REVEAL_COMPLETE') {
-            const { gameId, gameType } = (action as any).payload as { gameId: string; gameType: 'tower' | 'singleplayer' };
-            const updateGameState = gameType === 'tower' ? setTowerGames : setSinglePlayerGames;
+            const { gameId, gameType } = (action as any).payload as {
+                gameId: string;
+                gameType: 'tower' | 'singleplayer' | 'guildwar';
+            };
+            const updateGameState =
+                gameType === 'guildwar'
+                    ? setLiveGames
+                    : gameType === 'tower'
+                      ? setTowerGames
+                      : setSinglePlayerGames;
             updateGameState(prev => {
                 const g = prev[gameId];
                 if (!g || g.gameStatus !== 'hidden_final_reveal') return prev;
@@ -1136,8 +1168,16 @@ export const useApp = () => {
 
         /** 싱글/타워: 스캔 연출 종료 후 본경기 복귀 (서버 루프·WS 지연 시 scanning_animating에 고정되는 현상 방지) */
         if ((action as any).type === 'LOCAL_PVE_SCAN_ANIMATION_COMPLETE') {
-            const { gameId, gameType } = (action as any).payload as { gameId: string; gameType: 'tower' | 'singleplayer' };
-            const updateGameState = gameType === 'tower' ? setTowerGames : setSinglePlayerGames;
+            const { gameId, gameType } = (action as any).payload as {
+                gameId: string;
+                gameType: 'tower' | 'singleplayer' | 'guildwar';
+            };
+            const updateGameState =
+                gameType === 'guildwar'
+                    ? setLiveGames
+                    : gameType === 'tower'
+                      ? setTowerGames
+                      : setSinglePlayerGames;
             const now = Date.now();
             updateGameState(prev => {
                 const g = prev[gameId];
@@ -1168,9 +1208,14 @@ export const useApp = () => {
         if ((action as any).type === 'LOCAL_HIDDEN_REVEAL_COMPLETE') {
             const { gameId, gameType } = (action as any).payload as {
                 gameId: string;
-                gameType: 'tower' | 'singleplayer';
+                gameType: 'tower' | 'singleplayer' | 'guildwar';
             };
-            const updateGameState = gameType === 'tower' ? setTowerGames : setSinglePlayerGames;
+            const updateGameState =
+                gameType === 'guildwar'
+                    ? setLiveGames
+                    : gameType === 'tower'
+                      ? setTowerGames
+                      : setSinglePlayerGames;
             const now = Date.now();
             let postRevealAutoScoringState: {
                 boardState: any[][];
@@ -1265,7 +1310,7 @@ export const useApp = () => {
                 const hiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) };
                 let blackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : undefined;
                 let whitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : undefined;
-                const justCaptured: { point: Point; player: Player; wasHidden: boolean }[] = [];
+                const justCaptured: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number }[] = [];
                 const newlyRevealed = (pendingCapture.hiddenContributors || []).map((point: Point) => ({ point, player: movePlayer }));
 
                 let clearAiInitialHidden = false;
@@ -1303,7 +1348,7 @@ export const useApp = () => {
                     }
 
                     captures[movePlayer] = (captures[movePlayer] || 0) + points;
-                    justCaptured.push({ point: stone, player: opponentPlayer, wasHidden });
+                    justCaptured.push({ point: stone, player: opponentPlayer, wasHidden, capturePoints: points });
                 }
 
                 const nextPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
@@ -4530,8 +4575,9 @@ export const useApp = () => {
                             return;
                         }
                         case 'GUILD_WAR_UPDATE': {
-                            // Guild war update is sent to specific users via sendToUser
-                            // Components should handle this in their own message handlers
+                            if (typeof window !== 'undefined') {
+                                window.dispatchEvent(new CustomEvent('sudamr:guild-war-update'));
+                            }
                             return;
                         }
                         case 'ERROR': {

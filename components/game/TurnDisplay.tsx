@@ -255,22 +255,6 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     const showSidebarButton = Boolean(isMobile && onOpenSidebar);
     const paddingClass = showSidebarButton ? 'pr-12' : '';
 
-    if (boardRuleFlashMessage) {
-        return wrapContent(
-            `${baseClasses} ${themeClasses} px-4 gap-1.5 min-h-[3rem] border-2 border-amber-400/55`,
-            <div className="w-full overflow-hidden flex-shrink-0 relative min-h-[1.5rem] flex items-center justify-center">
-                <div
-                    className={`font-bold tracking-wider text-[clamp(0.8rem,2.5vmin,1rem)] text-center px-1 text-amber-100`}
-                    style={{
-                        textShadow: '0 0 10px rgba(251, 191, 36, 0.55), 0 0 18px rgba(251, 191, 36, 0.3)',
-                    }}
-                >
-                    {boardRuleFlashMessage}
-                </div>
-            </div>
-        );
-    }
-
     const sidebarToggle = showSidebarButton ? (
         <button
             type="button"
@@ -295,6 +279,22 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             {sidebarToggle}
         </div>
     );
+
+    if (boardRuleFlashMessage) {
+        return wrapContent(
+            `${baseClasses} ${themeClasses} px-4 gap-1.5 min-h-[3rem] border-2 border-amber-400/55`,
+            <div className="w-full overflow-hidden flex-shrink-0 relative min-h-[1.5rem] flex items-center justify-center">
+                <div
+                    className={`font-bold tracking-wider text-[clamp(0.8rem,2.5vmin,1rem)] text-center px-1 text-amber-100`}
+                    style={{
+                        textShadow: '0 0 10px rgba(251, 191, 36, 0.55), 0 0 18px rgba(251, 191, 36, 0.3)',
+                    }}
+                >
+                    {boardRuleFlashMessage}
+                </div>
+            </div>
+        );
+    }
     
     if (foulMessage) {
         return wrapContent(

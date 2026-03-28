@@ -1,6 +1,10 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { pauseGameTimer, resumeGameTimer } from './shared.js';
+import {
+    consumeOpponentPatternStoneIfAny,
+    stripPatternStonesAtConsumedIntersections,
+} from '../../shared/utils/patternStoneConsume.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -207,16 +211,21 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
                             (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
                         if (wasAiInitialHidden) (game as any).aiInitialHiddenStone = undefined;
                         let points = 1;
+                        let wasHiddenForEntry = false;
                         if (isBaseStone) {
                             game.baseStoneCaptures[myP]++;
                             points = 5;
+                        } else if (consumeOpponentPatternStoneIfAny(game, stone, opponentP)) {
+                            points = 2;
                         } else if (wasHidden || wasAiInitialHidden) {
                             game.hiddenStoneCaptures[myP] = (game.hiddenStoneCaptures[myP] || 0) + 1;
                             points = 5;
+                            wasHiddenForEntry = true;
                         }
                         game.captures[myP] += points;
-                        game.justCaptured.push({ point: stone, player: opponentP, wasHidden: wasHidden || wasAiInitialHidden });
+                        game.justCaptured.push({ point: stone, player: opponentP, wasHidden: wasHiddenForEntry || wasAiInitialHidden, capturePoints: points });
                     }
+                    stripPatternStonesAtConsumedIntersections(game);
                     if (!game.newlyRevealed) game.newlyRevealed = [];
                     game.newlyRevealed.push(...pendingCapture.hiddenContributors.map(p => ({ point: p, player: myP })));
                 }
