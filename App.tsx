@@ -619,9 +619,9 @@ const AppContent: React.FC = () => {
                                 )}
                             </>
                         )}
-                        {/* 하단 배너 광고 — 좌우 배너 없는 화면에서만 표시 */}
+                        {/* 하단 배너 광고 — 태블릿 전용 (캔버스 내부, 스케일 적용) */}
                         {currentUser && !isGameView && (
-                            <div className="flex-shrink-0 xl:hidden">
+                            <div className="hidden sm:block xl:hidden flex-shrink-0">
                                 <AdBanner position="bottom" className="py-1" />
                             </div>
                         )}
@@ -637,6 +637,12 @@ const AppContent: React.FC = () => {
                     </div>
                 )}
             </div>
+            {/* 모바일 전용 하단 배너 (캔버스 외부, 실제 픽셀 크기) */}
+            {currentUser && !isGameView && (
+                <div className="sm:hidden flex-shrink-0">
+                    <AdBanner position="bottom" className="py-1" />
+                </div>
+            )}
         </div>
     );
 };
