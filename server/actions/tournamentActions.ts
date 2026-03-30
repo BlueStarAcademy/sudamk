@@ -1899,7 +1899,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     if (boxItemKey) {
                         itemsToCreate.push({ itemId: boxItemKey, quantity });
                     } else {
-                        itemsToCreate.push({ itemId: boxName, quantity });
+                        console.warn(`[COMPLETE_DUNGEON_STAGE] World: unknown equipment box name skipped: ${boxName}`);
                     }
                 }
             }

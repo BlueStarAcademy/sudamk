@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { SinglePlayerLevel, UserWithStatus } from '../../types.js';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { CONSUMABLE_ITEMS } from '../../constants/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
 
 interface StageGridProps {
     selectedClass: SinglePlayerLevel;
@@ -12,6 +13,7 @@ interface StageGridProps {
 
 const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser }) => {
     const { handlers } = useAppContext();
+    const [rewardsModalOpen, setRewardsModalOpen] = useState(false);
 
     // 선택된 단계의 스테이지들 필터링
     const stages = useMemo(() => {
@@ -101,14 +103,42 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser }) => 
 
     const isMobile = false;
     
+    const classLabel =
+        selectedClass === SinglePlayerLevel.입문
+            ? '입문반'
+            : selectedClass === SinglePlayerLevel.초급
+              ? '초급반'
+              : selectedClass === SinglePlayerLevel.중급
+                ? '중급반'
+                : selectedClass === SinglePlayerLevel.고급
+                  ? '고급반'
+                  : '유단자';
+
     return (
-        <div className={`bg-panel rounded-lg shadow-lg ${isMobile ? 'p-2' : 'p-4'} flex flex-col min-h-0 h-full overflow-hidden`}>
-            <h2 className={`${isMobile ? 'text-base' : 'text-xl'} font-bold text-on-panel ${isMobile ? 'mb-2' : 'mb-4'} border-b border-color ${isMobile ? 'pb-1' : 'pb-2'} flex-shrink-0`}>
-                {selectedClass === SinglePlayerLevel.입문 ? '입문반' :
-                 selectedClass === SinglePlayerLevel.초급 ? '초급반' :
-                 selectedClass === SinglePlayerLevel.중급 ? '중급반' :
-                 selectedClass === SinglePlayerLevel.고급 ? '고급반' : '유단자'} 스테이지
-            </h2>
+        <div className={`bg-panel rounded-lg shadow-lg ${isMobile ? 'p-2' : 'p-4'} flex flex-col min-h-0 h-full overflow-hidden relative`}>
+            <div
+                className={`flex flex-shrink-0 items-start justify-between gap-2 border-b border-color ${isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
+            >
+                <h2
+                    className={`${isMobile ? 'text-base' : 'text-xl'} font-bold text-on-panel min-w-0 flex-1 leading-tight`}
+                >
+                    {classLabel} 스테이지
+                </h2>
+                <button
+                    type="button"
+                    onClick={() => setRewardsModalOpen(true)}
+                    className="flex-shrink-0 rounded-md border border-amber-600/50 bg-amber-900/30 px-2 py-1 text-[11px] sm:text-xs font-semibold text-amber-200 hover:bg-amber-800/40 hover:border-amber-500/60 active:scale-[0.98] transition-colors"
+                    aria-label="스테이지 클리어 보상표 열기"
+                >
+                    보상표
+                </button>
+            </div>
+
+            <SinglePlayerRewardsModal
+                open={rewardsModalOpen}
+                onClose={() => setRewardsModalOpen(false)}
+                initialClass={selectedClass}
+            />
             
             <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 pb-2">
                 <div

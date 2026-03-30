@@ -167,6 +167,11 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({
         if (settings.boardSize) {
             items.push({ label: '판 크기', value: `${settings.boardSize}줄` });
         }
+        if (settings.autoScoring) {
+            // 판 크기 선택에 따라 표시되는 계가 조건이 달라질 수 있어,
+            // 요약 리스트에서도 판 크기 항목 바로 다음으로 배치한다.
+            items.push({ label: '자동 계가', value: '서로 통과시 계가' });
+        }
         if (settings.timeLimit > 0) {
             items.push({ label: '제한시간', value: `${settings.timeLimit}분` });
         }
@@ -227,10 +232,6 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({
         if (settings.curlingAimingLineItemCount) {
             items.push({ label: '조준선 아이템', value: `${settings.curlingAimingLineItemCount}개` });
         }
-        if (settings.autoScoring) {
-            items.push({ label: '자동 계가', value: '서로 통과시 계가' });
-        }
-
         // 클래식바둑 특별 처리
         if (mode === GameMode.Standard) {
             items.push({ label: '랭킹 점수', value: '승리시 2배, 패배시 절반' });

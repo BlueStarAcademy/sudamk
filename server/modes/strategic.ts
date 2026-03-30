@@ -358,11 +358,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     // 전략바둑: AI 수 적용 후 정해진 수순(scoringTurnLimit) 도달 시 계가 진행
                     const scoringTurnLimitAfterAi = game.settings.scoringTurnLimit;
                     if (scoringTurnLimitAfterAi != null && scoringTurnLimitAfterAi > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
-                        const validMovesAfter = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1);
-                        if (validMovesAfter.length >= scoringTurnLimitAfterAi) {
-                            console.log(`[handleStrategicAction] Scoring turn limit reached after clientSideAiMove: totalTurns=${validMovesAfter.length}, scoringTurnLimit=${scoringTurnLimitAfterAi}, triggering getGameResult`);
+                        // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
+                        const turnsAfter = (game.moveHistory || []).length;
+                        if (turnsAfter >= scoringTurnLimitAfterAi) {
+                            console.log(`[handleStrategicAction] Scoring turn limit reached after clientSideAiMove: totalTurns=${turnsAfter}, scoringTurnLimit=${scoringTurnLimitAfterAi}, triggering getGameResult`);
                             game.gameStatus = 'scoring';
-                            game.totalTurns = validMovesAfter.length;
+                            game.totalTurns = turnsAfter;
                             await db.saveGame(game);
                             const { broadcastToGameParticipants } = await import('../socket.js');
                             const gameToBroadcast = { ...game };
@@ -395,11 +396,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 전략바둑 로비 턴 제한: 이미 제한 수순에 도달했으면 착수 거부 후 계가 진행 (수순 초과 방지)
             const scoringTurnLimit = game.settings.scoringTurnLimit;
             if (scoringTurnLimit != null && scoringTurnLimit > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
-                const validMovesSoFar = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1);
-                if (validMovesSoFar.length >= scoringTurnLimit) {
-                    console.log(`[handleStrategicAction] Game ${game.id} at/over scoringTurnLimit (${validMovesSoFar.length} >= ${scoringTurnLimit}), triggering getGameResult without applying move`);
+                // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
+                const totalTurnsSoFar = (game.moveHistory || []).length;
+                if (totalTurnsSoFar >= scoringTurnLimit) {
+                    console.log(`[handleStrategicAction] Game ${game.id} at/over scoringTurnLimit (${totalTurnsSoFar} >= ${scoringTurnLimit}), triggering getGameResult without applying move`);
                     game.gameStatus = 'scoring';
-                    game.totalTurns = validMovesSoFar.length;
+                    game.totalTurns = totalTurnsSoFar;
                     await db.saveGame(game);
                     const { broadcastToGameParticipants } = await import('../socket.js');
                     const gameToBroadcast = { ...game };
@@ -871,8 +873,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // (이미 위에서 scoringTurnLimit을 읽었으므로 여기서는 재선언하지 않음)
             const scoringTurnLimitAfterMove = scoringTurnLimit;
             if (scoringTurnLimitAfterMove != null && scoringTurnLimitAfterMove > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
-                const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-                const newTotalTurns = validMoves.length;
+                // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
+                const newTotalTurns = (game.moveHistory || []).length;
                 game.totalTurns = newTotalTurns;
                 if (newTotalTurns >= scoringTurnLimitAfterMove) {
                     console.log(`[handleStrategicAction] Scoring turn limit reached: totalTurns=${newTotalTurns}, scoringTurnLimit=${scoringTurnLimitAfterMove}, triggering getGameResult`);

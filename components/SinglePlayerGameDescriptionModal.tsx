@@ -6,6 +6,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.j
 import { GameMode, Player } from '../types/enums.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import { formatSinglePlayerRewardCell } from '../utils/singlePlayerRewardDisplay.js';
 
 interface SinglePlayerGameDescriptionModalProps {
     session: LiveGameSession;
@@ -347,6 +348,48 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                             )}
                                         </>
                                     )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 클리어 보상 (현재 스테이지) */}
+                        {stage.rewards && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
+                                    <span>🎁</span>
+                                    <span>클리어 보상</span>
+                                </h3>
+                                <div className="rounded-lg border border-gray-600 overflow-hidden bg-gray-800/60">
+                                    <table className="w-full text-left text-xs sm:text-sm">
+                                        <thead>
+                                            <tr className="bg-gray-700/80 text-amber-200/95 border-b border-gray-600">
+                                                <th className="px-3 py-2 font-semibold border-r border-gray-600">구분</th>
+                                                <th className="px-3 py-2 font-semibold">내용</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="text-gray-200">
+                                            <tr className="border-b border-gray-700/80">
+                                                <td className="px-3 py-2 align-top text-emerald-300/95 font-medium whitespace-nowrap border-r border-gray-700/80">
+                                                    최초 클리어
+                                                </td>
+                                                <td className="px-3 py-2 align-top leading-snug">
+                                                    {formatSinglePlayerRewardCell(stage.rewards.firstClear)}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-3 py-2 align-top text-sky-300/95 font-medium whitespace-nowrap border-r border-gray-700/80">
+                                                    재도전 클리어
+                                                </td>
+                                                <td className="px-3 py-2 align-top leading-snug">
+                                                    {isTower
+                                                        // 도전의 탑: 이미 클리어한 층 재도전은 행동력 소모 없이 가능하지만,
+                                                        // 재도전 클리어 보상은 지급되지 않음(서버에서도 동일하게 no-reward 처리).
+                                                        ? '보상 없음'
+                                                        : formatSinglePlayerRewardCell(stage.rewards.repeatClear)}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         )}

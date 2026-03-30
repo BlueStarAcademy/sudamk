@@ -1317,14 +1317,32 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                         return { error: '변경 가능한 주옵션이 없습니다.' };
                     }
                     const newStatType = availableStats[Math.floor(Math.random() * availableStats.length)];
-                    const newValue = gradeDef.value;
+                    const baseValue = gradeDef.value;
+
+                    // 강화된 장비의 stars 누적 강화분을 주옵션에도 다시 적용
+                    // (ENHANCE_ITEM은 main.baseValue를 기준으로 stars마다 increaseAmount를 누적하므로,
+                    // 여기서는 동일한 방식으로 현재 stars에 해당하는 누적 증가분을 재계산)
+                    const stars = item.stars ?? 0;
+                    const isDivineMythic = item.grade === ItemGrade.Mythic && item.isDivineMythic;
+                    const multipliers = isDivineMythic
+                        ? DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER
+                        : MAIN_ENHANCEMENT_STEP_MULTIPLIER[item.grade];
+
+                    let enhancedIncreaseTotal = 0;
+                    for (let i = 0; i < stars; i++) {
+                        // ENHANCE_ITEM은 starIndex를 0~9로 clamp해서 사용하므로 여기서도 동일하게 맞춤
+                        const idx = Math.max(0, Math.min(9, i)); // 0~9 index
+                        enhancedIncreaseTotal += Math.round(baseValue * (multipliers?.[idx] ?? 1));
+                    }
+
+                    const enhancedValue = parseFloat((baseValue + enhancedIncreaseTotal).toFixed(2));
                     const statName = CORE_STATS_DATA[newStatType]?.name || newStatType;
                     item.options.main = {
                         type: newStatType,
-                        value: newValue,
-                        baseValue: newValue,
+                        value: enhancedValue,
+                        baseValue: baseValue,
                         isPercentage: slotDef.isPercentage,
-                        display: `${statName} +${newValue}${slotDef.isPercentage ? '%' : ''}`
+                        display: `${statName} +${enhancedValue}${slotDef.isPercentage ? '%' : ''}`
                     };
                 } else if (optionType === 'combatSub') {
                     // 부옵션 변경
@@ -1344,15 +1362,22 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                         return { error: '변경 가능한 부옵션이 없습니다.' };
                     }
                     const newSubDef = availableOptions[Math.floor(Math.random() * availableOptions.length)];
-                    const value = getRandomInt(newSubDef.range[0], newSubDef.range[1]);
+                    // 해당 슬롯의 기존 combatSub 강화 횟수(enhancements)를 유지해서
+                    // 제련 결과도 "강화된 수치" 범위에서 다시 뽑히도록 처리
+                    const prevEnhancements = item.options.combatSubs[optionIndex]?.enhancements ?? 0;
+                    const range0 = newSubDef.range[0];
+                    const range1 = newSubDef.range[1];
+                    const scaledMin = Math.round(range0 * (1 + prevEnhancements));
+                    const scaledMax = Math.round(range1 * (1 + prevEnhancements));
+                    const value = getRandomInt(scaledMin, scaledMax);
                     const statName = CORE_STATS_DATA[newSubDef.type]?.name || newSubDef.type;
                     item.options.combatSubs[optionIndex] = {
                         type: newSubDef.type,
                         value,
                         isPercentage: newSubDef.isPercentage,
-                        display: `${statName} +${value}${newSubDef.isPercentage ? '%' : ''} [${newSubDef.range[0]}~${newSubDef.range[1]}]`,
-                        range: newSubDef.range,
-                        enhancements: 0,
+                        display: `${statName} +${value}${newSubDef.isPercentage ? '%' : ''} [${scaledMin}~${scaledMax}]`,
+                        range: [scaledMin, scaledMax],
+                        enhancements: prevEnhancements,
                     };
                 } else if (optionType === 'specialSub') {
                     // 특수옵션 변경

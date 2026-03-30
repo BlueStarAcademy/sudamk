@@ -105,7 +105,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     const isBoardDisabledDueToTurnLimit = useMemo(() => {
         if (gameStatus !== 'playing' && gameStatus !== 'hidden_placing') return false;
         const moveHistory = session.moveHistory ?? [];
-        const validMovesCount = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
+        // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
+        const turnCount = moveHistory.length;
 
         // 싱글플레이/도전의 탑: 자동계가 턴 수 제한
         const isTower = session.gameCategory === 'tower';
@@ -126,7 +127,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
         const limit = settings.scoringTurnLimit;
         if (isStrategicMode && !session.isSinglePlayer && session.gameCategory !== 'tower' && limit != null && limit > 0) {
-            const current = validMovesCount > 0 ? validMovesCount : (session.totalTurns ?? 0);
+            const current = turnCount > 0 ? turnCount : (session.totalTurns ?? 0);
             if (current >= limit) return true;
         }
 

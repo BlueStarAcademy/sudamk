@@ -42,6 +42,8 @@ export function computeGuildWarAttemptMetrics(
         const maxSingleCapture = trackedMaxSingleCapture > 0
             ? trackedMaxSingleCapture
             : getMaxSingleCaptureForPlayer(game, humanEnum);
+        /** 길드전 집점수(따내기): 따낸 돌 총점의 2배 + 남은 시간 보너스(10초당 1집) */
+        const captureHouseScore = captures * 2 + timeHouseBonus;
         if (!humanWon) {
             const starsFromCombo =
                 maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN
@@ -52,7 +54,7 @@ export function computeGuildWarAttemptMetrics(
             return {
                 stars: starsFromCombo,
                 captures,
-                score: starsFromCombo > 0 ? timeHouseBonus : 0,
+                score: captureHouseScore,
                 scoreDiff: margin,
                 maxSingleCapture,
             };
@@ -63,7 +65,7 @@ export function computeGuildWarAttemptMetrics(
                 : maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER2_MIN
                   ? 2
                   : 1;
-        return { stars, captures, score: timeHouseBonus, scoreDiff: margin, maxSingleCapture };
+        return { stars, captures, score: captureHouseScore, scoreDiff: margin, maxSingleCapture };
     }
 
     if (!humanWon) {

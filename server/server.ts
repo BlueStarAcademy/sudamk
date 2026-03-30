@@ -1975,7 +1975,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 try {
                     let timeoutOccurred = false;
                     const updateGamesTimeoutMs = gamesWithOnlinePlayers.length === 1
-                        ? Math.max(MAINLOOP_UPDATE_GAMES_TIMEOUT_MS, 14000)
+                        ? Math.max(MAINLOOP_UPDATE_GAMES_TIMEOUT_MS, 24000)
                         : MAINLOOP_UPDATE_GAMES_TIMEOUT_MS;
                     const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                         setTimeout(() => {

@@ -245,8 +245,13 @@ export const createWebSocketServer = (server: Server) => {
                         if ((scoringLimit > 0 || (autoScoring != null && autoScoring > 0)) && (optimizedGame.totalTurns == null || optimizedGame.totalTurns === 0)) {
                             const moves = (optimizedGame as any).moveHistory;
                             if (Array.isArray(moves) && moves.length > 0) {
-                                const validCount = moves.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length;
-                                if (validCount > 0) (optimizedGame as any).totalTurns = validCount;
+                                // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
+                                if (scoringLimit > 0) {
+                                    (optimizedGame as any).totalTurns = moves.length;
+                                } else {
+                                    const validCount = moves.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length;
+                                    if (validCount > 0) (optimizedGame as any).totalTurns = validCount;
+                                }
                             }
                         }
                         delete (optimizedGame as any).boardState; // 대역폭 절약

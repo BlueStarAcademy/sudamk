@@ -515,6 +515,12 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const mySummary = session.summary?.[currentUser.id];
     const isGuildWar = isGuildWarLiveSession(session as any);
     const guildWarStars = mySummary?.guildWarStars ?? 0;
+    const guildWarHouseScore = useMemo(() => {
+        if (!isGuildWar) return undefined;
+        const humanEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
+        const s = computeGuildWarAttemptMetrics(session as any, humanEnum, isWinner === true).score;
+        return typeof s === 'number' && !Number.isNaN(s) ? s : undefined;
+    }, [isGuildWar, currentUser.id, blackPlayerId, session, isWinner]);
     const blackTurnLimit = Number((session.settings as any)?.blackTurnLimit ?? 0);
     const blackMoves = (session.moveHistory || []).filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
     const isGuildWarCaptureTurnLimitLoss =
@@ -802,17 +808,27 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
             <div className={`text-white ${isMobile ? 'text-xs' : 'text-[clamp(0.75rem,2.5vw,1rem)]'} flex flex-col`}>
                 <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-black text-center mb-2 sm:mb-3 tracking-widest ${color} flex-shrink-0`} style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}>{title}</h1>
                 {isGuildWar && (
-                    <div className="flex justify-center items-center gap-1.5 mb-3 flex-shrink-0" aria-label={`획득 별 ${guildWarStars}개`}>
-                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mr-1">획득 별</span>
-                        {[0, 1, 2].map((i) => (
-                            <img
-                                key={i}
-                                src={i < guildWarStars ? '/images/guild/guildwar/clearstar.png' : '/images/guild/guildwar/emptystar.png'}
-                                alt=""
-                                className="w-9 h-9 sm:w-10 sm:h-10 object-contain drop-shadow"
-                            />
-                        ))}
-                        <span className="text-sm font-bold text-amber-100/95 tabular-nums ml-1">{guildWarStars}/3</span>
+                    <div className="flex flex-col items-center gap-1.5 mb-3 flex-shrink-0">
+                        <div className="flex justify-center items-center gap-1.5" aria-label={`획득 별 ${guildWarStars}개`}>
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mr-1">획득 별</span>
+                            {[0, 1, 2].map((i) => (
+                                <img
+                                    key={i}
+                                    src={i < guildWarStars ? '/images/guild/guildwar/clearstar.png' : '/images/guild/guildwar/emptystar.png'}
+                                    alt=""
+                                    className="w-9 h-9 sm:w-10 sm:h-10 object-contain drop-shadow"
+                                />
+                            ))}
+                            <span className="text-sm font-bold text-amber-100/95 tabular-nums ml-1">{guildWarStars}/3</span>
+                        </div>
+                        {guildWarHouseScore !== undefined && (
+                            <div className="flex items-baseline justify-center gap-1.5 text-sm">
+                                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">획득 집점수</span>
+                                <span className="font-bold text-cyan-200/95 tabular-nums">
+                                    {Number.isInteger(guildWarHouseScore) ? guildWarHouseScore : guildWarHouseScore.toFixed(1)}집
+                                </span>
+                            </div>
+                        )}
                     </div>
                 )}
                 

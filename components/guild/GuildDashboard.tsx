@@ -21,8 +21,6 @@ import GuildWarMatchingModal from './GuildWarMatchingModal.js';
 import GuildWarCancelConfirmModal from './GuildWarCancelConfirmModal.js';
 import GuildWarApplicationDayOnlyModal from './GuildWarApplicationDayOnlyModal.js';
 import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getKSTDay, getTodayKSTDateString, getKSTFullYear, getKSTMonth } from '../../utils/timeUtils.js';
-import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
-
 // 고급 버튼 스타일 (길드 패널용)
 const guildPanelBtnBase = 'inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold tracking-wide transition-all duration-200 px-4 py-2 text-sm border backdrop-blur-sm';
 const guildPanelBtn = {
@@ -928,9 +926,10 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                 setMyRecordInCurrentWar(result?.clientResponse?.myRecordInCurrentWar ?? null);
                 
                 if (!war) {
-                    // 활성 전쟁이 없음
                     setActiveWar(null);
                     setOpponentGuild(null);
+                    setCanClaimReward(false);
+                    setIsClaimed(false);
                     return;
                 }
                 
@@ -951,12 +950,8 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
                     setMyWarAttempts(0);
                 }
                 
-                // 보상 수령 가능 여부 확인 (완료된 전쟁이면 모두 보상 수령 가능)
-                if (war.status === 'completed') {
-                    setCanClaimReward(true);
-                } else {
-                    setCanClaimReward(false);
-                }
+                setCanClaimReward(!!result?.clientResponse?.guildWarRewardClaimable);
+                setIsClaimed(!!result?.clientResponse?.guildWarLatestCompletedRewardClaimed);
             } catch (error) {
                 console.error('[WarPanel] Failed to fetch war data:', error);
             } finally {
@@ -1061,9 +1056,10 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     
     const myWarTickets = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS - myWarAttempts;
     // 데모 모드(DEMO_GUILD_WAR)에서는 공격권/매칭 상태와 관계없이 activeWar만 있으면 입장 가능하게 허용
+    const warIsActive = !!activeWar && (activeWar as any).status === 'active';
     const canEnterWar = DEMO_GUILD_WAR
-        ? !!activeWar
-        : myWarTickets > 0 && !!activeWar && !isMatching;
+        ? warIsActive
+        : myWarTickets > 0 && warIsActive && !isMatching;
 
     const handleClaimReward = async () => {
         try {
@@ -1074,10 +1070,9 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
             } else {
                 setIsClaimed(true);
                 await handlers.handleAction({ type: 'GET_GUILD_WAR_DATA' });
-                return {
-                    warResult: result?.clientResponse?.warResult,
-                    rewards: result?.clientResponse?.rewards,
-                };
+                const warResult = (result as any)?.warResult ?? result?.clientResponse?.warResult;
+                const rewards = (result as any)?.rewards ?? result?.clientResponse?.rewards;
+                return { warResult, rewards };
             }
         } catch (error) {
             console.error('[WarPanel] Claim reward failed:', error);
@@ -1314,8 +1309,15 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
             
             const myBestResult = isGuild1 ? board.guild1BestResult : board.guild2BestResult;
             const enemyBestResult = isGuild1 ? board.guild2BestResult : board.guild1BestResult;
-            if (myBestResult) ourScore += myBestResult.captures || 0;
-            if (enemyBestResult) enemyScore += enemyBestResult.captures || 0;
+            const boardMode = board.gameMode as string | undefined;
+            const addHouse = (best: any) => {
+                if (!best) return 0;
+                if (typeof best.score === 'number' && !Number.isNaN(best.score)) return best.score;
+                if (boardMode === 'capture') return (best.captures || 0) * 2;
+                return best.captures || 0;
+            };
+            if (myBestResult) ourScore += addHouse(myBestResult);
+            if (enemyBestResult) enemyScore += addHouse(enemyBestResult);
         });
         
         const totalStars = ourStars + enemyStars;
@@ -1968,56 +1970,12 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [isIconSelectOpen, setIsIconSelectOpen] = useState(false);
     const isMobile = false;
-    /** 실제 폰 뷰포트는 좁지만 앱은 1920 설계 캔버스라 Tailwind md/lg가 오동작함 → 추가 scale만 끔 */
-    const isHandheldViewport = useIsHandheldDevice(1025);
     const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
     const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
     const goldButtonRef = useRef<HTMLDivElement>(null);
     const diamondButtonRef = useRef<HTMLDivElement>(null);
     const [goldButtonPos, setGoldButtonPos] = useState<{ top: number; left: number } | null>(null);
     const [diamondButtonPos, setDiamondButtonPos] = useState<{ top: number; left: number } | null>(null);
-    const [scale, setScale] = useState(1);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    // 스케일 계산 (넓은 화면에서만 — 휴대기기는 부모 16:9 캔버스 스케일만 사용)
-    useEffect(() => {
-        const handleResize = () => {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            // 좁은 뷰포트·세로는 캔버스 스케일만 사용 (내부 scale 금지)
-            if (w < 1025 || w <= h) {
-                setScale(1);
-                return;
-            }
-            if (containerRef.current) {
-                const viewportWidth = w;
-                const viewportHeight = h;
-                
-                // 24인치 모니터 기준 (1920x1080)
-                const baseWidth = 1920;
-                const baseHeight = 1080;
-                
-                // 뷰포트에 맞는 스케일 계산 (패딩과 여백 고려)
-                const padding = 20; // 양쪽 패딩 (10px * 2)
-                const availableWidth = viewportWidth - padding;
-                const availableHeight = viewportHeight - padding;
-                
-                const scaleX = availableWidth / baseWidth;
-                const scaleY = availableHeight / baseHeight;
-                // 최소 스케일을 0.8로 설정, 최대 스케일을 1.0으로 설정하여 스크롤 없이 표시
-                const newScale = Math.max(0.8, Math.min(scaleX, scaleY, 1.0));
-                
-                setScale(newScale);
-            } else {
-                setScale(1);
-            }
-        };
-        
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
     const myMemberInfo = useMemo(() => {
         if (!currentUserWithStatus?.id) return undefined;
         const effectiveUserId = currentUserWithStatus.isAdmin ? ADMIN_USER_ID : currentUserWithStatus.id;
@@ -2132,25 +2090,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     }
     
     return (
-        <div 
-            ref={containerRef}
-            className="w-full h-full flex items-center justify-center relative"
-            style={{
-                transform: !isMobile && !isHandheldViewport ? `scale(${scale})` : 'none',
-                transformOrigin: 'center center',
-                overflow: !isMobile && !isHandheldViewport ? 'visible' : 'auto',
-            }}
-        >
-            <div 
-                className={`${isMobile ? 'p-2' : 'p-1.5'} w-full mx-auto h-full flex flex-col relative`}
-                style={{
-                    width: !isMobile ? '100%' : '100%',
-                    height: !isMobile ? '100%' : '100%',
-                    maxWidth: !isMobile ? '100%' : '100%',
-                    maxHeight: !isMobile ? '100%' : '100%',
-                }}
-            >
-                <div className="relative z-10 h-full flex flex-col">
+        <div className="relative z-10 flex h-full min-h-0 w-full flex-col">
             {isMissionsOpen && <GuildMissionsPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsMissionsOpen(false)} />}
             {isResearchOpen && <GuildResearchPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsResearchOpen(false)} />}
             {isShopOpen && <GuildShopModal onClose={() => setIsShopOpen(false)} isTopmost={true} />}
@@ -2161,7 +2101,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 setIsIconSelectOpen(false);
             }} />}
             
-            <header className="relative flex justify-center items-center mb-4 flex-shrink-0 py-4 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 rounded-xl border border-accent/20 shadow-lg">
+            <header className="relative flex flex-shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 py-2 shadow-lg mb-2">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <BackButton onClick={() => window.location.hash = '#/profile'} />
                 </div>
@@ -2328,8 +2268,8 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
             )}
 
             {/* 뷰포트가 아닌 설계 캔버스 너비 기준으로 PC와 동일한 3+2 열 유지 */}
-            <main className="grid min-h-0 flex-1 grid-cols-5 gap-4">
-                <div className="col-span-3 flex min-h-0 flex-col gap-4">
+            <main className="grid min-h-0 flex-1 grid-cols-5 gap-2">
+                <div className="col-span-3 flex min-h-0 flex-col gap-2">
                     {!isMobile && (
                         <div className="flex-shrink-0">
                             <div className="flex bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 rounded-xl w-full max-w-md border border-stone-600/40 shadow-md">
@@ -2360,7 +2300,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                     
                     <div className="flex-1 min-h-0 overflow-y-auto">
                         {activeTab === 'home' && (
-                            <div className={`flex flex-col ${isMobile ? 'gap-4 h-full' : 'gap-4 h-full'}`}>
+                            <div className={`flex h-full flex-col ${isMobile ? 'gap-2' : 'gap-2'}`}>
                                 {isMobile ? (
                                     <>
                                         {/* 모바일: 출석부와 공지만 표시 */}
@@ -2438,8 +2378,6 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
             </main>
             {goldAnimation}
             {diamondAnimation}
-            </div>
-            </div>
         </div>
     );
 };

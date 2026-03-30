@@ -108,7 +108,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-tertiary">점수</span>
+                                        <span className="text-tertiary">집점수 (전쟁 합산)</span>
                                         <span className="text-primary font-bold">
                                             {warResult.guild1Score.toLocaleString()} vs {warResult.guild2Score.toLocaleString()}
                                         </span>

@@ -7,6 +7,7 @@ import ChallengeSelectionModal from '../ChallengeSelectionModal';
 import GameRejectionSettingsModal from '../GameRejectionSettingsModal.tsx';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { isOpponentInsufficientActionPointsError } from '../../constants.js';
+import { getApiUrl } from '../../utils/apiConfig.js';
 
 const statusDisplay: Record<UserStatus, { text: string; color: string; }> = {
   'online': { text: '온라인', color: 'text-green-500' },
@@ -215,7 +216,8 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
                         
                         // handleAction을 직접 호출하여 응답을 받음
                         try {
-                            const response = await fetch('/api/action', {
+                            // 배포(프론트/백 분리)에서도 백엔드로 요청되도록 getApiUrl 사용
+                            const response = await fetch(getApiUrl('/api/action'), {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 credentials: 'include',

@@ -1667,7 +1667,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 id: `msg-guild-war-${randomUUID()}`,
                 guildId: guild.id,
                 authorId: 'system',
-                content: `[${user.nickname}]${nicknameEnding} 길드 전쟁 매칭을 신청했습니다. 화/금 0시에 매칭됩니다. (월/목 23시까지 참여·취소 가능)`,
+                content: `[${user.nickname}]${nicknameEnding} 길드 전쟁 매칭을 신청했습니다. 상대가 정해지면 전쟁이 시작됩니다. (월/목 23시까지 참여·취소 가능)`,
                 createdAt: now,
                 system: true,
             };
@@ -1681,11 +1681,65 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             await db.setKV('guildWarMatchingQueue', matchingQueue);
             await db.setKV('guilds', guilds);
             
-            // 브로드캐스트
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
-            
-            const cancelDeadlineTime = nextMatchDate - (60 * 60 * 1000); // 매칭 1시간 전까지 취소 가능
-            return { clientResponse: { matched: false, message: '매칭 신청이 완료되었습니다. 화요일·금요일 0시에 매칭됩니다.', nextMatchTime: nextMatchDate, cancelDeadline: cancelDeadlineTime, isMatching: true } };
+
+            // 큐 등록 직후 즉시 매칭 (짝수 길드끼리, 홀수만 남으면 봇 길드와 대결 — scheduled 23시만 기다리지 않음)
+            const { processGuildWarMatching } = await import('../scheduledTasks.js');
+            await processGuildWarMatching(true);
+
+            const updatedWars = await db.getKV<any[]>('activeGuildWars') || [];
+            const guildsForResponse = await db.getKV<Record<string, Guild>>('guilds') || {};
+            const createdWar = updatedWars.find(
+                (w: any) => w.status === 'active' && (w.guild1Id === user.guildId || w.guild2Id === user.guildId)
+            );
+            const oppId = createdWar
+                ? createdWar.guild1Id === user.guildId
+                    ? createdWar.guild2Id
+                    : createdWar.guild1Id
+                : null;
+            if (oppId === GUILD_WAR_BOT_GUILD_ID && !guildsForResponse[oppId]) {
+                (guildsForResponse as Record<string, any>)[oppId] = {
+                    id: oppId,
+                    name: '[시스템]길드전AI',
+                    level: 1,
+                    members: [],
+                    leaderId: oppId,
+                };
+            }
+
+            const cancelDeadlineTime = nextMatchDate - (60 * 60 * 1000);
+            const freshGuild = guildsForResponse[user.guildId] as any;
+            const stillMatching = !!freshGuild?.guildWarMatching;
+
+            if (createdWar) {
+                const vsBot = !!(createdWar as any).isBotGuild || oppId === GUILD_WAR_BOT_GUILD_ID;
+                return {
+                    clientResponse: {
+                        matched: true,
+                        message: vsBot
+                            ? '봇 길드와 매칭되었습니다. 입장 버튼으로 전쟁에 참여하세요.'
+                            : '상대 길드와 매칭되었습니다. 입장 버튼으로 전쟁에 참여하세요.',
+                        activeWar: createdWar,
+                        guilds: guildsForResponse,
+                        isMatching: false,
+                        nextMatchTime: nextMatchDate,
+                        cancelDeadline: cancelDeadlineTime,
+                    },
+                };
+            }
+
+            return {
+                clientResponse: {
+                    matched: false,
+                    message: stillMatching
+                        ? '매칭 신청이 완료되었습니다. 잠시 후 길드 전쟁 화면을 확인해 주세요. (월/목 23시까지 참여·취소 가능)'
+                        : '매칭 처리를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+                    nextMatchTime: nextMatchDate,
+                    cancelDeadline: cancelDeadlineTime,
+                    isMatching: stillMatching,
+                    guilds: guildsForResponse,
+                },
+            };
         }
         
         case 'CANCEL_GUILD_WAR': {
@@ -1766,11 +1820,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             // 길드???�이??가?�오�?
             const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
-            const activeWar = activeWars.find(w => 
-                (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && 
-                w.status === 'active'
+            const warInProgress = activeWars.find(
+                (w) =>
+                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && w.status === 'active'
             );
-            if (activeWar && normalizeGuildWarBoardModes(activeWar)) {
+            if (warInProgress && normalizeGuildWarBoardModes(warInProgress)) {
                 await db.setKV('activeGuildWars', activeWars);
             }
             
@@ -1822,6 +1876,29 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             if (lastWarAction && (now - lastWarAction) < cooldownTime && !isMatching) {
                 warActionCooldown = lastWarAction + cooldownTime;
             }
+
+            const completedForGuild = activeWars
+                .filter(
+                    (w: any) =>
+                        (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
+                        w.status === 'completed' &&
+                        w.result?.winnerId
+                )
+                .sort((a: any, b: any) => (b.endTime ?? 0) - (a.endTime ?? 0));
+            const latestCompletedWar = completedForGuild[0];
+            const activeWar = warInProgress ?? latestCompletedWar ?? null;
+
+            const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
+            let guildWarLatestCompletedRewardClaimed = false;
+            let guildWarRewardClaimable = false;
+            if (latestCompletedWar?.id) {
+                guildWarLatestCompletedRewardClaimed = !!claimedRewards[latestCompletedWar.id]?.includes(effectiveUserId);
+                const rewardAvailableAt =
+                    (latestCompletedWar as any).rewardAvailableAt ??
+                    (latestCompletedWar.endTime ?? 0) + 60 * 60 * 1000;
+                guildWarRewardClaimable =
+                    !guildWarLatestCompletedRewardClaimed && now >= rewardAvailableAt;
+            }
             
             // 누적 전쟁 기록 및 마지막 상대 기록 계산
             const myGuildId = user.guildId;
@@ -1869,7 +1946,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const winRate = totalPlayed > 0 ? Math.round((totalWins / totalPlayed) * 100) : 0;
             const warStats = { totalWins, totalLosses, winRate, lastOpponent, myRecordInLastWar };
             
-            const activeWarForUser = activeWars.find((w: any) => (w.guild1Id === myGuildId || w.guild2Id === myGuildId) && w.status === 'active');
+            const activeWarForUser = warInProgress;
             const todayKSTWar = getTodayKSTDateString();
             let myRecordInCurrentWar: { attempts: number; maxAttempts: number; contributedStars: number } | null = null;
             let guildWarTicketSummary: ReturnType<typeof buildGuildWarTicketSummary> | null = null;
@@ -1889,7 +1966,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             // 데모/테스트: 상대가 봇 길드일 때 guilds에 봇 길드가 없으면 추가해 입장 버튼·상대명 표시 가능하도록
             const guildsForResponse = { ...guilds };
-            if (activeWar) {
+            if (activeWar && activeWar.status === 'active') {
                 const oppId = activeWar.guild1Id === myGuildId ? activeWar.guild2Id : activeWar.guild1Id;
                 if (oppId === GUILD_WAR_BOT_GUILD_ID && !guildsForResponse[oppId]) {
                     (guildsForResponse as Record<string, any>)[oppId] = { id: oppId, name: '[데모]길드전AI', level: 1, members: [], leaderId: oppId };
@@ -1916,10 +1993,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     playfulLevel: number;
                 }
             > = {};
-            if (activeWar?.boards && typeof activeWar.boards === 'object') {
+            if (warInProgress?.boards && typeof warInProgress.boards === 'object') {
                 const { aiUserId: guildWarAiUserId } = await import('../aiPlayer.js');
                 const occIds = new Set<string>();
-                for (const b of Object.values(activeWar.boards as Record<string, any>)) {
+                for (const b of Object.values(warInProgress.boards as Record<string, any>)) {
                     const u1 = b?.guild1BestResult?.userId;
                     const u2 = b?.guild2BestResult?.userId;
                     if (typeof u1 === 'string' && u1 && u1 !== guildWarAiUserId) occIds.add(u1);
@@ -1956,6 +2033,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     myRecordInLastWar,
                     guildWarTicketSummary,
                     occupierProfileByUserId,
+                    guildWarLatestCompletedRewardClaimed,
+                    guildWarRewardClaimable,
                 },
             };
         }
@@ -2846,26 +2925,40 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const guild = guilds[user.guildId];
             if (!guild) return { error: '길드를 찾을 수 없습니다.' };
             
-            // 길드전 정보 가져오기
             const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
-            const completedWars = activeWars.filter(w => w.status === 'completed');
-            
-            // 사용자의 길드가 참여한 완료된 길드전 찾기
-            const myWar = completedWars.find(w => 
-                w.guild1Id === user.guildId || w.guild2Id === user.guildId
-            );
-            
-            if (!myWar) return { error: '받을 수 있는 보상이 없습니다.' };
-
+            const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
             const now = Date.now();
-            const rewardAvailableAt = (myWar as any).rewardAvailableAt ?? (myWar.endTime ?? 0) + 60 * 60 * 1000;
-            if (now < rewardAvailableAt) {
-                return { error: '전쟁 종료 1시간 후(목요일·월요일 0시)부터 보상을 수령할 수 있습니다.' };
+
+            const myCompletedWars = activeWars
+                .filter(
+                    (w) =>
+                        w.status === 'completed' &&
+                        (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
+                        w.result?.winnerId
+                )
+                .sort((a: any, b: any) => (b.endTime ?? 0) - (a.endTime ?? 0));
+
+            let myWar: any = null;
+            let blockedByCooldown = false;
+            for (const w of myCompletedWars) {
+                if (claimedRewards[w.id]?.includes(effectiveUserId)) continue;
+                const rewardAvailableAt =
+                    (w as any).rewardAvailableAt ?? (w.endTime ?? 0) + 60 * 60 * 1000;
+                if (now < rewardAvailableAt) {
+                    blockedByCooldown = true;
+                    continue;
+                }
+                myWar = w;
+                break;
             }
 
-            // 이미 받았는지 확인
-            const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
-            if (claimedRewards[myWar.id]?.includes(effectiveUserId)) {
+            if (!myWar) {
+                if (myCompletedWars.length === 0) {
+                    return { error: '받을 수 있는 보상이 없습니다.' };
+                }
+                if (blockedByCooldown) {
+                    return { error: '전쟁 종료 1시간 후(목요일·월요일 0시)부터 보상을 수령할 수 있습니다.' };
+                }
                 return { error: '이미 보상을 받았습니다.' };
             }
             
@@ -2923,6 +3016,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(freshUser, ['gold', 'guildCoins', 'diamonds']);
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+            await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });
             
             return { 
                 clientResponse: { 

@@ -417,9 +417,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const strategicLobbyTurnInfo = useMemo(() => {
         if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower' || session.stageId) return null;
         const moveHistory = session.moveHistory ?? [];
-        const validFromHistory = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
+        // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
+        const turnCountFromHistory = moveHistory.length;
         // 새로고침 직후 moveHistory가 비어 있을 수 있으므로 totalTurns로 대체 (수순 0/N 되는 버그 방지)
-        const current = validFromHistory > 0 ? validFromHistory : (session.totalTurns ?? 0);
+        const current = turnCountFromHistory > 0 ? turnCountFromHistory : (session.totalTurns ?? 0);
         const blackMoves = moveHistory.filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
         const blackTurnLimit = (session.settings as any)?.blackTurnLimit as number | undefined;
         if (session.gameCategory === 'guildwar' && mode === GameMode.Capture && blackTurnLimit != null && blackTurnLimit > 0) {

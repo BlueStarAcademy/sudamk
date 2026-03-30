@@ -801,6 +801,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 return;
             }
 
+            // 베이스돌 배치에서는 baseStones_p1/p2가 boardState에 반영되지 않아서,
+            // 같은 좌표를 다시 클릭해도 서버 오류(중복 배치)까지 기다릴 수 있음.
+            // 내 베이스돌 위치는 즉시 클릭을 막아 UX를 개선.
+            if (gameStatus === 'base_placement') {
+                if (myBaseStonesForPlacement?.some((st) => st.x === boardPos.x && st.y === boardPos.y)) {
+                    return;
+                }
+            }
+
             const stoneAtPos = displayBoardState[boardPos.y]?.[boardPos.x];
             
             if (stoneAtPos === myPlayerEnum) {

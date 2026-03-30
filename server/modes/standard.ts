@@ -481,11 +481,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     // 전략바둑: AI 수 적용 후 정해진 수순(scoringTurnLimit) 도달 시 계가 진행
                     const scoringTurnLimitAfterAi = game.settings.scoringTurnLimit;
                     if (scoringTurnLimitAfterAi != null && scoringTurnLimitAfterAi > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
-                        const validMovesAfter = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1);
-                        if (validMovesAfter.length >= scoringTurnLimitAfterAi) {
-                            console.log(`[handleStandardAction] Scoring turn limit reached after clientSideAiMove: totalTurns=${validMovesAfter.length}, scoringTurnLimit=${scoringTurnLimitAfterAi}, triggering getGameResult`);
+                        // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
+                        const turnsAfter = (game.moveHistory || []).length;
+                        if (turnsAfter >= scoringTurnLimitAfterAi) {
+                            console.log(`[handleStandardAction] Scoring turn limit reached after clientSideAiMove: totalTurns=${turnsAfter}, scoringTurnLimit=${scoringTurnLimitAfterAi}, triggering getGameResult`);
                             game.gameStatus = 'scoring';
-                            game.totalTurns = validMovesAfter.length;
+                            game.totalTurns = turnsAfter;
                             await db.saveGame(game);
                             const { broadcastToGameParticipants } = await import('../socket.js');
                             const gameToBroadcast = { ...game };

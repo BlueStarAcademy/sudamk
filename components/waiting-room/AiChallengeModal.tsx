@@ -126,9 +126,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
 
     useEffect(() => {
         const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
+        const nonZeroOptions = scoringTurnLimitOptions.filter(l => l > 0);
         const currentLimit = settings.scoringTurnLimit ?? 0;
-        if (!scoringTurnLimitOptions.includes(currentLimit)) {
-            handleSettingChange('scoringTurnLimit', scoringTurnLimitOptions[0]);
+        if (!nonZeroOptions.includes(currentLimit)) {
+            // "제한없음(0)" 옵션 제거 정책: 항상 0보다 큰 값만 허용
+            handleSettingChange('scoringTurnLimit', nonZeroOptions[0] ?? 1);
         }
     }, [settings.boardSize, settings.scoringTurnLimit]);
 
@@ -288,6 +290,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
 
         const boardSizeOptions = selectedGameMode != null ? getStrategicBoardSizesByMode(selectedGameMode) : BOARD_SIZES;
         const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
+        const nonZeroScoringTurnLimitOptions = scoringTurnLimitOptions.filter(l => l > 0);
 
         return (
             <div className="h-full flex flex-col gap-2 overflow-y-auto pr-2">
@@ -307,18 +310,36 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                     </div>
                 )}
 
+                {showBoardSize && (
+                    <div className="grid grid-cols-2 gap-2 items-center">
+                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>판 크기</label>
+                        <select 
+                            value={settings.boardSize} 
+                            onChange={e => handleSettingChange('boardSize', parseInt(e.target.value, 10) as GameSettings['boardSize'])}
+                            className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                            style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                        >
+                            {(selectedGameMode === GameMode.Omok || selectedGameMode === GameMode.Ttamok ? OMOK_BOARD_SIZES : 
+                                selectedGameMode === GameMode.Thief ? [9, 13, 19] : 
+                                boardSizeOptions).map(size => (
+                                <option key={size} value={size}>{size}줄</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
                 {showScoringTurnLimit && (
                     <div className="grid grid-cols-2 gap-2 items-center">
                         <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>계가까지 턴</label>
                         <select 
-                            value={settings.scoringTurnLimit ?? 0} 
+                            value={settings.scoringTurnLimit ?? nonZeroScoringTurnLimitOptions[0] ?? 1} 
                             onChange={e => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
                             className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                             style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
                         >
-                            {scoringTurnLimitOptions.map(limit => (
+                            {nonZeroScoringTurnLimitOptions.map(limit => (
                                 <option key={limit} value={limit}>
-                                    {limit === 0 ? '제한없음(서로통과)' : `${limit}수`}
+                                    {`${limit}수`}
                                 </option>
                             ))}
                         </select>
@@ -432,24 +453,6 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                         </div>
                     );
                 })()}
-
-                {showBoardSize && (
-                    <div className="grid grid-cols-2 gap-2 items-center">
-                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>판 크기</label>
-                        <select 
-                            value={settings.boardSize} 
-                            onChange={e => handleSettingChange('boardSize', parseInt(e.target.value, 10) as GameSettings['boardSize'])}
-                            className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
-                            style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
-                        >
-                            {(selectedGameMode === GameMode.Omok || selectedGameMode === GameMode.Ttamok ? OMOK_BOARD_SIZES : 
-                                selectedGameMode === GameMode.Thief ? [9, 13, 19] : 
-                                boardSizeOptions).map(size => (
-                                <option key={size} value={size}>{size}줄</option>
-                            ))}
-                        </select>
-                    </div>
-                )}
 
                 {showKomi && (
                     <div className="grid grid-cols-2 gap-2 items-center">

@@ -12,7 +12,8 @@ import {
     SPECIAL_GAME_MODES,
     SINGLE_PLAYER_STAGES,
     ADMIN_USER_ID,
-    ADMIN_NICKNAME
+    ADMIN_NICKNAME,
+    aiUserId
 } from '../../constants/index.js';
 import Button from '../Button.js';
 import Avatar from '../Avatar.js';
@@ -233,13 +234,18 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
     // Derive players and spectators from the live onlineUsers list for accuracy
     const playersInRoom = useMemo(() => {
         return onlineUsers
-            .filter(u => u.status === 'in-game' && u.gameId === session.id)
+            .filter((u) => {
+                if (u.status !== 'in-game' || u.gameId !== session.id) return false;
+                // 대기실 AI 대국: 온라인 목록에 봇 계정이 잡히면 유저 목록에 중복·노이즈 → 표시 제외 (상단 패널에만 봇 표시)
+                if (session.isAiGame && u.id === aiUserId) return false;
+                return true;
+            })
             .sort((a, b) => {
                 if (a.id === blackPlayerId) return -1;
                 if (b.id === blackPlayerId) return 1;
                 return 0; // white player will be second
             });
-    }, [onlineUsers, session.id, blackPlayerId]);
+    }, [onlineUsers, session.id, blackPlayerId, session.isAiGame]);
 
     const spectators = useMemo(() => {
         return onlineUsers.filter(u => u.status === 'spectating' && u.spectatingGameId === session.id);

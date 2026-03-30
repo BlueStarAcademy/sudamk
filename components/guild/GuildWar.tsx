@@ -464,6 +464,10 @@ const GuildWar = () => {
     // 바둑판 클릭 시 도전
     const handleBoardClick = async (board: Board) => {
         if (!activeWar || !currentUserWithStatus?.guildId) return;
+        if ((activeWar as any).status !== 'active') {
+            alert('종료된 길드 전쟁에서는 도전할 수 없습니다.');
+            return;
+        }
         
         // 데모 모드에서는 도전 횟수 제한 없음
         if (!isDemoMode) {

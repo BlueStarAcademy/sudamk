@@ -17,6 +17,8 @@ interface AiSession {
      * true면 다른 계산을 시작하지 않도록 차단
      */
     isProcessing: boolean;
+    /** isProcessing이 true가 된 시각 (장시간 미해제 시 강제 리셋용) */
+    processingStartedAt?: number;
     /**
      * 마지막으로 AI가 처리한 수의 개수 (moveHistory 길이)
      * 동일한 값 이하일 경우 이미 처리된 턴으로 간주하여 중복 계산을 방지
@@ -48,6 +50,7 @@ function ensureSession(gameId: string): AiSession {
         session = {
             gameId,
             isProcessing: false,
+            processingStartedAt: undefined,
             lastProcessedMoveCount: -1,
             lastUpdatedAt: Date.now(),
         };
@@ -67,6 +70,11 @@ function ensureSession(gameId: string): AiSession {
 export function shouldProcessAiTurn(gameId: string, currentMoveCount: number): boolean {
     const session = ensureSession(gameId);
 
+    // 메인루프/캐시 불일치로 lastProcessed만 앞서가면 "이미 처리됨"으로 AI가 영구 정지할 수 있음 → 실제 수순에 맞게 되돌림
+    if (session.lastProcessedMoveCount > currentMoveCount) {
+        session.lastProcessedMoveCount = Math.max(0, currentMoveCount - 1);
+    }
+
     if (session.lastProcessedMoveCount > 0 && currentMoveCount <= session.lastProcessedMoveCount) {
         return false;
     }
@@ -78,15 +86,26 @@ export function shouldProcessAiTurn(gameId: string, currentMoveCount: number): b
  * 세션을 "처리 중" 상태로 전환
  * 이미 다른 계산이 진행 중이면 false를 반환
  */
+const AI_PROCESSING_STALE_MS = 45_000;
+
 export function startAiProcessing(gameId: string): boolean {
     const session = ensureSession(gameId);
+    const now = Date.now();
 
     if (session.isProcessing) {
-        return false;
+        const elapsed = session.processingStartedAt ? now - session.processingStartedAt : AI_PROCESSING_STALE_MS;
+        if (elapsed >= AI_PROCESSING_STALE_MS) {
+            console.warn(`[AI Session] Stale isProcessing (${elapsed}ms) for ${gameId}, resetting`);
+            session.isProcessing = false;
+            session.processingStartedAt = undefined;
+        } else {
+            return false;
+        }
     }
 
     session.isProcessing = true;
-    session.lastUpdatedAt = Date.now();
+    session.processingStartedAt = now;
+    session.lastUpdatedAt = now;
     return true;
 }
 
@@ -96,6 +115,7 @@ export function startAiProcessing(gameId: string): boolean {
 export function finishAiProcessing(gameId: string, newMoveCount: number): void {
     const session = ensureSession(gameId);
     session.isProcessing = false;
+    session.processingStartedAt = undefined;
     session.lastProcessedMoveCount = newMoveCount;
     session.lastUpdatedAt = Date.now();
 }
@@ -106,6 +126,7 @@ export function finishAiProcessing(gameId: string, newMoveCount: number): void {
 export function cancelAiProcessing(gameId: string): void {
     const session = ensureSession(gameId);
     session.isProcessing = false;
+    session.processingStartedAt = undefined;
     session.lastUpdatedAt = Date.now();
 }
 

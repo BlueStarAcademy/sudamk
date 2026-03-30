@@ -936,11 +936,12 @@ export async function makeGoAiBotMove(
     // 전략바둑 로비 턴 제한: 이미 제한 수순에 도달했으면 수를 두지 않고 즉시 계가 진행 (그누고/계속 진행 방지)
     const scoringTurnLimit = (game.settings as any)?.scoringTurnLimit;
     if (scoringTurnLimit != null && scoringTurnLimit > 0 && !game.isSinglePlayer && (game as any).gameCategory !== 'tower') {
-        const validMovesSoFar = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1);
-        if (validMovesSoFar.length >= scoringTurnLimit) {
-            console.log(`[makeGoAiBotMove] Game ${game.id} already at or over scoringTurnLimit (${validMovesSoFar.length} >= ${scoringTurnLimit}), triggering getGameResult without making a move`);
+        // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
+        const totalTurnsSoFar = (game.moveHistory || []).length;
+        if (totalTurnsSoFar >= scoringTurnLimit) {
+            console.log(`[makeGoAiBotMove] Game ${game.id} already at or over scoringTurnLimit (${totalTurnsSoFar} >= ${scoringTurnLimit}), triggering getGameResult without making a move`);
             game.gameStatus = 'scoring';
-            game.totalTurns = validMovesSoFar.length;
+            game.totalTurns = totalTurnsSoFar;
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
@@ -1111,7 +1112,7 @@ export async function makeGoAiBotMove(
             }
             if (game.passCount >= 2) {
                 game.gameStatus = 'scoring';
-                game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                game.totalTurns = (game.moveHistory || []).length;
                 await db.saveGame(game);
                 const { broadcastToGameParticipants } = await import('./socket.js');
                 const gameToBroadcast = { ...game };
@@ -1157,7 +1158,7 @@ export async function makeGoAiBotMove(
             }
             if (game.passCount >= 2) {
                 game.gameStatus = 'scoring';
-                game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                game.totalTurns = (game.moveHistory || []).length;
                 await db.saveGame(game);
                 const { broadcastToGameParticipants } = await import('./socket.js');
                 const gameToBroadcast = { ...game };
@@ -1266,7 +1267,7 @@ export async function makeGoAiBotMove(
                     }
                     if (game.passCount >= 2) {
                         game.gameStatus = 'scoring';
-                        game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                        game.totalTurns = (game.moveHistory || []).length;
                         await db.saveGame(game);
                         const { broadcastToGameParticipants } = await import('./socket.js');
                         const g = { ...game };
@@ -1306,7 +1307,7 @@ export async function makeGoAiBotMove(
                 }
                 if (game.passCount >= 2) {
                     game.gameStatus = 'scoring';
-                    game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                    game.totalTurns = (game.moveHistory || []).length;
                     await db.saveGame(game);
                     const { broadcastToGameParticipants } = await import('./socket.js');
                     const g = { ...game };
@@ -1531,7 +1532,7 @@ export async function makeGoAiBotMove(
             }
             if (game.passCount >= 2) {
                 game.gameStatus = 'scoring';
-                game.totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
+                game.totalTurns = (game.moveHistory || []).length;
                 await db.saveGame(game);
                 const { broadcastToGameParticipants } = await import('./socket.js');
                 const g = { ...game };
@@ -1641,10 +1642,12 @@ export async function makeGoAiBotMove(
                 : (scoringLimit != null && scoringLimit > 0 ? scoringLimit : undefined);
         
         if (autoScoringTurns !== undefined || (game.isSinglePlayer && game.stageId)) {
-        // 항상 현재 moveHistory 기준 유효 수 개수 사용 (수순 초과 방지)
-        const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-        const totalTurns = validMoves.length;
-        game.totalTurns = totalTurns;
+            // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
+            const countPassAsTurn =
+                (scoringLimit != null && scoringLimit > 0 && !game.isSinglePlayer && (game as any).gameCategory !== 'tower');
+            const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
+            const totalTurns = countPassAsTurn ? game.moveHistory.length : validMoves.length;
+            game.totalTurns = totalTurns;
         
         if (autoScoringTurns) {
             const gameType = game.isSinglePlayer ? 'SinglePlayer' : 'AiGame';

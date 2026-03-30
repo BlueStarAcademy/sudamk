@@ -21,15 +21,28 @@ import {
 } from '../utils/towerLobbyInventory.js';
 
 // 월간 보상 구간 (매월 1일 0시 KST 지급, 역대 최고 층수 아님 월간 최고 층수 기준)
+// 서버 `processTowerRankingRewards`의 구간·수치와 반드시 동기화할 것
 const TOWER_MONTHLY_REWARD_TIERS = [
-    { floor: 100, gold: 10000, diamonds: 100, items: [{ itemId: '장비상자6', quantity: 2 }] },
-    { floor: 90, gold: 7500, diamonds: 75, items: [{ itemId: '장비상자6', quantity: 1 }] },
-    { floor: 80, gold: 5000, diamonds: 50, items: [{ itemId: '장비상자5', quantity: 2 }] },
-    { floor: 65, gold: 2500, diamonds: 25, items: [{ itemId: '장비상자5', quantity: 1 }] },
-    { floor: 50, gold: 1500, diamonds: 20, items: [{ itemId: '장비상자4', quantity: 1 }] },
-    { floor: 35, gold: 1000, diamonds: 15, items: [{ itemId: '장비상자3', quantity: 1 }] },
-    { floor: 20, gold: 500, diamonds: 10, items: [{ itemId: '장비상자2', quantity: 1 }] },
-    { floor: 10, gold: 300, diamonds: 5, items: [{ itemId: '장비상자1', quantity: 1 }] },
+    { floor: 100, gold: 100_000, diamonds: 300, items: [{ itemId: '장비상자6', quantity: 2 }] },
+    { floor: 90, gold: 75_000, diamonds: 225, items: [{ itemId: '장비상자6', quantity: 1 }] },
+    { floor: 80, gold: 50_000, diamonds: 150, items: [{ itemId: '장비상자5', quantity: 2 }] },
+    { floor: 65, gold: 25_000, diamonds: 75, items: [{ itemId: '장비상자5', quantity: 1 }] },
+    { floor: 50, gold: 15_000, diamonds: 60, items: [{ itemId: '장비상자4', quantity: 1 }] },
+    { floor: 35, gold: 10_000, diamonds: 45, items: [{ itemId: '장비상자3', quantity: 1 }] },
+    { floor: 20, gold: 5_000, diamonds: 30, items: [{ itemId: '장비상자2', quantity: 1 }] },
+    { floor: 10, gold: 3_000, diamonds: 15, items: [{ itemId: '장비상자1', quantity: 1 }] },
+] as const;
+
+/** 보상정보 모달 층 라벨 색 (TOWER_MONTHLY_REWARD_TIERS 순서와 동일) */
+const TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS = [
+    'text-yellow-300',
+    'text-gray-300',
+    'text-amber-600',
+    'text-amber-300',
+    'text-amber-300',
+    'text-amber-300',
+    'text-amber-300',
+    'text-amber-300',
 ] as const;
 
 const TowerLobby: React.FC = () => {
@@ -227,70 +240,38 @@ const TowerLobby: React.FC = () => {
                         </div>
 
                         <div className="space-y-3">
-                            <div className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3">
-                                <span className="text-yellow-300 font-bold text-base">100층</span>
-                                <div className="flex items-center gap-4 flex-wrap text-sm">
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />10,000</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />100</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox6.png" alt="장비상자 VI" className="w-5 h-5" />장비상자6 ×2</span>
+                            {TOWER_MONTHLY_REWARD_TIERS.map((tier, idx) => (
+                                <div
+                                    key={tier.floor}
+                                    className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3"
+                                >
+                                    <span
+                                        className={`${TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS[idx] ?? 'text-amber-300'} font-bold text-base`}
+                                    >
+                                        {tier.floor}층
+                                    </span>
+                                    <div className="flex items-center gap-4 flex-wrap text-sm">
+                                        <span className="inline-flex items-center gap-1">
+                                            <img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />
+                                            {tier.gold.toLocaleString()}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1">
+                                            <img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />
+                                            {tier.diamonds.toLocaleString()}
+                                        </span>
+                                        {tier.items.map((it) => (
+                                            <span key={`${it.itemId}-${it.quantity}`} className="inline-flex items-center gap-1">
+                                                <img
+                                                    src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
+                                                    alt={it.itemId}
+                                                    className="w-5 h-5"
+                                                />
+                                                {it.itemId} ×{it.quantity}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3">
-                                <span className="text-gray-300 font-bold text-base">90층</span>
-                                <div className="flex items-center gap-4 flex-wrap text-sm">
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />7,500</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />75</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox6.png" alt="장비상자 VI" className="w-5 h-5" />장비상자6 ×1</span>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3">
-                                <span className="text-amber-600 font-bold text-base">80층</span>
-                                <div className="flex items-center gap-4 flex-wrap text-sm">
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />5,000</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />50</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox5.png" alt="장비상자 V" className="w-5 h-5" />장비상자5 ×2</span>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3">
-                                <span className="text-amber-300 font-bold text-base">65층</span>
-                                <div className="flex items-center gap-4 flex-wrap text-sm">
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />2,500</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />25</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox5.png" alt="장비상자 V" className="w-5 h-5" />장비상자5 ×1</span>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3">
-                                <span className="text-amber-300 font-bold text-base">50층</span>
-                                <div className="flex items-center gap-4 flex-wrap text-sm">
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />1,500</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />20</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox4.png" alt="장비상자 IV" className="w-5 h-5" />장비상자4 ×1</span>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3">
-                                <span className="text-amber-300 font-bold text-base">35층</span>
-                                <div className="flex items-center gap-4 flex-wrap text-sm">
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />1,000</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />15</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox3.png" alt="장비상자 III" className="w-5 h-5" />장비상자3 ×1</span>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3">
-                                <span className="text-amber-300 font-bold text-base">20층</span>
-                                <div className="flex items-center gap-4 flex-wrap text-sm">
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />500</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />10</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox2.png" alt="장비상자 II" className="w-5 h-5" />장비상자2 ×1</span>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3">
-                                <span className="text-amber-300 font-bold text-base">10층</span>
-                                <div className="flex items-center gap-4 flex-wrap text-sm">
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />300</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />5</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/images/Box/EquipmentBox1.png" alt="장비상자 I" className="w-5 h-5" />장비상자1 ×1</span>
-                                </div>
-                            </div>
+                            ))}
                         </div>
 
                         <div className="rounded-lg border border-amber-700/40 bg-amber-950/25 p-4 space-y-2 text-sm">
@@ -606,10 +587,16 @@ const TowerLobby: React.FC = () => {
                                     {/* 왼쪽: 정보 영역 */}
                                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
                                         {/* 층수 */}
-                                        <div className="flex items-center gap-1.5 flex-shrink-0 px-2.5 py-1.5 bg-amber-900/50 rounded border border-amber-600/40">
-                                            <span className={`text-lg sm:text-xl font-black ${
-                                                isCurrent ? 'text-yellow-300' : isCleared ? 'text-amber-200' : 'text-amber-400'
-                                            }`}>
+                                        <div className="flex items-center gap-1.5 flex-shrink-0 px-2 py-1.5 sm:px-2.5 bg-amber-900/50 rounded border border-amber-600/40">
+                                            <span
+                                                className={`text-lg sm:text-xl font-black ${
+                                                    isCurrent
+                                                        ? 'text-yellow-300'
+                                                        : isCleared
+                                                          ? 'text-amber-200'
+                                                          : 'text-amber-400'
+                                                }`}
+                                            >
                                                 {floor}
                                             </span>
                                             <span className="text-xs sm:text-sm text-amber-300 font-semibold">층</span>
@@ -617,68 +604,88 @@ const TowerLobby: React.FC = () => {
                                                 <span className="text-green-400 text-sm sm:text-base font-bold">✓</span>
                                             )}
                                         </div>
-                                        
-                                        {/* 1-20층: 배치되는 돌 개수 + 목표점수와 제한턴 표시 */}
-                                        {isCaptureMode && (
-                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                                {/* 배치되는 돌 개수 (한 줄) */}
-                                                <div className="flex items-center gap-2 flex-shrink-0">
-                                                    {/* 흑돌 */}
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/Black.png" alt="흑돌" className="w-5 h-5 sm:w-6 sm:h-6" />
-                                                        <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">{stage.placements.black}</span>
+
+                                        {/* 바둑판·배치 / 목표·제한 → 두 줄로 가로 배치 */}
+                                        <div className="flex flex-col gap-y-1.5 min-w-0 flex-1 text-[11px] sm:text-xs">
+                                            {isCaptureMode && (
+                                                <>
+                                                    <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">바둑판</span>
+                                                            <span
+                                                                className="font-bold tabular-nums text-amber-100"
+                                                                title={`바둑판 ${stage.boardSize}×${stage.boardSize}`}
+                                                            >
+                                                                {stage.boardSize}×{stage.boardSize}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap shrink-0">배치</span>
+                                                            <div className="flex items-center gap-3 flex-wrap">
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/Black.png" alt="흑" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">{stage.placements.black}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/White.png" alt="백" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">{stage.placements.white}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    {/* 백돌 */}
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/White.png" alt="백돌" className="w-5 h-5 sm:w-6 sm:h-6" />
-                                                        <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">{stage.placements.white}</span>
+                                                    <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">목표</span>
+                                                            <span className="text-yellow-300 font-bold">흑 {stage.targetScore?.black ?? 0}개</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">제한</span>
+                                                            <span className="text-amber-200 font-bold tabular-nums">{stage.blackTurnLimit}턴</span>
+                                                        </div>
                                                     </div>
+                                                </>
+                                            )}
+
+                                            {!isCaptureMode && (
+                                                <div className="flex flex-col gap-y-1.5 min-w-0" title={getTargetInfo()}>
+                                                    <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">바둑판</span>
+                                                            <span className="font-bold tabular-nums text-amber-100">{stage.boardSize}×{stage.boardSize}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap shrink-0">배치</span>
+                                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/Black.png" alt="흑" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">{stage.placements.black}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/White.png" alt="백" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">{stage.placements.white}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/BlackDouble.png" alt="흑 문양" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.blackPattern}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/WhiteDouble.png" alt="백 문양" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.whitePattern}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {autoScoringLabel && (
+                                                        <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-amber-400/90 font-semibold whitespace-nowrap">계가</span>
+                                                                <span className="text-sky-300 font-bold tracking-tight">{autoScoringLabel}</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                {/* 목표와 제한 (두 줄) */}
-                                                <div className="flex flex-col gap-0.5 flex-shrink-0">
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="text-xs sm:text-sm text-amber-300 font-semibold whitespace-nowrap">목표:</span>
-                                                        <span className="text-xs sm:text-sm text-yellow-300 font-bold whitespace-nowrap">흑 {stage.targetScore?.black ?? 0}개</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="text-xs sm:text-sm text-amber-300 font-semibold whitespace-nowrap">제한:</span>
-                                                        <span className="text-xs sm:text-sm text-amber-200 font-bold whitespace-nowrap">{stage.blackTurnLimit}턴</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        
-                                        {/* 21-100층: 일반돌·문양돌 + 계가까지 수 */}
-                                        {!isCaptureMode && (
-                                            <div
-                                                className="flex flex-col gap-0.5 flex-shrink-0 min-w-0"
-                                                title={getTargetInfo()}
-                                            >
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/Black.png" alt="흑돌" className="w-5 h-5 sm:w-6 sm:h-6" />
-                                                        <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">{stage.placements.black}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/White.png" alt="백돌" className="w-5 h-5 sm:w-6 sm:h-6" />
-                                                        <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">{stage.placements.white}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/BlackDouble.png" alt="흑 문양돌" className="w-5 h-5 sm:w-6 sm:h-6" />
-                                                        <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">×{stage.placements.blackPattern}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <img src="/images/single/WhiteDouble.png" alt="백 문양돌" className="w-5 h-5 sm:w-6 sm:h-6" />
-                                                        <span className="text-xs sm:text-sm text-amber-300 whitespace-nowrap font-semibold">×{stage.placements.whitePattern}</span>
-                                                    </div>
-                                                </div>
-                                                {autoScoringLabel && (
-                                                    <span className="text-[10px] sm:text-xs text-sky-300 font-bold whitespace-nowrap tracking-tight">
-                                                        {autoScoringLabel}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                         
                                         {/* 보상 정보 (두 줄로 표시, 도전 버튼 왼쪽에 정렬) */}
                                         <div className="flex flex-col gap-1 flex-shrink-0 ml-auto">

@@ -29,15 +29,16 @@ export const BASE_TOURNAMENT_REWARDS: Record<TournamentType, { rewardType: 'rank
             5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },   // 5-8위 (8강 탈락)
         }
     },
+    // 월드: 순위 보상은 서버에서 getDungeonRankRewardWorld로 다이아만 지급.
     world: { // 16강 토너먼트, key = rank
         rewardType: 'rank',
         rewards: {
-            1: { items: [{ itemId: '골드 꾸러미4', quantity: 1 }, { itemId: '다이아 꾸러미3', quantity: 1 }] }, // 우승
-            2: { items: [{ itemId: '골드 꾸러미3', quantity: 1 }, { itemId: '다이아 꾸러미2', quantity: 1 }] }, // 준우승
-            3: { items: [{ itemId: '골드 꾸러미3', quantity: 1 }, { itemId: '다이아 꾸러미1', quantity: 1 }] }, // 3위
-            4: { items: [{ itemId: '골드 꾸러미2', quantity: 1 }, { itemId: '다이아 꾸러미1', quantity: 1 }] }, // 4위
-            5: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }, { itemId: '다이아 꾸러미1', quantity: 1 }] },  // 5-8위 (8강 탈락)
-            9: { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },   // 9-16위 (16강 탈락)
+            1: { items: [] },
+            2: { items: [] },
+            3: { items: [] },
+            4: { items: [] },
+            5: { items: [] },
+            9: { items: [] },
         }
     }
 };

@@ -509,15 +509,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
         );
     }
 
-    // 제련 횟수가 0인 경우
-    if (refinementCount <= 0) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 text-sm gap-2">
-                <div>제련 가능 횟수가 모두 소진되었습니다.</div>
-                <div className="text-xs text-gray-500">새로운 장비를 획득하면 제련 횟수가 부여됩니다.</div>
-            </div>
-        );
-    }
+    const refinementExhausted = refinementCount <= 0;
 
     return (
         <div className="flex flex-col h-full gap-2 p-2">
@@ -542,7 +534,12 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                 <div className="flex flex-col bg-gray-800/50 rounded-lg p-2 min-h-0 min-w-0">
                     <h3 className="text-xs font-bold mb-2 text-gray-300 shrink-0">제련 정보</h3>
                     <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
-                    {selectedOption ? (
+                    {refinementExhausted ? (
+                        <div className="flex flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-sm text-amber-200/95 min-h-[120px]">
+                            <p className="font-semibold leading-snug">제련 가능 횟수가 모두 소진되었습니다.</p>
+                            <p className="text-xs text-gray-400 leading-relaxed">새로운 장비를 획득하면 제련 횟수가 부여됩니다.</p>
+                        </div>
+                    ) : selectedOption ? (
                         <div className="flex flex-col gap-2 text-xs">
                             {/* 선택된 옵션 표시 */}
                             <div className="bg-gray-900/50 p-1.5 rounded">

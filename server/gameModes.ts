@@ -1,6 +1,6 @@
 
 import { getGoLogic } from './goLogic.js';
-import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_BUTTONS_EARLY, STRATEGIC_ACTION_BUTTONS_MID, STRATEGIC_ACTION_BUTTONS_LATE, PLAYFUL_ACTION_BUTTONS_EARLY, PLAYFUL_ACTION_BUTTONS_MID, PLAYFUL_ACTION_BUTTONS_LATE, RANDOM_DESCRIPTIONS, ALKKAGI_TURN_TIME_LIMIT, ALKKAGI_PLACEMENT_TIME_LIMIT, TIME_BONUS_SECONDS_PER_POINT } from '../constants';
+import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_BUTTONS_EARLY, STRATEGIC_ACTION_BUTTONS_MID, STRATEGIC_ACTION_BUTTONS_LATE, PLAYFUL_ACTION_BUTTONS_EARLY, PLAYFUL_ACTION_BUTTONS_MID, PLAYFUL_ACTION_BUTTONS_LATE, RANDOM_DESCRIPTIONS, ALKKAGI_TURN_TIME_LIMIT, ALKKAGI_PLACEMENT_TIME_LIMIT, TIME_BONUS_SECONDS_PER_POINT, getScoringTurnLimitOptionsByBoardSize } from '../constants';
 import * as types from '../types/index.js';
 import { analyzeGame, getScoringKataGoLimits } from './kataGoService.js';
 import type { LiveGameSession, AppState, Negotiation, ActionButton, GameMode } from '../types/index.js';
@@ -768,6 +768,16 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
     }
     
     const isAiGame = opponent.id === aiUserId;
+
+    // 전략바둑 AI 대결에서 "제한없음(0)" 옵션 제거 정책:
+    // 서버에서 scoringTurnLimit이 0/음수/없으면 보드 크기에 맞는 기본값으로 강제한다.
+    if (isAiGame && SPECIAL_GAME_MODES.some(m => m.mode === mode) && mode !== types.GameMode.Capture) {
+        const scoringTurnLimit = (settings as any)?.scoringTurnLimit;
+        if (typeof scoringTurnLimit !== 'number' || !Number.isFinite(scoringTurnLimit) || scoringTurnLimit <= 0) {
+            const options = getScoringTurnLimitOptionsByBoardSize((settings as any)?.boardSize ?? 19).filter(l => l > 0);
+            (settings as any).scoringTurnLimit = options[0] ?? 1;
+        }
+    }
     
     const descriptions = RANDOM_DESCRIPTIONS[mode] || [`${mode} 한 판!`];
     const randomDescription = descriptions[Math.floor(Math.random() * descriptions.length)];
@@ -901,7 +911,8 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             })();
 
         // 게임 수가 적을 때는 바둑 AI 등 느린 처리 완료 허용 (MainLoop 타임아웃과 조화)
-        const OUTER_DEADLINE_MS = toProcess.length === 1 ? 12000 : toProcess.length <= 2 ? 9000 : toProcess.length <= 3 ? 6000 : 2500;
+        // 단일 게임: getCachedGame/DB 지연 + 지연된 setImmediate(makeAiMove)까지 고려해 여유 확보 (이전 12s는 Kata·DB 복합 시 outer가 먼저 승리하는 경우가 있었음)
+        const OUTER_DEADLINE_MS = toProcess.length === 1 ? 22000 : toProcess.length <= 2 ? 9000 : toProcess.length <= 3 ? 6000 : 2500;
         const outerTimeout = new Promise<LiveGameSession[]>((resolve) => {
             setTimeout(() => {
                 // 로그를 덜 자주 출력 (30초마다 한 번만)
@@ -945,7 +956,11 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
 
             const BATCH_SIZE = 1;
             const results: LiveGameSession[] = [];
-            const BATCH_DEADLINE_MS = Math.min(OUTER_DEADLINE_MS - 500, 5000); // 배치 상한 (outer 여유 확보)
+            // 단일 게임 시 processGame이 getCachedGame 등으로 길어져도 배치 레이스가 먼저 끊지 않도록 outer에 맞춤 (5s 고정은 DB 지연 시 불필요한 조기 반환 유발)
+            const BATCH_DEADLINE_MS =
+                toProcess.length === 1
+                    ? Math.min(OUTER_DEADLINE_MS - 500, 20000)
+                    : Math.min(OUTER_DEADLINE_MS - 500, 5000);
             // 게임 수가 적을 때는 AI(바둑 등) 한 수에 시간 허용; 많을 때만 짧게
             const GAME_DEADLINE_MS = toProcess.length <= 2 ? 10000 : toProcess.length <= 3 ? 4000 : 800;
 
@@ -1042,7 +1057,11 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
         // PLACE_STONE 직후 같은 메인루프 사이클에서 스냅샷(이전 상태)으로 처리되면
         // currentPlayer가 아직 human이라 시간패가 잘못 적용되는 버그 방지: 캐시에서 최신 게임 사용
         const { getCachedGame } = await import('./gameCache.js');
-        const cached = await getCachedGame(game.id);
+        const GET_CACHED_GAME_DEADLINE_MS = 2500;
+        const cached = await Promise.race([
+            getCachedGame(game.id),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), GET_CACHED_GAME_DEADLINE_MS)),
+        ]);
         if (cached) {
             game = cached;
         }

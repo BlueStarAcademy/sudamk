@@ -454,7 +454,7 @@ const GuildHomePanel: React.FC<GuildHomePanelProps> = ({ guild, myMemberInfo, ri
     const isMobile = false;
 
     return (
-        <div className="flex flex-col gap-4 h-full">
+        <div className="flex h-full flex-col gap-2">
             {isMobile ? (
                 <>
                     {/* 모바일: 출석부와 공지를 가로로 압축 배치 (PC 버전 압축) */}
@@ -473,11 +473,11 @@ const GuildHomePanel: React.FC<GuildHomePanelProps> = ({ guild, myMemberInfo, ri
                 </>
             ) : (
                 <>
-                    <div className="grid grid-cols-2 gap-4 flex-shrink-0">
+                    <div className="grid flex-shrink-0 grid-cols-2 gap-2">
                         <GuildCheckInPanel guild={guild} />
                         <GuildAnnouncementPanel guild={guild} />
                     </div>
-                    <div className="flex-grow min-h-0 flex gap-4" data-guild-chat>
+                    <div className="flex min-h-0 flex-grow gap-2" data-guild-chat>
                         <div className={rightOfChat ? 'flex-1 min-w-0' : 'w-full'}>
                             <GuildChat guild={guild} myMemberInfo={myMemberInfo} />
                         </div>

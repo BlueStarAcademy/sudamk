@@ -784,6 +784,39 @@ export const useApp = () => {
             return;
         }
         actionDebounceRef.current.set(actionKey, now);
+
+        // 베이스 바둑: base_placement에서 PLACE_BASE_STONE은 즉시 화면에 반영되어야 함.
+        // 서버 응답/WS 왕복 전까지는 `baseStones_p1/p2`가 갱신되지 않아서 돌이 늦게 보이던 문제가 있음.
+        if ((action as any).type === 'PLACE_BASE_STONE') {
+            const payload = (action as any).payload as { gameId?: string; x?: number; y?: number } | undefined;
+            const { gameId, x, y } = payload || {};
+            const uid = currentUserRef.current?.id;
+            if (gameId && uid != null && typeof x === 'number' && typeof y === 'number') {
+                setLiveGames((currentGames) => {
+                    const game = currentGames[gameId];
+                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+
+                    const baseStonesTarget = game.settings?.baseStones ?? 4;
+                    const myKey = uid === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+
+                    const myArr = (game as any)[myKey] as Point[] | undefined;
+                    const nextArr = Array.isArray(myArr) ? [...myArr] : [];
+
+                    // 서버 검증과 동일하게 중복/초과는 즉시 반영하지 않음
+                    if (nextArr.some((p) => p.x === x && p.y === y)) return currentGames;
+                    if (nextArr.length >= baseStonesTarget) return currentGames;
+
+                    nextArr.push({ x, y });
+                    return {
+                        ...currentGames,
+                        [gameId]: {
+                            ...game,
+                            [myKey]: nextArr
+                        } as any
+                    };
+                });
+            }
+        }
         
         // 싱글플레이 미사일 애니메이션 완료 클라이언트 처리 (도전의 탑은 towerGames, 그 외 싱글은 singlePlayerGames)
         if ((action as any).type === 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE') {

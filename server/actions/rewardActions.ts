@@ -14,7 +14,8 @@ import {
     MONTHLY_MILESTONE_THRESHOLDS,
     BASE_TOURNAMENT_REWARDS,
     TOURNAMENT_SCORE_REWARDS,
-    TOURNAMENT_DEFINITIONS
+    TOURNAMENT_DEFINITIONS,
+    getDungeonRankRewardWorld,
 } from '../../constants/index.js';
 import { calculateRanks } from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
@@ -541,14 +542,22 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             dungeonProgress.unlockedStages = [...new Set(dungeonProgress.unlockedStages)].filter((s: number) => s >= 1 && s <= 10).sort((a: number, b: number) => a - b);
             
             const itemReward = itemRewardInfo.rewards?.[itemRewardKey];
+            // 월드챔피언십: 순위 보상은 다이아 직접 지급만(던전 COMPLETE_DUNGEON_STAGE와 동일). 꾸러미/골드 상자 제거.
+            const resolvedItemReward: QuestReward | undefined =
+                tournamentType === 'world'
+                    ? (() => {
+                          const rw = getDungeonRankRewardWorld(currentStage, userRank);
+                          return { diamonds: rw.diamonds ?? 0, items: [], gold: 0 };
+                      })()
+                    : itemReward;
 
-            if (!itemReward) {
+            if (!resolvedItemReward) {
                 console.error(`[CLAIM_TOURNAMENT_REWARD] Item reward not found. tournamentType: ${tournamentType}, itemRewardKey: ${itemRewardKey}, userRank: ${userRank}`);
                 console.error(`[CLAIM_TOURNAMENT_REWARD] Available reward keys:`, itemRewardInfo.rewards ? Object.keys(itemRewardInfo.rewards) : 'none');
                 // itemReward가 없어도 점수 보상은 지급해야 하므로 계속 진행
             }
             
-            if (!itemReward) {
+            if (!resolvedItemReward) {
                 // 동네바둑리그: 누적 골드 추가
                 let accumulatedGold = 0;
                 if (tournamentType === 'neighborhood' && tournamentState.accumulatedGold) {
@@ -565,18 +574,16 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                     accumulatedMaterials = createItemInstancesFromReward(materialItems);
                 }
                 
-                // 월드챔피언십: 누적 장비상자 추가
-                let accumulatedEquipmentBoxes: InventoryItem[] = [];
-                if (tournamentType === 'world' && tournamentState.accumulatedEquipmentBoxes) {
-                    const boxItems = Object.entries(tournamentState.accumulatedEquipmentBoxes).map(([boxName, quantity]) => ({
-                        itemId: boxName,
-                        quantity: quantity
-                    }));
-                    accumulatedEquipmentBoxes = createItemInstancesFromReward(boxItems);
+                // 월드챔피언십: 경기 중 생성된 장비만 지급(상자 소모품 아님)
+                let accumulatedWorldEquipment: InventoryItem[] = [];
+                if (tournamentType === 'world' && tournamentState.accumulatedEquipmentItems?.length) {
+                    accumulatedWorldEquipment = tournamentState.accumulatedEquipmentItems.map((it) =>
+                        JSON.parse(JSON.stringify(it))
+                    ) as InventoryItem[];
                 }
                 
-                // 재료와 장비상자를 함께 인벤토리에 추가
-                const allAccumulatedItems = [...accumulatedMaterials, ...accumulatedEquipmentBoxes];
+                // 재료와 월드 장비를 함께 인벤토리에 추가
+                const allAccumulatedItems = [...accumulatedMaterials, ...accumulatedWorldEquipment];
                 if (allAccumulatedItems.length > 0) {
                     const { success, finalItemsToAdd, updatedInventory } = addItemsToInventory([...freshUser.inventory], freshUser.inventorySlots, allAccumulatedItems);
                     if (!success) {
@@ -609,8 +616,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 if (accumulatedMaterials.length > 0) {
                     console.log(`[CLAIM_TOURNAMENT_REWARD] Added accumulated materials:`, accumulatedMaterials.map(m => `${m.name} x${m.quantity}`).join(', '));
                 }
-                if (accumulatedEquipmentBoxes.length > 0) {
-                    console.log(`[CLAIM_TOURNAMENT_REWARD] Added accumulated equipment boxes:`, accumulatedEquipmentBoxes.map(b => `${b.name} x${b.quantity}`).join(', '));
+                if (accumulatedWorldEquipment.length > 0) {
+                    console.log(`[CLAIM_TOURNAMENT_REWARD] Added world equipment drops:`, accumulatedWorldEquipment.map(b => `${b.name} x${b.quantity ?? 1}`).join(', '));
                 }
                 updateQuestProgress(freshUser, 'tournament_complete');
                 
@@ -633,7 +640,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 broadcastUserUpdate(fullUserForBroadcast, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints', 'mail', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress']);
                 const { invalidateRankingCache } = await import('../rankingCache.js');
                 invalidateRankingCache();
-                const allObtainedItems: any[] = [...accumulatedMaterials, ...accumulatedEquipmentBoxes];
+                const allObtainedItems: any[] = [...accumulatedMaterials, ...accumulatedWorldEquipment];
                 if (accumulatedGold > 0) {
                     allObtainedItems.unshift({ name: `${accumulatedGold} 골드 (경기 보상)`, image: '/images/icon/Gold.png' });
                 }
@@ -644,7 +651,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 // rewardSummary 형식으로 변환하여 모달 표시
                 const reward: QuestReward = {
                     gold: accumulatedGold,
-                    diamonds: 0,
+                    diamonds: tournamentType === 'world' ? getDungeonRankRewardWorld(currentStage, userRank).diamonds ?? 0 : 0,
                     actionPoints: 0,
                 };
                 
@@ -665,8 +672,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             // 골드 꾸러미와 다이아 꾸러미는 모두 아이템으로 지급 (사용자가 직접 사용하여 랜덤 골드/다이아 획득)
             const regularItems: { itemId: string; quantity: number }[] = [];
             
-            if (itemReward.items) {
-                for (const itemRef of itemReward.items as { itemId: string; quantity: number }[]) {
+            if (resolvedItemReward?.items) {
+                for (const itemRef of resolvedItemReward.items as { itemId: string; quantity: number }[]) {
                     // 모든 아이템을 그대로 아이템으로 추가
                     regularItems.push(itemRef);
                 }
@@ -684,14 +691,11 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 itemsToCreate.push(...createdMaterials);
             }
             
-            // 월드챔피언십: 누적 장비상자 추가
-            if (tournamentType === 'world' && tournamentState.accumulatedEquipmentBoxes) {
-                const boxItems = Object.entries(tournamentState.accumulatedEquipmentBoxes).map(([boxName, quantity]) => ({
-                    itemId: boxName,
-                    quantity: quantity
-                }));
-                const createdBoxes = createItemInstancesFromReward(boxItems);
-                itemsToCreate.push(...createdBoxes);
+            // 월드챔피언십: 경기 중 생성된 장비만 지급(레거시 장비상자 맵은 사용하지 않음)
+            if (tournamentType === 'world' && tournamentState.accumulatedEquipmentItems?.length) {
+                for (const eq of tournamentState.accumulatedEquipmentItems) {
+                    itemsToCreate.push(JSON.parse(JSON.stringify(eq)) as InventoryItem);
+                }
             }
             
             const { success, finalItemsToAdd, updatedInventory } = addItemsToInventory([...freshUser.inventory], freshUser.inventorySlots, itemsToCreate);
@@ -726,8 +730,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 accumulatedGold = tournamentState.accumulatedGold;
             }
             
-            freshUser.gold += (itemReward.gold || 0) + accumulatedGold;
-            freshUser.diamonds += (itemReward.diamonds || 0);
+            freshUser.gold += (resolvedItemReward?.gold || 0) + accumulatedGold;
+            freshUser.diamonds += (resolvedItemReward?.diamonds || 0);
             freshUser.inventory = updatedInventory;
             
             updateQuestProgress(freshUser, 'tournament_complete');
@@ -775,32 +779,34 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 } as InventoryItem);
             }
 
-            if ((itemReward.gold || 0) > 0) {
+            const rankGold = resolvedItemReward?.gold || 0;
+            const rankDiamonds = resolvedItemReward?.diamonds || 0;
+            if (rankGold > 0) {
                 allObtainedItems.unshift({
                     id: `display-gold-direct-${Date.now()}`,
-                    name: `${itemReward.gold} 골드`,
+                    name: `${rankGold} 골드`,
                     description: '순위 보상으로 획득한 골드입니다.',
                     type: 'consumable',
                     slot: null,
                     image: '/images/icon/Gold.png',
                     grade: 'rare',
-                    quantity: itemReward.gold || 0,
+                    quantity: rankGold,
                     createdAt: Date.now(),
                     isEquipped: false,
                     level: 1,
                     stars: 0,
                 } as InventoryItem);
             }
-            if ((itemReward.diamonds || 0) > 0) {
+            if (rankDiamonds > 0) {
                 allObtainedItems.unshift({
                     id: `display-diamond-direct-${Date.now()}`,
-                    name: `${itemReward.diamonds} 다이아`,
+                    name: `${rankDiamonds} 다이아`,
                     description: '순위 보상으로 획득한 다이아입니다.',
                     type: 'consumable',
                     slot: null,
                     image: '/images/icon/Zem.png',
                     grade: 'epic',
-                    quantity: itemReward.diamonds || 0,
+                    quantity: rankDiamonds,
                     createdAt: Date.now(),
                     isEquipped: false,
                     level: 1,
@@ -808,8 +814,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 } as InventoryItem);
             }
 
-            if (allObtainedItems.length === 0 && itemReward.items?.length) {
-                const fallbackDisplayItems = createItemInstancesFromReward(itemReward.items as { itemId: string; quantity: number }[]).map(item => ({
+            if (allObtainedItems.length === 0 && resolvedItemReward?.items?.length) {
+                const fallbackDisplayItems = createItemInstancesFromReward(resolvedItemReward.items as { itemId: string; quantity: number }[]).map(item => ({
                     ...item,
                     id: `display-fallback-${item.id}`,
                 }));
@@ -818,8 +824,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
 
             // rewardSummary 형식으로 변환하여 모달 표시
             const reward: QuestReward = {
-                gold: (itemReward.gold || 0) + accumulatedGold,
-                diamonds: itemReward.diamonds || 0,
+                gold: (resolvedItemReward?.gold || 0) + accumulatedGold,
+                diamonds: resolvedItemReward?.diamonds || 0,
                 actionPoints: 0,
             };
 
