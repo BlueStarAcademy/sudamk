@@ -298,6 +298,11 @@ const AppContent: React.FC = () => {
             
             {/* 전체 앱을 16:9 박스 안에 넣고, 내부는 고정 캔버스(1920x1080)를 scale로 맞춰 “한 장 그림”처럼 동일 비율로 확대/축소 */}
             <div className="flex-1 flex items-center justify-center min-h-0">
+                {currentUser && !isGameView && !isHandheld && (
+                    <div className="hidden xl:flex flex-shrink-0 items-center px-1 self-stretch">
+                        <AdBanner position="left" />
+                    </div>
+                )}
                 <div
                     ref={containerRef}
                     className="w-full h-full max-w-full max-h-full aspect-[16/9] overflow-hidden relative flex items-center justify-center min-h-0"
@@ -626,6 +631,11 @@ const AppContent: React.FC = () => {
                     </div>
                     </div>
                 </div>
+                {currentUser && !isGameView && !isHandheld && (
+                    <div className="hidden xl:flex flex-shrink-0 items-center px-1 self-stretch">
+                        <AdBanner position="right" />
+                    </div>
+                )}
             </div>
         </div>
     );

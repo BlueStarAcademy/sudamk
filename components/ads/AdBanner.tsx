@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useAdContext } from './AdProvider.js';
 import type { AdBannerPosition, AdBannerSize } from '../../types/ads.js';
-import { BANNER_SIZES, SIDEBAR_AD_SIZE, AD_SLOTS } from '../../constants/ads.js';
+import { BANNER_SIZES, SIDEBAR_AD_SIZE, SKYSCRAPER_AD_SIZE, AD_SLOTS } from '../../constants/ads.js';
 
 interface AdBannerProps {
   position: AdBannerPosition;
@@ -11,6 +11,7 @@ interface AdBannerProps {
 /** 현재 뷰포트에 맞는 배너 크기 반환 */
 function getBannerSize(position: AdBannerPosition): AdBannerSize {
   if (position === 'sidebar') return SIDEBAR_AD_SIZE;
+  if (position === 'left' || position === 'right') return SKYSCRAPER_AD_SIZE;
   if (typeof window === 'undefined') return BANNER_SIZES.pc;
   const w = window.innerWidth;
   if (w < 768) return BANNER_SIZES.mobile;
@@ -23,6 +24,8 @@ function getSlotId(position: AdBannerPosition): string {
     case 'top': return AD_SLOTS.bannerTop;
     case 'bottom': return AD_SLOTS.bannerBottom;
     case 'sidebar': return AD_SLOTS.sidebar;
+    case 'left': return AD_SLOTS.skyscraperLeft;
+    case 'right': return AD_SLOTS.skyscraperRight;
   }
 }
 

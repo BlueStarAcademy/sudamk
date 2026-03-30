@@ -7,6 +7,8 @@ export const AD_SLOTS = {
   bannerTop: '7312967741',
   bannerBottom: '4686804407',
   sidebar: '2060641067',
+  skyscraperLeft: '2060641067',   // TODO: AdSense 콘솔에서 새 슬롯 생성 후 교체
+  skyscraperRight: '2060641067',  // TODO: AdSense 콘솔에서 새 슬롯 생성 후 교체
 } as const;
 
 /** 디바이스별 배너 크기 */
@@ -18,6 +20,9 @@ export const BANNER_SIZES: Record<'pc' | 'tablet' | 'mobile', AdBannerSize> = {
 
 /** 사이드바 광고 크기 (PC 전용) */
 export const SIDEBAR_AD_SIZE: AdBannerSize = { width: 300, height: 250 };
+
+/** 스카이스크래퍼 광고 크기 (좌/우 세로 배너) */
+export const SKYSCRAPER_AD_SIZE: AdBannerSize = { width: 160, height: 600 };
 
 /** 전면 광고 빈도 설정 */
 export const INTERSTITIAL_CONFIG: Record<InterstitialTrigger, {
