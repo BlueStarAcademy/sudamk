@@ -327,8 +327,8 @@ const AppContent: React.FC = () => {
                         {currentUser && !isGameView && (
                             <>
                                 <Header />
-                                {/* 상단 배너 광고 — 로비/프로필 등 비게임 화면에서만 표시 (PC/태블릿) */}
-                                <div className="hidden sm:block flex-shrink-0">
+                                {/* 상단 배너 광고 — 좌우 배너 없는 sm~lg 화면에서만 표시 */}
+                                <div className="hidden sm:block xl:hidden flex-shrink-0">
                                     <AdBanner position="top" className="py-1" />
                                 </div>
                             </>
@@ -619,9 +619,9 @@ const AppContent: React.FC = () => {
                                 )}
                             </>
                         )}
-                        {/* 하단 배너 광고 — 비게임 화면에서 표시 */}
+                        {/* 하단 배너 광고 — 좌우 배너 없는 화면에서만 표시 */}
                         {currentUser && !isGameView && (
-                            <div className="flex-shrink-0">
+                            <div className="flex-shrink-0 xl:hidden">
                                 <AdBanner position="bottom" className="py-1" />
                             </div>
                         )}
