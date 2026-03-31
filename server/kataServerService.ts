@@ -75,6 +75,8 @@ export interface GenerateKataServerMoveParams {
     level: number;      // -31 ~ 9
     komi?: number;
     gameId?: string;
+    /** false: PASS 후보 제외(둘 곳이 없을 때만 PASS). 생략 시 서버 기본(true). */
+    allowPass?: boolean;
 }
 
 /**
@@ -86,11 +88,11 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
         throw new Error('KATA_SERVER_URL is not set');
     }
 
-    const { boardSize, moveHistory, level, komi, gameId } = params;
+    const { boardSize, moveHistory, level, komi, gameId, allowPass } = params;
     const moves = toKataServerMoves(moveHistory, boardSize);
     const isFirstMove = moves.length < 2;
 
-    const body = {
+    const body: Record<string, unknown> = {
         level,
         boardXSize: boardSize,
         boardYSize: boardSize,
@@ -99,6 +101,9 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
         moves,
         firstMove: isFirstMove,
     };
+    if (allowPass === false) {
+        body.allowPass = false;
+    }
 
     const url = `${KATA_SERVER_URL}/move`;
     const headers: Record<string, string> = {

@@ -13,7 +13,12 @@ import * as db from './db.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 import { generateKataServerMove, isKataServerAvailable } from './kataServerService.js';
+import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import { isPatternIntersectionPermanentlyConsumed } from '../shared/utils/patternStoneConsume.js';
+
+function clearStrategicAiKataSpFallback(game: types.LiveGameSession) {
+    delete (game as any).strategicAiKataSpFallbackActive;
+}
 
 /**
  * AI 봇 단계별 특성 정의
@@ -978,7 +983,9 @@ export async function makeGoAiBotMove(
     const isSpOrTowerPve = isSinglePlayerOrTowerPve(game);
     const skipKataForCapturePve = isSpOrTowerPve && game.mode === types.GameMode.Capture;
     const wantKataServer = !isGuildWarAiGame && !skipKataForCapturePve && isKataServerAvailable();
-    if (wantKataServer && !selectedMove) {
+    /** 이전 턴에서 Kata PASS 복구가 미완료였거나, 이번에 SP식 1수만 둘 때 Kata 호출 생략 */
+    const skipKataForStrategicSpFallback = !!game.strategicAiKataSpFallbackActive;
+    if (wantKataServer && !selectedMove && !skipKataForStrategicSpFallback) {
         try {
             const kataLevel =
                 game.settings.kataServerLevel ??
@@ -989,6 +996,8 @@ export async function makeGoAiBotMove(
                 ? getMoveHistoryForAi(game, aiPlayerEnum)
                 : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
 
+            const isStrategicLobbyGo =
+                isStrategicAiGame && SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
             const kataMove = await generateKataServerMove({
                 boardSize: game.settings.boardSize || 19,
                 player: aiPlayerEnum === types.Player.White ? 'white' : 'black',
@@ -996,16 +1005,49 @@ export async function makeGoAiBotMove(
                 level: kataLevel,
                 komi: game.settings.komi,
                 gameId: game.id,
+                allowPass: isStrategicLobbyGo ? false : undefined,
             });
-            selectedMove = { x: kataMove.x, y: kataMove.y };
 
-            // 히든바둑: 유저 미공개 히든 칸 또는 인접 칸에 착수하면 휴리스틱으로 대체
-            if (useHiddenMask && selectedMove &&
-                isOnOrAdjacentToUserUnrevealedHidden(game, selectedMove.x, selectedMove.y, aiPlayerEnum)) {
-                console.log(`[makeGoAiBotMove] KataServer returned move on/near user's unrevealed hidden (${selectedMove.x},${selectedMove.y}), falling back to heuristic`);
+            if (isStrategicLobbyGo && kataMove.x === -1 && kataMove.y === -1) {
+                const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
+                const aiMoveHistoryForValid = useHiddenMask
+                    ? getMoveHistoryForAi(game, aiPlayerEnum)
+                    : (game.moveHistory || []);
+                const aiGameForValid: types.LiveGameSession = {
+                    ...game,
+                    boardState: aiBoardState,
+                    moveHistory: aiMoveHistoryForValid as types.Move[],
+                };
+                const logicForValid = getGoLogic(aiGameForValid);
+                let validAfterKataPass = findAllValidMoves(aiGameForValid, logicForValid, aiPlayerEnum);
+                if (useHiddenMask && validAfterKataPass.length > 0) {
+                    validAfterKataPass = validAfterKataPass.filter(
+                        m => !isOnOrAdjacentToUserUnrevealedHidden(game, m.x, m.y, aiPlayerEnum)
+                    );
+                }
+                if (validAfterKataPass.length === 0) {
+                    console.log(
+                        `[makeGoAiBotMove] KataServer PASS (no legal moves) → AI resign, game=${game.id}`
+                    );
+                    await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                    return;
+                }
+                console.warn(
+                    `[makeGoAiBotMove] KataServer PASS but ${validAfterKataPass.length} valid moves exist → SP-style heuristic for one move, game=${game.id}`
+                );
+                game.strategicAiKataSpFallbackActive = true;
                 selectedMove = null;
             } else {
-                console.log(`[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${kataMove.x},${kataMove.y})`);
+                selectedMove = { x: kataMove.x, y: kataMove.y };
+
+                // 히든바둑: 유저 미공개 히든 칸 또는 인접 칸에 착수하면 휴리스틱으로 대체
+                if (useHiddenMask && selectedMove &&
+                    isOnOrAdjacentToUserUnrevealedHidden(game, selectedMove.x, selectedMove.y, aiPlayerEnum)) {
+                    console.log(`[makeGoAiBotMove] KataServer returned move on/near user's unrevealed hidden (${selectedMove.x},${selectedMove.y}), falling back to heuristic`);
+                    selectedMove = null;
+                } else {
+                    console.log(`[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${kataMove.x},${kataMove.y})`);
+                }
             }
         } catch (err: any) {
             console.error(`[makeGoAiBotMove] KataServer 실패 → 내부 휴리스틱 폴백. game=${game.id}, error=${err?.message}`);
@@ -1047,7 +1089,12 @@ export async function makeGoAiBotMove(
 
     // 1) KataServer 실패 시 내부 goAiBot 휴리스틱 폴백
     if (!selectedMove) {
-        const profile = getGoAiBotProfile(goAiProfileLevel);
+        const spStyleKataFallback = !!game.strategicAiKataSpFallbackActive;
+
+        // Kata 비정상 PASS 복구 턴: 싱글플레이와 동일하게 1~3단계 프로필 + 전수 유효수(빠른 샘플링 생략)
+        const profile = spStyleKataFallback
+            ? getGoAiBotProfile(Math.min(3, Math.max(1, goAiProfileLevel)))
+            : getGoAiBotProfile(goAiProfileLevel);
 
         // AI가 볼 수 있는 보드·수순 (유저의 미공개 히든은 빈 칸/통과로만 인식, 공개 시 재인식)
         const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
@@ -1063,20 +1110,30 @@ export async function makeGoAiBotMove(
         // 살리기 바둑 모드 확인
         const isSurvivalMode = (game.settings as any)?.isSurvivalMode === true;
     
-        // 낮은 난이도(1-3)는 간단한 휴리스틱 사용으로 성능 최적화
-        const useFastHeuristic = goAiProfileLevel <= 3;
+        // 낮은 난이도(1-3)는 간단한 휴리스틱 사용으로 성능 최적화 (Kata 복구 턴에서는 전수 검사 강제)
+        const useFastHeuristic = !spStyleKataFallback && goAiProfileLevel <= 3;
     
         // 1. 모든 유효한 수 찾기 (KataGo 사용 안함)
-        // 낮은 난이도는 샘플링으로 유효한 수 찾기 (성능 최적화)
-        let allValidMoves = useFastHeuristic 
-            ? findAllValidMovesFast(aiGame, logic, aiPlayerEnum)
-            : findAllValidMoves(aiGame, logic, aiPlayerEnum);
+        let allValidMoves =
+            spStyleKataFallback || !useFastHeuristic
+                ? findAllValidMoves(aiGame, logic, aiPlayerEnum)
+                : findAllValidMovesFast(aiGame, logic, aiPlayerEnum);
 
         // 싱글플레이·탑 히든: 유저 통과로만 인식 — 유저 미공개 히든 돌 위치와 그 인접 칸은 유효수에서 제외
         if (isHiddenMode && shouldMaskUserHiddenFromAi(game) && allValidMoves.length > 0) {
             allValidMoves = allValidMoves.filter(
                 m => !isOnOrAdjacentToUserUnrevealedHidden(game, m.x, m.y, aiPlayerEnum)
             );
+        }
+
+        // findAllValidMovesFast가 빈 배열을 주는 경우가 있어 전수 검색으로 재시도 (전략 AI 일반 폴백)
+        if (allValidMoves.length === 0 && !spStyleKataFallback && useFastHeuristic) {
+            allValidMoves = findAllValidMoves(aiGame, logic, aiPlayerEnum);
+            if (isHiddenMode && shouldMaskUserHiddenFromAi(game) && allValidMoves.length > 0) {
+                allValidMoves = allValidMoves.filter(
+                    m => !isOnOrAdjacentToUserUnrevealedHidden(game, m.x, m.y, aiPlayerEnum)
+                );
+            }
         }
     
         // 통과가 없는 바둑(따내기, 싱글플레이, 도전의 탑): AI가 둘 곳이 없으면 서버에서 통과로 턴만 넘김 (시간패 방지)
@@ -1202,6 +1259,15 @@ export async function makeGoAiBotMove(
             opponentPlayerEnum
         );
     }
+
+        if (scoredMoves.length === 0 && allValidMoves.length > 0) {
+            console.warn(`[makeGoAiBotMove] scoredMoves empty; using uniform pick from allValidMoves (game=${game.id})`);
+            scoredMoves = allValidMoves.map(m => ({ move: m, score: 0 }));
+        }
+        if (scoredMoves.length === 0) {
+            console.error(`[makeGoAiBotMove] No scoredMoves after heuristics (game=${game.id})`);
+            return;
+        }
 
     // 3. 실수 확률 적용
     if (Math.random() < profile.mistakeRate && scoredMoves.length > 1) {
@@ -1557,6 +1623,7 @@ export async function makeGoAiBotMove(
     game.moveHistory.push({ player: aiPlayerEnum, x: selectedMove.x, y: selectedMove.y });
     game.koInfo = result.newKoInfo;
     game.passCount = 0;
+    clearStrategicAiKataSpFallback(game);
     
     // 싱글플레이 턴 카운팅 업데이트 (AI가 수를 둘 때도 카운팅)
     // 히든돌이 moveHistory에 추가되지 않은 경우를 고려하여 실제 유효한 수만 카운팅
@@ -1577,6 +1644,7 @@ export async function makeGoAiBotMove(
         now
     );
     if (startedRevealAnimation) {
+        clearStrategicAiKataSpFallback(game);
         await db.saveGame(game);
         return; // 애니메이션 종료 후 updateHiddenState에서 처리
     }

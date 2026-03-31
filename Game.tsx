@@ -38,7 +38,7 @@ import { useAdContext } from './components/ads/AdProvider.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
-const KO_RULE_FLASH_MESSAGE = '패 모양입니다. 바로 다시 따낼 수 없습니다.';
+const KO_RULE_FLASH_MESSAGE = '패 모양(단순 코)입니다. 바로 다시 따낼 수 없습니다.';
 
 const isSamePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 

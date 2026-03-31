@@ -120,7 +120,8 @@ export function updateGameStateAfterMove(
             lastTurnStones: null,
             moveHistory: [...(game.moveHistory || []), { player: movePlayer, x: -1, y: -1 }],
             currentPlayer: movePlayer === Player.Black ? Player.White : Player.Black,
-            koInfo: newKoInfo || game.koInfo
+            // 통과 시 단순 코 금지 해제(서버 PASS_TURN과 동일). stale koInfo로 다음 착수가 막히지 않도록 함
+            koInfo: newKoInfo ?? null
         };
 
         return {

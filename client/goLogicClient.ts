@@ -144,8 +144,17 @@ export function processMoveClient(
     }
 
     let newKoInfo: { point: Point; turn: number } | null = null;
-    if (myGroup && capturedStones.length === 1 && myGroup.stones.length === 1 && myGroup.liberties === 1) {
-        newKoInfo = { point: singleCapturePoint!, turn: moveHistoryLength + 1 };
+    if (
+        myGroup &&
+        capturedStones.length === 1 &&
+        myGroup.stones.length === 1 &&
+        myGroup.liberties === 1 &&
+        singleCapturePoint != null
+    ) {
+        newKoInfo = { point: singleCapturePoint, turn: moveHistoryLength + 1 };
+    }
+    if (capturedStones.length !== 1) {
+        newKoInfo = null;
     }
 
     return { isValid: true, newBoardState: tempBoard, capturedStones, newKoInfo };

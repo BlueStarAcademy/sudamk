@@ -746,7 +746,7 @@ export const useApp = () => {
     const showError = (message: string) => {
         let displayMessage = message;
         if (message.includes('Invalid move: ko')) {
-            displayMessage = "패 모양입니다. 다른 곳에 착수 후 다시 둘 수 있는 자리입니다.";
+            displayMessage = "패 모양(단순 코)입니다. 다른 곳에 착수 후 다시 둘 수 있는 자리입니다.";
         } else if (message.includes('action point')) {
             displayMessage = "상대방의 행동력이 충분하지 않습니다.";
         }

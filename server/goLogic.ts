@@ -124,8 +124,18 @@ export const processMove = (
     }
 
     let newKoInfo: LiveGameSession['koInfo'] = null;
-    if (myGroup && capturedStones.length === 1 && myGroup.stones.length === 1 && myGroup.liberties === 1) {
-        newKoInfo = { point: singleCapturePoint!, turn: moveHistoryLength + 1 };
+    if (
+        myGroup &&
+        capturedStones.length === 1 &&
+        myGroup.stones.length === 1 &&
+        myGroup.liberties === 1 &&
+        singleCapturePoint != null
+    ) {
+        newKoInfo = { point: singleCapturePoint, turn: moveHistoryLength + 1 };
+    }
+    // 단순 코는 1칸만 따낸 스냅백에서만 성립. 다점 따내기에서는 코 금지를 두지 않음
+    if (capturedStones.length !== 1) {
+        newKoInfo = null;
     }
 
     return { isValid: true, newBoardState: tempBoard, capturedStones, newKoInfo };

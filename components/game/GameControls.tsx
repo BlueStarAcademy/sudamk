@@ -982,7 +982,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             </>
                         ) : (
                             <>
-                                {isStrategic && mode !== GameMode.Capture && (
+                                {isStrategic && mode !== GameMode.Capture && !isAiLobbyGame && (
                                     <LabeledControlButton
                                         key="pass"
                                         src="/images/button/pass.png"

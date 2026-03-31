@@ -962,7 +962,7 @@ export const analyzeGame = async (
               timeoutMs:
                   Number.isFinite(scoringHttpTimeoutParsed) && scoringHttpTimeoutParsed > 0
                       ? scoringHttpTimeoutParsed
-                      : Math.min(45000, Math.max(12000, engineBudgetSec * 1000 + 9000)),
+                      : Math.min(35000, Math.max(8000, engineBudgetSec * 1000 + 5000)),
               maxRetries: Math.max(0, Math.min(3, parseInt(process.env.KATAGO_SCORING_HTTP_RETRIES || '1', 10))),
               retryDelayMs: Math.max(100, parseInt(process.env.KATAGO_SCORING_HTTP_RETRY_DELAY_MS || '400', 10)),
           }

@@ -226,6 +226,30 @@ export interface DbInitializedRef {
     value: boolean;
 }
 
+/** Railway 등 분리 배포 시 프론트 origin 허용 여부 (단일 소스로 preflight·에러·raw 응답에 동일 적용) */
+function isCorsAllowedOrigin(origin: string | undefined, productionAllowedOrigins: readonly string[]): boolean {
+    if (!origin) return false;
+    if (process.env.NODE_ENV !== 'production') return true;
+    const trimmed = (s: string) => s.replace(/\/$/, '');
+    if (productionAllowedOrigins.some(allowed => origin === trimmed(allowed) || origin.startsWith(trimmed(allowed)))) {
+        return true;
+    }
+    if (origin.includes('railway.app')) return true;
+    return false;
+}
+
+function applyCorsHeaders(req: express.Request, res: express.Response, productionAllowedOrigins: readonly string[]): void {
+    const origin = req.headers.origin;
+    if (!isCorsAllowedOrigin(origin, productionAllowedOrigins)) return;
+    if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Vary', 'Origin');
+}
+
 /**
  * Creates the Express application with all middleware and routes.
  * Exported for integration tests (supertest) without starting listen or WebSocket.
@@ -563,7 +587,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     // === 중요: Express 미들웨어를 서버 리스닝 전에 설정 ===
     // 서버가 리스닝을 시작하기 전에 최소한의 미들웨어를 설정하여 요청이 처리되도록 함
     
-    // 프로덕션 허용 origin 목록 (에러 응답에도 CORS 헤더를 붙이기 위해 상수로 사용)
+    // 프로덕션 허용 origin 목록 (에러·raw 타임아웃 응답에도 동일 헤더 적용)
     const PRODUCTION_ALLOWED_ORIGINS = [
         process.env.FRONTEND_URL,
         'https://sudam.up.railway.app',
@@ -572,13 +596,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     
     // CORS 헤더를 모든 응답에 먼저 붙이는 미들웨어 (preflight 및 에러 응답 대응)
     app.use((req, res, next) => {
-        const origin = req.headers.origin;
-        if (origin && (process.env.NODE_ENV !== 'production' || PRODUCTION_ALLOWED_ORIGINS.some(allowed => origin === allowed || origin.startsWith(allowed)) || origin.includes('railway.app'))) {
-            res.setHeader('Access-Control-Allow-Origin', origin);
-            res.setHeader('Access-Control-Allow-Credentials', 'true');
-            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-        }
+        applyCorsHeaders(req, res, PRODUCTION_ALLOWED_ORIGINS);
         if (req.method === 'OPTIONS') {
             return res.status(204).end();
         }
@@ -601,49 +619,22 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return;
             }
             
-            // 허용할 origin 목록 (Railway 배포 시 FRONTEND_URL 미설정 대비)
-            const allowedOrigins: (string | RegExp)[] = [
-                ...PRODUCTION_ALLOWED_ORIGINS,
-                /\.railway\.app$/,
-                /\.up\.railway\.app$/
-            ];
-            
-            // 로깅은 개발 환경에서만 (프로덕션에서는 로그 스팸 방지)
             const nodeEnv = process.env.NODE_ENV as string | undefined;
             const isDevelopment = nodeEnv === 'development';
             if (isDevelopment) {
                 console.log('[CORS] Request from origin:', origin);
                 console.log('[CORS] FRONTEND_URL:', process.env.FRONTEND_URL || 'NOT SET');
-                console.log('[CORS] Allowed origins:', allowedOrigins);
+                console.log('[CORS] Allowed origins:', PRODUCTION_ALLOWED_ORIGINS);
             }
             
-            // 허용 목록 확인
-            const isAllowed = allowedOrigins.some(allowed => {
-                if (typeof allowed === 'string') {
-                    return origin === allowed || origin.startsWith(allowed);
-                } else if (allowed instanceof RegExp) {
-                    return allowed.test(origin);
-                }
-                return false;
-            });
-            
-            if (isAllowed) {
+            if (isCorsAllowedOrigin(origin, PRODUCTION_ALLOWED_ORIGINS)) {
                 if (isDevelopment) {
                     console.log('[CORS] ✅ Origin allowed:', origin);
                 }
                 callback(null, true);
             } else {
-                // 차단된 origin은 항상 로그 (보안상 중요)
                 console.warn('[CORS] ❌ Origin blocked:', origin);
-                // Railway 도메인은 일단 허용 (임시)
-                if (origin.includes('railway.app')) {
-                    if (isDevelopment) {
-                        console.warn('[CORS] ⚠️ Allowing Railway domain temporarily:', origin);
-                    }
-                    callback(null, true);
-                } else {
-                    callback(new Error('Not allowed by CORS'));
-                }
+                callback(new Error('Not allowed by CORS'));
             }
         },
         credentials: true,
@@ -736,6 +727,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         // 타임아웃 설정 (2분으로 증가 - 대용량 데이터 처리 시간 고려)
         req.setTimeout(120000, () => {
             if (!res.headersSent) {
+                applyCorsHeaders(req as express.Request, res as express.Response, PRODUCTION_ALLOWED_ORIGINS);
                 res.writeHead(408, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Request timeout' }));
             }
@@ -4564,6 +4556,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     // Express 전역 에러 핸들러 (모든 라우트 정의 후에 추가)
     // 처리되지 않은 에러를 잡아서 500 응답 반환
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+        if (!res.headersSent) {
+            applyCorsHeaders(req, res, PRODUCTION_ALLOWED_ORIGINS);
+        }
         const errorInfo = {
             timestamp: new Date().toISOString(),
             type: 'expressErrorHandler',

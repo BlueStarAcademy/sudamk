@@ -219,9 +219,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.permanentlyRevealedStones = payload.permanentlyRevealedStones.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y }));
                 }
                 
-                // 0/N 도달 검증: 서버에서 유효 수 기준으로 totalTurns 재계산 후 계가 조건 확인
+                // 0/N 도달 검증: 싱글/탑은 유효 착수 수, 온라인(PVP 등)은 moveHistory 길이(PASS 포함) — PLACE_STONE 직후 scoringTurnLimit 처리와 동일해야 함
                 const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x !== -1 && m.y !== -1);
-                const totalTurns = validMoves.length;
+                const useMoveHistoryCountForLimit =
+                    !game.isSinglePlayer && game.gameCategory !== 'tower';
+                const totalTurns = useMoveHistoryCountForLimit
+                    ? (game.moveHistory || []).length
+                    : validMoves.length;
                 game.totalTurns = totalTurns;
                 let autoScoringTurns: number | undefined;
                 if (game.gameCategory === 'tower') {
@@ -280,7 +284,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (payload.captures && typeof payload.captures === 'object') game.captures = { ...(game.captures || {}), ...payload.captures };
                 if (payload.hiddenMoves != null && typeof payload.hiddenMoves === 'object') game.hiddenMoves = { ...payload.hiddenMoves };
                 const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x !== -1 && m.y !== -1);
-                const totalTurns = validMoves.length;
+                const useMoveHistoryCountForLimitSync =
+                    !game.isSinglePlayer && game.gameCategory !== 'tower';
+                const totalTurns = useMoveHistoryCountForLimitSync
+                    ? (game.moveHistory || []).length
+                    : validMoves.length;
                 game.totalTurns = totalTurns;
                 let autoScoringTurnsSync: number | undefined;
                 if (game.gameCategory === 'tower') {
@@ -590,7 +598,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 // 착수금지 이유에 따른 명확한 에러 메시지
                 let errorMessage = '착수할 수 없는 위치입니다.';
                 if (result.reason === 'ko') {
-                    errorMessage = '패 모양입니다. 바로 다시 따낼 수 없습니다.';
+                    errorMessage = '패 모양(단순 코)입니다. 바로 다시 따낼 수 없습니다.';
                 } else if (result.reason === 'suicide') {
                     errorMessage = '자충수입니다. 자신의 돌이 죽는 수는 둘 수 없습니다.';
                 } else if (result.reason === 'occupied') {
@@ -919,6 +927,20 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
         }
         case 'PASS_TURN': {
             if (!isMyTurn || game.gameStatus !== 'playing') return { error: 'Not your turn to pass.' };
+            {
+                const gc = (game as any).gameCategory;
+                const isAiLobbyGame =
+                    game.isAiGame &&
+                    !game.isSinglePlayer &&
+                    gc !== 'tower' &&
+                    gc !== 'singleplayer' &&
+                    gc !== 'guildwar';
+                if (isAiLobbyGame) {
+                    return { error: 'AI 대국에서는 통과할 수 없습니다. 정해진 수순이 끝나면 자동으로 계가됩니다.' };
+                }
+            }
+            // 통과 시 단순 코(ko) 금지 해제 — 이전 턴 koInfo가 남아 재따내기가 막히는 버그 방지
+            game.koInfo = null;
             game.passCount++;
             game.lastMove = { x: -1, y: -1 };
             game.lastTurnStones = null;

@@ -665,6 +665,35 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             freshGame = await getCachedGame(game.id);
         }
         if (!freshGame) freshGame = await db.getLiveGame(game.id);
+
+        const isOnlinePvpStrategic =
+            !game.isSinglePlayer &&
+            game.gameCategory !== 'tower' &&
+            game.gameCategory !== 'singleplayer';
+
+        if (
+            freshGame &&
+            freshGame.gameStatus === 'scoring' &&
+            isOnlinePvpStrategic &&
+            !freshGame.analysisResult?.['system']
+        ) {
+            try {
+                const { calculateScoreManually } = await import('./scoringService.js');
+                const preservedState = (freshGame as any).preservedGameState || (game as any).preservedGameState || savedPreservedGameState;
+                if (preservedState) {
+                    if (preservedState.moveHistory && preservedState.moveHistory.length > 0) freshGame.moveHistory = preservedState.moveHistory;
+                    if (preservedState.boardState && preservedState.boardState.length > 0) freshGame.boardState = preservedState.boardState;
+                    if (preservedState.captures) freshGame.captures = preservedState.captures;
+                    if (preservedState.totalTurns !== undefined) freshGame.totalTurns = preservedState.totalTurns;
+                }
+                const manualBase = calculateScoreManually(freshGame);
+                await finalizeAndEndGame(freshGame, manualBase, 'manual');
+                return;
+            } catch (fallbackErr: any) {
+                console.error(`[getGameResult] Online PVP manual scoring after Kata failure failed:`, fallbackErr?.message || fallbackErr);
+            }
+        }
+
         if (freshGame && freshGame.gameStatus === 'scoring') {
             freshGame.isAnalyzing = false;
             const preservedState = (freshGame as any).preservedGameState || (game as any).preservedGameState || savedPreservedGameState;

@@ -876,6 +876,8 @@ export type LiveGameSession = {
   previousAnalysisResult?: { [playerId: string]: AnalysisResult } | null;
   isAiGame?: boolean;
   aiTurnStartTime?: number;
+  /** 전략 AI: Kata가 비정상 PASS를 반환한 뒤 1수는 싱글플레이식 휴리스틱만 사용; 수 적용 후 해제되어 다음 AI 턴은 다시 Kata 요청 */
+  strategicAiKataSpFallbackActive?: boolean;
   mythicBonuses?: {
     [playerId: string]: {
         strategicGoldTriggers: number;
