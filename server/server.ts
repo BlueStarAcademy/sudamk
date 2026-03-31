@@ -802,6 +802,32 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         // (중복 등록 방지: 이미 위에서 등록됨)
     });
 
+    // Railway/런타임에서 헬스체크 포트를 `EXPOSE`(예: 4000)로 타는 경우가 있어,
+    // 서버가 실제로는 다른 PORT(예: 8080)로 리스닝 중이면 헬스체크가 "서비스를 찾지 못함"으로 실패할 수 있습니다.
+    // 그래서 PORT와 4000이 다를 때, 4000에서도 /api/health (및 /)만 빠르게 응답하도록 보완합니다.
+    if (listenPort !== 4000) {
+        const healthCompatPort = 4000;
+        const healthCompatServer = http.createServer((req, res) => {
+            const url = req.url || '';
+            if (url === '/api/health' || url === '/') {
+                app(req, res);
+                return;
+            }
+            // Health compatibility port로는 헬스 경로만 허용 (불필요한 트래픽 최소화)
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ message: 'Not found' }));
+        });
+        healthCompatServer.on('error', (err: any) => {
+            // 로컬에서 4000이 이미 사용 중이면 헬스 호환 서버만 스킵
+            if (err?.code === 'EADDRINUSE') return;
+            console.error('[Server] Health compat server error:', err);
+        });
+        healthCompatServer.listen(healthCompatPort, '0.0.0.0', () => {
+            console.log(`[Server] Health compat endpoint is available at :${healthCompatPort}/api/health`);
+        });
+    }
+
     // 전역 에러 핸들러 미들웨어 (모든 라우트 이후에 추가)
     // 이 핸들러는 모든 라우트 정의 후에 추가됩니다
 
