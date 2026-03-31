@@ -111,8 +111,14 @@ const getDatabaseUrl = () => {
   }
   
   // Railway URL 확인 및 내부 네트워크로 변환
+  // NOTE:
+  // - 일부 Railway 구성에서는 internal host(postgres.railway.internal)가 라우팅되지 않을 수 있습니다.
+  // - 기존에는 public host(.up.railway.app)를 무조건 internal로 치환했는데,
+  //   이 경우 오히려 P1001 연결 실패를 유발할 수 있어 기본값을 "자동 변환 안 함"으로 변경합니다.
+  // - 필요 시 RAILWAY_FORCE_INTERNAL_DB=true 로 강제 변환할 수 있습니다.
   const isRailway = url.includes('railway') || process.env.RAILWAY_ENVIRONMENT;
-  if (isRailway && url.includes('.up.railway.app')) {
+  const forceInternalDb = (process.env.RAILWAY_FORCE_INTERNAL_DB || '').toLowerCase() === 'true';
+  if (isRailway && url.includes('.up.railway.app') && forceInternalDb) {
     // Railway 공개 URL을 내부 네트워크로 자동 변환
     // postgres-production-xxx.up.railway.app:5432 -> postgres.railway.internal:5432
     const urlPattern = /(postgresql:\/\/[^@]+@)([^:]+):(\d+)(\/.*)/;
@@ -122,9 +128,11 @@ const getDatabaseUrl = () => {
       if (host.includes('.up.railway.app')) {
         const newHost = 'postgres.railway.internal';
         url = `${protocol}${newHost}:${port}${path}`;
-        console.log('[Prisma] Converted Railway public URL to internal network:', `${protocol}${newHost}:${port}${path}`.replace(/:[^:@]+@/, ':****@'));
+        console.log('[Prisma] Converted Railway public URL to internal network (RAILWAY_FORCE_INTERNAL_DB=true):', `${protocol}${newHost}:${port}${path}`.replace(/:[^:@]+@/, ':****@'));
       }
     }
+  } else if (isRailway && url.includes('.up.railway.app') && !forceInternalDb) {
+    console.log('[Prisma] Using Railway public DB host (.up.railway.app). Set RAILWAY_FORCE_INTERNAL_DB=true to force internal host conversion.');
   }
   
   if (!isRailway && !url.includes('supabase')) {
