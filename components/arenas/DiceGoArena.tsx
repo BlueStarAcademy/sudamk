@@ -15,7 +15,7 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
     const { session, onAction, currentUser, isSpectator, isMyTurn, isMobile, showLastMoveMarker } = props;
     const { id: gameId, boardState, settings, lastMove, winningLine, gameStatus, currentPlayer, blackPlayerId, whitePlayerId, player1, player2, animation, lastTurnStones } = session;
     
-    const myPlayerEnum = blackPlayerId === currentUser.id ? Player.Black : Player.White;
+    const myPlayerEnum = blackPlayerId === currentUser.id ? Player.Black : (whitePlayerId === currentUser.id ? Player.White : Player.None);
     
     const players = [player1, player2];
     const blackPlayer = players.find(p => p.id === blackPlayerId) || null;

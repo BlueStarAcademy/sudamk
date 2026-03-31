@@ -552,7 +552,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         onAction({ type: actionType, payload: { gameId } }); 
     };
 
-    const myPlayerEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
+    const myPlayerEnum = currentUser.id === blackPlayerId ? Player.Black : (currentUser.id === whitePlayerId ? Player.White : Player.None);
     const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
 
     // 서버 START_SCANNING과 동일: 상대 히든 수가 수순에 있고 아직 영구 공개되지 않았으면 스캔 가능.
