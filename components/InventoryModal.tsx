@@ -799,11 +799,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return 1100;
     }, []);
     
-    // PC와 동일한 가로/세로 비율 유지
+    // 화면 비율에 따라 높이를 미세 조정하여 인벤토리 가시 줄 수를 안정적으로 확보
     const calculatedHeight = useMemo(() => {
-        // PC와 동일한 고정 크기 사용 (1100:800 비율 유지)
-        return 800;
-    }, []);
+        const viewportRatio = windowWidth / Math.max(1, windowHeight);
+        // 기준(16:9) 대비 세로가 더 긴 화면일수록 조금 더 높게, 가로가 넓을수록 조금 낮게 조정
+        const ratioDelta = (16 / 9) - viewportRatio;
+        const adjusted = 850 + Math.round(ratioDelta * 70);
+        return Math.max(820, Math.min(900, adjusted));
+    }, [windowWidth, windowHeight]);
     
     // 좁은 가로 화면에서는 PC 인벤토리 UI를 축소해서 유지한다.
     const isCompactViewport = useMemo(() => windowWidth < 1025, [windowWidth]);

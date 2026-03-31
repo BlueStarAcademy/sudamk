@@ -65,6 +65,10 @@ export const SCRIPT_REGISTRY: Record<string, ScriptEntry> = {
     path: join(__dirname, 'server', 'emergencyRestoreAll.ts'),
     desc: '긴급 전체 복구',
   },
+  'restore-user-from-supabase-backup': {
+    path: join(__dirname, 'server', 'restoreUserFromSupabaseBackup.ts'),
+    desc: '과거 시점 Postgres(PITR 복원본)→현재 DB 인벤/장비. BACKUP_DATABASE_URL 필수. 닉네임들 또는 --all --confirm-restore-all-users',
+  },
 
   // === DB 유지보수 ===
   'optimize-db': {

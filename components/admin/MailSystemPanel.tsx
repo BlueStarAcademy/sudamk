@@ -74,31 +74,69 @@ interface MailSystemPanelProps extends AdminProps {
     onBack: () => void;
 }
 
-const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers, onAction, onBack }) => {
+const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, onAction, onBack }) => {
     const [targetType, setTargetType] = useState<'all' | 'specific'>('all');
-    const [targetSpecifier, setTargetSpecifier] = useState('');
+    const [targetSearchQuery, setTargetSearchQuery] = useState('');
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
     const [gold, setGold] = useState(0);
     const [diamonds, setDiamonds] = useState(0);
     const [actionPoints, setActionPoints] = useState(0);
     const [expiresInDays, setExpiresInDays] = useState(7);
-    const [searchResults, setSearchResults] = useState<string[]>([]);
+    const [searchResults, setSearchResults] = useState<User[]>([]);
+    const [selectedTargetUserIds, setSelectedTargetUserIds] = useState<string[]>([]);
+    const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
     const [isItemModalOpen, setIsItemModalOpen] = useState(false);
     const [attachedItems, setAttachedItems] = useState<{ name: string, quantity: number, type: InventoryItemType }[]>([]);
 
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const query = e.target.value;
-        setTargetSpecifier(query);
-        if (query.length > 1) {
-            const matches = allUsers
-                .filter(u => u.nickname.toLowerCase().includes(query.toLowerCase()) || u.username.toLowerCase().includes(query.toLowerCase()))
-                .map(u => u.nickname)
-                .slice(0, 5);
-            setSearchResults(matches);
-        } else {
+        setTargetSearchQuery(query);
+        setSearchError(null);
+
+        if (query.trim().length < 2) {
             setSearchResults([]);
+            setSelectedTargetUserIds([]);
+            return;
         }
+
+        setIsSearchingUsers(true);
+        try {
+            const response = await fetch(`/api/admin/users?query=${encodeURIComponent(query.trim())}&limit=50`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.error || '사용자 검색에 실패했습니다.');
+            }
+            const users = Array.isArray(data.users) ? data.users : [];
+            setSearchResults(users);
+            setSelectedTargetUserIds(prev => prev.filter(id => users.some((u: User) => u.id === id)));
+        } catch (err: any) {
+            console.error('[MailSystemPanel] Failed to search users:', err);
+            setSearchResults([]);
+            setSelectedTargetUserIds([]);
+            setSearchError(err?.message || '검색 중 오류가 발생했습니다.');
+        } finally {
+            setIsSearchingUsers(false);
+        }
+    };
+
+    const toggleTargetUser = (userId: string) => {
+        setSelectedTargetUserIds(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]);
+    };
+
+    const isAllSearchResultsSelected = searchResults.length > 0 && searchResults.every(user => selectedTargetUserIds.includes(user.id));
+
+    const handleToggleSelectAllSearchResults = () => {
+        if (isAllSearchResultsSelected) {
+            setSelectedTargetUserIds(prev => prev.filter(id => !searchResults.some(user => user.id === id)));
+            return;
+        }
+        setSelectedTargetUserIds(prev => {
+            const next = new Set(prev);
+            for (const user of searchResults) next.add(user.id);
+            return Array.from(next);
+        });
     };
     
     const handleSendMail = (e: React.FormEvent) => {
@@ -107,15 +145,16 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers, onAction, o
             alert('제목과 메시지를 모두 입력해주세요.');
             return;
         }
-        if (targetType === 'specific' && !targetSpecifier.trim()) {
-            alert('특정 사용자 발송 시 닉네임 또는 아이디를 입력해주세요.');
+        if (targetType === 'specific' && selectedTargetUserIds.length === 0) {
+            alert('특정 사용자 발송 시 검색 후 최소 1명을 선택해주세요.');
             return;
         }
 
         onAction({
             type: 'ADMIN_SEND_MAIL',
             payload: {
-                targetSpecifier: targetType === 'all' ? 'all' : targetSpecifier,
+                targetSpecifier: targetType === 'all' ? 'all' : '',
+                targetUserIds: targetType === 'all' ? undefined : selectedTargetUserIds,
                 title,
                 message,
                 expiresInDays,
@@ -129,7 +168,9 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers, onAction, o
         setDiamonds(0);
         setActionPoints(0);
         setExpiresInDays(7);
-        setTargetSpecifier('');
+        setTargetSearchQuery('');
+        setSearchResults([]);
+        setSelectedTargetUserIds([]);
         setAttachedItems([]);
     };
 
@@ -149,27 +190,61 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers, onAction, o
                         <label className="block mb-1 font-medium text-secondary">받는 사람</label>
                         <div className="flex gap-4">
                             <label className="flex items-center"><input type="radio" name="targetType" value="all" checked={targetType === 'all'} onChange={() => setTargetType('all')} className="mr-2" />전체 사용자</label>
-                            <label className="flex items-center"><input type="radio" name="targetType" value="specific" checked={targetType === 'specific'} onChange={() => setTargetType('specific')} className="mr-2" />특정 사용자</label>
+                            <label className="flex items-center"><input type="radio" name="targetType" value="specific" checked={targetType === 'specific'} onChange={() => setTargetType('specific')} className="mr-2" />특정 사용자(다중 선택)</label>
                         </div>
                     </div>
 
                     {targetType === 'specific' && (
-                        <div className="relative">
-                            <label className="block mb-1 font-medium text-secondary">닉네임 또는 아이디</label>
+                        <div>
+                            <label className="block mb-1 font-medium text-secondary">닉네임 또는 아이디 검색</label>
                             <input 
                                 type="text"
-                                value={targetSpecifier}
+                                value={targetSearchQuery}
                                 onChange={handleSearchChange}
                                 className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5"
-                                required
+                                placeholder="2자 이상 입력"
                             />
-                            {searchResults.length > 0 && (
-                                <ul className="absolute z-10 w-full bg-secondary border border-color rounded-lg mt-1">
-                                    {searchResults.map(name => (
-                                        <li key={name} onClick={() => { setTargetSpecifier(name); setSearchResults([]); }} className="px-4 py-2 hover:bg-accent cursor-pointer">{name}</li>
-                                    ))}
-                                </ul>
-                            )}
+                            <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
+                                <span>
+                                    {isSearchingUsers
+                                        ? '검색 중...'
+                                        : `검색 결과 ${searchResults.length}명 / 선택 ${selectedTargetUserIds.length}명`}
+                                </span>
+                                {searchResults.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleToggleSelectAllSearchResults}
+                                        className="text-blue-400 hover:underline"
+                                    >
+                                        {isAllSearchResultsSelected ? '검색결과 전체 해제' : '검색결과 전체 선택'}
+                                    </button>
+                                )}
+                            </div>
+                            {searchError && <p className="mt-2 text-xs text-red-400">{searchError}</p>}
+                            <div className="mt-2 max-h-48 overflow-y-auto bg-secondary/40 border border-color rounded-lg">
+                                {searchResults.length === 0 ? (
+                                    <p className="px-3 py-3 text-xs text-gray-400">
+                                        {targetSearchQuery.trim().length < 2 ? '검색어를 2자 이상 입력하세요.' : '검색 결과가 없습니다.'}
+                                    </p>
+                                ) : (
+                                    <ul>
+                                        {searchResults.map(user => (
+                                            <li key={user.id} className="px-3 py-2 border-b border-color/50 last:border-b-0">
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedTargetUserIds.includes(user.id)}
+                                                        onChange={() => toggleTargetUser(user.id)}
+                                                        className="w-4 h-4"
+                                                    />
+                                                    <span>{user.nickname}</span>
+                                                    <span className="text-xs text-gray-400">({user.username})</span>
+                                                </label>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
                         </div>
                     )}
                     
@@ -192,11 +267,17 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers, onAction, o
                             <input type="number" min="0" value={actionPoints} onChange={e => setActionPoints(parseInt(e.target.value, 10) || 0)} className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5" />
                         </div>
                         <div>
-                            <label className="block mb-1 font-medium text-secondary">💰 금화</label>
+                            <label className="flex items-center gap-1 mb-1 font-medium text-secondary">
+                                <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4 object-contain" />
+                                골드
+                            </label>
                             <input type="number" min="0" value={gold} onChange={e => setGold(parseInt(e.target.value, 10) || 0)} className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5" />
                         </div>
                         <div>
-                            <label className="block mb-1 font-medium text-secondary">💎 다이아</label>
+                            <label className="flex items-center gap-1 mb-1 font-medium text-secondary">
+                                <img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4 object-contain" />
+                                다이아
+                            </label>
                             <input type="number" min="0" value={diamonds} onChange={e => setDiamonds(parseInt(e.target.value, 10) || 0)} className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5" />
                         </div>
                     </div>

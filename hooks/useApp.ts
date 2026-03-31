@@ -350,6 +350,8 @@ export const useApp = () => {
     const singlePlayerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
     const [negotiations, setNegotiations] = useState<Record<string, Negotiation>>({});
     const [waitingRoomChats, setWaitingRoomChats] = useState<Record<string, ChatMessage[]>>({});
+    /** 대기실(전체/전략/놀이) 채팅: 재접속·INITIAL_STATE 수신 시점 이후 메시지만 표시 (서버는 채널 전체 배열을 브로드캐스트함) */
+    const waitingRoomChatSessionStartRef = useRef<number>(0);
     const [gameChats, setGameChats] = useState<Record<string, ChatMessage[]>>({});
     const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
     const [gameModeAvailability, setGameModeAvailability] = useState<Partial<Record<GameMode, boolean>>>({});
@@ -2965,6 +2967,7 @@ export const useApp = () => {
         setTowerGames({});
         setNegotiations({});
         setWaitingRoomChats({});
+        waitingRoomChatSessionStartRef.current = 0;
         setGameChats({});
         
         // 라우팅 초기화 (로그인 페이지로 이동)
@@ -3029,6 +3032,9 @@ export const useApp = () => {
             homeBoardPosts?: any[];
             guilds?: Record<string, any>;
         }) => {
+                // 이 시점을 기준으로 이후에 도착하는 WAITING_ROOM_CHAT_UPDATE만 과거 메시지를 걸러 냄
+                waitingRoomChatSessionStartRef.current = Date.now();
+
                 const userEntries = Object.entries(users || {});
                 // nickname이 없거나 비어 있는 경우 제외
                 const filteredEntries = userEntries.filter(
@@ -3242,7 +3248,19 @@ export const useApp = () => {
                     });
                 }
                 if (otherData.negotiations !== undefined) setNegotiations(otherData.negotiations || {});
-                if (otherData.waitingRoomChats !== undefined) setWaitingRoomChats(otherData.waitingRoomChats || {});
+                if (otherData.waitingRoomChats !== undefined) {
+                    const incoming = otherData.waitingRoomChats || {};
+                    const cleared: Record<string, ChatMessage[]> = {};
+                    for (const key of Object.keys(incoming)) {
+                        cleared[key] = [];
+                    }
+                    for (const key of ['global', 'strategic', 'playful']) {
+                        if (!(key in cleared)) cleared[key] = [];
+                    }
+                    setWaitingRoomChats(cleared);
+                } else {
+                    setWaitingRoomChats({ global: [], strategic: [], playful: [] });
+                }
                 if (otherData.gameChats !== undefined) setGameChats(otherData.gameChats || {});
                 if (otherData.adminLogs !== undefined) setAdminLogs(otherData.adminLogs || []);
                 if (otherData.announcements !== undefined) setAnnouncements(otherData.announcements || []);
@@ -3720,10 +3738,15 @@ export const useApp = () => {
                             return;
                         }
                         case 'WAITING_ROOM_CHAT_UPDATE': {
+                            const sessionStart = waitingRoomChatSessionStartRef.current;
                             setWaitingRoomChats(currentChats => {
                                 const updatedChats = { ...currentChats };
                                 Object.entries(message.payload || {}).forEach(([channel, messages]: [string, any]) => {
-                                    updatedChats[channel] = messages;
+                                    const arr = Array.isArray(messages) ? messages : [];
+                                    updatedChats[channel] =
+                                        sessionStart > 0
+                                            ? arr.filter((m: ChatMessage) => (m?.timestamp ?? 0) >= sessionStart)
+                                            : arr;
                                 });
                                 return updatedChats;
                             });

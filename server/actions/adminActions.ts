@@ -214,7 +214,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const existingByUsername = await db.getUserCredentials(username);
             if (existingByUsername) return { error: '이미 사용 중인 아이디입니다.' };
 
-            const allUsers = await db.getAllUsers();
+            const allUsers = await db.getAllUsers({ includeEquipment: true, includeInventory: true });
             if (allUsers.some(u => u.nickname.toLowerCase() === nickname.toLowerCase())) {
                 return { error: '이미 사용 중인 닉네임입니다.' };
             }
@@ -265,8 +265,9 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             return {};
         }
         case 'ADMIN_SEND_MAIL': {
-            const { targetSpecifier, title, message, expiresInDays, attachments } = payload as {
+            const { targetSpecifier, targetUserIds, title, message, expiresInDays, attachments } = payload as {
                 targetSpecifier: string;
+                targetUserIds?: string[];
                 title: string;
                 message: string;
                 expiresInDays: number;
@@ -278,11 +279,15 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 }
             };
             let targetUsers: User[] = [];
+            const allUsers = await db.getAllUsers();
 
             if (targetSpecifier === 'all') {
-                targetUsers = await db.getAllUsers();
+                targetUsers = allUsers;
+            } else if (Array.isArray(targetUserIds) && targetUserIds.length > 0) {
+                const targetUserIdSet = new Set(targetUserIds);
+                targetUsers = allUsers.filter(u => targetUserIdSet.has(u.id));
             } else {
-                const foundUser = (await db.getAllUsers()).find(u => u.nickname === targetSpecifier || u.username === targetSpecifier);
+                const foundUser = allUsers.find(u => u.nickname === targetSpecifier || u.username === targetSpecifier);
                 if (foundUser) targetUsers.push(foundUser);
             }
 
@@ -341,7 +346,13 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(updatedUser, ['mail']);
             }
-             await createAdminLog(user, 'send_mail', { id: targetSpecifier, nickname: targetSpecifier }, { mailTitle: title });
+            const logTarget = targetSpecifier === 'all'
+                ? { id: 'all', nickname: 'all' }
+                : {
+                    id: Array.isArray(targetUserIds) && targetUserIds.length > 0 ? targetUserIds.join(',') : targetSpecifier,
+                    nickname: Array.isArray(targetUserIds) && targetUserIds.length > 0 ? `selected:${targetUsers.length}` : targetSpecifier
+                };
+            await createAdminLog(user, 'send_mail', logTarget, { mailTitle: title });
             return {};
         }
         case 'ADMIN_REORDER_ANNOUNCEMENTS': {

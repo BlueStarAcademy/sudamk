@@ -11,6 +11,8 @@ interface GameListProps {
 const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser }) => {
     const [spectateRoomNumber, setSpectateRoomNumber] = useState('');
     const [adminMenuGameId, setAdminMenuGameId] = useState<string | null>(null);
+    const [adminSearchQuery, setAdminSearchQuery] = useState('');
+    const [selectedGameIds, setSelectedGameIds] = useState<string[]>([]);
     const adminMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -57,8 +59,36 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser }) => 
     const handleDeleteGame = (game: LiveGameSession) => {
         if (window.confirm(`[${game.player1.nickname} vs ${game.player2.nickname}] 대국을 강제로 종료하시겠습니까?`)) {
             onAction({ type: 'ADMIN_FORCE_DELETE_GAME', payload: { gameId: game.id } });
+            setSelectedGameIds(prev => prev.filter(id => id !== game.id));
         }
         setAdminMenuGameId(null);
+    };
+
+    const toggleSelectedGame = (gameId: string) => {
+        setSelectedGameIds(prev => prev.includes(gameId) ? prev.filter(id => id !== gameId) : [...prev, gameId]);
+    };
+
+    const displayedGames = games.filter((game) => {
+        if (!currentUser.isAdmin || !adminSearchQuery.trim()) return true;
+        const q = adminSearchQuery.trim().toLowerCase();
+        return (
+            game.player1.nickname.toLowerCase().includes(q) ||
+            game.player2.nickname.toLowerCase().includes(q) ||
+            game.mode.toLowerCase().includes(q) ||
+            game.id.toLowerCase().includes(q)
+        );
+    });
+
+    const handleBatchDelete = () => {
+        if (selectedGameIds.length === 0) {
+            alert('강제 종료할 대국을 선택해주세요.');
+            return;
+        }
+        if (!window.confirm(`선택한 ${selectedGameIds.length}개 대국을 강제로 종료하시겠습니까?`)) return;
+        for (const gameId of selectedGameIds) {
+            onAction({ type: 'ADMIN_FORCE_DELETE_GAME', payload: { gameId } });
+        }
+        setSelectedGameIds([]);
     };
 
     return (
@@ -85,8 +115,22 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser }) => 
                 </button>
             </div>
         </div>
+        {currentUser.isAdmin && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+                <input
+                    type="text"
+                    value={adminSearchQuery}
+                    onChange={(e) => setAdminSearchQuery(e.target.value)}
+                    placeholder="관리자 검색: 닉네임/모드/게임ID"
+                    className="flex-1 min-w-[220px] bg-tertiary border border-color rounded-md p-2 text-sm"
+                />
+                <button onClick={handleBatchDelete} className="px-3 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded-md transition-colors">
+                    선택 강제 종료 ({selectedGameIds.length})
+                </button>
+            </div>
+        )}
         <ul className="space-y-3 overflow-y-auto pr-2 flex-grow">
-          {games.length > 0 ? games.map((game, index) => {
+          {displayedGames.length > 0 ? displayedGames.map((game, index) => {
             if (!game || !game.player1 || !game.player2) {
               return null;
             }
@@ -94,6 +138,15 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser }) => 
               <li key={game.id} className="relative">
                 <div className="flex items-center justify-between p-2.5 bg-tertiary/50 rounded-lg">
                   <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                    {currentUser.isAdmin && (
+                        <input
+                            type="checkbox"
+                            checked={selectedGameIds.includes(game.id)}
+                            onChange={() => toggleSelectedGame(game.id)}
+                            className="w-4 h-4"
+                            title="배치 강제 종료 선택"
+                        />
+                    )}
                     <div 
                         className={`flex-shrink-0 w-8 h-8 flex items-center justify-center bg-secondary rounded-full font-bold text-sm ${currentUser.isAdmin ? 'cursor-pointer hover:bg-tertiary transition-colors' : ''}`}
                         onClick={currentUser.isAdmin ? () => handleAdminMenu(game.id) : undefined}
@@ -122,6 +175,16 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser }) => 
                     <button onClick={() => onAction({ type: 'SPECTATE_GAME', payload: { gameId: game.id } })} className="ml-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg text-sm transition-colors shrink-0">
                       관전하기
                     </button>
+                    {currentUser.isAdmin && (
+                        <>
+                            <button onClick={() => handleSetDescription(game)} className="px-3 py-1.5 bg-yellow-700 hover:bg-yellow-600 text-white font-bold rounded-lg text-xs transition-colors shrink-0">
+                                방내용
+                            </button>
+                            <button onClick={() => handleDeleteGame(game)} className="px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg text-xs transition-colors shrink-0">
+                                강제종료
+                            </button>
+                        </>
+                    )}
                   </div>
                 </div>
                 {currentUser.isAdmin && adminMenuGameId === game.id && (
@@ -137,7 +200,7 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser }) => 
               </li>
             );
           }) : (
-            <p className="text-center text-tertiary pt-8">진행중인 대국이 없습니다.</p>
+            <p className="text-center text-tertiary pt-8">{currentUser.isAdmin && adminSearchQuery.trim() ? '검색된 대국이 없습니다.' : '진행중인 대국이 없습니다.'}</p>
           )}
         </ul>
       </div>

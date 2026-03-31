@@ -364,7 +364,7 @@ interface UserManagementPanelProps {
     currentUser: User;
 }
 
-const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers, onAction, onBack, currentUser }) => {
+const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _allUsers, onAction, onBack, currentUser }) => {
     const { handlers } = useAppContext();
     const [searchQuery, setSearchQuery] = useState('');
     const [managingUserId, setManagingUserId] = useState<string | null>(null);
@@ -372,30 +372,46 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers, onA
     const [password, setPassword] = useState('');
     const [nickname, setNickname] = useState('');
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-    const [localUsers, setLocalUsers] = useState<User[]>(allUsers);
-    
-    // allUsers가 비어있으면 서버에서 사용자 목록 가져오기
-    React.useEffect(() => {
-        if (allUsers.length === 0 && !isLoadingUsers) {
-            setIsLoadingUsers(true);
-            fetch('/api/admin/users')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.users && Array.isArray(data.users)) {
-                        setLocalUsers(data.users);
-                        console.log('[UserManagementPanel] Loaded', data.users.length, 'users from server');
-                    }
-                })
-                .catch(err => {
-                    console.error('[UserManagementPanel] Failed to fetch users:', err);
-                })
-                .finally(() => {
-                    setIsLoadingUsers(false);
-                });
-        } else {
-            setLocalUsers(allUsers);
+    const [searchError, setSearchError] = useState<string | null>(null);
+    const [localUsers, setLocalUsers] = useState<User[]>([]);
+
+    const fetchUsersByQuery = async (query: string) => {
+        const trimmedQuery = query.trim();
+        if (trimmedQuery.length < 2) {
+            setLocalUsers([]);
+            setSearchError(null);
+            return;
         }
-    }, [allUsers, isLoadingUsers]);
+
+        setIsLoadingUsers(true);
+        setSearchError(null);
+        try {
+            const response = await fetch(`/api/admin/users?query=${encodeURIComponent(trimmedQuery)}&limit=50`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.error || '사용자 검색에 실패했습니다.');
+            }
+            if (Array.isArray(data.users)) {
+                setLocalUsers(data.users);
+            } else {
+                setLocalUsers([]);
+            }
+        } catch (err: any) {
+            console.error('[UserManagementPanel] Failed to search users:', err);
+            setLocalUsers([]);
+            setSearchError(err?.message || '검색 중 오류가 발생했습니다.');
+        } finally {
+            setIsLoadingUsers(false);
+        }
+    };
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchUsersByQuery(searchQuery);
+        }, 250);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
     
     // managingUserId가 있으면 localUsers에서 최신 데이터를 가져옴
     const managingUser = managingUserId ? localUsers.find(u => u.id === managingUserId) || null : null;
@@ -407,15 +423,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers, onA
         setUsername(''); setPassword(''); setNickname('');
     };
 
-    const filteredUsers = useMemo(() => {
-        if (!searchQuery.trim()) return localUsers;
-        const lowercasedQuery = searchQuery.toLowerCase();
-        return localUsers.filter(user => {
-            const nickname = user.nickname?.toLowerCase() || '';
-            const username = user.username?.toLowerCase() || '';
-            return nickname.includes(lowercasedQuery) || username.includes(lowercasedQuery);
-        });
-    }, [localUsers, searchQuery]);
+    const searchedUsers = useMemo(() => localUsers, [localUsers]);
 
     return (
         <div className="space-y-8 bg-primary text-primary">
@@ -431,11 +439,23 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers, onA
                 <div className="lg:col-span-2 bg-panel border border-color text-on-panel p-6 rounded-lg shadow-lg">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-semibold">
-                            사용자 목록 ({filteredUsers.length})
+                            검색 결과 ({searchedUsers.length})
                             {isLoadingUsers && <span className="ml-2 text-sm text-gray-400">(로딩 중...)</span>}
                         </h2>
-                        <input type="text" placeholder="닉네임 또는 아이디 검색..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent w-1/3 p-2.5" />
+                        <input
+                            type="text"
+                            placeholder="닉네임 또는 아이디 검색 (2자 이상)"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent w-1/3 p-2.5"
+                        />
                     </div>
+                    <p className="text-sm text-gray-400 mb-3">
+                        전체 목록은 로드하지 않습니다. 검색어를 입력해 사용자를 찾은 뒤 `관리`를 눌러 수정하세요.
+                    </p>
+                    {searchError && (
+                        <div className="mb-3 text-sm text-red-400">{searchError}</div>
+                    )}
                     <div className="max-h-[60vh] overflow-y-auto">
                         <table className="w-full text-sm text-left text-secondary">
                             <thead className="text-xs text-secondary uppercase bg-secondary sticky top-0">
@@ -447,7 +467,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers, onA
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredUsers.map(user => (
+                                {searchedUsers.map(user => (
                                     <tr key={user.id} className="bg-primary border-b border-color hover:bg-secondary/50">
                                         <th 
                                             scope="row" 
@@ -464,6 +484,20 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers, onA
                                         </td>
                                     </tr>
                                 ))}
+                                {!isLoadingUsers && searchQuery.trim().length < 2 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
+                                            검색어를 2자 이상 입력하면 결과가 표시됩니다.
+                                        </td>
+                                    </tr>
+                                )}
+                                {!isLoadingUsers && searchQuery.trim().length >= 2 && searchedUsers.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
+                                            검색 결과가 없습니다.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>

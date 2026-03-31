@@ -1,15 +1,17 @@
 /**
- * Supabase 백업에서 특정 유저의 장비 및 인벤토리 데이터 복구 스크립트
- * 
+ * 백업 Postgres(예: Supabase PITR로 만든 ~14시간 전 시점 DB)에서 인벤/장비를 현재 DB로 복사
+ *
+ * 이 레포는 “14시간 전 자동 스냅샷”을 저장하지 않습니다. 반드시 호스팅에서 해당 시점 DB를
+ * 복원한 인스턴스의 URL을 BACKUP_DATABASE_URL 로 넣어야 합니다.
+ * (Supabase Pro: Point in Time Recovery → 복원 DB 생성 후 connection string)
+ *
  * 사용법:
- * 1. Supabase 대시보드에서 백업 데이터베이스 URL 가져오기
- * 2. BACKUP_DATABASE_URL 환경변수 설정 또는 스크립트 내에서 수정
- * 3. node --loader tsx server/restoreUserFromSupabaseBackup.ts 이수호 천재이안
+ *   BACKUP_DATABASE_URL=... npx tsx --tsconfig server/tsconfig.json server/restoreUserFromSupabaseBackup.ts 닉1 닉2
+ *   BACKUP_DATABASE_URL=... npx tsx --tsconfig server/tsconfig.json server/restoreUserFromSupabaseBackup.ts --all --confirm-restore-all-users
  */
 
 import prisma from './prismaClient.js';
 import { PrismaClient } from '../generated/prisma/client.ts';
-import * as db from './db.js';
 
 // 백업 데이터베이스 URL (Supabase 백업에서 가져온 URL)
 // 예: postgresql://postgres:[PASSWORD]@[HOST]:[PORT]/postgres?schema=public
@@ -101,11 +103,9 @@ const restoreUserFromBackup = async (nickname: string) => {
         console.log(`[백업 장비] ${backupUser.equipment?.length || 0}개 슬롯`);
         console.log(`[백업 인벤토리] ${backupUser.inventory?.length || 0}개 아이템`);
         
-        // 백업 데이터 확인
-        if ((!backupUser.equipment || backupUser.equipment.length === 0) && 
+        if ((!backupUser.equipment || backupUser.equipment.length === 0) &&
             (!backupUser.inventory || backupUser.inventory.length === 0)) {
-            console.warn(`[경고] 백업 데이터에 장비나 인벤토리가 없습니다.`);
-            return;
+            console.warn(`[경고] 백업에 인벤/장비가 비어 있습니다. 현재 DB에서 해당 유저 인벤·장비를 비운 뒤 동기화합니다.`);
         }
         
         // 복구 시작
@@ -212,6 +212,27 @@ const restoreUserFromBackup = async (nickname: string) => {
             console.log(`[장비] ${restoredUser.equipment?.length || 0}개 슬롯`);
             console.log(`[인벤토리] ${restoredUser.inventory?.length || 0}개 아이템`);
         }
+
+        // status.serializedUser의 inventory/equipment가 있으면 deserialize 시 관계형 테이블보다 우선되어
+        // 복구 직후에도 잘못된 가방이 보일 수 있음 → 키 제거로 UserInventory/UserEquipment를 소스로 강제
+        const rowAfter = await prisma.user.findUnique({
+            where: { id: currentUser.id },
+            select: { status: true }
+        });
+        if (rowAfter?.status && typeof rowAfter.status === 'object') {
+            const st = JSON.parse(JSON.stringify(rowAfter.status)) as Record<string, unknown>;
+            const su = st.serializedUser as Record<string, unknown> | undefined;
+            if (su && typeof su === 'object') {
+                delete su.inventory;
+                delete su.equipment;
+                st.serializedUser = su;
+                await prisma.user.update({
+                    where: { id: currentUser.id },
+                    data: { status: st as object }
+                });
+                console.log(`[완료] status.serializedUser에서 inventory/equipment 제거 (관계형 테이블 기준 로드)`);
+            }
+        }
         
     } catch (error: any) {
         console.error(`[오류] 복구 중 오류 발생:`, error);
@@ -220,33 +241,51 @@ const restoreUserFromBackup = async (nickname: string) => {
     }
 };
 
+const parseArgs = (): { nicknames: string[]; restoreAll: boolean } => {
+    const raw = process.argv.slice(2);
+    const restoreAll = raw.includes('--all');
+    const nicknames = raw.filter((a) => a !== '--all' && a !== '--confirm-restore-all-users');
+    return { nicknames, restoreAll };
+};
+
 // 메인 실행
 const main = async () => {
-    const nicknames = process.argv.slice(2);
-    
-    if (nicknames.length === 0) {
-        console.log('사용법: node --loader tsx server/restoreUserFromSupabaseBackup.ts <닉네임1> <닉네임2> ...');
-        console.log('예시: node --loader tsx server/restoreUserFromSupabaseBackup.ts 이수호 천재이안');
-        console.log('\n환경변수 설정:');
-        console.log('BACKUP_DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:[PORT]/postgres?schema=public');
-        process.exit(1);
-    }
-    
+    let { nicknames, restoreAll } = parseArgs();
+
     if (!BACKUP_DATABASE_URL) {
         console.error('\n[오류] BACKUP_DATABASE_URL 환경변수가 설정되지 않았습니다.');
-        console.log('\nSupabase 백업 데이터베이스 URL 설정 방법:');
-        console.log('1. Supabase 대시보드 > Settings > Database > Connection string');
-        console.log('2. 백업 데이터베이스의 연결 문자열 복사');
-        console.log('3. 환경변수 설정: export BACKUP_DATABASE_URL="postgresql://..."');
-        console.log('   또는 스크립트 내 BACKUP_DATABASE_URL 변수 직접 수정');
+        console.log('\n“14시간 전”과 같이 과거 시점으로 롤백하려면, 호스팅에서 그 시각으로 복원된 Postgres 인스턴스를 만든 뒤');
+        console.log('그 인스턴스의 connection string을 BACKUP_DATABASE_URL로 설정하세요.');
+        console.log('\nSupabase 예: Dashboard → Database → Backups / Point in Time Recovery');
+        process.exit(1);
+    }
+
+    backupPrisma = createBackupPrismaClient();
+
+    if (restoreAll) {
+        if (!process.argv.includes('--confirm-restore-all-users')) {
+            console.error('[오류] --all 사용 시 반드시 --confirm-restore-all-users 를 함께 넣어야 합니다.');
+            await backupPrisma.$disconnect();
+            process.exit(1);
+        }
+        const rows = await backupPrisma.user.findMany({ select: { nickname: true } });
+        nicknames = [...new Set(rows.map((r) => r.nickname))].sort();
+        console.log(`[--all] 백업 DB 기준 사용자 수: ${nicknames.length}`);
+    }
+
+    if (nicknames.length === 0) {
+        console.log('사용법: npx tsx --tsconfig server/tsconfig.json server/restoreUserFromSupabaseBackup.ts <닉네임1> [닉네임2 ...]');
+        console.log('       npx tsx --tsconfig server/tsconfig.json server/restoreUserFromSupabaseBackup.ts --all --confirm-restore-all-users');
+        console.log('\n환경변수: BACKUP_DATABASE_URL=(과거 시점으로 복원된 Postgres URL)');
+        await backupPrisma.$disconnect();
         process.exit(1);
     }
     
     console.log('='.repeat(60));
-    console.log('Supabase 백업에서 사용자 데이터 복구');
+    console.log('백업 Postgres → 현재 DB 인벤/장비 복구');
     console.log('='.repeat(60));
     console.log(`백업 DB: ${BACKUP_DATABASE_URL.replace(/:[^:@]+@/, ':****@')}`);
-    console.log(`복구 대상: ${nicknames.join(', ')}`);
+    console.log(`복구 대상: ${restoreAll ? `전체 (${nicknames.length}명)` : nicknames.join(', ')}`);
     console.log('='.repeat(60));
     
     try {
@@ -260,9 +299,7 @@ const main = async () => {
         process.exit(1);
     } finally {
         await prisma.$disconnect();
-        if (backupPrisma) {
-            await backupPrisma.$disconnect();
-        }
+        await backupPrisma?.$disconnect();
     }
 };
 

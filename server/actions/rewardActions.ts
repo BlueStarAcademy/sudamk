@@ -48,7 +48,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                  itemsToCreate.push(...createdItems);
             }
         
-            const { success, finalItemsToAdd } = addItemsToInventory([...user.inventory], user.inventorySlots, itemsToCreate);
+            const { success, updatedInventory } = addItemsToInventory([...user.inventory], user.inventorySlots, itemsToCreate);
             if (!success) return { error: '인벤토리 공간이 부족합니다.' };
         
             const reward: QuestReward = {
@@ -63,7 +63,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 user.actionPoints.current += reward.actionPoints;
             }
         
-            user.inventory = finalItemsToAdd;
+            user.inventory = updatedInventory;
         
             mail.attachmentsClaimed = true;
             

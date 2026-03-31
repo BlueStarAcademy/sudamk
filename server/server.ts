@@ -3373,7 +3373,19 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         }
                         return game;
                     } else {
-                        // volatileState에 게임 ID가 없으면 DB에서 사용자 ID로 검색 (최적화: 최대 100개만)
+                        // volatileState에 gameId가 없을 수 있으므로, 서버 메모리 캐시에서 먼저 전체 활성 게임을 확인
+                        // (재접속 시점 레이스/상태 유실로 userStatus가 online인 경우도 PVP 자동 복귀 보장)
+                        try {
+                            const { getAllCachedGames } = await import('./gameCache.js');
+                            const cachedMatch = getAllCachedGames().find(
+                                (g) => g && (g.player1?.id === userForLogin.id || g.player2?.id === userForLogin.id)
+                            );
+                            if (cachedMatch) return cachedMatch;
+                        } catch {
+                            // 캐시 조회 실패 시 DB fallback
+                        }
+
+                        // DB fallback: 사용자 ID로 활성 게임 검색
                         const { getLiveGameByPlayerId } = await import('./prisma/gameService.js');
                         return await getLiveGameByPlayerId(userForLogin.id);
                     }
@@ -4425,12 +4437,28 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return res.status(403).json({ error: 'Forbidden: Admin access required' });
             }
             
+            const query = String(req.query.query || '').trim().toLowerCase();
+            const limitParam = Number(req.query.limit);
+            const limit = Number.isFinite(limitParam) ? Math.max(1, Math.min(limitParam, 100)) : 50;
+
+            // 검색어가 없으면 전체 목록 반환 대신 빈 결과 반환 (검색 기반 UI)
+            if (!query) {
+                return res.json({ users: [], count: 0 });
+            }
+
             // 사용자 목록 조회 (equipment/inventory 제외하여 빠르게)
             const users = await db.getAllUsers({ includeEquipment: false, includeInventory: false });
+            const filteredUsers = users
+                .filter(u => {
+                    const nickname = (u.nickname || '').toLowerCase();
+                    const username = (u.username || '').toLowerCase();
+                    return nickname.includes(query) || username.includes(query);
+                })
+                .slice(0, limit);
             
             res.json({ 
-                users,
-                count: users.length
+                users: filteredUsers,
+                count: filteredUsers.length
             });
         } catch (error: any) {
             console.error('[Admin] Error getting users list:', error);

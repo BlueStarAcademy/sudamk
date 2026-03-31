@@ -150,11 +150,19 @@ const ensureAdminAccount = async () => {
 // 데이터베이스 연결 상태 확인 함수
 // isInitialized가 false여도 실제 연결을 시도하여 확인
 export const isDatabaseConnected = async (): Promise<boolean> => {
+    const isRailway =
+        Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+        Boolean(process.env.RAILWAY_PROJECT_ID) ||
+        (typeof process.env.DATABASE_URL === 'string' && process.env.DATABASE_URL.includes('railway'));
+    // Railway Postgres는 배포 직후·부하 시 2초 안에 응답하지 못하는 경우가 있어 503이 과다하게 날 수 있음
+    const probeMs = isRailway ? 8000 : 3000;
     try {
         const prisma = (await import('./prismaClient.js')).default;
         await Promise.race([
             prisma.$queryRaw`SELECT 1`,
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error(`isDatabaseConnected probe timeout (${probeMs}ms)`)), probeMs)
+            )
         ]);
         // 연결 성공 시 isInitialized 업데이트 (Railway 환경에서 재연결 시)
         if (!isInitialized) {
@@ -163,8 +171,10 @@ export const isDatabaseConnected = async (): Promise<boolean> => {
         }
         return true;
     } catch (error: any) {
-        // 연결 실패 시 isInitialized를 false로 설정하지 않음 (이전에 초기화되었을 수 있음)
-        // 단지 현재 연결이 안 되는 것일 수 있으므로
+        console.warn(
+            '[DB] isDatabaseConnected: failed —',
+            error?.message || error?.code || String(error)
+        );
         return false;
     }
 };
@@ -419,7 +429,14 @@ export const updateUser = async (user: User): Promise<void> => {
     if (cached) {
         existing = cached.user;
     }
-    // 캐시에 없어도 DB 조회는 스킵 (성능 최적화)
+    // 캐시에 없는 경우에도 inventory/equipment 유실 방지를 위해 최소 1회 조회
+    if (!existing) {
+        try {
+            existing = await prismaGetUserById(user.id, { includeEquipment: true, includeInventory: true });
+        } catch (error) {
+            console.warn(`[DB] updateUser fallback fetch failed for ${user.id}:`, (error as any)?.message || error);
+        }
+    }
 
     if (existing) {
         const prevInventoryCount = Array.isArray(existing.inventory) ? existing.inventory.length : 0;

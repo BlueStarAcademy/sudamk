@@ -14,24 +14,31 @@ interface KataGoStatus {
         path: string;
         size: number;
         lastModified: string;
-        recentLines: string[];
-        totalLines: number;
+        recentLines?: string[];
+        totalLines?: number;
     } | null;
 }
 
 // FIX: The component uses various props which were not defined in the interface.
 // The extended `AdminProps` type is likely incomplete. Defining the props directly fixes the type error.
 interface ServerSettingsPanelProps {
-    gameModeAvailability: Partial<Record<GameMode, boolean>>;
-    announcements: Announcement[];
+    gameModeAvailability?: Partial<Record<GameMode, boolean>>;
+    announcements?: Announcement[];
     globalOverrideAnnouncement: OverrideAnnouncement | null;
-    announcementInterval: number;
+    announcementInterval?: number;
     onAction: (action: ServerAction) => void;
     onBack: () => void;
 }
 
 const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
-    const { gameModeAvailability, announcements, globalOverrideAnnouncement, announcementInterval, onAction, onBack } = props;
+    const {
+        gameModeAvailability = {},
+        announcements = [],
+        globalOverrideAnnouncement,
+        announcementInterval = 10,
+        onAction,
+        onBack,
+    } = props;
     const [newAnnouncement, setNewAnnouncement] = useState('');
     const [overrideMessage, setOverrideMessage] = useState(globalOverrideAnnouncement?.message || '');
     const [localAnnouncements, setLocalAnnouncements] = useState<Announcement[]>(announcements);
@@ -43,7 +50,7 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
     const dragItem = useRef<number | null>(null);
     const dragOverItem = useRef<number | null>(null);
     
-    useEffect(() => { setLocalAnnouncements(announcements); }, [announcements]);
+    useEffect(() => { setLocalAnnouncements(Array.isArray(announcements) ? announcements : []); }, [announcements]);
     useEffect(() => { setLocalInterval(announcementInterval); }, [announcementInterval]);
     useEffect(() => { setOverrideMessage(globalOverrideAnnouncement?.message || '')}, [globalOverrideAnnouncement]);
     
@@ -93,6 +100,7 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
     }
 
     const allGameModes = useMemo(() => [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES], []);
+    const kataGoRecentLines = kataGoStatus?.log?.recentLines ?? [];
 
     return (
         <div className="space-y-8 bg-primary text-primary">
@@ -228,11 +236,11 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
                                             <div>경로: {kataGoStatus.log.path}</div>
                                             <div>크기: {(kataGoStatus.log.size / 1024).toFixed(2)} KB</div>
                                             <div>마지막 수정: {new Date(kataGoStatus.log.lastModified).toLocaleString()}</div>
-                                            <div>전체 라인 수: {kataGoStatus.log.totalLines}</div>
-                                            {kataGoStatus.log.recentLines.length > 0 && (
+                                            <div>전체 라인 수: {kataGoStatus.log.totalLines ?? 0}</div>
+                                            {kataGoRecentLines.length > 0 && (
                                                 <div className="mt-2 max-h-40 overflow-y-auto bg-black/50 p-2 rounded font-mono text-xs">
-                                                    <div className="font-semibold mb-1">최근 로그 ({kataGoStatus.log.recentLines.length}줄):</div>
-                                                    {kataGoStatus.log.recentLines.slice(-20).map((line, idx) => (
+                                                    <div className="font-semibold mb-1">최근 로그 ({kataGoRecentLines.length}줄):</div>
+                                                    {kataGoRecentLines.slice(-20).map((line, idx) => (
                                                         <div key={idx} className="text-gray-300">{line}</div>
                                                     ))}
                                                 </div>

@@ -1973,7 +1973,7 @@ export async function processTowerRankingRewards(): Promise<void> {
     
     const allUsers = await db.getAllUsers();
     
-    // 모든 유저를 1층으로 초기화 (한 달 내에 100층까지의 보상을 1회 수령할 수 있도록)
+    // 모든 유저를 미클리어 상태(0층)로 초기화
     // 이전 달의 monthlyTowerFloor 값을 보상 지급에 사용하기 위해 저장
     const userMonthlyFloors: Map<string, number> = new Map();
     
@@ -1989,10 +1989,9 @@ export async function processTowerRankingRewards(): Promise<void> {
         
         let needsUpdate = false;
         
-        // towerFloor를 1층으로 초기화 (모든 유저를 1층부터 다시 도전하도록)
-        // 이전 층수가 1이 아니거나 없거나, lastTowerClearTime이 설정되어 있으면 초기화
-        if (previousTowerFloor !== 1 || user.lastTowerClearTime !== undefined) {
-            user.towerFloor = 1;
+        // towerFloor를 0층으로 초기화 (1층도 미클리어 상태로 시작)
+        if (previousTowerFloor !== 0 || user.lastTowerClearTime !== undefined) {
+            user.towerFloor = 0;
             user.lastTowerClearTime = undefined; // 클리어 시간 초기화
             needsUpdate = true;
         }
@@ -2009,7 +2008,7 @@ export async function processTowerRankingRewards(): Promise<void> {
             resetCount++;
         }
     }
-    console.log(`[TowerRankingReward] Reset ${resetCount} users' towerFloor to 1 and monthlyTowerFloor to 0`);
+    console.log(`[TowerRankingReward] Reset ${resetCount} users' towerFloor to 0 and monthlyTowerFloor to 0`);
     
     // 최고 층수 기반 보상 정의
     // 클라이언트 TowerLobby TOWER_MONTHLY_REWARD_TIERS와 동기화 (골드 10배·다이아 3배 조정 시 함께 수정)
