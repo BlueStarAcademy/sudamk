@@ -684,35 +684,40 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         return [];
     }, [safeBoardSize]);
 
-    // 클릭 좌표: svg.getScreenCTM()이 부모 div의 CSS rotate(180deg)까지 반영하므로
-    // matrixTransform(inverse) 결과가 이미 게임 좌표계와 일치한다. 여기서 다시 뒤집으면 착점이 반전된다.
+    // 화면 좌표 → SVG 루트(viewBox) 좌표. 회전은 CSS가 아니라 <g transform="rotate(180)">로 처리하므로
+    // getScreenCTM()에는 g 회전이 포함되지 않아, isRotated일 때 180° 중심 대칭을 수동 적용한다.
     const toSvgCoords = (p: Point) => ({
         cx: padding + p.x * cell_size,
         cy: padding + p.y * cell_size,
     });
-    
-    const getBoardCoordinates = (e: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>): Point | null => {
+
+    const screenToSvgRootPoint = (clientX: number, clientY: number): { x: number; y: number } | null => {
         const svg = svgRef.current;
         if (!svg) return null;
-        
         const pt = svg.createSVGPoint();
-        pt.x = e.clientX;
-        pt.y = e.clientY;
-        
+        pt.x = clientX;
+        pt.y = clientY;
         const ctm = svg.getScreenCTM();
-        if (ctm) {
-            const transformedPt = pt.matrixTransform(ctm.inverse());
-            const fx = (transformedPt.x - padding) / cell_size;
-            const fy = (transformedPt.y - padding) / cell_size;
-            // 가장 가까운 교차점으로 스냅 후 [0, size)로 클램프 — 모서리는 살짝 밀린 클릭이 round로 size/-1이 되어 무시되던 문제 방지
-            const x = Math.min(safeBoardSize - 1, Math.max(0, Math.round(fx)));
-            const y = Math.min(safeBoardSize - 1, Math.max(0, Math.round(fy)));
-            const snapTol = 0.52;
-            if (Math.abs(fx - x) > snapTol || Math.abs(fy - y) > snapTol) return null;
+        if (!ctm) return null;
+        const rootP = pt.matrixTransform(ctm.inverse());
+        if (!isRotated) return { x: rootP.x, y: rootP.y };
+        const cx = boardSizePx / 2;
+        const cy = boardSizePx / 2;
+        return { x: 2 * cx - rootP.x, y: 2 * cy - rootP.y };
+    };
+    
+    const getBoardCoordinates = (e: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>): Point | null => {
+        const sp = screenToSvgRootPoint(e.clientX, e.clientY);
+        if (!sp) return null;
+        const fx = (sp.x - padding) / cell_size;
+        const fy = (sp.y - padding) / cell_size;
+        // 가장 가까운 교차점으로 스냅 후 [0, size)로 클램프 — 모서리는 살짝 밀린 클릭이 round로 size/-1이 되어 무시되던 문제 방지
+        const x = Math.min(safeBoardSize - 1, Math.max(0, Math.round(fx)));
+        const y = Math.min(safeBoardSize - 1, Math.max(0, Math.round(fy)));
+        const snapTol = 0.52;
+        if (Math.abs(fx - x) > snapTol || Math.abs(fy - y) > snapTol) return null;
 
-            return { x, y };
-        }
-        return null;
+        return { x, y };
     };
     
     const getNeighbors = useCallback((p: Point): Point[] => {
@@ -987,17 +992,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (gameStatus !== 'missile_selecting' || !selectedMissileStone || !onMissileLaunch) return null;
 
         if (isDraggingMissile && dragStartPoint && dragEndPoint) {
-            const svg = svgRef.current;
-            if (!svg) return null;
-            const ctm = svg.getScreenCTM()?.inverse();
-            if (!ctm) return null;
-            
             const startCoords = toSvgCoords(selectedMissileStone);
 
-            const pt = svg.createSVGPoint();
-            pt.x = dragEndPoint.x;
-            pt.y = dragEndPoint.y;
-            const svgDragEnd = pt.matrixTransform(ctm);
+            const svgDragEnd = screenToSvgRootPoint(dragEndPoint.x, dragEndPoint.y);
+            if (!svgDragEnd) return null;
             
             const dx = svgDragEnd.x - startCoords.cx;
             const dy = svgDragEnd.y - startCoords.cy;
@@ -1074,17 +1072,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 backgroundColor: 'transparent',
             }}
         >
-            <div
-                className="w-full h-full min-h-0"
-                style={{
-                    transform: isRotated ? 'rotate(180deg)' : 'none',
-                    transformOrigin: '50% 50%',
-                }}
-            >
+            <div className="w-full h-full min-h-0">
                 <svg
                     ref={svgRef}
                     viewBox={`0 0 ${boardSizePx} ${boardSizePx}`}
                     className="w-full h-full touch-none block"
+                    shapeRendering="geometricPrecision"
                     onPointerDown={handleBoardPointerDown}
                 onPointerMove={handleBoardPointerMove}
                 onPointerUp={handleBoardPointerUp}
@@ -1165,6 +1158,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     </filter>
                      <marker id="arrowhead-missile" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="rgba(239, 68, 68, 0.9)" /></marker>
                 </defs>
+                <g
+                    transform={isRotated ? `rotate(180 ${boardSizePx / 2} ${boardSizePx / 2})` : undefined}
+                    style={{ pointerEvents: 'auto' }}
+                >
                 <rect width={boardSizePx} height={boardSizePx} fill="#e0b484" />
                 {Array.from({ length: safeBoardSize }).map((_, i) => (
                     <g key={i}>
@@ -1397,6 +1394,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 {renderTerritoryMarkers()}
                 {renderDeadStoneMarkers()}
                 {showHintOverlay && !isBoardDisabled && analysisResult?.recommendedMoves?.map(move => ( <RecommendedMoveMarker key={`rec-${move.order}`} move={move} toSvgCoords={toSvgCoords} cellSize={cell_size} onClick={onBoardClick} /> ))}
+                </g>
             </svg>
             </div>
         </div>

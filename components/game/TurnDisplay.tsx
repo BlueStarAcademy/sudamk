@@ -89,6 +89,18 @@ const getGameStatusText = (session: LiveGameSession): string => {
             return '아이템 사용 중...';
         case 'hidden_final_reveal':
             return "모든 히든돌을 공개하고 계가를 시작합니다.";
+        case 'scoring': {
+            const limit = (settings as any)?.scoringTurnLimit ?? (settings as any)?.autoScoringTurns;
+            const isOnlineStrategic =
+                !isSinglePlayer &&
+                session.gameCategory !== 'tower' &&
+                typeof limit === 'number' &&
+                limit > 0;
+            if (isOnlineStrategic) {
+                return '자동계가 수순에 도달하여 계가를 진행합니다.';
+            }
+            return '계가를 진행합니다.';
+        }
         case 'alkkagi_placement': {
             const currentRound = alkkagiRound || 1;
             const totalRounds = settings.alkkagiRounds || 1;

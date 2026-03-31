@@ -226,6 +226,12 @@ export interface DbInitializedRef {
     value: boolean;
 }
 
+/** 콤마 구분 추가 origin (Railway Variables: CORS_ALLOWED_ORIGINS) */
+function parseCommaSeparatedOrigins(envVal: string | undefined): string[] {
+    if (!envVal?.trim()) return [];
+    return envVal.split(',').map(s => s.trim()).filter(Boolean);
+}
+
 /** Railway 등 분리 배포 시 프론트 origin 허용 여부 (단일 소스로 preflight·에러·raw 응답에 동일 적용) */
 function isCorsAllowedOrigin(origin: string | undefined, productionAllowedOrigins: readonly string[]): boolean {
     if (!origin) return false;
@@ -234,7 +240,14 @@ function isCorsAllowedOrigin(origin: string | undefined, productionAllowedOrigin
     if (productionAllowedOrigins.some(allowed => origin === trimmed(allowed) || origin.startsWith(trimmed(allowed)))) {
         return true;
     }
-    if (origin.includes('railway.app')) return true;
+    try {
+        const { hostname } = new URL(origin);
+        if (hostname.endsWith('.up.railway.app') || hostname.endsWith('.railway.app')) {
+            return true;
+        }
+    } catch {
+        /* ignore malformed origin */
+    }
     return false;
 }
 
@@ -591,7 +604,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     const PRODUCTION_ALLOWED_ORIGINS = [
         process.env.FRONTEND_URL,
         'https://sudam.up.railway.app',
-        'https://suadam.up.railway.app'
+        'https://suadam.up.railway.app',
+        ...parseCommaSeparatedOrigins(process.env.CORS_ALLOWED_ORIGINS),
     ].filter((o): o is string => typeof o === 'string' && o !== '');
     
     // CORS 헤더를 모든 응답에 먼저 붙이는 미들웨어 (preflight 및 에러 응답 대응)
@@ -4626,6 +4640,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     // 404 핸들러 (모든 라우트와 에러 핸들러 이후)
     app.use((req: express.Request, res: express.Response) => {
+        applyCorsHeaders(req, res, PRODUCTION_ALLOWED_ORIGINS);
         // API 요청인 경우 JSON 응답
         if (req.path.startsWith('/api/')) {
             res.status(404).json({ message: 'API endpoint not found' });

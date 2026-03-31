@@ -2547,9 +2547,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 )}
                             </div>
                             {/* 계가 중: 바둑판 위 22초 연출만 표시 (모달 없음). 싱글/탑은 Arena에서 fullscreen 오버레이 표시 */}
-                            {session.gameStatus === 'scoring' && !session.analysisResult?.['system'] && !session.isSinglePlayer && session.gameCategory !== 'tower' && (
-                                <ScoringOverlay />
-                            )}
+                            {session.gameStatus === 'scoring' &&
+                                !session.isSinglePlayer &&
+                                session.gameCategory !== 'tower' &&
+                                (!session.analysisResult?.['system'] || session.isAnalyzing) && (
+                                    <ScoringOverlay />
+                                )}
                         </div>
                         <div className="flex-shrink-0 w-full flex flex-col gap-1">
                             <TurnDisplay

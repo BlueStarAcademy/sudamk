@@ -4344,7 +4344,9 @@ export const useApp = () => {
                                         const existingMoveCount = (existingGame?.moveHistory && Array.isArray(existingGame.moveHistory)) ? existingGame.moveHistory.length : 0;
                                         // 새 수(AI 수 등)가 있으면 반드시 반영 - 서명 일치해도 스킵하지 않음 (AI가 둔 수가 사라지는 버그 방지)
                                         const hasNewMoves = incomingMoveCount > existingMoveCount;
-                                        if (!hasNewMoves) {
+                                        const isScoringTransition =
+                                            game.gameStatus === 'scoring' && existingGame?.gameStatus !== 'scoring';
+                                        if (!hasNewMoves && !isScoringTransition) {
                                             const signature = stableStringify(game);
                                             const previousSignature = liveGameSignaturesRef.current[gameId];
                                             if (previousSignature === signature) {
