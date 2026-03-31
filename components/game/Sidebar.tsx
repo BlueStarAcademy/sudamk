@@ -274,16 +274,7 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
                     title={!isMe ? `${user.nickname} 프로필 보기` : ''}
                 >
                     <span className="font-semibold truncate text-sm">{user.nickname}</span>
-                    {isGameEnded && isOpponent && !isAiGame && !isGuildWarGame && (
-                         <Button
-                            onClick={(e) => { e?.stopPropagation(); handleRematch(user.id); }}
-                            disabled={rematchRequested}
-                            colorScheme="yellow"
-                            className="!text-xs !py-0.5 !px-2 flex-shrink-0"
-                         >
-                            {rematchRequested ? '신청중' : '재대결'}
-                         </Button>
-                    )}
+                    {/* 재대결 버튼은 하단 대국 기능 패널로 이동 */}
                 </div>
                 <span className="ml-auto text-xs text-gray-400 flex-shrink-0">{role}</span>
             </div>

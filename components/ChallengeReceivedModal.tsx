@@ -192,7 +192,7 @@ const ChallengeReceivedModal: React.FC<ChallengeReceivedModalProps> = ({
   const boardSizeOptions = getStrategicBoardSizesByMode(selectedMode);
 
   return (
-    <DraggableWindow title="대국 신청 받음" onClose={onClose} windowId="challenge-received" initialWidth={900}>
+    <DraggableWindow title="대국 신청 받음" onClose={onClose} windowId="challenge-received" initialWidth={900} closeOnOutsideClick={false}>
       <div onMouseDown={(e) => e.stopPropagation()} className="text-sm">
         <div className="flex flex-row gap-2 lg:gap-4 h-[500px] lg:h-[600px] min-h-[500px] lg:min-h-[600px]">
           {/* 좌측 패널: 게임 종류 이미지 및 게임 설명 */}

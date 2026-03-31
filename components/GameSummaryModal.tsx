@@ -991,7 +991,10 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                 setSavingRecord(true);
                                 try {
                                     const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId: session.id } });
-                                    if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) return;
+                                    if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) {
+                                        alert((out as { error?: string }).error);
+                                        return;
+                                    }
                                     setSavedOptimistic(true);
                                 } catch (error) {
                                     console.error('Failed to save game record:', error);

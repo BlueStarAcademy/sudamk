@@ -49,8 +49,14 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
                     game.revealEndTime = now + 10000;
                 } else { // Tie
                     if (game.biddingRound === 1) {
-                        game.gameStatus = 'capture_reveal';
-                        game.revealEndTime = now + 3000;
+                        // 동점 1라운드는 즉시 재입찰로 전환 (3초 대기 제거)
+                        game.biddingRound = 2;
+                        game.bids = { [p1Id]: null, [p2Id]: null };
+                        game.captureBidDeadline = now + 30000;
+                        game.gameStatus = 'capture_bidding';
+                        game.preGameConfirmations = {};
+                        game.revealEndTime = undefined;
+                        return;
                     } else {
                         const winnerId = Math.random() < 0.5 ? p1Id : p2Id;
                         const loserId = winnerId === p1Id ? p2Id : p1Id;

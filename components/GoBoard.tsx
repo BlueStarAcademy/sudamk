@@ -1221,15 +1221,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     );
 
                     const isBaseStone = baseStones?.some(stone => stone.x === x && stone.y === y && stone.player === actualPlayer);
-                    // 히든 돌은 공개되어도 히든 문양을 유지. 단, 실제로 히든으로 둔 수만 표시 (일반돌이 히든 이미지로 보이는 버그 방지)
-                    // 마지막 수는 공개 애니메이션/영구공개에 포함된 경우에만 히든 문양 표시
-                    const moveHistoryLen = moveHistory?.length ?? 0;
-                    const isLastMoveIndex = moveIndex >= 0 && moveIndex === moveHistoryLen - 1;
-                    const isKnownHidden = isHiddenMove && (
-                        !isLastMoveIndex ||
-                        !!isPermanentlyRevealed ||
-                        !!isInRevealAnimation
-                    );
+                    // 히든 돌은 공개되어도 히든 문양을 유지. 상대 미공개 히든은 위에서 return null.
+                    // (이전: 마지막 수만 문양 제외 → 본인 히든 착수 직후·스캔 직후에도 문양이 안 보이는 버그)
+                    const isKnownHidden = !!isHiddenMove;
                     const isSelectedMissileForRender = selectedMissileStone?.x === x && selectedMissileStone?.y === y;
                     // 미사일 선택 가능 여부: 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
                     const isHoverSelectableMissile = gameStatus === 'missile_selecting' && !selectedMissileStone && actualPlayer === myPlayerEnum;

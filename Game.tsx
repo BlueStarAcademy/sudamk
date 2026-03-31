@@ -191,6 +191,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         (isSinglePlayer && ((session.settings?.hiddenStoneCount ?? 0) > 0)) ||
         isTowerHiddenStage ||
         isGuildWarHiddenPresentation;
+    /** 온라인 대기실 히든/믹스(히든): 스캔 연출 후 서버 WS가 늦을 때 로컬에서 playing 복귀 */
+    const isOnlineHiddenStrategic =
+        !isSinglePlayer &&
+        !isTower &&
+        !isGuildWarGame &&
+        (mode === GameMode.Hidden ||
+            (mode === GameMode.Mix && !!session.settings?.mixedModes?.includes?.(GameMode.Hidden)) ||
+            ((session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ?? 0) > 0);
     // 전략바둑 AI/PVP 수순 제한: 새로고침 후 totalTurns·moveHistory 복원/저장에 포함
     const hasStrategicTurnLimit = (session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0;
     
@@ -632,6 +640,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isGuildWarHiddenClientEffects =
         session.gameCategory === 'guildwar' && mode === GameMode.Hidden;
 
+    const useScanAnimationFallback =
+        isSinglePlayer || isTower || isGuildWarHiddenClientEffects || isOnlineHiddenStrategic;
+
     useEffect(() => {
         if (!(isSinglePlayer || isTower || isGuildWarHiddenClientEffects)) return;
         const hasRevealToFinalize =
@@ -653,17 +664,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return () => window.clearTimeout(id);
     }, [session.gameStatus, session.revealAnimationEndTime, session.pendingCapture, session.id, isSinglePlayer, isTower, isGuildWarHiddenClientEffects, handlers.handleAction]);
 
-    // 싱글/타워: 스캔 결과 애니메이션 종료 시 본경기(playing) 복귀 — 서버 updateGameStates/WS가 늦어도 착수 가능하도록
+    // 스캔 결과 애니메이션 종료 시 본경기(playing) 복귀 — 서버 updateGameStates/WS가 늦어도 착수 가능 (PVE + 온라인 히든)
     useEffect(() => {
-        if (!(isSinglePlayer || isTower || isGuildWarHiddenClientEffects)) return;
+        if (!useScanAnimationFallback) return;
         if (session.gameStatus !== 'scanning_animating') return;
         const anim = session.animation as { type?: string; startTime?: number; duration?: number } | null | undefined;
+        const scanAnimGameType: 'tower' | 'singleplayer' | 'guildwar' | 'normal' = isTower
+            ? 'tower'
+            : isGuildWarHiddenClientEffects
+              ? 'guildwar'
+              : isSinglePlayer
+                ? 'singleplayer'
+                : 'normal';
         const finish = () => {
             handlers.handleAction({
                 type: 'LOCAL_PVE_SCAN_ANIMATION_COMPLETE',
                 payload: {
                     gameId: session.id,
-                    gameType: isTower ? 'tower' : isGuildWarHiddenClientEffects ? 'guildwar' : 'singleplayer',
+                    gameType: scanAnimGameType,
                 },
             } as any);
         };
@@ -675,7 +693,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const remaining = Math.max(0, end - Date.now());
         const id = window.setTimeout(finish, remaining + 50);
         return () => window.clearTimeout(id);
-    }, [isSinglePlayer, isTower, isGuildWarHiddenClientEffects, session.id, session.gameStatus, session.animation, handlers.handleAction]);
+    }, [useScanAnimationFallback, session.id, session.gameStatus, session.animation, handlers.handleAction, isTower, isGuildWarHiddenClientEffects, isSinglePlayer]);
 
     // 계가 턴 히든 공개(hidden_final_reveal) 애니메이션 종료 시 로컬에서 즉시 scoring으로 전환 → 계가 연출(ScoringOverlay) 표시
     useEffect(() => {

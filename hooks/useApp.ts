@@ -1199,18 +1199,18 @@ export const useApp = () => {
             return;
         }
 
-        /** 싱글/타워: 스캔 연출 종료 후 본경기 복귀 (서버 루프·WS 지연 시 scanning_animating에 고정되는 현상 방지) */
+        /** 스캔 연출 종료 후 본경기(playing) 복귀 — 서버 루프·WS 지연 시 scanning_animating에 고정되는 현상 방지 (PVE + 온라인 히든) */
         if ((action as any).type === 'LOCAL_PVE_SCAN_ANIMATION_COMPLETE') {
             const { gameId, gameType } = (action as any).payload as {
                 gameId: string;
-                gameType: 'tower' | 'singleplayer' | 'guildwar';
+                gameType: 'tower' | 'singleplayer' | 'guildwar' | 'normal';
             };
             const updateGameState =
-                gameType === 'guildwar'
-                    ? setLiveGames
-                    : gameType === 'tower'
-                      ? setTowerGames
-                      : setSinglePlayerGames;
+                gameType === 'tower'
+                    ? setTowerGames
+                    : gameType === 'singleplayer'
+                      ? setSinglePlayerGames
+                      : setLiveGames;
             const now = Date.now();
             updateGameState(prev => {
                 const g = prev[gameId];
@@ -3753,12 +3753,25 @@ export const useApp = () => {
                                 // 주사위/도둑 굴리기 애니메이션: moveHistory가 안 바뀌어도 반영 (두 번째 턴부터 애니 안 나오는 버그 방지)
                                 const isDiceRollAnimationUpdate = game.gameStatus === 'dice_rolling_animating' || game.gameStatus === 'thief_rolling_animating' || game.animation?.type === 'dice_roll_main';
                                 const isScoringOrRevealUpdate = game.gameStatus === 'scoring' || game.gameStatus === 'hidden_final_reveal';
+                                // 따내기 바둑 입찰/재입찰 단계 전환은 moveHistory 변화가 없어도 반드시 반영
+                                const isCaptureBidPhaseUpdate =
+                                    game.gameStatus === 'capture_bidding' ||
+                                    game.gameStatus === 'capture_reveal' ||
+                                    game.gameStatus === 'capture_tiebreaker';
                                 const isTerminalGameUpdate = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';
                                 // 싱글/타워: 스캔 애니메이션 종료 후 playing 전환은 수순이 그대로라 쓰로틀에 걸리면 클라이언트가 scanning_animating에 고정되는 버그 방지
                                 const existingForThrottle =
-                                    singlePlayerGamesRef.current[gameId] ?? towerGamesRef.current[gameId];
+                                    singlePlayerGamesRef.current[gameId] ??
+                                    towerGamesRef.current[gameId] ??
+                                    liveGamesRef.current[gameId];
                                 const isScanAnimExitToPlaying =
                                     existingForThrottle?.gameStatus === 'scanning_animating' &&
+                                    game.gameStatus === 'playing';
+                                // 흑선 가져오기(capture bidding/reveal/tiebreaker) 종료 후 playing 전환은
+                                // 이동 수(moveHistory)가 없더라도 반드시 모달을 닫고 다음 화면으로 넘어가야 함.
+                                const isCaptureBidExitToPlaying =
+                                    existingForThrottle?.gameStatus &&
+                                    ['capture_bidding', 'capture_reveal', 'capture_tiebreaker'].includes(existingForThrottle.gameStatus) &&
                                     game.gameStatus === 'playing';
                                 if (
                                     !hasNewMoves &&
@@ -3766,6 +3779,8 @@ export const useApp = () => {
                                     !isDiceRollAnimationUpdate &&
                                     !isScoringOrRevealUpdate &&
                                     !isTerminalGameUpdate &&
+                                    !isCaptureBidPhaseUpdate &&
+                                    !isCaptureBidExitToPlaying &&
                                     !isScanAnimExitToPlaying &&
                                     now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS
                                 ) {
@@ -4394,6 +4409,26 @@ export const useApp = () => {
                                                 mergedGame.moveHistory = existingGame.moveHistory;
                                             }
                                         }
+                                        // 온라인 히든: 스캔 애니 종료(scanning_animating → playing) 시 서버가 보드/수순을 생략하면 클라 유지
+                                        const wasLiveScanningAnimating =
+                                            existingGame?.gameStatus === 'scanning_animating' && game.gameStatus === 'playing';
+                                        if (wasLiveScanningAnimating && existingGame) {
+                                            const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]);
+                                            const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
+                                            const existingBoardValid = existingGame.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
+                                            const existingMoveHistoryValid = existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0;
+                                            if (!serverBoardValid && existingBoardValid) {
+                                                mergedGame = { ...mergedGame, boardState: existingGame.boardState };
+                                            }
+                                            if (!serverMoveHistoryValid && existingMoveHistoryValid) {
+                                                mergedGame = { ...mergedGame, moveHistory: existingGame.moveHistory };
+                                            }
+                                            const clientRevealed = existingGame.revealedHiddenMoves;
+                                            const serverRevealed = game.revealedHiddenMoves;
+                                            if (clientRevealed && typeof clientRevealed === 'object' && (!serverRevealed || Object.keys(serverRevealed).length === 0)) {
+                                                mergedGame = { ...mergedGame, revealedHiddenMoves: clientRevealed };
+                                            }
+                                        }
                                         // 전략바둑 AI 대국: 같은 수인데 서버가 낡은 GAME_UPDATE인 경우 보드/수순/턴 유지 (돌 위치 바뀜·시간승 버그 방지)
                                         if (game.isAiGame && incomingMoveCount === existingMoveCount && existingBoardValid && existingGame?.moveHistory?.length > 0) {
                                             const lastExisting = existingGame.moveHistory[existingGame.moveHistory.length - 1];
@@ -4523,17 +4558,46 @@ export const useApp = () => {
                                 removeFromGames(setTowerGames, towerGameSignaturesRef.current);
                             }
 
-                            // 삭제된 대국실 페이지에 있으면 적절한 목적지로 리다이렉트 (도전의 탑 → 탑 로비, 싱글 → 싱글, 그 외 → 홈)
+                            // 삭제된 대국실 페이지에 있으면 먼저 재입장 1회 시도 후 실패 시 리다이렉트
                             const currentHash = window.location.hash;
                             const isOnDeletedGamePage = currentHash.startsWith('#/game/') && currentHash.includes(deletedGameId);
                             if (isOnDeletedGamePage) {
-                                let redirectHash = '#/';
-                                if (serverGameCategory === 'tower') redirectHash = '#/tower';
-                                else if (serverGameCategory === 'singleplayer') redirectHash = '#/singleplayer';
-                                console.log(`[WebSocket] Game deleted (category: ${serverGameCategory ?? 'unknown'}), routing to ${redirectHash}`);
-                                setTimeout(() => {
-                                    replaceAppHash(redirectHash);
-                                }, 100);
+                                const tryRejoinAfterDelete = async () => {
+                                    try {
+                                        if (!currentUser?.id) throw new Error('no_current_user');
+                                        const res = await fetch(getApiUrl('/api/game/rejoin'), {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ userId: currentUser.id, gameId: deletedGameId }),
+                                            credentials: 'omit',
+                                        });
+                                        const data = await res.json().catch(() => ({}));
+                                        if (res.ok && data?.game) {
+                                            const g = data.game as LiveGameSession;
+                                            const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+                                            if (category === 'singleplayer') {
+                                                setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
+                                            } else if (category === 'tower') {
+                                                setTowerGames(prev => ({ ...prev, [g.id]: g }));
+                                            } else {
+                                                setLiveGames(prev => ({ ...prev, [g.id]: g }));
+                                            }
+                                            console.log('[WebSocket] GAME_DELETED received but rejoin succeeded, keeping game page:', deletedGameId);
+                                            return;
+                                        }
+                                    } catch {
+                                        // ignore and fallback redirect
+                                    }
+
+                                    let redirectHash = '#/';
+                                    if (serverGameCategory === 'tower') redirectHash = '#/tower';
+                                    else if (serverGameCategory === 'singleplayer') redirectHash = '#/singleplayer';
+                                    console.log(`[WebSocket] Game deleted (category: ${serverGameCategory ?? 'unknown'}), rejoin failed, routing to ${redirectHash}`);
+                                    setTimeout(() => {
+                                        replaceAppHash(redirectHash);
+                                    }, 100);
+                                };
+                                void tryRejoinAfterDelete();
                             }
                             return;
                         }

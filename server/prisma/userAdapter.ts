@@ -223,6 +223,10 @@ const applyDefaults = (
   prismaUser: PrismaUserWithStatus,
   status?: SerializedUserStatus
 ): User => {
+  const savedGameRecordsCandidate = (user as any)?.savedGameRecords;
+  const savedGameRecords =
+    Array.isArray(savedGameRecordsCandidate) ? savedGameRecordsCandidate : undefined;
+
   return {
     id: prismaUser.id,
     username:
@@ -316,6 +320,9 @@ const applyDefaults = (
     towerFloor: user.towerFloor ?? prismaUser.towerFloor ?? 0,
     lastTowerClearTime: user.lastTowerClearTime ?? (prismaUser.lastTowerClearTime != null ? Number(prismaUser.lastTowerClearTime) : undefined),
     monthlyTowerFloor: user.monthlyTowerFloor ?? (prismaUser as any).monthlyTowerFloor ?? 0,
+    // 기보 저장/삭제는 DB 스키마에 별도 컬럼이 없고, status.serializedUser에 포함되어 저장됩니다.
+    // deserialize 시 applyDefaults가 savedGameRecords를 누락하면 "저장이 안된 것처럼" 보이므로 반드시 포함합니다.
+    savedGameRecords,
     dungeonProgress: user.dungeonProgress ?? (status?.serializedUser as User | undefined)?.dungeonProgress ?? undefined,
     dungeonConditionSnapshot: user.dungeonConditionSnapshot ?? (status?.serializedUser as User | undefined)?.dungeonConditionSnapshot ?? undefined,
     lastLoginAt: user.lastLoginAt ?? (status?.leagueMetadata?.lastLoginAt != null ? safeNumber(status.leagueMetadata.lastLoginAt, 0) : undefined) ?? (status?.serializedUser as User | undefined)?.lastLoginAt ?? undefined

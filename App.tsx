@@ -497,18 +497,12 @@ const AppContent: React.FC = () => {
                                 {modals.viewingItem && <ItemDetailModal item={modals.viewingItem.item} isOwnedByCurrentUser={modals.viewingItem.isOwnedByCurrentUser} onClose={handlers.closeViewingItem} onStartEnhance={handlers.openEnhancementFromDetail} isTopmost={topmostModalId === 'viewingItem'} />}
                                 {activeNegotiation && (() => {
                                     const isReceivedChallenge = activeNegotiation.status === 'pending' && 
-                                                                 ((activeNegotiation.opponent.id === currentUserWithStatus.id && 
-                                                                   activeNegotiation.proposerId === activeNegotiation.opponent.id) ||
-                                                                  (activeNegotiation.challenger.id === currentUserWithStatus.id && 
-                                                                   activeNegotiation.proposerId === activeNegotiation.challenger.id &&
-                                                                   (activeNegotiation.turnCount ?? 0) > 0));
-                                    /** 신청자: draft·초기 pending은 대기실 ChallengeSelectionModal에서만 표시. App의 NegotiationModal이 끼어들면 신청 직후 깜빡임 발생 */
+                                                                 (activeNegotiation.opponent.id === currentUserWithStatus.id && 
+                                                                  activeNegotiation.proposerId === activeNegotiation.opponent.id);
+                                    /** 신청자: draft/pending 전 구간은 대기실 ChallengeSelectionModal에서만 표시 */
                                     const isChallengerOwnsModal =
                                         activeNegotiation.challenger.id === currentUserWithStatus.id &&
-                                        (activeNegotiation.status === 'draft' ||
-                                            (activeNegotiation.status === 'pending' &&
-                                                activeNegotiation.proposerId === activeNegotiation.opponent.id &&
-                                                activeNegotiation.turnCount === 0));
+                                        (activeNegotiation.status === 'draft' || activeNegotiation.status === 'pending');
                                     if (isChallengerOwnsModal) {
                                         return null;
                                     }

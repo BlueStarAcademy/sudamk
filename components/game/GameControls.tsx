@@ -7,6 +7,8 @@ import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
 import Dice from '../Dice.js';
 import { audioService } from '../../services/audioService.js';
+import ChallengeSelectionModal from '../ChallengeSelectionModal.js';
+import { useAppContext } from '../../hooks/useAppContext.js';
 
 interface ImageButtonProps {
     src: string;
@@ -436,6 +438,7 @@ const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
 
 const GameControls: React.FC<GameControlsProps> = (props) => {
     const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, onOpenRematchSettings, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, onPauseToggle, onOpenGameRecordList } = props;
+    const { negotiations } = useAppContext();
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
     const isMixMode = mode === GameMode.Mix;
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
@@ -443,6 +446,22 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const isAiLobbyGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer' && session.gameCategory !== 'guildwar';
+    const isPvpRematchEligible =
+        isGameEnded &&
+        !session.isSinglePlayer &&
+        !session.isAiGame &&
+        session.gameCategory !== 'tower' &&
+        session.gameCategory !== 'singleplayer' &&
+        session.gameCategory !== 'guildwar';
+    const rematchRequested = gameStatus === 'rematch_pending';
+    const [isRematchModalOpen, setIsRematchModalOpen] = useState(false);
+    const rematchTarget = useMemo(() => {
+        const opponentId = currentUser.id === player1.id ? player2.id : player1.id;
+        const online = onlineUsers.find(u => u.id === opponentId);
+        if (online) return online;
+        const fallback = player1.id === opponentId ? player1 : player2;
+        return { ...(fallback as any), status: 'online' };
+    }, [currentUser.id, onlineUsers, player1, player2]);
     const [savingGameRecord, setSavingGameRecord] = useState(false);
     const { recordAlreadySaved, setSavedOptimistic } = useGameRecordSaveLock(gameId, currentUser.savedGameRecords);
     const savedRecordCount = currentUser.savedGameRecords?.length ?? 0;
@@ -780,11 +799,32 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             };
 
             return (
+                <>
                 <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full h-[136px]">
                     <div className="bg-gray-900/70 border border-stone-700 rounded-xl px-4 py-3 flex flex-wrap items-center justify-center gap-3">
                         <Button onClick={handleShowResults} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap">
                             결과 확인
                         </Button>
+                        {isPvpRematchEligible && (
+                            <Button
+                                onClick={() => {
+                                    setIsRematchModalOpen(true);
+                                    if (!rematchRequested) {
+                                        void Promise.resolve(
+                                            onAction({
+                                                type: 'REQUEST_REMATCH',
+                                                payload: { opponentId: rematchTarget.id, originalGameId: session.id },
+                                            } as any)
+                                        );
+                                    }
+                                }}
+                                disabled={rematchRequested}
+                                colorScheme="none"
+                                className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-emerald-400/50 bg-gradient-to-r from-emerald-500/90 via-lime-400/85 to-green-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(74,222,128,0.75)] hover:from-emerald-300 hover:to-green-500 whitespace-nowrap disabled:opacity-60"
+                            >
+                                {rematchRequested ? '신청중' : '재대결'}
+                            </Button>
+                        )}
                         {isAiLobbyGame && onOpenRematchSettings && (
                             <Button
                                 onClick={onOpenRematchSettings}
@@ -805,6 +845,41 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         </Button>
                     </div>
                 </footer>
+                {isRematchModalOpen && isPvpRematchEligible && rematchTarget && (
+                    <ChallengeSelectionModal
+                        opponent={rematchTarget as any}
+                        onClose={() => setIsRematchModalOpen(false)}
+                        negotiations={Object.values(negotiations)}
+                        currentUser={currentUser as any}
+                        lobbyType={SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' : 'playful'}
+                        onChallenge={async (_gameMode, rematchSettings) => {
+                            try {
+                                const findDraft = () =>
+                                    Object.values(negotiations || {}).find((n: any) =>
+                                        n?.challenger?.id === currentUser.id &&
+                                        n?.opponent?.id === rematchTarget.id &&
+                                        n?.status === 'draft' &&
+                                        n?.rematchOfGameId === session.id
+                                    ) as any;
+                                const draftNow = findDraft();
+                                if (draftNow?.id) {
+                                    await Promise.resolve(onAction({ type: 'SEND_CHALLENGE', payload: { negotiationId: draftNow.id, settings: rematchSettings } } as any));
+                                    return;
+                                }
+                                await Promise.resolve(onAction({ type: 'REQUEST_REMATCH', payload: { opponentId: rematchTarget.id, originalGameId: session.id } } as any));
+                                setTimeout(() => {
+                                    const draft = findDraft();
+                                    if (draft?.id) {
+                                        void Promise.resolve(onAction({ type: 'SEND_CHALLENGE', payload: { negotiationId: draft.id, settings: rematchSettings } } as any));
+                                    }
+                                }, 300);
+                            } catch (err) {
+                                console.error('[GameControls] Rematch challenge failed:', err);
+                            }
+                        }}
+                    />
+                )}
+                </>
             );
         }
 

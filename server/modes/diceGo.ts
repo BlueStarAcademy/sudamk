@@ -38,6 +38,8 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
     const whiteStonesLeft = game.boardState.flat().filter(s => s === types.Player.White).length;
 
     if (whiteStonesLeft === 0) {
+        // 마지막 백돌 제거로 라운드 종료로 진입할 때, 이전 턴의 유효자리 안내가 남지 않도록 즉시 초기화
+        game.lastWhiteGroupInfo = null;
         if (totalCapturesThisTurn > 0) { // Check if the last action was a capture
             const totalRounds = game.settings.diceGoRounds ?? 1;
             const bonus = DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS[totalRounds - 1];

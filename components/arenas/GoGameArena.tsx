@@ -107,6 +107,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         const moveHistory = session.moveHistory ?? [];
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const turnCount = moveHistory.length;
+        const validMovesCount = moveHistory.filter(m => m && m.x !== -1 && m.y !== -1).length;
 
         // 싱글플레이/도전의 탑: 자동계가 턴 수 제한
         const isTower = session.gameCategory === 'tower';

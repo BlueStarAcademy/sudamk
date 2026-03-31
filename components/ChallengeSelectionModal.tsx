@@ -780,6 +780,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       onClose={handleAttemptClose}
       initialWidth={calculatedWidth}
       initialHeight={calculatedHeight}
+      closeOnOutsideClick={false}
     >
       <div 
         onMouseDown={(e) => e.stopPropagation()} 
