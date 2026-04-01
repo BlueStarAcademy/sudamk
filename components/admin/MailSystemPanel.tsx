@@ -6,6 +6,7 @@ import { MythicStat } from '../../types/enums.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
+import { getApiUrl } from '../../utils/apiConfig.js';
 import {
     EQUIPMENT_POOL,
     CONSUMABLE_ITEMS,
@@ -258,13 +259,13 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
     const [attachedItems, setAttachedItems] = useState<MailAttachedItemPayload[]>([]);
 
     const fetchAdminUsers = async (trimmedQuery: string): Promise<User[]> => {
-        const candidates = ['/api/admin/users', '/admin/users'];
+        const candidates = [getApiUrl('/api/admin/users'), getApiUrl('/admin/users')];
         let lastError: Error | null = null;
 
-        for (const basePath of candidates) {
+        for (const url of candidates) {
             try {
                 const response = await fetch(
-                    `${basePath}?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=50`,
+                    `${url}?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=50`,
                     { credentials: 'include' }
                 );
                 const raw = await response.text();

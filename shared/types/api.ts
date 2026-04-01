@@ -242,7 +242,7 @@ export type ServerAction =
     | { type: 'EXPAND_INVENTORY', payload: { category: InventoryItemType } }
     | { type: 'BUY_BORDER', payload: { borderId: string } }
     // Admin
-    | { type: 'ADMIN_APPLY_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection'; durationMinutes: number } }
+    | { type: 'ADMIN_APPLY_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection'; durationMinutes: number; reason: string; reasonDetail?: string } }
     | { type: 'ADMIN_LIFT_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection' } }
     | { type: 'ADMIN_RESET_USER_DATA', payload: { targetUserId: string; resetType: 'stats' | 'full' } }
     | { type: 'ADMIN_DELETE_USER', payload: { targetUserId: string } }

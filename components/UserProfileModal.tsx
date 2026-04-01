@@ -7,6 +7,7 @@ import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manne
 import { calculateTotalStats } from '../services/statService.js';
 import MbtiComparisonModal from './MbtiComparisonModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import type { ServerAction } from '../types.js';
 
 // Re-using components from Profile.tsx for consistency.
 const getXpRequirementForLevel = (level: number): number => {
@@ -204,7 +205,58 @@ const getTier = (score: number, rank: number, totalGames: number) => {
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onViewItem, isTopmost }) => {
     const { inventory, stats, nickname, avatarId, borderId, equipment } = user;
     const [showMbtiComparison, setShowMbtiComparison] = useState(false);
-    const { currentUserWithStatus, guilds } = useAppContext();
+    const { currentUserWithStatus, guilds, handlers } = useAppContext();
+    const isAdminViewingOtherUser = !!currentUserWithStatus?.isAdmin && currentUserWithStatus.id !== user.id;
+    const [chatDurationMinutes, setChatDurationMinutes] = useState(10);
+    const [connectionDurationMinutes, setConnectionDurationMinutes] = useState(60);
+    const [sanctionReason, setSanctionReason] = useState('욕설/비방');
+    const [sanctionReasonEtc, setSanctionReasonEtc] = useState('');
+    const effectiveReason = sanctionReason === '기타' ? sanctionReasonEtc.trim() : sanctionReason;
+    const now = Date.now();
+    const isChatBanned = !!user.chatBanUntil && user.chatBanUntil > now;
+    const isConnectionBanned = !!user.connectionBanUntil && user.connectionBanUntil > now;
+    const onlineStatus = (user as any).status as string | undefined;
+    const isConnected = Boolean((user as any).isConnected);
+
+    const runAdminAction = async (action: ServerAction) => {
+        try {
+            await handlers.handleAction(action);
+        } catch (err) {
+            console.error('[UserProfileModal] admin action failed:', err);
+        }
+    };
+
+    const applySanction = async (sanctionType: 'chat' | 'connection', durationMinutes: number) => {
+        if (!effectiveReason) {
+            alert('제재 사유를 입력해주세요.');
+            return;
+        }
+        await runAdminAction({
+            type: 'ADMIN_APPLY_SANCTION',
+            payload: {
+                targetUserId: user.id,
+                sanctionType,
+                durationMinutes,
+                reason: effectiveReason,
+                reasonDetail: sanctionReason === '기타' ? sanctionReasonEtc.trim() : undefined,
+            },
+        });
+    };
+
+    const liftSanction = async (sanctionType: 'chat' | 'connection') => {
+        await runAdminAction({
+            type: 'ADMIN_LIFT_SANCTION',
+            payload: { targetUserId: user.id, sanctionType },
+        });
+    };
+
+    const forceLogout = async () => {
+        if (!window.confirm(`[${user.nickname}] 님을 즉시 로그아웃 처리할까요?`)) return;
+        await runAdminAction({
+            type: 'ADMIN_FORCE_LOGOUT',
+            payload: { targetUserId: user.id },
+        });
+    };
     
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
@@ -451,6 +503,67 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                 </div>
                             </div>
                         </div>
+                        {isAdminViewingOtherUser && (
+                            <div className="bg-red-950/35 border border-red-500/30 rounded-lg p-3 text-xs space-y-2">
+                                <div className="font-bold text-red-300">관리자 기능</div>
+                                <div className="text-gray-300">
+                                    접속 상태: <span className={isConnected ? 'text-emerald-400 font-semibold' : 'text-gray-400'}>{isConnected ? '접속중' : (onlineStatus || '오프라인')}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button type="button" onClick={forceLogout} className="px-2 py-1 rounded bg-red-700 hover:bg-red-600">로그아웃 처리</button>
+                                    <button type="button" onClick={() => applySanction('connection', connectionDurationMinutes)} className="px-2 py-1 rounded bg-orange-700 hover:bg-orange-600">접속금지 적용</button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button type="button" onClick={() => applySanction('chat', chatDurationMinutes)} className="px-2 py-1 rounded bg-yellow-700 hover:bg-yellow-600">채팅금지 적용</button>
+                                    <button type="button" onClick={() => liftSanction('chat')} className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600">채팅금지 해제</button>
+                                </div>
+                                <div>
+                                    <button type="button" onClick={() => liftSanction('connection')} className="w-full px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600">접속금지 해제</button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <label className="text-gray-400">채팅금지(분)
+                                        <input type="number" min={1} className="mt-1 w-full bg-black/40 rounded px-2 py-1" value={chatDurationMinutes} onChange={(e) => setChatDurationMinutes(Math.max(1, Number(e.target.value) || 1))} />
+                                    </label>
+                                    <label className="text-gray-400">접속금지(분)
+                                        <input type="number" min={1} className="mt-1 w-full bg-black/40 rounded px-2 py-1" value={connectionDurationMinutes} onChange={(e) => setConnectionDurationMinutes(Math.max(1, Number(e.target.value) || 1))} />
+                                    </label>
+                                </div>
+                                <div>
+                                    <label className="text-gray-400">제재 사유</label>
+                                    <select value={sanctionReason} onChange={(e) => setSanctionReason(e.target.value)} className="mt-1 w-full bg-black/40 rounded px-2 py-1">
+                                        <option>욕설/비방</option>
+                                        <option>도배/스팸</option>
+                                        <option>불법 프로그램 의심</option>
+                                        <option>부적절한 닉네임/프로필</option>
+                                        <option>기타</option>
+                                    </select>
+                                    {sanctionReason === '기타' && (
+                                        <textarea
+                                            className="mt-2 w-full bg-black/40 rounded px-2 py-1 min-h-[54px]"
+                                            placeholder="사유를 직접 입력하세요"
+                                            value={sanctionReasonEtc}
+                                            onChange={(e) => setSanctionReasonEtc(e.target.value)}
+                                        />
+                                    )}
+                                </div>
+                                <div className="text-gray-300">
+                                    제재내역:
+                                    <div className="mt-1 max-h-24 overflow-y-auto space-y-1 pr-1">
+                                        {(user.sanctionHistory || []).slice(0, 8).map((h) => (
+                                            <div key={h.id} className="rounded bg-black/35 px-2 py-1">
+                                                [{h.sanctionType === 'chat' ? '채팅금지' : '접속금지'}] {h.reason}
+                                                {h.details ? ` (${h.details})` : ''} / {new Date(h.createdAt).toLocaleString()}
+                                                {h.releasedAt ? ' / 해제됨' : ''}
+                                            </div>
+                                        ))}
+                                        {(user.sanctionHistory || []).length === 0 && <div className="text-gray-500">기록 없음</div>}
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-gray-400">
+                                        현재: 채팅 {isChatBanned ? '금지중' : '정상'} / 접속 {isConnectionBanned ? '금지중' : '정상'}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right Column */}

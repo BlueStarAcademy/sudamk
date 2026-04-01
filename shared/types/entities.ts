@@ -315,6 +315,18 @@ export type User = {
   stats?: Record<string, { wins: number; losses: number; rankingScore: number; aiWins?: number; aiLosses?: number; }>;
   chatBanUntil?: number | null;
   connectionBanUntil?: number | null;
+  chatBanReason?: string | null;
+  connectionBanReason?: string | null;
+  sanctionHistory?: Array<{
+    id: string;
+    sanctionType: 'chat' | 'connection';
+    reason: string;
+    details?: string;
+    createdAt: number;
+    expiresAt?: number | null;
+    releasedAt?: number | null;
+    releasedBy?: string;
+  }>;
   avatarId: string;
   borderId: string;
   ownedBorders: string[];
@@ -924,6 +936,8 @@ export type Negotiation = {
 export type SanctionLogData = {
     sanctionType: 'chat' | 'connection';
     durationMinutes?: number;
+    reason?: string;
+    reasonDetail?: string;
 };
 
 export type AdminLog = {

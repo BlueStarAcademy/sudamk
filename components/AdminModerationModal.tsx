@@ -29,6 +29,7 @@ const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ user, curre
                 targetUserId: user.id,
                 sanctionType,
                 durationMinutes,
+                reason: '관리자 제재',
             }
         });
     };

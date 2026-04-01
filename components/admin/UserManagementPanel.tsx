@@ -6,6 +6,7 @@ import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../../constants';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { getApiUrl } from '../../utils/apiConfig.js';
 
 interface UserManagementModalProps {
     user: User;
@@ -737,15 +738,31 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [localUsers, setLocalUsers] = useState<User[]>([]);
+    const renderOnlineLabel = (user: User) => {
+        const status = (user as any).status as string | undefined;
+        const isConnected = Boolean((user as any).isConnected);
+        if (isConnected) return <span className="text-emerald-400">접속중</span>;
+        if (!status) return <span className="text-gray-500">오프라인</span>;
+        const map: Record<string, string> = {
+            waiting: '대기',
+            resting: '휴식',
+            'in-game': '대국중',
+            negotiating: '협상중',
+            online: '온라인',
+            disconnected: '오프라인',
+            spectating: '관전중',
+        };
+        return <span className="text-yellow-300">{map[status] ?? status}</span>;
+    };
 
     const fetchAdminUsers = useCallback(async (trimmedQuery: string) => {
-        const candidates = ['/api/admin/users', '/admin/users'];
+        const candidates = [getApiUrl('/api/admin/users'), getApiUrl('/admin/users')];
         let lastError: Error | null = null;
 
-        for (const basePath of candidates) {
+        for (const url of candidates) {
             try {
                 const response = await fetch(
-                    `${basePath}?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=50`,
+                    `${url}?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=50`,
                     { credentials: 'include' }
                 );
                 const raw = await response.text();
@@ -878,6 +895,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                     <th scope="col" className="px-6 py-3">닉네임</th>
                                     <th scope="col" className="px-6 py-3">아이디</th>
                                     <th scope="col" className="px-6 py-3">레벨 (전략/놀이)</th>
+                                    <th scope="col" className="px-6 py-3">접속 상태</th>
                                     <th scope="col" className="px-6 py-3">액션</th>
                                 </tr>
                             </thead>
@@ -894,31 +912,48 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                         </th>
                                         <td className="px-6 py-4">{user.username}</td>
                                         <td className="px-6 py-4">S.{user.strategyLevel} / P.{user.playfulLevel}</td>
+                                        <td className="px-6 py-4">{renderOnlineLabel(user)}</td>
                                         <td className="px-6 py-4">
-                                            <button
-                                                type="button"
-                                                disabled={openingUserId === user.id}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    void openUserManage(user.id);
-                                                }}
-                                                className="font-medium text-blue-500 hover:underline disabled:opacity-50"
-                                            >
-                                                {openingUserId === user.id ? '열기…' : '관리'}
-                                            </button>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    disabled={openingUserId === user.id}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        void openUserManage(user.id);
+                                                    }}
+                                                    className="font-medium text-blue-500 hover:underline disabled:opacity-50"
+                                                >
+                                                    {openingUserId === user.id ? '열기…' : '관리'}
+                                                </button>
+                                                {Boolean((user as any).isConnected) && user.id !== currentUser.id && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (window.confirm(`[${user.nickname}] 님을 즉시 로그아웃 처리할까요?`)) {
+                                                                onAction({ type: 'ADMIN_FORCE_LOGOUT', payload: { targetUserId: user.id } });
+                                                            }
+                                                        }}
+                                                        className="font-medium text-red-400 hover:underline"
+                                                    >
+                                                        강제 로그아웃
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
                                 {!isLoadingUsers && searchQuery.trim().length < 1 && (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
+                                        <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
                                             검색어를 입력하면 결과가 표시됩니다.
                                         </td>
                                     </tr>
                                 )}
                                 {!isLoadingUsers && searchQuery.trim().length >= 1 && searchedUsers.length === 0 && (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
+                                        <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
                                             검색 결과가 없습니다.
                                         </td>
                                     </tr>

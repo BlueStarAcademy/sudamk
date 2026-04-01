@@ -19,6 +19,12 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [banInfo, setBanInfo] = useState<{
+    reason: string;
+    expiresAt?: number;
+    remainingMinutes?: number;
+    history?: Array<{ id?: string; reason?: string; createdAt?: number; expiresAt?: number; releasedAt?: number }>;
+  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +34,7 @@ const Login: React.FC = () => {
     }
     setIsLoading(true);
     setError(null);
+    setBanInfo(null);
     try {
       const apiUrl = getApiUrl('/api/auth/login');
       console.log('[Login] Attempting login to:', apiUrl);
@@ -74,6 +81,9 @@ const Login: React.FC = () => {
         let errorMessage = `로그인 실패 (${response.statusText})`;
         try {
             const errorData = await response.json();
+            if (response.status === 403 && errorData?.banInfo) {
+                setBanInfo(errorData.banInfo);
+            }
             if (errorData && errorData.message) {
                 errorMessage = errorData.message;
             }
@@ -134,6 +144,27 @@ const Login: React.FC = () => {
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-[min(100%,440px)] justify-center sm:max-w-[min(100%,460px)] lg:max-w-[min(100%,520px)]">
       <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 p-7 pb-8 pt-8 shadow-[0_24px_56px_-18px_rgba(0,0,0,0.78)] backdrop-blur-md ring-1 ring-inset ring-white/[0.07] sm:p-8 sm:pb-9 sm:pt-9 lg:p-8 lg:pt-9">
+        {banInfo && (
+          <div className="mb-4 rounded-lg border border-red-500/40 bg-red-950/35 p-3 text-sm text-red-100">
+            <div className="font-semibold mb-1">접속 금지 상태입니다.</div>
+            <div>사유: {banInfo.reason || '관리자 제재'}</div>
+            {typeof banInfo.remainingMinutes === 'number' && <div>남은 기간: 약 {banInfo.remainingMinutes}분</div>}
+            {banInfo.expiresAt && <div>해제 예정: {new Date(banInfo.expiresAt).toLocaleString()}</div>}
+            {Array.isArray(banInfo.history) && banInfo.history.length > 0 && (
+              <div className="mt-2">
+                <div className="text-red-200 mb-1">제재 내역</div>
+                <div className="max-h-24 overflow-y-auto space-y-1 text-xs">
+                  {banInfo.history.map((h, idx) => (
+                    <div key={h.id || `${idx}-${h.createdAt || 0}`} className="rounded bg-black/30 px-2 py-1">
+                      {h.reason || '사유 없음'} / {h.createdAt ? new Date(h.createdAt).toLocaleString() : '-'}
+                      {h.releasedAt ? ' / 해제됨' : ''}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div
           className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent"
           aria-hidden

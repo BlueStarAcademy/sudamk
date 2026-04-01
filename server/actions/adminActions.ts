@@ -116,17 +116,43 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
 
     switch (type) {
         case 'ADMIN_APPLY_SANCTION': {
-            const { targetUserId, sanctionType, durationMinutes } = payload;
+            const { targetUserId, sanctionType, durationMinutes, reason, reasonDetail } = payload as {
+                targetUserId: string;
+                sanctionType: 'chat' | 'connection';
+                durationMinutes: number;
+                reason: string;
+                reasonDetail?: string;
+            };
             const targetUser = await db.getUser(targetUserId);
             if (!targetUser) return { error: '대상 사용자를 찾을 수 없습니다.' };
+            if (!reason || !String(reason).trim()) return { error: '제재 사유를 선택해주세요.' };
 
             const now = Date.now();
             const banUntil = now + durationMinutes * 60 * 1000;
+            const normalizedReason = String(reason).trim();
+            const normalizedReasonDetail = typeof reasonDetail === 'string' ? reasonDetail.trim() : '';
+            const sanctionRecord = {
+                id: `sanction-${randomUUID()}`,
+                sanctionType,
+                reason: normalizedReason,
+                details: normalizedReasonDetail || undefined,
+                createdAt: now,
+                expiresAt: Number.isFinite(banUntil) ? banUntil : null,
+            };
+            if (!Array.isArray(targetUser.sanctionHistory)) {
+                targetUser.sanctionHistory = [];
+            }
+            targetUser.sanctionHistory.unshift(sanctionRecord);
+            if (targetUser.sanctionHistory.length > 30) {
+                targetUser.sanctionHistory = targetUser.sanctionHistory.slice(0, 30);
+            }
 
             if (sanctionType === 'chat') {
                 targetUser.chatBanUntil = banUntil;
+                targetUser.chatBanReason = normalizedReason;
             } else if (sanctionType === 'connection') {
                 targetUser.connectionBanUntil = banUntil;
+                targetUser.connectionBanReason = normalizedReason;
                 
                 // 사용자가 게임 중인 경우 게임 종료 처리
                 const userStatus = volatileState.userStatuses[targetUserId];
@@ -164,7 +190,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             }
 
             await db.updateUser(targetUser);
-            await createAdminLog(user, 'apply_sanction', targetUser, { sanctionType, durationMinutes });
+            await createAdminLog(user, 'apply_sanction', targetUser, { sanctionType, durationMinutes, reason: normalizedReason, reasonDetail: normalizedReasonDetail || undefined });
             
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화: 변경된 필드만 전송)
             const updatedUser = JSON.parse(JSON.stringify(targetUser));
@@ -178,11 +204,21 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const { targetUserId, sanctionType } = payload;
             const targetUser = await db.getUser(targetUserId);
             if (!targetUser) return { error: '대상 사용자를 찾을 수 없습니다.' };
+            const now = Date.now();
 
             if (sanctionType === 'chat') {
                 targetUser.chatBanUntil = undefined;
+                targetUser.chatBanReason = null;
             } else if (sanctionType === 'connection') {
                 targetUser.connectionBanUntil = undefined;
+                targetUser.connectionBanReason = null;
+            }
+            if (Array.isArray(targetUser.sanctionHistory)) {
+                const historyRow = targetUser.sanctionHistory.find((row) => row.sanctionType === sanctionType && !row.releasedAt);
+                if (historyRow) {
+                    historyRow.releasedAt = now;
+                    historyRow.releasedBy = user.nickname;
+                }
             }
 
             await db.updateUser(targetUser);

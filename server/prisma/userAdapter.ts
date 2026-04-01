@@ -27,6 +27,9 @@ type SerializedUserStatus = {
   lastActionPointUpdate?: number;
   chatBanUntil?: number | null;
   connectionBanUntil?: number | null;
+  chatBanReason?: string | null;
+  connectionBanReason?: string | null;
+  sanctionHistory?: User["sanctionHistory"];
   avatarId?: string | null;
   borderId?: string | null;
   ownedBorders?: string[];
@@ -306,6 +309,9 @@ const applyDefaults = (
     stats: user.stats ?? {},
     chatBanUntil: user.chatBanUntil ?? null,
     connectionBanUntil: user.connectionBanUntil ?? null,
+    chatBanReason: user.chatBanReason ?? null,
+    connectionBanReason: user.connectionBanReason ?? null,
+    sanctionHistory: user.sanctionHistory ?? [],
     avatarId: user.avatarId ?? "profile_1",
     borderId: user.borderId ?? "default",
     ownedBorders: user.ownedBorders ?? ["default"],
@@ -528,6 +534,15 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
       status.connectionBanUntil ??
       (legacy.connectionBanUntil as number | null | undefined) ??
       null,
+    chatBanReason:
+      status.chatBanReason ??
+      (legacy.chatBanReason as string | null | undefined) ??
+      null,
+    connectionBanReason:
+      status.connectionBanReason ??
+      (legacy.connectionBanReason as string | null | undefined) ??
+      null,
+    sanctionHistory: parseJson(coalesce(status.sanctionHistory, legacy.sanctionHistory), []),
     avatarId:
       (status.avatarId as string | undefined) ??
       (legacy.avatarId as string | undefined),

@@ -3157,6 +3157,22 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // TypeScript가 user가 null이 아님을 인식하도록 타입 단언
             // (위의 체크에서 이미 null이 아님을 확인했으므로 안전함)
             let userForLogin: types.User = user;
+            const loginNow = Date.now();
+            if (userForLogin.connectionBanUntil && userForLogin.connectionBanUntil > loginNow) {
+                const remainingMs = userForLogin.connectionBanUntil - loginNow;
+                const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 1000 / 60));
+                sendResponse(403, {
+                    message: '접속이 제한된 계정입니다.',
+                    banInfo: {
+                        sanctionType: 'connection',
+                        reason: userForLogin.connectionBanReason || '관리자 제재',
+                        expiresAt: userForLogin.connectionBanUntil,
+                        remainingMinutes,
+                        history: (userForLogin.sanctionHistory || []).filter((x) => x.sanctionType === 'connection').slice(0, 5),
+                    },
+                });
+                return;
+            }
 
             const defaultBaseStats = createDefaultBaseStats();
             if (!userForLogin.baseStats) {
@@ -4419,10 +4435,22 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
 
             const users = await db.searchUsersForAdmin(searchQuery, limit);
+            const usersWithStatus = users.map((u) => {
+                const statusInfo = volatileState.userStatuses[u.id];
+                const isConnected = Boolean(volatileState.userConnections[u.id]);
+                return {
+                    ...u,
+                    status: statusInfo?.status ?? (isConnected ? types.UserStatus.Online : undefined),
+                    mode: statusInfo?.mode,
+                    gameId: statusInfo?.gameId,
+                    spectatingGameId: statusInfo?.spectatingGameId,
+                    isConnected,
+                };
+            });
 
             res.json({
-                users,
-                count: users.length,
+                users: usersWithStatus,
+                count: usersWithStatus.length,
             });
         } catch (error: any) {
             console.error('[Admin] Error getting users list:', error);
