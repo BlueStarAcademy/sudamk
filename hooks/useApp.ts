@@ -24,6 +24,7 @@ import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { aiUserId } from '../constants/auth.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { getWasmGnuGoMove, isAvailable as isWasmGnuGoAvailable } from '../services/wasmGnuGo.js';
+import { processMoveClient } from '../client/goLogicClient.js';
 
 /** 도전의 탑 PVE: 일반 수는 클라이언트만 반영되어 서버 game의 판·수순이 뒤처질 수 있음. 히든/스캔/미사일 선택 진입 시 응답으로 덮어쓰면 판이 초기화되는 버그 방지. */
 function mergeTowerServerGameWithClientBoardIfStale(
@@ -348,6 +349,10 @@ export const useApp = () => {
     const towerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
     const liveGameGnugoDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const singlePlayerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
+    /** PVP 주사위 바둑: 연타 시 낙관 착수는 첫 번째 요청만, inFlight는 요청마다 증가 */
+    const pvpDicePlaceInFlightRef = useRef<Record<string, number>>({});
+    /** 낙관 착수 실패 시 복구용 스냅샷 (해당 gameId당 1개) */
+    const pvpDicePlaceRevertRef = useRef<Record<string, LiveGameSession>>({});
     const [negotiations, setNegotiations] = useState<Record<string, Negotiation>>({});
     const [waitingRoomChats, setWaitingRoomChats] = useState<Record<string, ChatMessage[]>>({});
     /** 대기실(전체/전략/놀이) 채팅: 재접속·INITIAL_STATE 수신 시점 이후 메시지만 표시 (서버는 채널 전체 배열을 브로드캐스트함) */
@@ -1900,12 +1905,74 @@ export const useApp = () => {
 
         try {
             audioService.initialize();
-            const res = await fetch(getApiUrl('/api/action'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ ...action, userId: currentUserRef.current.id }),
-            });
+
+            const dicePlaceGameId =
+                action.type === 'DICE_PLACE_STONE'
+                    ? (action.payload as { gameId?: string })?.gameId
+                    : undefined;
+
+            const revertPvpDicePlaceSnapshot = () => {
+                if (!dicePlaceGameId) return;
+                const snap = pvpDicePlaceRevertRef.current[dicePlaceGameId];
+                if (!snap) return;
+                setLiveGames((c) => (c[dicePlaceGameId] ? { ...c, [dicePlaceGameId]: snap } : c));
+                delete pvpDicePlaceRevertRef.current[dicePlaceGameId];
+            };
+
+            if (dicePlaceGameId) {
+                const gid = dicePlaceGameId;
+                const inFlightBefore = pvpDicePlaceInFlightRef.current[gid] || 0;
+                if (inFlightBefore === 0) {
+                    flushSync(() => {
+                        setLiveGames((currentGames) => {
+                            const g = currentGames[gid];
+                            if (!g || g.isSinglePlayer || g.gameCategory === 'tower' || g.gameStatus !== 'dice_placing') {
+                                return currentGames;
+                            }
+                            if ((g.stonesToPlace ?? 0) <= 0) return currentGames;
+                            const { x, y } = action.payload as { x: number; y: number };
+                            const snap = JSON.parse(JSON.stringify(g)) as LiveGameSession;
+                            const pm = processMoveClient(
+                                g.boardState,
+                                { x, y, player: Player.Black },
+                                g.koInfo ?? null,
+                                g.moveHistory?.length ?? 0,
+                                { ignoreSuicide: true }
+                            );
+                            if (!pm.isValid) return currentGames;
+                            pvpDicePlaceRevertRef.current[gid] = snap;
+                            const newBoard = pm.newBoardState.map((row) => [...row]);
+                            const nextStones = (g.stonesToPlace ?? 1) - 1;
+                            const placed = [...(g.stonesPlacedThisTurn || []), { x, y }];
+                            return {
+                                ...currentGames,
+                                [gid]: {
+                                    ...g,
+                                    boardState: newBoard,
+                                    koInfo: pm.newKoInfo,
+                                    lastMove: { x, y },
+                                    stonesToPlace: nextStones,
+                                    stonesPlacedThisTurn: placed,
+                                    diceCapturesThisTurn: (g.diceCapturesThisTurn || 0) + pm.capturedStones.length,
+                                },
+                            };
+                        });
+                    });
+                }
+            }
+
+            try {
+                if (dicePlaceGameId) {
+                    pvpDicePlaceInFlightRef.current[dicePlaceGameId] =
+                        (pvpDicePlaceInFlightRef.current[dicePlaceGameId] || 0) + 1;
+                }
+
+                const res = await fetch(getApiUrl('/api/action'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ ...action, userId: currentUserRef.current.id }),
+                });
 
             if (!res.ok) {
                 let errorMessage = 'An unknown error occurred.';
@@ -1927,6 +1994,7 @@ export const useApp = () => {
                     if (action.type !== 'ENTER_TOURNAMENT_VIEW' && action.type !== 'LEAVE_TOURNAMENT_VIEW') {
                         showError('로그인이 필요합니다.');
                     }
+                    revertPvpDicePlaceSnapshot();
                     return;
                 }
                 if (typeof errorMessage === 'string' && isOpponentInsufficientActionPointsError(errorMessage)) {
@@ -1939,6 +2007,7 @@ export const useApp = () => {
                 if (action.type === 'TOGGLE_EQUIP_ITEM' || action.type === 'USE_ITEM') {
                     setUpdateTrigger(prev => prev + 1);
                 }
+                revertPvpDicePlaceSnapshot();
                 // Return error object so components can handle it
                 return { error: errorMessage } as HandleActionResult;
             } else {
@@ -1954,6 +2023,7 @@ export const useApp = () => {
                     } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                         showError(errorMessage);
                     }
+                    revertPvpDicePlaceSnapshot();
                     return { error: errorMessage } as HandleActionResult;
                 }
                 // LEAVE_AI_GAME 성공 시 로컬 상태에서 해당 게임 제거 및 사용자 gameId 해제 → 전략/놀이 대기실로 이동
@@ -2539,6 +2609,9 @@ export const useApp = () => {
                 // 주사위/도둑 착수: 한 개 놓을 때마다 화면에 바로 반영 (HTTP 응답 game으로 liveGames 갱신)
                 const placementGameId = (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') ? ((action.payload as any)?.gameId || game?.id) : null;
                 if (game && placementGameId && (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                    if (action.type === 'DICE_PLACE_STONE') {
+                        delete pvpDicePlaceRevertRef.current[placementGameId];
+                    }
                     setLiveGames(currentGames => {
                         const existing = currentGames[placementGameId];
                         const next = existing ? { ...existing, ...game, boardState: game.boardState && Array.isArray(game.boardState) ? game.boardState.map((row: number[]) => [...row]) : game.boardState } : game;
@@ -2921,7 +2994,26 @@ export const useApp = () => {
                     return { clientResponse: { guilds: [] } };
                 }
             }
+            } finally {
+                if (dicePlaceGameId) {
+                    const gid = dicePlaceGameId;
+                    const n = (pvpDicePlaceInFlightRef.current[gid] || 1) - 1;
+                    if (n <= 0) delete pvpDicePlaceInFlightRef.current[gid];
+                    else pvpDicePlaceInFlightRef.current[gid] = n;
+                }
+            }
         } catch (err: any) {
+            if (action.type === 'DICE_PLACE_STONE') {
+                const gid = (action.payload as { gameId?: string })?.gameId;
+                if (gid) {
+                    const snap = pvpDicePlaceRevertRef.current[gid];
+                    if (snap) {
+                        setLiveGames((c) => (c[gid] ? { ...c, [gid]: snap } : c));
+                        delete pvpDicePlaceRevertRef.current[gid];
+                    }
+                    delete pvpDicePlaceInFlightRef.current[gid];
+                }
+            }
             console.error(`[handleAction] ${action.type} - Exception:`, err);
             console.error(`[handleAction] Error stack:`, err.stack);
             showError(err.message || '요청 처리 중 오류가 발생했습니다.');
