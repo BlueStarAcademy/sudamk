@@ -1185,11 +1185,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 // setTimeout 내부도 보호
                 (async () => {
                     try {
-                        // 첫 실행 전에 데이터베이스 연결 확인
-                        if (!(dbInitializedRef?.value ?? false)) {
-                            console.log('[MainLoop] Database not initialized yet, skipping first run...');
-                            scheduleMainLoop(Math.min(delay * 2, 10000)); // 10초 후 재시도
-                            return;
+                        // DB 초기화가 지연돼도 인메모리/캐시 기반 게임 루프는 계속 돌린다.
+                        // (주사위/놀이 모드의 애니메이션→턴 전환이 멈추는 현상 방지)
+                        const isDbReadyForLoop = !!(dbInitializedRef?.value ?? false);
+                        if (!isDbReadyForLoop) {
+                            console.warn('[MainLoop] Database not initialized yet; running loop in degraded mode.');
                         }
                         
                         if (isProcessingMainLoop) {
@@ -1562,7 +1562,14 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 if (!g?.player1?.id && !g?.player2?.id) return false;
                 if (g.isAiGame) {
                     const humanId = g.player1?.id === aiPlayer.aiUserId ? g.player2?.id : g.player1?.id;
-                    return humanId ? onlineUserIdsSet.has(humanId) : false;
+                    if (humanId && onlineUserIdsSet.has(humanId)) return true;
+                    // 주사위/도둑: 굴림 애니 종료 시 update*State에서 턴 전환(오버샷 포함)이 일어난다.
+                    // 인간 WS가 잠깐 끊겨 userConnections에서 빠지면 이 틱이 스킵되어 AI 오버샷 후 유저 턴으로 영구 고착될 수 있다.
+                    const playfulRollAnimNeedsTick =
+                        (g.mode === types.GameMode.Dice &&
+                            (g.gameStatus === 'dice_rolling_animating' || g.gameStatus === 'dice_turn_rolling_animating')) ||
+                        (g.mode === types.GameMode.Thief && g.gameStatus === 'thief_rolling_animating');
+                    return playfulRollAnimNeedsTick;
                 }
                 return onlineUserIdsSet.has(g.player1?.id ?? '') || onlineUserIdsSet.has(g.player2?.id ?? '');
             });
@@ -3762,6 +3769,44 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         }
     });
 
+    // 닉네임 중복/유효성 확인
+    app.get('/api/auth/check-nickname', async (req, res) => {
+        try {
+            const rawNickname = typeof req.query.nickname === 'string' ? req.query.nickname : '';
+            const nickname = rawNickname.trim();
+            const userId = typeof req.query.userId === 'string' ? req.query.userId : '';
+
+            if (!nickname) {
+                return res.status(400).json({ available: false, message: '닉네임을 입력해주세요.' });
+            }
+
+            if (nickname.length < NICKNAME_MIN_LENGTH || nickname.length > NICKNAME_MAX_LENGTH) {
+                return res.status(400).json({
+                    available: false,
+                    message: `닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 ${NICKNAME_MAX_LENGTH}자 이하여야 합니다.`,
+                });
+            }
+
+            if (containsProfanity(nickname)) {
+                return res.status(400).json({ available: false, message: '닉네임에 부적절한 단어가 포함되어 있습니다.' });
+            }
+
+            const existingUser = await db.getUserByNickname(nickname);
+            if (existingUser && existingUser.id !== userId) {
+                return res.status(409).json({ available: false, message: '이미 사용 중인 닉네임입니다.' });
+            }
+
+            return res.json({ available: true, message: '사용 가능한 닉네임입니다.' });
+        } catch (e: any) {
+            console.error('[/api/auth/check-nickname] Error:', e);
+            return res.status(500).json({
+                available: false,
+                message: '닉네임 확인 중 오류가 발생했습니다.',
+                error: process.env.NODE_ENV === 'development' ? e?.message : undefined,
+            });
+        }
+    });
+
     // 닉네임 설정
     app.post('/api/auth/set-nickname', async (req, res) => {
         try {
@@ -3933,7 +3978,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // PVP: 새로고침으로 끊긴 플레이어가 90초 내 재접속 시 disconnectionState 해제하여 경기 재개
             if (game.disconnectionState?.disconnectedPlayerId === userId) {
                 const now = Date.now();
-                const timeSinceDisconnect = now - game.disconnectionState.timerStartedAt;
+                const timerStartedAt = game.disconnectionState?.timerStartedAt ?? now;
+                const timeSinceDisconnect = now - timerStartedAt;
                 if (timeSinceDisconnect <= 90000) {
                     game.disconnectionState = null;
                     const otherPlayerId = game.player1?.id === userId ? game.player2?.id : game.player1?.id;
@@ -4151,7 +4197,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
             // Combine persisted state with in-memory volatile state
             if (isDev) console.log(`[API/State] User ${user.nickname}: Combining states and sending response.`);
-            const fullState: Omit<types.AppState, 'userCredentials'> = {
+            const fullState = {
                 ...dbState,
                 userConnections: volatileState.userConnections,
                 userStatuses: volatileState.userStatuses,
@@ -4159,7 +4205,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 waitingRoomChats: volatileState.waitingRoomChats,
                 gameChats: volatileState.gameChats,
                 userLastChatMessage: volatileState.userLastChatMessage,
-            };
+            } as Omit<types.AppState, 'userCredentials'>;
             
             res.status(200).json(fullState);
         } catch (e) {
@@ -4180,6 +4226,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 res.status(504).json({ error: 'Request timeout' });
             }
         }, 25000);
+
+        /** 타임아웃으로 이미 응답한 뒤 이중 json() 호출 방지 */
+        const respondAction = (status: number, body: object) => {
+            clearTimeout(timeout);
+            if (res.headersSent) return;
+            res.status(status).json(body);
+        };
         
         try {
             const { userId, type, payload } = req.body;
@@ -4199,25 +4252,28 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             {
                 const { ensurePrismaConnected } = await import('./prismaClient.js');
                 if (!(await ensurePrismaConnected())) {
-                    clearTimeout(timeout);
-                    return res.status(503).json({
+                    respondAction(503, {
                         message:
                             '데이터베이스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',
                     });
+                    return;
                 }
             }
 
             // Allow registration without auth
             if (req.body.type === 'REGISTER') {
                  const result = await handleAction(volatileState, req.body);
-                 clearTimeout(timeout);
-                 if (result.error) return res.status(400).json({ message: result.error });
-                 return res.status(200).json({ success: true, ...result.clientResponse });
+                 if (result.error) {
+                     respondAction(400, { message: result.error });
+                     return;
+                 }
+                 respondAction(200, { success: true, ...result.clientResponse });
+                 return;
             }
 
             if (!userId) {
-                clearTimeout(timeout);
-                return res.status(401).json({ message: '인증 정보가 없습니다.' });
+                respondAction(401, { message: '인증 정보가 없습니다.' });
+                return;
             }
 
             const getUserStartTime = Date.now();
@@ -4228,8 +4284,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             
             if (!user) {
                 delete volatileState.userConnections[userId];
-                clearTimeout(timeout);
-                return res.status(401).json({ message: '유효하지 않은 사용자입니다.' });
+                respondAction(401, { message: '유효하지 않은 사용자입니다.' });
+                return;
             }
 
             // --- Inventory Slots Migration Logic (한 번만 실행) ---
@@ -4284,11 +4340,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const handleActionDuration = Date.now() - handleActionStartTime;
             
             if (result.error) {
-                clearTimeout(timeout);
                 if (process.env.NODE_ENV === 'development') {
                     console.log(`[/api/action] Returning 400 error for ${req.body.type}: ${result.error}`);
                 }
-                return res.status(400).json({ message: result.error });
+                respondAction(400, { message: result.error });
+                return;
             }
             
             const totalDuration = Date.now() - startTime;
@@ -4298,8 +4354,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
             
             // 성공 응답 즉시 반환 (불필요한 로깅 제거)
-            clearTimeout(timeout);
-            res.status(200).json({ success: true, ...result.clientResponse });
+            respondAction(200, { success: true, ...result.clientResponse });
         } catch (e: any) {
             clearTimeout(timeout);
             const { prismaErrorImpliesEngineNotConnected } = await import('./prismaClient.js');

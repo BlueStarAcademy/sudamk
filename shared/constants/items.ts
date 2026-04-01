@@ -26,6 +26,7 @@ export const GRADE_LEVEL_REQUIREMENTS: Record<ItemGrade, number> = {
     [ItemGrade.Epic]: 10,
     [ItemGrade.Legendary]: 12,
     [ItemGrade.Mythic]: 15,
+    [ItemGrade.Transcendent]: 15,
 };
 
 export const EQUIPMENT_POOL: (Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipped' | 'level' | 'options' | 'quantity' | 'stars' | 'enhancementFails'> & { stars: 0 })[] = [
@@ -71,13 +72,13 @@ export const EQUIPMENT_POOL: (Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipp
     { name: '백옥 바둑돌', slot: 'stones', image: 'images/equipments/Stone4.png', grade: ItemGrade.Epic, stars: 0, type: 'equipment', description: '영롱한 빛을 내는 청옥과 백옥으로 만들어진 바둑돌입니다.' },
     { name: '용안 바둑돌', slot: 'stones', image: 'images/equipments/Stone5.png', grade: ItemGrade.Legendary, stars: 0, type: 'equipment', description: '해와 달, 별의 기운을 담아 벼려낸 전설적인 바둑돌입니다.' },
     { name: '천룡 바둑돌', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', description: '밤하늘의 은하수를 담아놓은 듯한 신화 속 바둑돌입니다.' },
-    // --- D.신화(더블신화): 신화 등급 + 신화 부옵션 2개 — 우편·관리 지급 전용(상자 루트에서는 제외)
-    { name: '천룡 바람 부채 (더블신화)', slot: 'fan', image: 'images/equipments/Fan6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 부채입니다.' },
-    { name: '천룡 바둑판 (더블신화)', slot: 'board', image: 'images/equipments/Board6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 바둑판입니다.' },
-    { name: '천룡 도복 상의 (더블신화)', slot: 'top', image: 'images/equipments/Top6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 상의입니다.' },
-    { name: '천룡 도복 하의 (더블신화)', slot: 'bottom', image: 'images/equipments/Bottom6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 하의입니다.' },
-    { name: '천룡 바둑통 (더블신화)', slot: 'bowl', image: 'images/equipments/StoneBox6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 바둑통입니다.' },
-    { name: '천룡 바둑돌 (더블신화)', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 바둑돌입니다.' },
+    // --- 초월: 신화 부옵션 2개 — 우편·관리 지급 전용(상자 루트에서는 제외)
+    { name: '천룡 바람 부채', slot: 'fan', image: 'images/equipments/Fan6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 부채입니다.' },
+    { name: '천룡 바둑판', slot: 'board', image: 'images/equipments/Board6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 바둑판입니다.' },
+    { name: '천룡 도복 상의', slot: 'top', image: 'images/equipments/Top6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 상의입니다.' },
+    { name: '천룡 도복 하의', slot: 'bottom', image: 'images/equipments/Bottom6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 하의입니다.' },
+    { name: '천룡 바둑통', slot: 'bowl', image: 'images/equipments/StoneBox6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 바둑통입니다.' },
+    { name: '천룡 바둑돌', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 바둑돌입니다.' },
 ];
 
 export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails' | 'slot'> & {slot: null, usable?: boolean, sellable?: boolean})[] = [
@@ -117,13 +118,35 @@ export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped
 export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = {
     '옵션 종류 변경권': { name: '옵션 종류 변경권', description: '장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change1.png', grade: ItemGrade.Normal },
     '옵션 수치 변경권': { name: '옵션 수치 변경권', description: '장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change2.png', grade: ItemGrade.Normal },
-    '신화 옵션 변경권': { name: '신화 옵션 변경권', description: '신화 또는 D.신화 장비의 신화 옵션을 다른 신화 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change3.png', grade: ItemGrade.Normal },
+    '신화 옵션 변경권': { name: '신화 옵션 변경권', description: '신화 또는 초월 장비의 신화 옵션을 다른 신화 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change3.png', grade: ItemGrade.Normal },
     '하급 강화석': { name: '하급 강화석', description: '장비 강화에 사용되는 기본 재료.', type: 'material', slot: null, image: '/images/materials/materials1.png', grade: ItemGrade.Normal },
     '중급 강화석': { name: '중급 강화석', description: '장비 강화에 사용되는 상급 재료.', type: 'material', slot: null, image: '/images/materials/materials2.png', grade: ItemGrade.Uncommon },
     '상급 강화석': { name: '상급 강화석', description: '장비 강화에 사용되는 최상급 재료.', type: 'material', slot: null, image: '/images/materials/materials3.png', grade: ItemGrade.Rare },
     '최상급 강화석': { name: '최상급 강화석', description: '장비 강화에 사용되는 희귀 재료.', type: 'material', slot: null, image: '/images/materials/materials4.png', grade: ItemGrade.Epic },
     '신비의 강화석': { name: '신비의 강화석', description: '장비 강화에 사용되는 고대 재료.', type: 'material', slot: null, image: '/images/materials/materials5.png', grade: ItemGrade.Legendary },
 };
+
+const TOWER_ONLY_CONSUMABLE_NAMES = new Set([
+    '턴 추가', '턴증가', '미사일', '히든', '스캔', '배치 새로고침', '배치변경',
+    'turn_add', 'turn_add_item', 'addturn', 'missile', 'hidden', 'scan', 'reflesh', 'refresh',
+]);
+
+const REFINEMENT_TICKET_NAMES = new Set(['옵션 종류 변경권', '옵션 수치 변경권', '신화 옵션 변경권']);
+
+export function isActionPointConsumable(name: string | undefined): boolean {
+    if (!name) return false;
+    return name.startsWith('행동력 회복제');
+}
+
+export function isTowerOnlyConsumable(name: string | undefined): boolean {
+    if (!name || typeof name !== 'string') return false;
+    return TOWER_ONLY_CONSUMABLE_NAMES.has(name.trim());
+}
+
+export function isRefinementTicketMaterial(name: string | undefined): boolean {
+    if (!name) return false;
+    return REFINEMENT_TICKET_NAMES.has(name);
+}
 
 export const gradeBackgrounds: Record<ItemGrade, string> = {
     [ItemGrade.Normal]: '/images/equipments/normalbgi.png',
@@ -132,6 +155,7 @@ export const gradeBackgrounds: Record<ItemGrade, string> = {
     [ItemGrade.Epic]: '/images/equipments/epicbgi.png',
     [ItemGrade.Legendary]: '/images/equipments/legendarybgi.png',
     [ItemGrade.Mythic]: '/images/equipments/mythicbgi.png',
+    [ItemGrade.Transcendent]: '/images/equipments/mythicbgi.png',
 };
 
 export const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
@@ -141,6 +165,7 @@ export const gradeStyles: Record<ItemGrade, { name: string; color: string; backg
     epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
     legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
     mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
+    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/mythicbgi.png' },
 };
 
 export const ENHANCEMENT_SUCCESS_RATES = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]; // For +1 to +10
@@ -152,6 +177,7 @@ export const ENHANCEMENT_FAIL_BONUS_RATES: Record<ItemGrade, number> = {
     epic: 2,
     legendary: 1,
     mythic: 0.5,
+    transcendent: 0.5,
 };
 
 // 등급별 메인 옵션 강화 증가 배수 테이블
@@ -163,10 +189,10 @@ export const MAIN_ENHANCEMENT_STEP_MULTIPLIER: Record<ItemGrade, number[]> = {
     epic:     [1.0, 1.0, 1.0, 1.1, 1.0, 1.0, 0.8, 0.8, 0.6, 0.6],
     legendary:[1.1, 1.1, 1.1, 1.2, 1.1, 1.1, 0.9, 0.9, 0.7, 0.7],
     mythic:   [1.1, 1.1, 1.1, 1.3, 1.2, 1.2, 1.0, 1.0, 0.8, 0.8],
+    transcendent: [1.2, 1.2, 1.2, 1.4, 1.3, 1.3, 1.1, 1.1, 0.9, 0.9],
 };
 
-// D.신화(Divine Mythic) 전용 메인 옵션 강화 증가 배수
-// 신화 등급이면서 isDivineMythic === true인 장비에만 적용
+/** 마이그레이션 스크립트용 — 초월 등급과 동일 배율 */
 export const DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER: number[] = [
     1.2, 1.2, 1.2, 1.4, 1.3, 1.3, 1.1, 1.1, 0.9, 0.9,
 ];
@@ -244,6 +270,18 @@ export const ENHANCEMENT_COSTS: Record<ItemGrade, { amount: number; name: string
         /* +9 */ [{ amount: 50, name: '신비의 강화석' }],
         /* +10 */[{ amount: 100, name: '신비의 강화석' }],
     ],
+    transcendent: [
+        /* +1 */ [{ amount: 20, name: '상급 강화석' }],
+        /* +2 */ [{ amount: 30, name: '상급 강화석' }],
+        /* +3 */ [{ amount: 40, name: '상급 강화석' }],
+        /* +4 */ [{ amount: 50, name: '상급 강화석' }],
+        /* +5 */ [{ amount: 60, name: '상급 강화석' }],
+        /* +6 */ [{ amount: 40, name: '최상급 강화석' }],
+        /* +7 */ [{ amount: 80, name: '최상급 강화석' }],
+        /* +8 */ [{ amount: 10, name: '신비의 강화석' }],
+        /* +9 */ [{ amount: 50, name: '신비의 강화석' }],
+        /* +10 */[{ amount: 100, name: '신비의 강화석' }],
+    ],
 };
 
 export const ENHANCEMENT_GOLD_COSTS_BASE: Record<ItemGrade, number> = {
@@ -253,6 +291,7 @@ export const ENHANCEMENT_GOLD_COSTS_BASE: Record<ItemGrade, number> = {
     epic: 500,
     legendary: 1000,
     mythic: 2000,
+    transcendent: 2200,
 };
 
 export const calculateEnhancementGoldCost = (grade: ItemGrade, currentStars: number): number => {
@@ -269,6 +308,7 @@ export const ITEM_SELL_PRICES: Record<ItemGrade, number> = {
     epic: 300,
     legendary: 500,
     mythic: 1000,
+    transcendent: 1200,
 };
 
 export const MATERIAL_SELL_PRICES: Record<string, number> = {
@@ -326,6 +366,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.ThinkingSpeed, CoreStat.Concentration], value: 10 },
             legendary:{ stats: [CoreStat.ThinkingSpeed, CoreStat.Concentration], value: 12 },
             mythic:   { stats: [CoreStat.ThinkingSpeed, CoreStat.Concentration], value: 15 },
+            transcendent: { stats: [CoreStat.ThinkingSpeed, CoreStat.Concentration], value: 15 },
         }
     },
     board: {
@@ -337,6 +378,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.Stability, CoreStat.Calculation], value: 10 },
             legendary:{ stats: [CoreStat.Stability, CoreStat.Calculation], value: 12 },
             mythic:   { stats: [CoreStat.Stability, CoreStat.Calculation], value: 15 },
+            transcendent: { stats: [CoreStat.Stability, CoreStat.Calculation], value: 15 },
         }
     },
     top: {
@@ -348,6 +390,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.CombatPower, CoreStat.Judgment], value: 10 },
             legendary:{ stats: [CoreStat.CombatPower, CoreStat.Judgment], value: 12 },
             mythic:   { stats: [CoreStat.CombatPower, CoreStat.Judgment], value: 15 },
+            transcendent: { stats: [CoreStat.CombatPower, CoreStat.Judgment], value: 15 },
         }
     },
     bottom: {
@@ -359,6 +402,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 20 },
             legendary:{ stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 24 },
             mythic:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 30 },
+            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 30 },
         }
     },
     stones: {
@@ -370,6 +414,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 20 },
             legendary:{ stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 24 },
             mythic:   { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 30 },
+            transcendent: { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 30 },
         }
     },
     bowl: {
@@ -381,6 +426,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 20 },
             legendary:{ stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 24 },
             mythic:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 30 },
+            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 30 },
         }
     }
 };
@@ -419,7 +465,7 @@ export const MYTHIC_STATS_DATA: Record<MythicStat, { name: string; description: 
     [MythicStat.DiceGoOddBonus]: { 
         name: '주사위 홀/짝 보너스', 
         description: '주사위 바둑에서 홀·짝·낮은수·높은수 아이템 각 1개씩 추가', 
-        shortDescription: '주사위바둑 특수 주사위 아이템 +1개(종류별)', 
+        shortDescription: '주사위바둑 아이템 추가+1', 
         abbrevLabel: '주사위 보너스',
         value: () => 1 
     },
@@ -446,6 +492,7 @@ export const GRADE_SUB_OPTION_RULES: Record<ItemGrade, { combatCount: [number, n
     epic:     { combatCount: [3, 4], specialCount: [1, 1], mythicCount: [0, 0], combatTier: 4 },
     legendary:{ combatCount: [4, 4], specialCount: [1, 2], mythicCount: [0, 0], combatTier: 5 },
     mythic:   { combatCount: [4, 4], specialCount: [1, 2], mythicCount: [1, 1], combatTier: 6 },
+    transcendent: { combatCount: [4, 4], specialCount: [1, 2], mythicCount: [2, 2], combatTier: 6 },
 };
 
 type SubOptionDefinition = { type: CoreStat, isPercentage: boolean, range: [number, number] };

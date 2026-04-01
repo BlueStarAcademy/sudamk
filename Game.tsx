@@ -331,6 +331,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     aiInitialHiddenStone: (session as any).aiInitialHiddenStone,
                     aiInitialHiddenStoneIsPrePlaced: (session as any).aiInitialHiddenStoneIsPrePlaced,
                     totalTurns: totalTurnsToSave,
+                    ...(session.gameCategory === 'tower' && (session as any).blackTurnLimitBonus != null
+                        ? { blackTurnLimitBonus: Number((session as any).blackTurnLimitBonus) || 0 }
+                        : {}),
                     timestamp: Date.now()
                 };
                 sessionStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(gameStateToSave));
@@ -338,7 +341,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 console.error(`[Game] Failed to save game state to sessionStorage:`, e);
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
@@ -448,6 +451,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if ((next as any).hidden_stones_p2 == null && typeof parsed.hidden_stones_p2 === 'number') {
                         next = { ...next, hidden_stones_p2: parsed.hidden_stones_p2 } as any;
                     }
+                    // 도전의 탑: 턴 추가 아이템 보너스 — 저장분과 세션 중 큰 값 유지 (새로고침·경량 페이로드로 유실 방지)
+                    if (isTower && parsed.blackTurnLimitBonus != null) {
+                        const pb = Number(parsed.blackTurnLimitBonus);
+                        const nb = Number((next as any).blackTurnLimitBonus);
+                        if (Number.isFinite(pb) || Number.isFinite(nb)) {
+                            next = {
+                                ...next,
+                                blackTurnLimitBonus: Math.max(
+                                    Number.isFinite(pb) ? pb : 0,
+                                    Number.isFinite(nb) ? nb : 0
+                                ),
+                            } as any;
+                        }
+                    }
                 }
             }
             // totalTurns가 0이거나 없는데 moveHistory에 유효 수가 있으면 moveHistory 기준으로 설정 (sessionStorage 유무와 관계없이, 한 수 둔 뒤 턴이 Max로 돌아가는 버그 방지)
@@ -459,7 +476,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         } catch {
             return session;
         }
-    }, [session, isSinglePlayer, isTower, hasStrategicTurnLimit, gameId]);
+    }, [session, isSinglePlayer, isTower, hasStrategicTurnLimit, gameId, (session as any).blackTurnLimitBonus]);
     
     // --- UI State (가로/캔버스 스케일 환경에서는 PC처럼 렌더링) ---
     // global scaled canvas(1920x1080) 안에서는 PC 레이아웃이 기준이 되도록 모바일 분기를 끕니다.

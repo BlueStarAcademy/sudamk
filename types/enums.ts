@@ -148,6 +148,8 @@ export enum ItemGrade {
     Epic = 'epic',
     Legendary = 'legendary',
     Mythic = 'mythic',
+    /** 신화 부옵션 2줄·상위 강화 배율(구 더블신화와 동일 규칙) */
+    Transcendent = 'transcendent',
 }
 export enum CoreStat {
     Concentration = '집중력',

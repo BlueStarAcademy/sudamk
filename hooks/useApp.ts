@@ -25,6 +25,7 @@ import { aiUserId } from '../constants/auth.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { getWasmGnuGoMove, isAvailable as isWasmGnuGoAvailable } from '../services/wasmGnuGo.js';
 import { processMoveClient } from '../client/goLogicClient.js';
+import { mapNormalizeInventoryList } from '../shared/utils/inventoryLegacyNormalize.js';
 
 /** 도전의 탑 PVE: 일반 수는 클라이언트만 반영되어 서버 game의 판·수순이 뒤처질 수 있음. 히든/스캔/미사일 선택 진입 시 응답으로 덮어쓰면 판이 초기화되는 버그 방지. */
 function mergeTowerServerGameWithClientBoardIfStale(
@@ -45,6 +46,10 @@ function mergeTowerServerGameWithClientBoardIfStale(
     const equalMovesButServerEmptyBoard =
         clientMoves === serverMoves && clientMoves > 0 && clientBoardHasStones && !serverBoardHasStones;
     if (!clientAhead && !serverBoardStale && !equalMovesButServerEmptyBoard) return serverGame;
+    const bonusMerged = Math.max(
+        Number((serverGame as any).blackTurnLimitBonus) || 0,
+        Number((clientGame as any).blackTurnLimitBonus) || 0
+    );
     return {
         ...serverGame,
         boardState: clientGame.boardState,
@@ -53,6 +58,7 @@ function mergeTowerServerGameWithClientBoardIfStale(
         captures: clientGame.captures ?? serverGame.captures,
         koInfo: clientGame.koInfo ?? serverGame.koInfo,
         hiddenMoves: clientGame.hiddenMoves ?? serverGame.hiddenMoves,
+        ...(bonusMerged > 0 ? { blackTurnLimitBonus: bonusMerged } : {}),
         ...((clientGame as { aiInitialHiddenStone?: { x: number; y: number } | null }).aiInitialHiddenStone !== undefined
             ? {
                   aiInitialHiddenStone: (clientGame as { aiInitialHiddenStone?: { x: number; y: number } | null })
@@ -101,7 +107,11 @@ export const useApp = () => {
         try {
             const stored = sessionStorage.getItem('currentUser');
             if (stored) {
-                return JSON.parse(stored);
+                const u = JSON.parse(stored) as User;
+                if (u?.inventory && Array.isArray(u.inventory)) {
+                    u.inventory = mapNormalizeInventoryList(u.inventory);
+                }
+                return u;
             }
         } catch (e) { console.error('Failed to parse user from sessionStorage', e); }
         return null;
@@ -143,9 +153,13 @@ export const useApp = () => {
         const patch = JSON.parse(JSON.stringify(updates)) as Partial<User>;
         
         // inventory는 배열이므로 완전히 교체 (깊은 복사로 새로운 참조 생성)
-        const mergedInventory = patch.inventory !== undefined 
-            ? JSON.parse(JSON.stringify(patch.inventory)) 
-            : base.inventory;
+        const mergedInventoryRaw =
+            patch.inventory !== undefined
+                ? (JSON.parse(JSON.stringify(patch.inventory)) as InventoryItem[])
+                : base.inventory;
+        const mergedInventory = Array.isArray(mergedInventoryRaw)
+            ? mapNormalizeInventoryList(mergedInventoryRaw)
+            : mergedInventoryRaw;
         
         // 중첩된 객체들을 깊게 병합
         // ID는 항상 이전 사용자의 ID로 유지 (다른 사용자 정보로 덮어씌워지는 것을 방지)
@@ -353,6 +367,10 @@ export const useApp = () => {
     const pvpDicePlaceInFlightRef = useRef<Record<string, number>>({});
     /** 낙관 착수 실패 시 복구용 스냅샷 (해당 gameId당 1개) */
     const pvpDicePlaceRevertRef = useRef<Record<string, LiveGameSession>>({});
+    /** AI 주사위 바둑: 턴 내 착수 배치를 모아 마지막에 1회 전송 */
+    const aiDicePlaceBatchRef = useRef<Record<string, Array<{ x: number; y: number }>>>({});
+    /** 같은 턴에서 stonesToPlace는 착수마다 줄어들므로, 배치 flush 기준은 턴 시작 시점의 남은 돌 수로 고정한다. */
+    const aiDiceTurnPlaceQuotaRef = useRef<Record<string, number>>({});
     const [negotiations, setNegotiations] = useState<Record<string, Negotiation>>({});
     const [waitingRoomChats, setWaitingRoomChats] = useState<Record<string, ChatMessage[]>>({});
     /** 대기실(전체/전략/놀이) 채팅: 재접속·INITIAL_STATE 수신 시점 이후 메시지만 표시 (서버는 채널 전체 배열을 브로드캐스트함) */
@@ -1756,9 +1774,15 @@ export const useApp = () => {
                         const moveHistory = updatedGame.moveHistory || [];
                         const blackMoves = moveHistory.filter((m: { player: Player; x: number; y: number }) => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
                         // 도전의 탑: blackTurnLimitBonus 반영 (아이템 등으로 추가된 턴)
-                        const effectiveLimit = gameType === 'tower'
-                            ? blackTurnLimit + ((game as any).blackTurnLimitBonus ?? 0)
-                            : blackTurnLimit;
+                        const bonusRaw =
+                            (updateResult.updatedGame as any).blackTurnLimitBonus ??
+                            (game as any).blackTurnLimitBonus ??
+                            0;
+                        const bonus = Number(bonusRaw);
+                        const effectiveLimit =
+                            gameType === 'tower'
+                                ? blackTurnLimit + (Number.isFinite(bonus) ? bonus : 0)
+                                : blackTurnLimit;
 
                         if (blackMoves >= effectiveLimit) {
                             const blackTarget = updatedGame.effectiveCaptureTargets?.[Player.Black];
@@ -1829,6 +1853,9 @@ export const useApp = () => {
                         hidden_stones_p1: (game as any).hidden_stones_p1,
                         hidden_stones_p2: (game as any).hidden_stones_p2,
                         totalTurns: game.totalTurns,
+                        ...(gameType === 'tower' && (game as any).blackTurnLimitBonus != null
+                            ? { blackTurnLimitBonus: Number((game as any).blackTurnLimitBonus) || 0 }
+                            : {}),
                         timestamp: Date.now()
                     };
                     sessionStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(gameStateToSave));
@@ -1911,6 +1938,13 @@ export const useApp = () => {
                 action.type === 'DICE_PLACE_STONE'
                     ? (action.payload as { gameId?: string })?.gameId
                     : undefined;
+            if (action.type === 'DICE_ROLL') {
+                const gid = (action.payload as { gameId?: string })?.gameId;
+                if (gid) {
+                    delete aiDicePlaceBatchRef.current[gid];
+                    delete aiDiceTurnPlaceQuotaRef.current[gid];
+                }
+            }
 
             const revertPvpDicePlaceSnapshot = () => {
                 if (!dicePlaceGameId) return;
@@ -1922,6 +1956,14 @@ export const useApp = () => {
 
             if (dicePlaceGameId) {
                 const gid = dicePlaceGameId;
+                const beforePlaceGame = liveGamesRef.current[gid];
+                const isAiDiceBatchMode = !!(
+                    beforePlaceGame &&
+                    beforePlaceGame.isAiGame &&
+                    beforePlaceGame.mode === GameMode.Dice &&
+                    beforePlaceGame.gameStatus === 'dice_placing' &&
+                    !(action.payload as any)?.__forceSingle
+                );
                 // 같은 턴에 여러 번 착수할 때도 매 클릭마다 낙관적 반영 (이전에는 inFlight>0이면 스킵되어 두 번째 돌부터 화면이 멈춤)
                 flushSync(() => {
                     setLiveGames((currentGames) => {
@@ -1932,19 +1974,48 @@ export const useApp = () => {
                         if ((g.stonesToPlace ?? 0) <= 0) return currentGames;
                         const { x, y } = action.payload as { x: number; y: number };
                         const snap = JSON.parse(JSON.stringify(g)) as LiveGameSession;
+                        // 주사위 턴 내 착수는 서버 moveHistory에 수마다 push되지만, 클라 낙관은 moveHistory를 늘리지 않아
+                        // ko 판정용 길이는 moveHistory + 이번 턴에 이미 둔 수(stonesPlacedThisTurn)와 맞춰야 한다.
+                        const remStones = g.stonesToPlace ?? 0;
+                        const prevPlaced = g.stonesPlacedThisTurn || [];
+                        const dice1 = g.dice?.dice1;
+                        // 이전 턴의 stonesPlacedThisTurn이 GAME_UPDATE 병합 등으로 남으면 두 번째 턴부터 ko 길이가 틀어져
+                        // 착수가 전부 무효로 떨어지다가 마지막에만 맞는 것처럼 보일 수 있다. (이미 둔 수 + 남은 수 === 주사위)
+                        let basePlaced = prevPlaced;
+                        if (typeof dice1 === 'number' && dice1 > 0 && remStones > 0) {
+                            if (prevPlaced.length + remStones !== dice1) {
+                                basePlaced = [];
+                            }
+                        }
+                        const effectiveMoveLenForKo = (g.moveHistory?.length ?? 0) + basePlaced.length;
                         const pm = processMoveClient(
                             g.boardState,
                             { x, y, player: Player.Black },
                             g.koInfo ?? null,
-                            g.moveHistory?.length ?? 0,
+                            effectiveMoveLenForKo,
                             { ignoreSuicide: true }
                         );
                         if (!pm.isValid) return currentGames;
-                        pvpDicePlaceRevertRef.current[gid] = snap;
+                        const clearedStalePlaced = basePlaced.length === 0 && prevPlaced.length > 0;
+                        const turnCaptureBase = clearedStalePlaced ? 0 : (g.diceCapturesThisTurn || 0);
+                        // AI 주사위 바둑은 턴 단위 배치 전송 + 서버 재동기화를 사용하므로
+                        // 클릭 즉시성 확보를 위해 비싼 deep clone 스냅샷을 생략한다.
+                        if (!isAiDiceBatchMode) {
+                            pvpDicePlaceRevertRef.current[gid] = snap;
+                        }
                         const newBoard = pm.newBoardState.map((row) => [...row]);
                         const nextStones = (g.stonesToPlace ?? 1) - 1;
-                        const placed = [...(g.stonesPlacedThisTurn || []), { x, y }];
-                        const nextHistory = [...(g.moveHistory || []), { player: Player.Black, x, y }];
+                        const placed = [...basePlaced, { x, y }];
+                        const isLastPlacementInTurn = nextStones <= 0;
+                        const optimisticJustCaptured =
+                            isLastPlacementInTurn && pm.capturedStones.length > 0
+                                ? [{
+                                    point: pm.capturedStones[pm.capturedStones.length - 1],
+                                    player: Player.White,
+                                    wasHidden: false,
+                                    capturePoints: pm.capturedStones.length,
+                                }]
+                                : [];
                         return {
                             ...currentGames,
                             [gid]: {
@@ -1952,14 +2023,46 @@ export const useApp = () => {
                                 boardState: newBoard,
                                 koInfo: pm.newKoInfo,
                                 lastMove: { x, y },
-                                moveHistory: nextHistory,
                                 stonesToPlace: nextStones,
                                 stonesPlacedThisTurn: placed,
-                                diceCapturesThisTurn: (g.diceCapturesThisTurn || 0) + pm.capturedStones.length,
+                                diceCapturesThisTurn: turnCaptureBase + pm.capturedStones.length,
+                                justCaptured: optimisticJustCaptured,
                             },
                         };
                     });
                 });
+
+                if (isAiDiceBatchMode) {
+                    const { x, y } = action.payload as { x: number; y: number };
+                    if (!aiDicePlaceBatchRef.current[gid]) aiDicePlaceBatchRef.current[gid] = [];
+                    if (!aiDicePlaceBatchRef.current[gid].length) {
+                        aiDiceTurnPlaceQuotaRef.current[gid] = Math.max(1, beforePlaceGame?.stonesToPlace ?? 1);
+                    }
+                    aiDicePlaceBatchRef.current[gid].push({ x, y });
+                    const turnQuota = aiDiceTurnPlaceQuotaRef.current[gid] ?? Math.max(1, beforePlaceGame?.stonesToPlace ?? 1);
+                    const shouldFlushNow = aiDicePlaceBatchRef.current[gid].length >= turnQuota;
+                    if (shouldFlushNow) {
+                        const placements = aiDicePlaceBatchRef.current[gid] || [];
+                        delete aiDicePlaceBatchRef.current[gid];
+                        delete aiDiceTurnPlaceQuotaRef.current[gid];
+                        const batchResult = await handleAction({
+                            type: 'DICE_PLACE_STONES_BATCH',
+                            payload: { gameId: gid, placements },
+                        } as any);
+                        // 서버가 배치 액션을 모르는 구버전 경로(400: Unknown social action 등)면 단건으로 자동 폴백
+                        if ((batchResult as any)?.error) {
+                            for (const p of placements) {
+                                await handleAction({
+                                    type: 'DICE_PLACE_STONE',
+                                    payload: { gameId: gid, x: p.x, y: p.y, __forceSingle: true },
+                                } as any);
+                            }
+                            return { clientResponse: { game: liveGamesRef.current[gid] } } as HandleActionResult;
+                        }
+                        return batchResult;
+                    }
+                    return { clientResponse: { game: liveGamesRef.current[gid] } } as HandleActionResult;
+                }
             }
 
             if (dicePlaceGameId) {
@@ -2227,6 +2330,7 @@ export const useApp = () => {
                         'CLAIM_ALL_TRAINING_QUEST_REWARDS',
                         'SINGLE_PLAYER_REFRESH_PLACEMENT',
                         'TOWER_REFRESH_PLACEMENT',
+                        'TOWER_ADD_TURNS',
                         'COMPLETE_DUNGEON_STAGE',
                         'BUY_SHOP_ITEM',
                         'BUY_MATERIAL_BOX',
@@ -2561,6 +2665,9 @@ export const useApp = () => {
                 if (!effectiveGameId && (action.type === 'TOWER_REFRESH_PLACEMENT' && game)) {
                     effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
                     console.log(`[handleAction] ${action.type} - using payload/game gameId:`, effectiveGameId);
+                }
+                if (!effectiveGameId && action.type === 'TOWER_ADD_TURNS') {
+                    effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
                 }
                 if (!effectiveGameId && (action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD')) {
                     effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
@@ -3918,6 +4025,23 @@ export const useApp = () => {
                                 const isScanAnimExitToPlaying =
                                     existingForThrottle?.gameStatus === 'scanning_animating' &&
                                     game.gameStatus === 'playing';
+                                // 주사위/도둑 오버샷(또는 굴림 애니 종료) 후 rolling 단계로 복귀할 때
+                                // moveHistory 변화가 없어도 currentPlayer가 바뀔 수 있으므로 반드시 반영
+                                const isDiceThiefAnimExitToRolling =
+                                    !!existingForThrottle?.gameStatus &&
+                                    ['dice_rolling_animating', 'thief_rolling_animating'].includes(existingForThrottle.gameStatus) &&
+                                    (game.gameStatus === 'dice_rolling' || game.gameStatus === 'thief_rolling');
+                                // 주사위/도둑은 오버샷·강제턴넘김에서 moveHistory 변화 없이 currentPlayer만 바뀔 수 있다.
+                                // 이 전환이 쓰로틀에 걸리면 클라이언트가 "아직 AI 턴"으로 보이는 고착이 생길 수 있어 반드시 반영한다.
+                                const isDiceThiefTurnOwnerChanged =
+                                    !!existingForThrottle &&
+                                    existingForThrottle.currentPlayer !== game.currentPlayer &&
+                                    (
+                                        game.mode === GameMode.Dice ||
+                                        game.mode === GameMode.Thief ||
+                                        existingForThrottle.mode === GameMode.Dice ||
+                                        existingForThrottle.mode === GameMode.Thief
+                                    );
                                 // 흑선 가져오기(capture bidding/reveal/tiebreaker) 종료 후 playing 전환은
                                 // 이동 수(moveHistory)가 없더라도 반드시 모달을 닫고 다음 화면으로 넘어가야 함.
                                 const isCaptureBidExitToPlaying =
@@ -3933,6 +4057,8 @@ export const useApp = () => {
                                     !isTerminalGameUpdate &&
                                     !isCaptureBidPhaseUpdate &&
                                     !isCaptureBidExitToPlaying &&
+                                    !isDiceThiefAnimExitToRolling &&
+                                    !isDiceThiefTurnOwnerChanged &&
                                     !isScanAnimExitToPlaying &&
                                     now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS
                                 ) {
@@ -4599,8 +4725,42 @@ export const useApp = () => {
                                                 mergedGame = { ...mergedGame, revealedHiddenMoves: clientRevealed };
                                             }
                                         }
+                                        // 주사위/도둑 착수: 낙관적은 moveHistory를 늘리지 않아 수순 길이가 같을 때 서버의 낡은 보드가 오면 돌만 사라지고 lastMove만 바뀌는 현상(소리만 남)이 난다.
+                                        if (
+                                            (game.mode === GameMode.Dice || game.mode === GameMode.Thief) &&
+                                            (game.gameStatus === 'dice_placing' || game.gameStatus === 'thief_placing') &&
+                                            incomingMoveCount === existingMoveCount &&
+                                            existingBoardValid &&
+                                            hasServerBoard
+                                        ) {
+                                            const countBlack = (b: typeof game.boardState) =>
+                                                b?.flat().filter((c: number) => c === Player.Black).length ?? 0;
+                                            const countWhite = (b: typeof game.boardState) =>
+                                                b?.flat().filter((c: number) => c === Player.White).length ?? 0;
+                                            const ib = countBlack(game.boardState);
+                                            const eb = countBlack(existingGame.boardState);
+                                            const iw = countWhite(game.boardState);
+                                            const ew = countWhite(existingGame.boardState);
+                                            if (eb > ib || ew < iw) {
+                                                mergedGame = {
+                                                    ...game,
+                                                    boardState: existingGame.boardState,
+                                                    lastMove: existingGame.lastMove ?? game.lastMove,
+                                                    koInfo: existingGame.koInfo ?? game.koInfo,
+                                                    stonesToPlace: existingGame.stonesToPlace,
+                                                    stonesPlacedThisTurn: existingGame.stonesPlacedThisTurn,
+                                                    diceCapturesThisTurn: existingGame.diceCapturesThisTurn,
+                                                    diceLastCaptureStones: existingGame.diceLastCaptureStones,
+                                                    moveHistory: existingGame.moveHistory ?? game.moveHistory,
+                                                };
+                                            }
+                                        }
                                         // 전략바둑 AI 대국: 같은 수인데 서버가 낡은 GAME_UPDATE인 경우 보드/수순/턴 유지 (돌 위치 바뀜·시간승 버그 방지)
-                                        if (game.isAiGame && incomingMoveCount === existingMoveCount && existingBoardValid && existingGame?.moveHistory?.length > 0) {
+                                        // 주사위/도둑 착수는 위에서 처리 — 여기서 sameLastMove로 서버 보드를 덮어쓰면 안 됨
+                                        const playfulPlacingStaleMerge =
+                                            (game.mode === GameMode.Dice && game.gameStatus === 'dice_placing') ||
+                                            (game.mode === GameMode.Thief && game.gameStatus === 'thief_placing');
+                                        if (game.isAiGame && !playfulPlacingStaleMerge && incomingMoveCount === existingMoveCount && existingBoardValid && existingGame?.moveHistory?.length > 0) {
                                             const lastExisting = existingGame.moveHistory[existingGame.moveHistory.length - 1];
                                             const lastIncoming = game.moveHistory?.[game.moveHistory.length - 1];
                                             const sameLastMove = lastExisting && lastIncoming &&
@@ -5324,6 +5484,12 @@ export const useApp = () => {
         setIsBlacksmithModalOpen(true);
     }, []);
 
+    const openRefinementFromDetail = useCallback((item: InventoryItem) => {
+        setBlacksmithSelectedItemForEnhancement(item);
+        setBlacksmithActiveTab('refine');
+        setIsBlacksmithModalOpen(true);
+    }, []);
+
     const openViewingItem = useCallback((item: InventoryItem, isOwnedByCurrentUser: boolean) => {
         setViewingItem({ item, isOwnedByCurrentUser });
     }, []);
@@ -5687,6 +5853,7 @@ export const useApp = () => {
             openEnhancingItem,
             startEnhancement,
             openEnhancementFromDetail,
+            openRefinementFromDetail,
             clearEnhancementOutcome,
             clearRefinementResult,
             clearEnhancementAnimation: () => setEnhancementAnimationTarget(null),

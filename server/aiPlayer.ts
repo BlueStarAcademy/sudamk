@@ -418,8 +418,9 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
         const logic = getGoLogic(game);
         let liberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
         let stonesToPlace = game.stonesToPlace ?? 0;
-        let totalCaptures = 0;
-        let lastCaptureStones: types.Point[] = [];
+        // AI는 한 번 호출에 한 수씩 두는 연출이라 호출 간 누적 포획값을 유지해야 한다.
+        let totalCaptures = game.diceCapturesThisTurn || 0;
+        let lastCaptureStones: types.Point[] = game.diceLastCaptureStones || [];
         
         while (stonesToPlace > 0 && liberties.length > 0) {
             // 최대한 많은 돌을 따낼 수 있는 위치 선택 (백돌 활로 중)

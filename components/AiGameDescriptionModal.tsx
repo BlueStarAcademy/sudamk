@@ -47,7 +47,7 @@ const getWinConditions = (session: LiveGameSession): string[] => {
         `따내기 목표: ${(s.captureTarget ?? 5)}점`,
       ];
     case GameMode.Dice:
-      return ['주사위를 굴려 흑돌을 놓고, 백돌을 모두 따내면 승리합니다.'];
+      return ['서로 주사위를 굴린 숫자만큼 흑돌을 이용할 수 있으며 더 많은 백돌을 따낸쪽이 승리합니다.'];
     case GameMode.Thief:
       return ['라운드별 점수를 합산해 총점이 높은 쪽이 승리합니다.'];
     case GameMode.Alkkagi:

@@ -46,6 +46,7 @@ const gradeOrder: Record<ItemGrade, number> = {
     epic: 3,
     legendary: 4,
     mythic: 5,
+    transcendent: 6,
 };
 
 const getStarDisplayInfo = (stars: number) => {
@@ -114,10 +115,10 @@ const EquipmentSlotDisplay: React.FC<{
     if (item) {
         const padding = Math.max(4, Math.round(6 * scaleFactor));
         const borderWidth = Math.max(1, Math.round(2 * scaleFactor));
-        const isDivineMythic = item.isDivineMythic === true;
+        const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
-                className={`relative aspect-square rounded-lg bg-tertiary/50 ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-accent/70' : ''} ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} ${isDivineMythic ? 'divine-mythic-border' : ''}`}
+                className={`relative aspect-square rounded-lg bg-tertiary/50 ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-accent/70' : ''} ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={item.name}
                 onClick={onClick}
                 style={{ 
@@ -127,7 +128,7 @@ const EquipmentSlotDisplay: React.FC<{
                     minHeight: 0, 
                     maxWidth: '100%', 
                     maxHeight: '100%',
-                    border: isDivineMythic ? undefined : `${borderWidth}px solid rgba(255, 255, 255, 0.1)`,
+                    border: isTranscendent ? undefined : `${borderWidth}px solid rgba(255, 255, 255, 0.1)`,
                     boxSizing: 'border-box'
                 }}
             >
@@ -235,22 +236,6 @@ const EquipmentSlotDisplay: React.FC<{
                     ) : null;
                 })()}
                 {renderStarDisplay(item.stars)}
-                {isDivineMythic && (
-                    <div 
-                        className="absolute flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
-                        style={{ 
-                            textShadow: '1px 1px 2px black',
-                            bottom: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
-                            left: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
-                            padding: `${Math.max(2, Math.round(3 * scaleFactor))}px ${Math.max(4, Math.round(5 * scaleFactor))}px`,
-                            fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px`,
-                            fontWeight: 'bold',
-                            color: '#FFD700'
-                        }}
-                    >
-                        D
-                    </div>
-                )}
             </div>
         );
     } else {
@@ -430,7 +415,7 @@ const LocalItemDetailDisplay: React.FC<{
     const getOptionCategoryOrder = (type: ItemOptionType): number => {
         if (Object.values(CoreStat).includes(type as CoreStat)) return 0;      // 부옵션 (전투 스탯)
         if (Object.values(SpecialStat).includes(type as SpecialStat)) return 1; // 특수옵션
-        if (Object.values(MythicStat).includes(type as MythicStat)) return 2;  // 신화/더블신화 옵션
+        if (Object.values(MythicStat).includes(type as MythicStat)) return 2;  // 신화/초월 부옵션
         return 3;
     };
 
@@ -543,22 +528,6 @@ const LocalItemDetailDisplay: React.FC<{
                         ) : null;
                     })()}
                     {renderStarDisplay(item.stars)}
-                    {item.isDivineMythic && (
-                        <div 
-                            className="absolute flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
-                            style={{ 
-                                textShadow: '1px 1px 2px black',
-                                bottom: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
-                                left: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
-                                padding: `${Math.max(2, Math.round(3 * scaleFactor))}px ${Math.max(4, Math.round(5 * scaleFactor))}px`,
-                                fontSize: `${Math.max(10, Math.round(12 * scaleFactor))}px`,
-                                fontWeight: 'bold',
-                                color: '#FFD700'
-                            }}
-                        >
-                            D
-                        </div>
-                    )}
                 </div>
                 {/* Right: Name & Main Option */}
                 <div className="flex-grow text-right ml-2">
@@ -1643,12 +1612,12 @@ const InventoryItemCard: React.FC<{
         );
     };
 
-    const isDivineMythic = item.isDivineMythic === true;
+    const isTranscendent = item.grade === ItemGrade.Transcendent;
 
     return (
         <div
             onClick={onClick}
-            className={`relative aspect-square rounded-lg cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} hover:ring-2 hover:ring-accent/70 ${isDivineMythic ? 'divine-mythic-border' : ''}`}
+            className={`relative aspect-square rounded-lg cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} hover:ring-2 hover:ring-accent/70 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
             title={item.name}
             style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%', maxHeight: '100%', boxSizing: 'border-box' }}
         >
@@ -1782,20 +1751,6 @@ const InventoryItemCard: React.FC<{
                     }}
                 >
                     {item.quantity}
-                </div>
-            )}
-            {isDivineMythic && (
-                <div 
-                    className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10"
-                    style={{
-                        textShadow: '1px 1px 2px black',
-                        padding: `${Math.max(2, Math.round(3 * scaleFactor))}px ${Math.max(4, Math.round(5 * scaleFactor))}px`,
-                        fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px`,
-                        fontWeight: 'bold',
-                        color: '#FFD700'
-                    }}
-                >
-                    D
                 </div>
             )}
         </div>

@@ -29,7 +29,6 @@ import {
     BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL,
     calculateEnhancementGoldCost,
     MAIN_ENHANCEMENT_STEP_MULTIPLIER,
-    DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER
 } from '../../constants/index.js';
 import {
     BLACKSMITH_ENHANCEMENT_XP_GAIN,
@@ -49,7 +48,15 @@ type HandleActionResult = {
 };
 
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
-const GRADE_ORDER: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
+const GRADE_ORDER: ItemGrade[] = [
+    ItemGrade.Normal,
+    ItemGrade.Uncommon,
+    ItemGrade.Rare,
+    ItemGrade.Epic,
+    ItemGrade.Legendary,
+    ItemGrade.Mythic,
+    ItemGrade.Transcendent,
+];
 
 export const currencyBundles: Record<string, { type: 'gold' | 'diamonds', min: number, max: number }> = {
     '골드 꾸러미1': { type: 'gold', min: 10, max: 500 },
@@ -67,7 +74,7 @@ const getRandomInt = (min: number, max: number): number => {
 };
 
 // Helper function to generate a new random item
-export const generateNewItem = (grade: ItemGrade, slot: EquipmentSlot, isDivineMythic: boolean = false): InventoryItem => {
+export const generateNewItem = (grade: ItemGrade, slot: EquipmentSlot): InventoryItem => {
     const template = EQUIPMENT_POOL.find(p => p.grade === grade && p.slot === slot);
     const baseItem = template || EQUIPMENT_POOL.find(p => p.grade === grade)!;
 
@@ -129,10 +136,10 @@ export const generateNewItem = (grade: ItemGrade, slot: EquipmentSlot, isDivineM
         existingSubTypes.add(subType);
     }
 
-    // 4. Mythic Sub-options
-    if (grade === 'mythic') {
-        // D.신화는 신화 옵션 2개, 일반 신화는 1개
-        const mythicSubCount = isDivineMythic ? 2 : getRandomInt(rules.mythicCount[0], rules.mythicCount[1]);
+    // 4. Mythic Sub-options (초월은 항상 2개)
+    if (grade === ItemGrade.Mythic || grade === ItemGrade.Transcendent) {
+        const mythicSubCount =
+            grade === ItemGrade.Transcendent ? 2 : getRandomInt(rules.mythicCount[0], rules.mythicCount[1]);
         const mythicPool = Object.values(MythicStat).filter(stat => !existingSubTypes.has(stat));
          for (let i = 0; i < mythicSubCount && mythicPool.length > 0; i++) {
             const subIndex = Math.floor(Math.random() * mythicPool.length);
@@ -158,7 +165,6 @@ export const generateNewItem = (grade: ItemGrade, slot: EquipmentSlot, isDivineM
         options,
         stars: 0,
         enhancementFails: 0,
-        isDivineMythic: isDivineMythic,
     } as any;
     
     // 제련 가능 횟수 3~10회 랜덤 부여
@@ -260,16 +266,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const greatSuccessRate = BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES[blacksmithLevel - 1]?.[grade] ?? 0;
             const isGreatSuccess = Math.random() * 100 < greatSuccessRate;
             
-            // 신화 등급을 합성할 때는 대성공이 아니면 같은 등급(신화)이 나와야 함
-            // 대성공이면 D.신화(신화 등급이지만 특별한 형태)
+            // 신화 합성: 대성공 시 초월, 아니면 신화
             let outcomeGrade: ItemGrade;
-            let isDivineMythic = false;
             if (grade === ItemGrade.Mythic) {
-                // 신화 합성: 대성공이 아니면 신화, 대성공이면 D.신화
-                outcomeGrade = ItemGrade.Mythic;
-                isDivineMythic = isGreatSuccess;
+                outcomeGrade = isGreatSuccess ? ItemGrade.Transcendent : ItemGrade.Mythic;
             } else {
-                // 다른 등급 합성: 기존 로직 유지
                 const outcomeGradeIndex = Math.min(GRADE_ORDER.indexOf(grade) + (isGreatSuccess ? 1 : 0), GRADE_ORDER.length - 1);
                 outcomeGrade = GRADE_ORDER[outcomeGradeIndex];
             }
@@ -284,11 +285,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
 
             // 4. Generate new item
-            const newItem = generateNewItem(outcomeGrade, outcomeSlot, isDivineMythic);
+            const newItem = generateNewItem(outcomeGrade, outcomeSlot);
 
-            // 신화 합성 시 대성공 여부 조정: 신화 합성 대성공이 아니면 isGreatSuccess = false
             let finalIsGreatSuccess = isGreatSuccess;
-            if (grade === 'mythic' && !isDivineMythic) {
+            if (grade === ItemGrade.Mythic && outcomeGrade !== ItemGrade.Transcendent) {
                 finalIsGreatSuccess = false;
             }
 
@@ -329,10 +329,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // 시스템 메시지 전송 조건 (비동기로 처리하여 응답 지연 최소화):
             // 1. 전설등급 3개를 합쳐서 대성공하여 신화등급이 나온 경우
-            // 2. 신화등급 3개를 합쳐서 대성공하여 D.신화등급이 나온 경우
-            const shouldSendMessage = 
-                (grade === 'legendary' && outcomeGrade === 'mythic' && finalIsGreatSuccess) || // 전설 합성 대성공 → 신화
-                (grade === 'mythic' && outcomeGrade === 'mythic' && isDivineMythic); // 신화 합성 대성공 → D.신화
+            const shouldSendMessage =
+                (grade === 'legendary' && outcomeGrade === 'mythic' && finalIsGreatSuccess) ||
+                (grade === 'mythic' && outcomeGrade === 'transcendent' && isGreatSuccess);
             
             // 시스템 메시지 전송을 비동기로 처리 (응답 지연 최소화)
             if (shouldSendMessage) {
@@ -1153,10 +1152,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 const main = item.options.main;
                 if (main.baseValue) {
                     const starIndex = Math.max(0, Math.min(9, item.stars - 1));
-                    const isDivineMythic = item.grade === ItemGrade.Mythic && item.isDivineMythic;
-                    const multipliers = isDivineMythic
-                        ? DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER
-                        : MAIN_ENHANCEMENT_STEP_MULTIPLIER[item.grade];
+                    const multipliers = MAIN_ENHANCEMENT_STEP_MULTIPLIER[item.grade];
                     const increaseMultiplier = multipliers?.[starIndex] ?? 1;
                     const increaseAmount = Math.round(main.baseValue * increaseMultiplier);
                     main.value = parseFloat((main.value + increaseAmount).toFixed(2));
@@ -1364,10 +1360,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     // (ENHANCE_ITEM은 main.baseValue를 기준으로 stars마다 increaseAmount를 누적하므로,
                     // 여기서는 동일한 방식으로 현재 stars에 해당하는 누적 증가분을 재계산)
                     const stars = item.stars ?? 0;
-                    const isDivineMythic = item.grade === ItemGrade.Mythic && item.isDivineMythic;
-                    const multipliers = isDivineMythic
-                        ? DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER
-                        : MAIN_ENHANCEMENT_STEP_MULTIPLIER[item.grade];
+                    const multipliers = MAIN_ENHANCEMENT_STEP_MULTIPLIER[item.grade];
 
                     let enhancedIncreaseTotal = 0;
                     for (let i = 0; i < stars; i++) {

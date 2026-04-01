@@ -429,6 +429,8 @@ export const initializeDiceGo = (game: types.LiveGameSession, neg: types.Negotia
         [p1.id]: { odd: baseOdd, even: baseEven, low: baseLow, high: baseHigh },
         [p2.id]: { odd: baseOdd2, even: baseEven2, low: baseLow2, high: baseHigh2 },
     };
+    // AI/PVP 공통으로 주사위 이력 버킷을 미리 보장한다.
+    game.diceRollHistory = { [p1.id]: [], [p2.id]: [] };
     
     game.scores = { [p1.id]: 0, [p2.id]: 0 };
     game.round = 1;
@@ -470,7 +472,6 @@ export const initializeDiceGo = (game: types.LiveGameSession, neg: types.Negotia
         game.turnOrderRollReady = { [p1.id]: false, [p2.id]: false };
         game.turnOrderRollTies = 0;
         game.turnOrderRollDeadline = now + DICE_GO_TURN_ROLL_TIME * 1000;
-        game.diceRollHistory = { [p1.id]: [], [p2.id]: [] };
     }
 };
 
@@ -562,12 +563,45 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 }
             }
             break;
-        case 'dice_rolling_animating':
-            if (game.animation && game.animation.type === 'dice_roll_main' && now > game.animation.startTime + game.animation.duration) {
-                game.dice = game.animation.dice;
-                game.animation = null;
+        case 'dice_rolling_animating': {
+            const rollAnim = game.animation;
+            const rollAnimComplete =
+                rollAnim &&
+                rollAnim.type === 'dice_roll_main' &&
+                now > rollAnim.startTime + rollAnim.duration;
+            // 애니 payload가 유실된 경우(직렬화/캐시 등): 오버샷(-1)만 남으면 즉시 턴 넘김 처리
+            const orphanOvershotNoAnim =
+                (!rollAnim || rollAnim.type !== 'dice_roll_main') &&
+                (game.stonesToPlace === -1 || Number(game.stonesToPlace) === -1);
 
-                if (game.stonesToPlace === -1) { // Overshot
+            if (rollAnimComplete || orphanOvershotNoAnim) {
+                if (rollAnimComplete && rollAnim!.type === 'dice_roll_main') {
+                    game.dice = rollAnim.dice;
+                    game.animation = null;
+                } else if (orphanOvershotNoAnim) {
+                    game.animation = null;
+                    const rollerId =
+                        game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
+                    const lastFromHist = game.diceRollHistory?.[rollerId]?.length
+                        ? game.diceRollHistory![rollerId][game.diceRollHistory![rollerId].length - 1]
+                        : undefined;
+                    if (lastFromHist != null && !game.dice) {
+                        game.dice = { dice1: lastFromHist, dice2: 0, dice3: 0 };
+                    }
+                }
+
+                const dice1 = game.dice?.dice1 ?? 0;
+                const logicRoll = getGoLogic(game);
+                const libertiesRoll = logicRoll.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
+                // stonesToPlace=-1은 저장/병합 과정에서 유실될 수 있으므로, 굴림 직후와 동일하게 보드+주사위로 재판정한다.
+                const isOvershotRoll =
+                    libertiesRoll.length === 0 ||
+                    dice1 > libertiesRoll.length ||
+                    game.stonesToPlace === -1 ||
+                    Number(game.stonesToPlace) === -1;
+
+                if (isOvershotRoll) { // Overshot
+                    game.diceGoOvershotTicker = undefined;
                     const overshotPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
                     const overshotPlayer = game.player1.id === overshotPlayerId ? game.player1 : game.player2;
                     game.foulInfo = { message: `${overshotPlayer.nickname}님의 오버샷! 턴이 넘어갑니다.`, expiry: now + 4000 };
@@ -594,6 +628,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     // 턴 넘긴 뒤 현재 보드 기준으로 유효자리 수 계산, 6 이하일 때만 안내용 설정
                     updateLastWhiteGroupInfoAfterTurnTransition(game);
                 } else {
+                    game.stonesToPlace = dice1;
                     game.diceGoOvershotTicker = undefined;
                     game.gameStatus = 'dice_placing';
                     game.dicePlacingSettleUntil = undefined;
@@ -608,6 +643,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 }
             }
             break;
+        }
         case 'dice_rolling': {
             // turnDeadline이 없거나 이미 지났으면 설정 (오버샷 직후 유저 턴·캐시 만료 등으로 꼬인 경우 방지) — PVP에만
             if (shouldEnforceTimeControl(game) && (!game.turnDeadline || now > game.turnDeadline)) {
@@ -875,7 +911,19 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
 
             game.stonesToPlace = isOvershot ? -1 : dice1;
             syncDiceGoOvershotTicker(game, liberties.length, isOvershot);
-            if (game.diceRollHistory) game.diceRollHistory[user.id].push(dice1);
+            // 오버샷으로 턴이 넘어가고 다음 턴이 AI인 경우, 애니 종료 직후 AI가 즉시 동작하도록 선제 스케줄링
+            if (isOvershot && game.isAiGame) {
+                const nextPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+                const nextPlayerId = nextPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                if (nextPlayerId === aiUserId) {
+                    game.aiTurnStartTime = now + game.animation.duration + 30;
+                } else {
+                    game.aiTurnStartTime = undefined;
+                }
+            }
+            if (!game.diceRollHistory) game.diceRollHistory = {};
+            if (!game.diceRollHistory[user.id]) game.diceRollHistory[user.id] = [];
+            game.diceRollHistory[user.id].push(dice1);
             await db.saveGame(game);
             return { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
         }
@@ -951,6 +999,71 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
             }
 
             if (whiteStonesLeft === 0 || game.stonesToPlace <= 0) {
+                finishPlacingTurn(game, user.id);
+            }
+            await db.saveGame(game);
+            return { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
+        }
+        case 'DICE_PLACE_STONES_BATCH': {
+            if (!game.isAiGame) return { error: '배치 착수는 AI 대국에서만 지원됩니다.' };
+            if (game.gameStatus !== 'dice_placing' || !isMyTurn) return { error: '상대방의 차례입니다.' };
+            const { placements } = payload as { placements?: Array<{ x: number; y: number }> };
+            if (!Array.isArray(placements) || placements.length === 0) {
+                return { error: '착수 내역이 없습니다.' };
+            }
+
+            game.justCaptured = [];
+            for (const p of placements) {
+                if ((game.stonesToPlace ?? 0) <= 0) break;
+                const { x, y } = p;
+                const stoneAtTarget = game.boardState[y]?.[x];
+                if (stoneAtTarget == null) return { error: '보드 범위를 벗어났습니다.' };
+                if (stoneAtTarget !== types.Player.None) return { error: '이미 돌이 놓인 자리입니다.' };
+
+                const logic = getGoLogic(game);
+                const liberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
+                const anyWhiteStones = game.boardState.flat().some(s => s === types.Player.White);
+                if (anyWhiteStones && liberties.length > 0 && !liberties.some(lp => lp.x === x && lp.y === y)) {
+                    return { error: '백돌의 활로에만 착수할 수 있습니다.' };
+                }
+
+                const move = { x, y, player: types.Player.Black };
+                const result = processMove(game.boardState, move, game.koInfo, game.moveHistory.length, { ignoreSuicide: true });
+                if (!result.isValid) return { error: `Invalid move: ${result.reason}` };
+
+                if (!game.stonesPlacedThisTurn) game.stonesPlacedThisTurn = [];
+                game.stonesPlacedThisTurn.push({ x, y });
+                game.diceCapturesThisTurn = (game.diceCapturesThisTurn || 0) + result.capturedStones.length;
+                if (result.capturedStones.length > 0) {
+                    game.diceLastCaptureStones = result.capturedStones;
+                    const cap = result.capturedStones.length;
+                    const pt = result.capturedStones[cap - 1];
+                    game.justCaptured.push({
+                        point: pt,
+                        player: types.Player.White,
+                        wasHidden: false,
+                        capturePoints: cap,
+                    });
+                }
+
+                game.boardState = result.newBoardState;
+                game.koInfo = result.newKoInfo;
+                game.lastMove = { x, y };
+                if (!game.moveHistory) game.moveHistory = [];
+                game.moveHistory.push({ player: types.Player.Black, x, y });
+                game.stonesToPlace = (game.stonesToPlace ?? 1) - 1;
+
+                const whiteStonesLeft = game.boardState.flat().filter(s => s === types.Player.White).length;
+                if (game.isDeathmatch && whiteStonesLeft === 0) {
+                    endGame(game, myPlayerEnum, 'dice_win');
+                    await db.saveGame(game);
+                    return { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
+                }
+                if (whiteStonesLeft === 0) break;
+            }
+
+            const whiteStonesLeft = game.boardState.flat().filter(s => s === types.Player.White).length;
+            if (whiteStonesLeft === 0 || (game.stonesToPlace ?? 0) <= 0) {
                 finishPlacingTurn(game, user.id);
             }
             await db.saveGame(game);

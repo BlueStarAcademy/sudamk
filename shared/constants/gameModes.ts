@@ -11,7 +11,7 @@ export const SPECIAL_GAME_MODES = [
 ];
 
 export const PLAYFUL_GAME_MODES = [
-  { mode: GameMode.Dice, name: "주사위 바둑", description: "총 3라운드에 걸쳐, 주사위를 굴려 나온 수만큼 흑돌을 놓아 백돌을 모두 따내는 게임입니다. 두 플레이어 모두 흑돌로 플레이합니다.", available: true, image: "/images/simbols/simbolp1.png" },
+  { mode: GameMode.Dice, name: "주사위 바둑", description: "서로 주사위를 굴린 숫자만큼 흑돌을 이용할 수 있으며 더 많은 백돌을 따낸쪽이 승리합니다.", available: true, image: "/images/simbols/simbolp1.png" },
   { mode: GameMode.Thief, name: "도둑과경찰", description: "도둑(흑)과 경찰(백) 역할을 번갈아 맡아 5턴씩 진행하며, 총점으로 승패를 가리는 전략 주사위 게임입니다.", available: true, image: "/images/simbols/simbolp4.png" },
   { mode: GameMode.Omok, name: "오목", description: "다섯 개의 돌을 먼저 나란히 놓으면 승리하는 클래식 게임입니다.", available: true, image: "/images/simbols/simbolp2.png" },
   { mode: GameMode.Ttamok, name: "따목", description: "오목을 만들거나 정해진 상대 돌을 먼저 따내면 승리합니다.", available: true, image: "/images/simbols/simbolp3.png" },

@@ -60,6 +60,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     epic: '/images/equipments/epicbgi.png',
     legendary: '/images/equipments/legendarybgi.png',
     mythic: '/images/equipments/mythicbgi.png',
+    transcendent: '/images/equipments/mythicbgi.png',
 };
 
 const renderStarDisplay = (stars: number) => {
@@ -96,9 +97,10 @@ export const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: Invent
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     
     if (item) {
+        const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
-                className={`relative w-full aspect-square rounded-md border border-color/50 bg-tertiary/50 ${clickableClass}`}
+                className={`relative w-full aspect-square rounded-md border border-color/50 bg-tertiary/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={item.name}
                 onClick={onClick}
             >

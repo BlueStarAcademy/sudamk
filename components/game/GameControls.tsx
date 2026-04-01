@@ -194,6 +194,7 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
 
 
 const DICE_ROLL_ANIMATION_MS = 1500;
+const DICE_ROLL_LOCAL_EVENT = 'dice-go-local-roll-start';
 
 export type DiceGoPanelItemKind = 'odd' | 'even' | 'low' | 'high';
 
@@ -344,6 +345,18 @@ export const DicePanel: React.FC<{
     const { id: gameId, gameStatus } = session;
     const [localRollEndTime, setLocalRollEndTime] = React.useState<number>(0);
     const [itemConfirm, setItemConfirm] = React.useState<DiceGoPanelItemKind | null>(null);
+    useEffect(() => {
+        const handler = (ev: Event) => {
+            const custom = ev as CustomEvent<{ gameId?: string; endTime?: number }>;
+            const incomingGameId = custom.detail?.gameId;
+            const endTime = custom.detail?.endTime;
+            if (incomingGameId !== gameId || !endTime) return;
+            setLocalRollEndTime((prev) => Math.max(prev, endTime));
+        };
+        window.addEventListener(DICE_ROLL_LOCAL_EVENT, handler as EventListener);
+        return () => window.removeEventListener(DICE_ROLL_LOCAL_EVENT, handler as EventListener);
+    }, [gameId]);
+
     /** 서버 애니 종료 시각을 클라에서도 맞추기 위해(소켓만으로는 1.5초 중 재렌더가 없을 수 있음) */
     const [, setAnimTick] = React.useState(0);
 
@@ -361,6 +374,7 @@ export const DicePanel: React.FC<{
     // 응답 전 짧은 구간만 로컬 타이머(서버 animation 아직 없을 때)
     const isRollingByLocal = localRollEndTime > 0 && Date.now() < localRollEndTime && !diceAnimation;
     const isRolling = isRollingByServerAnim || isRollingByLocal;
+    const [lastStableDiceValue, setLastStableDiceValue] = React.useState<number | null>(session.dice?.dice1 ?? null);
 
     React.useEffect(() => {
         if (localRollEndTime <= 0) return;
@@ -372,6 +386,16 @@ export const DicePanel: React.FC<{
         if (gameStatus !== 'dice_rolling') setItemConfirm(null);
     }, [gameStatus]);
 
+    // 애니메이션 종료 직후 session.dice가 잠깐 비어도 마지막 확정 눈금을 유지
+    React.useEffect(() => {
+        const animDice = diceAnimation?.dice?.dice1;
+        const stableDice = session.dice?.dice1;
+        const candidate = animDice ?? stableDice;
+        if (candidate != null && candidate >= 1 && candidate <= 6) {
+            setLastStableDiceValue(candidate);
+        }
+    }, [diceAnimation?.dice?.dice1, session.dice?.dice1]);
+
     const handleRoll = (itemType?: DiceGoPanelItemKind) => {
         if (!(isMyTurn && gameStatus === 'dice_rolling')) return;
         if (itemType === 'odd' || itemType === 'even' || itemType === 'low' || itemType === 'high') {
@@ -379,7 +403,9 @@ export const DicePanel: React.FC<{
             return;
         }
         audioService.rollDice(1);
-        setLocalRollEndTime(Date.now() + DICE_ROLL_ANIMATION_MS);
+        const endTime = Date.now() + DICE_ROLL_ANIMATION_MS;
+        setLocalRollEndTime(endTime);
+        window.dispatchEvent(new CustomEvent(DICE_ROLL_LOCAL_EVENT, { detail: { gameId, endTime } }));
         onAction({ type: 'DICE_ROLL', payload: { gameId, itemType } });
     };
 
@@ -389,7 +415,9 @@ export const DicePanel: React.FC<{
             return;
         }
         audioService.rollDice(1);
-        setLocalRollEndTime(Date.now() + DICE_ROLL_ANIMATION_MS);
+        const endTime = Date.now() + DICE_ROLL_ANIMATION_MS;
+        setLocalRollEndTime(endTime);
+        window.dispatchEvent(new CustomEvent(DICE_ROLL_LOCAL_EVENT, { detail: { gameId, endTime } }));
         onAction({ type: 'DICE_ROLL', payload: { gameId, itemType: itemConfirm } });
         setItemConfirm(null);
     };
@@ -406,7 +434,7 @@ export const DicePanel: React.FC<{
     const highItemUsable = canRoll && highCount > 0 && !isRolling;
 
     // ThiefPanel과 동일: 굴림 중에도 서버가 준 dice1을 표시하면 숫자가 안 바뀐다(무작위 면 → 실제 값 혼동 방지)
-    const diceValue = diceAnimation ? diceAnimation.dice.dice1 : session.dice?.dice1 ?? null;
+    const diceValue = diceAnimation?.dice?.dice1 ?? session.dice?.dice1 ?? lastStableDiceValue ?? null;
 
     const showMain = variant === 'all' || variant === 'mainOnly';
     const showItems = variant === 'all' || variant === 'itemsOnly';

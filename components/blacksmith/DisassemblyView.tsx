@@ -109,6 +109,7 @@ const GRADE_NAMES_KO: Record<ItemGrade, string> = {
     epic: '에픽',
     legendary: '전설',
     mythic: '신화',
+    transcendent: '초월',
 };
 
 const AutoSelectModal: React.FC<{ onClose: () => void; onConfirm: (selectedGrades: ItemGrade[]) => void; }> = ({ onClose, onConfirm }) => {

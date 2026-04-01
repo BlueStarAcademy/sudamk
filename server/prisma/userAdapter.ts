@@ -5,6 +5,12 @@ import { createDefaultBaseStats, createDefaultSpentStatPoints, createDefaultQues
 import { LeagueTier } from "../../types/enums.js";
 import { SINGLE_PLAYER_STAGES } from "../../shared/constants/singlePlayerConstants.js";
 import { EQUIPMENT_POOL, MATERIAL_ITEMS, CONSUMABLE_ITEMS } from "../../shared/constants/index.js";
+import {
+  normalizeLegacyDivineMythicInventoryItem,
+  mapNormalizeInventoryList,
+} from "../../shared/utils/inventoryLegacyNormalize.js";
+
+export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
 
 const DEFAULT_INVENTORY_SLOTS: User["inventorySlots"] = {
   equipment: 30,
@@ -206,7 +212,13 @@ const ensureMail = (value: unknown): Mail[] =>
 
 /**
  * 우편 첨부 items가 배열이 아닌 JSON 객체(숫자 키 등)로 저장된 경우 배열로 복원해 UI가 비지 않게 함.
+ * 장비 첨부는 구 더블신화 레거시 정규화(초월 등급·이름)도 적용합니다.
  */
+function normalizeInventoryItemList(inv: unknown): InventoryItem[] {
+  const raw = Array.isArray(inv) ? inv : parseJson<InventoryItem[]>(inv, []);
+  return mapNormalizeInventoryList(raw);
+}
+
 const normalizeMailAttachmentItems = (mails: Mail[]): Mail[] => {
   if (!Array.isArray(mails)) return [];
   return mails.map((m) => {
@@ -218,11 +230,19 @@ const normalizeMailAttachmentItems = (mails: Mail[]): Mail[] => {
       if (typeof items === "object") items = Object.values(items as Record<string, unknown>);
       else items = [];
     }
+    const list = Array.isArray(items) ? (items as NonNullable<Mail["attachments"]>["items"]) : att.items;
+    const normalizedItems = Array.isArray(list)
+      ? list.map((entry) => {
+          if (!entry || typeof entry !== "object") return entry;
+          if (!("grade" in entry) || (entry as InventoryItem).type !== "equipment") return entry;
+          return normalizeLegacyDivineMythicInventoryItem(entry as InventoryItem);
+        })
+      : list;
     return {
       ...m,
       attachments: {
         ...att,
-        items: Array.isArray(items) ? (items as NonNullable<Mail["attachments"]>["items"]) : att.items,
+        items: normalizedItems,
       },
     };
   });
@@ -280,10 +300,11 @@ const applyDefaults = (
     playfulXp: user.playfulXp ?? prismaUser.playfulXp ?? 0,
     baseStats: user.baseStats ?? createDefaultBaseStats(),
     spentStatPoints: user.spentStatPoints ?? createDefaultSpentStatPoints(),
-    inventory:
+    inventory: normalizeInventoryItemList(
       user.inventory ??
-      status?.serializedUser?.inventory ??
-      (inventoryFromTable.length > 0 ? inventoryFromTable : parseJson(prismaUser.inventory as any, [])),
+        status?.serializedUser?.inventory ??
+        parseJson<InventoryItem[]>(prismaUser.inventory as any, [])
+    ),
     inventorySlots:
       user.inventorySlots ??
       status?.serializedUser?.inventorySlots ??
@@ -413,9 +434,18 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
         }
         
         // UserInventory를 InventoryItem으로 변환
+        const meta = (inv.metadata as any) || {};
+        let grade = (inv.rarity as any) || itemInfo?.grade || 'normal';
+        let name = itemInfo?.name || inv.templateId;
+        if (meta.isDivineMythic === true && grade === 'mythic') {
+          grade = 'transcendent';
+        }
+        if (typeof name === 'string' && name.endsWith(' (더블신화)')) {
+          name = name.replace(/ \(더블신화\)$/, '');
+        }
         const item: InventoryItem = {
           id: inv.id,
-          name: itemInfo?.name || inv.templateId,
+          name,
           description: itemInfo?.description || '',
           type: inv.slot ? 'equipment' : (itemInfo?.type || 'material'),
           slot: inv.slot as EquipmentSlot | null,
@@ -424,13 +454,12 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
           isEquipped: inv.isEquipped,
           createdAt: inv.createdAt?.getTime ? inv.createdAt.getTime() : (typeof inv.createdAt === 'number' ? inv.createdAt : Date.now()),
           image: itemInfo?.image || '',
-          grade: (inv.rarity as any) || itemInfo?.grade || 'Normal',
+          grade,
           stars: inv.stars,
-          options: (inv.metadata as any)?.options || itemInfo?.options || [],
-          enhancementFails: (inv.metadata as any)?.enhancementFails || 0,
-          isDivineMythic: (inv.metadata as any)?.isDivineMythic || false
+          options: meta?.options || itemInfo?.options || [],
+          enhancementFails: meta?.enhancementFails || 0,
         };
-        inventoryFromTable.push(item);
+        inventoryFromTable.push(normalizeLegacyDivineMythicInventoryItem(item));
       }
     }
   } catch (e) {
@@ -558,9 +587,11 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
     pendingPenaltyNotification:
       status.pendingPenaltyNotification ??
       (legacy.pendingPenaltyNotification as string | null | undefined),
-    inventory: inventoryFromTable.length > 0 
-      ? inventoryFromTable 
-      : ensureInventory(coalesce(status.inventoryRaw, legacy.inventory)),
+    inventory: normalizeInventoryItemList(
+      inventoryFromTable.length > 0
+        ? inventoryFromTable
+        : ensureInventory(coalesce(status.inventoryRaw, legacy.inventory))
+    ),
     equipment: Object.keys(equipmentFromTable).length > 0 
       ? equipmentFromTable 
       : ensureEquipment(coalesce(status.equipmentRaw, legacy.equipment)),

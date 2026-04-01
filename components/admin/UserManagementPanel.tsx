@@ -561,7 +561,6 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                                             {it.type === 'equipment' && (
                                                 <>
                                                     <label className="flex items-center gap-1">강화실패<input type="number" className="w-12 bg-tertiary rounded p-0.5" value={it.enhancementFails ?? 0} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, enhancementFails: Number(e.target.value) || 0 } : x)))} /></label>
-                                                    <label className="flex items-center gap-1"><input type="checkbox" checked={!!it.isDivineMythic} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, isDivineMythic: e.target.checked } : x)))} />D.신화</label>
                                                 </>
                                             )}
                                         </div>

@@ -15,7 +15,15 @@ import { ItemGrade } from '../types/enums.js';
 
 import BlacksmithHelpModal from './blacksmith/BlacksmithHelpModal.js';
 
-const GRADE_ORDER: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
+const GRADE_ORDER: ItemGrade[] = [
+    ItemGrade.Normal,
+    ItemGrade.Uncommon,
+    ItemGrade.Rare,
+    ItemGrade.Epic,
+    ItemGrade.Legendary,
+    ItemGrade.Mythic,
+    ItemGrade.Transcendent,
+];
 
 interface BlacksmithModalProps {
     onClose: () => void;
@@ -49,9 +57,8 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
     useEffect(() => {
         if (selectedItemForEnhancement) {
             setSelectedItem(selectedItemForEnhancement);
-            onSetActiveTab('enhance');
         }
-    }, [selectedItemForEnhancement, onSetActiveTab]);
+    }, [selectedItemForEnhancement]);
 
     useEffect(() => {
         setCombinationItems([null, null, null]);
@@ -156,6 +163,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         epic: '에픽',
         legendary: '전설',
         mythic: '신화',
+        transcendent: '초월',
     };
 
     const currentLevel = blacksmithLevel ?? 1;
@@ -365,10 +373,13 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                     <div className="flex justify-between">
                                         <span>합성 가능 최대등급</span>
                                         <span>
-                                            {currentLevel === 6 ? 'D.신화' : GRADE_NAMES_KO[BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[currentLevelIndex]]}
-                                            {!isMaxLevel && 
-                                                <span className="text-yellow-400"> → {nextLevelIndex + 1 === 6 ? 'D.신화' : GRADE_NAMES_KO[BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[nextLevelIndex]]}</span>
-                                            }
+                                            {GRADE_NAMES_KO[BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[currentLevelIndex]]}
+                                            {!isMaxLevel && (
+                                                <span className="text-yellow-400">
+                                                    {' '}
+                                                    → {GRADE_NAMES_KO[BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[nextLevelIndex]]}
+                                                </span>
+                                            )}
                                         </span>
                                     </div>
                                 </div>
@@ -415,26 +426,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                             </div>
                                         );
                                     })}
-                                    {/* 신화 → D.신화 확률 추가 */}
-                                    {(() => {
-                                        const mythicRate = BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES[currentLevelIndex]?.['mythic'] ?? 0;
-                                        const nextMythicRate = BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES[nextLevelIndex]?.['mythic'];
-                                        
-                                        if (mythicRate > 0 || nextMythicRate !== undefined) {
-                                            return (
-                                                <div className="flex justify-between pl-2">
-                                                    <span>신화 → D.신화</span>
-                                                    <span>
-                                                        {mythicRate}%
-                                                        {!isMaxLevel && nextMythicRate !== undefined &&
-                                                            <span className="text-yellow-400"> → {nextMythicRate}%</span>
-                                                        }
-                                                    </span>
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    })()}
                                 </div>
                             </div>
                         </div>

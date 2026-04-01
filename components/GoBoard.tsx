@@ -467,7 +467,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
     useEffect(() => {
         const list = justCaptured ?? [];
-        if (list.length === 0) return;
+        if (list.length === 0) {
+            // 서버/낙관 업데이트에서 justCaptured가 빈 배열로 한번 비워질 수 있으므로
+            // 다음 캡처 이벤트를 새 항목으로 인식하도록 카운터를 리셋한다.
+            processedJustCapturedCountRef.current = 0;
+            return;
+        }
 
         const CAPTURE_FLOAT_MS = 2800;
         const minPts = captureScoreFloatMinPoints;

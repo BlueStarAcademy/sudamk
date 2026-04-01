@@ -43,7 +43,6 @@ export type InventoryItem = {
   stars: number;
   options?: ItemOptions;
   enhancementFails?: number;
-  isDivineMythic?: boolean; // D.신화 여부
   /** 도전의 탑 상점에서 구매한 소모품만 'tower'. 해당 아이템은 도전의 탑에서만 사용·합산됨 */
   source?: 'tower';
 };

@@ -91,6 +91,7 @@ export const BLACKSMITH_COMBINATION_XP_GAIN: Record<ItemGrade, [number, number]>
     [ItemGrade.Epic]: [50, 150],
     [ItemGrade.Legendary]: [100, 300],
     [ItemGrade.Mythic]: [200, 500],
+    [ItemGrade.Transcendent]: [250, 600],
 };
 
 export const BLACKSMITH_ENHANCEMENT_XP_GAIN: Record<ItemGrade, [number, number]> = {
@@ -100,6 +101,7 @@ export const BLACKSMITH_ENHANCEMENT_XP_GAIN: Record<ItemGrade, [number, number]>
     [ItemGrade.Epic]: [20, 50],
     [ItemGrade.Legendary]: [50, 100],
     [ItemGrade.Mythic]: [100, 300],
+    [ItemGrade.Transcendent]: [120, 350],
 };
 
 export const BLACKSMITH_DISASSEMBLY_XP_GAIN: Record<ItemGrade, [number, number]> = {
@@ -109,6 +111,7 @@ export const BLACKSMITH_DISASSEMBLY_XP_GAIN: Record<ItemGrade, [number, number]>
     [ItemGrade.Epic]: [20, 40],
     [ItemGrade.Legendary]: [50, 100],
     [ItemGrade.Mythic]: [100, 300],
+    [ItemGrade.Transcendent]: [120, 350],
 };
 
 export const BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL: ItemGrade[] = [
@@ -210,7 +213,8 @@ export const REFINEMENT_GOLD_COSTS: Record<ItemGrade, number> = {
     [ItemGrade.Rare]: 200,         // 희귀: 200골드
     [ItemGrade.Epic]: 350,         // 에픽: 350골드
     [ItemGrade.Legendary]: 500,    // 전설: 500골드
-    [ItemGrade.Mythic]: 1000,      // 신화/D.신화: 1000골드
+    [ItemGrade.Mythic]: 1000,      // 신화: 1000골드
+    [ItemGrade.Transcendent]: 1200,
 };
 
 export const calculateRefinementGoldCost = (grade: ItemGrade): number => {

@@ -202,8 +202,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             // 서버에서 실제 장비 정보가 없으면(등급만 있는 경우) 해당 등급의 표시용 장비 1개 선택
             if (!equipmentName || !equipmentImage) {
                 const byGrade = EQUIPMENT_POOL.filter(
-                    (e: { grade: ItemGrade; isDivineMythic?: boolean }) =>
-                        e.grade === equipmentGrade && !e.isDivineMythic
+                    (e: { grade: ItemGrade }) => e.grade === equipmentGrade
                 );
                 const template = byGrade.length > 0 ? byGrade[Math.floor(Math.random() * byGrade.length)] : null;
                 if (template) {

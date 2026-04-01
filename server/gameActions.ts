@@ -772,10 +772,32 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
         
         let result: HandleActionResult | null | undefined = null;
+        // AI 주사위 배치 전송 폴백: 배치 액션을 서버 단건 착수로 순차 적용
+        // (핸들러 라우팅 누락/버전 불일치 시 Unknown social action으로 빠지는 문제 방지)
+        if (type === 'DICE_PLACE_STONES_BATCH') {
+            const placements = ((payload as any)?.placements || []) as Array<{ x: number; y: number }>;
+            if (!Array.isArray(placements) || placements.length === 0) {
+                return { error: '착수 내역이 없습니다.' };
+            }
+            // 배치 착수는 주사위 바둑 전용
+            if (game.mode !== GameMode.Dice) {
+                return { error: '배치 착수는 주사위 바둑에서만 사용 가능합니다.' };
+            }
+            for (const p of placements) {
+                const singleAction = {
+                    ...action,
+                    type: 'DICE_PLACE_STONE',
+                    payload: { gameId, x: p.x, y: p.y },
+                } as any;
+                const step = await handlePlayfulGameAction(volatileState, game, singleAction, userData);
+                if (step?.error) return step;
+            }
+            result = { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
+        }
         
-        if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+        if (result == null && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
             result = await handleStrategicGameAction(volatileState, game, action, userData);
-        } else if (PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
+        } else if (result == null && PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
             result = await handlePlayfulGameAction(volatileState, game, action, userData);
         }
 

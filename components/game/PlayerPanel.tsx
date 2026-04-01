@@ -170,23 +170,31 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
 
     // FIX: Apply single-player specific styling
     if (isSinglePlayer) {
-        panelColorClasses = isActive && !isGameEnded ? 'bg-stone-800 ring-2 ring-amber-400 border-stone-600' : 'bg-stone-900/50 border-stone-700';
+        panelColorClasses = isActive && !isGameEnded
+            ? 'bg-stone-800 ring-2 ring-amber-300/90 border-amber-300/80 shadow-[0_0_0_1px_rgba(252,211,77,0.35),0_0_24px_-8px_rgba(252,211,77,0.85)]'
+            : 'bg-stone-900/50 border-stone-700';
         nameTextClasses = 'text-stone-100';
         levelTextClasses = 'text-stone-400';
         timeTextClasses = 'text-stone-200';
     } else {
         if (panelType === 'black') {
-            panelColorClasses = isActive && !isGameEnded ? 'bg-gray-800 ring-2 ring-blue-400 border-gray-600' : 'bg-black/50 border-gray-700';
+            panelColorClasses = isActive && !isGameEnded
+                ? 'bg-gray-800 ring-2 ring-cyan-300/90 border-cyan-300/80 shadow-[0_0_0_1px_rgba(103,232,249,0.35),0_0_24px_-8px_rgba(34,211,238,0.85)]'
+                : 'bg-black/50 border-gray-700';
             nameTextClasses = 'text-white';
             levelTextClasses = 'text-gray-400';
             timeTextClasses = 'text-gray-200';
         } else if (panelType === 'white') {
-            panelColorClasses = isActive && !isGameEnded ? 'bg-gray-300 ring-2 ring-blue-500 border-blue-500' : 'bg-gray-200 border-gray-400';
+            panelColorClasses = isActive && !isGameEnded
+                ? 'bg-gray-300 ring-2 ring-blue-500/95 border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.28),0_0_24px_-8px_rgba(59,130,246,0.75)]'
+                : 'bg-gray-200 border-gray-400';
             nameTextClasses = 'text-black';
             levelTextClasses = 'text-gray-600';
             timeTextClasses = 'text-gray-800';
         } else { // Neutral/unassigned
-            panelColorClasses = isActive && !isGameEnded ? 'bg-blue-900/50 ring-2 ring-blue-400' : 'bg-gray-800/30';
+            panelColorClasses = isActive && !isGameEnded
+                ? 'bg-blue-900/50 ring-2 ring-blue-400/90 border-blue-300/70 shadow-[0_0_18px_-8px_rgba(96,165,250,0.85)]'
+                : 'bg-gray-800/30';
             nameTextClasses = 'text-white';
             levelTextClasses = 'text-gray-400';
             timeTextClasses = 'text-gray-200';
@@ -196,6 +204,14 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const winnerColor = isSinglePlayer ? 'text-amber-300' : (isBlackPanel ? 'text-yellow-300' : 'text-yellow-600');
     const loserColor = isSinglePlayer ? 'text-stone-500' : 'text-gray-500';
     const finalNameClass = isWinner ? winnerColor : isLoser ? loserColor : nameTextClasses;
+    const showActiveBorderPulse = isActive && !isGameEnded;
+    const activeBorderPulseClass = isSinglePlayer
+        ? 'border-amber-300/90 shadow-[0_0_0_1px_rgba(252,211,77,0.45),0_0_22px_-6px_rgba(252,211,77,0.85)]'
+        : (panelType === 'black'
+            ? 'border-cyan-300/90 shadow-[0_0_0_1px_rgba(103,232,249,0.45),0_0_22px_-6px_rgba(34,211,238,0.85)]'
+            : (panelType === 'white'
+                ? 'border-blue-500/90 shadow-[0_0_0_1px_rgba(59,130,246,0.4),0_0_22px_-6px_rgba(59,130,246,0.8)]'
+                : 'border-blue-300/85 shadow-[0_0_18px_-8px_rgba(96,165,250,0.85)]'));
 
     const totalStones = session.settings.curlingStoneCount || 5;
     const stonesThrown = session.stonesThrownThisRound?.[user.id] || 0;
@@ -210,7 +226,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const gap = isMobile ? 'gap-1' : 'gap-2';
 
     return (
-        <div className={`flex items-stretch ${gap} flex-1 ${orderClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}>
+        <div className={`relative flex items-stretch ${gap} flex-1 ${orderClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}>
+            {showActiveBorderPulse && (
+                <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
+            )}
             <div className={`flex flex-col ${textAlignClass} flex-grow justify-between min-w-0`}>
                 <div className={`flex items-center ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}>
                     <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
@@ -494,7 +513,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         // 기본: 현재 턴 표시 (다른 조건이 없는 경우)
         // 이 경우에는 턴 정보를 표시하지 않음
         return null;
-    }, [isSinglePlayer, session.stageId, session.moveHistory, session.totalTurns, session.settings, session.gameCategory]);
+    }, [
+        isSinglePlayer,
+        session.stageId,
+        session.moveHistory,
+        session.totalTurns,
+        session.settings,
+        session.gameCategory,
+        (session as any).blackTurnLimitBonus,
+    ]);
     
     const turnInfoSize = isMobile ? 'w-16 h-16' : 'w-24 h-24 md:w-28 md:h-28';
     const turnInfoLabelSize = isMobile ? 'text-[0.5rem]' : 'text-[11px] md:text-xs';
@@ -503,7 +530,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     const showStrategicTurnBox = strategicLobbyTurnInfo != null;
 
-    const showDiceGoStonesBox = mode === GameMode.Dice && session.gameStatus === 'dice_placing' && typeof session.stonesToPlace === 'number';
+    const isDiceGoPhase = mode === GameMode.Dice && ['dice_rolling', 'dice_rolling_animating', 'dice_placing'].includes(session.gameStatus);
+    const showDiceGoStonesBox = isDiceGoPhase;
     const diceStonesBoxSize = isMobile ? 'w-[3.75rem] min-h-[4.5rem]' : 'w-[4.75rem] sm:w-20 md:w-24 min-h-[4.5rem]';
 
     return (
@@ -563,7 +591,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     className={`flex flex-col items-center justify-center ${diceStonesBoxSize} flex-shrink-0 self-stretch rounded-lg border-2 border-amber-400/55 bg-gradient-to-b from-gray-900/95 to-black/90 shadow-xl px-1 py-1`}
                     role="status"
                     aria-live="polite"
-                    aria-label={`이번 턴 남은 착수 ${session.stonesToPlace}개`}
+                    aria-label={`남은 착수 ${Math.max(0, session.stonesToPlace ?? 0)}개`}
                 >
                     <span
                         className={`${isMobile ? 'text-[0.5rem]' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} font-semibold text-amber-200/85 text-center leading-tight whitespace-nowrap`}
@@ -571,9 +599,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                         남은 돌
                     </span>
                     <span
-                        className={`font-mono font-bold tabular-nums text-amber-300 ${isMobile ? 'text-xl' : 'text-2xl md:text-3xl'} leading-none mt-0.5`}
+                        className={`font-mono font-bold tabular-nums text-amber-300 ${isMobile ? 'text-2xl' : 'text-3xl md:text-4xl'} leading-none mt-0.5`}
                     >
-                        {session.stonesToPlace}
+                        {Math.max(0, typeof session.stonesToPlace === 'number' ? session.stonesToPlace : 0)}
                     </span>
                 </div>
             )}

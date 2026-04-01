@@ -11,6 +11,7 @@ const gradeStyles: Record<ItemGrade, { name: string; color: string; background: 
     epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
     legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
     mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
+    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/mythicbgi.png' },
 };
 
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
@@ -33,13 +34,14 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; }> 
     }
 
     const styles = gradeStyles[item.grade];
+    const isTranscendent = item.grade === ItemGrade.Transcendent;
 
     return (
         <div className="w-1/3 h-28 rounded-lg bg-slate-900/40 p-2 flex flex-col items-center justify-center text-center relative border border-slate-600/40 shadow-inner">
             <button onClick={onRemove} className="absolute top-1 right-1 text-red-500 hover:text-red-400 z-10">
                 &times;
             </button>
-            <div className="relative w-14 h-14 rounded-lg flex-shrink-0 overflow-hidden border border-slate-500/50">
+            <div className={`relative w-14 h-14 rounded-lg flex-shrink-0 overflow-hidden border border-slate-500/50 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}>
                 <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                 {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
             </div>

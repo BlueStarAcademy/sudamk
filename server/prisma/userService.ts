@@ -344,11 +344,15 @@ async function syncEquipmentAndInventory(user: User): Promise<void> {
             enhancementLvl: (item as any).enhancementLvl ?? item.level ?? 0,
             stars: item.stars || 0,
             rarity: (item as any).rarity || item.grade || null,
-            metadata: (item as any).metadata || { 
-              options: item.options || [],
-              enhancementFails: (item as any).enhancementFails || 0,
-              isDivineMythic: (item as any).isDivineMythic || false
-            },
+            metadata: (() => {
+              const m = { ...((item as any).metadata || {}) };
+              delete (m as any).isDivineMythic;
+              return {
+                options: item.options || [],
+                enhancementFails: (item as any).enhancementFails || 0,
+                ...m,
+              };
+            })(),
             isEquipped: item.isEquipped || false
           };
           

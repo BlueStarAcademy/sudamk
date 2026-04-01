@@ -1,7 +1,7 @@
 /**
  * 장비 메인 옵션 능력치 1회 마이그레이션 스크립트
  *
- * 등급별 강화 배수(MAIN_ENHANCEMENT_STEP_MULTIPLIER / DIVINE_MYTHIC) 도입에 맞춰,
+ * 등급별 강화 배수(MAIN_ENHANCEMENT_STEP_MULTIPLIER) 도입에 맞춰,
  * 기존에 저장된 모든 장비(인벤토리·장착)의 메인 옵션 value를 새 공식으로 재계산합니다.
  *
  * 실행 방법:
@@ -10,7 +10,7 @@
 
 import * as db from '../db.js';
 import { ItemGrade } from '../../types/enums.js';
-import { MAIN_ENHANCEMENT_STEP_MULTIPLIER, DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER } from '../../shared/constants/items.js';
+import { MAIN_ENHANCEMENT_STEP_MULTIPLIER } from '../../shared/constants/items.js';
 import type { InventoryItem, User } from '../../types/index.js';
 
 function recomputeMainOption(item: InventoryItem): boolean {
@@ -20,10 +20,10 @@ function recomputeMainOption(item: InventoryItem): boolean {
     const stars = item.stars ?? 0;
     if (stars <= 0) return false;
 
-    const isDivine = item.grade === ItemGrade.Mythic && item.isDivineMythic;
-    const multipliers = isDivine
-        ? DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER
-        : MAIN_ENHANCEMENT_STEP_MULTIPLIER[item.grade as ItemGrade];
+    const legacyDivineMythic =
+        item.grade === ItemGrade.Mythic && (item as InventoryItem & { isDivineMythic?: boolean }).isDivineMythic === true;
+    const gradeForMultiplier = legacyDivineMythic ? ItemGrade.Transcendent : (item.grade as ItemGrade);
+    const multipliers = MAIN_ENHANCEMENT_STEP_MULTIPLIER[gradeForMultiplier];
     if (!multipliers || multipliers.length < 10) return false;
 
     let value = base;

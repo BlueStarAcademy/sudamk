@@ -146,9 +146,10 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 epic: '/images/equipments/epicbgi.png',
                 legendary: '/images/equipments/legendarybgi.png',
                 mythic: '/images/equipments/mythicbgi.png',
+                transcendent: '/images/equipments/mythicbgi.png',
             };
             const EQUIP_GRADE_LABEL: Record<string, string> = {
-                normal: '일반', uncommon: '고급', rare: '희귀', epic: '에픽', legendary: '전설', mythic: '신화',
+                normal: '일반', uncommon: '고급', rare: '희귀', epic: '에픽', legendary: '전설', mythic: '신화', transcendent: '초월',
             };
             (tournamentState.accumulatedEquipmentDrops as string[]).forEach((gradeKey: string, idx: number) => {
                 const label = EQUIP_GRADE_LABEL[gradeKey] ?? gradeKey;

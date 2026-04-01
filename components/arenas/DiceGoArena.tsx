@@ -15,7 +15,7 @@ interface DiceGoArenaProps extends GameProps {
 
 const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
     const { session, onAction, currentUser, isSpectator, isMyTurn, isMobile, showLastMoveMarker, captureScoreFloatMinPoints = 2 } = props;
-    const { id: gameId, boardState, settings, lastMove, winningLine, gameStatus, currentPlayer, blackPlayerId, whitePlayerId, player1, player2, animation, lastTurnStones } = session;
+    const { id: gameId, boardState, settings, lastMove, winningLine, gameStatus, currentPlayer, blackPlayerId, whitePlayerId, player1, player2, animation, lastTurnStones, stonesToPlace } = session;
     
     const myPlayerEnum = blackPlayerId === currentUser.id ? Player.Black : (whitePlayerId === currentUser.id ? Player.White : Player.None);
     
@@ -24,7 +24,7 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
     const whitePlayer = players.find(p => p.id === whitePlayerId) || null;
 
     const highlightedPoints = useMemo(() => {
-        if (gameStatus !== 'dice_placing' || !isMyTurn) return [];
+        if (gameStatus !== 'dice_placing' || !isMyTurn || (stonesToPlace ?? 0) <= 0) return [];
         const anyWhiteStones = boardState.flat().some(s => s === Player.White);
         if (!anyWhiteStones) {
             // If no white stones, all empty points are valid.
@@ -39,10 +39,10 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
             return points;
         }
         return getGoLogic(session).getAllLibertiesOfPlayer(Player.White, boardState);
-    }, [session, gameStatus, isMyTurn, boardState, settings.boardSize]);
+    }, [session, gameStatus, isMyTurn, stonesToPlace, boardState, settings.boardSize]);
 
     const handleBoardClick = (x: number, y: number) => {
-        if (!isMyTurn || gameStatus !== 'dice_placing') return;
+        if (!isMyTurn || gameStatus !== 'dice_placing' || (stonesToPlace ?? 0) <= 0) return;
         
         const isValidMove = highlightedPoints.some(p => p.x === x && p.y === y);
         if (!isValidMove) {
@@ -60,9 +60,9 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
     }, [session.mode]);
 
     return (
-        <div className={`relative h-full w-full min-h-0 flex flex-col md:block ${backgroundClass}`}>
-            {/* Keep the board centered; dice controls are positioned separately. */}
-            <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 pb-1 pt-1 md:absolute md:inset-0 md:flex md:flex-none md:h-full md:px-3 md:pb-2 md:pt-2">
+        <div className={`relative h-full w-full min-h-0 flex flex-col ${backgroundClass}`}>
+            {/* Keep board at max size; place desktop dice controls absolutely next to board. */}
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 pb-1 pt-1 md:px-3 md:pb-2 md:pt-2">
                 <div className="relative aspect-square w-full max-w-[min(840px,100%)] max-h-full shrink-0">
                     <GoBoard
                         boardState={boardState}
@@ -70,7 +70,7 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
                         onBoardClick={handleBoardClick}
                         lastMove={lastMove}
                         lastTurnStones={lastTurnStones}
-                        isBoardDisabled={!isMyTurn || gameStatus !== 'dice_placing'}
+                        isBoardDisabled={!isMyTurn || gameStatus !== 'dice_placing' || (stonesToPlace ?? 0) <= 0}
                         stoneColor={Player.Black}
                         winningLine={winningLine}
                         mode={session.mode}
@@ -92,11 +92,18 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
                         justCaptured={session.justCaptured}
                         captureScoreFloatMinPoints={captureScoreFloatMinPoints}
                     />
+                    {/* Dice controls (desktop): outside board box but not affecting board size */}
+                    <div
+                        className="pointer-events-auto absolute left-full ml-1 top-1/2 z-20 hidden -translate-y-1/2 justify-center md:flex"
+                        aria-label="Dice controls"
+                    >
+                        <DicePanel variant="mainOnly" session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} />
+                    </div>
                 </div>
             </div>
-            {/* Dice controls: below on mobile, right side on md+. */}
+            {/* Dice controls (mobile): below board */}
             <div
-                className="pointer-events-auto relative z-20 flex shrink-0 justify-center px-2 pb-2 pt-1 md:absolute md:right-1 md:top-1/2 md:-translate-y-1/2 md:justify-center md:px-0 md:pb-0 md:pt-0 xl:right-2"
+                className="pointer-events-auto relative z-20 flex shrink-0 justify-center px-2 pb-1 pt-0 md:hidden"
                 aria-label="Dice controls"
             >
                 <DicePanel variant="mainOnly" session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} />

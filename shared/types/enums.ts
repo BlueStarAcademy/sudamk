@@ -148,6 +148,7 @@ export enum ItemGrade {
     Epic = 'epic',
     Legendary = 'legendary',
     Mythic = 'mythic',
+    Transcendent = 'transcendent',
 }
 export enum CoreStat {
     Concentration = '집중력',

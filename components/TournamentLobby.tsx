@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat } from '../types.js';
+import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat, ItemGrade } from '../types.js';
 import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LEVEL_REQUIREMENTS, emptySlotImages } from '../constants';
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
@@ -568,6 +568,7 @@ const gradeBackgrounds: Record<string, string> = {
     epic: '/images/equipments/epicbgi.png',
     legendary: '/images/equipments/legendarybgi.png',
     mythic: '/images/equipments/mythicbgi.png',
+    transcendent: '/images/equipments/mythicbgi.png',
 };
 
 const getStarDisplayInfo = (stars: number) => {
@@ -649,10 +650,10 @@ const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
         const titleText = `${item.name} (착용 레벨 합: ${requiredLevel}) - 클릭하여 상세보기`;
         const starInfo = getStarDisplayInfo(item.stars);
-        const isDivineMythic = (item as InventoryItem & { isDivineMythic?: boolean }).isDivineMythic === true;
+        const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
-                className={`relative w-full aspect-square rounded-lg border-2 border-color/50 bg-tertiary/50 ${clickableClass} ${isDivineMythic ? 'divine-mythic-border' : ''}`}
+                className={`relative w-full aspect-square rounded-lg border-2 border-color/50 bg-tertiary/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={titleText}
                 onClick={onClick}
             >
@@ -669,14 +670,6 @@ const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem
                         className="absolute object-contain p-1.5"
                         style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                     />
-                )}
-                {isDivineMythic && (
-                    <div
-                        className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10"
-                        style={{ textShadow: '1px 1px 2px black', padding: '2px 4px', fontSize: '10px', fontWeight: 'bold', color: '#FFD700' }}
-                    >
-                        D
-                    </div>
                 )}
             </div>
         );

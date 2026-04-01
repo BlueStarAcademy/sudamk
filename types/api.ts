@@ -183,6 +183,7 @@ export type ServerAction =
     | { type: 'DICE_CONFIRM_START', payload: { gameId: string } }
     | { type: 'DICE_ROLL', payload: { gameId: string; itemType?: 'odd' | 'even' | 'low' | 'high' } }
     | { type: 'DICE_PLACE_STONE', payload: { gameId: string, x: number, y: number } }
+    | { type: 'DICE_PLACE_STONES_BATCH', payload: { gameId: string; placements: Array<{ x: number; y: number }> } }
     // Thief Go
     | { type: 'THIEF_UPDATE_ROLE_CHOICE', payload: { gameId: string; choice: 'thief' | 'police' } }
     | { type: 'CONFIRM_THIEF_ROLE', payload: { gameId: string } }

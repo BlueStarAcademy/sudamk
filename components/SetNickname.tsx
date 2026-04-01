@@ -12,6 +12,8 @@ const SetNickname: React.FC = () => {
     const { currentUser, setCurrentUserAndRoute } = useAppContext();
     const [nickname, setNickname] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [validationMessage, setValidationMessage] = useState<string | null>(null);
+    const [isNicknameChecking, setIsNicknameChecking] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -20,6 +22,63 @@ const SetNickname: React.FC = () => {
             replaceAppHash('#/profile');
         }
     }, [currentUser]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const trimmed = nickname.trim();
+
+        if (!trimmed) {
+            setValidationMessage(null);
+            setIsNicknameChecking(false);
+            return;
+        }
+
+        if (trimmed.length < NICKNAME_MIN_LENGTH || trimmed.length > NICKNAME_MAX_LENGTH) {
+            setValidationMessage(`닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 ${NICKNAME_MAX_LENGTH}자 이하로 입력해주세요.`);
+            setIsNicknameChecking(false);
+            return;
+        }
+
+        if (containsProfanity(trimmed)) {
+            setValidationMessage('닉네임에 부적절한 단어가 포함되어 있습니다.');
+            setIsNicknameChecking(false);
+            return;
+        }
+
+        setValidationMessage(null);
+        setIsNicknameChecking(true);
+        const timer = setTimeout(async () => {
+            try {
+                const query = new URLSearchParams({
+                    nickname: trimmed,
+                    userId: currentUser?.id ?? '',
+                });
+                const response = await fetch(getApiUrl(`/api/auth/check-nickname?${query.toString()}`));
+                const data = await response.json();
+
+                if (cancelled) return;
+
+                if (!response.ok || !data.available) {
+                    setValidationMessage(data.message || '이미 사용 중인 닉네임입니다.');
+                    return;
+                }
+                setValidationMessage(null);
+            } catch (_e) {
+                if (!cancelled) {
+                    setValidationMessage('닉네임 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsNicknameChecking(false);
+                }
+            }
+        }, 300);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [nickname, currentUser?.id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -30,13 +89,19 @@ const SetNickname: React.FC = () => {
             return;
         }
 
-        if (nickname.trim().length < NICKNAME_MIN_LENGTH || nickname.trim().length > NICKNAME_MAX_LENGTH) {
+        const trimmedNickname = nickname.trim();
+        if (trimmedNickname.length < NICKNAME_MIN_LENGTH || trimmedNickname.length > NICKNAME_MAX_LENGTH) {
             setError(`닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 ${NICKNAME_MAX_LENGTH}자 이하로 입력해주세요.`);
             return;
         }
 
-        if (containsProfanity(nickname)) {
+        if (containsProfanity(trimmedNickname)) {
             setError("닉네임에 부적절한 단어가 포함되어 있습니다.");
+            return;
+        }
+
+        if (validationMessage) {
+            setError(validationMessage);
             return;
         }
 
@@ -50,7 +115,7 @@ const SetNickname: React.FC = () => {
             const response = await fetch(getApiUrl('/api/auth/set-nickname'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nickname: nickname.trim(), userId: currentUser.id }),
+                body: JSON.stringify({ nickname: trimmedNickname, userId: currentUser.id }),
             });
 
             if (!response.ok) {
@@ -60,6 +125,7 @@ const SetNickname: React.FC = () => {
 
             const data = await response.json();
             setCurrentUserAndRoute(data.user);
+            replaceAppHash('#/profile');
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -121,11 +187,22 @@ const SetNickname: React.FC = () => {
                     </div>
 
                     {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+                    {!error && validationMessage && <p className="text-sm text-red-400 text-center">{validationMessage}</p>}
+                    {!error && !validationMessage && isNicknameChecking && (
+                        <p className="text-xs text-gray-400 text-center">닉네임 확인 중...</p>
+                    )}
 
                     <div className="w-full flex justify-center">
                         <Button 
                             type="submit"
-                            disabled={isLoading || !nickname.trim() || nickname.trim().length < NICKNAME_MIN_LENGTH || nickname.trim().length > NICKNAME_MAX_LENGTH}
+                            disabled={
+                                isLoading ||
+                                isNicknameChecking ||
+                                !!validationMessage ||
+                                !nickname.trim() ||
+                                nickname.trim().length < NICKNAME_MIN_LENGTH ||
+                                nickname.trim().length > NICKNAME_MAX_LENGTH
+                            }
                             className="w-full py-3 text-lg"
                         >
                             {isLoading ? '설정 중...' : '닉네임 설정'}

@@ -8,6 +8,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     epic: '/images/equipments/epicbgi.png',
     legendary: '/images/equipments/legendarybgi.png',
     mythic: '/images/equipments/mythicbgi.png',
+    transcendent: '/images/equipments/mythicbgi.png',
 };
 
 const renderStarDisplay = (stars: number) => {
@@ -79,26 +80,15 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({ inventory, inventorySlots
                     >
                         {item ? (
                             <>
-                                <div className={`absolute inset-0 rounded-md border-2 ${selectedItemId === item.id ? 'border-accent ring-2 ring-accent' : 'border-black/20'} ${selectedItemIdsForDisassembly?.has(item.id) ? 'bg-gray-700/70' : ''} ${item.isDivineMythic ? 'divine-mythic-border' : ''}`} style={{ border: item.isDivineMythic ? undefined : undefined }} />
-                                <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 object-cover rounded-sm" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />
-                                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', maxWidth: '80%', maxHeight: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                                <div className={`absolute inset-0 rounded-md border-2 ${selectedItemId === item.id ? 'border-accent ring-2 ring-accent' : 'border-black/20'} ${selectedItemIdsForDisassembly?.has(item.id) ? 'bg-gray-700/70' : ''}`} />
+                                <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 z-0 object-cover rounded-sm" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />
+                                {item.image && <img src={item.image} alt={item.name} className="absolute z-[1] object-contain p-1" style={{ width: '80%', height: '80%', maxWidth: '80%', maxHeight: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                                {item.grade === ItemGrade.Transcendent && (
+                                    <div className="transcendent-inventory-slot-overlay pointer-events-none absolute inset-0 z-[2] rounded-md" aria-hidden />
+                                )}
                                 {renderStarDisplay(item.stars)}
                                 {item.isEquipped && <div className="absolute top-0.5 right-0.5 text-xs font-bold text-white bg-blue-600/80 px-1 rounded-bl-md">E</div>}
                                 {item.quantity && item.quantity > 1 && <span className="absolute bottom-0 right-0 text-xs font-bold text-white bg-black/60 px-1 rounded-tl-md">{item.quantity}</span>}
-                                {item.isDivineMythic && (
-                                    <div 
-                                        className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
-                                        style={{ 
-                                            textShadow: '1px 1px 2px black',
-                                            padding: '2px 3px',
-                                            fontSize: '8px',
-                                            fontWeight: 'bold',
-                                            color: '#FFD700'
-                                        }}
-                                    >
-                                        D
-                                    </div>
-                                )}
                                 {selectedItemIdsForDisassembly?.has(item.id) && (
                                     <div className="absolute inset-0 flex items-center justify-center bg-gray-800/70 rounded-md">
                                         <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>

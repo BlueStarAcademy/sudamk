@@ -20,6 +20,7 @@ const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string,
     epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', name: '에픽', background: '/images/equipments/epicbgi.png' },
     legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', name: '전설', background: '/images/equipments/legendarybgi.png' },
     mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', name: '신화', background: '/images/equipments/mythicbgi.png' },
+    transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', name: '초월', background: '/images/equipments/mythicbgi.png' },
 };
 
 const gradeBorderStyles: Partial<Record<ItemGrade, string>> = {
@@ -75,7 +76,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     const styles = gradeStyles[item.grade];
     const requiredLevel = item.type === 'equipment' ? GRADE_LEVEL_REQUIREMENTS[item.grade] : null;
     const starInfo = getStarDisplayInfo(item.stars);
-    const borderClass = gradeBorderStyles[item.grade];
+    const borderClass = item.grade === ItemGrade.Transcendent ? undefined : gradeBorderStyles[item.grade];
     const isCurrency = item.image === '/images/icon/Gold.png' || item.image === '/images/icon/Zem.png';
     
     // 등급별 글로우 효과 클래스
@@ -85,6 +86,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
             case 'epic': return 'item-glow-epic';
             case 'legendary': return 'item-glow-legendary';
             case 'mythic': return 'item-glow-mythic';
+            case 'transcendent': return 'item-glow-transcendent';
             default: return '';
         }
     };
@@ -96,16 +98,17 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
             case 'epic': return 'text-glow-epic';
             case 'legendary': return 'text-glow-legendary';
             case 'mythic': return 'text-glow-mythic';
+            case 'transcendent': return 'text-glow-transcendent';
             default: return '';
         }
     };
     
-    const isHighGrade = ['rare', 'epic', 'legendary', 'mythic'].includes(item.grade);
+    const isHighGrade = ['rare', 'epic', 'legendary', 'mythic', 'transcendent'].includes(item.grade);
     const glowClass = getGlowClass(item.grade);
     const textGlowClass = getTextGlowClass(item.grade);
 
     useEffect(() => {
-        if (['epic', 'legendary', 'mythic'].includes(item.grade)) {
+        if (['epic', 'legendary', 'mythic', 'transcendent'].includes(item.grade)) {
             audioService.gachaEpicOrHigher();
         }
     }, [item.grade]);
@@ -116,7 +119,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                 <div className="rounded-xl bg-gradient-to-br from-slate-800/95 via-slate-900/98 to-slate-800/95 border border-slate-600/50 shadow-xl overflow-hidden">
                     <div className="p-6">
                         <div className="relative w-44 h-44 mx-auto rounded-xl mb-5 overflow-visible ring-2 ring-slate-500/40 ring-offset-2 ring-offset-slate-900">
-                            <div className={`relative w-full h-full rounded-xl flex items-center justify-center overflow-hidden ${borderClass || 'border-2 border-slate-500/50'} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
+                            <div className={`relative w-full h-full rounded-xl flex items-center justify-center overflow-hidden ${borderClass || 'border-2 border-slate-500/50'} ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
                                 <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover" />
                             {isActionPointConsumable(item.name) ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
@@ -133,20 +136,6 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                     <span className="text-white text-3xl font-bold text-center break-words" style={{ textShadow: '1px 1px 2px black' }}>
                                         +{item.quantity?.toLocaleString()}
                                     </span>
-                                </div>
-                            )}
-                            {item.isDivineMythic && (
-                                <div 
-                                    className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
-                                    style={{ 
-                                        textShadow: '1px 1px 2px black',
-                                        padding: '4px 6px',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold',
-                                        color: '#FFD700'
-                                    }}
-                                >
-                                    D
                                 </div>
                             )}
                         </div>

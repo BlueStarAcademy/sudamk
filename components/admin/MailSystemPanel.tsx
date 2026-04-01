@@ -1,8 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { ServerAction, AdminProps, InventoryItemType, User } from '../../types/index.js';
-import type { EquipmentSlot, ItemGrade } from '../../types/enums.js';
-import { MythicStat } from '../../types/enums.js';
+import { ItemGrade, MythicStat, type EquipmentSlot } from '../../types/enums.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
@@ -29,25 +28,6 @@ export type MailAttachedItemPayload = {
     /** 장비만: 강화 단계 +0 ~ +10 (주옵션 누적 보너스 적용) */
     stars?: number;
 };
-
-/** EQUIPMENT_POOL 원본 이름은 유지하고, UI에서만 괄호 접미사 제거 */
-const DOUBLE_MYTHIC_NAME_SUFFIX = ' (더블신화)';
-
-function stripDoubleMythicDisplayName(name: string): string {
-    if (name.endsWith(DOUBLE_MYTHIC_NAME_SUFFIX)) {
-        return name.slice(0, -DOUBLE_MYTHIC_NAME_SUFFIX.length);
-    }
-    return name;
-}
-
-function isDoubleMythicEquipmentName(name: string): boolean {
-    return name.endsWith(DOUBLE_MYTHIC_NAME_SUFFIX);
-}
-
-function isDoubleMythicPoolItem(item: { type?: string; name: string; isDivineMythic?: boolean }): boolean {
-    if (item.type !== 'equipment') return false;
-    return !!item.isDivineMythic || isDoubleMythicEquipmentName(item.name);
-}
 
 function buildEquipmentAdminTooltip(slot: EquipmentSlot, grade: ItemGrade, description: string): string {
     const rules = GRADE_SUB_OPTION_RULES[grade];
@@ -180,21 +160,12 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
                                             className="absolute left-1/2 top-1/2 h-[85%] w-[85%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-md pointer-events-none"
                                             aria-hidden
                                         />
-                                        {isDoubleMythicPoolItem(item as { type: string; name: string; isDivineMythic?: boolean }) ? (
-                                            <span
-                                                className="absolute bottom-0.5 left-0.5 z-10 flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded border border-amber-300/70 bg-gradient-to-br from-amber-950/95 to-black/90 text-[9px] font-black leading-none text-amber-200 shadow-md"
-                                                title="더블신화 (D)"
-                                                aria-hidden
-                                            >
-                                                D
-                                            </span>
-                                        ) : null}
                                     </div>
                                     <span className={`mt-1 text-[10px] font-bold leading-none ${gradeStyles[item.grade].color}`}>
                                         {gradeStyles[item.grade].name}
                                     </span>
                                     <span className="mt-0.5 line-clamp-2 w-full text-center text-[11px] leading-tight text-primary">
-                                        {stripDoubleMythicDisplayName(item.name)}
+                                        {item.name}
                                     </span>
                                 </>
                             ) : (
@@ -543,16 +514,8 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
                         {attachedItems.map((item, index) => (
                             <div key={index} className="flex justify-between items-center bg-primary/50 p-2 rounded text-xs gap-2">
                                 <span className="flex min-w-0 items-center gap-1.5 truncate">
-                                    {item.type === 'equipment' && isDoubleMythicEquipmentName(item.name) ? (
-                                        <span
-                                            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border border-amber-400/55 bg-gradient-to-br from-amber-950/95 to-black/90 text-[8px] font-black text-amber-200"
-                                            title="더블신화"
-                                        >
-                                            D
-                                        </span>
-                                    ) : null}
                                     <span className="min-w-0 truncate">
-                                        {stripDoubleMythicDisplayName(item.name)} × {item.quantity}
+                                        {item.name} × {item.quantity}
                                         {item.type === 'equipment' && item.stars != null && item.stars > 0 ? (
                                             <span className="text-amber-400/90 font-medium"> +{item.stars}</span>
                                         ) : null}{' '}

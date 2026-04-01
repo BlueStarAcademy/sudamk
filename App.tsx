@@ -494,7 +494,7 @@ const AppContent: React.FC = () => {
                                         <AdminModerationModal user={modals.moderatingUser} currentUser={currentUserWithStatus} onClose={handlers.closeModerationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'moderatingUser'} />
                                     </Suspense>
                                 )}
-                                {modals.viewingItem && <ItemDetailModal item={modals.viewingItem.item} isOwnedByCurrentUser={modals.viewingItem.isOwnedByCurrentUser} onClose={handlers.closeViewingItem} onStartEnhance={handlers.openEnhancementFromDetail} isTopmost={topmostModalId === 'viewingItem'} />}
+                                {modals.viewingItem && <ItemDetailModal item={modals.viewingItem.item} isOwnedByCurrentUser={modals.viewingItem.isOwnedByCurrentUser} onClose={handlers.closeViewingItem} onStartEnhance={handlers.openEnhancementFromDetail} onStartRefine={handlers.openRefinementFromDetail} isTopmost={topmostModalId === 'viewingItem'} />}
                                 {activeNegotiation && (() => {
                                     const isReceivedChallenge = activeNegotiation.status === 'pending' && 
                                                                  (activeNegotiation.opponent.id === currentUserWithStatus.id && 

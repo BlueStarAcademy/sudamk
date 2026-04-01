@@ -88,6 +88,7 @@ const gradeStyles: Record<ItemGrade, { name: string; color: string; background: 
     epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
     legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
     mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
+    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/mythicbgi.png' },
 };
 
 const renderStarDisplay = (stars: number) => {
@@ -144,24 +145,10 @@ const ItemDisplay: React.FC<{
         <div className="flex flex-col w-full h-full p-1">
             {/* Top section: Image and Name/Main Option */}
             <div className="flex mb-2">
-                <div className="relative w-16 h-16 rounded-lg flex-shrink-0 mr-2">
+                <div className={`relative w-16 h-16 rounded-lg flex-shrink-0 mr-2 ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}>
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                     {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                     {renderStarDisplay(item.stars)}
-                    {item.isDivineMythic && (
-                        <div 
-                            className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
-                            style={{ 
-                                textShadow: '1px 1px 2px black',
-                                padding: '2px 4px',
-                                fontSize: '8px',
-                                fontWeight: 'bold',
-                                color: '#FFD700'
-                            }}
-                        >
-                            D
-                        </div>
-                    )}
                 </div>
                 <div className="flex-grow pt-1 min-w-0">
                     <h3 className={`text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>{item.name}</h3>

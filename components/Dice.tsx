@@ -31,22 +31,24 @@ const DiceFace: React.FC<{ value: number }> = ({ value }) => {
 
 const Dice: React.FC<DiceProps> = ({ value, isRolling, sides = 6, size = 60, onClick, disabled = false, displayText, color = 'gray', outerClassName = '' }) => {
     const [displayValue, setDisplayValue] = useState(value || 1);
+    const [rollRotation, setRollRotation] = useState({ x: 0, y: 0, z: 0 });
     const isClickable = !disabled && !isRolling && onClick;
 
     useEffect(() => {
         let intervalId: number | undefined;
         if (isRolling) {
-            // 서버가 이미 결과를 알려준 경우(주사위 바둑·도둑 등 animation.dice): 무작위 면을 보여주면
-            // 멈춘 직후 다른 숫자로 바뀌는 것처럼 보이므로, 알려진 value는 그대로 표시한다.
-            if (value != null && value >= 1 && value <= sides) {
-                setDisplayValue(value);
-            } else {
-                intervalId = window.setInterval(() => {
-                    setDisplayValue(Math.floor(Math.random() * sides) + 1);
-                }, 50);
-            }
+            // 굴림 중에는 실제 룰렛처럼 면과 각도를 계속 바꾼다.
+            intervalId = window.setInterval(() => {
+                setDisplayValue(Math.floor(Math.random() * sides) + 1);
+                setRollRotation((prev) => ({
+                    x: prev.x + 55 + Math.floor(Math.random() * 45),
+                    y: prev.y + 65 + Math.floor(Math.random() * 55),
+                    z: prev.z + 40 + Math.floor(Math.random() * 35),
+                }));
+            }, 70);
         } else {
             setDisplayValue(value != null && value >= 1 && value <= sides ? value : 1);
+            setRollRotation({ x: 0, y: 0, z: 0 });
         }
         return () => {
             if (intervalId) clearInterval(intervalId);
@@ -78,8 +80,12 @@ const Dice: React.FC<DiceProps> = ({ value, isRolling, sides = 6, size = 60, onC
             style={{ width: size, height: size }}
         >
             <div
-                className={`flex h-full w-full items-center justify-center rounded-lg overflow-hidden ${isRolling ? 'dice-inner-spin' : ''}`}
-                style={{ transformStyle: 'preserve-3d' }}
+                className="flex h-full w-full items-center justify-center rounded-lg overflow-hidden"
+                style={{
+                    transformStyle: 'preserve-3d',
+                    transform: `perspective(${size * 3}px) rotateX(${rollRotation.x}deg) rotateY(${rollRotation.y}deg) rotateZ(${rollRotation.z}deg)`,
+                    transition: isRolling ? 'transform 70ms linear' : 'transform 180ms ease-out',
+                }}
             >
                 {displayText ? (
                     <span

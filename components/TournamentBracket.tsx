@@ -1565,9 +1565,10 @@ const FinalRewardPanel: React.FC<{
                     epic: '/images/equipments/epicbgi.png',
                     legendary: '/images/equipments/legendarybgi.png',
                     mythic: '/images/equipments/mythicbgi.png',
+                    transcendent: '/images/equipments/mythicbgi.png',
                 };
                 const EQUIP_GRADE_LABEL: Record<string, string> = {
-                    normal: '일반', uncommon: '고급', rare: '희귀', epic: '에픽', legendary: '전설', mythic: '신화',
+                    normal: '일반', uncommon: '고급', rare: '희귀', epic: '에픽', legendary: '전설', mythic: '신화', transcendent: '초월',
                 };
                 const EQUIP_GRADE_BORDER: Record<string, string> = {
                     normal: 'border-2 border-gray-500/80',
@@ -1576,6 +1577,7 @@ const FinalRewardPanel: React.FC<{
                     epic: 'border-2 border-purple-500/80',
                     legendary: 'border-2 border-red-500/80',
                     mythic: 'border-2 border-amber-500/80',
+                    transcendent: 'border-2 border-teal-400/85',
                 };
                 return (
                     <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>

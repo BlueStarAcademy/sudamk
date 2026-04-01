@@ -25,6 +25,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     epic: 'images/equipments/epicbgi.png',
     legendary: 'images/equipments/legendarybgi.png',
     mythic: 'images/equipments/mythicbgi.png',
+    transcendent: 'images/equipments/mythicbgi.png',
 };
 
 const gradeOrder: Record<ItemGrade, number> = {
@@ -34,6 +35,7 @@ const gradeOrder: Record<ItemGrade, number> = {
     epic: 3,
     legendary: 4,
     mythic: 5,
+    transcendent: 6,
 };
 
 const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmost }) => {
@@ -57,6 +59,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         epic: { name: '에픽', color: 'text-purple-400' },
         legendary: { name: '전설', color: 'text-red-500' },
         mythic: { name: '신화', color: 'text-orange-400' },
+        transcendent: { name: '초월', color: 'text-cyan-300' },
     };
 
     const [activeEquipmentSlot, setActiveEquipmentSlot] = useState<EquipmentSlot>('fan');

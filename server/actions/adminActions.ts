@@ -51,7 +51,14 @@ function sanitizeAdminInventoryList(raw: unknown): InventoryItem[] {
             if (typeof it.image !== 'string') it.image = '';
             if (typeof it.description !== 'string') it.description = '';
             if (typeof it.grade !== 'string') it.grade = 'normal';
-            if (typeof it.isDivineMythic !== 'boolean') it.isDivineMythic = false;
+            const anyIt = it as Record<string, unknown>;
+            if (anyIt.isDivineMythic === true && it.grade === 'mythic') {
+                it.grade = 'transcendent';
+            }
+            delete anyIt.isDivineMythic;
+            if (typeof it.name === 'string' && it.name.endsWith(' (더블신화)')) {
+                it.name = it.name.replace(/ \(더블신화\)$/, '');
+            }
             out.push(it as unknown as InventoryItem);
         } catch {
             /* skip malformed */

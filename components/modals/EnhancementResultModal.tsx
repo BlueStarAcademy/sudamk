@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import { InventoryItem } from '../../types.js';
+import { InventoryItem, ItemGrade } from '../../types.js';
 import { gradeBackgrounds, gradeStyles } from '../../constants/items';
 
 interface EnhancementResultModalProps {
@@ -34,26 +34,12 @@ const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
     const starInfo = getStarDisplayInfo(item.stars);
     return (
         <div className="flex flex-col items-center">
-            <div className="relative w-20 h-20 mb-2">
+            <div className={`relative w-20 h-20 mb-2 ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot rounded-md' : ''}`}>
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
                 {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                 <div className="absolute bottom-0 left-0 right-0 text-center text-xs font-bold bg-black/50 py-0.5">
                     <span className={starInfo.colorClass}>★{item.stars}</span>
                 </div>
-                {item.isDivineMythic && (
-                    <div 
-                        className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
-                        style={{ 
-                            textShadow: '1px 1px 2px black',
-                            padding: '2px 4px',
-                            fontSize: '10px',
-                            fontWeight: 'bold',
-                            color: '#FFD700'
-                        }}
-                    >
-                        D
-                    </div>
-                )}
             </div>
             <p className={`font-bold text-sm ${gradeStyles[item.grade].color}`}>{item.name}</p>
         </div>

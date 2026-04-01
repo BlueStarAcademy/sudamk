@@ -5,6 +5,7 @@ import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
+import { isTowerLobbyInventorySource } from '../modes/towerPlayerHidden.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -489,13 +490,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 inventory.splice(itemIndex, 1);
             }
             
-            // 게임 세션에 blackTurnLimitBonus 추가 (초기화되지 않은 경우)
-            if (!(game as any).blackTurnLimitBonus) {
-                (game as any).blackTurnLimitBonus = 0;
-            }
-            
-            // 3턴 추가 (흑의 남은 턴 = effectiveBlackTurnLimit - blackMoves 에서 limit이 +3 됨)
-            (game as any).blackTurnLimitBonus += 3;
+            // 3턴 추가 (흑의 남은 턴 = stage.blackTurnLimit + bonus − blackMoves). 문자열 등 비정상 값 방지.
+            const prevBonus = Number((game as any).blackTurnLimitBonus);
+            (game as any).blackTurnLimitBonus = (Number.isFinite(prevBonus) ? prevBonus : 0) + 3;
 
             updateGameCache(game);
             // 새로고침 후에도 턴 추가가 유지되도록 PVE 진행 중에도 DB에 강제 저장

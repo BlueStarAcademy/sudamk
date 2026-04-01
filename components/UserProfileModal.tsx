@@ -72,6 +72,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     epic: '/images/equipments/epicbgi.png',
     legendary: '/images/equipments/legendarybgi.png',
     mythic: '/images/equipments/mythicbgi.png',
+    transcendent: '/images/equipments/mythicbgi.png',
 };
 
 const getStarDisplay = (stars: number) => {
@@ -107,33 +108,19 @@ const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     
     if (item) {
-        const isDivineMythic = item.isDivineMythic === true;
+        const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
-                className={`relative w-full aspect-square rounded-lg border-2 border-gray-700/50 bg-gray-900/50 ${clickableClass} ${isDivineMythic ? 'divine-mythic-border' : ''}`}
+                className={`relative w-full aspect-square rounded-lg border-2 border-gray-700/50 bg-gray-900/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={item.name}
                 onClick={onClick}
-                style={{ border: isDivineMythic ? undefined : undefined }}
+                style={{ border: isTranscendent ? undefined : undefined }}
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
                 <div className="absolute top-1 right-2.5 text-sm font-bold z-10">
                     {getStarDisplay(item.stars)}
                 </div>
                 {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-3" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
-                {isDivineMythic && (
-                    <div 
-                        className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
-                        style={{ 
-                            textShadow: '1px 1px 2px black',
-                            padding: '2px 4px',
-                            fontSize: '10px',
-                            fontWeight: 'bold',
-                            color: '#FFD700'
-                        }}
-                    >
-                        D
-                    </div>
-                )}
             </div>
         );
     } else {

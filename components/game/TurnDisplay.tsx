@@ -338,11 +338,6 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             `${baseClasses} ${themeClasses} px-3 gap-1.5 min-w-0 min-h-[3rem]`,
             <>
                 <div className="flex w-full flex-col items-center justify-center gap-1 min-w-0">
-                    <div className="flex items-center justify-center shrink-0">
-                        <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap`}>
-                            주사위: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{session.dice.dice1}</span>
-                        </span>
-                    </div>
                     <div className="w-full overflow-hidden flex-shrink-0 relative min-h-[1.35rem] flex items-center justify-center px-0.5">
                         <p
                             className={`font-bold ${textClass} text-center text-[clamp(0.68rem,1.9vmin,0.82rem)] leading-snug tracking-wide`}
@@ -376,7 +371,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                 </span>
                 <span className={`text-tertiary/70 shrink-0 ${isSinglePlayer ? 'text-stone-500' : ''}`}>·</span>
                 <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap shrink-0`}>
-                    남은 착수: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{session.stonesToPlace}</span>
+                    남은 착수: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{Math.max(0, session.stonesToPlace ?? 0)}</span>
                 </span>
             </div>
         );

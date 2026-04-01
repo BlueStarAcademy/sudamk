@@ -19,6 +19,7 @@ const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string,
     epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', name: '에픽', background: '/images/equipments/epicbgi.png' },
     legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', name: '전설', background: '/images/equipments/legendarybgi.png' },
     mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', name: '신화', background: '/images/equipments/mythicbgi.png' },
+    transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', name: '초월', background: '/images/equipments/mythicbgi.png' },
 };
 
 const gradeBorderStyles: Partial<Record<ItemGrade, string>> = {
@@ -36,19 +37,20 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
             case 'epic': return 'item-glow-epic';
             case 'legendary': return 'item-glow-legendary';
             case 'mythic': return 'item-glow-mythic';
+            case 'transcendent': return 'item-glow-transcendent';
             default: return '';
         }
     };
     
     useEffect(() => {
         if (items && items.length > 0) {
-            const gradeOrder: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
+            const gradeOrder: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic, ItemGrade.Transcendent];
             const bestItem = items.reduce((best, current) => {
                 const bestGrade = best.grade || ItemGrade.Normal;
                 const currentGrade = current.grade || ItemGrade.Normal;
                 return gradeOrder.indexOf(currentGrade) > gradeOrder.indexOf(bestGrade) ? current : best;
             });
-            if ([ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic].includes(bestItem.grade)) {
+            if ([ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic, ItemGrade.Transcendent].includes(bestItem.grade)) {
                 audioService.gachaEpicOrHigher();
             }
         }
@@ -88,9 +90,9 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                         {items.map((item, index) => {
                             const itemGrade = item.grade || 'normal';
                             const styles = gradeStyles[itemGrade] || gradeStyles.normal;
-                            const borderClass = itemGrade ? gradeBorderStyles[itemGrade] : undefined;
+                            const borderClass = itemGrade === ItemGrade.Transcendent ? undefined : (itemGrade ? gradeBorderStyles[itemGrade] : undefined);
                             const isCurrency = item.image === '/images/icon/Gold.png' || item.image === '/images/icon/Zem.png';
-                            const isHighGrade = ['rare', 'epic', 'legendary', 'mythic'].includes(itemGrade);
+                            const isHighGrade = ['rare', 'epic', 'legendary', 'mythic', 'transcendent'].includes(itemGrade);
                             const glowClass = getGlowClass(itemGrade);
                             
                             // 이미지 경로가 없으면 MATERIAL_ITEMS에서 찾기
@@ -101,7 +103,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                             
                             return (
                                 <div key={index} className="relative w-full aspect-square rounded-xl overflow-visible ring-1 ring-slate-500/30">
-                                    <div className={`relative w-full h-full rounded-xl flex items-center justify-center overflow-hidden ${borderClass || 'border-2 border-slate-500/50'} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
+                                    <div className={`relative w-full h-full rounded-xl flex items-center justify-center overflow-hidden ${borderClass || 'border-2 border-slate-500/50'} ${itemGrade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
                                         <img src={styles.background} alt={itemGrade} className="absolute inset-0 w-full h-full object-cover" />
                                         {isActionPointConsumable(item.name) ? (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
@@ -135,20 +137,6 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                             <span className="absolute bottom-0 right-0 text-xs font-bold text-white bg-black/60 px-1 rounded-tl-md z-10">
                                                 {item.quantity}
                                             </span>
-                                        )}
-                                        {item.isDivineMythic && (
-                                            <div 
-                                                className="absolute bottom-0 left-0 flex items-center justify-center bg-black/60 rounded-tr-md z-10" 
-                                                style={{ 
-                                                    textShadow: '1px 1px 2px black',
-                                                    padding: '2px 3px',
-                                                    fontSize: '8px',
-                                                    fontWeight: 'bold',
-                                                    color: '#FFD700'
-                                                }}
-                                            >
-                                                D
-                                            </div>
                                         )}
                                     </div>
                                 </div>
