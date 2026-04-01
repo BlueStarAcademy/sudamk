@@ -3775,6 +3775,9 @@ export const useApp = () => {
                                 const isPlayfulBoardUpdate = !!(game.alkkagiStones || game.curlingStones || (game.gameStatus && (String(game.gameStatus).startsWith('alkkagi_') || String(game.gameStatus).startsWith('curling_'))));
                                 // 주사위/도둑 굴리기 애니메이션: moveHistory가 안 바뀌어도 반영 (두 번째 턴부터 애니 안 나오는 버그 방지)
                                 const isDiceRollAnimationUpdate = game.gameStatus === 'dice_rolling_animating' || game.gameStatus === 'thief_rolling_animating' || game.animation?.type === 'dice_roll_main';
+                                // 주사위/도둑 착수: moveHistory가 안 늘어나도 보드·stonesToPlace가 매 수 바뀜. 쓰로틀에 걸리면 상대 화면에 돌/남은 수가 빠지는 버그 발생
+                                const isDiceThiefPlacingUpdate =
+                                    game.gameStatus === 'dice_placing' || game.gameStatus === 'thief_placing';
                                 const isScoringOrRevealUpdate = game.gameStatus === 'scoring' || game.gameStatus === 'hidden_final_reveal';
                                 // 따내기 바둑 입찰/재입찰 단계 전환은 moveHistory 변화가 없어도 반드시 반영
                                 const isCaptureBidPhaseUpdate =
@@ -3800,6 +3803,7 @@ export const useApp = () => {
                                     !hasNewMoves &&
                                     !isPlayfulBoardUpdate &&
                                     !isDiceRollAnimationUpdate &&
+                                    !isDiceThiefPlacingUpdate &&
                                     !isScoringOrRevealUpdate &&
                                     !isTerminalGameUpdate &&
                                     !isCaptureBidPhaseUpdate &&
