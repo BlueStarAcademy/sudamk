@@ -450,12 +450,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         captureScoreFloatMinPoints = 2,
     } = props;
     const [captureScoreFloats, setCaptureScoreFloats] = useState<{ id: string; point: Point; label: string }[]>([]);
-    /** 서버는 justCaptured를 누적하므로, 같은 교차점에서 보너스 점수(+2/+5) 플로트는 대국당 1회만 */
-    const shownCaptureBonusAtRef = useRef<Set<string>>(new Set());
+    /** 서버는 justCaptured를 누적하므로, 이번 업데이트에서 새로 추가된 항목만 처리 */
+    const processedJustCapturedCountRef = useRef<number>(0);
     const captureFloatTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
     useEffect(() => {
-        shownCaptureBonusAtRef.current = new Set();
+        processedJustCapturedCountRef.current = 0;
     }, [gameId]);
 
     useEffect(() => {
@@ -471,29 +471,35 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
         const CAPTURE_FLOAT_MS = 2800;
         const minPts = captureScoreFloatMinPoints;
-        const toAdd: { id: string; point: Point; label: string }[] = [];
-        for (const e of list) {
-            const pts = e.capturePoints ?? (e.wasHidden ? 5 : 1);
-            if (pts < minPts) continue;
-            const posKey = `${e.point.x},${e.point.y}`;
-            const useDedupe = pts >= 2 || e.wasHidden;
-            if (useDedupe && shownCaptureBonusAtRef.current.has(posKey)) continue;
-            if (useDedupe) shownCaptureBonusAtRef.current.add(posKey);
-            toAdd.push({
-                id: `cap-${e.point.x}-${e.point.y}-${pts}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-                point: e.point,
-                label: `+${pts}`,
-            });
+        const prevCount = processedJustCapturedCountRef.current;
+
+        if (list.length < prevCount) {
+            processedJustCapturedCountRef.current = 0;
         }
-        if (toAdd.length === 0) return;
-        setCaptureScoreFloats((prev) => [...prev, ...toAdd]);
-        for (const f of toAdd) {
-            const t = setTimeout(() => {
-                setCaptureScoreFloats((prev) => prev.filter((x) => x.id !== f.id));
-            }, CAPTURE_FLOAT_MS);
-            captureFloatTimeoutsRef.current.push(t);
-        }
-    }, [justCaptured, captureScoreFloatMinPoints]);
+        const start = processedJustCapturedCountRef.current;
+        const newEntries = list.slice(start);
+        processedJustCapturedCountRef.current = list.length;
+        if (newEntries.length === 0) return;
+
+        const totalPts = newEntries.reduce((sum, e) => sum + (e.capturePoints ?? (e.wasHidden ? 5 : 1)), 0);
+        if (totalPts < minPts) return;
+
+        const anchor = lastMove ? { x: lastMove.x, y: lastMove.y } : newEntries[0].point;
+        const floatId = `cap-${anchor.x}-${anchor.y}-${totalPts}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        setCaptureScoreFloats((prev) => [
+            ...prev,
+            {
+                id: floatId,
+                point: anchor,
+                label: `+${totalPts}`,
+            },
+        ]);
+
+        const t = setTimeout(() => {
+            setCaptureScoreFloats((prev) => prev.filter((x) => x.id !== floatId));
+        }, CAPTURE_FLOAT_MS);
+        captureFloatTimeoutsRef.current.push(t);
+    }, [justCaptured, captureScoreFloatMinPoints, lastMove]);
 
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const [selectedMissileStone, setSelectedMissileStone] = useState<Point | null>(null);
