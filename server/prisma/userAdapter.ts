@@ -688,6 +688,10 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
 }
 
 export function serializeUser(user: User): SerializedUserStatus {
+  const enableCompactStatus =
+    process.env.ENABLE_COMPACT_USER_STATUS === '1' ||
+    process.env.ENABLE_COMPACT_USER_STATUS === 'true';
+
   return {
     version: 1,
     serializedUser: JSON.parse(JSON.stringify(user)),
@@ -704,10 +708,11 @@ export function serializeUser(user: User): SerializedUserStatus {
     ownedBorders: user.ownedBorders ?? [],
     mannerMasteryApplied: user.mannerMasteryApplied ?? false,
     pendingPenaltyNotification: user.pendingPenaltyNotification ?? null,
-    inventoryRaw: JSON.stringify(user.inventory ?? []),
-    equipmentRaw: JSON.stringify(user.equipment ?? {}),
-    mailRaw: JSON.stringify(user.mail ?? []),
-    questsRaw: JSON.stringify(user.quests ?? createDefaultQuests()),
+    // Safety-first default: keep legacy duplicated fields unless compact mode is enabled.
+    inventoryRaw: enableCompactStatus ? undefined : JSON.stringify(user.inventory ?? []),
+    equipmentRaw: enableCompactStatus ? undefined : JSON.stringify(user.equipment ?? {}),
+    mailRaw: enableCompactStatus ? undefined : JSON.stringify(user.mail ?? []),
+    questsRaw: enableCompactStatus ? undefined : JSON.stringify(user.quests ?? createDefaultQuests()),
     actionPointMeta: {
       actionPoints: user.actionPoints ?? {
         current: 0,
@@ -759,11 +764,13 @@ export function serializeUser(user: User): SerializedUserStatus {
       mbti: user.mbti ?? null,
       isMbtiPublic: user.isMbtiPublic ?? false
     },
-    rejectedGameModes: JSON.stringify(user.rejectedGameModes ?? []),
+    rejectedGameModes: enableCompactStatus
+      ? (user.rejectedGameModes ?? [])
+      : JSON.stringify(user.rejectedGameModes ?? []),
     statResetCountToday: user.statResetCountToday ?? 0,
     lastStatResetDate: user.lastStatResetDate ?? null,
     cumulativeRankingScore: user.cumulativeRankingScore ?? {},
-    inventorySlotsMigrated: user.inventorySlotsMigrated ?? false,
+    inventorySlotsMigrated: enableCompactStatus ? undefined : (user.inventorySlotsMigrated ?? false),
     dailyRankings: user.dailyRankings ?? {}
   };
 }

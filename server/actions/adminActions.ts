@@ -339,7 +339,8 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 }
             };
             let targetUsers: User[] = [];
-            const allUsers = await db.getAllUsers();
+            // Admin mail should always resolve recipients from fresh data.
+            const allUsers = await db.getAllUsers({ skipCache: true });
 
             if (targetSpecifier === 'all') {
                 targetUsers = allUsers;
@@ -354,6 +355,11 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             if (targetUsers.length === 0) return { error: '메일을 보낼 사용자를 찾을 수 없습니다.' };
 
             for (const target of targetUsers) {
+                // Re-fetch each recipient to avoid overwriting with stale cached snapshots.
+                const freshTarget = await db.getUser(target.id, { includeEquipment: true, includeInventory: true });
+                if (!freshTarget) {
+                    continue;
+                }
                  const userAttachments: types.Mail['attachments'] = {
                     gold: attachments.gold,
                     diamonds: attachments.diamonds,
@@ -403,11 +409,14 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     isRead: false,
                     attachmentsClaimed: false
                 };
-                target.mail.unshift(newMail);
-                await db.updateUser(target);
+                if (!Array.isArray(freshTarget.mail)) {
+                    freshTarget.mail = [];
+                }
+                freshTarget.mail.unshift(newMail);
+                await db.updateUser(freshTarget);
                 
                 // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화: 변경된 필드만 전송)
-                const updatedUser = JSON.parse(JSON.stringify(target));
+                const updatedUser = JSON.parse(JSON.stringify(freshTarget));
                 const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(updatedUser, ['mail']);
             }

@@ -165,6 +165,30 @@ export async function searchUsersForAdmin(query: string, limit: number): Promise
   const q = query.trim();
   if (!q) return [];
   const take = Math.max(1, Math.min(Math.floor(limit) || 50, 100));
+  const select = {
+    id: true,
+    nickname: true,
+    username: true,
+    isAdmin: true,
+    strategyLevel: true,
+    playfulLevel: true,
+  } as const;
+  const toAdminSearchUser = (row: {
+    id: string;
+    nickname: string;
+    username: string | null;
+    isAdmin: boolean;
+    strategyLevel: number;
+    playfulLevel: number;
+  }): User =>
+    ({
+      id: row.id,
+      nickname: row.nickname,
+      username: row.username ?? `user-${row.id.slice(-6)}`,
+      isAdmin: row.isAdmin,
+      strategyLevel: row.strategyLevel,
+      playfulLevel: row.playfulLevel,
+    } as User);
   try {
     await ensurePrismaEngineReady();
     const rows = await prisma.user.findMany({
@@ -174,11 +198,11 @@ export async function searchUsersForAdmin(query: string, limit: number): Promise
           { username: { contains: q, mode: "insensitive" } },
         ],
       },
-      include: { guildMember: true },
+      select,
       take,
       orderBy: { nickname: "asc" },
     });
-    return rows.map(mapUser);
+    return rows.map(toAdminSearchUser);
   } catch (error: any) {
     const msg = error?.message ?? "";
     if (msg.includes("Engine is not yet connected") || prismaErrorImpliesEngineNotConnected(error)) {
@@ -191,11 +215,11 @@ export async function searchUsersForAdmin(query: string, limit: number): Promise
               { username: { contains: q, mode: "insensitive" } },
             ],
           },
-          include: { guildMember: true },
+          select,
           take,
           orderBy: { nickname: "asc" },
         });
-        return rows.map(mapUser);
+        return rows.map(toAdminSearchUser);
       } catch (e2) {
         console.warn("[userService] searchUsersForAdmin retry failed:", (e2 as { message?: string })?.message ?? e2);
         return [];

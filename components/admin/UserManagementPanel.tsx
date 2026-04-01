@@ -256,6 +256,17 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
         }
     };
 
+    const handleForceLogout = () => {
+        if (user.id === currentUser.id) {
+            alert('본인 계정은 강제 로그아웃할 수 없습니다.');
+            return;
+        }
+        if (window.confirm(`[${user.nickname}] 님을 강제로 로그아웃하시겠습니까?`)) {
+            onAction({ type: 'ADMIN_FORCE_LOGOUT', payload: { targetUserId: user.id } });
+            alert('강제 로그아웃 요청을 전송했습니다.');
+        }
+    };
+
     
     type QuestCategoryPanelProps = {
         title: string;
@@ -574,6 +585,15 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                      {activeTab === 'danger' && (
                         <div className="space-y-4 p-4 border border-danger/50 rounded-lg">
                             <h3 className="text-lg font-bold text-danger">주의: 되돌릴 수 없는 작업입니다.</h3>
+                            <Button
+                                onClick={handleForceLogout}
+                                colorScheme="red"
+                                className="w-full"
+                                disabled={user.id === currentUser.id}
+                                title={user.id === currentUser.id ? '본인 계정은 강제 로그아웃할 수 없습니다.' : ''}
+                            >
+                                강제 로그아웃
+                            </Button>
                             <Button onClick={() => handleReset('stats')} colorScheme="yellow" className="w-full">모든 전적 초기화</Button>
                             <Button onClick={() => handleReset('full')} colorScheme="orange" className="w-full">레벨 포함 전체 초기화</Button>
                             <Button onClick={handleDelete} colorScheme="red" className="w-full">아이디 삭제</Button>
