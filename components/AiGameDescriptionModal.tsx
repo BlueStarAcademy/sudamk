@@ -148,8 +148,10 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
   }
   if (mode === GameMode.Dice) {
     rows.push({ label: '라운드', value: `${settings.diceGoRounds}R` });
-    rows.push({ label: '홀수 아이템', value: `${settings.oddDiceCount}개` });
-    rows.push({ label: '짝수 아이템', value: `${settings.evenDiceCount}개` });
+    rows.push({ label: '홀수 아이템', value: `${settings.oddDiceCount ?? 0}개` });
+    rows.push({ label: '짝수 아이템', value: `${settings.evenDiceCount ?? 0}개` });
+    rows.push({ label: '낮은 수 아이템 (1~3)', value: `${settings.lowDiceCount ?? 0}개` });
+    rows.push({ label: '높은 수 아이템 (4~6)', value: `${settings.highDiceCount ?? 0}개` });
   }
   if (mode === GameMode.Alkkagi) {
     const speedLabel = ALKKAGI_GAUGE_SPEEDS.find(s => s.value === settings.alkkagiGaugeSpeed)?.label || '보통';

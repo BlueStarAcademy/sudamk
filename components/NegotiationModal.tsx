@@ -479,6 +479,16 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                            {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                        </Select>
                    </SettingRow>
+                   <SettingRow label="낮은 수 주사위 (1~3)">
+                       <Select value={settings.lowDiceCount ?? 1} onChange={v => handleSettingChange('lowDiceCount', parseInt(v, 10))} disabled={isReadOnly}>
+                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                       </Select>
+                   </SettingRow>
+                   <SettingRow label="높은 수 주사위 (4~6)">
+                       <Select value={settings.highDiceCount ?? 1} onChange={v => handleSettingChange('highDiceCount', parseInt(v, 10))} disabled={isReadOnly}>
+                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                       </Select>
+                   </SettingRow>
                    </>
                 )}
 

@@ -699,10 +699,43 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                             </select>
                         </div>
                         <div className="grid grid-cols-2 gap-2 items-center">
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>아이템 개수</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>홀수 주사위</label>
                             <select 
-                                value={settings.diceGoItemCount || 2} 
-                                onChange={e => handleSettingChange('diceGoItemCount', parseInt(e.target.value))}
+                                value={settings.oddDiceCount ?? 1} 
+                                onChange={e => handleSettingChange('oddDiceCount', parseInt(e.target.value, 10))}
+                                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                                style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                            >
+                                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 items-center">
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>짝수 주사위</label>
+                            <select 
+                                value={settings.evenDiceCount ?? 1} 
+                                onChange={e => handleSettingChange('evenDiceCount', parseInt(e.target.value, 10))}
+                                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                                style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                            >
+                                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 items-center">
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>낮은 수 (1~3)</label>
+                            <select 
+                                value={settings.lowDiceCount ?? 1} 
+                                onChange={e => handleSettingChange('lowDiceCount', parseInt(e.target.value, 10))}
+                                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                                style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                            >
+                                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 items-center">
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>높은 수 (4~6)</label>
+                            <select 
+                                value={settings.highDiceCount ?? 1} 
+                                onChange={e => handleSettingChange('highDiceCount', parseInt(e.target.value, 10))}
                                 className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                 style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
                             >

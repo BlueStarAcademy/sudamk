@@ -22,6 +22,7 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { getGuildWarBoardMode, getGuildWarStarConditionLines } from '../../shared/constants/guildConstants.js';
 import AdBanner from '../ads/AdBanner.js';
+import MatchPlayGuideModal from './MatchPlayGuideModal.js';
 
 
 interface SidebarProps extends GameProps {
@@ -38,6 +39,7 @@ interface SidebarProps extends GameProps {
 }
 
 export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () => void, onOpenSettings?: () => void }> = ({ session, onClose, onOpenSettings }) => {
+    const [matchGuideOpen, setMatchGuideOpen] = useState(false);
     const { mode, settings, effectiveCaptureTargets } = session;
 
     const renderSetting = (label: string, value: React.ReactNode) => (
@@ -172,8 +174,10 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
         
         if (mode === GameMode.Dice) {
             details.push(renderSetting("라운드", `${settings.diceGoRounds}R`));
-            details.push(renderSetting("홀수 아이템", `${settings.oddDiceCount}개`));
-            details.push(renderSetting("짝수 아이템", `${settings.evenDiceCount}개`));
+            details.push(renderSetting("홀수 아이템", `${settings.oddDiceCount ?? 0}개`));
+            details.push(renderSetting("짝수 아이템", `${settings.evenDiceCount ?? 0}개`));
+            details.push(renderSetting("낮은 수 아이템 (1~3)", `${settings.lowDiceCount ?? 0}개`));
+            details.push(renderSetting("높은 수 아이템 (4~6)", `${settings.highDiceCount ?? 0}개`));
         }
         
         if (mode === GameMode.Alkkagi) {
@@ -201,29 +205,43 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
 
 
     return (
-        <div className="bg-gray-800 p-2 rounded-md flex-shrink-0 border border-color">
-            <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300 flex items-center justify-between">
-                <span>대국 정보</span>
-                <div className="flex items-center gap-1.5">
-                    {onOpenSettings && (
+        <>
+            <div className="bg-gray-800 p-2 rounded-md flex-shrink-0 border border-color">
+                <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300 flex items-center justify-between gap-2">
+                    <span className="min-w-0 shrink">대국 정보</span>
+                    <div className="flex items-center gap-1 shrink-0">
                         <button
-                            onClick={onOpenSettings}
-                            className="text-lg p-1 rounded hover:bg-gray-700/50 transition-colors"
-                            title="설정"
-                            aria-label="대국 설정 열기"
+                            type="button"
+                            onClick={() => setMatchGuideOpen(true)}
+                            className="text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-md bg-sky-900/70 text-sky-100 hover:bg-sky-800 border border-sky-600/40 transition-colors whitespace-nowrap"
+                            title="승리 조건·유의사항·이번 시합 팁"
+                            aria-label="경기방법 안내 열기"
                         >
-                            ⚙️
+                            경기방법
                         </button>
-                    )}
-                    {onClose && (
-                        <button onClick={onClose} className="text-xl font-bold text-gray-400 hover:text-white" aria-label="닫기">×</button>
-                    )}
+                        {onOpenSettings && (
+                            <button
+                                onClick={onOpenSettings}
+                                className="text-lg p-1 rounded hover:bg-gray-700/50 transition-colors"
+                                title="설정"
+                                aria-label="대국 설정 열기"
+                            >
+                                ⚙️
+                            </button>
+                        )}
+                        {onClose && (
+                            <button onClick={onClose} className="text-xl font-bold text-gray-400 hover:text-white" aria-label="닫기">×</button>
+                        )}
+                    </div>
+                </h3>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                    {gameDetails}
                 </div>
-            </h3>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
-                {gameDetails}
             </div>
-        </div>
+            {matchGuideOpen && (
+                <MatchPlayGuideModal session={session} onClose={() => setMatchGuideOpen(false)} />
+            )}
+        </>
     );
 };
 

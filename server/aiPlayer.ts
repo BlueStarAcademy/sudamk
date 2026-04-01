@@ -373,16 +373,24 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
         // 최적의 주사위 선택: 백돌이 많을수록 높은 수를 원함
         let dice1: number;
         if (whiteStoneCount > 10 && liberties.length > 6) {
-            // 아이템 사용 고려 (홀수/짝수)
-            const oddItemUses = game.diceGoItemUses?.[aiPlayerId]?.odd || 0;
-            const evenItemUses = game.diceGoItemUses?.[aiPlayerId]?.even || 0;
-            
+            const uses = game.diceGoItemUses?.[aiPlayerId];
+            const oddItemUses = uses?.odd || 0;
+            const evenItemUses = uses?.even || 0;
+            const lowItemUses = uses?.low ?? 0;
+            const highItemUses = uses?.high ?? 0;
+
             if (oddItemUses > 0 && liberties.length >= 5) {
                 dice1 = [1, 3, 5][Math.floor(Math.random() * 3)];
                 game.diceGoItemUses![aiPlayerId].odd--;
             } else if (evenItemUses > 0 && liberties.length >= 6) {
                 dice1 = [2, 4, 6][Math.floor(Math.random() * 3)];
                 game.diceGoItemUses![aiPlayerId].even--;
+            } else if (lowItemUses > 0 && liberties.length > 0 && liberties.length <= 3) {
+                dice1 = [1, 2, 3][Math.floor(Math.random() * 3)];
+                game.diceGoItemUses![aiPlayerId].low--;
+            } else if (highItemUses > 0 && liberties.length >= 4) {
+                dice1 = [4, 5, 6][Math.floor(Math.random() * 3)];
+                game.diceGoItemUses![aiPlayerId].high--;
             } else {
                 dice1 = Math.floor(Math.random() * 6) + 1;
             }
@@ -398,6 +406,8 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
         game.turnStartTime = undefined;
         game.dice = undefined;
         game.stonesToPlace = isOvershot ? -1 : dice1;
+        const { syncDiceGoOvershotTicker } = await import('./modes/diceGo.js');
+        syncDiceGoOvershotTicker(game, liberties.length, isOvershot);
         
         if (!game.diceRollHistory) game.diceRollHistory = {};
         if (!game.diceRollHistory[aiPlayerId]) game.diceRollHistory[aiPlayerId] = [];
@@ -438,10 +448,16 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
                 if (result.capturedStones.length > 0) {
                     totalCaptures += result.capturedStones.length;
                     lastCaptureStones = result.capturedStones;
-                    if (!game.justCaptured) game.justCaptured = [];
-                    for (const stone of result.capturedStones) {
-                        game.justCaptured.push({ point: stone, player: types.Player.White, wasHidden: false, capturePoints: 1 });
-                    }
+                    const cap = result.capturedStones.length;
+                    const pt = result.capturedStones[cap - 1];
+                    game.justCaptured = [{
+                        point: pt,
+                        player: types.Player.White,
+                        wasHidden: false,
+                        capturePoints: cap,
+                    }];
+                } else {
+                    game.justCaptured = [];
                 }
                 
                 if (!game.stonesPlacedThisTurn) game.stonesPlacedThisTurn = [];

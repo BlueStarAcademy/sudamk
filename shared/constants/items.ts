@@ -418,8 +418,8 @@ export const MYTHIC_STATS_DATA: Record<MythicStat, { name: string; description: 
     },
     [MythicStat.DiceGoOddBonus]: { 
         name: '주사위 홀/짝 보너스', 
-        description: '주사위 바둑에서 홀/짝수 아이템 1개씩 추가', 
-        shortDescription: '주사위바둑 홀/짝 아이템 +1개', 
+        description: '주사위 바둑에서 홀·짝·낮은수·높은수 아이템 각 1개씩 추가', 
+        shortDescription: '주사위바둑 특수 주사위 아이템 +1개(종류별)', 
         abbrevLabel: '주사위 보너스',
         value: () => 1 
     },

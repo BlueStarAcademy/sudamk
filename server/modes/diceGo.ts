@@ -2,10 +2,268 @@ import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { getGoLogic, processMove } from '../goLogic.js';
 import { handleSharedAction, updateSharedGameState, shouldEnforceTimeControl } from './shared.js';
-import { DICE_GO_INITIAL_WHITE_STONES_BY_ROUND, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, DICE_GO_TURN_CHOICE_TIME, DICE_GO_TURN_ROLL_TIME, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
+import { DICE_GO_INITIAL_WHITE_STONES_BY_ROUND, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, DICE_GO_MIN_WHITE_GROUPS, DICE_GO_TURN_CHOICE_TIME, DICE_GO_TURN_ROLL_TIME, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import * as effectService from '../effectService.js';
 import { endGame } from '../summaryService.js';
 import { aiUserId } from '../aiPlayer.js';
+
+const DICE_HUMAN_PLACE_SETTLE_MS = 1000;
+const DICE_GO_MAX_WHITE_CLUSTER = 5;
+
+function diceGoBoardNeighbors(x: number, y: number, boardSize: number): types.Point[] {
+    const neighbors: types.Point[] = [];
+    if (x > 0) neighbors.push({ x: x - 1, y });
+    if (x < boardSize - 1) neighbors.push({ x: x + 1, y });
+    if (y > 0) neighbors.push({ x, y: y - 1 });
+    if (y < boardSize - 1) neighbors.push({ x, y: y + 1 });
+    return neighbors;
+}
+
+function countDiceGoWhiteGroups(board: number[][], boardSize: number): number {
+    const visited = new Set<string>();
+    let groups = 0;
+    for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+            if (board[y][x] !== types.Player.White) continue;
+            const key = `${x},${y}`;
+            if (visited.has(key)) continue;
+            groups++;
+            const q: types.Point[] = [{ x, y }];
+            visited.add(key);
+            while (q.length > 0) {
+                const p = q.shift()!;
+                for (const n of diceGoBoardNeighbors(p.x, p.y, boardSize)) {
+                    const nk = `${n.x},${n.y}`;
+                    if (board[n.y][n.x] === types.Player.White && !visited.has(nk)) {
+                        visited.add(nk);
+                        q.push(n);
+                    }
+                }
+            }
+        }
+    }
+    return groups;
+}
+
+/**
+ * 백 `stoneCount`개를 두되, 상하좌우 연결 요(더미)가 최소 `DICE_GO_MIN_WHITE_GROUPS`개(돌 개수가 더 적으면 그만큼)가 되도록 한다.
+ */
+function placeDiceGoInitialWhiteStones(board: number[][], boardSize: number, stoneCount: number): void {
+    const minGroups = Math.min(DICE_GO_MIN_WHITE_GROUPS, stoneCount);
+
+    const clearWhites = () => {
+        for (let y = 0; y < boardSize; y++) {
+            for (let x = 0; x < boardSize; x++) {
+                if (board[y][x] === types.Player.White) board[y][x] = types.Player.None;
+            }
+        }
+    };
+
+    const findGroupSize = (startX: number, startY: number) => {
+        const q: types.Point[] = [{ x: startX, y: startY }];
+        const visited = new Set([`${startX},${startY}`]);
+        let size = 0;
+        while (q.length > 0) {
+            const { x, y } = q.shift()!;
+            size++;
+            for (const n of diceGoBoardNeighbors(x, y, boardSize)) {
+                const key = `${n.x},${n.y}`;
+                if (board[n.y][n.x] === types.Player.White && !visited.has(key)) {
+                    visited.add(key);
+                    q.push(n);
+                }
+            }
+        }
+        return size;
+    };
+
+    const runRandomPlacementPass = () => {
+        let stonesPlaced = 0;
+        while (stonesPlaced < stoneCount) {
+            let placed = false;
+            let attempts = 0;
+            while (!placed && attempts < 200) {
+                attempts++;
+                const groupsNow = countDiceGoWhiteGroups(board, boardSize);
+                const extendProb = groupsNow < minGroups ? 0.5 : 0.8;
+                const shouldExtend = stonesPlaced > 0 && Math.random() < extendProb;
+
+                if (shouldExtend) {
+                    const existingStones: types.Point[] = [];
+                    for (let y = 0; y < boardSize; y++) {
+                        for (let x = 0; x < boardSize; x++) {
+                            if (board[y][x] === types.Player.White) existingStones.push({ x, y });
+                        }
+                    }
+                    if (existingStones.length === 0) continue;
+                    const randomExistingStone = existingStones[Math.floor(Math.random() * existingStones.length)];
+                    const neighbors = diceGoBoardNeighbors(randomExistingStone.x, randomExistingStone.y, boardSize);
+                    const shuffledNeighbors = neighbors.sort(() => 0.5 - Math.random());
+
+                    for (const n of shuffledNeighbors) {
+                        if (board[n.y][n.x] === types.Player.None) {
+                            board[n.y][n.x] = types.Player.White;
+                            if (findGroupSize(n.x, n.y) <= DICE_GO_MAX_WHITE_CLUSTER) {
+                                stonesPlaced++;
+                                placed = true;
+                                break;
+                            } else {
+                                board[n.y][n.x] = types.Player.None;
+                            }
+                        }
+                    }
+                } else {
+                    const x = Math.floor(Math.random() * boardSize);
+                    const y = Math.floor(Math.random() * boardSize);
+                    if (board[y][x] === types.Player.None) {
+                        board[y][x] = types.Player.White;
+                        stonesPlaced++;
+                        placed = true;
+                    }
+                }
+            }
+            if (attempts >= 200) {
+                let x: number, y: number;
+                do {
+                    x = Math.floor(Math.random() * boardSize);
+                    y = Math.floor(Math.random() * boardSize);
+                } while (board[y][x] !== types.Player.None);
+                board[y][x] = types.Player.White;
+                stonesPlaced++;
+            }
+        }
+    };
+
+    for (let trial = 0; trial < 150; trial++) {
+        clearWhites();
+        runRandomPlacementPass();
+        if (countDiceGoWhiteGroups(board, boardSize) >= minGroups) return;
+    }
+
+    // 서로 인접하지 않은 시드로 최소 그룹 수를 확보한 뒤, 병합 시 그룹 수가 깨지지 않는 착점만 허용
+    for (let fb = 0; fb < 80; fb++) {
+        clearWhites();
+        let seeds = 0;
+        let tries = 0;
+        while (seeds < minGroups && tries < 8000) {
+            tries++;
+            const x = Math.floor(Math.random() * boardSize);
+            const y = Math.floor(Math.random() * boardSize);
+            if (board[y][x] !== types.Player.None) continue;
+            let orthoOk = true;
+            for (const n of diceGoBoardNeighbors(x, y, boardSize)) {
+                if (board[n.y][n.x] === types.Player.White) {
+                    orthoOk = false;
+                    break;
+                }
+            }
+            if (!orthoOk) continue;
+            board[y][x] = types.Player.White;
+            seeds++;
+        }
+        if (seeds < minGroups) continue;
+
+        let stonesPlaced = seeds;
+        let guard = 0;
+        while (stonesPlaced < stoneCount && guard < 20000) {
+            guard++;
+            let extended = false;
+            const existingStones: types.Point[] = [];
+            for (let y = 0; y < boardSize; y++) {
+                for (let x = 0; x < boardSize; x++) {
+                    if (board[y][x] === types.Player.White) existingStones.push({ x, y });
+                }
+            }
+            const randomExistingStone = existingStones[Math.floor(Math.random() * existingStones.length)];
+            const shuffledNeighbors = diceGoBoardNeighbors(randomExistingStone.x, randomExistingStone.y, boardSize).sort(() => 0.5 - Math.random());
+            for (const n of shuffledNeighbors) {
+                if (board[n.y][n.x] !== types.Player.None) continue;
+                board[n.y][n.x] = types.Player.White;
+                if (findGroupSize(n.x, n.y) > DICE_GO_MAX_WHITE_CLUSTER) {
+                    board[n.y][n.x] = types.Player.None;
+                    continue;
+                }
+                if (countDiceGoWhiteGroups(board, boardSize) >= minGroups) {
+                    stonesPlaced++;
+                    extended = true;
+                    break;
+                }
+                board[n.y][n.x] = types.Player.None;
+            }
+            if (extended) continue;
+            for (let a = 0; a < 120; a++) {
+                const x = Math.floor(Math.random() * boardSize);
+                const y = Math.floor(Math.random() * boardSize);
+                if (board[y][x] !== types.Player.None) continue;
+                board[y][x] = types.Player.White;
+                if (countDiceGoWhiteGroups(board, boardSize) >= minGroups) {
+                    stonesPlaced++;
+                    extended = true;
+                    break;
+                }
+                board[y][x] = types.Player.None;
+            }
+            if (!extended) break;
+        }
+        if (stonesPlaced >= stoneCount && countDiceGoWhiteGroups(board, boardSize) >= minGroups) return;
+    }
+
+    for (let last = 0; last < 100; last++) {
+        clearWhites();
+        runRandomPlacementPass();
+        if (countDiceGoWhiteGroups(board, boardSize) >= minGroups) return;
+    }
+}
+
+function diceGoLastCaptureBonusForSettings(game: types.LiveGameSession): number {
+    const totalRounds = game.settings.diceGoRounds ?? 1;
+    const idx = Math.max(0, Math.min(totalRounds, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS.length) - 1);
+    return DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS[idx] ?? 0;
+}
+
+/** 구세이브에 low/high 키가 없을 때 설정값으로 보정 */
+function patchDiceGoItemUsesRow(game: types.LiveGameSession, userId: string): void {
+    if (!game.diceGoItemUses) game.diceGoItemUses = {};
+    const u = game.diceGoItemUses[userId];
+    if (!u) return;
+    const s = game.settings;
+    if (typeof u.low !== 'number') u.low = s.lowDiceCount ?? 0;
+    if (typeof u.high !== 'number') u.high = s.highDiceCount ?? 0;
+}
+
+/** 오버샷 시 전광판 안내용. 착수 단계 진입 시 서버에서 해제한다. */
+export function syncDiceGoOvershotTicker(game: types.LiveGameSession, libertiesCount: number, isOvershot: boolean) {
+    const whiteLeft = game.boardState.flat().filter(s => s === types.Player.White).length;
+    if (isOvershot && whiteLeft > 0) {
+        game.diceGoOvershotTicker = {
+            maxDice: libertiesCount,
+            lastCaptureBonus: diceGoLastCaptureBonusForSettings(game),
+        };
+    } else {
+        game.diceGoOvershotTicker = undefined;
+    }
+}
+
+function applyDicePlacingTurnPass(game: types.LiveGameSession, now: number) {
+    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+    game.gameStatus = 'dice_rolling';
+    if (shouldEnforceTimeControl(game)) {
+        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+        game.turnStartTime = now;
+    }
+
+    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
+        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+        if (currentPlayerId === aiUserId) {
+            game.aiTurnStartTime = now;
+            console.log(`[applyDicePlacingTurnPass] AI turn after placement, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+        } else {
+            game.aiTurnStartTime = undefined;
+            console.log(`[applyDicePlacingTurnPass] User turn after placement, game ${game.id}, clearing aiTurnStartTime`);
+        }
+    }
+    updateLastWhiteGroupInfoAfterTurnTransition(game);
+}
 
 /** 턴이 넘어간 뒤 현재 보드 기준으로 백의 유효자리 수를 세고, 6 이하일 때만 lastWhiteGroupInfo 설정 (안내용) */
 function updateLastWhiteGroupInfoAfterTurnTransition(game: types.LiveGameSession) {
@@ -40,6 +298,7 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
     if (whiteStonesLeft === 0) {
         // 마지막 백돌 제거로 라운드 종료로 진입할 때, 이전 턴의 유효자리 안내가 남지 않도록 즉시 초기화
         game.lastWhiteGroupInfo = null;
+        game.diceGoOvershotTicker = undefined;
         if (totalCapturesThisTurn > 0) { // Check if the last action was a capture
             const totalRounds = game.settings.diceGoRounds ?? 1;
             const bonus = DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS[totalRounds - 1];
@@ -54,6 +313,17 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
                 startTime: now,
                 duration: 3000
             };
+
+            if (bonus > 0 && lastCaptureStones.length > 0) {
+                if (!game.justCaptured) game.justCaptured = [];
+                const pt = lastCaptureStones[lastCaptureStones.length - 1];
+                game.justCaptured.push({
+                    point: pt,
+                    player: types.Player.White,
+                    wasHidden: false,
+                    capturePoints: bonus,
+                });
+            }
         }
 
         const totalRounds = game.settings.diceGoRounds ?? 3;
@@ -98,27 +368,17 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
         game.stonesPlacedThisTurn = [];
         game.lastMove = null;
 
-        const previousPlayer = game.currentPlayer;
-        game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-        game.gameStatus = 'dice_rolling';
-        if (shouldEnforceTimeControl(game)) {
-            game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-            game.turnStartTime = now;
-        }
-        
-        // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-        if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
-            const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-            if (currentPlayerId === aiUserId) {
-                game.aiTurnStartTime = now;
-                console.log(`[finishPlacingTurn] AI turn after placement, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
-            } else {
-                game.aiTurnStartTime = undefined;
-                console.log(`[finishPlacingTurn] User turn after placement, game ${game.id}, clearing aiTurnStartTime`);
+        // 인간이 돌을 다 놓은 직후 바로 상대(봇) 주사위 단계로 넘어가면 따내기 연출을 보기 어려움 → 1초 대기
+        const deferHandoff = playerId !== aiUserId;
+        if (deferHandoff) {
+            game.dicePlacingSettleUntil = now + DICE_HUMAN_PLACE_SETTLE_MS;
+            if (shouldEnforceTimeControl(game)) {
+                game.turnDeadline = undefined;
+                game.turnStartTime = undefined;
             }
+        } else {
+            applyDicePlacingTurnPass(game, now);
         }
-        // 턴 넘긴 뒤 현재 보드 기준으로 유효자리 수 계산, 6 이하일 때만 안내용 설정
-        updateLastWhiteGroupInfoAfterTurnTransition(game);
     }
     
     game.diceCapturesThisTurn = 0;
@@ -150,100 +410,33 @@ export const initializeDiceGo = (game: types.LiveGameSession, neg: types.Negotia
     
     const initialStoneCount = DICE_GO_INITIAL_WHITE_STONES_BY_ROUND[0];
     const { boardSize } = game.settings;
-    const tempBoard = game.boardState;
+    placeDiceGoInitialWhiteStones(game.boardState, boardSize, initialStoneCount);
 
-    const getNeighbors = (x: number, y: number) => {
-        const neighbors = [];
-        if (x > 0) neighbors.push({ x: x - 1, y });
-        if (x < boardSize - 1) neighbors.push({ x: x + 1, y });
-        if (y > 0) neighbors.push({ x, y: y - 1 });
-        if (y < boardSize - 1) neighbors.push({ x, y: y + 1 });
-        return neighbors;
-    };
-
-    const findGroupSize = (startX: number, startY: number) => {
-        const q: types.Point[] = [{ x: startX, y: startY }];
-        const visited = new Set([`${startX},${startY}`]);
-        let size = 0;
-        while (q.length > 0) {
-            const { x, y } = q.shift()!;
-            size++;
-            for (const n of getNeighbors(x, y)) {
-                const key = `${n.x},${n.y}`;
-                if (tempBoard[n.y][n.x] === types.Player.White && !visited.has(key)) {
-                    visited.add(key);
-                    q.push(n);
-                }
-            }
-        }
-        return size;
-    };
-
-    let stonesPlaced = 0;
-    while (stonesPlaced < initialStoneCount) {
-        let placed = false;
-        let attempts = 0;
-        
-        while (!placed && attempts < 200) {
-            attempts++;
-            const shouldExtend = stonesPlaced > 0 && Math.random() < 0.8; 
-
-            if (shouldExtend) {
-                const existingStones: types.Point[] = [];
-                for(let y=0; y<boardSize; y++) for(let x=0; x<boardSize; x++) if(tempBoard[y][x] === types.Player.White) existingStones.push({x,y});
-
-                if (existingStones.length === 0) {
-                    continue;
-                }
-                const randomExistingStone = existingStones[Math.floor(Math.random() * existingStones.length)];
-                const neighbors = getNeighbors(randomExistingStone.x, randomExistingStone.y);
-                const shuffledNeighbors = neighbors.sort(() => 0.5 - Math.random());
-
-                for (const n of shuffledNeighbors) {
-                    if (tempBoard[n.y][n.x] === types.Player.None) {
-                        tempBoard[n.y][n.x] = types.Player.White;
-                        if (findGroupSize(n.x, n.y) <= 5) {
-                            stonesPlaced++;
-                            placed = true;
-                            break;
-                        } else {
-                            tempBoard[n.y][n.x] = types.Player.None; // backtrack
-                        }
-                    }
-                }
-            } else { // Start new cluster
-                const x = Math.floor(Math.random() * boardSize);
-                const y = Math.floor(Math.random() * boardSize);
-                if (tempBoard[y][x] === types.Player.None) {
-                    tempBoard[y][x] = types.Player.White;
-                    stonesPlaced++;
-                    placed = true;
-                }
-            }
-        }
-        if (attempts >= 200) {
-            let x: number, y: number;
-            do {
-                x = Math.floor(Math.random() * boardSize);
-                y = Math.floor(Math.random() * boardSize);
-            } while (tempBoard[y][x] !== types.Player.None);
-            tempBoard[y][x] = types.Player.White;
-            stonesPlaced++;
-        }
-    }
-    
     const p1Effects = effectService.calculateUserEffects(p1);
     const p2Effects = effectService.calculateUserEffects(p2);
     const p1MythicBonus = p1Effects.mythicStatBonuses[types.MythicStat.DiceGoOddBonus]?.flat || 0;
     const p2MythicBonus = p2Effects.mythicStatBonuses[types.MythicStat.DiceGoOddBonus]?.flat || 0;
 
+    const baseOdd = (game.settings.oddDiceCount || 0) + p1MythicBonus;
+    const baseEven = (game.settings.evenDiceCount || 0) + p1MythicBonus;
+    const baseLow = (game.settings.lowDiceCount || 0) + p1MythicBonus;
+    const baseHigh = (game.settings.highDiceCount || 0) + p1MythicBonus;
+    const baseOdd2 = (game.settings.oddDiceCount || 0) + p2MythicBonus;
+    const baseEven2 = (game.settings.evenDiceCount || 0) + p2MythicBonus;
+    const baseLow2 = (game.settings.lowDiceCount || 0) + p2MythicBonus;
+    const baseHigh2 = (game.settings.highDiceCount || 0) + p2MythicBonus;
     game.diceGoItemUses = {
-        [p1.id]: { odd: (game.settings.oddDiceCount || 0) + p1MythicBonus, even: (game.settings.evenDiceCount || 0) + p1MythicBonus },
-        [p2.id]: { odd: (game.settings.oddDiceCount || 0) + p2MythicBonus, even: (game.settings.evenDiceCount || 0) + p2MythicBonus }
+        [p1.id]: { odd: baseOdd, even: baseEven, low: baseLow, high: baseHigh },
+        [p2.id]: { odd: baseOdd2, even: baseEven2, low: baseLow2, high: baseHigh2 },
     };
     
     game.scores = { [p1.id]: 0, [p2.id]: 0 };
     game.round = 1;
+    game.moveHistory = [];
+    game.koInfo = null;
+    game.dicePlacingSettleUntil = undefined;
+    game.diceGoOvershotTicker = undefined;
+    game.justCaptured = [];
 
     if (game.isAiGame) {
         const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
@@ -401,7 +594,9 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     // 턴 넘긴 뒤 현재 보드 기준으로 유효자리 수 계산, 6 이하일 때만 안내용 설정
                     updateLastWhiteGroupInfoAfterTurnTransition(game);
                 } else {
+                    game.diceGoOvershotTicker = undefined;
                     game.gameStatus = 'dice_placing';
+                    game.dicePlacingSettleUntil = undefined;
                     if (shouldEnforceTimeControl(game)) {
                         game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
                         game.turnStartTime = now;
@@ -454,6 +649,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 game.dice = undefined;
     
                 game.stonesToPlace = isOvershot ? -1 : dice1;
+                syncDiceGoOvershotTicker(game, liberties.length, isOvershot);
                 if (game.diceRollHistory && game.diceRollHistory[timedOutPlayerId]) {
                     game.diceRollHistory[timedOutPlayerId].push(dice1);
                 }
@@ -461,6 +657,12 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             break;
         }
         case 'dice_placing': {
+            if (game.dicePlacingSettleUntil != null && now >= game.dicePlacingSettleUntil) {
+                game.dicePlacingSettleUntil = undefined;
+                applyDicePlacingTurnPass(game, now);
+                break;
+            }
+
             // 유효자리 안내는 턴이 넘어간 뒤(dice_rolling 전환 시)에만 설정하므로 여기서는 갱신하지 않음
             // AI 턴일 때는 타임아웃 체크를 건너뛰기
             const isAiTurnPlacing = game.isAiGame && game.currentPlayer !== types.Player.None && 
@@ -499,6 +701,16 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 game.boardState = tempBoardState;
                 game.diceCapturesThisTurn = totalCapturesThisTurn;
                 game.diceLastCaptureStones = lastCaptureStones;
+                game.justCaptured = [];
+                if (totalCapturesThisTurn > 0 && lastCaptureStones.length > 0) {
+                    const pt = lastCaptureStones[lastCaptureStones.length - 1];
+                    game.justCaptured.push({
+                        point: pt,
+                        player: types.Player.White,
+                        wasHidden: false,
+                        capturePoints: totalCapturesThisTurn,
+                    });
+                }
                 finishPlacingTurn(game, timedOutPlayerId);
             }
             break;
@@ -529,6 +741,10 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                         game.diceRoundSummary = undefined;
                         game.roundEndConfirmations = {};
                         game.lastWhiteGroupInfo = null;
+                        game.diceGoOvershotTicker = undefined;
+                        game.moveHistory = [];
+                        game.koInfo = null;
+                        game.dicePlacingSettleUntil = undefined;
                         return;
                     } else {
                         const winnerId = p1Score > p2Score ? p1Id : p2Id;
@@ -543,17 +759,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 // Start next round
                 game.boardState = Array(game.settings.boardSize).fill(0).map(() => Array(game.settings.boardSize).fill(types.Player.None));
                 const initialStoneCount = DICE_GO_INITIAL_WHITE_STONES_BY_ROUND[game.round - 1];
-                const occupied = new Set<string>();
-                for (let i = 0; i < initialStoneCount; i++) {
-                    let x: number, y: number, key: string;
-                    do {
-                        x = Math.floor(Math.random() * game.settings.boardSize);
-                        y = Math.floor(Math.random() * game.settings.boardSize);
-                        key = `${x},${y}`;
-                    } while (occupied.has(key));
-                    game.boardState[y][x] = types.Player.White;
-                    occupied.add(key);
-                }
+                placeDiceGoInitialWhiteStones(game.boardState, game.settings.boardSize, initialStoneCount);
                 game.gameStatus = 'dice_rolling';
                 game.currentPlayer = types.Player.Black; // Black (first player) always starts the round
                 if (shouldEnforceTimeControl(game)) {
@@ -563,6 +769,10 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 game.diceRoundSummary = undefined;
                 game.roundEndConfirmations = {};
                 game.lastWhiteGroupInfo = null; // Clear info for the new round
+                game.diceGoOvershotTicker = undefined;
+                game.moveHistory = [];
+                game.koInfo = null;
+                game.dicePlacingSettleUntil = undefined;
             }
             break;
     }
@@ -626,17 +836,27 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
                 console.error(`[handleDiceGoAction] DICE_ROLL failed: not my turn. currentPlayer=${game.currentPlayer}, myPlayerEnum=${myPlayerEnum}, userId=${user.id}`);
                 return { error: 'Not your turn to roll.' };
             }
-            const { itemType } = payload as { itemType?: 'odd' | 'even' };
+            const { itemType } = payload as { itemType?: 'odd' | 'even' | 'low' | 'high' };
             let dice1: number;
-            
+
             if (itemType) {
-                if (!game.diceGoItemUses || !game.diceGoItemUses[user.id] || game.diceGoItemUses[user.id][itemType] <= 0) {
+                const validItem = itemType === 'odd' || itemType === 'even' || itemType === 'low' || itemType === 'high';
+                if (!validItem) {
+                    return { error: '알 수 없는 아이템입니다.' };
+                }
+                patchDiceGoItemUsesRow(game, user.id);
+                const uses = game.diceGoItemUses?.[user.id];
+                if (!uses || uses[itemType] <= 0) {
                     return { error: '아이템이 없습니다.' };
                 }
-                game.diceGoItemUses[user.id][itemType]--;
-                const oddNumbers = [1, 3, 5];
-                const evenNumbers = [2, 4, 6];
-                const pool = itemType === 'odd' ? oddNumbers : evenNumbers;
+                uses[itemType]--;
+                const pools: Record<'odd' | 'even' | 'low' | 'high', number[]> = {
+                    odd: [1, 3, 5],
+                    even: [2, 4, 6],
+                    low: [1, 2, 3],
+                    high: [4, 5, 6],
+                };
+                const pool = pools[itemType];
                 dice1 = pool[Math.floor(Math.random() * pool.length)];
             } else {
                 dice1 = Math.floor(Math.random() * 6) + 1;
@@ -654,6 +874,7 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
             game.dice = undefined;
 
             game.stonesToPlace = isOvershot ? -1 : dice1;
+            syncDiceGoOvershotTicker(game, liberties.length, isOvershot);
             if (game.diceRollHistory) game.diceRollHistory[user.id].push(dice1);
             await db.saveGame(game);
             return { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
@@ -661,6 +882,8 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
         case 'DICE_PLACE_STONE': {
             if (game.gameStatus !== 'dice_placing' || !isMyTurn) return { error: '상대방의 차례입니다.' };
             if ((game.stonesToPlace ?? 0) <= 0) return { error: 'No stones left to place.' };
+
+            game.justCaptured = [];
 
             const { x, y } = payload;
             
@@ -703,10 +926,21 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
             game.diceCapturesThisTurn = (game.diceCapturesThisTurn || 0) + result.capturedStones.length;
             if (result.capturedStones.length > 0) {
                 game.diceLastCaptureStones = result.capturedStones;
+                const cap = result.capturedStones.length;
+                const pt = result.capturedStones[cap - 1];
+                game.justCaptured.push({
+                    point: pt,
+                    player: types.Player.White,
+                    wasHidden: false,
+                    capturePoints: cap,
+                });
             }
 
             game.boardState = result.newBoardState;
+            game.koInfo = result.newKoInfo;
             game.lastMove = { x, y };
+            if (!game.moveHistory) game.moveHistory = [];
+            game.moveHistory.push({ player: types.Player.Black, x, y });
 
             game.stonesToPlace = (game.stonesToPlace ?? 1) - 1;
             const whiteStonesLeft = game.boardState.flat().filter(s => s === types.Player.White).length;

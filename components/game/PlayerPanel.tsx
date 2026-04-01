@@ -503,6 +503,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     const showStrategicTurnBox = strategicLobbyTurnInfo != null;
 
+    const showDiceGoStonesBox = mode === GameMode.Dice && session.gameStatus === 'dice_placing' && typeof session.stonesToPlace === 'number';
+    const diceStonesBoxSize = isMobile ? 'w-[3.75rem] min-h-[4.5rem]' : 'w-[4.75rem] sm:w-20 md:w-24 min-h-[4.5rem]';
+
     return (
         <div className={`flex justify-between items-stretch ${isMobile ? 'gap-1' : 'gap-2'} flex-shrink-0 h-full`}>
             <div className="flex-1 min-w-0 min-h-[4.5rem] flex">
@@ -553,6 +556,25 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+            {showDiceGoStonesBox && (
+                <div
+                    className={`flex flex-col items-center justify-center ${diceStonesBoxSize} flex-shrink-0 self-stretch rounded-lg border-2 border-amber-400/55 bg-gradient-to-b from-gray-900/95 to-black/90 shadow-xl px-1 py-1`}
+                    role="status"
+                    aria-live="polite"
+                    aria-label={`이번 턴 남은 착수 ${session.stonesToPlace}개`}
+                >
+                    <span
+                        className={`${isMobile ? 'text-[0.5rem]' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} font-semibold text-amber-200/85 text-center leading-tight whitespace-nowrap`}
+                    >
+                        남은 돌
+                    </span>
+                    <span
+                        className={`font-mono font-bold tabular-nums text-amber-300 ${isMobile ? 'text-xl' : 'text-2xl md:text-3xl'} leading-none mt-0.5`}
+                    >
+                        {session.stonesToPlace}
+                    </span>
                 </div>
             )}
             <div className="flex-1 min-w-0 min-h-[4.5rem] flex">

@@ -27,11 +27,12 @@ interface GameArenaProps extends GameProps {
     onToggleBoardRotation?: () => void;
     // 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌
     pendingMove?: { x: number; y: number; player: Player } | null;
+    captureScoreFloatMinPoints?: number;
 }
 
 const GameArena: React.FC<GameArenaProps> = (props) => {
-    const { session, isSinglePlayerPaused, showBoardGlow, resumeCountdown, isBoardLocked, isBoardRotated, onToggleBoardRotation, pendingMove, ...restProps } = props;
-    const sharedProps = { ...restProps, session, isBoardRotated, onToggleBoardRotation, pendingMove, showBoardGlow };
+    const { session, isSinglePlayerPaused, showBoardGlow, resumeCountdown, isBoardLocked, isBoardRotated, onToggleBoardRotation, pendingMove, captureScoreFloatMinPoints = 2, ...restProps } = props;
+    const sharedProps = { ...restProps, session, isBoardRotated, onToggleBoardRotation, pendingMove, showBoardGlow, captureScoreFloatMinPoints };
     const { mode, isSinglePlayer, gameCategory } = session;
     
     // 도전의 탑 게임도 싱글플레이어 아레나와 동일하게 처리 (바둑 게임이므로)

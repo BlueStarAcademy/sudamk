@@ -19,6 +19,7 @@ interface GoGameArenaProps extends GameProps {
     onToggleBoardRotation?: () => void;
     // 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌
     pendingMove?: { x: number; y: number; player: Player } | null;
+    captureScoreFloatMinPoints?: number;
 }
 
 const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
@@ -36,6 +37,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         isBoardRotated = false,
         onToggleBoardRotation,
         pendingMove,
+        captureScoreFloatMinPoints = 2,
     } = props;
     
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
@@ -210,6 +212,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 isMobile={isMobile}
                 isRotated={isBoardRotated}
                 pendingMove={pendingMove}
+                captureScoreFloatMinPoints={captureScoreFloatMinPoints}
                 />
                 </div>
             </div>

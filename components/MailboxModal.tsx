@@ -208,7 +208,11 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                                             {selectedMail.attachmentsClaimed ? (
                                                 <p className="py-6 text-center text-sm text-zinc-500">수령이 완료되었습니다.</p>
                                             ) : (
-                                                <>
+                                                <div
+                                                    className="custom-mail-scroll h-[min(12rem,28vh)] overflow-y-auto overflow-x-hidden pr-1"
+                                                    role="region"
+                                                    aria-label="첨부 보상 목록"
+                                                >
                                                     <div className="mb-4 flex flex-wrap gap-3 text-sm">
                                                         {(selectedMail.attachments.actionPoints ?? 0) > 0 ? (
                                                             <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-950/30 px-3 py-2 font-medium text-emerald-200">
@@ -242,7 +246,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                                                         );
                                                         if (list.length === 0) return null;
                                                         return (
-                                                            <div className="flex flex-wrap justify-center gap-x-4 gap-y-5 sm:justify-start">
+                                                            <div className="flex flex-wrap justify-center gap-x-4 gap-y-5 pb-1 sm:justify-start">
                                                                 {list.map((raw, index) => (
                                                                     <MailRewardItemTile
                                                                         key={raw.id ?? `${selectedMail.id}-att-${index}`}
@@ -253,7 +257,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                                                             </div>
                                                         );
                                                     })()}
-                                                </>
+                                                </div>
                                             )}
                                         </div>
                                     </div>

@@ -553,6 +553,10 @@ export type GameSettings = {
   diceGoRounds?: 1 | 2 | 3;
   oddDiceCount?: number;
   evenDiceCount?: number;
+  /** 1~3만 나오는 주사위 아이템 */
+  lowDiceCount?: number;
+  /** 4~6만 나오는 주사위 아이템 */
+  highDiceCount?: number;
   diceGoItemCount?: number;
   
   // Alkkagi settings
@@ -808,6 +812,8 @@ export type LiveGameSession = {
   rpsRound?: number;
   dice?: { dice1: number, dice2: number, dice3: number };
   stonesToPlace?: number;
+  /** 주사위 바둑: 인간이 착수를 마친 뒤 턴 넘김 전 대기(타임스탬프 ms). 이전까지는 dice_placing 유지 */
+  dicePlacingSettleUntil?: number;
   turnOrderRolls?: { [userId: string]: number | null };
   turnOrderRollReady?: { [userId: string]: boolean };
   turnOrderRollResult?: 'tie' | null;
@@ -821,11 +827,12 @@ export type LiveGameSession = {
   diceRollHistory?: { [playerId: string]: number[] };
   diceRoundSummary?: DiceRoundSummary;
   lastWhiteGroupInfo?: { size: number; liberties: number } | null;
+  diceGoOvershotTicker?: { maxDice: number; lastCaptureBonus: number } | null;
   gameStartTime?: number; // 게임 시작 시간 (초기화 시점)
   isEarlyTermination?: boolean; // 조기 종료 여부
   badMannerPlayerId?: string; // 비매너 행동자 ID
   isRankedGame?: boolean; // true면 랭킹전, false면 친선전 (기본값: false)
-  diceGoItemUses?: { [playerId: string]: { odd: number; even: number } };
+  diceGoItemUses?: { [playerId: string]: { odd: number; even: number; low: number; high: number } };
   diceGoBonuses?: { [playerId: string]: number };
   diceCapturesThisTurn?: number;
   diceLastCaptureStones?: Point[];

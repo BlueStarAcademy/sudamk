@@ -8,11 +8,12 @@ interface ThiefGoArenaProps extends GameProps {
     isMyTurn: boolean;
     isMobile: boolean;
     showLastMoveMarker: boolean;
+    captureScoreFloatMinPoints?: number;
 }
 
 const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
-    const { session, onAction, currentUser, isMyTurn, isSpectator, isMobile, showLastMoveMarker } = props;
-    const { id: gameId, boardState, settings, lastMove, winningLine, gameStatus, currentPlayer, blackPlayerId, whitePlayerId, thiefPlayerId, player1, player2, lastTurnStones } = session;
+    const { session, onAction, currentUser, isMyTurn, isSpectator, isMobile, showLastMoveMarker, captureScoreFloatMinPoints = 2 } = props;
+    const { id: gameId, boardState, settings, lastMove, winningLine, gameStatus, currentPlayer, blackPlayerId, whitePlayerId, thiefPlayerId, player1, player2, lastTurnStones, justCaptured } = session;
     
     const myPlayerEnum = blackPlayerId === currentUser.id ? Player.Black : (whitePlayerId === currentUser.id ? Player.White : Player.None);
     const myRole = currentUser.id === thiefPlayerId ? '도둑' : '경찰';
@@ -98,6 +99,8 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
                 isItemModeActive={false}
                 isMobile={isMobile}
                 showLastMoveMarker={showLastMoveMarker}
+                justCaptured={justCaptured}
+                captureScoreFloatMinPoints={captureScoreFloatMinPoints}
             />
         </div>
     );

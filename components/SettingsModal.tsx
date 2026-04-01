@@ -317,6 +317,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                 onChange={(checked) => updateFeatureSetting('lastMoveMarker', checked)}
                             />
                         </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-text-secondary">따낸점수 애니메이션</span>
+                            <ToggleSwitch
+                                checked={settings.features.captureScoreAnimation}
+                                onChange={(checked) => updateFeatureSetting('captureScoreAnimation', checked)}
+                            />
+                        </div>
                         <h3 className="text-lg font-semibold text-text-secondary mb-4 pt-4 border-t border-color">알림</h3>
                          <div className="flex items-center justify-between">
                             <span className="text-text-secondary">퀘스트 완료 알림</span>

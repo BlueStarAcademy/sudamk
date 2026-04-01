@@ -2152,6 +2152,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         pendingMove={pendingMoveForBoard}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                         showLastMoveMarker={settings.features.lastMoveMarker}
+                                        captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
                                         isSinglePlayerPaused={isPaused}
                                         showBoardGlow={gameStatus === 'hidden_placing' || isAiHiddenPresentationActive}
                                         resumeCountdown={resumeCountdown}
@@ -2318,6 +2319,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         pendingMove={pendingMoveForBoard}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                         showLastMoveMarker={settings.features.lastMoveMarker}
+                                        captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
                                         isSinglePlayerPaused={isPaused}
                                         showBoardGlow={gameStatus === 'hidden_placing' || isAiHiddenPresentationActive}
                                         resumeCountdown={resumeCountdown}
@@ -2493,76 +2495,81 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             {/* 전략·놀이바둑 경기장 상단 헤더 (행동력, 재화, 설정 등) */}
             <Header compact />
             <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
-                <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
-                    <div className="w-full h-full max-h-full max-w-full flex flex-col items-center gap-1 lg:gap-2">
+                <main className="flex-1 flex min-w-0 min-h-0 overflow-hidden items-stretch justify-center">
+                    <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
                         <div className="flex-shrink-0 w-full flex items-center gap-2">
                             <div className="flex-1 min-w-0 px-2 pt-1">
                                 <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isMobile={isMobile} />
                             </div>
                         </div>
-                        <div className="flex-1 w-full relative min-w-0 min-h-0 overflow-hidden">
-                            <div className="absolute inset-0">
-                                <div className={`w-full h-full transition-opacity duration-500 ${effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                                    <GameArena 
-                                        {...gameProps}
-                                        isMyTurn={isMyTurn} 
-                                        myPlayerEnum={myPlayerEnum} 
-                                        handleBoardClick={handleBoardClick} 
-                                        isItemModeActive={isItemModeActive} 
-                                        showTerritoryOverlay={showFinalTerritory} 
-                                        isMobile={isMobile}
-                                        pendingMove={pendingMoveForBoard}
-                                        myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
-                                        showLastMoveMarker={settings.features.lastMoveMarker}
-                                        isBoardRotated={isBoardRotated}
-                                        onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
-                                        showBoardGlow={
-                                            isGuildWarTowerStyleUi &&
-                                            (gameStatus === 'hidden_placing' || isAiHiddenPresentationActive)
-                                        }
-                                    />
-                                </div>
-                                {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
-                                {showMoveConfirmPanel && (
+                        <div className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden">
+                            <div className="absolute inset-0 flex min-h-0 flex-col">
+                                <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden">
                                     <div
-                                        className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
-                                        style={{ left: 'calc(50% + 420px + 8px)' }}
+                                        className={`flex min-h-0 w-full flex-1 items-center justify-center overflow-auto ${effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-500`}
                                     >
-                                        <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
-                                            <Button
-                                                onClick={pendingMove ? handleConfirmMove : undefined}
-                                                disabled={!pendingMove || !settings.features.mobileConfirm}
-                                                colorScheme="none"
-                                                className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${(!pendingMove || !settings.features.mobileConfirm) ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                                title={!settings.features.mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : (pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요')}
-                                            >
-                                                착수
-                                            </Button>
-                                            {/* 취소 버튼은 사용하지 않음: 다른 곳 클릭 시 예상착점이 이동됨 */}
-                                            <div className="w-full h-px bg-gray-700/70" />
-                                            <div className="flex items-center justify-between gap-2 w-full">
-                                                <span className="text-[10px] text-gray-300 whitespace-nowrap">착수 버튼</span>
-                                                <ToggleSwitch
-                                                    checked={settings.features.mobileConfirm}
-                                                    onChange={(checked) => {
-                                                        updateFeatureSetting('mobileConfirm', checked);
-                                                        if (!checked) setPendingMove(null);
-                                                    }}
-                                                />
+                                        <GameArena 
+                                            {...gameProps}
+                                            isMyTurn={isMyTurn} 
+                                            myPlayerEnum={myPlayerEnum} 
+                                            handleBoardClick={handleBoardClick} 
+                                            isItemModeActive={isItemModeActive} 
+                                            showTerritoryOverlay={showFinalTerritory} 
+                                            isMobile={isMobile}
+                                            pendingMove={pendingMoveForBoard}
+                                            myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
+                                            showLastMoveMarker={settings.features.lastMoveMarker}
+                                            captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
+                                            isBoardRotated={isBoardRotated}
+                                            onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
+                                            showBoardGlow={
+                                                isGuildWarTowerStyleUi &&
+                                                (gameStatus === 'hidden_placing' || isAiHiddenPresentationActive)
+                                            }
+                                        />
+                                    </div>
+                                    {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
+                                    {showMoveConfirmPanel && (
+                                        <div
+                                            className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
+                                            style={{ left: 'calc(50% + 420px + 8px)' }}
+                                        >
+                                            <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
+                                                <Button
+                                                    onClick={pendingMove ? handleConfirmMove : undefined}
+                                                    disabled={!pendingMove || !settings.features.mobileConfirm}
+                                                    colorScheme="none"
+                                                    className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${(!pendingMove || !settings.features.mobileConfirm) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                                    title={!settings.features.mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : (pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요')}
+                                                >
+                                                    착수
+                                                </Button>
+                                                {/* 취소 버튼은 사용하지 않음: 다른 곳 클릭 시 예상착점이 이동됨 */}
+                                                <div className="w-full h-px bg-gray-700/70" />
+                                                <div className="flex items-center justify-between gap-2 w-full">
+                                                    <span className="text-[10px] text-gray-300 whitespace-nowrap">착수 버튼</span>
+                                                    <ToggleSwitch
+                                                        checked={settings.features.mobileConfirm}
+                                                        onChange={(checked) => {
+                                                            updateFeatureSetting('mobileConfirm', checked);
+                                                            if (!checked) setPendingMove(null);
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
-                                {effectivePaused && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
-                                        <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>
-                                        {resumeCountdown > 0 && (
-                                            <p className="text-lg font-semibold text-amber-200">
-                                                재개 가능까지 {resumeCountdown}초
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
+                                    )}
+                                    {effectivePaused && (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
+                                            <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>
+                                            {resumeCountdown > 0 && (
+                                                <p className="text-lg font-semibold text-amber-200">
+                                                    재개 가능까지 {resumeCountdown}초
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             {/* 계가 중: 바둑판 위 22초 연출만 표시 (모달 없음). 싱글/탑은 Arena에서 fullscreen 오버레이 표시 */}
                             {session.gameStatus === 'scoring' &&

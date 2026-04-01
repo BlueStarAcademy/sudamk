@@ -435,6 +435,8 @@ interface GoBoardProps {
   isRotated?: boolean; // 180도 회전 여부
   // 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌
   pendingMove?: { x: number; y: number; player: Player } | null;
+  /** 플로트를 띄울 최소 점수(설정 OFF 시 2 = 기존과 동일, ON 시 1 = 일반 따내기 +1 포함) */
+  captureScoreFloatMinPoints?: number;
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
@@ -444,7 +446,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         myPlayerEnum, gameStatus, highlightedPoints, highlightStyle = 'circle', myRevealedStones, allRevealedStones, newlyRevealed, isSpectator,
         analysisResult, showTerritoryOverlay = false, showHintOverlay = false, currentUser, blackPlayerNickname, whitePlayerNickname,
         currentPlayer, isItemModeActive, animation, mode, mixedModes, justCaptured, permanentlyRevealedStones, onAction, gameId,
-        showLastMoveMarker, blackPatternStones, whitePatternStones, consumedPatternIntersections, isSinglePlayer = false, isRotated = false, pendingMove = null
+        showLastMoveMarker, blackPatternStones, whitePatternStones, consumedPatternIntersections, isSinglePlayer = false, isRotated = false, pendingMove = null,
+        captureScoreFloatMinPoints = 2,
     } = props;
     const [captureScoreFloats, setCaptureScoreFloats] = useState<{ id: string; point: Point; label: string }[]>([]);
     /** 서버는 justCaptured를 누적하므로, 같은 교차점에서 보너스 점수(+2/+5) 플로트는 대국당 1회만 */
@@ -467,13 +470,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (list.length === 0) return;
 
         const CAPTURE_FLOAT_MS = 2800;
+        const minPts = captureScoreFloatMinPoints;
         const toAdd: { id: string; point: Point; label: string }[] = [];
         for (const e of list) {
             const pts = e.capturePoints ?? (e.wasHidden ? 5 : 1);
-            if (pts < 2) continue;
+            if (pts < minPts) continue;
             const posKey = `${e.point.x},${e.point.y}`;
-            if (shownCaptureBonusAtRef.current.has(posKey)) continue;
-            shownCaptureBonusAtRef.current.add(posKey);
+            const useDedupe = pts >= 2 || e.wasHidden;
+            if (useDedupe && shownCaptureBonusAtRef.current.has(posKey)) continue;
+            if (useDedupe) shownCaptureBonusAtRef.current.add(posKey);
             toAdd.push({
                 id: `cap-${e.point.x}-${e.point.y}-${pts}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
                 point: e.point,
@@ -488,7 +493,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             }, CAPTURE_FLOAT_MS);
             captureFloatTimeoutsRef.current.push(t);
         }
-    }, [justCaptured]);
+    }, [justCaptured, captureScoreFloatMinPoints]);
 
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const [selectedMissileStone, setSelectedMissileStone] = useState<Point | null>(null);

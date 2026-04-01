@@ -1922,44 +1922,44 @@ export const useApp = () => {
 
             if (dicePlaceGameId) {
                 const gid = dicePlaceGameId;
-                const inFlightBefore = pvpDicePlaceInFlightRef.current[gid] || 0;
-                if (inFlightBefore === 0) {
-                    flushSync(() => {
-                        setLiveGames((currentGames) => {
-                            const g = currentGames[gid];
-                            if (!g || g.isSinglePlayer || g.gameCategory === 'tower' || g.gameStatus !== 'dice_placing') {
-                                return currentGames;
-                            }
-                            if ((g.stonesToPlace ?? 0) <= 0) return currentGames;
-                            const { x, y } = action.payload as { x: number; y: number };
-                            const snap = JSON.parse(JSON.stringify(g)) as LiveGameSession;
-                            const pm = processMoveClient(
-                                g.boardState,
-                                { x, y, player: Player.Black },
-                                g.koInfo ?? null,
-                                g.moveHistory?.length ?? 0,
-                                { ignoreSuicide: true }
-                            );
-                            if (!pm.isValid) return currentGames;
-                            pvpDicePlaceRevertRef.current[gid] = snap;
-                            const newBoard = pm.newBoardState.map((row) => [...row]);
-                            const nextStones = (g.stonesToPlace ?? 1) - 1;
-                            const placed = [...(g.stonesPlacedThisTurn || []), { x, y }];
-                            return {
-                                ...currentGames,
-                                [gid]: {
-                                    ...g,
-                                    boardState: newBoard,
-                                    koInfo: pm.newKoInfo,
-                                    lastMove: { x, y },
-                                    stonesToPlace: nextStones,
-                                    stonesPlacedThisTurn: placed,
-                                    diceCapturesThisTurn: (g.diceCapturesThisTurn || 0) + pm.capturedStones.length,
-                                },
-                            };
-                        });
+                // 같은 턴에 여러 번 착수할 때도 매 클릭마다 낙관적 반영 (이전에는 inFlight>0이면 스킵되어 두 번째 돌부터 화면이 멈춤)
+                flushSync(() => {
+                    setLiveGames((currentGames) => {
+                        const g = currentGames[gid];
+                        if (!g || g.isSinglePlayer || g.gameCategory === 'tower' || g.gameStatus !== 'dice_placing') {
+                            return currentGames;
+                        }
+                        if ((g.stonesToPlace ?? 0) <= 0) return currentGames;
+                        const { x, y } = action.payload as { x: number; y: number };
+                        const snap = JSON.parse(JSON.stringify(g)) as LiveGameSession;
+                        const pm = processMoveClient(
+                            g.boardState,
+                            { x, y, player: Player.Black },
+                            g.koInfo ?? null,
+                            g.moveHistory?.length ?? 0,
+                            { ignoreSuicide: true }
+                        );
+                        if (!pm.isValid) return currentGames;
+                        pvpDicePlaceRevertRef.current[gid] = snap;
+                        const newBoard = pm.newBoardState.map((row) => [...row]);
+                        const nextStones = (g.stonesToPlace ?? 1) - 1;
+                        const placed = [...(g.stonesPlacedThisTurn || []), { x, y }];
+                        const nextHistory = [...(g.moveHistory || []), { player: Player.Black, x, y }];
+                        return {
+                            ...currentGames,
+                            [gid]: {
+                                ...g,
+                                boardState: newBoard,
+                                koInfo: pm.newKoInfo,
+                                lastMove: { x, y },
+                                moveHistory: nextHistory,
+                                stonesToPlace: nextStones,
+                                stonesPlacedThisTurn: placed,
+                                diceCapturesThisTurn: (g.diceCapturesThisTurn || 0) + pm.capturedStones.length,
+                            },
+                        };
                     });
-                }
+                });
             }
 
             if (dicePlaceGameId) {
@@ -2609,14 +2609,48 @@ export const useApp = () => {
                 // 주사위/도둑 착수: 한 개 놓을 때마다 화면에 바로 반영 (HTTP 응답 game으로 liveGames 갱신)
                 const placementGameId = (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') ? ((action.payload as any)?.gameId || game?.id) : null;
                 if (game && placementGameId && (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                    const cloneBoard = (g: typeof game) =>
+                        g.boardState && Array.isArray(g.boardState) ? g.boardState.map((row: number[]) => [...row]) : g.boardState;
                     if (action.type === 'DICE_PLACE_STONE') {
-                        delete pvpDicePlaceRevertRef.current[placementGameId];
+                        let appliedDicePlaceMerge = false;
+                        setLiveGames((currentGames) => {
+                            const existing = currentGames[placementGameId];
+                            if (!game) return currentGames;
+                            if (!existing) {
+                                appliedDicePlaceMerge = true;
+                                return { ...currentGames, [placementGameId]: { ...game, boardState: cloneBoard(game) } };
+                            }
+                            const srvRev = game.serverRevision ?? 0;
+                            const locRev = existing.serverRevision ?? 0;
+                            const srvMoves = game.moveHistory?.length ?? 0;
+                            const locMoves = existing.moveHistory?.length ?? 0;
+                            const bothPlacing = existing.gameStatus === 'dice_placing' && game.gameStatus === 'dice_placing';
+                            // 빠른 연속 착수 시 이전 HTTP 응답이 늦게 도착하면 낙관적 수순이 덮여 돌이 사라진 것처럼 보임 → 낡은 응답 무시
+                            if (srvRev < locRev || (bothPlacing && srvMoves < locMoves)) {
+                                return currentGames;
+                            }
+                            appliedDicePlaceMerge = true;
+                            return {
+                                ...currentGames,
+                                [placementGameId]: {
+                                    ...existing,
+                                    ...game,
+                                    boardState: cloneBoard(game),
+                                },
+                            };
+                        });
+                        if (appliedDicePlaceMerge) {
+                            delete pvpDicePlaceRevertRef.current[placementGameId];
+                        }
+                    } else {
+                        setLiveGames((currentGames) => {
+                            const existing = currentGames[placementGameId];
+                            const next = existing
+                                ? { ...existing, ...game, boardState: cloneBoard(game) }
+                                : { ...game, boardState: cloneBoard(game) };
+                            return { ...currentGames, [placementGameId]: next };
+                        });
                     }
-                    setLiveGames(currentGames => {
-                        const existing = currentGames[placementGameId];
-                        const next = existing ? { ...existing, ...game, boardState: game.boardState && Array.isArray(game.boardState) ? game.boardState.map((row: number[]) => [...row]) : game.boardState } : game;
-                        return { ...currentGames, [placementGameId]: next };
-                    });
                 }
                 // 주사위 굴리기: HTTP 응답에 game 있으면 즉시 반영 (두 번째 턴부터 굴리기 애니가 안 나오는 버그 방지)
                 const rollGameId = (action.type === 'DICE_ROLL') ? ((action.payload as any)?.gameId || game?.id) : null;
@@ -4473,6 +4507,24 @@ export const useApp = () => {
                                 } else {
                                     setLiveGames(currentGames => {
                                         const existingGame = currentGames[gameId];
+                                        // 주사위 바둑 착수: 소켓 패킷이 HTTP보다 늦거나 순서가 뒤바뀌면 낡은 상태로 덮어쓰지 않음
+                                        if (
+                                            game.gameStatus === 'dice_placing' &&
+                                            existingGame?.gameStatus === 'dice_placing'
+                                        ) {
+                                            const ir = game.serverRevision ?? 0;
+                                            const er = existingGame.serverRevision ?? 0;
+                                            if (ir < er) {
+                                                return currentGames;
+                                            }
+                                            if (ir === er) {
+                                                const im = game.moveHistory?.length ?? 0;
+                                                const em = existingGame.moveHistory?.length ?? 0;
+                                                if (im < em) {
+                                                    return currentGames;
+                                                }
+                                            }
+                                        }
                                         const incomingMoveCount = (game.moveHistory && Array.isArray(game.moveHistory)) ? game.moveHistory.length : 0;
                                         const existingMoveCount = (existingGame?.moveHistory && Array.isArray(existingGame.moveHistory)) ? existingGame.moveHistory.length : 0;
                                         // 새 수(AI 수 등)가 있으면 반드시 반영 - 서명 일치해도 스킵하지 않음 (AI가 둔 수가 사라지는 버그 방지)
@@ -4569,7 +4621,11 @@ export const useApp = () => {
                                         updatedGames[gameId] = mergedGame;
 
                                         // 전략바둑 대기실 그누고(AI) 수: 1초 지연 후 표시 (타워와 동일한 쾌적한 UX)
-                                        const isStrategicAiGame = game.isAiGame && game.moveHistory?.length > 0;
+                                        // 주사위/도둑 등 놀이바둑은 전략바둑 그누고 1초 지연을 쓰면 안 됨(턴·보드가 밀려 AI 차례처럼 보이는 현상)
+                                        const isDiceOrThiefPlayful =
+                                            game.mode === GameMode.Dice || game.mode === GameMode.Thief;
+                                        const isStrategicAiGame =
+                                            game.isAiGame && game.moveHistory?.length > 0 && !isDiceOrThiefPlayful;
                                         const lastMove = (game.moveHistory as any[])?.[game.moveHistory.length - 1];
                                         const aiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
                                         const isNewAiMoveLive = isStrategicAiGame && hasNewMoves && lastMove?.player === aiPlayerEnum;

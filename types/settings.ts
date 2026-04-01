@@ -21,6 +21,8 @@ export interface FeatureSettings {
     mobileConfirm: boolean;
     stonePreview: boolean;
     lastMoveMarker: boolean;
+    /** 바둑판 따낸 점수 플로트(+1, 합산 등) */
+    captureScoreAnimation: boolean;
     questNotifications: boolean;
     chatNotifications: boolean;
 }

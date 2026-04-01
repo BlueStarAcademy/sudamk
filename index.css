@@ -720,6 +720,61 @@ input, textarea {
   animation: dice-flicker 0.1s infinite;
 }
 
+/* 주사위 굴림: 3D 느낌의 회전 + 바운스 (주사위 바둑·도둑) */
+@keyframes dice-roll-vivid-outer {
+  0% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+  15% {
+    transform: translateY(-4px) scale(1.06);
+    filter: brightness(1.12);
+  }
+  30% {
+    transform: translateY(1px) scale(0.98);
+    filter: brightness(1.05);
+  }
+  45% {
+    transform: translateY(-3px) scale(1.04);
+    filter: brightness(1.1);
+  }
+  60% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1.06);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes dice-roll-vivid-inner {
+  0% {
+    transform: rotateX(-18deg) rotateY(0deg) rotateZ(-4deg);
+  }
+  25% {
+    transform: rotateX(22deg) rotateY(96deg) rotateZ(6deg);
+  }
+  50% {
+    transform: rotateX(-12deg) rotateY(192deg) rotateZ(-3deg);
+  }
+  75% {
+    transform: rotateX(16deg) rotateY(288deg) rotateZ(4deg);
+  }
+  100% {
+    transform: rotateX(-18deg) rotateY(360deg) rotateZ(-4deg);
+  }
+}
+
+.dice-rolling-vivid {
+  animation: dice-roll-vivid-outer 0.55s ease-in-out infinite;
+  perspective: 160px;
+}
+
+.dice-inner-spin {
+  animation: dice-roll-vivid-inner 0.42s linear infinite;
+}
+
 /* --- Board bonus / 문양·히든 따내기 점수: GoBoard `capture-points-float-inner` + SVG 필터 --- */
 
 /* 문양·히든 따내기 보너스 (+2 / +5): 에메랄드 톤, 팝→부유→소멸 (글로우는 SVG 필터) */

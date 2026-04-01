@@ -26,6 +26,7 @@ import { randomUUID } from 'crypto';
 import { updateQuestProgress } from '../questService.js';
 import { calculateGuildMissionXp } from '../../utils/guildUtils.js';
 import { broadcast } from '../socket.js';
+import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -2190,35 +2191,22 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const blackMarked = initialCfg.blackMarked;
                 const whiteMarked = initialCfg.whiteMarked;
 
-                const totalNeeded = blackPlain + whitePlain + blackMarked + whiteMarked;
                 const size =
                     Number(game.settings.boardSize) > 0
                         ? Number(game.settings.boardSize)
                         : getGuildWarBoardLineSize(boardId);
-                const allPoints: Array<{ x: number; y: number }> = [];
-                for (let y = 0; y < size; y++) {
-                    for (let x = 0; x < size; x++) allPoints.push({ x, y });
-                }
-                for (let i = allPoints.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [allPoints[i], allPoints[j]] = [allPoints[j], allPoints[i]];
-                }
-                const selected = allPoints.slice(0, Math.min(totalNeeded, allPoints.length));
-                let idx = 0;
-                const take = (n: number) => {
-                    const points = selected.slice(idx, idx + n);
-                    idx += n;
-                    return points;
-                };
-                const blackPlainPoints = take(blackPlain);
-                const whitePlainPoints = take(whitePlain);
-                const blackMarkedPoints = take(blackMarked);
-                const whiteMarkedPoints = take(whiteMarked);
-
-                for (const p of blackPlainPoints) game.boardState[p.y][p.x] = Player.Black;
-                for (const p of whitePlainPoints) game.boardState[p.y][p.x] = Player.White;
-                for (const p of blackMarkedPoints) game.boardState[p.y][p.x] = Player.Black;
-                for (const p of whiteMarkedPoints) game.boardState[p.y][p.x] = Player.White;
+                const { board: gwBoard, blackPattern: blackMarkedPoints, whitePattern: whiteMarkedPoints } =
+                    generateStrategicRandomBoard(
+                        size,
+                        {
+                            black: blackPlain,
+                            white: whitePlain,
+                            blackPattern: blackMarked,
+                            whitePattern: whiteMarked,
+                        },
+                        { maxAttempts: 60 }
+                    );
+                game.boardState = gwBoard;
 
                 // 문양돌은 싱글/도전의 탑과 동일: 2점(baseStones 베이스돌 5점 규칙과 분리 — UI도 패턴 문양 사용)
                 game.blackPatternStones = blackMarkedPoints.map((p) => ({ ...p }));

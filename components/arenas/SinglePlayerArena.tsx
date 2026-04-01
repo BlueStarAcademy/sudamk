@@ -20,6 +20,7 @@ interface SinglePlayerArenaProps extends GameProps {
     isBoardLocked?: boolean;
     // 착수 버튼 모드/AI 낙관 표시용 임시 돌 (예상착점)
     pendingMove?: { x: number; y: number; player: Player } | null;
+    captureScoreFloatMinPoints?: number;
 }
 
 const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
@@ -39,6 +40,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         resumeCountdown = 0,
         isBoardLocked = false,
         pendingMove = null,
+        captureScoreFloatMinPoints = 2,
     } = props;
     
     const {
@@ -185,6 +187,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     onAction={props.onAction}
                     gameId={session.id}
                     pendingMove={pendingMove}
+                    captureScoreFloatMinPoints={captureScoreFloatMinPoints}
                 />
                 </div>
                 </div>

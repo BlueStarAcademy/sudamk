@@ -195,13 +195,172 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
 
 const DICE_ROLL_ANIMATION_MS = 1500;
 
-const DicePanel: React.FC<{ session: LiveGameSession, isMyTurn: boolean, onAction: (a: ServerAction) => void, currentUser: User }> = ({ session, isMyTurn, onAction, currentUser }) => {
+export type DiceGoPanelItemKind = 'odd' | 'even' | 'low' | 'high';
+
+/** 주사위 바둑 특수 주사위 아이템 — ImageButton(w-16 md:w-20) 풋프린트 */
+const DiceGoLuxuryItemCard: React.FC<{
+    kind: DiceGoPanelItemKind;
+    count: number;
+    usable: boolean;
+    onUse: () => void;
+}> = ({ kind, count, usable, onUse }) => {
+    const [diceSize, setDiceSize] = React.useState(48);
+    React.useEffect(() => {
+        const q = window.matchMedia('(min-width: 768px)');
+        const sync = () => setDiceSize(q.matches ? 62 : 48);
+        sync();
+        q.addEventListener('change', sync);
+        return () => q.removeEventListener('change', sync);
+    }, []);
+
+    const meta = (() => {
+        switch (kind) {
+            case 'odd':
+                return {
+                    ariaLabel: `홀수 주사위 아이템, 남은 개수 ${count}`,
+                    title: `홀수(1·3·5) 주사위 아이템. 남은 개수 ${count}`,
+                    displayText: '1·3·5',
+                    diceColor: 'luxuryOdd' as const,
+                    outerGrad: 'from-cyan-400/35 via-slate-600/25 to-indigo-500/25',
+                    hoverOuter: 'hover:from-cyan-300/50 hover:via-slate-500/30 hover:shadow-[0_0_24px_-8px_rgba(34,211,238,0.38)]',
+                    innerActive:
+                        'border-cyan-400/45 shadow-[0_0_28px_-10px_rgba(34,211,238,0.35),inset_0_1px_0_rgba(255,255,255,0.1)] ring-1 ring-cyan-300/28',
+                    innerInactive: 'border-cyan-900/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] opacity-[0.78]',
+                    innerBg: 'from-slate-950 via-[#0a1628] to-slate-950',
+                    glow: 'bg-cyan-400',
+                };
+            case 'even':
+                return {
+                    ariaLabel: `짝수 주사위 아이템, 남은 개수 ${count}`,
+                    title: `짝수(2·4·6) 주사위 아이템. 남은 개수 ${count}`,
+                    displayText: '2·4·6',
+                    diceColor: 'luxuryEven' as const,
+                    outerGrad: 'from-amber-400/40 via-amber-900/20 to-orange-950/35',
+                    hoverOuter: 'hover:from-amber-300/55 hover:via-amber-900/25 hover:shadow-[0_0_24px_-8px_rgba(251,191,36,0.36)]',
+                    innerActive:
+                        'border-amber-400/48 shadow-[0_0_28px_-10px_rgba(251,191,36,0.33),inset_0_1px_0_rgba(255,255,255,0.1)] ring-1 ring-amber-300/25',
+                    innerInactive: 'border-amber-950/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] opacity-[0.78]',
+                    innerBg: 'from-zinc-950 via-[#1a1208] to-zinc-950',
+                    glow: 'bg-amber-400',
+                };
+            case 'low':
+                return {
+                    ariaLabel: `낮은 수 주사위 아이템, 남은 개수 ${count}`,
+                    title: `낮은 수(1·2·3) 주사위 아이템. 남은 개수 ${count}`,
+                    displayText: '1·2·3',
+                    diceColor: 'luxuryLow' as const,
+                    outerGrad: 'from-violet-400/40 via-slate-600/25 to-indigo-600/30',
+                    hoverOuter: 'hover:from-violet-300/50 hover:via-slate-500/30 hover:shadow-[0_0_24px_-8px_rgba(167,139,250,0.38)]',
+                    innerActive:
+                        'border-violet-400/50 shadow-[0_0_28px_-10px_rgba(167,139,250,0.33),inset_0_1px_0_rgba(255,255,255,0.1)] ring-1 ring-violet-300/28',
+                    innerInactive: 'border-violet-950/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] opacity-[0.78]',
+                    innerBg: 'from-slate-950 via-[#140a22] to-slate-950',
+                    glow: 'bg-violet-400',
+                };
+            case 'high':
+                return {
+                    ariaLabel: `높은 수 주사위 아이템, 남은 개수 ${count}`,
+                    title: `높은 수(4·5·6) 주사위 아이템. 남은 개수 ${count}`,
+                    displayText: '4·5·6',
+                    diceColor: 'luxuryHigh' as const,
+                    outerGrad: 'from-rose-400/40 via-red-950/25 to-orange-950/35',
+                    hoverOuter: 'hover:from-rose-300/55 hover:via-red-950/30 hover:shadow-[0_0_24px_-8px_rgba(251,113,133,0.36)]',
+                    innerActive:
+                        'border-rose-400/50 shadow-[0_0_28px_-10px_rgba(251,113,133,0.32),inset_0_1px_0_rgba(255,255,255,0.1)] ring-1 ring-rose-300/28',
+                    innerInactive: 'border-rose-950/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] opacity-[0.78]',
+                    innerBg: 'from-zinc-950 via-[#1a080c] to-zinc-950',
+                    glow: 'bg-rose-400',
+                };
+        }
+    })();
+
+    const innerFrame = usable ? meta.innerActive : meta.innerInactive;
+
+    return (
+        <div
+            title={meta.title}
+            className={`group relative h-16 w-16 shrink-0 select-none rounded-xl p-[1px] transition-all duration-300 md:h-20 md:w-20 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
+            role="group"
+            aria-label={meta.ariaLabel}
+        >
+            <div
+                className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-[0.65rem] border backdrop-blur-md transition-all duration-300 ${innerFrame} bg-gradient-to-b ${meta.innerBg}`}
+            >
+                <div
+                    className={`pointer-events-none absolute -left-1/4 -top-1/3 h-full w-2/3 -skew-x-12 rounded-full blur-xl opacity-20 ${meta.glow}`}
+                    aria-hidden
+                />
+                <div
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_0%,rgba(255,255,255,0.07),transparent_55%)]"
+                    aria-hidden
+                />
+
+                <div className="relative z-[1] flex items-center justify-center p-0.5">
+                    <CountOverlay count={count} disabled={!usable}>
+                        <Dice
+                            displayText={meta.displayText}
+                            color={meta.diceColor}
+                            value={null}
+                            isRolling={false}
+                            size={diceSize}
+                            onClick={onUse}
+                            disabled={!usable}
+                            outerClassName="!shadow-md rounded-xl !p-0.5"
+                        />
+                    </CountOverlay>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const LabeledDiceGoItem: React.FC<{
+    label: string;
+    disabled: boolean;
+    children: React.ReactNode;
+}> = ({ label, disabled, children }) => (
+    <div className="flex flex-col items-center gap-1 min-w-[3.5rem] sm:min-w-[4rem]">
+        {children}
+        <span
+            className={`text-[10px] font-semibold tracking-wide text-center leading-tight max-w-[4.5rem] ${
+                disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'
+            }`}
+        >
+            {label}
+        </span>
+    </div>
+);
+
+export type DicePanelVariant = 'all' | 'mainOnly' | 'itemsOnly';
+
+export const DicePanel: React.FC<{
+    session: LiveGameSession;
+    isMyTurn: boolean;
+    onAction: (a: ServerAction) => void;
+    currentUser: User;
+    /** all: 기본(주+홀+짝) · mainOnly: 일반 주사위만(판 옆) · itemsOnly: 홀·짝만(놀이 기능) */
+    variant?: DicePanelVariant;
+}> = ({ session, isMyTurn, onAction, currentUser, variant = 'all' }) => {
     const { id: gameId, gameStatus } = session;
     const [localRollEndTime, setLocalRollEndTime] = React.useState<number>(0);
+    const [itemConfirm, setItemConfirm] = React.useState<DiceGoPanelItemKind | null>(null);
+    /** 서버 애니 종료 시각을 클라에서도 맞추기 위해(소켓만으로는 1.5초 중 재렌더가 없을 수 있음) */
+    const [, setAnimTick] = React.useState(0);
 
-    const isRollingByStatus = gameStatus === 'dice_rolling_animating';
-    const isRollingByLocal = localRollEndTime > 0 && Date.now() < localRollEndTime;
-    const isRolling = isRollingByStatus || isRollingByLocal;
+    const diceAnimation = session.animation?.type === 'dice_roll_main' ? session.animation : null;
+    const serverAnimEnd = diceAnimation ? diceAnimation.startTime + diceAnimation.duration : 0;
+    const isRollingByServerAnim = !!diceAnimation && Date.now() < serverAnimEnd;
+    React.useEffect(() => {
+        if (!diceAnimation) return;
+        const end = diceAnimation.startTime + diceAnimation.duration;
+        if (Date.now() >= end) return;
+        const id = window.setInterval(() => setAnimTick((n) => n + 1), 100);
+        return () => clearInterval(id);
+    }, [diceAnimation?.startTime, diceAnimation?.duration]);
+
+    // 응답 전 짧은 구간만 로컬 타이머(서버 animation 아직 없을 때)
+    const isRollingByLocal = localRollEndTime > 0 && Date.now() < localRollEndTime && !diceAnimation;
+    const isRolling = isRollingByServerAnim || isRollingByLocal;
 
     React.useEffect(() => {
         if (localRollEndTime <= 0) return;
@@ -209,59 +368,170 @@ const DicePanel: React.FC<{ session: LiveGameSession, isMyTurn: boolean, onActio
         return () => clearTimeout(t);
     }, [localRollEndTime]);
 
-    const handleRoll = (itemType?: 'odd' | 'even') => {
-        if (isMyTurn && gameStatus === 'dice_rolling') {
-            audioService.rollDice(1);
-            setLocalRollEndTime(Date.now() + DICE_ROLL_ANIMATION_MS);
-            onAction({ type: 'DICE_ROLL', payload: { gameId, itemType } });
+    React.useEffect(() => {
+        if (gameStatus !== 'dice_rolling') setItemConfirm(null);
+    }, [gameStatus]);
+
+    const handleRoll = (itemType?: DiceGoPanelItemKind) => {
+        if (!(isMyTurn && gameStatus === 'dice_rolling')) return;
+        if (itemType === 'odd' || itemType === 'even' || itemType === 'low' || itemType === 'high') {
+            setItemConfirm(itemType);
+            return;
         }
+        audioService.rollDice(1);
+        setLocalRollEndTime(Date.now() + DICE_ROLL_ANIMATION_MS);
+        onAction({ type: 'DICE_ROLL', payload: { gameId, itemType } });
+    };
+
+    const confirmItemRoll = () => {
+        if (!itemConfirm || !(isMyTurn && gameStatus === 'dice_rolling')) {
+            setItemConfirm(null);
+            return;
+        }
+        audioService.rollDice(1);
+        setLocalRollEndTime(Date.now() + DICE_ROLL_ANIMATION_MS);
+        onAction({ type: 'DICE_ROLL', payload: { gameId, itemType: itemConfirm } });
+        setItemConfirm(null);
     };
 
     const myItemUses = session.diceGoItemUses?.[currentUser.id];
     const oddCount = myItemUses?.odd ?? 0;
     const evenCount = myItemUses?.even ?? 0;
+    const lowCount = myItemUses?.low ?? 0;
+    const highCount = myItemUses?.high ?? 0;
     const canRoll = isMyTurn && gameStatus === 'dice_rolling';
-    
-    const diceValue = isRolling ? null : session.dice?.dice1;
+    const oddItemUsable = canRoll && oddCount > 0 && !isRolling;
+    const evenItemUsable = canRoll && evenCount > 0 && !isRolling;
+    const lowItemUsable = canRoll && lowCount > 0 && !isRolling;
+    const highItemUsable = canRoll && highCount > 0 && !isRolling;
 
-    return (
-        <div className={`flex flex-row items-center justify-center gap-3 transition-all ${canRoll ? 'animate-pulse-border-yellow' : 'border-2 border-transparent p-2 rounded-lg'}`}>
+    // ThiefPanel과 동일: 굴림 중에도 서버가 준 dice1을 표시하면 숫자가 안 바뀐다(무작위 면 → 실제 값 혼동 방지)
+    const diceValue = diceAnimation ? diceAnimation.dice.dice1 : session.dice?.dice1 ?? null;
+
+    const showMain = variant === 'all' || variant === 'mainOnly';
+    const showItems = variant === 'all' || variant === 'itemsOnly';
+    const showItemModal = showItems;
+
+    const mainDice = showMain ? (
+        variant === 'mainOnly' ? (
+            <div
+                className={`flex flex-col items-center gap-2 rounded-2xl border bg-gradient-to-b from-gray-900/95 via-gray-950/90 to-black/90 px-4 py-4 shadow-[0_0_36px_-10px_rgba(251,191,36,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition-shadow duration-300 ${
+                    canRoll ? 'border-amber-400/55 ring-2 ring-amber-400/20' : 'border-amber-400/35'
+                }`}
+            >
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/85">주사위</span>
+                <Dice
+                    value={diceValue ?? null}
+                    isRolling={isRolling}
+                    size={64}
+                    onClick={() => handleRoll()}
+                    disabled={!canRoll}
+                />
+                <span className="text-[9px] text-gray-500 text-center leading-tight max-w-[5.5rem]">
+                    {canRoll ? '터치하여 굴리기' : '상대 차례'}
+                </span>
+            </div>
+        ) : (
             <div className="flex flex-col items-center">
-                <Dice 
-                    value={diceValue ?? null} 
-                    isRolling={isRolling} 
-                    size={48}
+                <Dice
+                    value={diceValue ?? null}
+                    isRolling={isRolling}
+                    size={52}
                     onClick={() => handleRoll()}
                     disabled={!canRoll}
                 />
             </div>
-            <div className="flex flex-col items-center">
-                <CountOverlay count={oddCount} disabled={!canRoll || oddCount <= 0}>
-                    <Dice 
-                        displayText="홀" 
-                        color="blue" 
-                        value={null} 
-                        isRolling={isRolling} 
-                        size={48}
-                        onClick={() => handleRoll('odd')}
-                        disabled={!canRoll || oddCount <= 0}
-                    />
-                </CountOverlay>
-            </div>
-            <div className="flex flex-col items-center">
-                <CountOverlay count={evenCount} disabled={!canRoll || evenCount <= 0}>
-                    <Dice 
-                        displayText="짝" 
-                        color="yellow" 
-                        value={null} 
-                        isRolling={isRolling} 
-                        size={48}
-                        onClick={() => handleRoll('even')}
-                        disabled={!canRoll || evenCount <= 0}
-                    />
-                </CountOverlay>
-            </div>
+        )
+    ) : null;
+
+    const diceGoConfirmCopy = (k: DiceGoPanelItemKind) => {
+        switch (k) {
+            case 'odd':
+                return {
+                    title: '홀수 주사위 사용',
+                    body: '홀수(1·3·5)만 나오는 주사위 아이템을 1개 사용합니다. 계속하시겠습니까?',
+                };
+            case 'even':
+                return {
+                    title: '짝수 주사위 사용',
+                    body: '짝수(2·4·6)만 나오는 주사위 아이템을 1개 사용합니다. 계속하시겠습니까?',
+                };
+            case 'low':
+                return {
+                    title: '낮은 수 주사위 사용',
+                    body: '낮은 수(1·2·3)만 나오는 주사위 아이템을 1개 사용합니다. 계속하시겠습니까?',
+                };
+            case 'high':
+                return {
+                    title: '높은 수 주사위 사용',
+                    body: '높은 수(4·5·6)만 나오는 주사위 아이템을 1개 사용합니다. 계속하시겠습니까?',
+                };
+        }
+    };
+
+    const diceGoItemsRow = showItems ? (
+        <div className="flex flex-row flex-wrap items-end justify-center gap-x-3 gap-y-2">
+            <LabeledDiceGoItem label="홀수" disabled={!oddItemUsable}>
+                <DiceGoLuxuryItemCard kind="odd" count={oddCount} usable={oddItemUsable} onUse={() => handleRoll('odd')} />
+            </LabeledDiceGoItem>
+            <LabeledDiceGoItem label="짝수" disabled={!evenItemUsable}>
+                <DiceGoLuxuryItemCard kind="even" count={evenCount} usable={evenItemUsable} onUse={() => handleRoll('even')} />
+            </LabeledDiceGoItem>
+            <LabeledDiceGoItem label="낮은수" disabled={!lowItemUsable}>
+                <DiceGoLuxuryItemCard kind="low" count={lowCount} usable={lowItemUsable} onUse={() => handleRoll('low')} />
+            </LabeledDiceGoItem>
+            <LabeledDiceGoItem label="높은수" disabled={!highItemUsable}>
+                <DiceGoLuxuryItemCard kind="high" count={highCount} usable={highItemUsable} onUse={() => handleRoll('high')} />
+            </LabeledDiceGoItem>
         </div>
+    ) : null;
+
+    return (
+        <>
+            {showItemModal && itemConfirm && (
+                <div
+                    className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="dice-item-confirm-title"
+                    onClick={() => setItemConfirm(null)}
+                >
+                    <div
+                        className="bg-gray-900 border border-amber-500/40 rounded-xl shadow-2xl max-w-sm w-full p-5 space-y-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 id="dice-item-confirm-title" className="text-lg font-bold text-amber-100">
+                            {diceGoConfirmCopy(itemConfirm).title}
+                        </h2>
+                        <p className="text-sm text-gray-300 leading-relaxed">{diceGoConfirmCopy(itemConfirm).body}</p>
+                        <div className="flex gap-2 justify-end">
+                            <Button type="button" colorScheme="none" className="!px-4 !py-2 rounded-lg border border-gray-600 text-gray-200" onClick={() => setItemConfirm(null)}>
+                                취소
+                            </Button>
+                            <Button type="button" colorScheme="none" className="!px-4 !py-2 rounded-lg border border-amber-400/60 bg-amber-600/90 text-slate-900 font-semibold" onClick={confirmItemRoll}>
+                                사용
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <div className="flex flex-row flex-wrap items-center justify-center gap-3 border-0 p-0 transition-all">
+                {variant === 'all' ? (
+                    <>
+                        <div
+                            className={`flex flex-col items-center ${canRoll ? 'animate-pulse-border-yellow' : 'border-2 border-transparent p-2 rounded-lg'}`}
+                        >
+                            {mainDice}
+                        </div>
+                        {diceGoItemsRow}
+                    </>
+                ) : variant === 'mainOnly' ? (
+                    mainDice
+                ) : (
+                    diceGoItemsRow
+                )}
+            </div>
+        </>
     );
 };
 
@@ -1098,7 +1368,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 return itemButtons;
                             })()
                         ) : (
-                            mode === GameMode.Dice ? <DicePanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} /> :
+                            mode === GameMode.Dice ? (
+                                <DicePanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" />
+                            ) :
                             mode === GameMode.Thief ? <ThiefPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} /> :
                             mode === GameMode.Curling ? <CurlingItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} /> :
                             mode === GameMode.Alkkagi ? <AlkkagiItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} /> :

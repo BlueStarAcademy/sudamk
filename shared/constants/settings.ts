@@ -29,6 +29,7 @@ export const defaultSettings: AppSettings = {
         mobileConfirm: true,
         stonePreview: true,
         lastMoveMarker: true,
+        captureScoreAnimation: true,
         questNotifications: true,
         chatNotifications: true,
     },

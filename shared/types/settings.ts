@@ -21,6 +21,7 @@ export interface FeatureSettings {
     mobileConfirm: boolean;
     stonePreview: boolean;
     lastMoveMarker: boolean;
+    captureScoreAnimation: boolean;
     questNotifications: boolean;
     chatNotifications: boolean;
 }

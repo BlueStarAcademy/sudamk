@@ -35,6 +35,23 @@ const getGameStatusText = (session: LiveGameSession): string => {
 
     const player = getPlayerByEnum(currentPlayer);
 
+    if (
+        session.mode === GameMode.Dice &&
+        session.diceGoOvershotTicker &&
+        (gameStatus === 'dice_rolling' || gameStatus === 'dice_rolling_animating')
+    ) {
+        const { maxDice, lastCaptureBonus } = session.diceGoOvershotTicker;
+        const totalRounds = settings.diceGoRounds ?? 1;
+        let message =
+            maxDice > 0
+                ? `오버샷! 주사위가 ${maxDice} 이하여야 마지막 더미를 따낼 수 있습니다.`
+                : `오버샷! 지금은 백의 유효 자리가 없어 마지막 더미를 따낼 수 없습니다. 다음 굴림을 기다려 주세요.`;
+        if (session.round === totalRounds && totalRounds > 0 && lastCaptureBonus > 0) {
+            message += ` (마지막 더미 보너스 +${lastCaptureBonus}점)`;
+        }
+        return message;
+    }
+
     if (session.mode === GameMode.Dice && session.lastWhiteGroupInfo && session.lastWhiteGroupInfo.liberties <= 6) {
         const totalRounds = session.settings.diceGoRounds ?? 1;
         let message = `마지막 승부! 유효자리 ${session.lastWhiteGroupInfo.liberties}개`;
@@ -316,20 +333,31 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     }
     
     if (session.mode === GameMode.Dice && session.gameStatus === 'dice_placing' && session.dice) {
+        const diceGuidance = '상대보다 더 많은 돌을 따내기 위해 돌을 놓아보세요.';
         return wrapContent(
-            `${baseClasses} ${themeClasses} px-3 gap-1 min-w-0`,
+            `${baseClasses} ${themeClasses} px-3 gap-1.5 min-w-0 min-h-[3rem]`,
             <>
-                <div className="flex items-center gap-1.5 flex-nowrap min-w-0 overflow-hidden">
-                    <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap shrink-0`}>
-                        주사위: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{session.dice.dice1}</span>
-                    </span>
-                    <span className={`text-tertiary/70 shrink-0 ${isSinglePlayer ? 'text-stone-500' : ''}`}>·</span>
-                    <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap shrink-0`}>
-                        남은 돌: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{session.stonesToPlace}</span>
-                    </span>
+                <div className="flex w-full flex-col items-center justify-center gap-1 min-w-0">
+                    <div className="flex items-center justify-center shrink-0">
+                        <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap`}>
+                            주사위: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{session.dice.dice1}</span>
+                        </span>
+                    </div>
+                    <div className="w-full overflow-hidden flex-shrink-0 relative min-h-[1.35rem] flex items-center justify-center px-0.5">
+                        <p
+                            className={`font-bold ${textClass} text-center text-[clamp(0.68rem,1.9vmin,0.82rem)] leading-snug tracking-wide`}
+                            style={{
+                                textShadow: isSinglePlayer
+                                    ? '0 0 8px rgba(251, 191, 36, 0.35)'
+                                    : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
+                            }}
+                        >
+                            {diceGuidance}
+                        </p>
+                    </div>
                 </div>
                 {isPlayfulTurn && (
-                    <div className="w-full h-1 bg-tertiary rounded-full mt-1 flex-shrink-0">
+                    <div className="w-full h-1 bg-tertiary rounded-full mt-0.5 flex-shrink-0">
                         <div className="h-1 bg-red-500 rounded-full" style={{ width: `${percentage}%` }} />
                     </div>
                 )}

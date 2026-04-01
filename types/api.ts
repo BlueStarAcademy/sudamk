@@ -181,7 +181,7 @@ export type ServerAction =
     | { type: 'DICE_READY_FOR_TURN_ROLL', payload: { gameId: string } }
     | { type: 'DICE_CHOOSE_TURN', payload: { gameId: string; choice: 'first' | 'second' } }
     | { type: 'DICE_CONFIRM_START', payload: { gameId: string } }
-    | { type: 'DICE_ROLL', payload: { gameId: string; itemType?: 'odd' | 'even' } }
+    | { type: 'DICE_ROLL', payload: { gameId: string; itemType?: 'odd' | 'even' | 'low' | 'high' } }
     | { type: 'DICE_PLACE_STONE', payload: { gameId: string, x: number, y: number } }
     // Thief Go
     | { type: 'THIEF_UPDATE_ROLE_CHOICE', payload: { gameId: string; choice: 'thief' | 'police' } }

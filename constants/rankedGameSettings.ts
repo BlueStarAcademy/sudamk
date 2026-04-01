@@ -77,6 +77,10 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
         boardSize: 19,
         komi: 0,
         diceGoRounds: 3, // 3라운드
+        oddDiceCount: 1,
+        evenDiceCount: 1,
+        lowDiceCount: 1,
+        highDiceCount: 1,
         timeLimit: 0,
         byoyomiTime: 0,
         byoyomiCount: 0,

@@ -4,124 +4,14 @@ import { type ServerAction, type User, type VolatileState, LiveGameSession, Play
 import { SINGLE_PLAYER_STAGES, SINGLE_PLAYER_MISSIONS } from '../../shared/constants/singlePlayerConstants';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
-import { processMove } from '../goLogic.js';
+import {
+    generateStrategicRandomBoard,
+    isInvalidStrategicInitialStonePlacement,
+} from '../strategicInitialBoard.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
     error?: string;
-};
-
-// Helper function to check if a stone placement would result in immediate capture
-const wouldBeImmediatelyCaptured = (board: BoardState, x: number, y: number, player: Player): boolean => {
-    // Try placing the stone
-    const result = processMove(
-        board,
-        { x, y, player },
-        null, // no ko info for initial placement
-        0, // move history length
-        { ignoreSuicide: true } // allow suicide for initial check
-    );
-
-    if (!result.isValid) {
-        return true; // Invalid move, skip this position
-    }
-
-    // Check if the placed stone's group has only one liberty
-    // If so, check if opponent can capture it by playing at that liberty
-    const opponent = player === Player.Black ? Player.White : Player.Black;
-    const boardSize = board.length;
-    
-    // Get neighbors of the placed stone
-    const getNeighbors = (px: number, py: number) => {
-        const neighbors = [];
-        if (px > 0) neighbors.push({ x: px - 1, y: py });
-        if (px < boardSize - 1) neighbors.push({ x: px + 1, y: py });
-        if (py > 0) neighbors.push({ x: px, y: py - 1 });
-        if (py < boardSize - 1) neighbors.push({ x: px, y: py + 1 });
-        return neighbors;
-    };
-
-    // Find the group containing the placed stone
-    const findGroup = (startX: number, startY: number, playerColor: Player, currentBoard: BoardState) => {
-        if (currentBoard[startY]?.[startX] !== playerColor) return null;
-        const q: Point[] = [{ x: startX, y: startY }];
-        const visitedStones = new Set([`${startX},${startY}`]);
-        const libertyPoints = new Set<string>();
-        const stones: Point[] = [{ x: startX, y: startY }];
-
-        while (q.length > 0) {
-            const { x: cx, y: cy } = q.shift()!;
-            for (const n of getNeighbors(cx, cy)) {
-                const key = `${n.x},${n.y}`;
-                const neighborContent = currentBoard[n.y][n.x];
-
-                if (neighborContent === Player.None) {
-                    libertyPoints.add(key);
-                } else if (neighborContent === playerColor) {
-                    if (!visitedStones.has(key)) {
-                        visitedStones.add(key);
-                        q.push(n);
-                        stones.push(n);
-                    }
-                }
-            }
-        }
-        return { stones, liberties: Array.from(libertyPoints).map(k => {
-            const [nx, ny] = k.split(',').map(Number);
-            return { x: nx, y: ny };
-        }) };
-    };
-
-    const myGroup = findGroup(x, y, player, result.newBoardState);
-    if (!myGroup) {
-        return true; // Couldn't find group, skip
-    }
-
-    // 0 liberties = 즉시 따이는 모양 (자살/포석 즉시 잡힘) → 배치 불가
-    if (myGroup.liberties.length === 0) {
-        return true;
-    }
-
-    // If the group has only one liberty, check if opponent can capture by playing there
-    if (myGroup.liberties.length === 1) {
-        const liberty = myGroup.liberties[0];
-        const opponentResult = processMove(
-            result.newBoardState,
-            { x: liberty.x, y: liberty.y, player: opponent },
-            null,
-            1,
-            { ignoreSuicide: false }
-        );
-
-        // If opponent can capture our stone by playing at the liberty, it's a bad placement
-        if (opponentResult.isValid && opponentResult.capturedStones.some(s => s.x === x && s.y === y)) {
-            return true;
-        }
-    }
-
-    return false;
-};
-
-// Helper function to place stones randomly without overlap and without immediate capture
-const placeStonesOnBoard = (board: BoardState, boardSize: number, count: number, player: Player): Point[] => {
-    const placedStones: Point[] = [];
-    let placedCount = 0;
-    let attempts = 0;
-    while (placedCount < count && attempts < 200) {
-        attempts++;
-        const x = Math.floor(Math.random() * boardSize);
-        const y = Math.floor(Math.random() * boardSize);
-        if (board[y][x] === Player.None) {
-            // Check if this placement would result in immediate capture
-            if (wouldBeImmediatelyCaptured(board, x, y, player)) {
-                continue; // Skip this position
-            }
-            board[y][x] = player;
-            placedStones.push({ x, y });
-            placedCount++;
-        }
-    }
-    return placedStones;
 };
 
 /**
@@ -157,22 +47,33 @@ const getAiLevelFromStageId = (stageId: string): number => {
 };
 
 const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
-    const board = Array(stage.boardSize).fill(null).map(() => Array(stage.boardSize).fill(Player.None));
     const center = Math.floor(stage.boardSize / 2);
     let blackToPlace = stage.placements.black;
-    
-    // Handle center stone placement probability
-    if (stage.placements.centerBlackStoneChance !== undefined && stage.placements.centerBlackStoneChance > 0 && Math.random() * 100 < stage.placements.centerBlackStoneChance) {
-        board[center][center] = Player.Black;
-        blackToPlace--;
+    let baseBoard: BoardState | undefined;
+
+    if (
+        stage.placements.centerBlackStoneChance !== undefined &&
+        stage.placements.centerBlackStoneChance > 0 &&
+        Math.random() * 100 < stage.placements.centerBlackStoneChance
+    ) {
+        const template = Array(stage.boardSize).fill(null).map(() => Array(stage.boardSize).fill(Player.None));
+        if (!isInvalidStrategicInitialStonePlacement(template, center, center, Player.Black)) {
+            template[center][center] = Player.Black;
+            baseBoard = template;
+            blackToPlace--;
+        }
     }
 
-    const whitePatternStones = placeStonesOnBoard(board, stage.boardSize, stage.placements.whitePattern, Player.White);
-    const blackPatternStones = placeStonesOnBoard(board, stage.boardSize, stage.placements.blackPattern, Player.Black);
-    placeStonesOnBoard(board, stage.boardSize, stage.placements.white, Player.White);
-    placeStonesOnBoard(board, stage.boardSize, blackToPlace, Player.Black); // Place remaining black stones
-    // AI 히든돌은 미리 배치하지 않음 — 봇이 히든 아이템 사용 연출 후 실제로 둠 (goAiBot)
-    return { board, blackPattern: blackPatternStones, whitePattern: whitePatternStones };
+    return generateStrategicRandomBoard(
+        stage.boardSize,
+        {
+            black: blackToPlace,
+            white: stage.placements.white,
+            blackPattern: stage.placements.blackPattern,
+            whitePattern: stage.placements.whitePattern,
+        },
+        { baseBoard, maxAttempts: 40 }
+    );
 };
 
 
