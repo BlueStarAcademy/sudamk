@@ -4397,7 +4397,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     });
     
     // 관리자용 사용자 검색 (/api/action 과 동일하게 요청에 userId 포함 — sessionId 쿠키는 앱에서 쓰지 않음)
-    app.get('/api/admin/users', async (req, res) => {
+    // NOTE: '/admin/users' alias is kept for deployments with API prefix rewrites.
+    const handleAdminUsersSearch: express.RequestHandler = async (req, res) => {
         try {
             const userId = String(req.query.userId || '').trim();
             if (!userId) {
@@ -4427,7 +4428,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             console.error('[Admin] Error getting users list:', error);
             res.status(500).json({ error: error.message });
         }
-    });
+    };
+    app.get('/api/admin/users', handleAdminUsersSearch);
+    app.get('/admin/users', handleAdminUsersSearch);
 
     /** 관리자: 단일 유저 전체(인벤·장비 포함) 조회 */
     app.get('/api/admin/user/:targetUserId', async (req, res) => {

@@ -257,6 +257,33 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
     const [isItemModalOpen, setIsItemModalOpen] = useState(false);
     const [attachedItems, setAttachedItems] = useState<MailAttachedItemPayload[]>([]);
 
+    const fetchAdminUsers = async (trimmedQuery: string): Promise<User[]> => {
+        const candidates = ['/api/admin/users', '/admin/users'];
+        let lastError: Error | null = null;
+
+        for (const basePath of candidates) {
+            try {
+                const response = await fetch(
+                    `${basePath}?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=50`,
+                    { credentials: 'include' }
+                );
+                const raw = await response.text();
+                if (raw.trim().startsWith('<!DOCTYPE') || raw.trim().startsWith('<html')) {
+                    throw new Error('API 대신 HTML 응답이 반환되었습니다.');
+                }
+                const data = raw ? JSON.parse(raw) : {};
+                if (!response.ok) {
+                    throw new Error(data?.message || data?.error || '사용자 검색에 실패했습니다.');
+                }
+                return Array.isArray(data.users) ? data.users : [];
+            } catch (err: any) {
+                lastError = err instanceof Error ? err : new Error(String(err));
+            }
+        }
+
+        throw lastError ?? new Error('사용자 검색에 실패했습니다.');
+    };
+
     const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const query = e.target.value;
         setTargetSearchQuery(query);
@@ -269,15 +296,7 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
 
         setIsSearchingUsers(true);
         try {
-            const response = await fetch(
-                `/api/admin/users?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(query.trim())}&limit=50`,
-                { credentials: 'include' }
-            );
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.error || '사용자 검색에 실패했습니다.');
-            }
-            const users = Array.isArray(data.users) ? data.users : [];
+            const users = await fetchAdminUsers(query.trim());
             setSearchResults(users);
         } catch (err: any) {
             console.error('[MailSystemPanel] Failed to search users:', err);

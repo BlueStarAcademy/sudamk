@@ -738,6 +738,33 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
     const [searchError, setSearchError] = useState<string | null>(null);
     const [localUsers, setLocalUsers] = useState<User[]>([]);
 
+    const fetchAdminUsers = useCallback(async (trimmedQuery: string) => {
+        const candidates = ['/api/admin/users', '/admin/users'];
+        let lastError: Error | null = null;
+
+        for (const basePath of candidates) {
+            try {
+                const response = await fetch(
+                    `${basePath}?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=50`,
+                    { credentials: 'include' }
+                );
+                const raw = await response.text();
+                if (raw.trim().startsWith('<!DOCTYPE') || raw.trim().startsWith('<html')) {
+                    throw new Error('API 대신 HTML 응답이 반환되었습니다.');
+                }
+                const data = raw ? JSON.parse(raw) : {};
+                if (!response.ok) {
+                    throw new Error(data?.message || data?.error || '사용자 검색에 실패했습니다.');
+                }
+                return Array.isArray(data.users) ? data.users : [];
+            } catch (err: any) {
+                lastError = err instanceof Error ? err : new Error(String(err));
+            }
+        }
+
+        throw lastError ?? new Error('사용자 검색에 실패했습니다.');
+    }, [currentUser.id]);
+
     const fetchUsersByQuery = useCallback(async (query: string) => {
         const trimmedQuery = query.trim();
         if (trimmedQuery.length < 1) {
@@ -749,19 +776,8 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         setIsLoadingUsers(true);
         setSearchError(null);
         try {
-            const response = await fetch(
-                `/api/admin/users?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=50`,
-                { credentials: 'include' }
-            );
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.message || data?.error || '사용자 검색에 실패했습니다.');
-            }
-            if (Array.isArray(data.users)) {
-                setLocalUsers(data.users);
-            } else {
-                setLocalUsers([]);
-            }
+            const users = await fetchAdminUsers(trimmedQuery);
+            setLocalUsers(users);
         } catch (err: any) {
             console.error('[UserManagementPanel] Failed to search users:', err);
             setLocalUsers([]);
@@ -769,7 +785,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         } finally {
             setIsLoadingUsers(false);
         }
-    }, [currentUser.id]);
+    }, [fetchAdminUsers]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
