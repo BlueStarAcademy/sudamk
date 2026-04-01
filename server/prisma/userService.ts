@@ -160,6 +160,52 @@ export async function getUsersBrief(ids: string[]): Promise<Array<{ id: string; 
   }
 }
 
+/** 관리자 UI: 닉네임·아이디 부분 검색 (equipment/inventory 제외) */
+export async function searchUsersForAdmin(query: string, limit: number): Promise<User[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const take = Math.max(1, Math.min(Math.floor(limit) || 50, 100));
+  try {
+    await ensurePrismaEngineReady();
+    const rows = await prisma.user.findMany({
+      where: {
+        OR: [
+          { nickname: { contains: q, mode: "insensitive" } },
+          { username: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      include: { guildMember: true },
+      take,
+      orderBy: { nickname: "asc" },
+    });
+    return rows.map(mapUser);
+  } catch (error: any) {
+    const msg = error?.message ?? "";
+    if (msg.includes("Engine is not yet connected") || prismaErrorImpliesEngineNotConnected(error)) {
+      try {
+        await ensurePrismaEngineReady();
+        const rows = await prisma.user.findMany({
+          where: {
+            OR: [
+              { nickname: { contains: q, mode: "insensitive" } },
+              { username: { contains: q, mode: "insensitive" } },
+            ],
+          },
+          include: { guildMember: true },
+          take,
+          orderBy: { nickname: "asc" },
+        });
+        return rows.map(mapUser);
+      } catch (e2) {
+        console.warn("[userService] searchUsersForAdmin retry failed:", (e2 as { message?: string })?.message ?? e2);
+        return [];
+      }
+    }
+    console.warn("[userService] searchUsersForAdmin error:", msg);
+    return [];
+  }
+}
+
 export async function getUserByNickname(nickname: string): Promise<User | null> {
   try {
     const row = await prisma.user.findUnique({ 

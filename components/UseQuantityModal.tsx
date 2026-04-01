@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import { InventoryItem, UserWithStatus } from '../types.js';
 import { isActionPointConsumable } from '../constants/items.js';
+import { resolveCurrencyBundleConsumableKey } from '../shared/utils/currencyBundleConsumable.js';
 
 interface UseQuantityModalProps {
     item: InventoryItem;
@@ -12,11 +13,21 @@ interface UseQuantityModalProps {
 }
 
 const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, onClose, onConfirm, isTopmost }) => {
+    const bundleKey = useMemo(() => resolveCurrencyBundleConsumableKey(item.name), [item.name]);
+
     const totalQuantity = useMemo(() => {
+        if (bundleKey) {
+            return currentUser.inventory
+                .filter(
+                    i =>
+                        i.type === 'consumable' && resolveCurrencyBundleConsumableKey(i.name) === bundleKey
+                )
+                .reduce((sum, i) => sum + (i.quantity || 1), 0);
+        }
         return currentUser.inventory
             .filter(i => i.type === 'consumable' && i.name === item.name)
-            .reduce((sum, i) => sum + (i.quantity || 0), 0);
-    }, [currentUser.inventory, item.name]);
+            .reduce((sum, i) => sum + (i.quantity || 1), 0);
+    }, [currentUser.inventory, item.name, bundleKey]);
 
     const [quantity, setQuantity] = useState(1);
 

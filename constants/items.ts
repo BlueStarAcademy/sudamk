@@ -71,6 +71,13 @@ export const EQUIPMENT_POOL: (Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipp
     { name: '백옥 바둑돌', slot: 'stones', image: 'images/equipments/Stone4.png', grade: ItemGrade.Epic, stars: 0, type: 'equipment', description: '영롱한 빛을 내는 청옥과 백옥으로 만들어진 바둑돌입니다.' },
     { name: '용안 바둑돌', slot: 'stones', image: 'images/equipments/Stone5.png', grade: ItemGrade.Legendary, stars: 0, type: 'equipment', description: '해와 달, 별의 기운을 담아 벼려낸 전설적인 바둑돌입니다.' },
     { name: '천룡 바둑돌', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', description: '밤하늘의 은하수를 담아놓은 듯한 신화 속 바둑돌입니다.' },
+    // --- D.신화(더블신화): 신화 등급 + 신화 부옵션 2개 — 우편·관리 지급 전용(상자 루트에서는 제외)
+    { name: '천룡 바람 부채 (더블신화)', slot: 'fan', image: 'images/equipments/Fan6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 부채입니다.' },
+    { name: '천룡 바둑판 (더블신화)', slot: 'board', image: 'images/equipments/Board6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 바둑판입니다.' },
+    { name: '천룡 도복 상의 (더블신화)', slot: 'top', image: 'images/equipments/Top6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 상의입니다.' },
+    { name: '천룡 도복 하의 (더블신화)', slot: 'bottom', image: 'images/equipments/Bottom6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 하의입니다.' },
+    { name: '천룡 바둑통 (더블신화)', slot: 'bowl', image: 'images/equipments/StoneBox6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 바둑통입니다.' },
+    { name: '천룡 바둑돌 (더블신화)', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', isDivineMythic: true, description: '신화 부옵션이 두 줄기로 깃든 D.신화 바둑돌입니다.' },
 ];
 
 export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails' | 'slot'> & {slot: null, usable?: boolean, sellable?: boolean})[] = [

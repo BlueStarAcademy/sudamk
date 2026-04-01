@@ -11,6 +11,7 @@ import {
     SPECIAL_STATS_DATA,
     MYTHIC_STATS_DATA,
 } from '../shared/constants/index.js';
+import { applyEnhancementStarsToEquipmentItem as applyEnhancementStarsShared } from '../shared/utils/equipmentEnhancementStars.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -22,7 +23,7 @@ type SubOptionDefinition = { type: CoreStat, isPercentage: boolean, range: [numb
 type SpecialSubOptionDefinition = { name: string; isPercentage: boolean; range: [number, number] };
 
 
-const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions => {
+const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot, isDivineMythic = false): ItemOptions => {
     const rules = GRADE_SUB_OPTION_RULES[grade];
     const usedCombatSubTypes: Set<CoreStat> = new Set();
     const usedSpecialSubTypes: Set<SpecialStat> = new Set();
@@ -91,7 +92,11 @@ const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions
     const mythicSubs: ItemOption[] = [];
     if (grade === 'mythic') {
         const mythicCountRule = rules.mythicCount;
-        const numMythicSubs = Array.isArray(mythicCountRule) ? getRandomInt(mythicCountRule[0], mythicCountRule[1]) : mythicCountRule;
+        const numMythicSubs = isDivineMythic
+            ? 2
+            : Array.isArray(mythicCountRule)
+              ? getRandomInt(mythicCountRule[0], mythicCountRule[1])
+              : mythicCountRule;
         const mythicPool = Object.values(MythicStat);
 
         for (let i = 0; i < numMythicSubs; i++) {
@@ -117,7 +122,8 @@ const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions
 
 
 export const createItemFromTemplate = (template: Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipped' | 'level' | 'options' | 'quantity'>): InventoryItem => {
-    const options = generateItemOptions(template.grade, template.slot!);
+    const isDivineMythic = template.isDivineMythic === true;
+    const options = generateItemOptions(template.grade, template.slot!, isDivineMythic);
     const getRandomInt = (min: number, max: number): number => {
         return Math.floor(Math.random() * (max - min + 1)) + min;
     };
@@ -135,8 +141,11 @@ export const createItemFromTemplate = (template: Omit<InventoryItem, 'id' | 'cre
         stars: 0,
         options: options,
         refinementCount: getRandomInt(3, 10), // 제련 가능 횟수 3~10회 랜덤 부여
+        ...(isDivineMythic ? { isDivineMythic: true } : {}),
     };
 };
+
+export const applyEnhancementStarsToEquipmentItem = applyEnhancementStarsShared;
 
 function openBoxWithLootTable(lootTable: { grade: ItemGrade; weight: number }[]): InventoryItem {
     const totalWeight = lootTable.reduce((sum, item) => sum + item.weight, 0);
@@ -151,7 +160,9 @@ function openBoxWithLootTable(lootTable: { grade: ItemGrade; weight: number }[])
         random -= item.weight;
     }
 
-    const itemsOfSelectedGrade = EQUIPMENT_POOL.filter(item => item.grade === selectedGrade);
+    const itemsOfSelectedGrade = EQUIPMENT_POOL.filter(
+        item => item.grade === selectedGrade && !item.isDivineMythic
+    );
     const template = itemsOfSelectedGrade[Math.floor(Math.random() * itemsOfSelectedGrade.length)];
     return createItemFromTemplate(template);
 }
@@ -180,7 +191,9 @@ const MATERIAL_BOX_6_PROBABILITY = { '상급 강화석': 0.25, '최상급 강화
 const gradeOrder: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
 
 export const openGuildGradeBox = (grade: ItemGrade): InventoryItem => {
-    const itemsOfSelectedGrade = EQUIPMENT_POOL.filter(item => item.grade === grade);
+    const itemsOfSelectedGrade = EQUIPMENT_POOL.filter(
+        item => item.grade === grade && !item.isDivineMythic
+    );
     if (itemsOfSelectedGrade.length === 0) {
         const lowerGrade = gradeOrder[gradeOrder.indexOf(grade) - 1] || 'normal';
         return openGuildGradeBox(lowerGrade);

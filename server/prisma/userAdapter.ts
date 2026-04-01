@@ -201,6 +201,42 @@ const ensureEquipment = (value: unknown): Equipment =>
 const ensureMail = (value: unknown): Mail[] =>
   parseJson<Mail[]>(value, []);
 
+/**
+ * 우편 첨부 items가 배열이 아닌 JSON 객체(숫자 키 등)로 저장된 경우 배열로 복원해 UI가 비지 않게 함.
+ */
+const normalizeMailAttachmentItems = (mails: Mail[]): Mail[] => {
+  if (!Array.isArray(mails)) return [];
+  return mails.map((m) => {
+    if (!m || typeof m !== "object") return m;
+    const att = m.attachments;
+    if (!att || typeof att !== "object") return m;
+    let items: unknown = att.items;
+    if (items != null && !Array.isArray(items)) {
+      if (typeof items === "object") items = Object.values(items as Record<string, unknown>);
+      else items = [];
+    }
+    return {
+      ...m,
+      attachments: {
+        ...att,
+        items: Array.isArray(items) ? (items as NonNullable<Mail["attachments"]>["items"]) : att.items,
+      },
+    };
+  });
+};
+
+const resolveMailForUser = (
+  user: Partial<User>,
+  status?: SerializedUserStatus
+): Mail[] => {
+  if (Array.isArray(user.mail)) {
+    return normalizeMailAttachmentItems(user.mail as Mail[]);
+  }
+  return normalizeMailAttachmentItems(
+    ensureMail(coalesce(status?.mailRaw, []))
+  );
+};
+
 // equipment와 inventory는 optional로 처리 (데이터베이스 연결 문제 시에도 작동하도록)
 export type PrismaUserWithStatus = Prisma.UserGetPayload<{ include: { status: true; guildMember: true } }> & {
   equipment?: Array<{ slot: string; inventoryId: string | null }>;
@@ -265,7 +301,7 @@ const applyDefaults = (
     gold: safeNumber(user.gold ?? prismaUser.gold ?? 0),
     diamonds: safeNumber(user.diamonds ?? prismaUser.diamonds ?? 0),
     mannerScore: user.mannerScore ?? 0,
-    mail: user.mail ?? [],
+    mail: resolveMailForUser(user, status),
     quests: user.quests ?? createDefaultQuests(),
     stats: user.stats ?? {},
     chatBanUntil: user.chatBanUntil ?? null,
@@ -513,7 +549,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
     equipment: Object.keys(equipmentFromTable).length > 0 
       ? equipmentFromTable 
       : ensureEquipment(coalesce(status.equipmentRaw, legacy.equipment)),
-    mail: ensureMail(coalesce(status.mailRaw, legacy.mail)),
+    mail: normalizeMailAttachmentItems(ensureMail(coalesce(status.mailRaw, legacy.mail))),
     quests: ensureQuestLog(coalesce(status.questsRaw, legacy.quests)),
     actionPoints: ensureActionPoints(
       status.actionPointMeta,

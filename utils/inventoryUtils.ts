@@ -2,6 +2,11 @@ import { randomUUID } from 'crypto';
 import { InventoryItem, InventoryItemType } from '../types/index.js';
 import { ItemGrade } from '../types/enums.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants';
+import {
+    applyEnhancementStarsToEquipmentItem,
+    getMailEquipmentDisplayStars,
+    isMailAttachmentEquipment,
+} from '../shared/utils/equipmentEnhancementStars.js';
 import { isActionPointConsumable } from '../constants/items.js';
 
 const CONSUMABLE_TEMPLATE_MAP: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = CONSUMABLE_ITEMS.reduce((map, item) => {
@@ -250,8 +255,20 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
 export const createItemInstancesFromReward = (itemRefs: (InventoryItem | { itemId: string; quantity: number })[]): InventoryItem[] => {
     const createdItems: InventoryItem[] = [];
     for (const itemRef of itemRefs) {
-        if ('id' in itemRef) { // It's a full InventoryItem, just pass it through
-            createdItems.push(itemRef);
+        if ('id' in itemRef) {
+            const inv = itemRef as InventoryItem;
+            if (isMailAttachmentEquipment(inv)) {
+                const cloned = JSON.parse(JSON.stringify(inv)) as InventoryItem;
+                cloned.id = `item-${randomUUID()}`;
+                const stars = getMailEquipmentDisplayStars(inv);
+                applyEnhancementStarsToEquipmentItem(cloned, stars);
+                if (cloned.type !== 'equipment') {
+                    cloned.type = 'equipment';
+                }
+                createdItems.push(cloned);
+            } else {
+                createdItems.push(inv);
+            }
             continue;
         }
 

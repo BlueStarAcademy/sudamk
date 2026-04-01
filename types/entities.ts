@@ -947,7 +947,9 @@ export type AdminLog = {
     | 'guild_war_recharge_daily_attempts'
     | 'create_home_board_post'
     | 'update_home_board_post'
-    | 'delete_home_board_post';
+    | 'delete_home_board_post'
+    | 'update_user_inventory'
+    | 'append_inventory_items';
   backupData: Partial<User> | { status: UserStatusInfo } | LiveGameSession | { mailTitle: string } | SanctionLogData | { gameId: string, winnerId: string } | { postId: string, title: string } | { oldGuildId: string | undefined };
 };
 

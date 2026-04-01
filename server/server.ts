@@ -1701,6 +1701,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     } catch (error: any) {
                         console.error('[MainLoop] Error in processDailyQuestReset:', error?.message);
                     }
+
+                    try {
+                        const { tryRunDailyDatabaseBackup } = await import('./scheduledTasks.js');
+                        await tryRunDailyDatabaseBackup(now);
+                    } catch (error: any) {
+                        console.error('[MainLoop] Error in tryRunDailyDatabaseBackup:', error?.message);
+                    }
                     
                     // Handle guild war matching (매일 0시 KST)
                     try {
@@ -4389,79 +4396,61 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         }
     });
     
-    // 관리자용 사용자 목록 조회 엔드포인트
+    // 관리자용 사용자 검색 (/api/action 과 동일하게 요청에 userId 포함 — sessionId 쿠키는 앱에서 쓰지 않음)
     app.get('/api/admin/users', async (req, res) => {
         try {
-            // 세션 확인 (기존 로그인 엔드포인트와 동일한 방식 사용)
-            const sessionId = req.cookies?.sessionId;
-            if (!sessionId) {
-                return res.status(401).json({ error: 'Unauthorized' });
-            }
-            
-            // 세션 ID에서 사용자 ID 추출 (세션 ID 형식: userId-timestamp-random)
-            // 또는 userConnections에서 역으로 찾기
-            let userId: string | null = null;
-            
-            // 세션 ID가 userId를 포함하는 형식인 경우
-            if (sessionId.includes('-')) {
-                const parts = sessionId.split('-');
-                if (parts.length >= 1) {
-                    userId = parts[0];
-                }
-            } else {
-                // 세션 ID가 직접 userId인 경우
-                userId = sessionId;
-            }
-            
-            // userConnections에서 확인
-            if (!userId || !volatileState.userConnections[userId]) {
-                // 세션 ID가 userId가 아닌 경우, userConnections를 순회하여 찾기
-                // (일반적으로는 세션 ID가 userId를 포함하므로 이 경우는 드뭄)
-                for (const [uid, connectionCount] of Object.entries(volatileState.userConnections)) {
-                    if (connectionCount > 0) {
-                        // 간단한 검증: 세션 ID에 userId가 포함되어 있는지 확인
-                        if (sessionId.includes(uid)) {
-                            userId = uid;
-                            break;
-                        }
-                    }
-                }
-            }
-            
+            const userId = String(req.query.userId || '').trim();
             if (!userId) {
-                return res.status(401).json({ error: 'Invalid session' });
+                return res.status(401).json({ error: 'Unauthorized', message: 'userId가 필요합니다.' });
             }
-            
-            const user = await db.getUser(userId);
-            if (!user || !user.isAdmin) {
+
+            const adminUser = await db.getUser(userId, { includeEquipment: false, includeInventory: false });
+            if (!adminUser || !adminUser.isAdmin) {
                 return res.status(403).json({ error: 'Forbidden: Admin access required' });
             }
-            
-            const query = String(req.query.query || '').trim().toLowerCase();
+
+            const searchQuery = String(req.query.query || '').trim();
             const limitParam = Number(req.query.limit);
             const limit = Number.isFinite(limitParam) ? Math.max(1, Math.min(limitParam, 100)) : 50;
 
-            // 검색어가 없으면 전체 목록 반환 대신 빈 결과 반환 (검색 기반 UI)
-            if (!query) {
+            if (!searchQuery) {
                 return res.json({ users: [], count: 0 });
             }
 
-            // 사용자 목록 조회 (equipment/inventory 제외하여 빠르게)
-            const users = await db.getAllUsers({ includeEquipment: false, includeInventory: false });
-            const filteredUsers = users
-                .filter(u => {
-                    const nickname = (u.nickname || '').toLowerCase();
-                    const username = (u.username || '').toLowerCase();
-                    return nickname.includes(query) || username.includes(query);
-                })
-                .slice(0, limit);
-            
-            res.json({ 
-                users: filteredUsers,
-                count: filteredUsers.length
+            const users = await db.searchUsersForAdmin(searchQuery, limit);
+
+            res.json({
+                users,
+                count: users.length,
             });
         } catch (error: any) {
             console.error('[Admin] Error getting users list:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    /** 관리자: 단일 유저 전체(인벤·장비 포함) 조회 */
+    app.get('/api/admin/user/:targetUserId', async (req, res) => {
+        try {
+            const adminId = String(req.query.userId || '').trim();
+            if (!adminId) {
+                return res.status(401).json({ error: 'Unauthorized', message: 'userId가 필요합니다.' });
+            }
+            const adminUser = await db.getUser(adminId, { includeEquipment: false, includeInventory: false });
+            if (!adminUser || !adminUser.isAdmin) {
+                return res.status(403).json({ error: 'Forbidden: Admin access required' });
+            }
+            const targetUserId = String(req.params.targetUserId || '').trim();
+            if (!targetUserId) {
+                return res.status(400).json({ error: 'targetUserId required' });
+            }
+            const user = await db.getUser(targetUserId, { includeEquipment: true, includeInventory: true });
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            res.json({ user });
+        } catch (error: any) {
+            console.error('[Admin] Error getting user detail:', error);
             res.status(500).json({ error: error.message });
         }
     });

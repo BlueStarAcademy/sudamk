@@ -91,6 +91,10 @@ export const SCRIPT_REGISTRY: Record<string, ScriptEntry> = {
     path: join(__dirname, 'server', 'scripts', 'analyzeDbQueries.ts'),
     desc: 'DB 쿼리 분석',
   },
+  'db-backup-once': {
+    path: join(__dirname, 'server', 'scripts', 'runDailyDbBackupOnce.ts'),
+    desc: 'KST 오늘 날짜 파일로 pg_dump 1회 (DAILY_DB_BACKUP_ENABLED=true, DATABASE_URL)',
+  },
 
   // === 길드 ===
   'reset-all-guilds': {

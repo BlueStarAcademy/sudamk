@@ -41,6 +41,7 @@ import * as effectService from '../effectService.js';
 import { SHOP_ITEMS } from '../shop.js';
 import { updateQuestProgress } from '../questService.js';
 import { addItemsToInventory as addItemsToInventoryUtil } from '../../utils/inventoryUtils.js';
+import { resolveCurrencyBundleConsumableKey } from '../../shared/utils/currencyBundleConsumable.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -500,10 +501,29 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 };
             }
 
-            // 일괄 사용의 경우: 같은 이름의 모든 아이템 수량 합산 (도전의 탑 전용은 비탑만)
-            const totalAvailableQuantity = user.inventory
-                .filter(i => i.name === item.name && i.type === 'consumable' && (!isTowerOnlyItemName(item.name) || !isTowerSource(i)))
-                .reduce((sum, i) => sum + (i.quantity || 1), 0);
+            // 일괄 사용: 골드/다이아 꾸러미는 표기(띄어쓰기 등)가 달라도 같은 키로 합산 (도전의 탑 전용은 비탑만)
+            const currencyBundleKeyForBulk = resolveCurrencyBundleConsumableKey(item.name);
+            const isCurrencyBundleBulk =
+                !!currencyBundleKeyForBulk && !!currencyBundles[currencyBundleKeyForBulk];
+            const totalAvailableQuantity = isCurrencyBundleBulk
+                ? user.inventory
+                      .filter(
+                          i =>
+                              i &&
+                              i.type === 'consumable' &&
+                              resolveCurrencyBundleConsumableKey(i.name) === currencyBundleKeyForBulk &&
+                              (!isTowerOnlyItemName(i.name) || !isTowerSource(i))
+                      )
+                      .reduce((sum, i) => sum + (i.quantity || 1), 0)
+                : user.inventory
+                      .filter(
+                          i =>
+                              i &&
+                              i.name === item.name &&
+                              i.type === 'consumable' &&
+                              (!isTowerOnlyItemName(item.name) || !isTowerSource(i))
+                      )
+                      .reduce((sum, i) => sum + (i.quantity || 1), 0);
             
             const useQuantity = Math.min(quantity || 1, totalAvailableQuantity);
             if (useQuantity <= 0) return { error: '사용할 수량이 없습니다.' };
@@ -550,26 +570,35 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 return { clientResponse: { updatedUser, actionPointsRestored: totalRestore } };
             }
 
-            // 골드 꾸러미 이름 통일: 띄어쓰기 없는 경우도 처리
+            // 골드/다이아 꾸러미: 키 통일 후 룩업 (일괄 사용 시 차감과 동일 키 사용)
             let normalizedItemName = item.name;
             if (normalizedItemName.startsWith('골드꾸러미')) {
                 normalizedItemName = normalizedItemName.replace('골드꾸러미', '골드 꾸러미');
             } else if (normalizedItemName.startsWith('다이아꾸러미')) {
                 normalizedItemName = normalizedItemName.replace('다이아꾸러미', '다이아 꾸러미');
             }
-            
-            // 정규화된 이름으로 먼저 찾고, 없으면 원본 이름으로도 시도
-            let bundleInfo = currencyBundles[normalizedItemName] || currencyBundles[item.name];
-            
-            // 여전히 찾지 못한 경우, 숫자 부분을 추출하여 매칭 시도
+
+            const currencyBundleKey =
+                resolveCurrencyBundleConsumableKey(item.name) ||
+                resolveCurrencyBundleConsumableKey(normalizedItemName);
+
+            let bundleInfo = currencyBundleKey ? currencyBundles[currencyBundleKey] : undefined;
+            if (!bundleInfo) {
+                bundleInfo = currencyBundles[normalizedItemName] || currencyBundles[item.name];
+            }
             if (!bundleInfo) {
                 const match = normalizedItemName.match(/(골드|다이아)\s*꾸러미\s*(\d+)/);
                 if (match) {
-                    const [, type, num] = match;
-                    const bundleKey = `${type} 꾸러미${num}`;
+                    const bundleKey = `${match[1]} 꾸러미${match[2]}`;
                     bundleInfo = currencyBundles[bundleKey];
                 }
             }
+
+            const looseBundleMatch = normalizedItemName.match(/(골드|다이아)\s*꾸러미\s*(\d+)/);
+            const removalBundleKey =
+                currencyBundleKey ||
+                (looseBundleMatch ? `${looseBundleMatch[1]} 꾸러미${looseBundleMatch[2]}` : null);
+
             if (bundleInfo) {
                 const individualAmounts: number[] = [];
                 let totalGoldGained = 0;
@@ -605,20 +634,26 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     console.log(`[USE_ITEM] Diamonds bundle: userId=${user.id}, gained=${totalDiamondsGained}, before=${diamondsBefore}, after=${user.diamonds}`);
                 }
 
-                // 여러 슬롯에 걸쳐 있을 경우 모든 슬롯에서 정확히 수량만큼 소모
-                // normalizedItemName도 확인하여 띄어쓰기 차이 무시
+                // 여러 슬롯·표기(골드꾸러미/골드 꾸러미 등)에 걸쳐 정확히 useQuantity만큼 소모
                 let remainingToRemove = useQuantity;
                 for (let i = user.inventory.length - 1; i >= 0 && remainingToRemove > 0; i--) {
                     const invItem = user.inventory[i];
-                    // 아이템 이름 정규화 (띄어쓰기 차이 무시)
+                    if (!invItem || invItem.type !== 'consumable') continue;
+
                     let invItemNormalized = invItem.name;
                     if (invItemNormalized.startsWith('골드꾸러미')) {
                         invItemNormalized = invItemNormalized.replace('골드꾸러미', '골드 꾸러미');
                     } else if (invItemNormalized.startsWith('다이아꾸러미')) {
                         invItemNormalized = invItemNormalized.replace('다이아꾸러미', '다이아 꾸러미');
                     }
-                    
-                    if (invItem.id === itemId || (invItemNormalized === normalizedItemName && invItem.type === 'consumable')) {
+
+                    const invKey = resolveCurrencyBundleConsumableKey(invItem.name);
+                    const matchesCurrencyBundle =
+                        removalBundleKey != null && invKey === removalBundleKey;
+                    const matchesLegacyName =
+                        removalBundleKey == null && invItemNormalized === normalizedItemName;
+
+                    if (invItem.id === itemId || matchesCurrencyBundle || matchesLegacyName) {
                         const itemQuantity = invItem.quantity || 1;
                         if (itemQuantity <= remainingToRemove) {
                             remainingToRemove -= itemQuantity;
@@ -628,6 +663,12 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                             remainingToRemove = 0;
                         }
                     }
+                }
+
+                if (remainingToRemove > 0) {
+                    console.error(
+                        `[USE_ITEM] Currency bundle removal incomplete: remainingToRemove=${remainingToRemove}, useQuantity=${useQuantity}, removalBundleKey=${removalBundleKey}, itemId=${itemId}`
+                    );
                 }
 
                 // 인벤토리 참조 변경 (배열 복사로 충분)

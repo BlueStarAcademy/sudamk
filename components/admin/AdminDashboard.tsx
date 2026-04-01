@@ -1,245 +1,134 @@
 
-import React, { useMemo, useState } from 'react';
-// FIX: Import missing types from the centralized types file.
-import { AdminProps, LiveGameSession, TournamentType } from '../../types/index.js';
-import Button from '../Button.js';
-import DraggableWindow from '../DraggableWindow.js';
+import React from 'react';
+import { LiveGameSession } from '../../types/index.js';
 
-type AdminView = 'dashboard' | 'userManagement' | 'mailSystem' | 'serverSettings' | 'homeBoard';
+export type AdminView = 'dashboard' | 'userManagement' | 'mailSystem' | 'serverSettings' | 'homeBoard' | 'operations';
 
-interface AdminDashboardProps extends Omit<AdminProps, 'onBack'> {
+interface AdminDashboardProps {
     onNavigate: (view: AdminView) => void;
     onBackToProfile: () => void;
+    liveGames: LiveGameSession[];
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToProfile, liveGames, onAction, currentUser }) => {
-    const [isGameManagerOpen, setIsGameManagerOpen] = useState(false);
-    const [gameSearchQuery, setGameSearchQuery] = useState('');
-    
-    const activeLiveGames = liveGames.filter(game => game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest');
-    const searchedLiveGames = useMemo(() => {
-        const q = gameSearchQuery.trim().toLowerCase();
-        if (!q) return activeLiveGames;
-        return activeLiveGames.filter(game =>
-            game.player1.nickname.toLowerCase().includes(q) ||
-            game.player2.nickname.toLowerCase().includes(q) ||
-            game.mode.toLowerCase().includes(q) ||
-            game.id.toLowerCase().includes(q)
-        );
-    }, [activeLiveGames, gameSearchQuery]);
+type TileDef = {
+    view: Exclude<AdminView, 'dashboard'>;
+    title: string;
+    description: string;
+    icon: string;
+    accent: string;
+    ringHover: string;
+};
 
-    const handleDeleteGame = (game: LiveGameSession) => {
-        if (window.confirm(`[${game.player1.nickname} vs ${game.player2.nickname}] 대국을 강제로 종료하시겠습니까?`)) {
-            onAction({ type: 'ADMIN_FORCE_DELETE_GAME', payload: { gameId: game.id } });
-        }
-    };
+const TILES: TileDef[] = [
+    {
+        view: 'userManagement',
+        title: '사용자 관리',
+        description: '검색·계정 수정, 보상 우편 연동, 인벤·장비, 권한 및 전적 관련 작업',
+        icon: '👤',
+        accent: 'from-blue-500/20 to-blue-600/5',
+        ringHover: 'hover:ring-blue-400/40',
+    },
+    {
+        view: 'mailSystem',
+        title: '우편 발송',
+        description: '전체 또는 지정 수신자에게 골드·다이아·아이템 우편 발송',
+        icon: '✉️',
+        accent: 'from-emerald-500/20 to-emerald-600/5',
+        ringHover: 'hover:ring-emerald-400/40',
+    },
+    {
+        view: 'serverSettings',
+        title: '서버 설정',
+        description: '대기실 공지, 게임 모드 on/off, 긴급 공지, KataGo 상태',
+        icon: '🖥️',
+        accent: 'from-amber-500/20 to-amber-600/5',
+        ringHover: 'hover:ring-amber-400/40',
+    },
+    {
+        view: 'operations',
+        title: '운영 · 테스트',
+        description: '챔피언십·토너먼트 초기화, 길드전 충전, 진행 중 대국 관리',
+        icon: '🛠️',
+        accent: 'from-violet-500/20 to-violet-600/5',
+        ringHover: 'hover:ring-violet-400/40',
+    },
+    {
+        view: 'homeBoard',
+        title: '홈 게시판',
+        description: '홈 공지·업데이트 글 작성, 고정 및 삭제',
+        icon: '📋',
+        accent: 'from-fuchsia-500/20 to-fuchsia-600/5',
+        ringHover: 'hover:ring-fuchsia-400/40',
+    },
+];
 
-    const handleSetDescription = (game: LiveGameSession) => {
-        const newDescription = prompt("방 내용을 입력하세요 (50자 이내):", game.description || "");
-        if (newDescription !== null) {
-            if (newDescription.length > 50) {
-                alert("방 내용은 50자를 초과할 수 없습니다.");
-                return;
-            }
-            onAction({ type: 'ADMIN_SET_GAME_DESCRIPTION', payload: { gameId: game.id, description: newDescription } });
-        }
-    };
-
-    const tournamentNames: Record<TournamentType, string> = {
-        neighborhood: '동네바둑리그',
-        national: '전국바둑대회',
-        world: '월드챔피언십'
-    };
-
-    const handleResetTournament = (tournamentType: TournamentType) => {
-        const tournamentName = tournamentNames[tournamentType];
-        if (window.confirm(`${tournamentName} 토너먼트를 초기화하고 새로 매칭하시겠습니까?`)) {
-            onAction({ 
-                type: 'ADMIN_RESET_TOURNAMENT_SESSION', 
-                payload: { targetUserId: currentUser.id, tournamentType } 
-            });
-        }
-    };
-
-    const handleResetAllVenues = () => {
-        if (window.confirm('동네바둑리그, 전국바둑대회, 월드챔피언십 모든 경기장을 한 번에 초기화하고 재매칭하시겠습니까?')) {
-            onAction({ type: 'ADMIN_RESET_ALL_TOURNAMENT_SESSIONS', payload: { targetUserId: currentUser.id } });
-        }
-    };
-
-    const handleResetAllUsersChampionship = () => {
-        if (window.confirm('모든 유저의 동네바둑리그/전국바둑대회/월드챔피언십 단계와 챔피언십 랭킹 점수를 0으로 초기화합니다. 계속하시겠습니까?')) {
-            onAction({ type: 'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP' });
-        }
-    }
-
-    const handleGuildWarRechargeToday = () => {
-        const targetUserId = currentUser.id;
-        if (window.confirm(`[${currentUser.nickname}] 님의 길드전 오늘 도전횟수를 초기화(충전)할까요?`)) {
-            onAction({
-                type: 'ADMIN_GUILD_WAR_RECHARGE_DAILY_ATTEMPTS',
-                payload: { targetUserId },
-            });
-        }
-    };
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToProfile, liveGames }) => {
+    const activeCount = liveGames.filter(
+        (g) => g.gameStatus !== 'ended' && g.gameStatus !== 'no_contest'
+    ).length;
 
     return (
-        <div className="bg-primary text-primary space-y-8">
-            <header className="flex justify-between items-center">
+        <div className="max-w-5xl mx-auto bg-primary text-primary pb-10 px-1">
+            <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-10">
                 <div>
-                    <h1 className="text-3xl font-bold">관리자 대시보드</h1>
-                    <p className="mt-2 text-sm text-gray-400">기능을 4개 분류로 정리했습니다. 필요한 작업은 각 분류에서 바로 이동/실행할 수 있습니다.</p>
+                    <p className="text-xs font-medium uppercase tracking-wider text-accent/90 mb-1">Admin</p>
+                    <h1 className="text-3xl font-bold tracking-tight">관리자 대시보드</h1>
+                    <p className="mt-2 text-sm text-gray-400 max-w-xl">
+                        아래 패널을 눌러 각 설정 화면으로 이동합니다. 진행 중 대국은{' '}
+                        <span className="text-primary font-medium">{activeCount}건</span>입니다.
+                    </p>
                 </div>
-                <button onClick={onBackToProfile} className="p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
-                    <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
+                <button
+                    type="button"
+                    onClick={onBackToProfile}
+                    className="self-end sm:self-start p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5 shrink-0"
+                    aria-label="프로필로 돌아가기"
+                >
+                    <img src="/images/button/back.png" alt="" className="w-10 h-10 sm:w-12 sm:h-12" />
                 </button>
             </header>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <section className="bg-panel border border-color p-6 rounded-lg shadow-lg text-on-panel space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-2xl font-bold text-blue-300">사용자 관리</h2>
-                            <p className="text-sm text-gray-400 mt-1">사용자 조회/수정, 권한 관리, 전적/챔피언십 초기화 등 계정 관련 작업을 처리합니다.</p>
-                        </div>
-                        <Button onClick={() => onNavigate('userManagement')} colorScheme="blue" className="shrink-0">열기</Button>
-                    </div>
-                    <div className="pt-4 border-t border-color">
-                        <h3 className="font-semibold mb-2">빠른 실행</h3>
-                        <p className="text-sm text-gray-400 mb-3">전체 유저의 챔피언십 단계를 0으로 초기화합니다.</p>
-                        <Button
-                            onClick={handleResetAllUsersChampionship}
-                            colorScheme="red"
-                            variant="outline"
-                            className="w-full"
-                        >
-                            전체 유저 챔피언십 초기화
-                        </Button>
-                    </div>
-                </section>
-
-                <section className="bg-panel border border-color p-6 rounded-lg shadow-lg text-on-panel space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-2xl font-bold text-green-300">우편 발송 시스템</h2>
-                            <p className="text-sm text-gray-400 mt-1">전체/개별 사용자 대상 우편, 재화/아이템 첨부, 만료일 설정을 관리합니다.</p>
-                        </div>
-                        <Button onClick={() => onNavigate('mailSystem')} colorScheme="green" className="shrink-0">열기</Button>
-                    </div>
-                </section>
-
-                <section className="bg-panel border border-color p-6 rounded-lg shadow-lg text-on-panel space-y-6 xl:col-span-2">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-2xl font-bold text-yellow-300">서버 설정</h2>
-                            <p className="text-sm text-gray-400 mt-1">공지/모드 제어와 함께 운영 테스트 기능(토너먼트, 길드전, 진행중 대국 관리)을 통합했습니다.</p>
-                        </div>
-                        <Button onClick={() => onNavigate('serverSettings')} colorScheme="yellow" className="shrink-0">열기</Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-secondary/30 border border-color rounded-lg p-4">
-                            <h3 className="font-semibold mb-2">챔피언십 토너먼트 테스트</h3>
-                            <p className="text-sm text-gray-400 mb-4">각 경기장 토너먼트를 초기화하고 새 매칭을 생성합니다.</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <Button onClick={() => handleResetTournament('neighborhood')} colorScheme="purple" className="w-full !text-xs">동네바둑리그</Button>
-                                <Button onClick={() => handleResetTournament('national')} colorScheme="purple" className="w-full !text-xs">전국바둑대회</Button>
-                                <Button onClick={() => handleResetTournament('world')} colorScheme="purple" className="w-full !text-xs">월드챔피언십</Button>
-                            </div>
-                            <Button onClick={handleResetAllVenues} colorScheme="purple" variant="outline" className="w-full mt-3 !text-xs">
-                                모든 경기장 한번에 초기화
-                            </Button>
-                        </div>
-
-                        <div className="bg-secondary/30 border border-color rounded-lg p-4">
-                            <h3 className="font-semibold mb-2">길드전 도전횟수 충전(오늘)</h3>
-                            <p className="text-sm text-gray-400 mb-4">테스트용으로 오늘 날짜의 내 길드전 도전횟수를 즉시 초기화합니다.</p>
-                            <Button
-                                onClick={handleGuildWarRechargeToday}
-                                colorScheme="orange"
-                                variant="outline"
-                                className="w-full"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5">
+                {TILES.map((tile) => (
+                    <button
+                        key={tile.view}
+                        type="button"
+                        onClick={() => onNavigate(tile.view)}
+                        className={`
+                            group relative text-left rounded-2xl border border-color bg-panel/90 backdrop-blur-sm
+                            p-6 shadow-md transition-all duration-200
+                            hover:shadow-lg hover:border-accent/30 hover:-translate-y-0.5
+                            focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-primary
+                            ${tile.ringHover}
+                        `}
+                    >
+                        <div
+                            className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${tile.accent} opacity-80 pointer-events-none`}
+                            aria-hidden
+                        />
+                        <div className="relative flex gap-4">
+                            <div
+                                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-secondary/80 border border-color text-2xl shadow-inner"
+                                aria-hidden
                             >
-                                내 길드전 오늘 도전횟수 충전
-                            </Button>
+                                {tile.icon}
+                            </div>
+                            <div className="min-w-0 flex-1 pt-0.5">
+                                <h2 className="text-lg font-semibold text-primary group-hover:text-accent transition-colors">
+                                    {tile.title}
+                                </h2>
+                                <p className="mt-2 text-sm text-gray-400 leading-snug line-clamp-3">{tile.description}</p>
+                                <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent/90 group-hover:text-accent">
+                                    설정 열기
+                                    <span className="transition-transform group-hover:translate-x-0.5" aria-hidden>
+                                        →
+                                    </span>
+                                </span>
+                            </div>
                         </div>
-                    </div>
-
-                    <div className="bg-secondary/30 border border-color rounded-lg p-4">
-                        <h3 className="font-semibold mb-3">진행중인 대국 관리 ({activeLiveGames.length})</h3>
-                        <p className="text-sm text-gray-400 mb-3">목록을 별도 모달에서 검색/관리할 수 있도록 분리했습니다.</p>
-                        <Button onClick={() => setIsGameManagerOpen(true)} colorScheme="yellow" className="w-full sm:w-auto">
-                            진행중인 대국 관리 열기
-                        </Button>
-                    </div>
-                </section>
-
-                <section className="bg-panel border border-color p-6 rounded-lg shadow-lg text-on-panel space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-2xl font-bold text-purple-300">홈 게시판</h2>
-                            <p className="text-sm text-gray-400 mt-1">홈 공지/업데이트 게시글을 작성, 수정, 삭제하고 상단 고정을 관리합니다.</p>
-                        </div>
-                        <Button onClick={() => onNavigate('homeBoard')} colorScheme="purple" className="shrink-0">열기</Button>
-                    </div>
-                </section>
+                    </button>
+                ))}
             </div>
-            {isGameManagerOpen && (
-                <DraggableWindow
-                    title={`진행중인 대국 관리 (${activeLiveGames.length})`}
-                    onClose={() => setIsGameManagerOpen(false)}
-                    windowId="admin-live-games-manager"
-                    initialWidth={1000}
-                >
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <input
-                                type="text"
-                                value={gameSearchQuery}
-                                onChange={(e) => setGameSearchQuery(e.target.value)}
-                                placeholder="플레이어/모드/게임ID 검색"
-                                className="flex-1 bg-secondary border border-color text-primary rounded-lg p-2.5"
-                            />
-                            <span className="text-sm text-gray-400 shrink-0">결과 {searchedLiveGames.length}건</span>
-                        </div>
-                        <div className="max-h-[60vh] overflow-y-auto">
-                            <table className="w-full text-sm text-left text-secondary">
-                                <thead className="text-xs text-secondary uppercase bg-secondary sticky top-0">
-                                    <tr>
-                                        <th scope="col" className="px-4 py-3">플레이어</th>
-                                        <th scope="col" className="px-4 py-3">게임 모드</th>
-                                        <th scope="col" className="px-4 py-3">상태</th>
-                                        <th scope="col" className="px-4 py-3">생성 시간</th>
-                                        <th scope="col" className="px-4 py-3">액션</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {searchedLiveGames.map(game => (
-                                        <tr key={game.id} className="bg-primary border-b border-color hover:bg-secondary/50">
-                                            <td className="px-4 py-3 font-medium text-primary whitespace-nowrap">{game.player1.nickname} vs {game.player2.nickname}</td>
-                                            <td className="px-4 py-3">{game.mode}</td>
-                                            <td className="px-4 py-3">{game.gameStatus}</td>
-                                            <td className="px-4 py-3">{new Date(game.createdAt).toLocaleString()}</td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <button onClick={() => onAction({ type: 'SPECTATE_GAME', payload: { gameId: game.id } })} className="text-blue-400 hover:underline">관전</button>
-                                                    <button onClick={() => handleSetDescription(game)} className="text-yellow-300 hover:underline">방내용</button>
-                                                    <button onClick={() => handleDeleteGame(game)} className="text-red-500 hover:underline">강제 종료</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {searchedLiveGames.length === 0 && (
-                                        <tr>
-                                            <td colSpan={5} className="px-4 py-8 text-center text-gray-400">검색 결과가 없습니다.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </DraggableWindow>
-            )}
         </div>
     );
 };

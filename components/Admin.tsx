@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import AdminDashboard from './admin/AdminDashboard.js';
+import AdminDashboard, { type AdminView } from './admin/AdminDashboard.js';
 import UserManagementPanel from './admin/UserManagementPanel.js';
 import MailSystemPanel from './admin/MailSystemPanel.js';
 import ServerSettingsPanel from './admin/ServerSettingsPanel.js';
 import HomeBoardPanel from './admin/HomeBoardPanel.js';
+import AdminOperationsPanel from './admin/AdminOperationsPanel.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-
-type AdminView = 'dashboard' | 'userManagement' | 'mailSystem' | 'serverSettings' | 'homeBoard';
 
 const Admin: React.FC = () => {
     const [adminView, setAdminView] = useState<AdminView>('dashboard');
@@ -44,9 +43,24 @@ const Admin: React.FC = () => {
                 return <ServerSettingsPanel {...adminProps} />;
             case 'homeBoard':
                 return <HomeBoardPanel {...adminProps} />;
+            case 'operations':
+                return (
+                    <AdminOperationsPanel
+                        liveGames={adminProps.liveGames}
+                        onAction={adminProps.onAction}
+                        onBack={handleBack}
+                        currentUser={adminProps.currentUser}
+                    />
+                );
             case 'dashboard':
             default:
-                return <AdminDashboard onNavigate={setAdminView} onBackToProfile={handleBack} {...adminProps} />;
+                return (
+                    <AdminDashboard
+                        onNavigate={setAdminView}
+                        onBackToProfile={handleBack}
+                        liveGames={adminProps.liveGames}
+                    />
+                );
         }
     };
 

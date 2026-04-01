@@ -1903,10 +1903,11 @@ export const useApp = () => {
             return;
         }
 
+        let dicePlaceGameId: string | undefined;
         try {
             audioService.initialize();
 
-            const dicePlaceGameId =
+            dicePlaceGameId =
                 action.type === 'DICE_PLACE_STONE'
                     ? (action.payload as { gameId?: string })?.gameId
                     : undefined;
@@ -1961,18 +1962,17 @@ export const useApp = () => {
                 }
             }
 
-            try {
-                if (dicePlaceGameId) {
-                    pvpDicePlaceInFlightRef.current[dicePlaceGameId] =
-                        (pvpDicePlaceInFlightRef.current[dicePlaceGameId] || 0) + 1;
-                }
+            if (dicePlaceGameId) {
+                pvpDicePlaceInFlightRef.current[dicePlaceGameId] =
+                    (pvpDicePlaceInFlightRef.current[dicePlaceGameId] || 0) + 1;
+            }
 
-                const res = await fetch(getApiUrl('/api/action'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ ...action, userId: currentUserRef.current.id }),
-                });
+            const res = await fetch(getApiUrl('/api/action'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ ...action, userId: currentUserRef.current.id }),
+            });
 
             if (!res.ok) {
                 let errorMessage = 'An unknown error occurred.';
@@ -2994,14 +2994,6 @@ export const useApp = () => {
                     return { clientResponse: { guilds: [] } };
                 }
             }
-            } finally {
-                if (dicePlaceGameId) {
-                    const gid = dicePlaceGameId;
-                    const n = (pvpDicePlaceInFlightRef.current[gid] || 1) - 1;
-                    if (n <= 0) delete pvpDicePlaceInFlightRef.current[gid];
-                    else pvpDicePlaceInFlightRef.current[gid] = n;
-                }
-            }
         } catch (err: any) {
             if (action.type === 'DICE_PLACE_STONE') {
                 const gid = (action.payload as { gameId?: string })?.gameId;
@@ -3017,6 +3009,13 @@ export const useApp = () => {
             console.error(`[handleAction] ${action.type} - Exception:`, err);
             console.error(`[handleAction] Error stack:`, err.stack);
             showError(err.message || '요청 처리 중 오류가 발생했습니다.');
+        } finally {
+            if (dicePlaceGameId) {
+                const gid = dicePlaceGameId;
+                const n = (pvpDicePlaceInFlightRef.current[gid] || 1) - 1;
+                if (n <= 0) delete pvpDicePlaceInFlightRef.current[gid];
+                else pvpDicePlaceInFlightRef.current[gid] = n;
+            }
         }
     }, [currentUser?.id]);
 

@@ -1,6 +1,6 @@
 import {
     User, LiveGameSession, Negotiation, KomiBid,
-    AdminLog, Announcement, OverrideAnnouncement, InventoryItem,
+    AdminLog, Announcement, OverrideAnnouncement, InventoryItem, Equipment,
     QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentState, UserWithStatus, EquipmentPreset, GameSettings, CommentaryLine, HomeBoardPost
 } from './entities.js';
 import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move } from './enums.js';
@@ -272,6 +272,8 @@ export type ServerAction =
     | { type: 'ADMIN_CREATE_HOME_BOARD_POST', payload: { title: string; content: string; isPinned: boolean } }
     | { type: 'ADMIN_UPDATE_HOME_BOARD_POST', payload: { postId: string; title: string; content: string; isPinned: boolean } }
     | { type: 'ADMIN_DELETE_HOME_BOARD_POST', payload: { postId: string } }
+    | { type: 'ADMIN_SAVE_USER_INVENTORY_EQUIPMENT', payload: { targetUserId: string; inventory: InventoryItem[]; equipment: Equipment } }
+    | { type: 'ADMIN_APPEND_INVENTORY_ITEMS', payload: { targetUserId: string; equipmentAdds?: { name: string; quantity: number }[]; stackableAdds?: { name: string; quantity: number; type: InventoryItemType }[] } }
     // Tournament
     | { type: 'START_TOURNAMENT_SESSION', payload: { type: TournamentType } }
     | { type: 'START_TOURNAMENT_ROUND', payload: { type: TournamentType } }

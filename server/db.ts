@@ -6,6 +6,7 @@ import {
     getUsersBrief as prismaGetUsersBrief,
     getUserById as prismaGetUserById,
     getUserByNickname as prismaGetUserByNickname,
+    searchUsersForAdmin as prismaSearchUsersForAdmin,
     getUserByEmail as prismaGetUserByEmail,
     getUsersByLeague as prismaGetUsersByLeague,
     createUser as prismaCreateUser,
@@ -413,6 +414,9 @@ export const getUsersBrief = async (ids: string[]): Promise<Array<{ id: string; 
 export const getUserByNickname = async (nickname: string): Promise<User | null> => {
     return prismaGetUserByNickname(nickname);
 };
+export const searchUsersForAdmin = async (query: string, limit: number): Promise<User[]> => {
+    return prismaSearchUsersForAdmin(query, limit);
+};
 export const getUserByEmail = async (email: string): Promise<User | null> => {
     return prismaGetUserByEmail(email);
 };
@@ -422,7 +426,10 @@ export const getUsersByLeague = async (league: string | null, excludeUserId?: st
 export const createUser = async (user: User): Promise<void> => {
     await prismaCreateUser(user);
 };
-export const updateUser = async (user: User): Promise<void> => {
+export const updateUser = async (
+    user: User,
+    opts?: { allowInventoryEquipmentClear?: boolean }
+): Promise<void> => {
     // 캐시에서 기존 데이터 확인 (DB 조회 최소화)
     let existing: User | null = null;
     const cached = userCache.get(user.id);
@@ -438,7 +445,7 @@ export const updateUser = async (user: User): Promise<void> => {
         }
     }
 
-    if (existing) {
+    if (existing && !opts?.allowInventoryEquipmentClear) {
         const prevInventoryCount = Array.isArray(existing.inventory) ? existing.inventory.length : 0;
         const nextInventoryCount = Array.isArray(user.inventory) ? user.inventory.length : 0;
         const prevEquipmentCount = existing.equipment ? Object.keys(existing.equipment).length : 0;

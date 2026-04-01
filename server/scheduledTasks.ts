@@ -91,39 +91,41 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
         let bestTierInfo: { tierName: string, mode: types.GameMode } | null = null;
         let bestTierRank = Infinity;
 
-        // Find user's best tier across all modes
+        // Find user's best tier across all modes (랭킹 집계: 모드당 랭킹전 20판 이상만 eligible)
         for (const mode of allGameModes) {
             const modeRanking = rankingsByMode[mode];
-            const totalEligiblePlayers = modeRanking.length;
             const userRankInfo = modeRanking.find(r => r.user.id === user.id);
-            
-            let currentTierName = '새싹'; // Default
 
-            if (userRankInfo) { // User was eligible and ranked
-                const userScore = userRankInfo.user.stats![mode].rankingScore || 0;
-                const userTotalGames = (userRankInfo.user.stats![mode].wins || 0) + (userRankInfo.user.stats![mode].losses || 0);
-                for (const tier of RANKING_TIERS) {
-                    if (tier.threshold(userScore, userRankInfo.rank, userTotalGames)) {
-                        currentTierName = tier.name;
-                        break;
-                    }
-                }
-            }
-            
-            // Store historical tier for this mode
             if (!user.seasonHistory) user.seasonHistory = {};
             if (!user.seasonHistory[season.name]) user.seasonHistory[season.name] = {};
+
+            // 랭킹에 포함되지 않음(해당 모드 랭킹전 20판 미만 등) → 티어 산정·보상 대상 아님
+            if (!userRankInfo) {
+                user.seasonHistory[season.name][mode] = '미참여';
+                continue;
+            }
+
+            const userScore = userRankInfo.user.stats![mode].rankingScore || 0;
+            const userTotalGames =
+                (userRankInfo.user.stats![mode].wins || 0) + (userRankInfo.user.stats![mode].losses || 0);
+            let currentTierName = '새싹';
+            for (const tier of RANKING_TIERS) {
+                if (tier.threshold(userScore, userRankInfo.rank, userTotalGames)) {
+                    currentTierName = tier.name;
+                    break;
+                }
+            }
+
             user.seasonHistory[season.name][mode] = currentTierName;
 
-            // Check if this is the best tier so far
             const currentTierIndex = tierOrder.indexOf(currentTierName);
-            if (currentTierIndex < bestTierRank) {
+            if (currentTierIndex >= 0 && currentTierIndex < bestTierRank) {
                 bestTierRank = currentTierIndex;
                 bestTierInfo = { tierName: currentTierName, mode };
             }
         }
-        
-        // If the user participated in any mode, they have a best tier
+
+        // 한 모드라도 랭킹에 올라 티어가 산정된 경우에만 시즌 테두리·우편 보상
         if (bestTierInfo) {
             user.previousSeasonTier = bestTierInfo.tierName;
 
@@ -140,7 +142,7 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
             // 2. Grant mail reward
             const reward = rewards[bestTierInfo.tierName];
             if (reward) {
-                const mailTitle = `${season.name} 최고 티어는 "${bestTierInfo.tierName}" 티어입니다.`;
+                const mailTitle = `${season.name} 최고 티어 "${bestTierInfo.tierName}" 보상`;
                 const mailMessage = `프로필의 테두리 아이템을 한 시즌동안 사용하실 수 있습니다.\n티어 보상 상품을 수령하세요.`;
                 
                 const mail: types.Mail = {
@@ -157,8 +159,11 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
                 if (!user.mail) user.mail = [];
                 user.mail.unshift(mail); // Add to the top
             }
+        } else {
+            // 랭킹 미참여(전략·놀이 모두 집계 대상 아님) — 시즌 보상·프로필 "직전 시즌 티어" 갱신 없음
+            user.previousSeasonTier = null;
         }
-        
+
         // 3. Reset game mode stats for the new season
         // 놀이바둑만 1200점으로 초기화, 전략바둑은 점수 유지
         if (user.stats) {
@@ -2619,5 +2624,28 @@ export async function processGuildWarEnd(): Promise<void> {
         
         const { broadcast } = await import('./socket.js');
         await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });
+    }
+}
+
+/** KST 0:00~0:14 구간에서 하루 1회, 전체 Postgres 덤프 (환경변수로 켬) */
+let lastDailyDbBackupKstYmd: string | null = null;
+
+export async function tryRunDailyDatabaseBackup(now: number): Promise<void> {
+    if (process.env.DAILY_DB_BACKUP_ENABLED !== 'true') return;
+
+    const kstHours = getKSTHours(now);
+    const kstMinutes = getKSTMinutes(now);
+    if (kstHours !== 0 || kstMinutes >= 15) return;
+
+    const { getKstYmd, runDailyPgDumpBackup } = await import('./services/dailyDatabaseBackupService.js');
+    const ymd = getKstYmd(now);
+    if (lastDailyDbBackupKstYmd === ymd) return;
+
+    const res = await runDailyPgDumpBackup(now);
+    if (res.ok) {
+        lastDailyDbBackupKstYmd = ymd;
+        console.log(`[DailyDbBackup] Success: ${res.file}`);
+    } else if (res.error !== 'disabled') {
+        console.error('[DailyDbBackup] Failed:', res.error);
     }
 }

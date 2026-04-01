@@ -1,10 +1,10 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type VolatileState, AdminLog, Announcement, OverrideAnnouncement, GameMode, LiveGameSession, UserStatusInfo, InventoryItem, InventoryItemType, UserStatus, TournamentType, CoreStat } from '../../types/index.js';
+import { type ServerAction, type User, type Equipment, type VolatileState, AdminLog, Announcement, OverrideAnnouncement, GameMode, LiveGameSession, UserStatusInfo, InventoryItem, InventoryItemType, UserStatus, TournamentType, CoreStat, type EquipmentSlot } from '../../types/index.js';
 import * as types from '../../types/index.js';
 import { defaultStats, createDefaultBaseStats, createDefaultSpentStatPoints, createDefaultInventory, createDefaultQuests, createDefaultUser } from '../initialData.js';
 import * as summaryService from '../summaryService.js';
-import { createItemFromTemplate } from '../shop.js';
+import { createItemFromTemplate, applyEnhancementStarsToEquipmentItem } from '../shop.js';
 import { EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH } from '../../constants';
 import * as mannerService from '../mannerService.js';
 import { containsProfanity } from '../../profanity.js';
@@ -17,11 +17,71 @@ import { getCachedUser, updateUserCache, removeUserFromCache } from '../gameCach
 import { invalidateUserCache } from '../db.js';
 import { ADMIN_USER_ID } from '../../shared/constants/auth.js';
 import { GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../../shared/constants/guildConstants.js';
+import { parseEquipmentStarsFromPayload } from '../../shared/utils/equipmentEnhancementStars.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
     error?: string;
 };
+
+const ADMIN_MAX_INVENTORY_ITEMS = 220;
+const ADMIN_EQUIPMENT_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+
+function sanitizeAdminInventoryList(raw: unknown): InventoryItem[] {
+    if (!Array.isArray(raw)) return [];
+    const out: InventoryItem[] = [];
+    for (const entry of raw.slice(0, ADMIN_MAX_INVENTORY_ITEMS)) {
+        try {
+            const it = JSON.parse(JSON.stringify(entry)) as Record<string, unknown>;
+            if (!it || typeof it.id !== 'string' || !it.id.trim()) continue;
+            if (typeof it.name !== 'string') continue;
+            if (it.type !== 'equipment' && it.type !== 'consumable' && it.type !== 'material') continue;
+            const level = Math.floor(Number(it.level));
+            it.level = Number.isFinite(level) ? Math.max(0, Math.min(999, level)) : 1;
+            const stars = Math.floor(Number(it.stars));
+            it.stars = Number.isFinite(stars) ? Math.max(0, Math.min(99, stars)) : 0;
+            const fails = Math.floor(Number(it.enhancementFails));
+            it.enhancementFails = Number.isFinite(fails) ? Math.max(0, Math.min(9999, fails)) : 0;
+            if (it.type !== 'equipment') {
+                const q = Math.floor(Number(it.quantity));
+                it.quantity = Number.isFinite(q) ? Math.max(1, Math.min(999999, q)) : 1;
+            }
+            if (typeof it.createdAt !== 'number') it.createdAt = Date.now();
+            if (typeof it.isEquipped !== 'boolean') it.isEquipped = false;
+            if (typeof it.image !== 'string') it.image = '';
+            if (typeof it.description !== 'string') it.description = '';
+            if (typeof it.grade !== 'string') it.grade = 'normal';
+            if (typeof it.isDivineMythic !== 'boolean') it.isDivineMythic = false;
+            out.push(it as unknown as InventoryItem);
+        } catch {
+            /* skip malformed */
+        }
+    }
+    return out;
+}
+
+function sanitizeAdminEquipment(raw: unknown, inventoryIds: Set<string>): Equipment {
+    const out: Equipment = {};
+    if (!raw || typeof raw !== 'object') return out;
+    const o = raw as Record<string, unknown>;
+    for (const slot of ADMIN_EQUIPMENT_SLOTS) {
+        const v = o[slot];
+        if (v == null || v === '') continue;
+        if (typeof v === 'string' && inventoryIds.has(v)) {
+            out[slot] = v;
+        }
+    }
+    return out;
+}
+
+function applyEquippedFlagsFromEquipment(inv: InventoryItem[], equipment: Equipment) {
+    const equipped = new Set(Object.values(equipment).filter((x): x is string => typeof x === 'string' && !!x));
+    for (const it of inv) {
+        if (it.type === 'equipment') {
+            it.isEquipped = equipped.has(it.id);
+        }
+    }
+}
 
 const createAdminLog = async (admin: User, action: AdminLog['action'], target: User | { id: string; nickname: string }, backupData: any) => {
     const log: AdminLog = {
@@ -275,7 +335,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     gold: number;
                     diamonds: number;
                     actionPoints: number;
-                    items: { name: string; quantity: number; type: InventoryItemType }[];
+                    items: { name: string; quantity: number; type: InventoryItemType; stars?: number }[];
                 }
             };
             let targetUsers: User[] = [];
@@ -303,12 +363,17 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
 
                 if (attachments.items && attachments.items.length > 0) {
                     for (const attachedItem of attachments.items) {
-                        const { name, quantity, type } = attachedItem;
+                        const { name, quantity, type, stars: rawStars } = attachedItem;
+                        const stars = parseEquipmentStarsFromPayload(rawStars);
                         if (type === 'equipment') {
                             for (let i = 0; i < quantity; i++) {
                                 const template = EQUIPMENT_POOL.find(t => t.name === name);
                                 if (template) {
-                                    userAttachments.items!.push(createItemFromTemplate(template));
+                                    const eq = createItemFromTemplate(template);
+                                    if (stars > 0) {
+                                        applyEnhancementStarsToEquipmentItem(eq, stars);
+                                    }
+                                    userAttachments.items!.push(eq);
                                 }
                             }
                         } else { // Stackable items (consumable or material)
@@ -591,7 +656,23 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 const numValue = Number(updatedDetails.tournamentScore);
                 targetUser.tournamentScore = isNaN(numValue) ? 0 : numValue;
             }
-            
+
+            if (updatedDetails.cumulativeRankingScore && typeof updatedDetails.cumulativeRankingScore === 'object') {
+                targetUser.cumulativeRankingScore = {
+                    ...(targetUser.cumulativeRankingScore || {}),
+                    ...updatedDetails.cumulativeRankingScore,
+                };
+            }
+
+            if (updatedDetails.actionPoints && typeof updatedDetails.actionPoints === 'object') {
+                const cur = Number((updatedDetails.actionPoints as any).current);
+                const max = Number((updatedDetails.actionPoints as any).max);
+                targetUser.actionPoints = {
+                    current: Number.isFinite(cur) ? Math.max(0, cur) : targetUser.actionPoints?.current ?? 0,
+                    max: Number.isFinite(max) ? Math.max(1, max) : targetUser.actionPoints?.max ?? 0,
+                };
+            }
+
             if (updatedDetails.quests) {
                 targetUser.quests = updatedDetails.quests;
             }
@@ -1225,6 +1306,105 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 clientResponse: {
                     message: `길드전 오늘 도전횟수를 초기화했습니다. (남은 횟수: ${GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}회)`
                 }
+            };
+        }
+
+        case 'ADMIN_SAVE_USER_INVENTORY_EQUIPMENT': {
+            const { targetUserId, inventory: invRaw, equipment: eqRaw } = payload as {
+                targetUserId: string;
+                inventory: unknown;
+                equipment: unknown;
+            };
+            const targetUser = await db.getUser(targetUserId, { includeEquipment: true, includeInventory: true });
+            if (!targetUser) return { error: '대상 사용자를 찾을 수 없습니다.' };
+
+            const backupData = JSON.parse(JSON.stringify(targetUser));
+            let inventory = sanitizeAdminInventoryList(invRaw);
+            const idSet = new Set(inventory.map((i) => i.id));
+            const equipment = sanitizeAdminEquipment(eqRaw, idSet);
+            applyEquippedFlagsFromEquipment(inventory, equipment);
+
+            targetUser.inventory = inventory;
+            targetUser.equipment = equipment;
+
+            await db.updateUser(targetUser, { allowInventoryEquipmentClear: true });
+            const { syncInventoryEquipmentToDatabase } = await import('../prisma/userService.js');
+            await syncInventoryEquipmentToDatabase(targetUser);
+
+            await createAdminLog(user, 'update_user_inventory', targetUser, backupData);
+
+            const updatedUser = JSON.parse(JSON.stringify(targetUser));
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(updatedUser, ['inventory', 'equipment']);
+
+            return {
+                clientResponse: {
+                    updatedUser,
+                    targetUserId: targetUser.id,
+                },
+            };
+        }
+
+        case 'ADMIN_APPEND_INVENTORY_ITEMS': {
+            const { targetUserId, equipmentAdds, stackableAdds } = payload as {
+                targetUserId: string;
+                equipmentAdds?: { name: string; quantity: number }[];
+                stackableAdds?: { name: string; quantity: number; type: InventoryItemType }[];
+            };
+            const targetUser = await db.getUser(targetUserId, { includeEquipment: true, includeInventory: true });
+            if (!targetUser) return { error: '대상 사용자를 찾을 수 없습니다.' };
+
+            const backupData = JSON.parse(JSON.stringify(targetUser));
+            if (!Array.isArray(targetUser.inventory)) targetUser.inventory = [];
+
+            if (Array.isArray(equipmentAdds)) {
+                for (const row of equipmentAdds) {
+                    const name = String(row?.name || '').trim();
+                    const qty = Math.max(1, Math.min(50, Math.floor(Number(row?.quantity) || 1)));
+                    if (!name) continue;
+                    const template = EQUIPMENT_POOL.find((t) => t.name === name);
+                    if (!template) continue;
+                    for (let i = 0; i < qty; i++) {
+                        targetUser.inventory.push(createItemFromTemplate(template));
+                    }
+                }
+            }
+
+            if (Array.isArray(stackableAdds)) {
+                for (const row of stackableAdds) {
+                    const name = String(row?.name || '').trim();
+                    const qty = Math.max(1, Math.min(999999, Math.floor(Number(row?.quantity) || 1)));
+                    const stype = row?.type;
+                    if (!name || (stype !== 'consumable' && stype !== 'material')) continue;
+                    const template = [...CONSUMABLE_ITEMS, ...Object.values(MATERIAL_ITEMS)].find((t) => t.name === name);
+                    if (!template) continue;
+                    targetUser.inventory.push({
+                        ...(template as any),
+                        id: `item-${randomUUID()}`,
+                        createdAt: Date.now(),
+                        isEquipped: false,
+                        level: 1,
+                        stars: 0,
+                        quantity: qty,
+                    });
+                }
+            }
+
+            await db.updateUser(targetUser);
+            const { syncInventoryEquipmentToDatabase } = await import('../prisma/userService.js');
+            await syncInventoryEquipmentToDatabase(targetUser);
+
+            await createAdminLog(user, 'append_inventory_items', targetUser, backupData);
+
+            const updatedUser = JSON.parse(JSON.stringify(targetUser));
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(updatedUser, ['inventory']);
+
+            return {
+                clientResponse: {
+                    updatedUser,
+                    targetUserId: targetUser.id,
+                },
             };
         }
         

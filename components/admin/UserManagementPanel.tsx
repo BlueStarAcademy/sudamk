@@ -1,10 +1,10 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 // FIX: Import missing types from the centralized types file.
-import { User, ServerAction, AdminProps, LiveGameSession, GameMode, Quest, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentType } from '../../types/index.js';
+import { User, ServerAction, AdminProps, LiveGameSession, GameMode, Quest, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentType, InventoryItem, InventoryItemType, Equipment } from '../../types/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../../constants';
 import { useAppContext } from '../../hooks/useAppContext.js';
 
 interface UserManagementModalProps {
@@ -12,16 +12,165 @@ interface UserManagementModalProps {
     currentUser: User;
     onClose: () => void;
     onAction: (action: ServerAction) => void;
+    onRefreshFullUser: () => Promise<void>;
 }
 
-const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, currentUser, onClose, onAction }) => {
+const EQUIPMENT_SLOTS: Array<'fan' | 'board' | 'top' | 'bottom' | 'bowl' | 'stones'> = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+
+const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, currentUser, onClose, onAction, onRefreshFullUser }) => {
     const [editedUser, setEditedUser] = useState<User>(JSON.parse(JSON.stringify(user)));
-    const [activeTab, setActiveTab] = useState<'general' | 'strategic' | 'playful' | 'quests' | 'danger'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'strategic' | 'playful' | 'quests' | 'rewards' | 'inventory' | 'danger'>('general');
+    const [invDraft, setInvDraft] = useState<InventoryItem[]>([]);
+    const [eqDraft, setEqDraft] = useState<Partial<Record<string, string>>>({});
+    const [selectedInvId, setSelectedInvId] = useState<string | null>(null);
+    const [optionsJsonText, setOptionsJsonText] = useState('');
+    const [rewardTitle, setRewardTitle] = useState('관리자 보상');
+    const [rewardMessage, setRewardMessage] = useState('보상이 지급되었습니다.');
+    const [rewardGold, setRewardGold] = useState(0);
+    const [rewardDiamonds, setRewardDiamonds] = useState(0);
+    const [rewardAp, setRewardAp] = useState(0);
+    const [rewardExpiresDays, setRewardExpiresDays] = useState(30);
+    const [rewardItems, setRewardItems] = useState<{ name: string; quantity: number; type: InventoryItemType }[]>([]);
+    const [mailEqPick, setMailEqPick] = useState(EQUIPMENT_POOL[0]?.name ?? '');
+    const [mailStackPick, setMailStackPick] = useState('');
+    const [invSaveBusy, setInvSaveBusy] = useState(false);
+    const [appendBusy, setAppendBusy] = useState(false);
+    const [newEqName, setNewEqName] = useState('');
+    const [newEqQty, setNewEqQty] = useState(1);
+    const [newStackName, setNewStackName] = useState('');
+    const [newStackQty, setNewStackQty] = useState(1);
+    const [newStackType, setNewStackType] = useState<InventoryItemType>('consumable');
     
     // user prop이 변경되면 editedUser도 업데이트 (서버에서 업데이트된 데이터 반영)
     useEffect(() => {
         setEditedUser(JSON.parse(JSON.stringify(user)));
     }, [user]);
+
+    useEffect(() => {
+        setInvDraft(JSON.parse(JSON.stringify(Array.isArray(user.inventory) ? user.inventory : [])));
+        setEqDraft({ ...(user.equipment || {}) });
+        setSelectedInvId(null);
+        setOptionsJsonText('');
+    }, [user]);
+
+    useEffect(() => {
+        if (!selectedInvId) {
+            setOptionsJsonText('');
+            return;
+        }
+        const it = invDraft.find((i) => i.id === selectedInvId);
+        if (!it) {
+            setOptionsJsonText('');
+            return;
+        }
+        try {
+            setOptionsJsonText(JSON.stringify(it.options ?? null, null, 2));
+        } catch {
+            setOptionsJsonText('');
+        }
+        // invDraft 제외: 레벨 등 수정 중 옵션 JSON 에디터가 리셋되지 않도록
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedInvId]);
+
+    const applyOptionsJsonToSelected = () => {
+        if (!selectedInvId) return;
+        let parsed: unknown = undefined;
+        const t = optionsJsonText.trim();
+        if (t) {
+            try {
+                parsed = JSON.parse(t);
+            } catch {
+                alert('options JSON 형식이 올바르지 않습니다.');
+                return;
+            }
+        }
+        setInvDraft((prev) =>
+            prev.map((it) => (it.id === selectedInvId ? { ...it, options: parsed as InventoryItem['options'] } : it))
+        );
+    };
+
+    const handleSendRewardMail = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!rewardTitle.trim() || !rewardMessage.trim()) {
+            alert('제목과 내용을 입력해주세요.');
+            return;
+        }
+        onAction({
+            type: 'ADMIN_SEND_MAIL',
+            payload: {
+                targetSpecifier: '',
+                targetUserIds: [user.id],
+                title: rewardTitle.trim(),
+                message: rewardMessage.trim(),
+                expiresInDays: rewardExpiresDays,
+                attachments: {
+                    gold: rewardGold,
+                    diamonds: rewardDiamonds,
+                    actionPoints: rewardAp,
+                    items: rewardItems,
+                },
+            },
+        });
+        void onRefreshFullUser();
+    };
+
+    const handleAppendItems = async () => {
+        const equipmentAdds: { name: string; quantity: number }[] = [];
+        if (newEqName.trim()) {
+            equipmentAdds.push({ name: newEqName.trim(), quantity: Math.max(1, Math.min(50, newEqQty)) });
+        }
+        const stackableAdds: { name: string; quantity: number; type: InventoryItemType }[] = [];
+        if (newStackName.trim() && (newStackType === 'consumable' || newStackType === 'material')) {
+            stackableAdds.push({
+                name: newStackName.trim(),
+                quantity: Math.max(1, Math.min(999999, newStackQty)),
+                type: newStackType,
+            });
+        }
+        if (equipmentAdds.length === 0 && stackableAdds.length === 0) {
+            alert('추가할 장비(이름 선택) 또는 소모품/재료를 입력하세요.');
+            return;
+        }
+        setAppendBusy(true);
+        try {
+            onAction({
+                type: 'ADMIN_APPEND_INVENTORY_ITEMS',
+                payload: {
+                    targetUserId: user.id,
+                    equipmentAdds: equipmentAdds.length ? equipmentAdds : undefined,
+                    stackableAdds: stackableAdds.length ? stackableAdds : undefined,
+                },
+            });
+            await onRefreshFullUser();
+            setNewEqName('');
+            setNewEqQty(1);
+            setNewStackName('');
+            setNewStackQty(1);
+        } finally {
+            setAppendBusy(false);
+        }
+    };
+
+    const handleSaveInventoryEquipment = async () => {
+        if (!window.confirm('인벤토리·장비 슬롯을 서버에 반영합니다. 계속할까요?')) return;
+        setInvSaveBusy(true);
+        try {
+            onAction({
+                type: 'ADMIN_SAVE_USER_INVENTORY_EQUIPMENT',
+                payload: {
+                    targetUserId: user.id,
+                    inventory: invDraft,
+                    equipment: eqDraft as Equipment,
+                },
+            });
+            await onRefreshFullUser();
+        } finally {
+            setInvSaveBusy(false);
+        }
+    };
+
+    const equipmentIdsInInv = useMemo(() => invDraft.filter((i) => i.type === 'equipment').map((i) => i.id), [invDraft]);
+    const allStackableTemplates = useMemo(() => [...CONSUMABLE_ITEMS, ...Object.values(MATERIAL_ITEMS)], []);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -153,14 +302,16 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
     );
     
     return (
-        <DraggableWindow title={`사용자 정보 수정: ${user.nickname}`} onClose={onClose} windowId={`user-edit-${user.id}`} initialWidth={600}>
-            <div className="flex flex-col h-[60vh]">
-                <div className="flex border-b border-color mb-4">
-                    <button onClick={() => setActiveTab('general')} className={`px-4 py-2 ${activeTab === 'general' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>일반 정보</button>
-                    <button onClick={() => setActiveTab('strategic')} className={`px-4 py-2 ${activeTab === 'strategic' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>전략 바둑</button>
-                    <button onClick={() => setActiveTab('playful')} className={`px-4 py-2 ${activeTab === 'playful' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>놀이 바둑</button>
-                    <button onClick={() => setActiveTab('quests')} className={`px-4 py-2 ${activeTab === 'quests' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>퀘스트</button>
-                    <button onClick={() => setActiveTab('danger')} className={`px-4 py-2 ${activeTab === 'danger' ? 'border-b-2 border-danger text-danger' : 'text-tertiary'}`}>위험 구역</button>
+        <DraggableWindow title={`사용자 관리: ${user.nickname}`} onClose={onClose} windowId={`user-edit-${user.id}`} initialWidth={820}>
+            <div className="flex flex-col min-h-[55vh] max-h-[85vh]">
+                <div className="flex flex-wrap gap-1 border-b border-color mb-4">
+                    <button type="button" onClick={() => setActiveTab('general')} className={`px-3 py-2 text-sm ${activeTab === 'general' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>일반</button>
+                    <button type="button" onClick={() => setActiveTab('strategic')} className={`px-3 py-2 text-sm ${activeTab === 'strategic' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>전략 랭킹</button>
+                    <button type="button" onClick={() => setActiveTab('playful')} className={`px-3 py-2 text-sm ${activeTab === 'playful' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>놀이 랭킹</button>
+                    <button type="button" onClick={() => setActiveTab('quests')} className={`px-3 py-2 text-sm ${activeTab === 'quests' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>퀘스트</button>
+                    <button type="button" onClick={() => setActiveTab('rewards')} className={`px-3 py-2 text-sm ${activeTab === 'rewards' ? 'border-b-2 border-green-500 text-green-400' : 'text-tertiary'}`}>보상 우편</button>
+                    <button type="button" onClick={() => setActiveTab('inventory')} className={`px-3 py-2 text-sm ${activeTab === 'inventory' ? 'border-b-2 border-amber-500 text-amber-400' : 'text-tertiary'}`}>인벤·장비</button>
+                    <button type="button" onClick={() => setActiveTab('danger')} className={`px-3 py-2 text-sm ${activeTab === 'danger' ? 'border-b-2 border-danger text-danger' : 'text-tertiary'}`}>위험 구역</button>
                 </div>
 
                 <div className="flex-grow overflow-y-auto pr-2">
@@ -173,6 +324,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                             <div className="grid grid-cols-2 gap-2"><label>놀이 XP</label><input type="number" name="playfulXp" value={editedUser.playfulXp} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
                             <div className="grid grid-cols-2 gap-2"><label>골드</label><input type="number" name="gold" value={editedUser.gold} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
                             <div className="grid grid-cols-2 gap-2"><label>다이아</label><input type="number" name="diamonds" value={editedUser.diamonds} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>행동력 현재</label><input type="number" value={editedUser.actionPoints?.current ?? 0} onChange={(e) => setEditedUser((p) => ({ ...p, actionPoints: { ...(p.actionPoints || { current: 0, max: 100 }), current: Number(e.target.value) || 0, max: p.actionPoints?.max ?? 100 } }))} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>행동력 최대</label><input type="number" value={editedUser.actionPoints?.max ?? 0} onChange={(e) => setEditedUser((p) => ({ ...p, actionPoints: { ...(p.actionPoints || { current: 0, max: 100 }), max: Number(e.target.value) || 1, current: p.actionPoints?.current ?? 0 } }))} className="bg-tertiary p-1 rounded" /></div>
                             <div className="grid grid-cols-2 gap-2"><label>매너 점수</label><input type="number" name="mannerScore" value={editedUser.mannerScore} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
                             <div className="grid grid-cols-2 gap-2"><label>챔피언십 누적 점수</label><input type="number" name="cumulativeTournamentScore" value={editedUser.cumulativeTournamentScore ?? 0} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
                             <div className="grid grid-cols-2 gap-2"><label>챔피언십 주간 점수</label><input type="number" name="tournamentScore" value={editedUser.tournamentScore ?? 0} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
@@ -227,6 +380,195 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                            <QuestCategoryPanel title="일일 퀘스트" questType="daily" questData={editedUser.quests?.daily} />
                            <QuestCategoryPanel title="주간 퀘스트" questType="weekly" questData={editedUser.quests?.weekly} />
                            <QuestCategoryPanel title="월간 퀘스트" questType="monthly" questData={editedUser.quests?.monthly} />
+                        </div>
+                    )}
+                    {activeTab === 'rewards' && (
+                        <form onSubmit={handleSendRewardMail} className="space-y-3 text-sm max-w-xl">
+                            <p className="text-xs text-gray-400">검색한 유저에게 골드·다이아·행동력·아이템을 우편으로 바로 보냅니다.</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <label>제목</label>
+                                <input className="bg-tertiary p-1 rounded" value={rewardTitle} onChange={(e) => setRewardTitle(e.target.value)} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 items-start">
+                                <label>내용</label>
+                                <textarea className="bg-tertiary p-1 rounded min-h-[60px]" value={rewardMessage} onChange={(e) => setRewardMessage(e.target.value)} />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <div><label className="text-xs">골드</label><input type="number" className="w-full bg-tertiary p-1 rounded" value={rewardGold} onChange={(e) => setRewardGold(Number(e.target.value) || 0)} /></div>
+                                <div><label className="text-xs">다이아</label><input type="number" className="w-full bg-tertiary p-1 rounded" value={rewardDiamonds} onChange={(e) => setRewardDiamonds(Number(e.target.value) || 0)} /></div>
+                                <div><label className="text-xs">행동력(우편)</label><input type="number" className="w-full bg-tertiary p-1 rounded" value={rewardAp} onChange={(e) => setRewardAp(Number(e.target.value) || 0)} /></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <label>만료(일)</label>
+                                <input type="number" className="bg-tertiary p-1 rounded" value={rewardExpiresDays} onChange={(e) => setRewardExpiresDays(Math.max(0, Number(e.target.value) || 0))} />
+                            </div>
+                            <div className="border border-color rounded p-2 space-y-2">
+                                <div className="text-xs font-semibold text-secondary">첨부 아이템</div>
+                                {rewardItems.map((it, idx) => (
+                                    <div key={idx} className="flex gap-2 items-center text-xs">
+                                        <span className="flex-1 truncate">{it.name} ×{it.quantity} ({it.type})</span>
+                                        <button type="button" className="text-red-400" onClick={() => setRewardItems((p) => p.filter((_, i) => i !== idx))}>제거</button>
+                                    </div>
+                                ))}
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    <select className="bg-tertiary text-xs p-1 rounded max-w-[160px]" value={mailEqPick} onChange={(e) => setMailEqPick(e.target.value)}>
+                                        {EQUIPMENT_POOL.map((eq) => (
+                                            <option key={eq.name} value={eq.name}>{eq.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        className="text-xs px-2 py-1 bg-secondary rounded"
+                                        onClick={() => {
+                                            if (mailEqPick) setRewardItems((p) => [...p, { name: mailEqPick, quantity: 1, type: 'equipment' }]);
+                                        }}
+                                    >장비 추가</button>
+                                    <select className="bg-tertiary text-xs p-1 rounded max-w-[140px]" value={mailStackPick} onChange={(e) => setMailStackPick(e.target.value)}>
+                                        <option value="">소모/재료 선택</option>
+                                        {allStackableTemplates.map((it) => (
+                                            <option key={it.name} value={it.name}>{it.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        className="text-xs px-2 py-1 bg-secondary rounded"
+                                        onClick={() => {
+                                            const tpl = allStackableTemplates.find((x) => x.name === mailStackPick);
+                                            if (tpl) setRewardItems((p) => [...p, { name: tpl.name, quantity: 1, type: tpl.type as InventoryItemType }]);
+                                        }}
+                                    >소모/재료 추가</button>
+                                </div>
+                            </div>
+                            <Button type="submit" colorScheme="green" className="w-full">이 유저에게 우편 발송</Button>
+                        </form>
+                    )}
+                    {activeTab === 'inventory' && (
+                        <div className="space-y-4 text-sm">
+                            <div className="border border-color rounded p-3 space-y-2 bg-secondary/20">
+                                <div className="font-semibold text-amber-200 text-sm">아이템 추가 (서버 생성)</div>
+                                <div className="flex flex-wrap gap-2 items-end">
+                                    <div>
+                                        <label className="text-xs block text-gray-400">장비 템플릿</label>
+                                        <select className="bg-tertiary p-1 rounded text-xs max-w-[160px]" value={newEqName} onChange={(e) => setNewEqName(e.target.value)}>
+                                            <option value="">선택</option>
+                                            {EQUIPMENT_POOL.map((eq) => (
+                                                <option key={eq.name} value={eq.name}>{eq.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs block text-gray-400">개수</label>
+                                        <input type="number" className="w-16 bg-tertiary p-1 rounded" value={newEqQty} onChange={(e) => setNewEqQty(Number(e.target.value) || 1)} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs block text-gray-400">소모/재료</label>
+                                        <select className="bg-tertiary p-1 rounded text-xs max-w-[140px]" value={newStackName} onChange={(e) => setNewStackName(e.target.value)}>
+                                            <option value="">선택</option>
+                                            {[...CONSUMABLE_ITEMS, ...Object.values(MATERIAL_ITEMS)].map((it) => (
+                                                <option key={it.name} value={it.name}>{it.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs block text-gray-400">타입</label>
+                                        <select className="bg-tertiary p-1 rounded text-xs" value={newStackType} onChange={(e) => setNewStackType(e.target.value as InventoryItemType)}>
+                                            <option value="consumable">consumable</option>
+                                            <option value="material">material</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs block text-gray-400">수량</label>
+                                        <input type="number" className="w-20 bg-tertiary p-1 rounded" value={newStackQty} onChange={(e) => setNewStackQty(Number(e.target.value) || 1)} />
+                                    </div>
+                                    <Button type="button" colorScheme="purple" className="!text-xs" disabled={appendBusy} onClick={() => void handleAppendItems()}>
+                                        {appendBusy ? '추가 중…' : '인벤에 추가'}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="font-semibold text-sm">착용 슬롯</div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {EQUIPMENT_SLOTS.map((slot) => (
+                                    <div key={slot} className="flex items-center gap-2">
+                                        <span className="text-xs w-16 text-gray-400">{slot}</span>
+                                        <select
+                                            className="flex-1 bg-tertiary p-1 rounded text-xs"
+                                            value={eqDraft[slot] || ''}
+                                            onChange={(e) => {
+                                                const v = e.target.value;
+                                                setEqDraft((d) => {
+                                                    const n = { ...d };
+                                                    if (v) n[slot] = v;
+                                                    else delete n[slot];
+                                                    return n;
+                                                });
+                                            }}
+                                        >
+                                            <option value="">(없음)</option>
+                                            {equipmentIdsInInv.map((id) => {
+                                                const it = invDraft.find((x) => x.id === id);
+                                                return (
+                                                    <option key={id} value={id}>{it?.name ?? id}</option>
+                                                );
+                                            })}
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="font-semibold text-sm">인벤토리 ({invDraft.length}개)</div>
+                            <div className="max-h-52 overflow-y-auto space-y-2 pr-1 border border-color rounded p-2">
+                                {invDraft.map((it) => (
+                                    <div key={it.id} className={`p-2 rounded border ${selectedInvId === it.id ? 'border-accent bg-accent/10' : 'border-color bg-primary/40'}`}>
+                                        <div className="flex justify-between gap-2 items-start">
+                                            <button type="button" className="text-left text-xs font-medium flex-1 truncate" onClick={() => setSelectedInvId(it.id === selectedInvId ? null : it.id)}>
+                                                {it.name} <span className="text-gray-500">({it.type})</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="text-red-400 text-xs shrink-0"
+                                                onClick={() => {
+                                                    setInvDraft((p) => p.filter((x) => x.id !== it.id));
+                                                    setEqDraft((d) => {
+                                                        const next = { ...d };
+                                                        for (const s of EQUIPMENT_SLOTS) {
+                                                            if (next[s] === it.id) delete next[s];
+                                                        }
+                                                        return next;
+                                                    });
+                                                    if (selectedInvId === it.id) setSelectedInvId(null);
+                                                }}
+                                            >삭제</button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 mt-1 text-xs">
+                                            <label className="flex items-center gap-1">강화<input type="number" className="w-12 bg-tertiary rounded p-0.5" value={it.level} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, level: Number(e.target.value) || 0 } : x)))} /></label>
+                                            <label className="flex items-center gap-1">별<input type="number" className="w-10 bg-tertiary rounded p-0.5" value={it.stars} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, stars: Number(e.target.value) || 0 } : x)))} /></label>
+                                            {it.type !== 'equipment' && (
+                                                <label className="flex items-center gap-1">수량<input type="number" className="w-14 bg-tertiary rounded p-0.5" value={it.quantity ?? 1} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, quantity: Math.max(1, Number(e.target.value) || 1) } : x)))} /></label>
+                                            )}
+                                            {it.type === 'equipment' && (
+                                                <>
+                                                    <label className="flex items-center gap-1">강화실패<input type="number" className="w-12 bg-tertiary rounded p-0.5" value={it.enhancementFails ?? 0} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, enhancementFails: Number(e.target.value) || 0 } : x)))} /></label>
+                                                    <label className="flex items-center gap-1"><input type="checkbox" checked={!!it.isDivineMythic} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, isDivineMythic: e.target.checked } : x)))} />D.신화</label>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {selectedInvId && (
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-400">선택한 장비 options (JSON) — main / combatSubs / specialSubs / mythicSubs</label>
+                                    <textarea className="w-full font-mono text-xs bg-tertiary p-2 rounded min-h-[140px]" value={optionsJsonText} onChange={(e) => setOptionsJsonText(e.target.value)} spellCheck={false} />
+                                    <Button type="button" colorScheme="gray" className="!text-xs" onClick={applyOptionsJsonToSelected}>옵션 JSON 적용(로컬 초안)</Button>
+                                </div>
+                            )}
+
+                            <Button type="button" colorScheme="orange" className="w-full" disabled={invSaveBusy} onClick={() => void handleSaveInventoryEquipment()}>
+                                {invSaveBusy ? '저장 중…' : '인벤·장비 슬롯 서버에 반영'}
+                            </Button>
+                            <p className="text-xs text-gray-500">장비는 템플릿 추가 시 옵션이 랜덤 생성됩니다. 수정 후 반드시 위 버튼으로 저장하세요.</p>
                         </div>
                     )}
                      {activeTab === 'danger' && (
@@ -367,7 +709,8 @@ interface UserManagementPanelProps {
 const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _allUsers, onAction, onBack, currentUser }) => {
     const { handlers } = useAppContext();
     const [searchQuery, setSearchQuery] = useState('');
-    const [managingUserId, setManagingUserId] = useState<string | null>(null);
+    const [panelManagingUser, setPanelManagingUser] = useState<User | null>(null);
+    const [openingUserId, setOpeningUserId] = useState<string | null>(null);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [nickname, setNickname] = useState('');
@@ -375,9 +718,9 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
     const [searchError, setSearchError] = useState<string | null>(null);
     const [localUsers, setLocalUsers] = useState<User[]>([]);
 
-    const fetchUsersByQuery = async (query: string) => {
+    const fetchUsersByQuery = useCallback(async (query: string) => {
         const trimmedQuery = query.trim();
-        if (trimmedQuery.length < 2) {
+        if (trimmedQuery.length < 1) {
             setLocalUsers([]);
             setSearchError(null);
             return;
@@ -386,10 +729,13 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         setIsLoadingUsers(true);
         setSearchError(null);
         try {
-            const response = await fetch(`/api/admin/users?query=${encodeURIComponent(trimmedQuery)}&limit=50`);
+            const response = await fetch(
+                `/api/admin/users?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=50`,
+                { credentials: 'include' }
+            );
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data?.error || '사용자 검색에 실패했습니다.');
+                throw new Error(data?.message || data?.error || '사용자 검색에 실패했습니다.');
             }
             if (Array.isArray(data.users)) {
                 setLocalUsers(data.users);
@@ -403,7 +749,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         } finally {
             setIsLoadingUsers(false);
         }
-    };
+    }, [currentUser.id]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -411,10 +757,35 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         }, 250);
 
         return () => clearTimeout(timer);
-    }, [searchQuery]);
-    
-    // managingUserId가 있으면 localUsers에서 최신 데이터를 가져옴
-    const managingUser = managingUserId ? localUsers.find(u => u.id === managingUserId) || null : null;
+    }, [searchQuery, fetchUsersByQuery]);
+
+    const refreshPanelUser = useCallback(async () => {
+        if (!panelManagingUser?.id) return;
+        try {
+            const res = await fetch(
+                `/api/admin/user/${panelManagingUser.id}?userId=${encodeURIComponent(currentUser.id)}`,
+                { credentials: 'include' }
+            );
+            const data = await res.json();
+            if (res.ok && data.user) setPanelManagingUser(data.user);
+        } catch (e) {
+            console.error('[UserManagementPanel] refreshPanelUser failed:', e);
+        }
+    }, [panelManagingUser?.id, currentUser.id]);
+
+    const openUserManage = async (id: string) => {
+        setOpeningUserId(id);
+        try {
+            const res = await fetch(`/api/admin/user/${id}?userId=${encodeURIComponent(currentUser.id)}`, { credentials: 'include' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.message || data?.error || '상세 조회 실패');
+            setPanelManagingUser(data.user);
+        } catch (err: any) {
+            alert(err?.message || '유저 정보를 불러오지 못했습니다.');
+        } finally {
+            setOpeningUserId(null);
+        }
+    };
 
     const handleCreateUser = (e: React.FormEvent) => {
         e.preventDefault();
@@ -427,7 +798,15 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
 
     return (
         <div className="space-y-8 bg-primary text-primary">
-            {managingUser && <UserManagementModal user={managingUser} currentUser={currentUser} onClose={() => setManagingUserId(null)} onAction={onAction} />}
+            {panelManagingUser && (
+                <UserManagementModal
+                    user={panelManagingUser}
+                    currentUser={currentUser}
+                    onClose={() => setPanelManagingUser(null)}
+                    onAction={onAction}
+                    onRefreshFullUser={refreshPanelUser}
+                />
+            )}
             <header className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">사용자 관리</h1>
                 <button onClick={onBack} className="p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
@@ -444,7 +823,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                         </h2>
                         <input
                             type="text"
-                            placeholder="닉네임 또는 아이디 검색 (2자 이상)"
+                            placeholder="닉네임 또는 아이디 검색"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent w-1/3 p-2.5"
@@ -480,18 +859,28 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                         <td className="px-6 py-4">{user.username}</td>
                                         <td className="px-6 py-4">S.{user.strategyLevel} / P.{user.playfulLevel}</td>
                                         <td className="px-6 py-4">
-                                            <button onClick={(e) => { e.stopPropagation(); setManagingUserId(user.id); }} className="font-medium text-blue-500 hover:underline">관리</button>
+                                            <button
+                                                type="button"
+                                                disabled={openingUserId === user.id}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    void openUserManage(user.id);
+                                                }}
+                                                className="font-medium text-blue-500 hover:underline disabled:opacity-50"
+                                            >
+                                                {openingUserId === user.id ? '열기…' : '관리'}
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
-                                {!isLoadingUsers && searchQuery.trim().length < 2 && (
+                                {!isLoadingUsers && searchQuery.trim().length < 1 && (
                                     <tr>
                                         <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
-                                            검색어를 2자 이상 입력하면 결과가 표시됩니다.
+                                            검색어를 입력하면 결과가 표시됩니다.
                                         </td>
                                     </tr>
                                 )}
-                                {!isLoadingUsers && searchQuery.trim().length >= 2 && searchedUsers.length === 0 && (
+                                {!isLoadingUsers && searchQuery.trim().length >= 1 && searchedUsers.length === 0 && (
                                     <tr>
                                         <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
                                             검색 결과가 없습니다.
