@@ -4461,7 +4461,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     app.get('/admin/users', handleAdminUsersSearch);
 
     /** 관리자: 단일 유저 전체(인벤·장비 포함) 조회 */
-    app.get('/api/admin/user/:targetUserId', async (req, res) => {
+    const handleAdminUserDetail: express.RequestHandler = async (req, res) => {
         try {
             const adminId = String(req.query.userId || '').trim();
             if (!adminId) {
@@ -4484,7 +4484,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             console.error('[Admin] Error getting user detail:', error);
             res.status(500).json({ error: error.message });
         }
-    });
+    };
+    app.get('/api/admin/user/:targetUserId', handleAdminUserDetail);
+    app.get('/admin/user/:targetUserId', handleAdminUserDetail);
     
     // KataGo 시작 엔드포인트 (관리자 전용)
     // NOTE: KataGo는 별도 서비스로 운영하므로 백엔드에서 로컬 프로세스를 시작하지 않습니다.

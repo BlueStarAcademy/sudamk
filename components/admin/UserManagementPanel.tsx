@@ -782,6 +782,27 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         throw lastError ?? new Error('사용자 검색에 실패했습니다.');
     }, [currentUser.id]);
 
+    const fetchAdminUserDetail = useCallback(async (targetUserId: string) => {
+        const candidates = [getApiUrl(`/api/admin/user/${targetUserId}`), getApiUrl(`/admin/user/${targetUserId}`)];
+        let lastError: Error | null = null;
+
+        for (const url of candidates) {
+            try {
+                const res = await fetch(`${url}?userId=${encodeURIComponent(currentUser.id)}`, { credentials: 'include' });
+                const raw = await res.text();
+                if (raw.trim().startsWith('<!DOCTYPE') || raw.trim().startsWith('<html')) {
+                    throw new Error('API 대신 HTML 응답이 반환되었습니다.');
+                }
+                const data = raw ? JSON.parse(raw) : {};
+                if (!res.ok) throw new Error(data?.message || data?.error || '상세 조회 실패');
+                return data?.user as User;
+            } catch (err: any) {
+                lastError = err instanceof Error ? err : new Error(String(err));
+            }
+        }
+        throw lastError ?? new Error('유저 정보를 불러오지 못했습니다.');
+    }, [currentUser.id]);
+
     const fetchUsersByQuery = useCallback(async (query: string) => {
         const trimmedQuery = query.trim();
         if (trimmedQuery.length < 1) {
@@ -815,24 +836,18 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
     const refreshPanelUser = useCallback(async () => {
         if (!panelManagingUser?.id) return;
         try {
-            const res = await fetch(
-                `/api/admin/user/${panelManagingUser.id}?userId=${encodeURIComponent(currentUser.id)}`,
-                { credentials: 'include' }
-            );
-            const data = await res.json();
-            if (res.ok && data.user) setPanelManagingUser(data.user);
+            const fullUser = await fetchAdminUserDetail(panelManagingUser.id);
+            if (fullUser) setPanelManagingUser(fullUser);
         } catch (e) {
             console.error('[UserManagementPanel] refreshPanelUser failed:', e);
         }
-    }, [panelManagingUser?.id, currentUser.id]);
+    }, [panelManagingUser?.id, fetchAdminUserDetail]);
 
     const openUserManage = async (id: string) => {
         setOpeningUserId(id);
         try {
-            const res = await fetch(`/api/admin/user/${id}?userId=${encodeURIComponent(currentUser.id)}`, { credentials: 'include' });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.message || data?.error || '상세 조회 실패');
-            setPanelManagingUser(data.user);
+            const fullUser = await fetchAdminUserDetail(id);
+            setPanelManagingUser(fullUser);
         } catch (err: any) {
             alert(err?.message || '유저 정보를 불러오지 못했습니다.');
         } finally {
