@@ -13,7 +13,7 @@ process.stderr.write(`[Server] Bootstrap: pid=${process.pid} cwd=${process.cwd()
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
-import { randomUUID } from 'crypto';
+import { randomUUID, timingSafeEqual } from 'crypto';
 import process from 'process';
 import http from 'http';
 import { createWebSocketServer, broadcast, broadcastUserUpdate, sendToUser } from './socket.js';
@@ -4496,6 +4496,76 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             console.error('[Admin] 봇 점수 복구 오류:', error);
             console.error('[Admin] 오류 스택:', error.stack);
             res.status(500).json({ error: error.message });
+        }
+    });
+
+    /**
+     * 긴급: adminLogs KV에 남은 reset/update 백업으로 인벤·장비 복구 (로컬 DB 불필요)
+     * Railway Variables: EMERGENCY_RESTORE_INVENTORY_SECRET (16자 이상)
+     *
+     * curl -sS -X POST "$API/api/admin/emergency-restore-inventory-from-logs" \
+     *   -H "Content-Type: application/json" \
+     *   -H "Authorization: Bearer $EMERGENCY_RESTORE_INVENTORY_SECRET" \
+     *   -d '{"nicknames":["푸른별빛","진승엽","천재이안"],"strategy":"richest","force":true}'
+     */
+    app.post('/api/admin/emergency-restore-inventory-from-logs', async (req, res) => {
+        try {
+            const secret = process.env.EMERGENCY_RESTORE_INVENTORY_SECRET || '';
+            if (secret.length < 16) {
+                return res.status(503).json({
+                    error: 'Not configured',
+                    message:
+                        'EMERGENCY_RESTORE_INVENTORY_SECRET(16자 이상)를 Railway API 서비스 환경변수에 설정하세요.',
+                });
+            }
+            const auth = typeof req.headers.authorization === 'string' ? req.headers.authorization : '';
+            const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+            const altHeader = req.headers['x-emergency-restore-secret'];
+            const alt = typeof altHeader === 'string' ? altHeader : '';
+            const token = bearer || alt;
+            const ba = Buffer.from(token, 'utf8');
+            const bb = Buffer.from(secret, 'utf8');
+            if (ba.length !== bb.length || !timingSafeEqual(ba, bb)) {
+                return res.status(401).json({ error: 'Unauthorized' });
+            }
+
+            const body = req.body || {};
+            const nicknames = Array.isArray(body.nicknames)
+                ? body.nicknames
+                    .filter((x: unknown) => typeof x === 'string' && String(x).trim())
+                    .map((x: string) => String(x).trim())
+                : [];
+            if (nicknames.length === 0) {
+                return res.status(400).json({ error: 'nicknames (non-empty string array) required' });
+            }
+            const strategy = body.strategy === 'latest' ? 'latest' : 'richest';
+            const dryRun = Boolean(body.dryRun);
+            const force = Boolean(body.force);
+
+            const { loadAdminLogsForRestore, restoreInventoryFromAdminLogsForNicknames } = await import(
+                './services/restoreInventoryFromAdminLogsService.js'
+            );
+            const loaded = await loadAdminLogsForRestore();
+            if (!loaded.ok) {
+                return res.status(503).json({ error: 'admin_logs_unavailable', detail: loaded.error });
+            }
+
+            console.warn('[Admin] emergency-restore-inventory-from-logs', {
+                nicknames,
+                strategy,
+                dryRun,
+                force,
+            });
+            const results = await restoreInventoryFromAdminLogsForNicknames(loaded.logs, {
+                nicknames,
+                strategy,
+                dryRun,
+                force,
+            });
+            res.json({ success: true, results });
+        } catch (error: any) {
+            console.error('[Admin] emergency-restore-inventory-from-logs', error);
+            res.status(500).json({ error: error?.message || 'Internal error' });
         }
     });
     

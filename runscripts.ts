@@ -69,6 +69,10 @@ export const SCRIPT_REGISTRY: Record<string, ScriptEntry> = {
     path: join(__dirname, 'server', 'restoreUserFromSupabaseBackup.ts'),
     desc: '과거 시점 Postgres(PITR 복원본)→현재 DB 인벤/장비. BACKUP_DATABASE_URL 필수. 닉네임들 또는 --all --confirm-restore-all-users',
   },
+  'restore-inventory-from-admin-logs': {
+    path: join(__dirname, 'server', 'scripts', 'restoreInventoryFromAdminLogs.ts'),
+    desc: 'KV adminLogs의 reset/update 백업으로 인벤·장비 복구 — 닉네임, [--dry-run] [--strategy richest|latest]',
+  },
 
   // === DB 유지보수 ===
   'optimize-db': {

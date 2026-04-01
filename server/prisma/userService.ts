@@ -244,6 +244,11 @@ export async function updateUser(user: User): Promise<User> {
   return mapUser(updated);
 }
 
+/** 복구 스크립트용: 인벤·장비를 관계형 테이블에 동기화할 때까지 await */
+export async function syncInventoryEquipmentToDatabase(user: User): Promise<void> {
+  await syncEquipmentAndInventory(user);
+}
+
 // equipment와 inventory를 테이블에 동기화하는 함수
 async function syncEquipmentAndInventory(user: User): Promise<void> {
   try {
