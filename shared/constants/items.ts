@@ -284,6 +284,20 @@ export const ENHANCEMENT_COSTS: Record<ItemGrade, { amount: number; name: string
     ],
 };
 
+/**
+ * 장비 분해 환급 재료 계산용 강화 비용 행. +10(만렙)은 다음 단계 비용이 없으므로 마지막 행(+9→+10)을 씁니다.
+ * (분해 미리보기 UI와 서버 DISASSEMBLE_ITEM이 동일 인덱스를 쓰도록 맞춤.)
+ */
+export function getEnhancementCostRowForDisassembly(
+    grade: ItemGrade,
+    stars: number | undefined | null
+): { amount: number; name: string }[] | undefined {
+    const rows = ENHANCEMENT_COSTS[grade];
+    if (!rows?.length) return undefined;
+    const idx = Math.min(Math.max(0, stars ?? 0), rows.length - 1);
+    return rows[idx];
+}
+
 export const ENHANCEMENT_GOLD_COSTS_BASE: Record<ItemGrade, number> = {
     normal: 100,
     uncommon: 200,
@@ -495,7 +509,29 @@ export const GRADE_SUB_OPTION_RULES: Record<ItemGrade, { combatCount: [number, n
     transcendent: { combatCount: [4, 4], specialCount: [1, 2], mythicCount: [2, 2], combatTier: 6 },
 };
 
-type SubOptionDefinition = { type: CoreStat, isPercentage: boolean, range: [number, number] };
+export type SubOptionDefinition = { type: CoreStat; isPercentage: boolean; range: [number, number] };
+
+/**
+ * 부옵션 강화·제련 시 풀에서 정의 찾기. 동일 스탯이 %/고정 수치로 중복될 수 있어 isPercentage를 엄격히 구분.
+ * 레거시 데이터에서 isPercentage 누락(undefined)은 고정 수치(false)로 간주. 직렬화로 문자열이 온 경우도 보정.
+ * 해당 슬롯에 동일 스탯 정의가 하나뿐이면 플래그 불일치 시 그 정의를 사용(잘못된 플래그 보정).
+ */
+export function resolveCombatSubPoolDefinition(
+    pool: SubOptionDefinition[],
+    statType: CoreStat,
+    isPercentage?: unknown
+): SubOptionDefinition | undefined {
+    const wantPct =
+        isPercentage === true ||
+        isPercentage === 1 ||
+        (typeof isPercentage === 'string' && isPercentage.toLowerCase() === 'true');
+    const exact = pool.find((s) => s.type === statType && (s.isPercentage === true) === wantPct);
+    if (exact) return exact;
+    const sameType = pool.filter((s) => s.type === statType);
+    if (sameType.length === 1) return sameType[0];
+    return undefined;
+}
+
 export const SUB_OPTION_POOLS: Record<EquipmentSlot, Record<number, SubOptionDefinition[]>> = {
     fan: {
         1: [ { type: CoreStat.Concentration, isPercentage: true, range: [1, 2] }, { type: CoreStat.CombatPower, isPercentage: false, range: [2, 5] }, { type: CoreStat.Judgment, isPercentage: false, range: [2, 5] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [1, 2] }, { type: CoreStat.Stability, isPercentage: false, range: [2, 5] }, { type: CoreStat.Calculation, isPercentage: false, range: [2, 5] } ],

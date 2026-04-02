@@ -135,6 +135,13 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
         
                         game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden: wasHiddenForEntry || wasAiInitialHidden, capturePoints: points });
                     }
+                    
+                    // pendingCapture.stones에 “수순 좌표(히든 공개 시도 위치)”가 포함되는 경우가 있어,
+                    // 여기서 제거된 좌표에는 반드시 “수순을 둔 쪽의 돌”을 다시 배치한다.
+                    // (히든돌을 따냈을 때: 공개 연출 중엔 상대 히든이 보이고, 종료 후에는 일반돌로 존재해야 함)
+                    if (pendingCapture.move && typeof pendingCapture.move.x === 'number' && typeof pendingCapture.move.y === 'number') {
+                        game.boardState[pendingCapture.move.y][pendingCapture.move.x] = myPlayerEnum;
+                    }
                     stripPatternStonesAtConsumedIntersections(game);
                     
                     if (!game.newlyRevealed) game.newlyRevealed = [];

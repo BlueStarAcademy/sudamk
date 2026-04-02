@@ -43,6 +43,8 @@ export type InventoryItem = {
   stars: number;
   options?: ItemOptions;
   enhancementFails?: number;
+  /** 관리자 우편 첨부: 서버에서 부/특 옵션까지 강화 반영 완료. 수령 시 재시뮬레이션하지 않음 */
+  mailPreEnhanced?: boolean;
   /** 도전의 탑 상점에서 구매한 소모품만 'tower'. 해당 아이템은 도전의 탑에서만 사용·합산됨 */
   source?: 'tower';
 };
@@ -57,6 +59,10 @@ export type Mail = {
     gold?: number;
     diamonds?: number;
     actionPoints?: number;
+    /** 길드 보스전 정산 보상: 유저 재화 */
+    guildCoins?: number;
+    /** 길드 보스전 정산 보상: 길드 연구소 포인트 */
+    researchPoints?: number;
     items?: (InventoryItem | { itemId: string; quantity: number })[];
   };
   receivedAt: number;
@@ -1029,7 +1035,8 @@ export type Guild = {
   announcement?: string;
   chatHistory?: GuildMessage[];
   checkIns?: Record<string, number>;
-  dailyCheckInRewardsClaimed?: Array<{ userId: string; milestoneIndex: number }>;
+  /** 출석 마일스톤 일일 수령 기록 (claimedKstDay: YYYY-MM-DD KST, 생략 시 레거시) */
+  dailyCheckInRewardsClaimed?: Array<{ userId: string; milestoneIndex: number; claimedKstDay?: string }>;
   guildBossState?: {
     bossId: string;
     hp: number;
@@ -1038,6 +1045,10 @@ export type Guild = {
     lastResetAt: number;
     currentBossId?: string;
     currentBossHp?: number;
+    /** 현재 출현 보스 난이도 단계 (1~10) */
+    currentBossStage?: number;
+    /** 보스 id별 누적 난이도 (다음 출현 시 적용) */
+    bossStageByBossId?: Record<string, number>;
     totalDamageLog?: Record<string, number>;
     maxDamageLog?: Record<string, number>;
   } | null;

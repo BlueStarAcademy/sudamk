@@ -219,6 +219,18 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                                                                 ⚡ {selectedMail.attachments.actionPoints!.toLocaleString()} 행동력
                                                             </span>
                                                         ) : null}
+                                                        {(selectedMail.attachments.guildCoins ?? 0) > 0 ? (
+                                                            <span className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-950/25 px-3 py-2 font-medium text-amber-100">
+                                                                <img src="/images/guild/tokken.png" alt="" className="h-5 w-5" />
+                                                                {selectedMail.attachments.guildCoins!.toLocaleString()} 길드코인
+                                                            </span>
+                                                        ) : null}
+                                                        {(selectedMail.attachments.researchPoints ?? 0) > 0 ? (
+                                                            <span className="inline-flex items-center gap-2 rounded-lg border border-purple-500/20 bg-purple-950/25 px-3 py-2 font-medium text-purple-100">
+                                                                <img src="/images/guild/button/guildlab.png" alt="" className="h-5 w-5" />
+                                                                {selectedMail.attachments.researchPoints!.toLocaleString()} RP
+                                                            </span>
+                                                        ) : null}
                                                         {(selectedMail.attachments.gold ?? 0) > 0 ? (
                                                             <span className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-950/25 px-3 py-2 font-medium text-amber-100">
                                                                 <img src="/images/icon/Gold.png" alt="" className="h-5 w-5" />

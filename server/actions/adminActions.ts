@@ -378,7 +378,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     gold: number;
                     diamonds: number;
                     actionPoints: number;
-                    items: { name: string; quantity: number; type: InventoryItemType; stars?: number }[];
+                    items: { name: string; quantity: number; type: InventoryItemType; stars?: number; grade?: string }[];
                 }
             };
             let targetUsers: User[] = [];
@@ -412,15 +412,18 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
 
                 if (attachments.items && attachments.items.length > 0) {
                     for (const attachedItem of attachments.items) {
-                        const { name, quantity, type, stars: rawStars } = attachedItem;
+                        const { name, quantity, type, stars: rawStars, grade: payloadGrade } = attachedItem;
                         const stars = parseEquipmentStarsFromPayload(rawStars);
                         if (type === 'equipment') {
                             for (let i = 0; i < quantity; i++) {
-                                const template = EQUIPMENT_POOL.find(t => t.name === name);
+                                const template = payloadGrade
+                                    ? EQUIPMENT_POOL.find(t => t.name === name && t.grade === payloadGrade)
+                                    : EQUIPMENT_POOL.find(t => t.name === name);
                                 if (template) {
                                     const eq = createItemFromTemplate(template);
                                     if (stars > 0) {
                                         applyEnhancementStarsToEquipmentItem(eq, stars);
+                                        eq.mailPreEnhanced = true;
                                     }
                                     userAttachments.items!.push(eq);
                                 }

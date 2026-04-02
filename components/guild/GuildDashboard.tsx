@@ -21,6 +21,7 @@ import GuildWarMatchingModal from './GuildWarMatchingModal.js';
 import GuildWarCancelConfirmModal from './GuildWarCancelConfirmModal.js';
 import GuildWarApplicationDayOnlyModal from './GuildWarApplicationDayOnlyModal.js';
 import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getKSTDay, getTodayKSTDateString, getKSTFullYear, getKSTMonth } from '../../utils/timeUtils.js';
+import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 // 고급 버튼 스타일 (길드 패널용)
 const guildPanelBtnBase = 'inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold tracking-wide transition-all duration-200 px-4 py-2 text-sm border backdrop-blur-sm';
 const guildPanelBtn = {
@@ -391,9 +392,15 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
         if (!guild.guildBossState) return GUILD_BOSSES[0];
         return GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId) || GUILD_BOSSES[0];
     }, [guild.guildBossState]);
-    
-    const currentHp = guild.guildBossState?.currentBossHp ?? guild.guildBossState?.hp ?? currentBoss?.maxHp ?? 0;
-    const maxHp = currentBoss.maxHp ?? 0;
+
+    const { currentHp, maxHp } = useMemo(() => {
+        const stage = getCurrentGuildBossStage(guild.guildBossState, currentBoss.id);
+        const scaledMax =
+            guild.guildBossState?.maxHp ?? getScaledGuildBossMaxHp(currentBoss.maxHp, stage);
+        const ch =
+            guild.guildBossState?.currentBossHp ?? guild.guildBossState?.hp ?? scaledMax;
+        return { currentHp: ch, maxHp: scaledMax };
+    }, [guild.guildBossState, currentBoss.id, currentBoss.maxHp]);
     const hpPercent = maxHp > 0 ? (currentHp / maxHp) * 100 : 0;
     const clampedHpPercent = Math.max(0, Math.min(100, hpPercent));
     const remainingHp = Math.max(0, Math.ceil(currentHp));

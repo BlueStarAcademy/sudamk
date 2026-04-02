@@ -52,8 +52,8 @@ export function getSelectiveUserUpdate(
         // 보상 관련
         'CLAIM_QUEST_REWARD': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'CLAIM_ACTIVITY_MILESTONE': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
-        'CLAIM_MAIL_ATTACHMENTS': ['inventory', 'gold', 'diamonds', 'actionPoints', 'mail'],
-        'CLAIM_ALL_MAIL_ATTACHMENTS': ['inventory', 'gold', 'diamonds', 'actionPoints', 'mail'],
+        'CLAIM_MAIL_ATTACHMENTS': ['inventory', 'gold', 'diamonds', 'actionPoints', 'guildCoins', 'mail'],
+        'CLAIM_ALL_MAIL_ATTACHMENTS': ['inventory', 'gold', 'diamonds', 'actionPoints', 'guildCoins', 'mail'],
         'DELETE_MAIL': ['mail'],
         'DELETE_ALL_CLAIMED_MAIL': ['mail'],
         'MARK_MAIL_AS_READ': ['mail'],

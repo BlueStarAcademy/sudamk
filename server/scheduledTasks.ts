@@ -255,7 +255,7 @@ export async function processWeeklyResetAndRematch(force: boolean = false): Prom
             for (const guild of Object.values(guilds)) {
                 const lastMissionReset = (guild as any).lastMissionReset;
                 if (!lastMissionReset || isDifferentWeekKST(lastMissionReset, now)) {
-                    resetWeeklyGuildMissions(guild, now);
+                    await resetWeeklyGuildMissions(guild, now);
                 }
             }
             if (Object.keys(guilds).length > 0) {
@@ -420,7 +420,7 @@ export async function processWeeklyResetAndRematch(force: boolean = false): Prom
             // 마지막 초기화가 이번 주가 아니면 초기화
             const lastMissionReset = (guild as any).lastMissionReset;
             if (!lastMissionReset || isDifferentWeekKST(lastMissionReset, now)) {
-                resetWeeklyGuildMissions(guild, now);
+                await resetWeeklyGuildMissions(guild, now);
             }
         }
         if (Object.keys(guilds).length > 0) {

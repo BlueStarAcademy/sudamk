@@ -4,6 +4,13 @@
 import { Guild, GuildMemberRole, GuildMission, ChatMessage, Mail, GuildResearchId } from '../types/index.js';
 import * as db from './db.js';
 import { GUILD_MISSIONS_POOL, GUILD_XP_PER_LEVEL, GUILD_BOSSES } from '../constants/index.js';
+import {
+    clampGuildBossStage,
+    getScaledGuildBossMaxHp,
+    GUILD_BOSS_MAX_DIFFICULTY_STAGE,
+    type GuildBossSwapMailTier,
+    getGuildBossSwapMailMemberRewards,
+} from '../utils/guildBossStageUtils.js';
 import { randomUUID } from 'crypto';
 import { calculateGuildMissionXp } from '../utils/guildUtils.js';
 
@@ -96,7 +103,7 @@ export const updateGuildMissionProgress = async (guildId: string, missionType: s
     }
 };
 
-export const resetWeeklyGuildMissions = (guild: Guild, now: number) => {
+export const resetWeeklyGuildMissions = async (guild: Guild, now: number) => {
     guild.weeklyMissions = GUILD_MISSIONS_POOL.map(m => ({
         ...m,
         id: `quest-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -128,37 +135,105 @@ export const resetWeeklyGuildMissions = (guild: Guild, now: number) => {
         (guild as any).lastWeeklyContributionReset = now;
     }
     
-    // 길드 보스 주간 리셋: 새로운 보스 선택 및 HP 초기화
+    // 길드 보스 주간 리셋: 새로운 보스 선택 및 HP 초기화 (전주 격파 시 해당 보스 id 단계 상승, 최대 10)
     if (guild.guildBossState) {
-        // 현재 보스가 마지막 보스가 아니면 다음 보스로, 마지막 보스면 첫 번째 보스로
         const currentBossId = guild.guildBossState.currentBossId ?? guild.guildBossState.bossId;
+        const prevHp = guild.guildBossState.currentBossHp ?? guild.guildBossState.hp;
+        const prevMaxHp = guild.guildBossState.maxHp ?? guild.guildBossState.hp ?? 0;
+        const prevStage = guild.guildBossState.currentBossStage ?? 1;
+        const prevHpNum = typeof prevHp === 'number' ? prevHp : 0;
+        const wasDefeatedWithinWeek = prevHpNum <= 0;
+
+        // 월요일 0시: 이전 주 보스 잔여 체력 비율로 "보스 교체 정산 우편" 발송
+        // - <= 50% : half 보상
+        // - <= 25% : quarter 보상
+        // - 0 : defeated 보상
+        const prevRatio = prevMaxHp > 0 ? Math.max(0, Math.min(1, prevHpNum / prevMaxHp)) : 0;
+        let tier: GuildBossSwapMailTier = 'none';
+        if (wasDefeatedWithinWeek) tier = 'defeated';
+        else if (prevRatio <= 0.25) tier = 'quarter';
+        else if (prevRatio <= 0.5) tier = 'half';
+
+        if (tier !== 'none') {
+            const prevBossTemplate = GUILD_BOSSES.find((b) => b.id === currentBossId) || GUILD_BOSSES[0];
+            const damageLog = guild.guildBossState.totalDamageLog || {};
+            const maxDamage = Math.max(0, ...Object.values(damageLog).map((v) => (typeof v === 'number' ? v : 0)));
+
+            const members = guild.members ?? [];
+            for (const m of members) {
+                const memberUserId = m.userId;
+                const memberDamage = (damageLog as Record<string, number>)[memberUserId] ?? 0;
+                const memberRewards = getGuildBossSwapMailMemberRewards({
+                    stage: prevStage,
+                    tier: tier as Exclude<GuildBossSwapMailTier, 'none'>,
+                    memberDamage,
+                    maxDamage,
+                });
+
+                const user = await db.getUser(memberUserId, { includeEquipment: false, includeInventory: false });
+                if (!user) continue;
+
+                const mailTitle = `[길드 보스 정산] ${prevBossTemplate.name} · 잔여 ${Math.round(prevRatio * 100)}%`;
+                const mailMessage = `월요일 0시 기준 보스 잔여 체력으로 정산 보상이 지급됩니다.\n\n- 보상: 연구소 포인트 +${memberRewards.researchPoints} / 길드코인 +${memberRewards.guildCoins}\n- 추가 보상은 본인의 총 데미지 기여도에 따라 반영됩니다.\n\n5일 이내에 수령해주세요.`;
+
+                const mail: Mail = {
+                    id: `mail-guild-boss-swap-${guild.id}-${currentBossId}-${tier}-${randomUUID()}`,
+                    from: 'System',
+                    title: mailTitle,
+                    message: mailMessage,
+                    attachments: {
+                        researchPoints: memberRewards.researchPoints,
+                        guildCoins: memberRewards.guildCoins,
+                    },
+                    receivedAt: now,
+                    expiresAt: now + 5 * 24 * 60 * 60 * 1000, // 5 days
+                    isRead: false,
+                    attachmentsClaimed: false,
+                };
+
+                if (!user.mail) user.mail = [];
+                user.mail.unshift(mail);
+                await db.updateUser(user);
+            }
+        }
+
+        const stages = { ...(guild.guildBossState.bossStageByBossId || {}) };
+        if (wasDefeatedWithinWeek && currentBossId) {
+            const prevStage = stages[currentBossId] ?? 1;
+            stages[currentBossId] = Math.min(GUILD_BOSS_MAX_DIFFICULTY_STAGE, prevStage + 1);
+        }
+
         const currentBossIndex = GUILD_BOSSES.findIndex(b => b.id === currentBossId);
-        const nextBossIndex = currentBossIndex >= 0 && currentBossIndex < GUILD_BOSSES.length - 1 
-            ? currentBossIndex + 1 
-            : 0;
+        const nextBossIndex = currentBossIndex >= 0 && currentBossIndex < GUILD_BOSSES.length - 1 ? currentBossIndex + 1 : 0;
         const nextBoss = GUILD_BOSSES[nextBossIndex];
-        
+        const stageForNext = clampGuildBossStage(stages[nextBoss.id] ?? 1);
+        const scaledMaxHp = getScaledGuildBossMaxHp(nextBoss.maxHp, stageForNext);
+
         const prevMaxDamageLog = guild.guildBossState.maxDamageLog || {};
         guild.guildBossState = {
             bossId: nextBoss.id,
-            hp: nextBoss.maxHp,
-            maxHp: nextBoss.maxHp,
+            hp: scaledMaxHp,
+            maxHp: scaledMaxHp,
             currentBossId: nextBoss.id,
-            currentBossHp: nextBoss.maxHp,
+            currentBossHp: scaledMaxHp,
+            currentBossStage: stageForNext,
+            bossStageByBossId: stages,
             totalDamageLog: {},
             maxDamageLog: prevMaxDamageLog,
             lastResetAt: now,
         };
-        console.log(`[GuildBossReset] Guild ${guild.name}: Boss reset to ${nextBoss.name} (${nextBoss.id})`);
+        console.log(`[GuildBossReset] Guild ${guild.name}: Boss reset to ${nextBoss.name} (${nextBoss.id}) stage ${stageForNext} HP ${scaledMaxHp}`);
     } else {
-        // 길드 보스 상태가 없으면 첫 번째 보스로 초기화
         const firstBoss = GUILD_BOSSES[0];
+        const scaledMaxHp = getScaledGuildBossMaxHp(firstBoss.maxHp, 1);
         guild.guildBossState = {
             bossId: firstBoss.id,
-            hp: firstBoss.maxHp,
-            maxHp: firstBoss.maxHp,
+            hp: scaledMaxHp,
+            maxHp: scaledMaxHp,
             currentBossId: firstBoss.id,
-            currentBossHp: firstBoss.maxHp,
+            currentBossHp: scaledMaxHp,
+            currentBossStage: 1,
+            bossStageByBossId: {},
             totalDamageLog: {},
             lastResetAt: now,
         };

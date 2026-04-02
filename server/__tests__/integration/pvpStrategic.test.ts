@@ -201,6 +201,78 @@ describe('PVP Strategic mode', () => {
         });
     });
 
+    describe('hidden stone PVP attack', () => {
+        it('attacking a hidden stone and successfully capturing awards +5 and turns it into a normal stone', async () => {
+            const game = makePvpStrategicGame();
+            const x = 4;
+            const y = 4;
+            const opponent = Player.White;
+
+            // Opponent has a hidden stone at (x,y)
+            game.boardState[y][x] = opponent;
+            game.moveHistory = [{ player: opponent, x, y }];
+            game.hiddenMoves = { 0: true };
+            game.permanentlyRevealedStones = [];
+
+            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const res = await handleStrategicGameAction(
+                volatileState,
+                game,
+                { type: 'PLACE_STONE', payload: { x, y, isHidden: false }, userId: p1.id } as any,
+                p1
+            );
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('hidden_reveal_animating');
+            expect(game.pendingCapture).not.toBeNull();
+
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            await updateHiddenState(game, (game.revealAnimationEndTime ?? Date.now()) + 10);
+
+            expect(game.captures[Player.Black]).toBe(5);
+            expect(game.hiddenStoneCaptures[Player.Black]).toBe(1);
+            // After the reveal+capture resolves, the point becomes the capturer's normal stone.
+            expect(game.boardState[y][x]).toBe(Player.Black);
+        });
+
+        it('attacking a hidden stone that would be suicide does not award +5 (reveal only)', async () => {
+            const game = makePvpStrategicGame();
+            const x = 4;
+            const y = 4;
+            const opponent = Player.White;
+
+            // Hidden stone at (x,y)
+            game.boardState[y][x] = opponent;
+            game.moveHistory = [{ player: opponent, x, y }];
+            game.hiddenMoves = { 0: true };
+            game.permanentlyRevealedStones = [];
+
+            // Surround the center so that placing a black stone becomes suicide when the hidden stone is removed.
+            game.boardState[y - 1][x] = opponent;
+            game.boardState[y + 1][x] = opponent;
+            game.boardState[y][x - 1] = opponent;
+            game.boardState[y][x + 1] = opponent;
+
+            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const res = await handleStrategicGameAction(
+                volatileState,
+                game,
+                { type: 'PLACE_STONE', payload: { x, y, isHidden: false }, userId: p1.id } as any,
+                p1
+            );
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('hidden_reveal_animating');
+            expect(game.pendingCapture).toBeNull();
+
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            await updateHiddenState(game, (game.revealAnimationEndTime ?? Date.now()) + 10);
+
+            expect(game.captures[Player.Black]).toBe(0);
+            expect(game.hiddenStoneCaptures[Player.Black]).toBe(0);
+            // Hidden stone remains (only revealed).
+            expect(game.boardState[y][x]).toBe(opponent);
+        });
+    });
+
     describe('scan item', () => {
         it('START_SCANNING enters scanning when opponent has hidden stones', async () => {
             const game = makePvpStrategicGame();

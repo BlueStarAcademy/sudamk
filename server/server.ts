@@ -956,7 +956,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     }));
     
     // 사운드 파일 서빙 (1년 캐싱)
-    app.use('/sounds', express.static(path.join(publicPath, 'sounds'), {
+    // NOTE: 실제 사운드 파일 디렉토리는 public/sound 로 존재한다.
+    // audioService는 /sounds/{name}.mp3 로 요청하므로 라우트는 /sounds를 유지한다.
+    app.use('/sounds', express.static(path.join(publicPath, 'sound'), {
         maxAge: '1y',
         etag: true,
         lastModified: true,

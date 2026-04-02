@@ -3,7 +3,7 @@ import { Guild as GuildType, ChatMessage, GuildMemberRole, GuildMember } from '.
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Button from '../Button.js';
 import { GUILD_CHECK_IN_MILESTONE_REWARDS } from '../../constants/index.js';
-import { isSameDayKST, formatDateTimeKST } from '../../utils/timeUtils.js';
+import { isSameDayKST, formatDateTimeKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import Avatar from '../Avatar.js';
 
 const ensureTimestamp = (v: number | string | undefined): number =>
@@ -37,6 +37,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
     } | null>(null);
 
     const now = Date.now();
+    const todayKstStr = getTodayKSTDateString(now);
     const myCheckInTimestamp = guild.checkIns?.[effectiveUserId ?? currentUserWithStatus!.id];
     const hasCheckedInToday = myCheckInTimestamp ? isSameDayKST(myCheckInTimestamp, now) : false;
 
@@ -71,7 +72,12 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
                 alert(result.error);
                 return;
             }
-            const coins = typeof result?.gainedGuildCoins === 'number' ? result.gainedGuildCoins : 0;
+            const coins =
+                typeof (result as any)?.clientResponse?.gainedGuildCoins === 'number'
+                    ? (result as any).clientResponse.gainedGuildCoins
+                    : typeof (result as any)?.gainedGuildCoins === 'number'
+                      ? (result as any).gainedGuildCoins
+                      : 0;
             if (coins > 0) {
                 const milestone = GUILD_CHECK_IN_MILESTONE_REWARDS[index];
                 if (milestone) {
@@ -133,7 +139,13 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
                 <div className="mt-2 grid grid-cols-4 gap-1 sm:gap-3 flex-grow relative z-10 min-h-0 min-w-0">
                     {GUILD_CHECK_IN_MILESTONE_REWARDS.map((milestone, index) => {
                         const isAchieved = todaysCheckIns >= milestone.count;
-                        const isClaimed = guild.dailyCheckInRewardsClaimed?.some(c => c.userId === effectiveUserId && c.milestoneIndex === index);
+                        const isClaimed = guild.dailyCheckInRewardsClaimed?.some(c => {
+                            if (c.userId !== effectiveUserId || c.milestoneIndex !== index) return false;
+                            const d = (c as { claimedKstDay?: string }).claimedKstDay;
+                            if (d === todayKstStr) return true;
+                            if (d == null) return true;
+                            return false;
+                        });
                         const isClaiming = claimingIndex === index;
                         const canClaim = isAchieved && !isClaimed && hasCheckedInToday && !isClaiming;
                         

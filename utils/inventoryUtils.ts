@@ -260,8 +260,11 @@ export const createItemInstancesFromReward = (itemRefs: (InventoryItem | { itemI
             if (isMailAttachmentEquipment(inv)) {
                 const cloned = JSON.parse(JSON.stringify(inv)) as InventoryItem;
                 cloned.id = `item-${randomUUID()}`;
-                const stars = getMailEquipmentDisplayStars(inv);
-                applyEnhancementStarsToEquipmentItem(cloned, stars);
+                delete cloned.mailPreEnhanced;
+                if (!inv.mailPreEnhanced) {
+                    const stars = getMailEquipmentDisplayStars(inv);
+                    applyEnhancementStarsToEquipmentItem(cloned, stars);
+                }
                 if (cloned.type !== 'equipment') {
                     cloned.type = 'equipment';
                 }

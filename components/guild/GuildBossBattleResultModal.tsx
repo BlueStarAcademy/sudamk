@@ -100,7 +100,8 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
     const [flipSettled, setFlipSettled] = useState(false);
     const [rewardCards, setRewardCards] = useState<RewardCard[]>([]);
     
-    const hpPercentAfter = (result.bossHpAfter / result.bossMaxHp) * 100;
+    const hpPercentAfter =
+        result.bossMaxHp > 0 ? (result.bossHpAfter / result.bossMaxHp) * 100 : 0;
     const rewards = result.rewards;
     const tier = rewards.tier;
     const isTopGrade = tier === 12;

@@ -27,6 +27,8 @@ export type MailAttachedItemPayload = {
     type: InventoryItemType;
     /** 장비만: 강화 단계 +0 ~ +10 (주옵션 누적 보너스 적용) */
     stars?: number;
+    /** 장비: 동일 표시 이름의 신화/초월 등 구분 (EQUIPMENT_POOL 템플릿 매칭용) */
+    grade?: ItemGrade;
 };
 
 function buildEquipmentAdminTooltip(slot: EquipmentSlot, grade: ItemGrade, description: string): string {
@@ -68,10 +70,21 @@ interface ItemSelectionModalProps {
     onClose: () => void;
 }
 
+type ModalSelectedItem = { name: string; type: InventoryItemType; grade?: ItemGrade };
+
+function isMailModalItemSelected(
+    selected: ModalSelectedItem | null,
+    item: { name: string; type: InventoryItemType; grade?: ItemGrade }
+): boolean {
+    if (!selected || selected.name !== item.name || selected.type !== item.type) return false;
+    if (item.type === 'equipment') return selected.grade === item.grade;
+    return true;
+}
+
 const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onClose }) => {
     type ItemTab = 'equipment' | 'consumable' | 'material';
     const [activeTab, setActiveTab] = useState<ItemTab>('equipment');
-    const [selectedItem, setSelectedItem] = useState<{ name: string; type: InventoryItemType } | null>(null);
+    const [selectedItem, setSelectedItem] = useState<ModalSelectedItem | null>(null);
     const [quantity, setQuantity] = useState(1);
     const [equipmentEnhanceStars, setEquipmentEnhanceStars] = useState(0);
     const itemTooltipAnchorRef = useRef<HTMLElement | null>(null);
@@ -129,9 +142,13 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
                 <div className="flex-grow overflow-y-auto pr-2 grid grid-cols-4 gap-2">
                     {itemsForTab.map(item => (
                         <div
-                            key={item.name}
+                            key={item.type === 'equipment' ? `${item.name}::${item.grade}` : item.name}
                             onClick={() => {
-                                setSelectedItem({ name: item.name, type: item.type });
+                                setSelectedItem({
+                                    name: item.name,
+                                    type: item.type,
+                                    ...(item.type === 'equipment' ? { grade: item.grade } : {}),
+                                });
                                 if (item.type !== 'equipment') setEquipmentEnhanceStars(0);
                             }}
                             onMouseEnter={(e) => {
@@ -143,7 +160,7 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
                                 }
                             }}
                             onMouseLeave={clearItemTooltip}
-                            className={`p-2 rounded-lg border-2 ${selectedItem?.name === item.name ? 'border-accent ring-2 ring-accent' : 'border-color bg-secondary/50'} cursor-pointer flex flex-col items-center min-w-0`}
+                            className={`p-2 rounded-lg border-2 ${isMailModalItemSelected(selectedItem, item) ? 'border-accent ring-2 ring-accent' : 'border-color bg-secondary/50'} cursor-pointer flex flex-col items-center min-w-0`}
                         >
                             {item.type === 'equipment' ? (
                                 <>
@@ -516,6 +533,11 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
                                 <span className="flex min-w-0 items-center gap-1.5 truncate">
                                     <span className="min-w-0 truncate">
                                         {item.name} × {item.quantity}
+                                        {item.type === 'equipment' && item.grade ? (
+                                            <span className={`font-medium ${gradeStyles[item.grade].color}`}>
+                                                {' '}({gradeStyles[item.grade].name})
+                                            </span>
+                                        ) : null}
                                         {item.type === 'equipment' && item.stars != null && item.stars > 0 ? (
                                             <span className="text-amber-400/90 font-medium"> +{item.stars}</span>
                                         ) : null}{' '}

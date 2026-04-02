@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { UserWithStatus, InventoryItem, ServerAction, ItemOption, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../../types.js';
 import Button from '../Button.js';
-import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS, CORE_STATS_DATA } from '../../constants';
+import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS, CORE_STATS_DATA, MAIN_ENHANCEMENT_STEP_MULTIPLIER } from '../../constants';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { calculateRefinementGoldCost } from '../../constants/rules.js';
 import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
@@ -297,11 +297,21 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
             if (selectedOption.type === 'main') {
                 const slotDef = MAIN_STAT_DEFINITIONS[slot];
                 const gradeDef = slotDef.options[grade];
+                const stars = selectedItem.stars ?? 0;
+                const multipliers = MAIN_ENHANCEMENT_STEP_MULTIPLIER[grade];
+                const baseValue = gradeDef.value;
+                let enhancedIncreaseTotal = 0;
+                for (let i = 0; i < stars; i++) {
+                    const idx = Math.max(0, Math.min(9, i));
+                    enhancedIncreaseTotal += Math.round(baseValue * (multipliers?.[idx] ?? 1));
+                }
+                const valueAtStars = parseFloat((baseValue + enhancedIncreaseTotal).toFixed(2));
                 return gradeDef.stats.filter(stat => stat !== selectedOptionData.type).map(stat => ({
                     type: stat,
                     name: CORE_STATS_DATA[stat].name,
                     range: null,
-                    isPercentage: slotDef.isPercentage
+                    isPercentage: slotDef.isPercentage,
+                    valueAtCurrentEnhancement: valueAtStars,
                 }));
             } else if (selectedOption.type === 'combatSub') {
                 const rules = GRADE_SUB_OPTION_RULES[grade];
@@ -309,21 +319,35 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                 const pool = SUB_OPTION_POOLS[slot][combatTier];
                 const usedTypes = new Set(selectedItem.options!.combatSubs.map(s => s.type));
                 usedTypes.add(selectedItem.options!.main.type);
-                return pool.filter(opt => !usedTypes.has(opt.type)).map(opt => ({
-                    type: opt.type,
-                    name: CORE_STATS_DATA[opt.type].name,
-                    range: opt.range,
-                    isPercentage: opt.isPercentage
-                }));
+                const prevEnh =
+                    selectedItem.options!.combatSubs[selectedOption.index]?.enhancements ?? 0;
+                return pool.filter(opt => !usedTypes.has(opt.type)).map(opt => {
+                    const [r0, r1] = opt.range;
+                    const scaledMin = Math.round(r0 * (1 + prevEnh));
+                    const scaledMax = Math.round(r1 * (1 + prevEnh));
+                    return {
+                        type: opt.type,
+                        name: CORE_STATS_DATA[opt.type].name,
+                        range: [scaledMin, scaledMax] as [number, number],
+                        isPercentage: opt.isPercentage,
+                    };
+                });
             } else if (selectedOption.type === 'specialSub') {
                 const allSpecialStats = Object.values(SpecialStat);
                 const usedTypes = new Set(selectedItem.options!.specialSubs.map(s => s.type));
-                return allSpecialStats.filter(stat => !usedTypes.has(stat)).map(stat => ({
-                    type: stat,
-                    name: SPECIAL_STATS_DATA[stat].name,
-                    range: SPECIAL_STATS_DATA[stat].range,
-                    isPercentage: SPECIAL_STATS_DATA[stat].isPercentage
-                }));
+                const prevEnh =
+                    selectedItem.options!.specialSubs[selectedOption.index]?.enhancements ?? 0;
+                return allSpecialStats.filter(stat => !usedTypes.has(stat)).map(stat => {
+                    const [r0, r1] = SPECIAL_STATS_DATA[stat].range;
+                    const scaledMin = Math.round(r0 * (1 + prevEnh));
+                    const scaledMax = Math.round(r1 * (1 + prevEnh));
+                    return {
+                        type: stat,
+                        name: SPECIAL_STATS_DATA[stat].name,
+                        range: [scaledMin, scaledMax] as [number, number],
+                        isPercentage: SPECIAL_STATS_DATA[stat].isPercentage,
+                    };
+                });
             }
         } else if (refinementType === 'value') {
             if (selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') {
@@ -618,6 +642,12 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                                                         ) : (
                                                             <>
                                                                 {opt.name}
+                                                                {(opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement != null && (
+                                                                    <span className="text-yellow-300">
+                                                                        {' '}+{((opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement)}
+                                                                        {opt.isPercentage ? '%' : ''}
+                                                                    </span>
+                                                                )}
                                                                 {opt.range && (
                                                                     <span className="text-yellow-300">
                                                                         {' '}{opt.range[0]}~{opt.range[1]}{opt.isPercentage ? '%' : ''}

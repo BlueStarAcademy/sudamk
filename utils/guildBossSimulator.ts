@@ -3,8 +3,9 @@
 // FIX: Split type and value imports to resolve namespace collision errors
 // FIX: Changed imports to point to specific files to avoid namespace conflicts
 import type { User, Guild, GuildBossInfo, QuestReward, MannerEffects, GuildBossSkill, GuildBossActiveSkill, GuildBossPassiveSkill, GuildBossSkillEffect, GuildBossSkillSubEffect, BattleLogEntry, GuildBossBattleResult } from '../types/index.js';
-import { GuildResearchId, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../types/enums.js';
-import { GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, ACTION_POINT_REGEN_INTERVAL_MS, GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS, GUILD_BOSS_REWARDS_BY_GRADE, GUILD_BOSS_TICKET_TYPES, GUILD_BOSS_LOTTO_CHANCE, GUILD_BOSS_SSS_LOTTO_POOL } from '../constants/index.js';
+import { GuildResearchId, CoreStat, SpecialStat, MythicStat } from '../types/enums.js';
+import { GUILD_RESEARCH_PROJECTS } from '../constants/index.js';
+import { calculateGuildBossBattleRewards, clampGuildBossStage, guildBossStatMultiplier } from './guildBossStageUtils.js';
 import { BOSS_SKILL_ICON_MAP, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_REGEN_IMG, GUILD_ATTACK_ICON } from '../assets.js';
 import { calculateUserEffects, calculateTotalStats } from './statUtils.js';
 import { getMannerEffects } from './mannerUtils.js';
@@ -17,130 +18,9 @@ const criticalAttackCommentaries = ['사활문제를 풀어냈습니다!', '엄�
 
 const getRandom = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-// 절대 데미지로 12등급(1~12) 계산
-const calculateGrade = (damage: number): number => {
-    for (let i = 0; i < GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS.length; i++) {
-        if (damage < GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS[i]) return i + 1;
-    }
-    return 12;
-};
-
-// 보상 계산 함수 (12등급, 절대 데미지 기준)
-const calculateBossRewards = (damage: number): {
-    tier: number;
-    guildXp: number;
-    guildCoins: number;
-    researchPoints: number;
-    gold: number;
-    materials: { name: string; quantity: number };
-    materialsBonus?: { name: string; quantity: number };
-    tickets: { name: string; quantity: number }[];
-    equipment?: { grade: ItemGrade };
-    materialBox?: { name: string; quantity: number };
-} => {
-    const grade = calculateGrade(damage);
-    const cfg = GUILD_BOSS_REWARDS_BY_GRADE[grade]!;
-
-    let gold = getRandom(cfg.gold[0], cfg.gold[1]);
-    let guildCoins = getRandom(cfg.guildCoins[0], cfg.guildCoins[1]);
-    let researchPoints = getRandom(cfg.researchPoints[0], cfg.researchPoints[1]);
-    const guildXp = getRandom(cfg.guildXp[0], cfg.guildXp[1]);
-    const ticketCount = getRandom(cfg.tickets[0], cfg.tickets[1]);
-
-    let materialName = cfg.materials.name;
-    let materialQuantity = getRandom(cfg.materials.quantity[0], cfg.materials.quantity[1]);
-    let materialsBonus: { name: string; quantity: number } | undefined;
-    let lottoMaterialBox: { name: string; quantity: number } | undefined;
-
-    if (grade === 12) {
-        materialName = Math.random() < 0.5 ? '상급 강화석' : '최상급 강화석';
-        materialQuantity = getRandom(7, 12);
-        if (Math.random() < 0.05) materialsBonus = { name: '신비의 강화석', quantity: getRandom(1, 3) };
-    }
-
-    const tickets: { name: string; quantity: number }[] = [];
-    for (let i = 0; i < ticketCount; i++) {
-        const ticketType = GUILD_BOSS_TICKET_TYPES[Math.floor(Math.random() * GUILD_BOSS_TICKET_TYPES.length)];
-        const existing = tickets.find(t => t.name === ticketType);
-        if (existing) existing.quantity++;
-        else tickets.push({ name: ticketType, quantity: 1 });
-    }
-
-    // 로또 슬롯: 10% 확률로 다음 등급 보상 1종 추가 (SSS는 전용 풀)
-    if (Math.random() < GUILD_BOSS_LOTTO_CHANCE) {
-        if (grade < 12) {
-            const nextCfg = GUILD_BOSS_REWARDS_BY_GRADE[grade + 1]!;
-            const bonusTypes: Array<'gold' | 'guildCoins' | 'researchPoints' | 'materials'> = ['gold', 'guildCoins', 'researchPoints', 'materials'];
-            const chosen = bonusTypes[Math.floor(Math.random() * bonusTypes.length)];
-            switch (chosen) {
-                case 'gold': gold += getRandom(nextCfg.gold[0], nextCfg.gold[1]); break;
-                case 'guildCoins': guildCoins += getRandom(nextCfg.guildCoins[0], nextCfg.guildCoins[1]); break;
-                case 'researchPoints': researchPoints += getRandom(nextCfg.researchPoints[0], nextCfg.researchPoints[1]); break;
-                case 'materials': materialQuantity += getRandom(nextCfg.materials.quantity[0], nextCfg.materials.quantity[1]); break;
-            }
-        } else {
-            const pool = GUILD_BOSS_SSS_LOTTO_POOL;
-            const totalW = pool.reduce((s, p) => s + p.weight, 0);
-            let r = Math.random() * totalW;
-            let chosen: (typeof pool)[number]['type'] = pool[0].type;
-            for (const p of pool) {
-                if (r < p.weight) { chosen = p.type; break; }
-                r -= p.weight;
-            }
-            if (chosen === 'gold') gold += getRandom(cfg.gold[0], cfg.gold[1]);
-            else if (chosen === 'guildCoins') guildCoins += getRandom(cfg.guildCoins[0], cfg.guildCoins[1]);
-            else if (chosen === 'researchPoints') researchPoints += getRandom(cfg.researchPoints[0], cfg.researchPoints[1]);
-            else if (chosen === 'materials') materialQuantity += getRandom(1, 3);
-            else if (chosen === 'materialBox') {
-                lottoMaterialBox = Math.random() < 70 / 75 ? { name: '재료 상자 III', quantity: 1 } : { name: '재료 상자 IV', quantity: 1 };
-            }
-        }
-    }
-
-    const equipmentTable = cfg.equipmentTable;
-    const totalWeight = equipmentTable.reduce((s, x) => s + x.weight, 0);
-    let r = Math.random() * totalWeight;
-    let selectedGrade: ItemGrade = equipmentTable[0].grade;
-    for (const item of equipmentTable) {
-        if (r < item.weight) { selectedGrade = item.grade; break; }
-        r -= item.weight;
-    }
-
-    let materialBox: { name: string; quantity: number } | undefined;
-    if (grade === 12 && cfg.materialBox) {
-        const roll = Math.random() * 100;
-        if (roll < 70) materialBox = { name: '재료 상자 III', quantity: 1 };
-        else if (roll < 75) materialBox = { name: '재료 상자 IV', quantity: 1 };
-    }
-
-    const out: {
-        tier: number;
-        guildXp: number;
-        guildCoins: number;
-        researchPoints: number;
-        gold: number;
-        materials: { name: string; quantity: number };
-        materialsBonus?: { name: string; quantity: number };
-        tickets: { name: string; quantity: number }[];
-        equipment?: { grade: ItemGrade };
-        materialBox?: { name: string; quantity: number };
-    } = {
-        tier: grade,
-        guildXp,
-        guildCoins,
-        researchPoints,
-        gold,
-        materials: { name: materialName, quantity: materialQuantity },
-        tickets,
-        equipment: { grade: selectedGrade },
-    };
-    if (materialsBonus?.name === '신비의 강화석') out.materialsBonus = materialsBonus;
-    if (lottoMaterialBox) out.materialBox = lottoMaterialBox;
-    else if (materialBox) out.materialBox = materialBox;
-    return out;
-};
-
-export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo): GuildBossBattleResult => {
+export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo, stage: number = 1): GuildBossBattleResult => {
+    const st = clampGuildBossStage(stage);
+    const statMult = guildBossStatMultiplier(st);
     const totalStats = calculateTotalStats(user, guild);
     const effects = calculateUserEffects(user, guild);
     const BATTLE_TURNS = 30; // Boss will use finisher on turn 30
@@ -256,7 +136,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
     const runBossFullTurn = (): boolean => {
         const performDuel = (stat: CoreStat): boolean => {
             const userStat = totalStats[stat];
-            const bossStat = 1000; // Boss stats are effectively constant for duel calculation.
+            const bossStat = 1000 * statMult;
             // A more predictable success rate based on user vs. boss stat.
             const successRate = userStat / (userStat + bossStat);
             return Math.random() < successRate;
@@ -286,14 +166,20 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 if (successfulDuels >= 2) damageRange = [2000, 3000];
                 else if (successfulDuels === 1) damageRange = [3000, 4000];
                 else damageRange = [5000, 8000];
-                turnBossDamage = getRandom(damageRange[0], damageRange[1]);
+                turnBossDamage = getRandom(
+                    Math.round(damageRange[0] * statMult),
+                    Math.round(damageRange[1] * statMult)
+                );
                 duelResultMessage = `방어 ${successfulDuels} / 3회 성공`;
             } else if (bossSkill.id === '백광_천벌의일격') {
                 let damageRange: [number, number];
                 if (successfulDuels === 2) damageRange = [2000, 3000];
                 else if (successfulDuels === 1) damageRange = [4000, 5000];
                 else damageRange = [6000, 10000];
-                turnBossDamage = getRandom(damageRange[0], damageRange[1]);
+                turnBossDamage = getRandom(
+                    Math.round(damageRange[0] * statMult),
+                    Math.round(damageRange[1] * statMult)
+                );
                 duelResultMessage = `방어 ${successfulDuels} / 2회 성공`;
             } else {
                 const duelSuccess = successfulDuels === statsToCheck.length;
@@ -419,7 +305,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
     }
     
     const finalDamage = Math.max(0, Math.round(totalDamageDealt));
-    const calculatedRewards = calculateBossRewards(finalDamage);
+    const calculatedRewards = calculateGuildBossBattleRewards(finalDamage, st);
 
     return {
         damageDealt: finalDamage,

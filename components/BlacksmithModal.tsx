@@ -490,7 +490,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
             <RefinementResultModal
                 result={modals.refinementResult}
                 onClose={handlers.clearRefinementResult}
-                isTopmost={isTopmost}
+                isTopmost
             />
         </>
     );

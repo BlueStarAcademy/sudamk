@@ -25,12 +25,32 @@ import { openGuildGradeBox } from '../shop.js';
 import { randomUUID } from 'crypto';
 import { updateQuestProgress } from '../questService.js';
 import { calculateGuildMissionXp } from '../../utils/guildUtils.js';
+import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 };
+
+/** 동일 길드 KV 동시 갱신으로 출석 마일스톤 보상이 이중 지급되는 것을 방지 */
+class GuildKvMutex {
+    private tail = Promise.resolve();
+    run<T>(fn: () => Promise<T>): Promise<T> {
+        const next = this.tail.then(() => fn());
+        this.tail = next.then(() => undefined).catch(() => undefined);
+        return next;
+    }
+}
+const guildKvMutexById = new Map<string, GuildKvMutex>();
+function runGuildKvExclusive<T>(guildId: string, fn: () => Promise<T>): Promise<T> {
+    let m = guildKvMutexById.get(guildId);
+    if (!m) {
+        m = new GuildKvMutex();
+        guildKvMutexById.set(guildId, m);
+    }
+    return m.run(fn);
+}
 
 /** 출전 명단 기준 길드원 총 도전권(당일 사용/총량) — 상황판용 */
 function buildGuildWarTicketSummary(
@@ -1005,59 +1025,76 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             return { clientResponse: { guilds, updatedUser: user } };
         }
         case 'GUILD_CLAIM_CHECK_IN_REWARD': {
-             const { milestoneIndex } = payload;
-            if (!user.guildId) return { error: '길드??가?�되???��? ?�습?�다.' };
-            const guild = guilds[user.guildId];
-            if (!guild) return { error: '길드�?찾을 ???�습?�다.' };
-            
-            const now = Date.now();
-            const todaysCheckIns = Object.values(guild.checkIns || {}).filter(ts => isSameDayKST(ts, now)).length;
-            const milestone = GUILD_CHECK_IN_MILESTONE_REWARDS[milestoneIndex];
+            const { milestoneIndex } = payload;
+            if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
+            const gid = user.guildId;
 
-            if (!milestone || todaysCheckIns < milestone.count) return { error: '보상 조건??만족?��? 못했?�니??' };
-            if (!guild.dailyCheckInRewardsClaimed) guild.dailyCheckInRewardsClaimed = [];
-            if (guild.dailyCheckInRewardsClaimed.some(c => c.userId === effectiveUserId && c.milestoneIndex === milestoneIndex)) {
-                const alreadyUser = await db.getUser(user.id);
-                if (alreadyUser) {
-                    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
-                    return { clientResponse: { updatedUser: alreadyUser, guilds, alreadyClaimed: true } };
+            return await runGuildKvExclusive(gid, async () => {
+                const guildsKv = (await db.getKV<Record<string, Guild>>('guilds')) || {};
+                const guild = guildsKv[gid];
+                if (!guild) return { error: '길드를 찾을 수 없습니다.' };
+
+                const now = Date.now();
+                const todayStr = getTodayKSTDateString(now);
+                const todaysCheckIns = Object.values(guild.checkIns || {}).filter((ts) => isSameDayKST(ts, now)).length;
+                const milestone = GUILD_CHECK_IN_MILESTONE_REWARDS[milestoneIndex];
+
+                if (!milestone || todaysCheckIns < milestone.count) {
+                    return { error: '보상 조건을 만족하지 못했습니다.' };
                 }
-                return { error: '이미 수령한 보상입니다.' };
-            }
+                if (!guild.dailyCheckInRewardsClaimed) guild.dailyCheckInRewardsClaimed = [];
 
-            // 동시 요청 시 중복 수령 방지: 보상 지급 전에 즉시 수령 기록(await 없이)
-            guild.dailyCheckInRewardsClaimed.push({ userId: effectiveUserId, milestoneIndex });
+                const alreadyClaimedToday = guild.dailyCheckInRewardsClaimed.some((c) => {
+                    if (c.userId !== effectiveUserId || c.milestoneIndex !== milestoneIndex) return false;
+                    const d = (c as { claimedKstDay?: string }).claimedKstDay;
+                    if (d === todayStr) return true;
+                    if (d == null) return true;
+                    return false;
+                });
 
-            // 최신 사용자 데이터를 다시 로드하여 보스전 등에서 받은 길드코인을 반영
-            const freshUser = await db.getUser(user.id);
-            if (!freshUser) {
-                guild.dailyCheckInRewardsClaimed.pop(); // 수령 기록 롤백
-                return { error: '사용자를 찾을 수 없습니다.' };
-            }
-            
-            freshUser.guildCoins = (freshUser.guildCoins || 0) + milestone.reward.guildCoins;
-            user.guildCoins = freshUser.guildCoins; // user 객체도 동기화
+                if (alreadyClaimedToday) {
+                    const alreadyUser = await db.getUser(user.id);
+                    if (alreadyUser) {
+                        await broadcast({ type: 'GUILD_UPDATE', payload: { guilds: guildsKv } });
+                        return { clientResponse: { updatedUser: alreadyUser, guilds: guildsKv, alreadyClaimed: true } };
+                    }
+                    return { error: '이미 수령한 보상입니다.' };
+                }
 
-            await db.setKV('guilds', guilds);
-            
-            // DB ?�데?�트�?비동기로 처리 (?�답 지??최소??
-            db.updateUser(freshUser).catch(err => {
-                console.error(`[GUILD_CLAIM_CHECK_IN_REWARD] Failed to save user ${freshUser.id}:`, err);
+                guild.dailyCheckInRewardsClaimed.push({
+                    userId: effectiveUserId,
+                    milestoneIndex,
+                    claimedKstDay: todayStr,
+                });
+
+                const freshUser = await db.getUser(user.id);
+                if (!freshUser) {
+                    guild.dailyCheckInRewardsClaimed.pop();
+                    return { error: '사용자를 찾을 수 없습니다.' };
+                }
+
+                freshUser.guildCoins = (freshUser.guildCoins || 0) + milestone.reward.guildCoins;
+                user.guildCoins = freshUser.guildCoins;
+
+                await db.setKV('guilds', guildsKv);
+
+                db.updateUser(freshUser).catch((err) => {
+                    console.error(`[GUILD_CLAIM_CHECK_IN_REWARD] Failed to save user ${freshUser.id}:`, err);
+                });
+
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(freshUser, ['guildCoins']);
+
+                await broadcast({ type: 'GUILD_UPDATE', payload: { guilds: guildsKv } });
+                const gainedGuildCoins = milestone.reward.guildCoins ?? 0;
+                return {
+                    clientResponse: {
+                        updatedUser: freshUser,
+                        guilds: guildsKv,
+                        ...(gainedGuildCoins > 0 ? { gainedGuildCoins } : {}),
+                    },
+                };
             });
-
-            // WebSocket?�로 ?�용???�데?�트 브로?�캐?�트 (최적?�된 ?�수 ?�용)
-            const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(freshUser, ['guildCoins']);
-            
-            await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
-            const gainedGuildCoins = milestone.reward.guildCoins ?? 0;
-            return {
-                clientResponse: {
-                    updatedUser: freshUser,
-                    guilds,
-                    ...(gainedGuildCoins > 0 ? { gainedGuildCoins } : {}),
-                },
-            };
         }
         case 'GUILD_CLAIM_MISSION_REWARD': {
             const { missionId } = payload;
@@ -2656,20 +2693,60 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             
             if (!guild.guildBossState) {
+                const initBossId = bossId || GUILD_BOSSES[0]?.id || 'boss_1';
+                const initTemplate = GUILD_BOSSES.find((b) => b.id === initBossId) || GUILD_BOSSES[0];
+                const initMax = getScaledGuildBossMaxHp(initTemplate.maxHp, 1);
                 guild.guildBossState = {
-                    currentBossId: bossId,
-                    currentBossHp: GUILD_BOSSES.find(b => b.id === bossId)?.maxHp || 1000000,
+                    bossId: initBossId,
+                    currentBossId: initBossId,
+                    currentBossHp: initMax,
+                    currentBossStage: 1,
+                    bossStageByBossId: {},
+                    hp: initMax,
+                    maxHp: initMax,
                     totalDamageLog: {},
+                    lastResetAt: Date.now(),
                 };
             }
-            
-            guild.guildBossState.currentBossHp = result.bossHpAfter;
-            guild.guildBossState.totalDamageLog[effectiveUserId] = (guild.guildBossState.totalDamageLog[effectiveUserId] || 0) + result.damageDealt;
+
+            const gbState = guild.guildBossState;
+            const curBossId = gbState.currentBossId || gbState.bossId;
+            if (!curBossId) {
+                return { error: '길드 보스 상태가 올바르지 않습니다.' };
+            }
+            if (bossId && bossId !== curBossId) {
+                return { error: '현재 출전 중인 보스와 일치하지 않습니다.' };
+            }
+
+            if (!gbState.bossStageByBossId) gbState.bossStageByBossId = {};
+
+            const bossTemplateForBattle = GUILD_BOSSES.find((b) => b.id === curBossId);
+            if (!bossTemplateForBattle) {
+                return { error: '길드 보스 데이터를 찾을 수 없습니다.' };
+            }
+
+            const bossDifficultyStage = getCurrentGuildBossStage(gbState, curBossId);
+            const scaledBossMaxHp = getScaledGuildBossMaxHp(bossTemplateForBattle.maxHp, bossDifficultyStage);
+            gbState.currentBossStage = bossDifficultyStage;
+            gbState.maxHp = scaledBossMaxHp;
+            gbState.bossId = curBossId;
+
+            const preBattleHpRaw = gbState.currentBossHp;
+            const preBattleHp = typeof preBattleHpRaw === 'number' ? preBattleHpRaw : scaledBossMaxHp;
+            const nextBossHp =
+                preBattleHp <= 0 ? 0 : Math.max(0, preBattleHp - (result.damageDealt || 0));
+            gbState.currentBossHp = nextBossHp;
+            gbState.hp = nextBossHp;
+
+            result.bossHpAfter = nextBossHp;
+            result.bossMaxHp = scaledBossMaxHp;
+            result.bossHpBefore = preBattleHp <= 0 ? scaledBossMaxHp : preBattleHp;
+            gbState.totalDamageLog[effectiveUserId] = (gbState.totalDamageLog[effectiveUserId] || 0) + result.damageDealt;
             // 역대 최고 기록 (이번 주 누적 데미지 중 최대값 유지)
-            if (!guild.guildBossState.maxDamageLog) guild.guildBossState.maxDamageLog = {};
-            const currentTotal = guild.guildBossState.totalDamageLog[effectiveUserId] || 0;
-            const prevMax = guild.guildBossState.maxDamageLog[effectiveUserId] || 0;
-            guild.guildBossState.maxDamageLog[effectiveUserId] = Math.max(prevMax, currentTotal);
+            if (!gbState.maxDamageLog) gbState.maxDamageLog = {};
+            const currentTotal = gbState.totalDamageLog[effectiveUserId] || 0;
+            const prevMax = gbState.maxDamageLog[effectiveUserId] || 0;
+            gbState.maxDamageLog[effectiveUserId] = Math.max(prevMax, currentTotal);
 
             if (!freshUser.isAdmin) {
                 freshUser.guildBossAttempts = (freshUser.guildBossAttempts || 0) + 1;

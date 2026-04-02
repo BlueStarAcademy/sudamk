@@ -15,6 +15,7 @@ import GuildShopModal from './GuildShopModal.js';
 import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
 import HelpModal from '../HelpModal.js';
 import { runGuildBossBattle } from '../../utils/guildBossSimulator.js';
+import { getCurrentGuildBossStage, scaleGuildBossForStage } from '../../utils/guildBossStageUtils.js';
 import type { BattleLogEntry, GuildBossBattleResult } from '../../types/index.js';
 import { calculateTotalStats, calculateUserEffects } from '../../utils/statUtils.js';
 import Avatar from '../Avatar.js';
@@ -519,6 +520,15 @@ const GuildBoss: React.FC = () => {
         if (!myGuild?.guildBossState) return GUILD_BOSSES[0];
         return GUILD_BOSSES.find(b => b.id === myGuild.guildBossState!.currentBossId) || GUILD_BOSSES[0];
     }, [myGuild]);
+
+    const bossDifficultyStage = useMemo(
+        () => getCurrentGuildBossStage(myGuild?.guildBossState, currentBoss.id),
+        [myGuild?.guildBossState, currentBoss.id]
+    );
+    const scaledBoss = useMemo(
+        () => scaleGuildBossForStage(currentBoss, bossDifficultyStage),
+        [currentBoss, bossDifficultyStage]
+    );
     
     const bossIndex = useMemo(() => (currentBoss?.id || 'boss_1').split('_')[1], [currentBoss]);
     const backgroundStyle = useMemo(() => ({
@@ -529,7 +539,7 @@ const GuildBoss: React.FC = () => {
     }), [bossIndex]);
     
     const { guildBossState } = myGuild || {};
-    const currentHp = guildBossState?.currentBossHp ?? currentBoss?.maxHp ?? 0;
+    const currentHp = guildBossState?.currentBossHp ?? scaledBoss.maxHp;
     const [simulatedBossHp, setSimulatedBossHp] = useState(currentHp);
 
     const userLogs = useMemo(() => battleLog.filter(e => e.isUserAction), [battleLog]);
@@ -602,15 +612,22 @@ const GuildBoss: React.FC = () => {
         setBossDamageNumbers([]);
         setCurrentBattleDamage(0);
         setActiveDebuffs({});
-        const initialHp = myGuild.guildBossState?.currentBossHp ?? currentBoss.maxHp;
-        setSimulatedBossHp(initialHp);
+        const preGuildHp = myGuild.guildBossState?.currentBossHp;
+        const battleStartHp =
+            preGuildHp != null && preGuildHp > 0 ? preGuildHp : scaledBoss.maxHp;
+        setSimulatedBossHp(battleStartHp);
 
-        const result = runGuildBossBattle(currentUserWithStatus, myGuild, { ...currentBoss, hp: initialHp });
+        const result = runGuildBossBattle(
+            currentUserWithStatus,
+            myGuild,
+            { ...scaledBoss, hp: battleStartHp },
+            bossDifficultyStage
+        );
         
         setUserHp(result.maxUserHp);
         setMaxUserHp(result.maxUserHp);
         setSimulationResult(result);
-    }, [currentUserWithStatus, myGuild, currentBoss]);
+    }, [currentUserWithStatus, myGuild, scaledBoss, bossDifficultyStage]);
 
     useEffect(() => {
         if (!isSimulating || !simulationResult) return;
@@ -626,7 +643,19 @@ const GuildBoss: React.FC = () => {
                 const prevRank = rankUserId ? currentRanking.findIndex((r) => r.userId === rankUserId) + 1 : 0;
                 setPreviousRank(prevRank > 0 ? prevRank : null);
 
-                const finalResult = { ...simulationResult, damageDealt: currentBattleDamage, bossName: currentBoss.name };
+                const preBattleGuildHp = myGuild?.guildBossState?.currentBossHp;
+                const preBattleNum =
+                    typeof preBattleGuildHp === 'number' ? preBattleGuildHp : simulationResult.bossMaxHp;
+                const clientBossHpAfter =
+                    preBattleNum <= 0 ? 0 : Math.max(0, preBattleNum - currentBattleDamage);
+                const finalResult = {
+                    ...simulationResult,
+                    damageDealt: currentBattleDamage,
+                    bossName: currentBoss.name,
+                    bossHpAfter: clientBossHpAfter,
+                    bossMaxHp: simulationResult.bossMaxHp,
+                    bossHpBefore: preBattleNum <= 0 ? simulationResult.bossMaxHp : preBattleNum,
+                };
                 const actionResult = await handlers.handleAction({ type: 'START_GUILD_BOSS_BATTLE', payload: { bossId: currentBoss.id, result: finalResult, bossName: currentBoss.name } });
                 
                 // 서버에서 반환된 업데이트된 결과 사용 (장비 정보 포함)
@@ -740,7 +769,7 @@ const GuildBoss: React.FC = () => {
                         isCrit: newEntry.isCrit
                     }]);
                 } else { // sign is '+'
-                    setSimulatedBossHp((prevHp: number) => Math.min(currentBoss.maxHp, prevHp + value));
+                    setSimulatedBossHp((prevHp: number) => Math.min(simulationResult.bossMaxHp, prevHp + value));
                     setBossDamageNumbers(prev => [...prev.slice(-9), { 
                         id: Date.now() + Math.random(), 
                         text: `+${value.toLocaleString()}`, 
@@ -757,7 +786,7 @@ const GuildBoss: React.FC = () => {
         const timer = setTimeout(processNextLogEntry, 1000);
         return () => clearTimeout(timer);
 
-    }, [isSimulating, simulationResult, logIndex, handlers, maxUserHp, currentBoss.name, currentBattleDamage]);
+    }, [isSimulating, simulationResult, logIndex, handlers, maxUserHp, currentBoss.name, currentBattleDamage, myGuild?.guildBossState?.currentBossHp, currentUserWithStatus?.id, currentUserWithStatus?.isAdmin, myGuild?.id]);
 
     const { fullDamageRanking, myRankData } = useMemo(() => {
         if (!myGuild?.guildBossState?.totalDamageLog) {
@@ -820,7 +849,7 @@ const GuildBoss: React.FC = () => {
             {/* 뷰포트 lg/xl이 아니라 설계 캔버스 기준으로 PC와 동일 20% | flex-1 | 26% */}
             <main className="flex min-h-0 min-w-0 flex-1 flex-row gap-4">
                 <div className="flex w-[20%] min-w-0 shrink-0 flex-col gap-4">
-                    <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={currentBoss.maxHp} damageNumbers={bossDamageNumbers} />
+                    <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={scaledBoss.maxHp} damageNumbers={bossDamageNumbers} />
                     <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
                 </div>
 

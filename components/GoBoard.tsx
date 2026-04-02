@@ -7,7 +7,8 @@ const AnimatedBonusText: React.FC<{
     animation: Extract<AnimationData, { type: 'bonus_text' }>;
     toSvgCoords: (p: Point) => { cx: number; cy: number };
     cellSize: number;
-}> = ({ animation, toSvgCoords, cellSize }) => {
+    isRotated?: boolean;
+}> = ({ animation, toSvgCoords, cellSize, isRotated }) => {
     const { text, point } = animation;
     const { cx, cy } = toSvgCoords(point);
     const fontSize = cellSize * 1.5;
@@ -15,7 +16,10 @@ const AnimatedBonusText: React.FC<{
     const durS = Math.max(1.2, (animation.duration ?? 2500) / 1000);
     return (
         <g style={{ pointerEvents: 'none' }} transform={`translate(${cx}, ${cy})`}>
-            <g className="capture-points-float-inner" style={{ animationDuration: `${durS}s` }}>
+            <g
+                className={`capture-points-float-inner ${isRotated ? 'capture-points-float-inner-rotated' : ''}`}
+                style={{ animationDuration: `${durS}s` }}
+            >
                 <text
                     x={0}
                     y={0}
@@ -1370,7 +1374,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             })()}
                             {animation.type === 'scan' && !isSpectator && animation.playerId === currentUser.id && <AnimatedScanMarker animation={animation} toSvgCoords={toSvgCoords} stone_radius={stone_radius} />}
                             {animation.type === 'hidden_reveal' && animation.stones.map((s, i) => ( <Stone key={`reveal-${i}`} player={s.player} cx={toSvgCoords(s.point).cx} cy={toSvgCoords(s.point).cy} isKnownHidden isNewlyRevealed animationClass="sparkle-animation" radius={stone_radius} /> ))}
-                            {animation.type === 'bonus_text' && <AnimatedBonusText animation={animation} toSvgCoords={toSvgCoords} cellSize={cell_size} />}
+                            {animation.type === 'bonus_text' && <AnimatedBonusText animation={animation} toSvgCoords={toSvgCoords} cellSize={cell_size} isRotated={isRotated} />}
                         </>
                     );
                 })()}
@@ -1381,7 +1385,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         const sw = Math.max(1.6, cell_size * 0.1);
                         return (
                             <g key={f.id} transform={`translate(${cx}, ${cy})`} style={{ pointerEvents: 'none' }}>
-                                <g className="capture-points-float-inner">
+                                <g className={`capture-points-float-inner ${isRotated ? 'capture-points-float-inner-rotated' : ''}`}>
                                     <text
                                         x={0}
                                         y={0}

@@ -809,6 +809,38 @@ input, textarea {
   transform-origin: 0 0;
 }
 
+/* 180도 회전(isRotated) 시 SVG <g> 회전 때문에 translateY 부호가 화면에서 반전되어 보이는 문제 보정 */
+@keyframes capture-points-float-animation-rotated {
+  0% {
+    transform: translateY(-16px) scale(0.22);
+    opacity: 0;
+  }
+  9% {
+    opacity: 1;
+  }
+  16% {
+    transform: translateY(8px) scale(1.14);
+  }
+  26% {
+    transform: translateY(14px) scale(0.98);
+  }
+  58% {
+    transform: translateY(44px) scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(84px) scale(0.88);
+    opacity: 0;
+  }
+}
+
+.capture-points-float-inner-rotated {
+  animation: capture-points-float-animation-rotated 2.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform-origin: 0 0;
+}
+
 .capture-score-float-text {
   font-family: "Outfit", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
   font-weight: 800;

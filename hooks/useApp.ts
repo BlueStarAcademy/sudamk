@@ -1409,6 +1409,17 @@ export const useApp = () => {
                     justCaptured.push({ point: stone, player: opponentPlayer, wasHidden, capturePoints: points });
                 }
 
+                // pendingCapture.stones에 “수순 좌표(히든 공개 시도 위치)”가 포함되는 경우,
+                // 제거된 좌표에는 반드시 “수순을 둔 쪽의 돌”을 다시 배치한다.
+                // (히든돌을 따냈을 때: 공개 연출 중엔 상대 히든이 보이고, 종료 후엔 일반돌로 존재해야 함)
+                if (
+                    pendingCapture.move &&
+                    typeof pendingCapture.move.x === 'number' &&
+                    typeof pendingCapture.move.y === 'number'
+                ) {
+                    boardState[pendingCapture.move.y][pendingCapture.move.x] = movePlayer;
+                }
+
                 const nextPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
                 const deadline = buildTurnDeadline(nextPlayer);
                 const nextGame = {
@@ -2161,6 +2172,37 @@ export const useApp = () => {
                         }
                     }
                     // 나가기 클릭 시 설정된 대기실로 즉시 이동 (전략바둑 → #/waiting/strategic, 놀이바둑 → #/waiting/playful 등)
+                    const postRedirect = sessionStorage.getItem('postGameRedirect');
+                    if (postRedirect) {
+                        sessionStorage.removeItem('postGameRedirect');
+                        setTimeout(() => { replaceAppHash(postRedirect); }, 0);
+                    }
+                }
+
+                // PVP/일반전략·놀이 모드의 LEAVE_GAME_ROOM 성공 시에도 로컬 게임 상태를 정리해
+                // “나가기 버튼” 클릭 후 대기실 라우팅이 정상 동작하도록 한다.
+                if (action.type === 'LEAVE_GAME_ROOM') {
+                    const gameId = (action.payload as { gameId?: string })?.gameId;
+                    if (gameId) {
+                        try {
+                            sessionStorage.removeItem(`gameState_${gameId}`);
+                        } catch {
+                            /* ignore */
+                        }
+
+                        const inTower = towerGames[gameId];
+                        const inSingle = singlePlayerGames[gameId];
+                        const inLive = liveGames[gameId];
+                        if (inTower) setTowerGames(current => { const next = { ...current }; delete next[gameId]; return next; });
+                        if (inSingle) setSinglePlayerGames(current => { const next = { ...current }; delete next[gameId]; return next; });
+                        if (inLive) setLiveGames(current => { const next = { ...current }; delete next[gameId]; return next; });
+
+                        const uid = currentUserRef.current?.id;
+                        if (uid) {
+                            setOnlineUsers(prev => prev.map(u => u.id === uid ? { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined } : u));
+                        }
+                    }
+
                     const postRedirect = sessionStorage.getItem('postGameRedirect');
                     if (postRedirect) {
                         sessionStorage.removeItem('postGameRedirect');

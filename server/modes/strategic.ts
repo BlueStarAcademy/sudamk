@@ -424,7 +424,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
 
-            const { x, y, isHidden } = payload;
+            const { x, y, isHidden: isHiddenRequested } = payload;
             
             // 치명적 버그 방지: 패 위치(-1, -1)에 돌을 놓으려는 시도 차단
             if (x === -1 || y === -1) {
@@ -439,6 +439,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 return { error: `보드 범위를 벗어난 위치입니다. (${x}, ${y})는 유효하지 않습니다.` };
             }
             
+            const isTargetPermanentlyRevealed = !!game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
+            // 히든 아이템을 눌렀더라도, 이미 영구 공개된 자리는 일반돌로 취급(히든 재생성 방지)
+            const isHidden = !!isHiddenRequested && !isTargetPermanentlyRevealed;
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : (myPlayerEnum === types.Player.White ? types.Player.Black : types.Player.None);
             const isStrategicAiGame =
                 !!game.isAiGame &&
@@ -483,7 +486,15 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.moveHistory = serverMoveHistory;
             }
 
-            const moveIndexAtTarget = game.moveHistory.findIndex(m => m.x === x && m.y === y);
+            let moveIndexAtTarget = -1;
+            const moveHistoryForIndex = game.moveHistory || [];
+            for (let i = moveHistoryForIndex.length - 1; i >= 0; i--) {
+                const m = moveHistoryForIndex[i];
+                if (m.x === x && m.y === y) {
+                    moveIndexAtTarget = i;
+                    break;
+                }
+            }
             const isTargetHiddenOpponentStone =
                 stoneAtTarget === opponentPlayerEnum &&
                 moveIndexAtTarget !== -1 &&
@@ -508,15 +519,31 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             if (isTargetHiddenOpponentStone) {
-                game.captures[myPlayerEnum] += 5; // Hidden stones are worth 5 points
-                game.hiddenStoneCaptures[myPlayerEnum]++;
-                
-                if (!game.justCaptured) game.justCaptured = [];
-                game.justCaptured.push({ point: { x, y }, player: opponentPlayerEnum, wasHidden: true, capturePoints: 5 });
-                
+                // 1) 먼저 해당 히든 위치는 무조건 “영구 공개”로 만든다.
                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                game.permanentlyRevealedStones.push({ x, y });
+                if (!game.permanentlyRevealedStones.some(p => p.x === x && p.y === y)) {
+                    game.permanentlyRevealedStones.push({ x, y });
+                }
 
+                // 2) 상대 히든 위에 착수한 것으로 처리하되, 실제로 히든을 “따낼 수 있는지”를
+                //    processMove 시뮬레이션으로 판정한다.
+                //    - 따낼 수 있으면: pendingCapture로 전환되어 +5가 “히든을 따냈을 때만” 발생
+                //    - 따낼 수 없으면: 점수/포획 정산은 하지 않고 “공개 연출만” 재생
+                const tempBoardState = (game.boardState || []).map((row: Player[]) => [...row]);
+                if (tempBoardState[y] && tempBoardState[y][x] !== undefined) {
+                    tempBoardState[y][x] = types.Player.None;
+                }
+
+                const moveAttempt = { x, y, player: myPlayerEnum };
+                const result = processMove(
+                    tempBoardState,
+                    moveAttempt,
+                    game.koInfo,
+                    game.moveHistory.length,
+                    { ignoreSuicide: false, isSinglePlayer: false, opponentPlayer: undefined }
+                );
+
+                // 공개 애니메이션은 항상 재생
                 game.animation = {
                     type: 'hidden_reveal',
                     stones: [{ point: { x, y }, player: opponentPlayerEnum }],
@@ -525,13 +552,46 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 };
                 game.revealAnimationEndTime = now + 2000;
                 game.gameStatus = 'hidden_reveal_animating';
+                game.itemUseDeadline = undefined;
+
+                if (result?.isValid) {
+                    // 실제로 히든이 따낸 케이스:
+                    // - pendingCapture가 히든 및 기타 포획을 정산
+                    // - 애니메이션 동안은 “따낸 대상”이 남아있어 보이도록 boardState를 복원
+                    game.pendingCapture = {
+                        stones: [{ x, y }, ...(result.capturedStones || [])],
+                        move: moveAttempt,
+                        hiddenContributors: [{ x, y }]
+                    } as any;
+
+                    game.boardState = result.newBoardState;
+                    // 애니메이션 동안 히든 대상이 ‘존재하는 것처럼’ 보이도록 임시 복원
+                    game.boardState[y][x] = opponentPlayerEnum;
+                    for (const s of result.capturedStones || []) {
+                        game.boardState[s.y][s.x] = opponentPlayerEnum;
+                    }
+
+                    game.lastMove = { x, y };
+                    game.lastTurnStones = null;
+                    game.moveHistory.push(moveAttempt);
+
+                    game.koInfo = result.newKoInfo;
+                    game.passCount = 0;
+                    game.justCaptured = [];
+                } else {
+                    // 히든을 따내지 못한 경우:
+                    // 포획 정산은 하지 않음(점수 +5 방지) + 영구 공개 연출만 재생
+                    game.pendingCapture = null;
+                    game.justCaptured = [];
+                }
+
                 // 제한시간·초읽기 일시정지 (애니메이션 종료 후 재개)
                 if (game.turnDeadline) {
                     game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
                     game.turnDeadline = undefined;
                     game.turnStartTime = undefined;
                 }
-                game.itemUseDeadline = undefined;
+
                 return {};
             }
 
@@ -552,7 +612,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
             
-            if (isHidden) {
+            if (isHiddenRequested) {
                 // 히든 아이템 개수 확인 및 감소 (스캔 아이템처럼)
                 const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
                 const currentHidden = game[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;

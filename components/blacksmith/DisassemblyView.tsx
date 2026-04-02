@@ -3,7 +3,7 @@ import { UserWithStatus, InventoryItem, ServerAction, ItemGrade } from '../../ty
 import { useAppContext } from '../../hooks/useAppContext.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import DraggableWindow from '../DraggableWindow.js';
-import { ENHANCEMENT_COSTS, MATERIAL_ITEMS } from '../../constants';
+import { getEnhancementCostRowForDisassembly, MATERIAL_ITEMS } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 
 const DisassemblyPreviewPanel: React.FC<{
@@ -17,8 +17,7 @@ const DisassemblyPreviewPanel: React.FC<{
         const ranges: Record<string, { min: number; max: number }> = {};
 
         for (const item of selectedItems) {
-            const enhancementIndex = Math.min(item.stars, 9);
-            const costsForNextLevel = ENHANCEMENT_COSTS[item.grade]?.[enhancementIndex];
+            const costsForNextLevel = getEnhancementCostRowForDisassembly(item.grade, item.stars);
             if (costsForNextLevel) {
                 for (const cost of costsForNextLevel) {
                     const minYield = Math.max(1, Math.floor(cost.amount * 0.20));

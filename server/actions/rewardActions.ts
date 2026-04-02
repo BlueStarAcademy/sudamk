@@ -1,6 +1,6 @@
-import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type VolatileState, InventoryItem, Quest, QuestLog, InventoryItemType, TournamentType, TournamentState, QuestReward } from '../../types/index.js';
+import { randomUUID } from 'crypto';
+import { type ServerAction, type User, type VolatileState, type Guild, InventoryItem, Quest, QuestLog, InventoryItemType, TournamentType, TournamentState, QuestReward } from '../../types/index.js';
 import { updateQuestProgress } from '../questService.js';
 import { SHOP_ITEMS } from '../shop.js';
 import { 
@@ -62,6 +62,24 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             if (reward.actionPoints) {
                 user.actionPoints.current += reward.actionPoints;
             }
+
+            const guildCoinsDelta = mail.attachments.guildCoins || 0;
+            if (guildCoinsDelta) {
+                user.guildCoins = (user.guildCoins || 0) + guildCoinsDelta;
+            }
+
+            const researchPointsDelta = mail.attachments.researchPoints || 0;
+            if (researchPointsDelta && typeof user.guildId === 'string') {
+                const guilds = (await db.getKV<Record<string, Guild>>('guilds')) || {};
+                const guild = guilds[user.guildId];
+                if (guild) {
+                    guild.researchPoints = (guild.researchPoints || 0) + researchPointsDelta;
+                    guilds[user.guildId] = guild;
+                    await db.setKV('guilds', guilds);
+                    const { broadcast } = await import('../socket.js');
+                    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+                }
+            }
         
             user.inventory = updatedInventory;
         
@@ -77,7 +95,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화: 변경된 필드만 전송)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'mail', 'gold', 'diamonds', 'actionPoints']);
+            broadcastUserUpdate(user, ['inventory', 'mail', 'gold', 'diamonds', 'actionPoints', 'guildCoins']);
             
             return {
                 clientResponse: {
@@ -97,12 +115,16 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             let totalGold = 0;
             let totalDiamonds = 0;
             let totalActionPoints = 0;
+            let totalGuildCoins = 0;
+            let totalResearchPoints = 0;
             const allItemsToCreate: InventoryItem[] = [];
 
             for (const mail of mailsToClaim) {
                 totalGold += mail.attachments!.gold || 0;
                 totalDiamonds += mail.attachments!.diamonds || 0;
                 totalActionPoints += mail.attachments!.actionPoints || 0;
+                totalGuildCoins += mail.attachments!.guildCoins || 0;
+                totalResearchPoints += mail.attachments!.researchPoints || 0;
                 if (mail.attachments!.items) {
                     const createdItems = createItemInstancesFromReward(mail.attachments!.items as { itemId: string; quantity: number }[]);
                     allItemsToCreate.push(...createdItems);
@@ -117,9 +139,24 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             user.gold += totalGold;
             user.diamonds += totalDiamonds;
             user.actionPoints.current += totalActionPoints;
+            if (totalGuildCoins) {
+                user.guildCoins = (user.guildCoins || 0) + totalGuildCoins;
+            }
             user.inventory = updatedInventory;
 
             for (const mail of mailsToClaim) mail.attachmentsClaimed = true;
+
+            if (totalResearchPoints && typeof user.guildId === 'string') {
+                const guilds = (await db.getKV<Record<string, Guild>>('guilds')) || {};
+                const guild = guilds[user.guildId];
+                if (guild) {
+                    guild.researchPoints = (guild.researchPoints || 0) + totalResearchPoints;
+                    guilds[user.guildId] = guild;
+                    await db.setKV('guilds', guilds);
+                    const { broadcast } = await import('../socket.js');
+                    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+                }
+            }
 
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_ALL_MAIL_ATTACHMENTS');
@@ -131,7 +168,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화: 변경된 필드만 전송)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'mail', 'gold', 'diamonds', 'actionPoints']);
+            broadcastUserUpdate(user, ['inventory', 'mail', 'gold', 'diamonds', 'actionPoints', 'guildCoins']);
             
             const reward: QuestReward = {
                 gold: totalGold,

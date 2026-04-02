@@ -13,11 +13,13 @@ import {
     CORE_STATS_DATA,
     ENHANCEMENT_SUCCESS_RATES,
     ENHANCEMENT_COSTS,
+    getEnhancementCostRowForDisassembly,
     MATERIAL_ITEMS,
     ITEM_SELL_PRICES,
     MATERIAL_SELL_PRICES,
     CONSUMABLE_SELL_PRICES,
     SUB_OPTION_POOLS,
+    resolveCombatSubPoolDefinition,
     CONSUMABLE_ITEMS,
     GRADE_SUB_OPTION_RULES,
     GRADE_LEVEL_REQUIREMENTS,
@@ -1181,7 +1183,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
         
                     const itemTier = GRADE_SUB_OPTION_RULES[item.grade].combatTier;
                     const subOptionPool = SUB_OPTION_POOLS[item.slot!][itemTier];
-                    const subDef = subOptionPool.find(s => s.type === subToUpgrade.type && s.isPercentage === subToUpgrade.isPercentage);
+                    const subDef = resolveCombatSubPoolDefinition(
+                        subOptionPool,
+                        subToUpgrade.type as CoreStat,
+                        subToUpgrade.isPercentage
+                    );
         
                     if (subDef) {
                         const increaseAmount = getRandomInt(subDef.range[0], subDef.range[1]);
@@ -1428,16 +1434,21 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     }
                     const newStatType = availableStats[Math.floor(Math.random() * availableStats.length)];
                     const subDef = SPECIAL_STATS_DATA[newStatType];
-                    const value = getRandomInt(subDef.range[0], subDef.range[1]);
+                    const prevEnhancements = item.options.specialSubs[optionIndex]?.enhancements ?? 0;
+                    const range0 = subDef.range[0];
+                    const range1 = subDef.range[1];
+                    const scaledMin = Math.round(range0 * (1 + prevEnhancements));
+                    const scaledMax = Math.round(range1 * (1 + prevEnhancements));
+                    const value = getRandomInt(scaledMin, scaledMax);
                     const rules = GRADE_SUB_OPTION_RULES[item.grade];
                     item.options.specialSubs[optionIndex] = {
                         type: newStatType,
                         value,
                         isPercentage: subDef.isPercentage,
                         tier: rules.combatTier,
-                        display: `${subDef.name} +${value}${subDef.isPercentage ? '%' : ''} [${subDef.range[0]}~${subDef.range[1]}]`,
-                        range: subDef.range,
-                        enhancements: 0,
+                        display: `${subDef.name} +${value}${subDef.isPercentage ? '%' : ''} [${scaledMin}~${scaledMax}]`,
+                        range: [scaledMin, scaledMax],
+                        enhancements: prevEnhancements,
                     };
                 }
             } else if (refinementType === 'value') {
@@ -1542,10 +1553,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 if (item.type !== 'equipment') return { error: '장비 아이템만 분해할 수 있습니다.' };
                 if (item.isEquipped) return { error: '장착 중인 아이템은 분해할 수 없습니다.' };
 
-                // Calculate materials from next enhancement level costs (30%)
-                const nextStars = item.stars + 1;
-                const costsForNextLevel = ENHANCEMENT_COSTS[item.grade]?.[item.stars];
-                
+                // 다음 강화 비용 행의 일부를 환급 (+10은 마지막 행 사용 — 미리보기와 동일)
+                const costsForNextLevel = getEnhancementCostRowForDisassembly(item.grade, item.stars);
+
                 if (costsForNextLevel) {
                     for (const cost of costsForNextLevel) {
                         const yieldRatio = getRandomInt(20, 50) / 100;

@@ -12,6 +12,21 @@ type HandleActionResult = {
     error?: string;
 };
 
+/** 대기실·클라이언트 `countTowerLobbyInventoryQty`와 동일 */
+const TOWER_TURN_ADD_ITEM_NAMES = ['턴 추가', '턴증가', 'turn_add', 'turn_add_item', 'addturn'] as const;
+
+/**
+ * CONFIRM_TOWER_GAME_START에서 startTime을 넣은 뒤에도 DB/캐시가 pending으로 남으면
+ * 턴 추가·배치 새로고침 등이 "게임이 진행 중이 아닙니다"로 거절된다.
+ * 시작 전(pending + startTime 없음)과 구분하기 위해 startTime 유무로만 보정한다.
+ */
+const normalizeTowerPlayingIfStarted = (game: LiveGameSession): void => {
+    if (game.gameCategory !== 'tower') return;
+    if (game.gameStatus !== 'pending') return;
+    if (game.startTime == null) return;
+    (game as any).gameStatus = 'playing';
+};
+
 const getRandomTurnInRange = (minTurn: number, maxTurn: number): number => {
     const start = Math.max(1, Math.floor(minTurn));
     const end = Math.max(start, Math.floor(maxTurn));
@@ -369,6 +384,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: 'Not a tower game.' };
             }
 
+            normalizeTowerPlayingIfStarted(game);
+
             // 첫 수를 두기 전에만 배치변경 가능
             if (game.gameStatus !== 'playing' || game.currentPlayer !== Player.Black || (game.moveHistory && game.moveHistory.length > 0)) {
                 return { error: '배치는 첫 수 전에만 새로고침할 수 있습니다.' };
@@ -438,7 +455,10 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             return { clientResponse: { updatedUser: user, gameId: game.id, game: gameToSend } };
         }
         case 'TOWER_ADD_TURNS': {
-            const { gameId } = payload;
+            const { gameId } = payload || {};
+            if (!gameId || typeof gameId !== 'string') {
+                return { error: 'Invalid gameId in payload.' };
+            }
             // 도전의 탑은 CONFIRM 후 gameStatus가 캐시에서만 'playing'으로 바뀌고 DB 저장은 비동기이므로, 캐시 우선 조회 (TOWER_REFRESH_PLACEMENT와 동일)
             const { getCachedGame, updateGameCache, updateUserCache } = await import('../gameCache.js');
             let game = await getCachedGame(gameId);
@@ -453,9 +473,13 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             if (game.gameCategory !== 'tower') {
                 return { error: 'Not a tower game.' };
             }
+
+            normalizeTowerPlayingIfStarted(game);
             
             // 1~20층에서만 사용 가능
-            const floor = game.towerFloor ?? 1;
+            const floorRaw = game.towerFloor;
+            const floorNum = floorRaw != null ? Number(floorRaw) : NaN;
+            const floor = Number.isFinite(floorNum) && floorNum > 0 ? floorNum : 1;
             if (floor > 20) {
                 return { error: '턴 추가 아이템은 1~20층에서만 사용 가능합니다.' };
             }
@@ -470,8 +494,11 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: 'User not found.' };
             }
             const inventory = userWithInventory.inventory || [];
-            const itemIndex = inventory.findIndex((item: any) =>
-                (item.name === '턴 추가' || item.name === '턴증가' || item.id === 'turn_add' || item.id === 'turn_add_item' || item.id === 'addturn') && (item.source === 'tower' || item.source == null)
+            const itemIndex = inventory.findIndex(
+                (item: any) =>
+                    TOWER_TURN_ADD_ITEM_NAMES.some((n) => item.name === n || item.id === n) &&
+                    isTowerLobbyInventorySource(item) &&
+                    (item.quantity ?? 1) > 0
             );
             
             if (itemIndex === -1) {
