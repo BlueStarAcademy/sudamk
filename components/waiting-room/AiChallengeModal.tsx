@@ -607,6 +607,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                 )}
 
                 {showThiefSettings && (
+                    <>
                     <div className="grid grid-cols-2 gap-2 items-center">
                         <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>역할</label>
                         <select 
@@ -628,6 +629,29 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                             <option value="police">경찰 (백)</option>
                         </select>
                     </div>
+                    <div className="grid grid-cols-2 gap-2 items-center">
+                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>높은 수 (3~6)</label>
+                        <select
+                            value={settings.thiefHigh36ItemCount ?? 1}
+                            onChange={e => handleSettingChange('thiefHigh36ItemCount', parseInt(e.target.value, 10))}
+                            className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                            style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                        >
+                            {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 items-center">
+                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>1방지 (2~5)</label>
+                        <select
+                            value={settings.thiefNoOneItemCount ?? 1}
+                            onChange={e => handleSettingChange('thiefNoOneItemCount', parseInt(e.target.value, 10))}
+                            className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+                            style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}
+                        >
+                            {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                        </select>
+                    </div>
+                    </>
                 )}
 
                 {showBaseStones && (

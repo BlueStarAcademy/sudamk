@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
-import { InventoryItem, QuestReward } from '../types.js';
+import { InventoryItem, QuestReward, ItemGrade } from '../types.js';
 import MailRewardItemTile from './MailRewardItemTile.js';
+import { audioService } from '../services/audioService.js';
 
 interface RewardSummaryModalProps {
     summary: {
@@ -16,6 +17,41 @@ interface RewardSummaryModalProps {
 
 const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClose, isTopmost }) => {
     const { reward, items, title } = summary;
+
+    const hasAnyReward =
+        (reward.gold ?? 0) > 0 ||
+        (reward.diamonds ?? 0) > 0 ||
+        (reward.actionPoints ?? 0) > 0 ||
+        (reward.xp?.type === 'blacksmith' && (reward.xp?.amount ?? 0) > 0);
+
+    const bestItemGrade = useMemo(() => {
+        if (!items.length) return null;
+        const order: ItemGrade[] = [
+            ItemGrade.Normal,
+            ItemGrade.Uncommon,
+            ItemGrade.Rare,
+            ItemGrade.Epic,
+            ItemGrade.Legendary,
+            ItemGrade.Mythic,
+            ItemGrade.Transcendent,
+        ];
+        return items.reduce<ItemGrade | null>((best, cur) => {
+            const g = cur.grade ?? ItemGrade.Normal;
+            if (!best) return g;
+            return order.indexOf(g) > order.indexOf(best) ? g : best;
+        }, null);
+    }, [items]);
+
+    useEffect(() => {
+        if (!hasAnyReward && items.length === 0) return;
+        void audioService.initialize();
+        const high = [ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic, ItemGrade.Transcendent];
+        if (bestItemGrade && high.includes(bestItemGrade)) {
+            audioService.gachaEpicOrHigher();
+        } else {
+            audioService.claimReward();
+        }
+    }, [hasAnyReward, items.length, bestItemGrade]);
 
     const frame =
         'rounded-2xl border border-amber-500/20 bg-gradient-to-b from-zinc-950/95 via-zinc-900/90 to-black shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';

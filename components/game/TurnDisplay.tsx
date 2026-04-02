@@ -165,12 +165,18 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     const prevTimeoutPlayerId = usePrevious(session.lastTimeoutPlayerId);
     const prevFoulInfoMessage = usePrevious(session.foulInfo?.message);
 
+    /** 주사위/도둑 PVP만 전광판 하단 턴 타이머 막대 표시. AI 대국은 카운트다운·막대 없음 */
     const isPlayfulTurn = useMemo(() => {
-        return PLAYFUL_GAME_MODES.some(m => m.mode === session.mode) && 
-               session.turnDeadline && 
-               session.turnStartTime &&
-               ['dice_rolling', 'dice_placing', 'thief_rolling', 'thief_placing'].includes(session.gameStatus);
-    }, [session.mode, session.turnDeadline, session.turnStartTime, session.gameStatus]);
+        if (session.isAiGame && (session.mode === GameMode.Dice || session.mode === GameMode.Thief)) {
+            return false;
+        }
+        return (
+            PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode) &&
+            session.turnDeadline &&
+            session.turnStartTime &&
+            ['dice_rolling', 'dice_placing', 'thief_rolling', 'thief_placing'].includes(session.gameStatus)
+        );
+    }, [session.mode, session.turnDeadline, session.turnStartTime, session.gameStatus, session.isAiGame]);
 
     useEffect(() => {
         if (!isPlayfulTurn) {

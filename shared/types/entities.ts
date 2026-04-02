@@ -569,6 +569,11 @@ export type GameSettings = {
   /** 4~6만 나오는 주사위 아이템 */
   highDiceCount?: number;
   diceGoItemCount?: number;
+
+  /** 도둑과 경찰: 3~6만 나오는 주사위 아이템 */
+  thiefHigh36ItemCount?: number;
+  /** 도둑과 경찰: 2~5만 나오는 주사위(1 방지) 아이템 */
+  thiefNoOneItemCount?: number;
   
   // Alkkagi settings
   alkkagiPlacementType?: AlkkagiPlacementType;
@@ -858,6 +863,7 @@ export type LiveGameSession = {
   thiefRoundSummary?: ThiefRoundSummary;
   thiefDiceRollHistory?: { [playerId: string]: number[] };
   thiefCapturesThisRound?: number;
+  thiefGoItemUses?: { [playerId: string]: { high36: number; noOne: number } };
   alkkagiStones?: AlkkagiStone[];
   alkkagiStones_p1?: AlkkagiStone[];
   alkkagiStones_p2?: AlkkagiStone[];

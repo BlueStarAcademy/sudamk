@@ -1965,6 +1965,7 @@ export const useApp = () => {
                     !(action.payload as any)?.__forceSingle
                 );
                 // 같은 턴에 여러 번 착수할 때도 매 클릭마다 낙관적 반영 (이전에는 inFlight>0이면 스킵되어 두 번째 돌부터 화면이 멈춤)
+                let optimisticDiceGameAfterPlace: LiveGameSession | null = null;
                 flushSync(() => {
                     setLiveGames((currentGames) => {
                         const g = currentGames[gid];
@@ -2016,18 +2017,20 @@ export const useApp = () => {
                                     capturePoints: pm.capturedStones.length,
                                 }]
                                 : [];
+                        const nextDiceSession: LiveGameSession = {
+                            ...g,
+                            boardState: newBoard,
+                            koInfo: pm.newKoInfo,
+                            lastMove: { x, y },
+                            stonesToPlace: nextStones,
+                            stonesPlacedThisTurn: placed,
+                            diceCapturesThisTurn: turnCaptureBase + pm.capturedStones.length,
+                            justCaptured: optimisticJustCaptured,
+                        };
+                        optimisticDiceGameAfterPlace = nextDiceSession;
                         return {
                             ...currentGames,
-                            [gid]: {
-                                ...g,
-                                boardState: newBoard,
-                                koInfo: pm.newKoInfo,
-                                lastMove: { x, y },
-                                stonesToPlace: nextStones,
-                                stonesPlacedThisTurn: placed,
-                                diceCapturesThisTurn: turnCaptureBase + pm.capturedStones.length,
-                                justCaptured: optimisticJustCaptured,
-                            },
+                            [gid]: nextDiceSession,
                         };
                     });
                 });
@@ -2057,11 +2060,19 @@ export const useApp = () => {
                                     payload: { gameId: gid, x: p.x, y: p.y, __forceSingle: true },
                                 } as any);
                             }
-                            return { clientResponse: { game: liveGamesRef.current[gid] } } as HandleActionResult;
+                            return {
+                                clientResponse: {
+                                    game: optimisticDiceGameAfterPlace ?? liveGamesRef.current[gid],
+                                },
+                            } as HandleActionResult;
                         }
                         return batchResult;
                     }
-                    return { clientResponse: { game: liveGamesRef.current[gid] } } as HandleActionResult;
+                    return {
+                        clientResponse: {
+                            game: optimisticDiceGameAfterPlace ?? liveGamesRef.current[gid],
+                        },
+                    } as HandleActionResult;
                 }
             }
 
@@ -4760,7 +4771,17 @@ export const useApp = () => {
                                         const playfulPlacingStaleMerge =
                                             (game.mode === GameMode.Dice && game.gameStatus === 'dice_placing') ||
                                             (game.mode === GameMode.Thief && game.gameStatus === 'thief_placing');
-                                        if (game.isAiGame && !playfulPlacingStaleMerge && incomingMoveCount === existingMoveCount && existingBoardValid && existingGame?.moveHistory?.length > 0) {
+                                        // 주사위/도둑: 착수 기록의 player는 항상 흑(따내는 돌)이라 moveHistory만으로 "다음 턴 색"을 추론하면 항상 백이 됨.
+                                        // AI가 백일 때 오버샷 후 서버가 currentPlayer를 흑(유저)으로내도 stale로 오판해 AI 턴으로 되돌리는 버그가 난다.
+                                        if (
+                                            game.isAiGame &&
+                                            !playfulPlacingStaleMerge &&
+                                            game.mode !== GameMode.Dice &&
+                                            game.mode !== GameMode.Thief &&
+                                            incomingMoveCount === existingMoveCount &&
+                                            existingBoardValid &&
+                                            existingGame?.moveHistory?.length > 0
+                                        ) {
                                             const lastExisting = existingGame.moveHistory[existingGame.moveHistory.length - 1];
                                             const lastIncoming = game.moveHistory?.[game.moveHistory.length - 1];
                                             const sameLastMove = lastExisting && lastIncoming &&

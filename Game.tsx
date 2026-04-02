@@ -151,6 +151,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevCaptures = usePrevious(session.captures);
     const prevAnimationType = usePrevious(session.animation?.type);
     const warningSoundPlayedForTurn = useRef(false);
+    /** 주사위/도둑: lastMove·moveHistory 보강 이펙트가 같은 착점에서 placeStone을 두 번 재생하지 않도록 */
+    const lastDiceThiefPlaceSoundKeyRef = useRef<string>('');
+    /** 전략바둑·오목류: lastMove만으로는 낙관적/모바일 확정 경로에서 갱신이 빠져 소리가 안 날 수 있어 moveHistory 꼬리로 통일 */
+    const strategicPlaceSoundKeyRef = useRef<string>('');
     const prevMoveCount = usePrevious(session.moveHistory?.length);
     const myBaseStoneCountForUnlock = useMemo(() => {
         if (gameStatus !== 'base_placement') return undefined;
@@ -229,6 +233,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if (serverMoveCount === 0 && storedMoveCount === 0 && session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0) {
                         return session.boardState;
                     }
+                    // 주사위/도둑: 한 턴에 여러 돌 — 클라는 moveHistory를 늘리지 않고 boardState·stonesPlacedThisTurn만 낙관 갱신한다.
+                    // moveHistory 길이가 같으면 아래에서 sessionStorage 보드를 쓰게 되는데, 저장 useEffect가 한 틱 늦어
+                    // 옛 판이 덮여 "주사위 수만큼 클릭해야 돌이 한꺼번에 보이는" 현상이 난다.
+                    const isMultiStonePlacingTurn =
+                        gameStatus === 'dice_placing' || gameStatus === 'thief_placing';
+                    if (
+                        isMultiStonePlacingTurn &&
+                        session.boardState &&
+                        Array.isArray(session.boardState) &&
+                        session.boardState.length > 0
+                    ) {
+                        const optimisticN = (session as LiveGameSession).stonesPlacedThisTurn?.length ?? 0;
+                        if (optimisticN > 0) {
+                            return session.boardState;
+                        }
+                        const countColor = (board: Player[][], color: Player) =>
+                            board.reduce((n, row) => n + row.filter((c) => c === color).length, 0);
+                        const sB = countColor(session.boardState, Player.Black);
+                        const pB = countColor(parsed.boardState, Player.Black);
+                        const sW = countColor(session.boardState, Player.White);
+                        const pW = countColor(parsed.boardState, Player.White);
+                        if (sB > pB || sW < pW) {
+                            return session.boardState;
+                        }
+                    }
                     // 진행 중이거나 종료/계가 중일 때 모두 sessionStorage 보드 사용 → 결과 모달 시에도 바둑판 유지
                     console.log(`[Game] Restored boardState from sessionStorage for game ${gameId} (gameStatus: ${gameStatus})`);
                     return parsed.boardState;
@@ -279,7 +308,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         
         return session.boardState;
-    }, [isSinglePlayer, isTower, session.boardState, session.blackPatternStones, session.whitePatternStones, session.moveHistory?.length, session.settings.boardSize, gameId, gameStatus]);
+    }, [
+        isSinglePlayer,
+        isTower,
+        session.boardState,
+        session.blackPatternStones,
+        session.whitePatternStones,
+        session.moveHistory?.length,
+        session.settings.boardSize,
+        gameId,
+        gameStatus,
+        session.stonesPlacedThisTurn?.length,
+        session.stonesToPlace,
+    ]);
     
     // 게임 상태를 sessionStorage에 저장 (매 수마다). 종료 후에는 삭제/덮어쓰지 않아 결과 모달에서 바둑판 유지
     useEffect(() => {
@@ -584,7 +625,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             case 'playing': case 'hidden_placing': case 'missile_selecting': 
             case 'alkkagi_placement': case 'alkkagi_playing': case 'curling_playing':
-            case 'dice_rolling': case 'dice_placing': case 'thief_rolling': case 'thief_placing':
+            case 'dice_rolling':
+            case 'dice_rolling_animating':
+            case 'dice_placing':
+            case 'thief_rolling':
+            case 'thief_rolling_animating':
+            case 'thief_placing':
                 return myPlayerEnum !== Player.None && myPlayerEnum === currentPlayer;
             case 'base_placement': {
                  const myStones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
@@ -608,14 +654,59 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [isMyTurn, prevIsMyTurn, session.mode, gameStatus]);
 
-    const prevLastMove = usePrevious(session.lastMove);
+    const moveHistoryTail = useMemo(() => {
+        const h = session.moveHistory;
+        if (!h?.length) return undefined;
+        const t = h[h.length - 1];
+        if (t.x < 0 || t.y < 0) return undefined;
+        return t;
+    }, [session.moveHistory]);
+    const prevMoveHistoryTail = usePrevious(moveHistoryTail);
+
+    // 전략바둑·오목·따목: 착점 소리는 moveHistory 꼬리 변화 기준 (낙관적 갱신·모바일 확정·서버 응답 모두 커버)
     useEffect(() => {
-        if (session.lastMove && session.lastMove.x !== -1 && JSON.stringify(session.lastMove) !== JSON.stringify(prevLastMove)) {
-            const isGoBasedGame = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || 
-                                  [GameMode.Omok, GameMode.Ttamok, GameMode.Dice, GameMode.Thief].includes(session.mode);
-            if (isGoBasedGame) audioService.placeStone();
+        if (session.mode === GameMode.Dice || session.mode === GameMode.Thief) return;
+        const isStrategicLike =
+            SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ||
+            session.mode === GameMode.Omok ||
+            session.mode === GameMode.Ttamok;
+        if (!isStrategicLike) return;
+        if (!['playing', 'hidden_placing'].includes(gameStatus)) return;
+        if (!moveHistoryTail) return;
+        if (prevMoveHistoryTail === undefined) {
+            const len = session.moveHistory?.length ?? 0;
+            if (len !== 1) return;
+        } else if (JSON.stringify(moveHistoryTail) === JSON.stringify(prevMoveHistoryTail)) {
+            return;
         }
-    }, [session.lastMove, prevLastMove, session.mode]);
+        const key = `${session.moveHistory?.length ?? 0}:${moveHistoryTail.x},${moveHistoryTail.y}`;
+        if (strategicPlaceSoundKeyRef.current === key) return;
+        strategicPlaceSoundKeyRef.current = key;
+        void audioService.initialize();
+        audioService.placeStone();
+    }, [session.mode, gameStatus, moveHistoryTail, prevMoveHistoryTail, session.moveHistory?.length]);
+
+    // 주사위/도둑: 한 턴에 여러 돌 — 클라 낙관은 moveHistory를 늘리지 않고, 도둑 모드는 서버도 moveHistory에 착수를 쌓지 않아
+    // moveHistory 꼬리만으로는 마지막 착점(또는 턴 종료 시점)에만 소리가 난다. stonesPlacedThisTurn·lastMove로 매 돌마다 1회 재생.
+    const diceThiefPlacedSignature = useMemo(() => {
+        if (session.mode !== GameMode.Dice && session.mode !== GameMode.Thief) return '';
+        const pts = session.stonesPlacedThisTurn;
+        if (!pts?.length) return '';
+        return `${pts.length}:${pts.map((p) => `${p.x},${p.y}`).join('|')}`;
+    }, [session.mode, session.stonesPlacedThisTurn]);
+    useEffect(() => {
+        if (session.mode !== GameMode.Dice && session.mode !== GameMode.Thief) return;
+        if (session.gameStatus !== 'dice_placing' && session.gameStatus !== 'thief_placing') return;
+        const lm = session.lastMove;
+        if (!lm || lm.x < 0 || lm.y < 0) return;
+        const n = session.stonesPlacedThisTurn?.length ?? 0;
+        if (n <= 0) return;
+        const key = `${diceThiefPlacedSignature}:${lm.x},${lm.y}`;
+        if (lastDiceThiefPlaceSoundKeyRef.current === key) return;
+        lastDiceThiefPlaceSoundKeyRef.current = key;
+        void audioService.initialize();
+        audioService.placeStone();
+    }, [session.mode, session.gameStatus, session.lastMove, diceThiefPlacedSignature]);
     
     useEffect(() => { if (prevCaptures) { /* Capture sounds removed */ } }, [session.captures, prevCaptures, session.justCaptured, session.blackPlayerId, currentUser.id]);
 
@@ -636,9 +727,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     setJustScanned(true); setTimeout(() => setJustScanned(false), 1000);
                     if (anim.success) audioService.scanSuccess(); else audioService.scanFail();
                     break;
+                case 'dice_roll_main': {
+                    // 상대(AI) 굴림: 본인 클릭 시 GameControls에서 이미 재생함
+                    const isDiceOrThief = session.mode === GameMode.Dice || session.mode === GameMode.Thief;
+                    if (!skipSound && isDiceOrThief && !isMyTurn) {
+                        const diceCount =
+                            session.mode === GameMode.Thief
+                                ? session.currentPlayer === Player.Black
+                                    ? 1
+                                    : 2
+                                : 1;
+                        audioService.rollDice(diceCount);
+                    }
+                    break;
+                }
             }
         }
-    }, [session.animation, session.gameStatus, prevAnimationType, justScanned]);
+    }, [session.animation, session.gameStatus, session.mode, prevAnimationType, justScanned, isMyTurn]);
 
     useEffect(() => {
         const activeStartStatuses: GameStatus[] = [ 'playing', 'alkkagi_placement', 'alkkagi_simultaneous_placement', 'curling_playing', 'dice_rolling', 'thief_rolling' ];
@@ -931,6 +1036,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         // 착수 버튼 모드(ON)면 PC/모바일 모두 pendingMove로 확정 처리
         if (settings.features.mobileConfirm && isMyTurn && !isItemModeActive) {
+            if (
+                mode === GameMode.Dice &&
+                gameStatus === 'dice_placing' &&
+                (session.stonesToPlace ?? 0) <= 0
+            ) {
+                return;
+            }
+            if (
+                mode === GameMode.Thief &&
+                gameStatus === 'thief_placing' &&
+                (session.stonesToPlace ?? 0) <= 0
+            ) {
+                return;
+            }
             if (pendingMove && pendingMove.x === x && pendingMove.y === y) return;
             setPendingMove({ x, y });
             return;
@@ -947,6 +1066,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         } else if (gameStatus === 'base_placement') {
             const myStones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
             if ((myStones?.length || 0) < (session.settings.baseStones || 4)) actionType = 'PLACE_BASE_STONE';
+        } else if (mode === GameMode.Dice && gameStatus === 'dice_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
+            actionType = 'DICE_PLACE_STONE';
+            payload = { gameId, x, y };
+        } else if (mode === GameMode.Thief && gameStatus === 'thief_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
+            actionType = 'THIEF_PLACE_STONE';
+            payload = { gameId, x, y };
         } else if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn) {
             // 도전의 탑 21층+ 히든 아이템: 서버에 PLACE_STONE(isHidden) 전송 후 로컬에도 반영 (전략바둑 히든과 동일)
             if (isTower && gameStatus === 'hidden_placing') {
@@ -1244,12 +1369,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             setIsMoveInFlight(true);
             void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction)).then((res) => {
-                if (res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error) {
+                const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
+                if (hasErr) {
                     setIsMoveInFlight(false);
                     const err = String((res as { error: string }).error);
                     if (actionType === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
                         showKoRuleFlash();
                     }
+                } else if (actionType === 'DICE_PLACE_STONE' || actionType === 'THIEF_PLACE_STONE') {
+                    // 주사위/도둑: 낙관적 갱신은 moveHistory를 늘리지 않아 moveHistory 기반 잠금 해제가 되지 않음 → 매 수마다 해제
+                    setIsMoveInFlight(false);
                 }
             });
         } else {
@@ -1264,7 +1393,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 currentUser: currentUser.id
             });
         }
-    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame, showKoRuleFlash]);
+    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, session.stonesToPlace, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame, showKoRuleFlash]);
 
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
@@ -1286,6 +1415,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if ((mode === GameMode.Omok || mode === GameMode.Ttamok) && gameStatus === 'playing' && isMyTurn) {
             actionType = 'OMOK_PLACE_STONE';
+        } else if (mode === GameMode.Dice && gameStatus === 'dice_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
+            actionType = 'DICE_PLACE_STONE';
+            payload = { gameId, x, y };
+        } else if (mode === GameMode.Thief && gameStatus === 'thief_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
+            actionType = 'THIEF_PLACE_STONE';
+            payload = { gameId, x, y };
         } else if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn) {
             // PVE(싱글/타워): 클라이언트에서 즉시 반영
             if (isPVEGame) {
@@ -1350,17 +1485,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             setIsMoveInFlight(true);
             const at = actionType;
             void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction)).then((res) => {
-                if (res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error) {
+                const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
+                if (hasErr) {
                     setIsMoveInFlight(false);
                     const err = String((res as { error: string }).error);
                     if (at === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
                         showKoRuleFlash();
                     }
+                } else if (at === 'DICE_PLACE_STONE' || at === 'THIEF_PLACE_STONE') {
+                    setIsMoveInFlight(false);
                 }
             });
         }
         setPendingMove(null);
-    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, restoredBoardState, isMoveInFlight, session.gameCategory, session.isSinglePlayer, session.boardState, session.settings.boardSize, session.koInfo, session.moveHistory?.length, myPlayerEnum, showKoRuleFlash]);
+    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, restoredBoardState, isMoveInFlight, session.gameCategory, session.isSinglePlayer, session.boardState, session.settings.boardSize, session.koInfo, session.moveHistory?.length, session.stonesToPlace, myPlayerEnum, showKoRuleFlash]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
 
@@ -2543,6 +2681,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 isGuildWarTowerStyleUi &&
                                                 (gameStatus === 'hidden_placing' || isAiHiddenPresentationActive)
                                             }
+                                            diceGoPlaceUi={{
+                                                mobileConfirm: settings.features.mobileConfirm,
+                                                onToggleMobileConfirm: (checked) => {
+                                                    updateFeatureSetting('mobileConfirm', checked);
+                                                    if (!checked) setPendingMove(null);
+                                                },
+                                                onConfirmMove: handleConfirmMove,
+                                            }}
                                         />
                                     </div>
                                     {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}

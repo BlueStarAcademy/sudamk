@@ -7,6 +7,8 @@ export const CAPTURE_BOARD_SIZES = [13, 11, 9, 7];
 export const SPEED_BOARD_SIZES = [7, 9, 11, 13, 19];
 export const HIDDEN_BOARD_SIZES = [19, 13, 11, 9, 7];
 export const THIEF_BOARD_SIZES = [9, 13, 19];
+/** 도둑 1턴 + 경찰 1턴 = 1라운드(밤). 역할이 고정된 한 세그먼트당 총 라운드 수 (서버 THIEF_NIGHTS_PER_ROUND와 동일) */
+export const THIEF_NIGHTS_PER_SEGMENT = 5;
 export const MISSILE_BOARD_SIZES = [19, 13, 9];
 export const STRATEGIC_CLASSIC_SPEED_BOARD_SIZES = [9, 13, 19] as const;
 export const STRATEGIC_SPECIAL_BOARD_SIZES = [9, 11, 13] as const;
@@ -88,6 +90,8 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   evenDiceCount: 1,
   lowDiceCount: 1,
   highDiceCount: 1,
+  thiefHigh36ItemCount: 1,
+  thiefNoOneItemCount: 1,
   captureTarget: 20,
   timeIncrement: 5,
   hiddenStoneCount: 2,
@@ -133,9 +137,9 @@ export const ALKKAGI_TURN_TIME_LIMIT = 30;
 export const ALKKAGI_PLACEMENT_TIME_LIMIT = 30;
 export const ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT = 30;
 export const ALKKAGI_GAUGE_SPEEDS = [
-  { value: 1000, label: 'x1 (???)' },
-  { value: 700, label: 'x2 (??)' },
-  { value: 400, label: 'x3 (??)' },
+  { value: 1000, label: 'x1 (느림)' },
+  { value: 700, label: 'x2 (보통)' },
+  { value: 400, label: 'x3 (빠름)' },
 ];
 export const BATTLE_PLACEMENT_ZONES: { [key in Player.Black | Player.White]: { x: number, y: number, width: number, height: number }[] } = {
     [Player.Black]: [
@@ -158,7 +162,7 @@ export const PLAYFUL_MODE_FOUL_LIMIT = 5;
 export const CURLING_STONE_COUNTS = [3, 5, 7];
 export const CURLING_TURN_TIME_LIMIT = 30;
 export const CURLING_GAUGE_SPEEDS = [
-  { value: 1000, label: 'x1 (???)' },
-  { value: 700, label: 'x2 (??)' },
-  { value: 400, label: 'x3 (??)' },
+  { value: 1000, label: 'x1 (느림)' },
+  { value: 700, label: 'x2 (보통)' },
+  { value: 400, label: 'x3 (빠름)' },
 ];

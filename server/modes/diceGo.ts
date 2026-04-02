@@ -7,7 +7,8 @@ import * as effectService from '../effectService.js';
 import { endGame } from '../summaryService.js';
 import { aiUserId } from '../aiPlayer.js';
 
-const DICE_HUMAN_PLACE_SETTLE_MS = 1000;
+/** AI 대국: 인간 착수 직후 상대(봇) 주사위 단계로 바로 넘어가면 마지막 돌·따내기 연출이 밀림 → 1초 대기 (도둑과 경찰에서도 동일 상수 사용) */
+export const DICE_HUMAN_PLACE_SETTLE_MS = 1000;
 const DICE_GO_MAX_WHITE_CLUSTER = 5;
 
 function diceGoBoardNeighbors(x: number, y: number, boardSize: number): types.Point[] {
@@ -565,36 +566,77 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             break;
         case 'dice_rolling_animating': {
             const rollAnim = game.animation;
+            const animDuration =
+                rollAnim && rollAnim.type === 'dice_roll_main'
+                    ? Math.max(0, Number(rollAnim.duration) || 1500)
+                    : 1500;
+            const animStart =
+                rollAnim && rollAnim.type === 'dice_roll_main'
+                    ? Number(rollAnim.startTime) || now
+                    : now;
             const rollAnimComplete =
                 rollAnim &&
                 rollAnim.type === 'dice_roll_main' &&
-                now > rollAnim.startTime + rollAnim.duration;
-            // 애니 payload가 유실된 경우(직렬화/캐시 등): 오버샷(-1)만 남으면 즉시 턴 넘김 처리
+                now >= animStart + animDuration;
+            const rollerIdForDiceRoll =
+                game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
+            const lastDiceFromHist = game.diceRollHistory?.[rollerIdForDiceRoll]?.length
+                ? game.diceRollHistory![rollerIdForDiceRoll][game.diceRollHistory![rollerIdForDiceRoll].length - 1]
+                : undefined;
+            const hasValidHistRoll =
+                lastDiceFromHist != null && lastDiceFromHist >= 1 && lastDiceFromHist <= 6;
+            // 애니 payload가 유실된 경우(직렬화/캐시/DB 등): 오버샷(-1) 또는 굴림 기록만으로 마무리
             const orphanOvershotNoAnim =
                 (!rollAnim || rollAnim.type !== 'dice_roll_main') &&
                 (game.stonesToPlace === -1 || Number(game.stonesToPlace) === -1);
+            // 애니 객체가 없는데 animating만 남은 경우: 굴림 이력이 있으면 보드+주사위로 착수/오버샷 판정
+            const orphanAnimatingByHistory =
+                (!rollAnim || rollAnim.type !== 'dice_roll_main') && hasValidHistRoll;
 
-            if (rollAnimComplete || orphanOvershotNoAnim) {
+            if (rollAnimComplete || orphanOvershotNoAnim || orphanAnimatingByHistory) {
                 if (rollAnimComplete && rollAnim!.type === 'dice_roll_main') {
                     game.dice = rollAnim.dice;
                     game.animation = null;
-                } else if (orphanOvershotNoAnim) {
+                } else if (orphanOvershotNoAnim || orphanAnimatingByHistory) {
                     game.animation = null;
+                    if (lastDiceFromHist != null && !game.dice) {
+                        game.dice = { dice1: lastDiceFromHist, dice2: 0, dice3: 0 };
+                    }
+                }
+
+                let dice1 = game.dice?.dice1 ?? 0;
+                if (
+                    (!dice1 || dice1 < 1 || dice1 > 6) &&
+                    rollAnimComplete &&
+                    rollAnim?.type === 'dice_roll_main' &&
+                    rollAnim.dice &&
+                    rollAnim.dice.dice1 >= 1 &&
+                    rollAnim.dice.dice1 <= 6
+                ) {
+                    game.dice = {
+                        dice1: rollAnim.dice.dice1,
+                        dice2: rollAnim.dice.dice2 ?? 0,
+                        dice3: rollAnim.dice.dice3 ?? 0,
+                    };
+                    dice1 = game.dice.dice1;
+                }
+                if (!dice1 || dice1 < 1 || dice1 > 6) {
                     const rollerId =
                         game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
                     const lastFromHist = game.diceRollHistory?.[rollerId]?.length
                         ? game.diceRollHistory![rollerId][game.diceRollHistory![rollerId].length - 1]
                         : undefined;
-                    if (lastFromHist != null && !game.dice) {
+                    if (lastFromHist != null && lastFromHist >= 1 && lastFromHist <= 6) {
                         game.dice = { dice1: lastFromHist, dice2: 0, dice3: 0 };
+                        dice1 = lastFromHist;
                     }
                 }
-
-                const dice1 = game.dice?.dice1 ?? 0;
                 const logicRoll = getGoLogic(game);
                 const libertiesRoll = logicRoll.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
+                const diceUnresolved = rollAnimComplete && (!dice1 || dice1 < 1 || dice1 > 6);
                 // stonesToPlace=-1은 저장/병합 과정에서 유실될 수 있으므로, 굴림 직후와 동일하게 보드+주사위로 재판정한다.
                 const isOvershotRoll =
+                    diceUnresolved ||
                     libertiesRoll.length === 0 ||
                     dice1 > libertiesRoll.length ||
                     game.stonesToPlace === -1 ||

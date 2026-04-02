@@ -2,13 +2,105 @@ import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { getGoLogic, processMove } from '../goLogic.js';
 import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, shouldEnforceTimeControl } from './shared.js';
-import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_MAIN_PLACE_TIME } from '../../constants';
+import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_MAIN_PLACE_TIME, THIEF_NIGHTS_PER_SEGMENT } from '../../constants/index.js';
+import { DICE_HUMAN_PLACE_SETTLE_MS } from './diceGo.js';
 import { endGame } from '../summaryService.js';
 import { aiUserId } from '../aiPlayer.js';
 
-/** 1라운드당 밤 수. 1밤 = 도둑 1회 + 경찰 1회. 라운드 종료 시 도둑 점수=살아남은 돌, 경찰 점수=따낸 돌. */
-export const THIEF_NIGHTS_PER_ROUND = 5;
-const THIEF_TURNS_PER_ROUND = THIEF_NIGHTS_PER_ROUND * 2; // 한 밤당 2턴(도둑→경찰)
+const THIEF_POOL_HIGH36 = [3, 4, 5, 6] as const;
+const THIEF_POOL_NO_ONE = [2, 3, 4, 5] as const;
+
+function pickThiefPool(pool: readonly number[]): number {
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/** PVP 로드 등으로 누락된 경우에만 플레이어별 행 보강 */
+export function ensureThiefGoItemUses(game: types.LiveGameSession): void {
+    const s = game.settings;
+    const h = s.thiefHigh36ItemCount ?? 1;
+    const n = s.thiefNoOneItemCount ?? 1;
+    if (!game.thiefGoItemUses) game.thiefGoItemUses = {};
+    for (const pid of [game.player1.id, game.player2.id]) {
+        if (!game.thiefGoItemUses[pid]) game.thiefGoItemUses[pid] = { high36: h, noOne: n };
+    }
+}
+
+export function rollThiefDiceForRole(
+    myRole: 'thief' | 'police',
+    itemType?: 'high36' | 'noOne'
+): { dice1: number; dice2: number; stonesToPlace: number } {
+    let dice1: number;
+    let dice2 = 0;
+    if (itemType === 'high36') {
+        dice1 = pickThiefPool(THIEF_POOL_HIGH36);
+        if (myRole === 'police') dice2 = pickThiefPool(THIEF_POOL_HIGH36);
+    } else if (itemType === 'noOne') {
+        dice1 = pickThiefPool(THIEF_POOL_NO_ONE);
+        if (myRole === 'police') dice2 = pickThiefPool(THIEF_POOL_NO_ONE);
+    } else {
+        dice1 = Math.floor(Math.random() * 6) + 1;
+        if (myRole === 'police') dice2 = Math.floor(Math.random() * 6) + 1;
+    }
+    const stonesToPlace = myRole === 'police' ? dice1 + dice2 : dice1;
+    return { dice1, dice2, stonesToPlace };
+}
+
+/** 한 세그먼트(역할 고정)당 밤 수. 1밤 = 도둑 1턴 + 경찰 1턴. 세그먼트 종료 시 도둑 점수=살아남은 돌, 경찰 점수=따낸 돌. */
+export const THIEF_NIGHTS_PER_ROUND = THIEF_NIGHTS_PER_SEGMENT;
+const THIEF_TURNS_PER_ROUND = THIEF_NIGHTS_PER_ROUND * 2;
+
+/** 착수 종료 후 상대 주사위 단계로 (주사위 바둑 applyDicePlacingTurnPass와 대응) */
+function applyThiefPlacingHandoff(game: types.LiveGameSession, now: number) {
+    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+    game.gameStatus = 'thief_rolling';
+    if (shouldEnforceTimeControl(game)) {
+        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+        game.turnStartTime = now;
+    }
+
+    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
+        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+        if (currentPlayerId === aiUserId) {
+            game.aiTurnStartTime = now;
+            console.log(`[applyThiefPlacingHandoff] AI turn after placement, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+        } else {
+            game.aiTurnStartTime = undefined;
+            console.log(`[applyThiefPlacingHandoff] User turn after placement, game ${game.id}, clearing aiTurnStartTime`);
+        }
+    }
+}
+
+/** 역할 교대 후 새 세그먼트: 빈 판 + 기보·잔여 UI 상태 초기화 */
+function resetThiefBoardForNewSegment(game: types.LiveGameSession) {
+    const size = game.settings.boardSize;
+    game.boardState = Array(size).fill(0).map(() => Array(size).fill(types.Player.None));
+    game.moveHistory = [];
+    game.koInfo = null;
+    game.lastMove = null;
+    game.lastTurnStones = undefined;
+    game.stonesPlacedThisTurn = [];
+    game.justCaptured = [];
+    game.winningLine = undefined;
+    game.dice = undefined;
+    game.stonesToPlace = undefined;
+    game.animation = null;
+    game.dicePlacingSettleUntil = undefined;
+    game.passCount = 0;
+    game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
+}
+
+function enterThiefRoundEndModal(game: types.LiveGameSession, now: number) {
+    game.gameStatus = 'thief_round_end';
+    if (game.isAiGame) {
+        game.revealEndTime = undefined;
+    } else {
+        game.revealEndTime = now + 20000;
+    }
+    if (game.isAiGame) {
+        if (!game.roundEndConfirmations) game.roundEndConfirmations = {};
+        game.roundEndConfirmations[aiUserId] = now;
+    }
+}
 
 export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
     const p1 = game.player1;
@@ -42,6 +134,8 @@ export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiat
         game.round = 1; // Initialize round
         game.scores = { [p1.id]: 0, [p2.id]: 0 }; // Initialize scores
         game.turnInRound = 1; // Initialize turn in round
+        ensureThiefGoItemUses(game);
+        game.dicePlacingSettleUntil = undefined;
         
         // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
@@ -71,6 +165,13 @@ export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiat
 export const updateThiefState = (game: types.LiveGameSession, now: number) => {
     const p1Id = game.player1.id;
     const p2Id = game.player2.id;
+
+    if (
+        game.mode === types.GameMode.Thief &&
+        ['thief_rolling', 'thief_rolling_animating', 'thief_placing'].includes(game.gameStatus)
+    ) {
+        ensureThiefGoItemUses(game);
+    }
 
     if (game.gameStatus === 'thief_role_selection') {
         const p1Choice = game.roleChoices?.[p1Id];
@@ -169,6 +270,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             game.thiefCapturesThisRound = 0;
             game.preGameConfirmations = {};
             game.revealEndTime = undefined;
+            ensureThiefGoItemUses(game);
             
             // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
             if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
@@ -206,18 +308,9 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                 return;
             }
 
-            // 타임아웃 시 자동으로 주사위 굴리기
+            // 타임아웃 시 자동으로 주사위 굴리기 (아이템 미사용)
             const myRole = timedOutPlayerId === game.thiefPlayerId ? 'thief' : 'police';
-            const dice1 = Math.floor(Math.random() * 6) + 1;
-            let dice2 = 0;
-            let stonesToPlace: number;
-            
-            if (myRole === 'police') {
-                dice2 = Math.floor(Math.random() * 6) + 1;
-                stonesToPlace = dice1 + dice2;
-            } else {
-                stonesToPlace = dice1;
-            }
+            const { dice1, dice2, stonesToPlace } = rollThiefDiceForRole(myRole);
             
             console.log(`[updateThiefState] Auto-rolling dice due to timeout: role=${myRole}, dice1=${dice1}, dice2=${dice2}, stonesToPlace=${stonesToPlace}`);
             
@@ -244,6 +337,10 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             }
         }
     } else if (game.gameStatus === 'thief_placing') {
+        if (game.dicePlacingSettleUntil != null && now >= game.dicePlacingSettleUntil) {
+            game.dicePlacingSettleUntil = undefined;
+            applyThiefPlacingHandoff(game, now);
+        } else {
         // turnDeadline이 없으면 설정 (게임 로드 시나 상태 불일치 시 대비) — PVP에만
         if (shouldEnforceTimeControl(game) && !game.turnDeadline) {
             console.log(`[updateThiefState] Setting turnDeadline for thief_placing: gameId=${game.id}, currentPlayer=${game.currentPlayer}`);
@@ -377,32 +474,13 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                         const winnerEnum = winnerId === game.blackPlayerId ? types.Player.Black : types.Player.White;
                         endGame(game, winnerEnum, 'total_score');
                     } else {
-                        game.gameStatus = 'thief_round_end';
-                        game.revealEndTime = now + 20000;
-                        if(game.isAiGame) game.roundEndConfirmations = { [aiUserId]: now };
+                        enterThiefRoundEndModal(game, now);
                     }
                 } else {
-                    const previousPlayer = game.currentPlayer;
-                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                    game.gameStatus = 'thief_rolling';
-                    if (shouldEnforceTimeControl(game)) {
-                        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-                        game.turnStartTime = now;
-                    }
-                    
-                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
-                        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                        if (currentPlayerId === aiUserId) {
-                            game.aiTurnStartTime = now;
-                            console.log(`[updateThiefState] AI turn after placement, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
-                        } else {
-                            game.aiTurnStartTime = undefined;
-                            console.log(`[updateThiefState] User turn after placement, game ${game.id}, clearing aiTurnStartTime`);
-                        }
-                    }
+                    applyThiefPlacingHandoff(game, now);
                 }
             }
+        }
         }
     } else if (game.gameStatus === 'thief_round_end') {
          if (game.isAiGame) {
@@ -423,9 +501,12 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
              } else if (game.round === 2 && p1Score === p2Score) { // Tie after 2 rounds, start deathmatch
                 game.round++;
                 game.isDeathmatch = true;
-                game.boardState = Array(game.settings.boardSize).fill(0).map(() => Array(game.settings.boardSize).fill(types.Player.None));
+                resetThiefBoardForNewSegment(game);
                 game.turnInRound = 1;
                 game.thiefCapturesThisRound = 0;
+                game.roundEndConfirmations = {};
+                game.revealEndTime = undefined;
+                game.thiefRoundSummary = undefined;
                 
                 game.gameStatus = 'thief_role_selection';
                 game.roleChoices = { [p1Id]: null, [p2Id]: null };
@@ -433,11 +514,13 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
              } else { // round 1 ended, start round 2
                  game.round++;
                  game.isDeathmatch = game.round > 2;
-                 game.boardState = Array(game.settings.boardSize).fill(0).map(() => Array(game.settings.boardSize).fill(types.Player.None));
+                 const p1PrevRole = game.thiefRoundSummary!.player1.role;
+                 resetThiefBoardForNewSegment(game);
                  game.turnInRound = 1;
                  game.thiefCapturesThisRound = 0;
-                 
-                 const p1PrevRole = game.thiefRoundSummary!.player1.role;
+                 game.roundEndConfirmations = {};
+                 game.revealEndTime = undefined;
+                 game.thiefRoundSummary = undefined;
                  game.thiefPlayerId = p1PrevRole === 'thief' ? p2Id : p1Id;
                  game.policePlayerId = p1PrevRole === 'thief' ? p1Id : p2Id;
 
@@ -513,18 +596,23 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
             }
         
             const myRole = user.id === game.thiefPlayerId ? 'thief' : 'police';
-            const dice1 = Math.floor(Math.random() * 6) + 1;
-            let dice2 = 0;
-            let stonesToPlace: number;
-        
-            if (myRole === 'police') {
-                dice2 = Math.floor(Math.random() * 6) + 1;
-                stonesToPlace = dice1 + dice2;
-            } else {
-                stonesToPlace = dice1;
+            const { itemType } = payload as { itemType?: 'high36' | 'noOne' };
+            ensureThiefGoItemUses(game);
+
+            if (itemType === 'high36' || itemType === 'noOne') {
+                const uses = game.thiefGoItemUses?.[user.id];
+                if (!uses || uses[itemType] <= 0) {
+                    return { error: '아이템이 없습니다.' };
+                }
+                uses[itemType]--;
+            } else if (itemType != null) {
+                return { error: '알 수 없는 아이템입니다.' };
             }
+
+            const { dice1, dice2, stonesToPlace } = rollThiefDiceForRole(myRole, itemType);
         
             game.stonesToPlace = stonesToPlace;
+            game.dicePlacingSettleUntil = undefined;
             game.animation = { type: 'dice_roll_main', dice: { dice1, dice2, dice3: 0 }, startTime: now, duration: 1500 };
             game.gameStatus = 'thief_rolling_animating';
             game.turnDeadline = undefined;
@@ -653,28 +741,17 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
                         return {};
                     }
                     
-                    game.gameStatus = 'thief_round_end';
-                    game.revealEndTime = now + 20000;
-                    if(game.isAiGame) game.roundEndConfirmations = { [aiUserId]: now };
+                    enterThiefRoundEndModal(game, now);
                 } else {
-                    const previousPlayer = game.currentPlayer;
-                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                    game.gameStatus = 'thief_rolling';
-                    if (shouldEnforceTimeControl(game)) {
-                        game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
-                        game.turnStartTime = now;
-                    }
-                    
-                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
-                        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                        if (currentPlayerId === aiUserId) {
-                            game.aiTurnStartTime = now;
-                            console.log(`[handleThiefAction] AI turn after THIEF_PLACE_STONE, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
-                        } else {
-                            game.aiTurnStartTime = undefined;
-                            console.log(`[handleThiefAction] User turn after THIEF_PLACE_STONE, game ${game.id}, clearing aiTurnStartTime`);
+                    const deferHandoff = user.id !== aiUserId;
+                    if (deferHandoff) {
+                        game.dicePlacingSettleUntil = now + DICE_HUMAN_PLACE_SETTLE_MS;
+                        if (shouldEnforceTimeControl(game)) {
+                            game.turnDeadline = undefined;
+                            game.turnStartTime = undefined;
                         }
+                    } else {
+                        applyThiefPlacingHandoff(game, now);
                     }
                 }
             }

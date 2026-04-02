@@ -187,7 +187,7 @@ export type ServerAction =
     // Thief Go
     | { type: 'THIEF_UPDATE_ROLE_CHOICE', payload: { gameId: string; choice: 'thief' | 'police' } }
     | { type: 'CONFIRM_THIEF_ROLE', payload: { gameId: string } }
-    | { type: 'THIEF_ROLL_DICE', payload: { gameId: string } }
+    | { type: 'THIEF_ROLL_DICE', payload: { gameId: string; itemType?: 'high36' | 'noOne' } }
     | { type: 'THIEF_PLACE_STONE', payload: { gameId: string; x: number; y: number } }
     // Game Records
     | { type: 'SAVE_GAME_RECORD', payload: { gameId: string } }

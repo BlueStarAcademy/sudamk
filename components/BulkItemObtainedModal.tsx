@@ -44,6 +44,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
     
     useEffect(() => {
         if (items && items.length > 0) {
+            void audioService.initialize();
             const gradeOrder: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic, ItemGrade.Transcendent];
             const bestItem = items.reduce((best, current) => {
                 const bestGrade = best.grade || ItemGrade.Normal;
@@ -52,6 +53,8 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
             });
             if ([ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic, ItemGrade.Transcendent].includes(bestItem.grade)) {
                 audioService.gachaEpicOrHigher();
+            } else {
+                audioService.claimReward();
             }
         }
     }, [items]);

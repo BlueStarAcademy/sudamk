@@ -230,6 +230,7 @@ export const rowToGame = (row: any): types.LiveGameSession | null => {
             roleChoiceWinnerId: safeParse(row.roleChoiceWinnerId, null, row.id, 'roleChoiceWinnerId'),
             thiefRoundSummary: safeParse(row.thiefRoundSummary, null, row.id, 'thiefRoundSummary'),
             thiefDiceRollHistory: safeParse(row.thiefDiceRollHistory, null, row.id, 'thiefDiceRollHistory'),
+            thiefGoItemUses: safeParse(row.thiefGoItemUses, {}, row.id, 'thiefGoItemUses'),
             thiefCapturesThisRound: row.thiefCapturesThisRound,
             alkkagiStones: safeParse(row.alkkagiStones, null, row.id, 'alkkagiStones'),
             alkkagiStones_p1: safeParse(row.alkkagiStones_p1, null, row.id, 'alkkagiStones_p1'),

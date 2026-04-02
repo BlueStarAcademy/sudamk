@@ -115,6 +115,21 @@ export default defineConfig({
           });
         },
       },
+      '/sounds': {
+        target: process.env.VITE_API_TARGET || 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err: any) => {
+            const isStartupRace =
+              err.code === 'ECONNREFUSED' ||
+              err.code === 'ECONNABORTED' ||
+              err.code === 'ETIMEDOUT';
+            if (isStartupRace) return;
+            console.error('[Vite Proxy] /sounds proxy error:', err);
+          });
+        },
+      },
       '/ws': {
         target: process.env.VITE_WS_TARGET || 'ws://localhost:4000',
         ws: true,

@@ -412,6 +412,66 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
         if (!game.diceRollHistory) game.diceRollHistory = {};
         if (!game.diceRollHistory[aiPlayerId]) game.diceRollHistory[aiPlayerId] = [];
         game.diceRollHistory[aiPlayerId].push(dice1);
+
+        // 메인 루프(updateGameStates)가 한동안 이 게임을 처리하지 않으면 dice_rolling_animating에서
+        // 턴 전환(오버샷 포함)이 영구 지연될 수 있음 → 애니 길이 직후 한 번 강제 진행
+        const resolveGameId = game.id;
+        const resolveDelay =
+            game.animation?.type === 'dice_roll_main'
+                ? Math.max(0, Number(game.animation.duration) || 1500) + 80
+                : 1580;
+        // 큐가 넘겨준 game 객체와 동일 참조를 쓴다. getCachedGame은 DB 스냅샷으로 애니·stonesToPlace(-1)가
+        // 빠진 상태를 줄 수 있어 오버샷 후 dice_rolling_animating에서 영구 고착될 수 있음.
+        const gameRef = game;
+        setTimeout(() => {
+            void (async () => {
+                try {
+                    const g = gameRef;
+                    if (!g?.id || g.gameStatus !== 'dice_rolling_animating') return;
+                    const { updateDiceGoState } = await import('./modes/diceGo.js');
+                    const t = Date.now();
+                    updateDiceGoState(g, t);
+                    // 시계/직렬화 이슈로 한 틱에 완료 안 되면 애니 종료 시각으로 강제 1회
+                    if (g.gameStatus === 'dice_rolling_animating') {
+                        const a = g.animation;
+                        if (a?.type === 'dice_roll_main') {
+                            const endT =
+                                Number(a.startTime) + Math.max(0, Number(a.duration) || 1500) + 1;
+                            updateDiceGoState(g, Math.max(t, endT));
+                        }
+                    }
+                    if (g.gameStatus === 'dice_rolling_animating') return;
+                    const { updateGameCache } = await import('./gameCache.js');
+                    updateGameCache(g);
+                    await db.saveGame(g).catch((err: any) =>
+                        console.error(`[AI Dice] Post-roll resolve save failed ${resolveGameId}:`, err?.message)
+                    );
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    const payloadGame =
+                        g.boardState && Array.isArray(g.boardState) && g.boardState.length > 0
+                            ? { ...g, boardState: g.boardState.map((row: number[]) => [...row]) }
+                            : g;
+                    broadcastToGameParticipants(
+                        resolveGameId,
+                        { type: 'GAME_UPDATE', payload: { [resolveGameId]: payloadGame } },
+                        g
+                    );
+                    if (
+                        g.gameStatus === 'dice_placing' &&
+                        (g.stonesToPlace ?? 0) > 0 &&
+                        g.isAiGame
+                    ) {
+                        const cp = g.currentPlayer === types.Player.Black ? g.blackPlayerId : g.whitePlayerId;
+                        if (cp === aiUserId) {
+                            const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
+                            aiProcessingQueue.enqueue(resolveGameId);
+                        }
+                    }
+                } catch (e: any) {
+                    console.error(`[AI Dice] Post-roll resolve failed ${resolveGameId}:`, e?.message);
+                }
+            })();
+        }, resolveDelay);
         
     } else if (game.gameStatus === 'dice_placing') {
         // 규칙: 백돌의 활로에만 착수 가능
@@ -880,8 +940,10 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                 }
                 
                 game.gameStatus = 'thief_round_end';
-                game.revealEndTime = now + 20000;
-                if (game.isAiGame) game.roundEndConfirmations = { [aiUserId]: now };
+                // AI 대국: PVP 전용 자동 시작 카운트다운 없음 — 유저가 모달에서 확인할 때까지 대기
+                game.revealEndTime = undefined;
+                if (!game.roundEndConfirmations) game.roundEndConfirmations = {};
+                game.roundEndConfirmations[aiUserId] = now;
             } else {
                 game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                 game.gameStatus = 'thief_rolling';

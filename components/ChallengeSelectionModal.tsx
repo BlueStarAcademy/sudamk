@@ -364,6 +364,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
     const showHiddenStones = selectedMode === GameMode.Hidden;
     const showMissileCount = selectedMode === GameMode.Missile;
     const showDiceGoSettings = selectedMode === GameMode.Dice;
+    const showThiefGoItemSettings = selectedMode === GameMode.Thief;
     const showAlkkagiSettings = selectedMode === GameMode.Alkkagi;
     const showCurlingSettings = selectedMode === GameMode.Curling;
     
@@ -616,6 +617,31 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               <select 
                 value={settings.highDiceCount ?? 1} 
                 onChange={e => handleSettingChange('highDiceCount', parseInt(e.target.value, 10))}
+                className="w-full bg-gray-700 border border-gray-600 text-white text-xs lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+              >
+                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+              </select>
+            </div>
+          </>
+        )}
+
+        {showThiefGoItemSettings && (
+          <>
+            <div className="flex flex-row lg:grid lg:grid-cols-2 gap-1 lg:gap-2 items-center">
+              <label className="font-semibold text-gray-300 text-xs lg:text-sm flex-shrink-0">높은 수 (3~6)</label>
+              <select
+                value={settings.thiefHigh36ItemCount ?? 1}
+                onChange={e => handleSettingChange('thiefHigh36ItemCount', parseInt(e.target.value, 10))}
+                className="w-full bg-gray-700 border border-gray-600 text-white text-xs lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
+              >
+                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+              </select>
+            </div>
+            <div className="flex flex-row lg:grid lg:grid-cols-2 gap-1 lg:gap-2 items-center">
+              <label className="font-semibold text-gray-300 text-xs lg:text-sm flex-shrink-0">1방지 (2~5)</label>
+              <select
+                value={settings.thiefNoOneItemCount ?? 1}
+                onChange={e => handleSettingChange('thiefNoOneItemCount', parseInt(e.target.value, 10))}
                 className="w-full bg-gray-700 border border-gray-600 text-white text-xs lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
               >
                 {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}

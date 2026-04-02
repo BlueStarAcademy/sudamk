@@ -10,7 +10,8 @@ class AudioService {
     private scanBgmSourceNode: AudioBufferSourceNode | null = null;
     private timerWarningSourceNode: AudioBufferSourceNode | null = null;
     private audioBuffers = new Map<string, AudioBuffer>();
-    private soundsPath = '/sound/';
+    /** Express/Vite 정적 경로와 일치: `server.ts`의 `app.use('/sounds', ... public/sounds)` */
+    private soundsPath = '/sounds/';
     private settings: SoundSettings = defaultSettings.sound;
 
     public isReady(): boolean {

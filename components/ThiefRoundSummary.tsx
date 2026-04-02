@@ -72,11 +72,13 @@ const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentU
                 >
                     {hasConfirmed ? '상대방 확인 대기 중...' : '다음 라운드 시작'}
                 </Button>
-                <RoundCountdownIndicator
-                    deadline={revealEndTime}
-                    durationSeconds={20}
-                    label={isDeathmatch ? '다음 데스매치 자동 시작까지' : '다음 라운드 자동 시작까지'}
-                />
+                {!session.isAiGame && revealEndTime != null && (
+                    <RoundCountdownIndicator
+                        deadline={revealEndTime}
+                        durationSeconds={20}
+                        label={isDeathmatch ? '다음 데스매치 자동 시작까지' : '다음 라운드 자동 시작까지'}
+                    />
+                )}
             </div>
         </DraggableWindow>
     );

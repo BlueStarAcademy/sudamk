@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 // FIX: Import missing types from the centralized types file.
 import { Player, GameProps, GameMode, User, AlkkagiPlacementType, GameSettings, GameStatus, UserWithStatus } from '../../types/index.js';
 import Avatar from '../Avatar.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ALKKAGI_TURN_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, aiUserId, AVATAR_POOL, BORDER_POOL, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ALKKAGI_TURN_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, aiUserId, AVATAR_POOL, BORDER_POOL, PLAYFUL_MODE_FOUL_LIMIT, THIEF_NIGHTS_PER_SEGMENT } from '../../constants';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 
@@ -530,9 +530,23 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     const showStrategicTurnBox = strategicLobbyTurnInfo != null;
 
-    const isDiceGoPhase = mode === GameMode.Dice && ['dice_rolling', 'dice_rolling_animating', 'dice_placing'].includes(session.gameStatus);
-    const showDiceGoStonesBox = isDiceGoPhase;
-    const diceStonesBoxSize = isMobile ? 'w-[3.75rem] min-h-[4.5rem]' : 'w-[4.75rem] sm:w-20 md:w-24 min-h-[4.5rem]';
+    const isPlayfulDiceStonesBoxPhase =
+        (mode === GameMode.Dice && ['dice_rolling', 'dice_rolling_animating', 'dice_placing'].includes(session.gameStatus)) ||
+        (mode === GameMode.Thief && ['thief_rolling', 'thief_rolling_animating', 'thief_placing'].includes(session.gameStatus));
+    const showPlayfulStonesBox = isPlayfulDiceStonesBoxPhase;
+    /** 도둑 1턴+경찰 1턴=1라운드. turnInRound는 턴 종료 시마다 +1 */
+    const thiefUiRound =
+        mode === GameMode.Thief
+            ? Math.min(THIEF_NIGHTS_PER_SEGMENT, Math.ceil((session.turnInRound ?? 1) / 2))
+            : null;
+    const playfulStonesBoxSize =
+        mode === GameMode.Thief
+            ? isMobile
+                ? 'w-[4.5rem] min-h-[5.25rem]'
+                : 'w-[5.5rem] sm:w-24 md:w-[6.5rem] min-h-[5.25rem]'
+            : isMobile
+              ? 'w-[3.75rem] min-h-[4.5rem]'
+              : 'w-[4.75rem] sm:w-20 md:w-24 min-h-[4.5rem]';
 
     return (
         <div className={`flex justify-between items-stretch ${isMobile ? 'gap-1' : 'gap-2'} flex-shrink-0 h-full`}>
@@ -586,13 +600,24 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     </div>
                 </div>
             )}
-            {showDiceGoStonesBox && (
+            {showPlayfulStonesBox && (
                 <div
-                    className={`flex flex-col items-center justify-center ${diceStonesBoxSize} flex-shrink-0 self-stretch rounded-lg border-2 border-amber-400/55 bg-gradient-to-b from-gray-900/95 to-black/90 shadow-xl px-1 py-1`}
+                    className={`flex flex-col items-center justify-center ${playfulStonesBoxSize} flex-shrink-0 self-stretch rounded-lg border-2 border-amber-400/55 bg-gradient-to-b from-gray-900/95 to-black/90 shadow-xl px-1 py-1`}
                     role="status"
                     aria-live="polite"
-                    aria-label={`남은 착수 ${Math.max(0, session.stonesToPlace ?? 0)}개`}
+                    aria-label={
+                        thiefUiRound != null
+                            ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}, 남은 착수 ${Math.max(0, session.stonesToPlace ?? 0)}개`
+                            : `남은 착수 ${Math.max(0, session.stonesToPlace ?? 0)}개`
+                    }
                 >
+                    {thiefUiRound != null && (
+                        <span
+                            className={`${isMobile ? 'text-[0.5rem]' : 'text-[clamp(0.55rem,1.8vmin,0.72rem)]'} mb-0.5 font-bold text-amber-100/95 text-center leading-none tabular-nums`}
+                        >
+                            라운드 {thiefUiRound}/{THIEF_NIGHTS_PER_SEGMENT}
+                        </span>
+                    )}
                     <span
                         className={`${isMobile ? 'text-[0.5rem]' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} font-semibold text-amber-200/85 text-center leading-tight whitespace-nowrap`}
                     >

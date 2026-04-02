@@ -108,8 +108,11 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     const textGlowClass = getTextGlowClass(item.grade);
 
     useEffect(() => {
+        void audioService.initialize();
         if (['epic', 'legendary', 'mythic', 'transcendent'].includes(item.grade)) {
             audioService.gachaEpicOrHigher();
+        } else {
+            audioService.claimReward();
         }
     }, [item.grade]);
 

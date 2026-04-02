@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 
 interface DiceProps {
     value: number | null;
@@ -8,7 +8,7 @@ interface DiceProps {
     onClick?: () => void;
     disabled?: boolean;
     displayText?: string;
-    color?: 'blue' | 'yellow' | 'gray' | 'luxuryOdd' | 'luxuryEven' | 'luxuryLow' | 'luxuryHigh';
+    color?: 'blue' | 'yellow' | 'gray' | 'luxuryOdd' | 'luxuryEven' | 'luxuryLow' | 'luxuryHigh' | 'luxuryThiefHigh36' | 'luxuryThiefNoOne';
     /** 바깥 컨테이너에 추가 클래스 (예: 주사위 바둑 홀·짝 아이템 고급 스타일) */
     outerClassName?: string;
 }
@@ -35,24 +35,22 @@ const Dice: React.FC<DiceProps> = ({ value, isRolling, sides = 6, size = 60, onC
     const isClickable = !disabled && !isRolling && onClick;
 
     useEffect(() => {
-        let intervalId: number | undefined;
-        if (isRolling) {
-            // 굴림 중에는 실제 룰렛처럼 면과 각도를 계속 바꾼다.
-            intervalId = window.setInterval(() => {
-                setDisplayValue(Math.floor(Math.random() * sides) + 1);
-                setRollRotation((prev) => ({
-                    x: prev.x + 55 + Math.floor(Math.random() * 45),
-                    y: prev.y + 65 + Math.floor(Math.random() * 55),
-                    z: prev.z + 40 + Math.floor(Math.random() * 35),
-                }));
-            }, 70);
-        } else {
-            setDisplayValue(value != null && value >= 1 && value <= sides ? value : 1);
-            setRollRotation({ x: 0, y: 0, z: 0 });
-        }
-        return () => {
-            if (intervalId) clearInterval(intervalId);
-        };
+        if (!isRolling) return;
+        const intervalId = window.setInterval(() => {
+            setDisplayValue(Math.floor(Math.random() * sides) + 1);
+            setRollRotation((prev) => ({
+                x: prev.x + 55 + Math.floor(Math.random() * 45),
+                y: prev.y + 65 + Math.floor(Math.random() * 55),
+                z: prev.z + 40 + Math.floor(Math.random() * 35),
+            }));
+        }, 70);
+        return () => clearInterval(intervalId);
+    }, [isRolling, sides]);
+
+    useLayoutEffect(() => {
+        if (isRolling) return;
+        setDisplayValue(value != null && value >= 1 && value <= sides ? value : 1);
+        setRollRotation({ x: 0, y: 0, z: 0 });
     }, [isRolling, value, sides]);
 
     const colorClasses = {
@@ -67,6 +65,10 @@ const Dice: React.FC<DiceProps> = ({ value, isRolling, sides = 6, size = 60, onC
             'border border-violet-200/55 bg-gradient-to-br from-slate-50 via-violet-50/95 to-indigo-100 text-violet-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),inset_0_-10px_20px_rgba(91,33,182,0.07)] hover:border-violet-300/70 hover:shadow-[0_12px_28px_-8px_rgba(167,139,250,0.38)] hover:brightness-[1.03]',
         luxuryHigh:
             'border border-rose-200/55 bg-gradient-to-br from-rose-50 via-orange-50/90 to-red-100 text-rose-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),inset_0_-10px_20px_rgba(190,18,60,0.07)] hover:border-rose-300/70 hover:shadow-[0_12px_28px_-8px_rgba(251,113,133,0.38)] hover:brightness-[1.03]',
+        luxuryThiefHigh36:
+            'border border-emerald-200/55 bg-gradient-to-br from-emerald-50 via-teal-50/90 to-green-100 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),inset_0_-10px_20px_rgba(6,78,59,0.08)] hover:border-emerald-300/70 hover:shadow-[0_12px_28px_-8px_rgba(52,211,153,0.35)] hover:brightness-[1.03]',
+        luxuryThiefNoOne:
+            'border border-sky-200/55 bg-gradient-to-br from-sky-50 via-cyan-50/90 to-blue-100 text-sky-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),inset_0_-10px_20px_rgba(12,74,110,0.07)] hover:border-sky-300/70 hover:shadow-[0_12px_28px_-8px_rgba(56,189,248,0.35)] hover:brightness-[1.03]',
     };
 
     return (

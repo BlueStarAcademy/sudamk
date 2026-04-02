@@ -118,6 +118,8 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
         byoyomiCount: 0,
         timeIncrement: 0,
         autoScoring: false,
+        thiefHigh36ItemCount: 1,
+        thiefNoOneItemCount: 1,
     },
     [GameMode.Alkkagi]: {
         boardSize: 13,

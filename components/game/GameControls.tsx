@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useGameRecordSaveLock } from '../../hooks/useGameRecordSaveLock.js';
 import { GameMode, LiveGameSession, ServerAction, GameProps, Player, User, Point, GameStatus, AppSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
@@ -362,14 +362,24 @@ export const DicePanel: React.FC<{
 
     const diceAnimation = session.animation?.type === 'dice_roll_main' ? session.animation : null;
     const serverAnimEnd = diceAnimation ? diceAnimation.startTime + diceAnimation.duration : 0;
-    const isRollingByServerAnim = !!diceAnimation && Date.now() < serverAnimEnd;
+    /** 서버 startTime과 클라 Date.now() 시차로 굴림이 너무 빨리 끝나면 잘못된 눈이 잠깐 보임 → 수신 기준 최소 굴림 길이 보장 */
+    const clientDiceRollEndRef = useRef(0);
+    useLayoutEffect(() => {
+        if (!diceAnimation) {
+            clientDiceRollEndRef.current = 0;
+            return;
+        }
+        clientDiceRollEndRef.current = Date.now() + (diceAnimation.duration || DICE_ROLL_ANIMATION_MS);
+    }, [diceAnimation?.startTime, diceAnimation?.duration]);
+    const isRollingByServerAnim =
+        !!diceAnimation && Date.now() < Math.max(serverAnimEnd, clientDiceRollEndRef.current);
     React.useEffect(() => {
         if (!diceAnimation) return;
-        const end = diceAnimation.startTime + diceAnimation.duration;
+        const end = Math.max(serverAnimEnd, clientDiceRollEndRef.current);
         if (Date.now() >= end) return;
         const id = window.setInterval(() => setAnimTick((n) => n + 1), 100);
         return () => clearInterval(id);
-    }, [diceAnimation?.startTime, diceAnimation?.duration]);
+    }, [diceAnimation?.startTime, diceAnimation?.duration, serverAnimEnd]);
 
     // 응답 전 짧은 구간만 로컬 타이머(서버 animation 아직 없을 때)
     const isRollingByLocal = localRollEndTime > 0 && Date.now() < localRollEndTime && !diceAnimation;
@@ -455,9 +465,6 @@ export const DicePanel: React.FC<{
                     onClick={() => handleRoll()}
                     disabled={!canRoll}
                 />
-                <span className="text-[9px] text-gray-500 text-center leading-tight max-w-[5.5rem]">
-                    {canRoll ? '터치하여 굴리기' : '상대 차례'}
-                </span>
             </div>
         ) : (
             <div className="flex flex-col items-center">
@@ -650,47 +657,323 @@ const PlayfulStonesPanel: React.FC<{ session: LiveGameSession, currentUser: Game
     return null;
 };
 
+export type ThiefGoPanelItemKind = 'high36' | 'noOne';
+
+const ThiefGoLuxuryItemCard: React.FC<{
+    kind: ThiefGoPanelItemKind;
+    count: number;
+    usable: boolean;
+    onUse: () => void;
+}> = ({ kind, count, usable, onUse }) => {
+    const [diceSize, setDiceSize] = React.useState(48);
+    React.useEffect(() => {
+        const q = window.matchMedia('(min-width: 768px)');
+        const sync = () => setDiceSize(q.matches ? 62 : 48);
+        sync();
+        q.addEventListener('change', sync);
+        return () => q.removeEventListener('change', sync);
+    }, []);
+
+    const meta = (() => {
+        switch (kind) {
+            case 'high36':
+                return {
+                    ariaLabel: `높은 수(3~6) 주사위 아이템, 남은 개수 ${count}`,
+                    title: `높은 수(3·4·5·6)만 나오는 주사위. 남은 개수 ${count}`,
+                    displayText: '3·4·5·6',
+                    diceColor: 'luxuryThiefHigh36' as const,
+                    outerGrad: 'from-emerald-400/38 via-teal-900/22 to-green-950/35',
+                    hoverOuter: 'hover:from-emerald-300/52 hover:via-teal-900/28 hover:shadow-[0_0_24px_-8px_rgba(52,211,153,0.34)]',
+                    innerActive:
+                        'border-emerald-400/48 shadow-[0_0_28px_-10px_rgba(52,211,153,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] ring-1 ring-emerald-300/25',
+                    innerInactive: 'border-emerald-950/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] opacity-[0.78]',
+                    innerBg: 'from-zinc-950 via-[#0a1812] to-zinc-950',
+                    glow: 'bg-emerald-400',
+                };
+            case 'noOne':
+                return {
+                    ariaLabel: `1방지(2~5) 주사위 아이템, 남은 개수 ${count}`,
+                    title: `1이 나오지 않는 주사위(2·3·4·5). 남은 개수 ${count}`,
+                    displayText: '2·3·4·5',
+                    diceColor: 'luxuryThiefNoOne' as const,
+                    outerGrad: 'from-sky-400/38 via-slate-700/22 to-blue-950/35',
+                    hoverOuter: 'hover:from-sky-300/50 hover:via-slate-600/28 hover:shadow-[0_0_24px_-8px_rgba(56,189,248,0.34)]',
+                    innerActive:
+                        'border-sky-400/48 shadow-[0_0_28px_-10px_rgba(56,189,248,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] ring-1 ring-sky-300/25',
+                    innerInactive: 'border-sky-950/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] opacity-[0.78]',
+                    innerBg: 'from-slate-950 via-[#0a1420] to-slate-950',
+                    glow: 'bg-sky-400',
+                };
+        }
+    })();
+
+    const innerFrame = usable ? meta.innerActive : meta.innerInactive;
+
+    return (
+        <div
+            title={meta.title}
+            className={`group relative h-16 w-16 shrink-0 select-none rounded-xl p-[1px] transition-all duration-300 md:h-20 md:w-20 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
+            role="group"
+            aria-label={meta.ariaLabel}
+        >
+            <div
+                className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-[0.65rem] border backdrop-blur-md transition-all duration-300 ${innerFrame} bg-gradient-to-b ${meta.innerBg}`}
+            >
+                <div className={`pointer-events-none absolute -left-1/4 -top-1/3 h-full w-2/3 -skew-x-12 rounded-full blur-xl opacity-20 ${meta.glow}`} aria-hidden />
+                <div
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_0%,rgba(255,255,255,0.07),transparent_55%)]"
+                    aria-hidden
+                />
+                <div className="relative z-[1] flex items-center justify-center p-0.5">
+                    <CountOverlay count={count} disabled={!usable}>
+                        <Dice
+                            displayText={meta.displayText}
+                            color={meta.diceColor}
+                            value={null}
+                            isRolling={false}
+                            size={diceSize}
+                            onClick={onUse}
+                            disabled={!usable}
+                            outerClassName="!shadow-md rounded-xl !p-0.5"
+                        />
+                    </CountOverlay>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export type ThiefPanelVariant = 'all' | 'mainOnly' | 'itemsOnly';
+
 interface ThiefPanelProps {
     session: LiveGameSession;
     isMyTurn: boolean;
     onAction: (a: ServerAction) => void;
     currentUser: User;
+    variant?: ThiefPanelVariant;
 }
 
-const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAction, currentUser }) => {
+export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAction, currentUser, variant = 'all' }) => {
     const { id: gameId, gameStatus, animation, currentPlayer, blackPlayerId, whitePlayerId, thiefPlayerId } = session;
 
+    const [localRollEndTime, setLocalRollEndTime] = React.useState<number>(0);
+    const [itemConfirm, setItemConfirm] = React.useState<ThiefGoPanelItemKind | null>(null);
+    useEffect(() => {
+        const handler = (ev: Event) => {
+            const custom = ev as CustomEvent<{ gameId?: string; endTime?: number }>;
+            const incomingGameId = custom.detail?.gameId;
+            const endTime = custom.detail?.endTime;
+            if (incomingGameId !== gameId || !endTime) return;
+            setLocalRollEndTime((prev) => Math.max(prev, endTime));
+        };
+        window.addEventListener(DICE_ROLL_LOCAL_EVENT, handler as EventListener);
+        return () => window.removeEventListener(DICE_ROLL_LOCAL_EVENT, handler as EventListener);
+    }, [gameId]);
+
+    const [, setAnimTick] = React.useState(0);
     const diceAnimation = animation?.type === 'dice_roll_main' ? animation : null;
-    const isRolling = !!diceAnimation && Date.now() < (diceAnimation.startTime + diceAnimation.duration);
-    
+    const serverAnimEnd = diceAnimation ? diceAnimation.startTime + diceAnimation.duration : 0;
+    const clientThiefRollEndRef = useRef(0);
+    useLayoutEffect(() => {
+        if (!diceAnimation) {
+            clientThiefRollEndRef.current = 0;
+            return;
+        }
+        clientThiefRollEndRef.current = Date.now() + (diceAnimation.duration || DICE_ROLL_ANIMATION_MS);
+    }, [diceAnimation?.startTime, diceAnimation?.duration]);
+    const isRollingByServerAnim =
+        !!diceAnimation && Date.now() < Math.max(serverAnimEnd, clientThiefRollEndRef.current);
+    React.useEffect(() => {
+        if (!diceAnimation) return;
+        const end = Math.max(serverAnimEnd, clientThiefRollEndRef.current);
+        if (Date.now() >= end) return;
+        const id = window.setInterval(() => setAnimTick((n) => n + 1), 100);
+        return () => clearInterval(id);
+    }, [diceAnimation?.startTime, diceAnimation?.duration, serverAnimEnd]);
+
+    const isRollingByLocal = localRollEndTime > 0 && Date.now() < localRollEndTime && !diceAnimation;
+    const isRolling = isRollingByServerAnim || isRollingByLocal;
+
     const currentPlayerId = currentPlayer === Player.Black ? blackPlayerId : whitePlayerId;
     const currentPlayerRole = currentPlayerId === thiefPlayerId ? 'thief' : 'police';
     const diceCount = currentPlayerRole === 'thief' ? 1 : 2;
 
-    const handleRoll = () => {
-        if (isMyTurn && gameStatus === 'thief_rolling') {
-            audioService.rollDice(diceCount);
-            onAction({ type: 'THIEF_ROLL_DICE', payload: { gameId } });
+    const [lastStableDice1, setLastStableDice1] = React.useState<number | null>(session.dice?.dice1 ?? null);
+    const [lastStableDice2, setLastStableDice2] = React.useState<number | null>(
+        diceCount === 2 ? (session.dice?.dice2 ?? null) : null
+    );
+
+    React.useEffect(() => {
+        if (localRollEndTime <= 0) return;
+        const t = setTimeout(() => setLocalRollEndTime(0), Math.max(0, localRollEndTime - Date.now()));
+        return () => clearTimeout(t);
+    }, [localRollEndTime]);
+
+    React.useEffect(() => {
+        if (gameStatus !== 'thief_rolling') setItemConfirm(null);
+    }, [gameStatus]);
+
+    React.useEffect(() => {
+        const a1 = diceAnimation?.dice?.dice1;
+        const a2 = diceAnimation?.dice?.dice2;
+        const s1 = session.dice?.dice1;
+        const s2 = session.dice?.dice2;
+        const c1 = a1 ?? s1;
+        if (c1 != null && c1 >= 1 && c1 <= 6) setLastStableDice1(c1);
+        const c2 = a2 ?? s2;
+        if (diceCount === 2 && c2 != null && c2 >= 1 && c2 <= 6) setLastStableDice2(c2);
+    }, [diceAnimation?.dice?.dice1, diceAnimation?.dice?.dice2, session.dice?.dice1, session.dice?.dice2, diceCount]);
+
+    const canRoll = isMyTurn && gameStatus === 'thief_rolling';
+    const myUses = session.thiefGoItemUses?.[currentUser.id];
+    const high36Count = myUses?.high36 ?? 0;
+    const noOneCount = myUses?.noOne ?? 0;
+    const high36Usable = canRoll && high36Count > 0 && !isRolling;
+    const noOneUsable = canRoll && noOneCount > 0 && !isRolling;
+
+    const handleRoll = (itemType?: ThiefGoPanelItemKind) => {
+        if (!canRoll) return;
+        if (itemType === 'high36' || itemType === 'noOne') {
+            setItemConfirm(itemType);
+            return;
+        }
+        audioService.rollDice(diceCount);
+        const endTime = Date.now() + DICE_ROLL_ANIMATION_MS;
+        setLocalRollEndTime(endTime);
+        window.dispatchEvent(new CustomEvent(DICE_ROLL_LOCAL_EVENT, { detail: { gameId, endTime } }));
+        onAction({ type: 'THIEF_ROLL_DICE', payload: { gameId } });
+    };
+
+    const confirmItemRoll = () => {
+        if (!itemConfirm || !canRoll) {
+            setItemConfirm(null);
+            return;
+        }
+        audioService.rollDice(diceCount);
+        const endTime = Date.now() + DICE_ROLL_ANIMATION_MS;
+        setLocalRollEndTime(endTime);
+        window.dispatchEvent(new CustomEvent(DICE_ROLL_LOCAL_EVENT, { detail: { gameId, endTime } }));
+        onAction({ type: 'THIEF_ROLL_DICE', payload: { gameId, itemType: itemConfirm } });
+        setItemConfirm(null);
+    };
+
+    const diceValue1 = diceAnimation?.dice?.dice1 ?? session.dice?.dice1 ?? lastStableDice1 ?? null;
+    const diceValue2 = diceCount === 2 ? (diceAnimation?.dice?.dice2 ?? session.dice?.dice2 ?? lastStableDice2 ?? null) : null;
+
+    const showMain = variant === 'all' || variant === 'mainOnly';
+    const showItems = variant === 'all' || variant === 'itemsOnly';
+
+    const mainDice = showMain ? (
+        variant === 'mainOnly' ? (
+            <div
+                className={`flex flex-col items-center gap-2 rounded-2xl border bg-gradient-to-b from-gray-900/95 via-gray-950/90 to-black/90 px-4 py-4 shadow-[0_0_36px_-10px_rgba(251,191,36,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition-shadow duration-300 ${
+                    canRoll ? 'border-amber-400/55 ring-2 ring-amber-400/20' : 'border-amber-400/35'
+                }`}
+            >
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/85">주사위</span>
+                <div className="flex items-center justify-center gap-2">
+                    <Dice
+                        value={diceValue1}
+                        isRolling={isRolling}
+                        size={64}
+                        onClick={() => handleRoll()}
+                        disabled={!canRoll}
+                    />
+                    {diceCount === 2 && (
+                        <Dice value={diceValue2} isRolling={isRolling} size={64} onClick={() => handleRoll()} disabled={!canRoll} />
+                    )}
+                </div>
+            </div>
+        ) : (
+            <div className="flex items-center justify-center gap-2">
+                <Dice value={diceValue1} isRolling={isRolling} size={52} onClick={() => handleRoll()} disabled={!canRoll} />
+                {diceCount === 2 && (
+                    <Dice value={diceValue2} isRolling={isRolling} size={52} onClick={() => handleRoll()} disabled={!canRoll} />
+                )}
+            </div>
+        )
+    ) : null;
+
+    const thiefConfirmCopy = (k: ThiefGoPanelItemKind) => {
+        switch (k) {
+            case 'high36':
+                return {
+                    title: '높은 수(3~6) 주사위 사용',
+                    body: '3·4·5·6만 나오는 주사위 아이템을 1개 사용합니다. 경찰 턴이면 두 주사위 모두 이 범위입니다. 계속하시겠습니까?',
+                };
+            case 'noOne':
+                return {
+                    title: '1방지 주사위 사용',
+                    body: '2·3·4·5만 나오는 주사위(1 불가) 아이템을 1개 사용합니다. 경찰 턴이면 두 주사위 모두 이 범위입니다. 계속하시겠습니까?',
+                };
         }
     };
-    
-    return (
-        <div className="flex items-center justify-center gap-2">
-            {Array.from({ length: diceCount }).map((_, index) => {
-                const diceKey = index === 0 ? 'dice1' : 'dice2';
-                const diceValue = diceAnimation ? diceAnimation.dice[diceKey as keyof typeof diceAnimation.dice] : session.dice?.[diceKey as keyof typeof session.dice];
-                return (
-                    <Dice
-                        key={index}
-                        value={diceValue ?? null}
-                        isRolling={isRolling}
-                        size={48}
-                        onClick={handleRoll}
-                        disabled={!isMyTurn || gameStatus !== 'thief_rolling'}
-                    />
-                );
-            })}
+
+    const thiefItemsRow = showItems ? (
+        <div className="flex flex-row flex-wrap items-end justify-center gap-x-3 gap-y-2">
+            <LabeledDiceGoItem label="높은수" disabled={!high36Usable}>
+                <ThiefGoLuxuryItemCard kind="high36" count={high36Count} usable={high36Usable} onUse={() => handleRoll('high36')} />
+            </LabeledDiceGoItem>
+            <LabeledDiceGoItem label="1방지" disabled={!noOneUsable}>
+                <ThiefGoLuxuryItemCard kind="noOne" count={noOneCount} usable={noOneUsable} onUse={() => handleRoll('noOne')} />
+            </LabeledDiceGoItem>
         </div>
+    ) : null;
+
+    return (
+        <>
+            {showItems && itemConfirm && (
+                <div
+                    className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="thief-item-confirm-title"
+                    onClick={() => setItemConfirm(null)}
+                >
+                    <div
+                        className="w-full max-w-sm space-y-4 rounded-xl border border-amber-500/40 bg-gray-900 p-5 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 id="thief-item-confirm-title" className="text-lg font-bold text-amber-100">
+                            {thiefConfirmCopy(itemConfirm).title}
+                        </h2>
+                        <p className="text-sm leading-relaxed text-gray-300">{thiefConfirmCopy(itemConfirm).body}</p>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                colorScheme="none"
+                                className="!px-4 !py-2 rounded-lg border border-gray-600 text-gray-200"
+                                onClick={() => setItemConfirm(null)}
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                type="button"
+                                colorScheme="none"
+                                className="!px-4 !py-2 rounded-lg border border-amber-400/60 bg-amber-600/90 font-semibold text-slate-900"
+                                onClick={confirmItemRoll}
+                            >
+                                사용
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <div className="flex flex-row flex-wrap items-center justify-center gap-3 border-0 p-0 transition-all">
+                {variant === 'all' ? (
+                    <>
+                        <div className={`flex flex-col items-center ${canRoll ? 'animate-pulse-border-yellow' : 'rounded-lg border-2 border-transparent p-2'}`}>
+                            {mainDice}
+                        </div>
+                        {thiefItemsRow}
+                    </>
+                ) : variant === 'mainOnly' ? (
+                    mainDice
+                ) : (
+                    thiefItemsRow
+                )}
+            </div>
+        </>
     );
 };
 
@@ -1399,7 +1682,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             mode === GameMode.Dice ? (
                                 <DicePanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" />
                             ) :
-                            mode === GameMode.Thief ? <ThiefPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} /> :
+                            mode === GameMode.Thief ? (
+                                <ThiefPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" />
+                            ) :
                             mode === GameMode.Curling ? <CurlingItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} /> :
                             mode === GameMode.Alkkagi ? <AlkkagiItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} /> :
                             <PlayfulStonesPanel session={session} currentUser={currentUser} />
