@@ -5613,8 +5613,8 @@ export const useApp = () => {
         aggregatedMythicStats,
     } = useMemo(() => {
         const initialBonuses = {
-            mainOptionBonuses: {} as Record<CoreStat, { value: number; isPercentage: boolean }>,
-            combatSubOptionBonuses: {} as Record<CoreStat, { value: number; isPercentage: boolean }>,
+            mainOptionBonuses: {} as Record<CoreStat, { flat: number; percent: number }>,
+            combatSubOptionBonuses: {} as Record<CoreStat, { flat: number; percent: number }>,
             specialStatBonuses: {} as Record<SpecialStat, { flat: number; percent: number }>,
             aggregatedMythicStats: {} as Record<MythicStat, { count: number, totalValue: number }>,
         };
@@ -5627,6 +5627,11 @@ export const useApp = () => {
             item && currentUserWithStatus.equipment && Object.values(currentUserWithStatus.equipment).includes(item.id)
         );
 
+        const bonusNum = (v: unknown): number => {
+            const x = Number(v);
+            return Number.isFinite(x) ? x : 0;
+        };
+
         const aggregated = equippedItems.reduce((acc, item) => {
             if (!item.options) return acc;
 
@@ -5634,41 +5639,52 @@ export const useApp = () => {
             if (item.options.main) {
                 const type = item.options.main.type as CoreStat;
                 if (!acc.mainOptionBonuses[type]) {
-                    acc.mainOptionBonuses[type] = { value: 0, isPercentage: item.options.main.isPercentage };
+                    acc.mainOptionBonuses[type] = { flat: 0, percent: 0 };
                 }
-                acc.mainOptionBonuses[type].value += item.options.main.value;
+                const mv = bonusNum(item.options.main.value);
+                if (item.options.main.isPercentage) {
+                    acc.mainOptionBonuses[type].percent += mv;
+                } else {
+                    acc.mainOptionBonuses[type].flat += mv;
+                }
             }
 
             // Combat Sub Options
-            item.options.combatSubs.forEach(sub => {
+            item.options.combatSubs?.forEach(sub => {
                 const type = sub.type as CoreStat;
                 if (!acc.combatSubOptionBonuses[type]) {
-                    acc.combatSubOptionBonuses[type] = { value: 0, isPercentage: sub.isPercentage };
+                    acc.combatSubOptionBonuses[type] = { flat: 0, percent: 0 };
                 }
-                acc.combatSubOptionBonuses[type].value += sub.value;
+                const sv = bonusNum(sub.value);
+                if (sub.isPercentage) {
+                    acc.combatSubOptionBonuses[type].percent += sv;
+                } else {
+                    acc.combatSubOptionBonuses[type].flat += sv;
+                }
             });
 
             // Special Sub Options
-            item.options.specialSubs.forEach(sub => {
+            item.options.specialSubs?.forEach(sub => {
                 const type = sub.type as SpecialStat;
                 if (!acc.specialStatBonuses[type]) {
                     acc.specialStatBonuses[type] = { flat: 0, percent: 0 };
                 }
+                const sv = bonusNum(sub.value);
                 if (sub.isPercentage) {
-                    acc.specialStatBonuses[type].percent += sub.value;
+                    acc.specialStatBonuses[type].percent += sv;
                 } else {
-                    acc.specialStatBonuses[type].flat += sub.value;
+                    acc.specialStatBonuses[type].flat += sv;
                 }
             });
 
             // Mythic Sub Options
-            item.options.mythicSubs.forEach(sub => {
+            item.options.mythicSubs?.forEach(sub => {
                 const type = sub.type as MythicStat; // Cast to MythicStat
                 if (!acc.aggregatedMythicStats[type]) {
                     acc.aggregatedMythicStats[type] = { count: 0, totalValue: 0 };
                 }
                 acc.aggregatedMythicStats[type].count++;
-                acc.aggregatedMythicStats[type].totalValue += sub.value;
+                acc.aggregatedMythicStats[type].totalValue += bonusNum(sub.value);
             });
 
             return acc;

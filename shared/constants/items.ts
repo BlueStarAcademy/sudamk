@@ -380,7 +380,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.ThinkingSpeed, CoreStat.Concentration], value: 10 },
             legendary:{ stats: [CoreStat.ThinkingSpeed, CoreStat.Concentration], value: 12 },
             mythic:   { stats: [CoreStat.ThinkingSpeed, CoreStat.Concentration], value: 15 },
-            transcendent: { stats: [CoreStat.ThinkingSpeed, CoreStat.Concentration], value: 15 },
+            transcendent: { stats: [CoreStat.ThinkingSpeed, CoreStat.Concentration], value: 17 },
         }
     },
     board: {
@@ -392,7 +392,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.Stability, CoreStat.Calculation], value: 10 },
             legendary:{ stats: [CoreStat.Stability, CoreStat.Calculation], value: 12 },
             mythic:   { stats: [CoreStat.Stability, CoreStat.Calculation], value: 15 },
-            transcendent: { stats: [CoreStat.Stability, CoreStat.Calculation], value: 15 },
+            transcendent: { stats: [CoreStat.Stability, CoreStat.Calculation], value: 17 },
         }
     },
     top: {
@@ -404,7 +404,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.CombatPower, CoreStat.Judgment], value: 10 },
             legendary:{ stats: [CoreStat.CombatPower, CoreStat.Judgment], value: 12 },
             mythic:   { stats: [CoreStat.CombatPower, CoreStat.Judgment], value: 15 },
-            transcendent: { stats: [CoreStat.CombatPower, CoreStat.Judgment], value: 15 },
+            transcendent: { stats: [CoreStat.CombatPower, CoreStat.Judgment], value: 17 },
         }
     },
     bottom: {
@@ -416,7 +416,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 20 },
             legendary:{ stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 24 },
             mythic:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 30 },
-            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 30 },
+            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 33 },
         }
     },
     stones: {
@@ -428,7 +428,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 20 },
             legendary:{ stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 24 },
             mythic:   { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 30 },
-            transcendent: { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 30 },
+            transcendent: { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 33 },
         }
     },
     bowl: {
@@ -440,7 +440,7 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
             epic:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 20 },
             legendary:{ stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 24 },
             mythic:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 30 },
-            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 30 },
+            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 33 },
         }
     }
 };
@@ -499,6 +499,7 @@ export const MYTHIC_STATS_DATA: Record<MythicStat, { name: string; description: 
     },
 };
 
+/** 생성 시 전투·특수 개수는 등급별; 강화는 전투 부옵 최대 4줄까지 추가 후 줄 수치만 강화. mythicCount만 신화 줄 수(0/1/2). */
 export const GRADE_SUB_OPTION_RULES: Record<ItemGrade, { combatCount: [number, number]; specialCount: [number, number]; mythicCount: [number, number]; combatTier: number; }> = {
     normal:   { combatCount: [1, 2], specialCount: [0, 0], mythicCount: [0, 0], combatTier: 1 },
     uncommon: { combatCount: [2, 3], specialCount: [1, 1], mythicCount: [0, 0], combatTier: 2 },
@@ -506,7 +507,7 @@ export const GRADE_SUB_OPTION_RULES: Record<ItemGrade, { combatCount: [number, n
     epic:     { combatCount: [3, 4], specialCount: [1, 1], mythicCount: [0, 0], combatTier: 4 },
     legendary:{ combatCount: [4, 4], specialCount: [1, 2], mythicCount: [0, 0], combatTier: 5 },
     mythic:   { combatCount: [4, 4], specialCount: [1, 2], mythicCount: [1, 1], combatTier: 6 },
-    transcendent: { combatCount: [4, 4], specialCount: [1, 2], mythicCount: [2, 2], combatTier: 6 },
+    transcendent: { combatCount: [4, 4], specialCount: [1, 2], mythicCount: [2, 2], combatTier: 7 },
 };
 
 export type SubOptionDefinition = { type: CoreStat; isPercentage: boolean; range: [number, number] };
@@ -539,7 +540,8 @@ export const SUB_OPTION_POOLS: Record<EquipmentSlot, Record<number, SubOptionDef
         3: [ { type: CoreStat.Concentration, isPercentage: true, range: [3, 5] }, { type: CoreStat.CombatPower, isPercentage: false, range: [4, 7] }, { type: CoreStat.Judgment, isPercentage: false, range: [4, 7] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [3, 5] }, { type: CoreStat.Stability, isPercentage: false, range: [4, 7] }, { type: CoreStat.Calculation, isPercentage: false, range: [4, 7] } ],
         4: [ { type: CoreStat.Concentration, isPercentage: true, range: [4, 6] }, { type: CoreStat.CombatPower, isPercentage: false, range: [5, 8] }, { type: CoreStat.Judgment, isPercentage: false, range: [5, 8] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [4, 6] }, { type: CoreStat.Stability, isPercentage: false, range: [5, 8] }, { type: CoreStat.Calculation, isPercentage: false, range: [5, 8] } ],
         5: [ { type: CoreStat.Concentration, isPercentage: true, range: [5, 7] }, { type: CoreStat.CombatPower, isPercentage: false, range: [7, 10] }, { type: CoreStat.Judgment, isPercentage: false, range: [7, 10] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [5, 7] }, { type: CoreStat.Stability, isPercentage: false, range: [7, 10] }, { type: CoreStat.Calculation, isPercentage: false, range: [7, 10] } ],
-        6: [ { type: CoreStat.Concentration, isPercentage: true, range: [8, 10] }, { type: CoreStat.CombatPower, isPercentage: false, range: [10, 15] }, { type: CoreStat.Judgment, isPercentage: false, range: [10, 15] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [8, 10] }, { type: CoreStat.Stability, isPercentage: false, range: [10, 15] }, { type: CoreStat.Calculation, isPercentage: false, range: [10, 15] } ]
+        6: [ { type: CoreStat.Concentration, isPercentage: true, range: [8, 10] }, { type: CoreStat.CombatPower, isPercentage: false, range: [10, 15] }, { type: CoreStat.Judgment, isPercentage: false, range: [10, 15] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [8, 10] }, { type: CoreStat.Stability, isPercentage: false, range: [10, 15] }, { type: CoreStat.Calculation, isPercentage: false, range: [10, 15] } ],
+        7: [ { type: CoreStat.Concentration, isPercentage: true, range: [9, 12] }, { type: CoreStat.CombatPower, isPercentage: false, range: [11, 17] }, { type: CoreStat.Judgment, isPercentage: false, range: [11, 17] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [9, 12] }, { type: CoreStat.Stability, isPercentage: false, range: [11, 17] }, { type: CoreStat.Calculation, isPercentage: false, range: [11, 17] } ]
     },
     board: {
         1: [ { type: CoreStat.Concentration, isPercentage: true, range: [1, 2] }, { type: CoreStat.CombatPower, isPercentage: false, range: [2, 5] }, { type: CoreStat.Judgment, isPercentage: false, range: [2, 5] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [2, 5] }, { type: CoreStat.Stability, isPercentage: true, range: [1, 2] }, { type: CoreStat.Calculation, isPercentage: false, range: [2, 5] } ],
@@ -547,7 +549,8 @@ export const SUB_OPTION_POOLS: Record<EquipmentSlot, Record<number, SubOptionDef
         3: [ { type: CoreStat.Concentration, isPercentage: true, range: [3, 5] }, { type: CoreStat.CombatPower, isPercentage: false, range: [4, 7] }, { type: CoreStat.Judgment, isPercentage: false, range: [4, 7] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [4, 7] }, { type: CoreStat.Stability, isPercentage: true, range: [3, 5] }, { type: CoreStat.Calculation, isPercentage: false, range: [4, 7] } ],
         4: [ { type: CoreStat.Concentration, isPercentage: true, range: [4, 6] }, { type: CoreStat.CombatPower, isPercentage: false, range: [5, 8] }, { type: CoreStat.Judgment, isPercentage: false, range: [5, 8] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [5, 8] }, { type: CoreStat.Stability, isPercentage: true, range: [4, 6] }, { type: CoreStat.Calculation, isPercentage: false, range: [5, 8] } ],
         5: [ { type: CoreStat.Concentration, isPercentage: true, range: [5, 7] }, { type: CoreStat.CombatPower, isPercentage: false, range: [7, 10] }, { type: CoreStat.Judgment, isPercentage: false, range: [7, 10] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [7, 10] }, { type: CoreStat.Stability, isPercentage: true, range: [5, 7] }, { type: CoreStat.Calculation, isPercentage: false, range: [7, 10] } ],
-        6: [ { type: CoreStat.Concentration, isPercentage: true, range: [8, 10] }, { type: CoreStat.CombatPower, isPercentage: false, range: [10, 15] }, { type: CoreStat.Judgment, isPercentage: false, range: [10, 15] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [10, 15] }, { type: CoreStat.Stability, isPercentage: true, range: [8, 10] }, { type: CoreStat.Calculation, isPercentage: false, range: [10, 15] } ]
+        6: [ { type: CoreStat.Concentration, isPercentage: true, range: [8, 10] }, { type: CoreStat.CombatPower, isPercentage: false, range: [10, 15] }, { type: CoreStat.Judgment, isPercentage: false, range: [10, 15] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [10, 15] }, { type: CoreStat.Stability, isPercentage: true, range: [8, 10] }, { type: CoreStat.Calculation, isPercentage: false, range: [10, 15] } ],
+        7: [ { type: CoreStat.Concentration, isPercentage: true, range: [9, 12] }, { type: CoreStat.CombatPower, isPercentage: false, range: [11, 17] }, { type: CoreStat.Judgment, isPercentage: false, range: [11, 17] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [11, 17] }, { type: CoreStat.Stability, isPercentage: true, range: [9, 12] }, { type: CoreStat.Calculation, isPercentage: false, range: [11, 17] } ]
     },
     top: {
         1: [ { type: CoreStat.Concentration, isPercentage: false, range: [2, 5] }, { type: CoreStat.Concentration, isPercentage: true, range: [1, 2] }, { type: CoreStat.CombatPower, isPercentage: true, range: [1, 2] }, { type: CoreStat.CombatPower, isPercentage: false, range: [2, 5] }, { type: CoreStat.Judgment, isPercentage: false, range: [2, 5] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [2, 5] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [1, 2] }, { type: CoreStat.Stability, isPercentage: false, range: [2, 5] }, { type: CoreStat.Stability, isPercentage: true, range: [1, 2] }, { type: CoreStat.Calculation, isPercentage: true, range: [1, 2] } ],
@@ -555,7 +558,8 @@ export const SUB_OPTION_POOLS: Record<EquipmentSlot, Record<number, SubOptionDef
         3: [ { type: CoreStat.Concentration, isPercentage: false, range: [4, 7] }, { type: CoreStat.Concentration, isPercentage: true, range: [3, 5] }, { type: CoreStat.CombatPower, isPercentage: true, range: [3, 5] }, { type: CoreStat.CombatPower, isPercentage: false, range: [4, 7] }, { type: CoreStat.Judgment, isPercentage: false, range: [4, 7] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [4, 7] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [3, 5] }, { type: CoreStat.Stability, isPercentage: false, range: [4, 7] }, { type: CoreStat.Stability, isPercentage: true, range: [3, 5] }, { type: CoreStat.Calculation, isPercentage: true, range: [3, 5] } ],
         4: [ { type: CoreStat.Concentration, isPercentage: false, range: [5, 8] }, { type: CoreStat.Concentration, isPercentage: true, range: [4, 6] }, { type: CoreStat.CombatPower, isPercentage: true, range: [4, 6] }, { type: CoreStat.CombatPower, isPercentage: false, range: [5, 8] }, { type: CoreStat.Judgment, isPercentage: false, range: [5, 8] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [5, 8] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [4, 6] }, { type: CoreStat.Stability, isPercentage: false, range: [5, 8] }, { type: CoreStat.Stability, isPercentage: true, range: [4, 6] }, { type: CoreStat.Calculation, isPercentage: true, range: [4, 6] } ],
         5: [ { type: CoreStat.Concentration, isPercentage: false, range: [7, 10] }, { type: CoreStat.Concentration, isPercentage: true, range: [5, 7] }, { type: CoreStat.CombatPower, isPercentage: true, range: [5, 7] }, { type: CoreStat.CombatPower, isPercentage: false, range: [7, 10] }, { type: CoreStat.Judgment, isPercentage: false, range: [7, 10] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [7, 10] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [5, 7] }, { type: CoreStat.Stability, isPercentage: false, range: [7, 10] }, { type: CoreStat.Stability, isPercentage: true, range: [5, 7] }, { type: CoreStat.Calculation, isPercentage: true, range: [5, 7] } ],
-        6: [ { type: CoreStat.Concentration, isPercentage: false, range: [10, 15] }, { type: CoreStat.Concentration, isPercentage: true, range: [8, 10] }, { type: CoreStat.CombatPower, isPercentage: true, range: [8, 10] }, { type: CoreStat.CombatPower, isPercentage: false, range: [10, 15] }, { type: CoreStat.Judgment, isPercentage: false, range: [10, 15] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [10, 15] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [8, 10] }, { type: CoreStat.Stability, isPercentage: false, range: [10, 15] }, { type: CoreStat.Stability, isPercentage: true, range: [8, 10] }, { type: CoreStat.Calculation, isPercentage: true, range: [8, 10] } ]
+        6: [ { type: CoreStat.Concentration, isPercentage: false, range: [10, 15] }, { type: CoreStat.Concentration, isPercentage: true, range: [8, 10] }, { type: CoreStat.CombatPower, isPercentage: true, range: [8, 10] }, { type: CoreStat.CombatPower, isPercentage: false, range: [10, 15] }, { type: CoreStat.Judgment, isPercentage: false, range: [10, 15] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [10, 15] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [8, 10] }, { type: CoreStat.Stability, isPercentage: false, range: [10, 15] }, { type: CoreStat.Stability, isPercentage: true, range: [8, 10] }, { type: CoreStat.Calculation, isPercentage: true, range: [8, 10] } ],
+        7: [ { type: CoreStat.Concentration, isPercentage: false, range: [11, 17] }, { type: CoreStat.Concentration, isPercentage: true, range: [9, 12] }, { type: CoreStat.CombatPower, isPercentage: true, range: [9, 12] }, { type: CoreStat.CombatPower, isPercentage: false, range: [11, 17] }, { type: CoreStat.Judgment, isPercentage: false, range: [11, 17] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [11, 17] }, { type: CoreStat.ThinkingSpeed, isPercentage: true, range: [9, 12] }, { type: CoreStat.Stability, isPercentage: false, range: [11, 17] }, { type: CoreStat.Stability, isPercentage: true, range: [9, 12] }, { type: CoreStat.Calculation, isPercentage: true, range: [9, 12] } ]
     },
     bottom: {
         1: [ { type: CoreStat.Concentration, isPercentage: false, range: [2, 5] }, { type: CoreStat.CombatPower, isPercentage: false, range: [2, 5] }, { type: CoreStat.Judgment, isPercentage: false, range: [2, 5] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [2, 5] }, { type: CoreStat.Stability, isPercentage: false, range: [2, 5] }, { type: CoreStat.Calculation, isPercentage: false, range: [2, 5] } ],
@@ -563,7 +567,8 @@ export const SUB_OPTION_POOLS: Record<EquipmentSlot, Record<number, SubOptionDef
         3: [ { type: CoreStat.Concentration, isPercentage: false, range: [4, 7] }, { type: CoreStat.CombatPower, isPercentage: false, range: [4, 7] }, { type: CoreStat.Judgment, isPercentage: false, range: [4, 7] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [4, 7] }, { type: CoreStat.Stability, isPercentage: false, range: [4, 7] }, { type: CoreStat.Calculation, isPercentage: false, range: [4, 7] } ],
         4: [ { type: CoreStat.Concentration, isPercentage: false, range: [5, 8] }, { type: CoreStat.CombatPower, isPercentage: false, range: [5, 8] }, { type: CoreStat.Judgment, isPercentage: false, range: [5, 8] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [5, 8] }, { type: CoreStat.Stability, isPercentage: false, range: [5, 8] }, { type: CoreStat.Calculation, isPercentage: false, range: [5, 8] } ],
         5: [ { type: CoreStat.Concentration, isPercentage: false, range: [7, 10] }, { type: CoreStat.CombatPower, isPercentage: false, range: [7, 10] }, { type: CoreStat.Judgment, isPercentage: false, range: [7, 10] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [7, 10] }, { type: CoreStat.Stability, isPercentage: false, range: [7, 10] }, { type: CoreStat.Calculation, isPercentage: false, range: [7, 10] } ],
-        6: [ { type: CoreStat.Concentration, isPercentage: false, range: [8, 12] }, { type: CoreStat.CombatPower, isPercentage: false, range: [8, 12] }, { type: CoreStat.Judgment, isPercentage: false, range: [8, 12] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [8, 12] }, { type: CoreStat.Stability, isPercentage: false, range: [8, 12] }, { type: CoreStat.Calculation, isPercentage: false, range: [8, 12] } ]
+        6: [ { type: CoreStat.Concentration, isPercentage: false, range: [8, 12] }, { type: CoreStat.CombatPower, isPercentage: false, range: [8, 12] }, { type: CoreStat.Judgment, isPercentage: false, range: [8, 12] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [8, 12] }, { type: CoreStat.Stability, isPercentage: false, range: [8, 12] }, { type: CoreStat.Calculation, isPercentage: false, range: [8, 12] } ],
+        7: [ { type: CoreStat.Concentration, isPercentage: false, range: [9, 13] }, { type: CoreStat.CombatPower, isPercentage: false, range: [9, 13] }, { type: CoreStat.Judgment, isPercentage: false, range: [9, 13] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [9, 13] }, { type: CoreStat.Stability, isPercentage: false, range: [9, 13] }, { type: CoreStat.Calculation, isPercentage: false, range: [9, 13] } ]
     },
     stones: {
         1: [ { type: CoreStat.Concentration, isPercentage: false, range: [2, 5] }, { type: CoreStat.CombatPower, isPercentage: false, range: [2, 5] }, { type: CoreStat.Judgment, isPercentage: false, range: [2, 5] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [2, 5] }, { type: CoreStat.Stability, isPercentage: false, range: [2, 5] } ],
@@ -571,7 +576,8 @@ export const SUB_OPTION_POOLS: Record<EquipmentSlot, Record<number, SubOptionDef
         3: [ { type: CoreStat.Concentration, isPercentage: false, range: [4, 7] }, { type: CoreStat.CombatPower, isPercentage: false, range: [4, 7] }, { type: CoreStat.Judgment, isPercentage: false, range: [4, 7] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [4, 7] }, { type: CoreStat.Stability, isPercentage: false, range: [4, 7] } ],
         4: [ { type: CoreStat.Concentration, isPercentage: false, range: [5, 8] }, { type: CoreStat.CombatPower, isPercentage: false, range: [5, 8] }, { type: CoreStat.Judgment, isPercentage: false, range: [5, 8] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [5, 8] }, { type: CoreStat.Stability, isPercentage: false, range: [5, 8] } ],
         5: [ { type: CoreStat.Concentration, isPercentage: false, range: [7, 10] }, { type: CoreStat.CombatPower, isPercentage: false, range: [7, 10] }, { type: CoreStat.Judgment, isPercentage: false, range: [7, 10] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [7, 10] }, { type: CoreStat.Stability, isPercentage: false, range: [7, 10] } ],
-        6: [ { type: CoreStat.Concentration, isPercentage: false, range: [8, 12] }, { type: CoreStat.CombatPower, isPercentage: false, range: [8, 12] }, { type: CoreStat.Judgment, isPercentage: false, range: [8, 12] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [8, 12] }, { type: CoreStat.Stability, isPercentage: false, range: [8, 12] } ]
+        6: [ { type: CoreStat.Concentration, isPercentage: false, range: [8, 12] }, { type: CoreStat.CombatPower, isPercentage: false, range: [8, 12] }, { type: CoreStat.Judgment, isPercentage: false, range: [8, 12] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [8, 12] }, { type: CoreStat.Stability, isPercentage: false, range: [8, 12] } ],
+        7: [ { type: CoreStat.Concentration, isPercentage: false, range: [9, 13] }, { type: CoreStat.CombatPower, isPercentage: false, range: [9, 13] }, { type: CoreStat.Judgment, isPercentage: false, range: [9, 13] }, { type: CoreStat.ThinkingSpeed, isPercentage: false, range: [9, 13] }, { type: CoreStat.Stability, isPercentage: false, range: [9, 13] } ]
     },
     bowl: {
         1: [ { type: CoreStat.Concentration, isPercentage: false, range: [2, 5] }, { type: CoreStat.CombatPower, isPercentage: false, range: [2, 5] }, { type: CoreStat.Judgment, isPercentage: false, range: [2, 5] }, { type: CoreStat.Stability, isPercentage: false, range: [2, 5] }, { type: CoreStat.Calculation, isPercentage: false, range: [2, 5] } ],
@@ -579,6 +585,7 @@ export const SUB_OPTION_POOLS: Record<EquipmentSlot, Record<number, SubOptionDef
         3: [ { type: CoreStat.Concentration, isPercentage: false, range: [4, 7] }, { type: CoreStat.CombatPower, isPercentage: false, range: [4, 7] }, { type: CoreStat.Judgment, isPercentage: false, range: [4, 7] }, { type: CoreStat.Stability, isPercentage: false, range: [4, 7] }, { type: CoreStat.Calculation, isPercentage: false, range: [4, 7] } ],
         4: [ { type: CoreStat.Concentration, isPercentage: false, range: [5, 8] }, { type: CoreStat.CombatPower, isPercentage: false, range: [5, 8] }, { type: CoreStat.Judgment, isPercentage: false, range: [5, 8] }, { type: CoreStat.Stability, isPercentage: false, range: [5, 8] }, { type: CoreStat.Calculation, isPercentage: false, range: [5, 8] } ],
         5: [ { type: CoreStat.Concentration, isPercentage: false, range: [7, 10] }, { type: CoreStat.CombatPower, isPercentage: false, range: [7, 10] }, { type: CoreStat.Judgment, isPercentage: false, range: [7, 10] }, { type: CoreStat.Stability, isPercentage: false, range: [7, 10] }, { type: CoreStat.Calculation, isPercentage: false, range: [7, 10] } ],
-        6: [ { type: CoreStat.Concentration, isPercentage: false, range: [8, 12] }, { type: CoreStat.CombatPower, isPercentage: false, range: [8, 12] }, { type: CoreStat.Judgment, isPercentage: false, range: [8, 12] }, { type: CoreStat.Stability, isPercentage: false, range: [8, 12] }, { type: CoreStat.Calculation, isPercentage: false, range: [8, 12] } ]
+        6: [ { type: CoreStat.Concentration, isPercentage: false, range: [8, 12] }, { type: CoreStat.CombatPower, isPercentage: false, range: [8, 12] }, { type: CoreStat.Judgment, isPercentage: false, range: [8, 12] }, { type: CoreStat.Stability, isPercentage: false, range: [8, 12] }, { type: CoreStat.Calculation, isPercentage: false, range: [8, 12] } ],
+        7: [ { type: CoreStat.Concentration, isPercentage: false, range: [9, 13] }, { type: CoreStat.CombatPower, isPercentage: false, range: [9, 13] }, { type: CoreStat.Judgment, isPercentage: false, range: [9, 13] }, { type: CoreStat.Stability, isPercentage: false, range: [9, 13] }, { type: CoreStat.Calculation, isPercentage: false, range: [9, 13] } ]
     },
 };

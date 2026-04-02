@@ -474,16 +474,20 @@ const Profile: React.FC<ProfileProps> = () => {
     const hasMythicBonuses = useMemo(() => Object.values(mythicStatBonuses).some(bonus => bonus.flat > 0), [mythicStatBonuses]);
 
     const aggregatedMythicStats = useMemo(() => {
+        const toN = (v: unknown) => {
+            const x = Number(v);
+            return Number.isFinite(x) ? x : 0;
+        };
         const aggregated: Record<MythicStat, { count: number, totalValue: number }> = {} as any;
         for (const key of Object.values(MythicStat)) {
             aggregated[key] = { count: 0, totalValue: 0 };
         }
         equippedItems.forEach(item => {
-            item.options?.mythicSubs.forEach(sub => {
+            item.options?.mythicSubs?.forEach(sub => {
                 const key = sub.type as MythicStat;
                 if (aggregated[key]) {
                     aggregated[key].count++;
-                    aggregated[key].totalValue += sub.value;
+                    aggregated[key].totalValue += toN(sub.value);
                 }
             });
         });
@@ -598,31 +602,40 @@ const Profile: React.FC<ProfileProps> = () => {
         [SpecialStat.MaterialDropRate]: '재료 드랍',
     };
     
+    const bonusNum = (v: unknown): number => {
+        const x = Number(v);
+        return Number.isFinite(x) ? x : 0;
+    };
+
     const mainOptionBonuses = useMemo(() => {
-        const bonuses: Record<string, { value: number; isPercentage: boolean }> = {};
+        const bonuses: Record<string, { flat: number; percent: number }> = {};
         equippedItems.forEach(item => {
             if (item.options?.main) {
                 const main = item.options.main;
                 const key = main.type as string;
                 if (!bonuses[key]) {
-                    bonuses[key] = { value: 0, isPercentage: main.isPercentage };
+                    bonuses[key] = { flat: 0, percent: 0 };
                 }
-                bonuses[key].value += main.value;
+                const mv = bonusNum(main.value);
+                if (main.isPercentage) bonuses[key].percent += mv;
+                else bonuses[key].flat += mv;
             }
         });
         return bonuses;
     }, [equippedItems]);
 
     const combatSubOptionBonuses = useMemo(() => {
-        const bonuses: Record<string, { value: number; isPercentage: boolean }> = {};
+        const bonuses: Record<string, { flat: number; percent: number }> = {};
         equippedItems.forEach(item => {
             if (item.options?.combatSubs) {
                 item.options.combatSubs.forEach(sub => {
                     const key = sub.type as string;
                     if (!bonuses[key]) {
-                        bonuses[key] = { value: 0, isPercentage: sub.isPercentage };
+                        bonuses[key] = { flat: 0, percent: 0 };
                     }
-                    bonuses[key].value += sub.value;
+                    const sv = bonusNum(sub.value);
+                    if (sub.isPercentage) bonuses[key].percent += sv;
+                    else bonuses[key].flat += sv;
                 });
             }
         });

@@ -8,6 +8,8 @@ import { EQUIPMENT_POOL, MATERIAL_ITEMS, CONSUMABLE_ITEMS } from "../../shared/c
 import {
   normalizeLegacyDivineMythicInventoryItem,
   mapNormalizeInventoryList,
+  normalizeInventoryEquipmentItem,
+  normalizeEquipmentOptionNumbers,
 } from "../../shared/utils/inventoryLegacyNormalize.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
@@ -231,11 +233,14 @@ const normalizeMailAttachmentItems = (mails: Mail[]): Mail[] => {
       else items = [];
     }
     const list = Array.isArray(items) ? (items as NonNullable<Mail["attachments"]>["items"]) : att.items;
+    // 우편 첨부 장비는 서버가 내려준 스냅샷을 그대로 둠.
+    // 인벤용 normalizeLegacy(신화+신화부옵2→초월)를 적용하면 등급만 바뀌고 강화·주옵은 예전 등급 기준이라 수치가 어긋남.
     const normalizedItems = Array.isArray(list)
       ? list.map((entry) => {
           if (!entry || typeof entry !== "object") return entry;
           if (!("grade" in entry) || (entry as InventoryItem).type !== "equipment") return entry;
-          return normalizeLegacyDivineMythicInventoryItem(entry as InventoryItem);
+          // 우편은 등급 레거시 정규화는 하지 않되, 옵션 숫자 문자열 이어붙기 버그만 보정
+          return normalizeEquipmentOptionNumbers(entry as InventoryItem);
         })
       : list;
     return {
@@ -459,7 +464,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
           options: meta?.options || itemInfo?.options || [],
           enhancementFails: meta?.enhancementFails || 0,
         };
-        inventoryFromTable.push(normalizeLegacyDivineMythicInventoryItem(item));
+        inventoryFromTable.push(normalizeInventoryEquipmentItem(item));
       }
     }
   } catch (e) {

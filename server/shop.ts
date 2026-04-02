@@ -10,11 +10,19 @@ import {
     SUB_OPTION_POOLS,
     SPECIAL_STATS_DATA,
     MYTHIC_STATS_DATA,
+    CORE_STATS_DATA,
 } from '../shared/constants/index.js';
-import { applyEnhancementStarsToEquipmentItem as applyEnhancementStarsShared } from '../shared/utils/equipmentEnhancementStars.js';
+import { normalizeInventoryEquipmentItem } from '../shared/utils/inventoryLegacyNormalize.js';
+import {
+    applyEnhancementStarsToEquipmentItem as applyEnhancementStarsShared,
+    createSeededRandom,
+} from '../shared/utils/equipmentEnhancementStars.js';
 
 const getRandomInt = (min: number, max: number): number => {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    const lo = Math.floor(Number(min));
+    const hi = Math.floor(Number(max));
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi < lo) return lo;
+    return Math.floor(Math.random() * (hi - lo + 1)) + lo;
 };
 
 const pickRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -23,7 +31,8 @@ type SubOptionDefinition = { type: CoreStat, isPercentage: boolean, range: [numb
 type SpecialSubOptionDefinition = { name: string; isPercentage: boolean; range: [number, number] };
 
 
-const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions => {
+/** 상자·합성·토너먼트 등 공통 장비 옵션 생성 (단일 소스) */
+export const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions => {
     const rules = GRADE_SUB_OPTION_RULES[grade];
     const usedCombatSubTypes: Set<CoreStat> = new Set();
     const usedSpecialSubTypes: Set<SpecialStat> = new Set();
@@ -33,12 +42,13 @@ const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions
     const mainStatType = pickRandom(gradeDef.stats);
     const mainValue = gradeDef.value;
     const mainIsPercentage = slotDef.isPercentage;
+    const mainStatLabel = CORE_STATS_DATA[mainStatType]?.name ?? String(mainStatType);
     const main: ItemOption = {
         type: mainStatType,
         value: mainValue,
         baseValue: mainValue,
         isPercentage: mainIsPercentage,
-        display: `${mainStatType} +${mainValue}${mainIsPercentage ? '%' : ''}`
+        display: `${mainStatLabel} +${mainValue}${mainIsPercentage ? '%' : ''}`
     };
     usedCombatSubTypes.add(mainStatType);
 
@@ -55,11 +65,12 @@ const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions
         usedCombatSubTypes.add(subDef.type);
 
         const value = getRandomInt(subDef.range[0], subDef.range[1]);
+        const subLabel = CORE_STATS_DATA[subDef.type]?.name ?? String(subDef.type);
         combatSubs.push({
             type: subDef.type,
             value,
             isPercentage: subDef.isPercentage,
-            display: `${subDef.type} +${value}${subDef.isPercentage ? '%' : ''} [${subDef.range[0]}~${subDef.range[1]}]`,
+            display: `${subLabel} +${value}${subDef.isPercentage ? '%' : ''} [${subDef.range[0]}~${subDef.range[1]}]`,
             range: subDef.range,
             enhancements: 0,
         });
@@ -90,30 +101,27 @@ const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions
     }
 
     const mythicSubs: ItemOption[] = [];
-    if (grade === ItemGrade.Mythic || grade === ItemGrade.Transcendent) {
-        const mythicCountRule = rules.mythicCount;
-        const numMythicSubs =
-            grade === ItemGrade.Transcendent
-                ? 2
-                : Array.isArray(mythicCountRule)
-                  ? getRandomInt(mythicCountRule[0], mythicCountRule[1])
-                  : mythicCountRule;
+    const mythicCountRule = rules.mythicCount;
+    const numMythicSubs = Array.isArray(mythicCountRule)
+        ? getRandomInt(mythicCountRule[0], mythicCountRule[1])
+        : mythicCountRule;
+    if (numMythicSubs > 0) {
         const mythicPool = Object.values(MythicStat);
 
         for (let i = 0; i < numMythicSubs; i++) {
-             if (mythicPool.length === 0) break;
-             const subStatType = pickRandom(mythicPool);
-             mythicPool.splice(mythicPool.indexOf(subStatType), 1);
+            if (mythicPool.length === 0) break;
+            const subStatType = pickRandom(mythicPool);
+            mythicPool.splice(mythicPool.indexOf(subStatType), 1);
 
-             const subDef = MYTHIC_STATS_DATA[subStatType];
-             const value = subDef.value([10, 50]);
-             mythicSubs.push({
-                 type: subStatType,
-                 value: value,
-                 isPercentage: false,
-                 display: subDef.name,
-                 enhancements: 0,
-             });
+            const subDef = MYTHIC_STATS_DATA[subStatType];
+            const value = subDef.value([10, 50]);
+            mythicSubs.push({
+                type: subStatType,
+                value: value,
+                isPercentage: false,
+                display: subDef.name,
+                enhancements: 0,
+            });
         }
     }
     
@@ -124,10 +132,7 @@ const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions
 
 export const createItemFromTemplate = (template: Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipped' | 'level' | 'options' | 'quantity'>): InventoryItem => {
     const options = generateItemOptions(template.grade, template.slot!);
-    const getRandomInt = (min: number, max: number): number => {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    };
-    return {
+    const raw: InventoryItem = {
         id: `item-${randomUUID()}`,
         name: template.name,
         description: template.description || `상자에서 획득한 ${template.grade} 등급 아이템.`,
@@ -142,9 +147,11 @@ export const createItemFromTemplate = (template: Omit<InventoryItem, 'id' | 'cre
         options: options,
         refinementCount: getRandomInt(3, 10), // 제련 가능 횟수 3~10회 랜덤 부여
     };
+    return normalizeInventoryEquipmentItem(raw);
 };
 
 export const applyEnhancementStarsToEquipmentItem = applyEnhancementStarsShared;
+export { createSeededRandom };
 
 function openBoxWithLootTable(lootTable: { grade: ItemGrade; weight: number }[]): InventoryItem {
     const totalWeight = lootTable.reduce((sum, item) => sum + item.weight, 0);

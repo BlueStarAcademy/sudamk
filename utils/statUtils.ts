@@ -67,21 +67,23 @@ export const calculateUserEffects = (user: User, guild: Guild | null): Calculate
             if (!opt) continue;
 
             const { type, value, isPercentage } = opt;
+            const num = typeof value === 'number' && Number.isFinite(value) ? value : Number(value);
+            if (!Number.isFinite(num)) continue;
 
             if (Object.values(CoreStat).includes(type as CoreStat)) {
                 if (isPercentage) {
-                    calculatedEffects.coreStatBonuses[type as CoreStat].percent += value;
+                    calculatedEffects.coreStatBonuses[type as CoreStat].percent += num;
                 } else {
-                    calculatedEffects.coreStatBonuses[type as CoreStat].flat += value;
+                    calculatedEffects.coreStatBonuses[type as CoreStat].flat += num;
                 }
             } else if (Object.values(SpecialStat).includes(type as SpecialStat)) {
                  if (isPercentage) {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].percent += value;
+                    calculatedEffects.specialStatBonuses[type as SpecialStat].percent += num;
                 } else {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].flat += value;
+                    calculatedEffects.specialStatBonuses[type as SpecialStat].flat += num;
                 }
             } else if (Object.values(MythicStat).includes(type as MythicStat)) {
-                calculatedEffects.mythicStatBonuses[type as MythicStat].flat += value;
+                calculatedEffects.mythicStatBonuses[type as MythicStat].flat += num;
             }
         }
     }
@@ -149,7 +151,9 @@ export const calculateItemStats = (item: InventoryItem): Record<CoreStat | Speci
         const allOptions = [item.options.main, ...item.options.combatSubs, ...item.options.specialSubs, ...item.options.mythicSubs];
         for (const opt of allOptions) {
             if (opt) {
-                stats[opt.type] = (stats[opt.type] || 0) + opt.value;
+                const add = typeof opt.value === 'number' && Number.isFinite(opt.value) ? opt.value : Number(opt.value);
+                const prev = Number(stats[opt.type]) || 0;
+                stats[opt.type] = (Number.isFinite(add) ? prev + add : prev) as typeof stats[typeof opt.type];
             }
         }
     }

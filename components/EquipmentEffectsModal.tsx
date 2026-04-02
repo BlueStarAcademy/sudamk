@@ -6,8 +6,8 @@ import { CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA } from '../const
 interface EquipmentEffectsModalProps {
     onClose: () => void;
     isTopmost?: boolean;
-    mainOptionBonuses: Record<string, { value: number; isPercentage: boolean }>;
-    combatSubOptionBonuses: Record<string, { value: number; isPercentage: boolean }>;
+    mainOptionBonuses: Record<string, { flat: number; percent: number }>;
+    combatSubOptionBonuses: Record<string, { flat: number; percent: number }>;
     specialStatBonuses: Record<string, { flat: number; percent: number }>;
     aggregatedMythicStats: Record<MythicStat, { count: number, totalValue: number }>;
 }
@@ -86,7 +86,10 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                         {Object.values(CoreStat).map(stat => {
                             const bonus = mainOptionBonuses[stat];
                             const displayValue = bonus
-                                ? `+${bonus.value.toFixed(bonus.isPercentage ? 1 : 0).replace(/\.0$/, '')}${bonus.isPercentage ? '%' : ''}`
+                                ? [
+                                    bonus.flat > 0 ? `+${bonus.flat.toFixed(0)}` : '',
+                                    bonus.percent > 0 ? `+${bonus.percent.toFixed(1).replace(/\.0$/, '')}%` : '',
+                                ].filter(Boolean).join(', ') || '+0'
                                 : `+0`;
                             return (
                                  <div key={stat} className="flex justify-between items-baseline">
@@ -102,7 +105,10 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                         {Object.values(CoreStat).map(stat => {
                             const bonus = combatSubOptionBonuses[stat];
                             const displayValue = bonus
-                                ? `+${bonus.value.toFixed(bonus.isPercentage ? 1 : 0).replace(/\.0$/, '')}${bonus.isPercentage ? '%' : ''}`
+                                ? [
+                                    bonus.flat > 0 ? `+${bonus.flat.toFixed(0)}` : '',
+                                    bonus.percent > 0 ? `+${bonus.percent.toFixed(1).replace(/\.0$/, '')}%` : '',
+                                ].filter(Boolean).join(', ') || '+0'
                                 : `+0`;
                             return (
                                 <div key={stat} className="flex justify-between items-baseline">

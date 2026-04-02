@@ -1,7 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { UserWithStatus, InventoryItem, ServerAction, ItemOption, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../../types.js';
 import Button from '../Button.js';
-import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS, CORE_STATS_DATA, MAIN_ENHANCEMENT_STEP_MULTIPLIER } from '../../constants';
+import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS, CORE_STATS_DATA, MAIN_ENHANCEMENT_STEP_MULTIPLIER, resolveCombatSubPoolDefinition } from '../../constants';
+import {
+    resolveCombatSubValueRefinementRange,
+    resolveSpecialSubValueRefinementRange,
+} from '../../shared/utils/refinementValueBounds.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { calculateRefinementGoldCost } from '../../constants/rules.js';
 import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
@@ -248,7 +252,9 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
             case ItemGrade.Rare: return 2;
             case ItemGrade.Epic: return 3;
             case ItemGrade.Legendary: return 4;
-            case ItemGrade.Mythic: return 5;
+            case ItemGrade.Mythic:
+            case ItemGrade.Transcendent:
+                return 5;
             default: return 1;
         }
     };
@@ -350,17 +356,59 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                 });
             }
         } else if (refinementType === 'value') {
-            if (selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') {
-                // 수치 변경 시 현재 옵션의 range를 반환
-                if (selectedOptionData.range) {
-                    return [{
-                        type: selectedOptionData.type,
-                        name: selectedOption.type === 'combatSub' 
-                            ? CORE_STATS_DATA[selectedOptionData.type as CoreStat].name
-                            : SPECIAL_STATS_DATA[selectedOptionData.type as SpecialStat].name,
-                        range: selectedOptionData.range,
-                        isPercentage: selectedOptionData.isPercentage
-                    }];
+            if (
+                (selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') &&
+                selectedItem.slot &&
+                selectedOptionData
+            ) {
+                if (selectedOption.type === 'combatSub') {
+                    const rules = GRADE_SUB_OPTION_RULES[grade];
+                    const pool = SUB_OPTION_POOLS[slot][rules.combatTier];
+                    const subDef = resolveCombatSubPoolDefinition(
+                        pool,
+                        selectedOptionData.type as CoreStat,
+                        selectedOptionData.isPercentage
+                    );
+                    if (subDef) {
+                        const stored: [number, number] = selectedOptionData.range
+                            ? [Number(selectedOptionData.range[0]), Number(selectedOptionData.range[1])]
+                            : [subDef.range[0], subDef.range[1]];
+                        const repaired = resolveCombatSubValueRefinementRange(
+                            stored,
+                            subDef,
+                            selectedOptionData.enhancements ?? 0
+                        );
+                        if (repaired) {
+                            return [
+                                {
+                                    type: selectedOptionData.type,
+                                    name: CORE_STATS_DATA[selectedOptionData.type as CoreStat].name,
+                                    range: repaired,
+                                    isPercentage: selectedOptionData.isPercentage,
+                                },
+                            ];
+                        }
+                    }
+                } else {
+                    const subDef = SPECIAL_STATS_DATA[selectedOptionData.type as SpecialStat];
+                    const stored: [number, number] = selectedOptionData.range
+                        ? [Number(selectedOptionData.range[0]), Number(selectedOptionData.range[1])]
+                        : [subDef.range[0], subDef.range[1]];
+                    const repaired = resolveSpecialSubValueRefinementRange(
+                        stored,
+                        subDef,
+                        selectedOptionData.enhancements ?? 0
+                    );
+                    if (repaired) {
+                        return [
+                            {
+                                type: selectedOptionData.type,
+                                name: subDef.name,
+                                range: repaired,
+                                isPercentage: subDef.isPercentage,
+                            },
+                        ];
+                    }
                 }
             }
         } else if (refinementType === 'mythic') {

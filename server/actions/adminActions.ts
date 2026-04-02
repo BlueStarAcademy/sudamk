@@ -4,7 +4,7 @@ import { type ServerAction, type User, type Equipment, type VolatileState, Admin
 import * as types from '../../types/index.js';
 import { defaultStats, createDefaultBaseStats, createDefaultSpentStatPoints, createDefaultInventory, createDefaultQuests, createDefaultUser } from '../initialData.js';
 import * as summaryService from '../summaryService.js';
-import { createItemFromTemplate, applyEnhancementStarsToEquipmentItem } from '../shop.js';
+import { createItemFromTemplate, applyEnhancementStarsToEquipmentItem, createSeededRandom } from '../shop.js';
 import { EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH } from '../../constants';
 import * as mannerService from '../mannerService.js';
 import { containsProfanity } from '../../profanity.js';
@@ -18,6 +18,7 @@ import { invalidateUserCache } from '../db.js';
 import { ADMIN_USER_ID } from '../../shared/constants/auth.js';
 import { GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../../shared/constants/guildConstants.js';
 import { parseEquipmentStarsFromPayload } from '../../shared/utils/equipmentEnhancementStars.js';
+import { normalizeLegacyDivineMythicInventoryItem } from '../../shared/utils/inventoryLegacyNormalize.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -410,6 +411,9 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     items: []
                 };
 
+                const mailId = `mail-${randomUUID()}`;
+                let attachmentSeq = 0;
+
                 if (attachments.items && attachments.items.length > 0) {
                     for (const attachedItem of attachments.items) {
                         const { name, quantity, type, stars: rawStars, grade: payloadGrade } = attachedItem;
@@ -420,12 +424,16 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                                     ? EQUIPMENT_POOL.find(t => t.name === name && t.grade === payloadGrade)
                                     : EQUIPMENT_POOL.find(t => t.name === name);
                                 if (template) {
-                                    const eq = createItemFromTemplate(template);
+                                    let eq = createItemFromTemplate(template);
+                                    eq = normalizeLegacyDivineMythicInventoryItem(eq);
                                     if (stars > 0) {
-                                        applyEnhancementStarsToEquipmentItem(eq, stars);
+                                        applyEnhancementStarsToEquipmentItem(eq, stars, {
+                                            rng: createSeededRandom(`${mailId}|${attachmentSeq}|${stars}`),
+                                        });
                                         eq.mailPreEnhanced = true;
                                     }
                                     userAttachments.items!.push(eq);
+                                    attachmentSeq++;
                                 }
                             }
                         } else { // Stackable items (consumable or material)
@@ -440,13 +448,14 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                                     stars: 0,
                                     quantity: quantity,
                                 });
+                                attachmentSeq++;
                             }
                         }
                     }
                 }
                 
                 const newMail: types.Mail = {
-                    id: `mail-${randomUUID()}`,
+                    id: mailId,
                     from: user.nickname,
                     title, message,
                     attachments: userAttachments,

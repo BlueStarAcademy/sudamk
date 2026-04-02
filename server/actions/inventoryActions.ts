@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type VolatileState, InventoryItem, ItemOption, EquipmentSlot, CoreStat, SpecialStat, MythicStat, type ItemOptionType, type BorderInfo, type ChatMessage } from '../../types/index.js';
+import { type ServerAction, type User, type VolatileState, InventoryItem, ItemOption, EquipmentSlot, CoreStat, SpecialStat, MythicStat, type BorderInfo, type ChatMessage } from '../../types/index.js';
 import { ItemGrade } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
@@ -39,10 +39,19 @@ import {
     calculateRefinementGoldCost,
 } from '../../constants/rules.js';
 import * as effectService from '../effectService.js';
-import { SHOP_ITEMS } from '../shop.js';
+import { SHOP_ITEMS, createItemFromTemplate } from '../shop.js';
 import { updateQuestProgress } from '../questService.js';
 import { addItemsToInventory as addItemsToInventoryUtil } from '../../utils/inventoryUtils.js';
 import { resolveCurrencyBundleConsumableKey } from '../../shared/utils/currencyBundleConsumable.js';
+import {
+    applySuccessfulEnhancementTick,
+    getEnhancementStepBonusMultiplier,
+} from '../../shared/utils/equipmentEnhancementTick.js';
+import { normalizeEquipmentOptionNumbers } from '../../shared/utils/inventoryLegacyNormalize.js';
+import {
+    resolveCombatSubValueRefinementRange,
+    resolveSpecialSubValueRefinementRange,
+} from '../../shared/utils/refinementValueBounds.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -72,107 +81,34 @@ export const currencyBundles: Record<string, { type: 'gold' | 'diamonds', min: n
 };
 
 const getRandomInt = (min: number, max: number): number => {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    const lo = Math.floor(Number(min));
+    const hi = Math.floor(Number(max));
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi < lo) return lo;
+    return Math.floor(Math.random() * (hi - lo + 1)) + lo;
 };
 
-// Helper function to generate a new random item
+/**
+ * 합성·토너먼트·길드 보상 등에서 생성하는 장비.
+ * 예전에는 shop의 generateItemOptions와 별도 구현이었고, 신화 이상에서만 로직이 어긋나 이상 수치가 나올 수 있었다.
+ * 이제 상자/상점과 동일하게 `createItemFromTemplate` 한 경로만 사용한다.
+ */
 export const generateNewItem = (grade: ItemGrade, slot: EquipmentSlot): InventoryItem => {
-    const template = EQUIPMENT_POOL.find(p => p.grade === grade && p.slot === slot);
-    const baseItem = template || EQUIPMENT_POOL.find(p => p.grade === grade)!;
-
-    // 1. Main Option
-    const mainStatDef = MAIN_STAT_DEFINITIONS[slot].options[grade];
-    const mainStatType = mainStatDef.stats[Math.floor(Math.random() * mainStatDef.stats.length)];
-    const mainStatValue = mainStatDef.value;
-    const mainOption: ItemOption = {
-        type: mainStatType,
-        value: mainStatValue,
-        baseValue: mainStatValue,
-        isPercentage: MAIN_STAT_DEFINITIONS[slot].isPercentage,
-        display: `${mainStatType} +${mainStatValue}${MAIN_STAT_DEFINITIONS[slot].isPercentage ? '%' : ''}`,
-    };
-
-    const options: { main: ItemOption; combatSubs: ItemOption[]; specialSubs: ItemOption[]; mythicSubs: ItemOption[] } = {
-        main: mainOption,
-        combatSubs: [],
-        specialSubs: [],
-        mythicSubs: [],
-    };
-
-    const rules = GRADE_SUB_OPTION_RULES[grade];
-    const existingSubTypes = new Set<ItemOptionType>([mainOption.type]);
-
-    // 2. Combat Sub-options
-    const combatSubCount = getRandomInt(rules.combatCount[0], rules.combatCount[1]);
-    const combatPool = SUB_OPTION_POOLS[slot][rules.combatTier].filter(opt => !existingSubTypes.has(opt.type));
-    for (let i = 0; i < combatSubCount && combatPool.length > 0; i++) {
-        const subIndex = Math.floor(Math.random() * combatPool.length);
-        const subDef = combatPool.splice(subIndex, 1)[0];
-        const value = getRandomInt(subDef.range[0], subDef.range[1]);
-        options.combatSubs.push({
-            type: subDef.type,
-            value,
-            isPercentage: subDef.isPercentage,
-            display: `${subDef.type} +${value}${subDef.isPercentage ? '%' : ''} [${subDef.range[0]}~${subDef.range[1]}]`,
-            range: subDef.range,
-            enhancements: 0,
-        });
-        existingSubTypes.add(subDef.type);
-    }
-
-    // 3. Special Sub-options
-    const specialSubCount = getRandomInt(rules.specialCount[0], rules.specialCount[1]);
-    const specialPool = Object.values(SpecialStat).filter(stat => !existingSubTypes.has(stat));
-    for (let i = 0; i < specialSubCount && specialPool.length > 0; i++) {
-        const subIndex = Math.floor(Math.random() * specialPool.length);
-        const subType = specialPool.splice(subIndex, 1)[0];
-        const subDef = SPECIAL_STATS_DATA[subType];
-        const value = getRandomInt(subDef.range[0], subDef.range[1]);
-        options.specialSubs.push({
-            type: subType,
-            value,
-            isPercentage: subDef.isPercentage,
-            display: `${subDef.name} +${value}${subDef.isPercentage ? '%' : ''} [${subDef.range[0]}~${subDef.range[1]}]`,
-            range: subDef.range,
-        });
-        existingSubTypes.add(subType);
-    }
-
-    // 4. Mythic Sub-options (초월은 항상 2개)
-    if (grade === ItemGrade.Mythic || grade === ItemGrade.Transcendent) {
-        const mythicSubCount =
-            grade === ItemGrade.Transcendent ? 2 : getRandomInt(rules.mythicCount[0], rules.mythicCount[1]);
-        const mythicPool = Object.values(MythicStat).filter(stat => !existingSubTypes.has(stat));
-         for (let i = 0; i < mythicSubCount && mythicPool.length > 0; i++) {
-            const subIndex = Math.floor(Math.random() * mythicPool.length);
-            const subType = mythicPool.splice(subIndex, 1)[0];
-            const subDef = MYTHIC_STATS_DATA[subType];
-            const value = subDef.value([1,1]); // Dummy range, value is fixed in definition
-            options.mythicSubs.push({
-                type: subType,
-                value,
-                isPercentage: false,
-            display: subDef.shortDescription || subDef.description,
-            });
-            existingSubTypes.add(subType);
+    const template = EQUIPMENT_POOL.find((p) => p.grade === grade && p.slot === slot);
+    if (!template) {
+        console.error(`[generateNewItem] EQUIPMENT_POOL에 없음: grade=${grade}, slot=${slot}`);
+        const anySameGrade = EQUIPMENT_POOL.find((p) => p.grade === grade);
+        if (!anySameGrade) {
+            throw new Error(`[generateNewItem] 등급 ${grade} 템플릿이 풀에 없습니다.`);
         }
+        const item = createItemFromTemplate(anySameGrade);
+        item.level = GRADE_LEVEL_REQUIREMENTS[grade];
+        item.enhancementFails = 0;
+        return item;
     }
-
-    const newItem: InventoryItem = {
-        ...baseItem,
-        id: `item-${randomUUID()}`,
-        createdAt: Date.now(),
-        isEquipped: false,
-        level: GRADE_LEVEL_REQUIREMENTS[grade],
-        options,
-        stars: 0,
-        enhancementFails: 0,
-    } as any;
-    
-    // 제련 가능 횟수 3~10회 랜덤 부여
-    (newItem as any).refinementCount = getRandomInt(3, 10);
-
-    return newItem;
+    const item = createItemFromTemplate(template);
+    item.level = GRADE_LEVEL_REQUIREMENTS[grade];
+    item.enhancementFails = 0;
+    return item;
 };
 
 // 장비 일관성 검증 및 수정 헬퍼 함수
@@ -1065,6 +1001,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const { itemId } = payload;
             const item = user.inventory.find(i => i.id === itemId);
             if (!item || item.type !== 'equipment' || !item.options) return { error: '강화할 수 없는 아이템입니다.' };
+            const normalizedEnhanceItem = normalizeEquipmentOptionNumbers(item);
+            Object.assign(item, { options: normalizedEnhanceItem.options, stars: normalizedEnhanceItem.stars });
             if (item.stars >= 10) return { error: '최대 강화 레벨입니다.' };
 
             const targetStars = item.stars + 1;
@@ -1111,10 +1049,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             let resultMessage = '';
 
             if (isSuccess) {
-                item.stars++;
                 item.enhancementFails = 0;
+                applySuccessfulEnhancementTick(item, Math.random);
                 resultMessage = `강화 성공! +${item.stars} ${item.name}이(가) 되었습니다.`;
-                
+
                 // 7강화, 10강화 성공 시 전체 채팅창에 시스템 메시지 전송
                 if (item.stars === 7 || item.stars === 10) {
                     const systemMessage: ChatMessage = {
@@ -1134,7 +1072,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                             userName: user.nickname
                         }
                     };
-                    
+
                     // global 채팅에 추가
                     if (!volatileState.waitingRoomChats['global']) {
                         volatileState.waitingRoomChats['global'] = [];
@@ -1143,70 +1081,12 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     if (volatileState.waitingRoomChats['global'].length > 100) {
                         volatileState.waitingRoomChats['global'].shift();
                     }
-                    
+
                     // 채팅 업데이트 브로드캐스트
-                    broadcast({ 
-                        type: 'WAITING_ROOM_CHAT_UPDATE', 
-                        payload: { global: volatileState.waitingRoomChats['global'] } 
+                    broadcast({
+                        type: 'WAITING_ROOM_CHAT_UPDATE',
+                        payload: { global: volatileState.waitingRoomChats['global'] }
                     });
-                }
-                
-                const main = item.options.main;
-                if (main.baseValue) {
-                    const starIndex = Math.max(0, Math.min(9, item.stars - 1));
-                    const multipliers = MAIN_ENHANCEMENT_STEP_MULTIPLIER[item.grade];
-                    const increaseMultiplier = multipliers?.[starIndex] ?? 1;
-                    const increaseAmount = Math.round(main.baseValue * increaseMultiplier);
-                    main.value = parseFloat((main.value + increaseAmount).toFixed(2));
-                    main.display = `${main.type} +${main.value}${main.isPercentage ? '%' : ''}`;
-                }
-
-                if (item.options.combatSubs.length < 4) {
-                    const rules = GRADE_SUB_OPTION_RULES[item.grade];
-                    const existingSubTypes = new Set([main.type, ...item.options.combatSubs.map(s => s.type)]);
-                    const combatTier = rules.combatTier;
-                    const combatPool = SUB_OPTION_POOLS[item.slot!][combatTier].filter(opt => !existingSubTypes.has(opt.type));
-                    if(combatPool.length > 0) {
-                        const newSubDef = combatPool[Math.floor(Math.random() * combatPool.length)];
-                        const value = getRandomInt(newSubDef.range[0], newSubDef.range[1]);
-                        const newSub: ItemOption = {
-                            type: newSubDef.type, value, isPercentage: newSubDef.isPercentage,
-                            display: `${newSubDef.type} +${value}${newSubDef.isPercentage ? '%' : ''} [${newSubDef.range[0]}~${newSubDef.range[1]}]`,
-                            range: newSubDef.range,
-                            enhancements: 0,
-                        };
-                        item.options.combatSubs.push(newSub);
-                    }
-                } else {
-                    const subToUpgrade = item.options.combatSubs[Math.floor(Math.random() * item.options.combatSubs.length)];
-                    subToUpgrade.enhancements = (subToUpgrade.enhancements || 0) + 1;
-        
-                    const itemTier = GRADE_SUB_OPTION_RULES[item.grade].combatTier;
-                    const subOptionPool = SUB_OPTION_POOLS[item.slot!][itemTier];
-                    const subDef = resolveCombatSubPoolDefinition(
-                        subOptionPool,
-                        subToUpgrade.type as CoreStat,
-                        subToUpgrade.isPercentage
-                    );
-        
-                    if (subDef) {
-                        const increaseAmount = getRandomInt(subDef.range[0], subDef.range[1]);
-                        subToUpgrade.value += increaseAmount;
-        
-                        if (!subToUpgrade.range) {
-                            subToUpgrade.range = [subDef.range[0], subDef.range[1]];
-                        } else {
-                            subToUpgrade.range[0] += subDef.range[0];
-                            subToUpgrade.range[1] += subDef.range[1];
-                        }
-                        
-                        subToUpgrade.display = `${subToUpgrade.type} +${subToUpgrade.value}${subToUpgrade.isPercentage ? '%' : ''} [${subToUpgrade.range[0]}~${subToUpgrade.range[1]}]`;
-
-                    } else {
-                        // Fallback for safety, though this shouldn't happen with valid data
-                        subToUpgrade.value = parseFloat((subToUpgrade.value * 1.1).toFixed(2));
-                        subToUpgrade.display = `${subToUpgrade.type} +${subToUpgrade.value}${subToUpgrade.isPercentage ? '%' : ''}`;
-                    }
                 }
 
             } else {
@@ -1271,6 +1151,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             if (!item || item.type !== 'equipment' || !item.options) {
                 return { error: '제련할 수 없는 아이템입니다.' };
             }
+
+            const normalizedRefineItem = normalizeEquipmentOptionNumbers(item);
+            Object.assign(item, { options: normalizedRefineItem.options, stars: normalizedRefineItem.stars });
             
             // 일반 등급 장비는 제련 불가
             if (item.grade === ItemGrade.Normal) {
@@ -1290,7 +1173,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     case ItemGrade.Rare: return 2;
                     case ItemGrade.Epic: return 3;
                     case ItemGrade.Legendary: return 4;
-                    case ItemGrade.Mythic: return 5;
+                    case ItemGrade.Mythic:
+                    case ItemGrade.Transcendent:
+                        return 5;
                     default: return 1;
                 }
             };
@@ -1372,7 +1257,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     for (let i = 0; i < stars; i++) {
                         // ENHANCE_ITEM은 starIndex를 0~9로 clamp해서 사용하므로 여기서도 동일하게 맞춤
                         const idx = Math.max(0, Math.min(9, i)); // 0~9 index
-                        enhancedIncreaseTotal += Math.round(baseValue * (multipliers?.[idx] ?? 1));
+                        const stepBonusMultiplier = getEnhancementStepBonusMultiplier(i + 1);
+                        enhancedIncreaseTotal += Math.round(baseValue * (multipliers?.[idx] ?? 1)) * stepBonusMultiplier;
                     }
 
                     const enhancedValue = parseFloat((baseValue + enhancedIncreaseTotal).toFixed(2));
@@ -1405,8 +1291,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     // 해당 슬롯의 기존 combatSub 강화 횟수(enhancements)를 유지해서
                     // 제련 결과도 "강화된 수치" 범위에서 다시 뽑히도록 처리
                     const prevEnhancements = item.options.combatSubs[optionIndex]?.enhancements ?? 0;
-                    const range0 = newSubDef.range[0];
-                    const range1 = newSubDef.range[1];
+                    const range0 = Number(newSubDef.range[0]);
+                    const range1 = Number(newSubDef.range[1]);
                     const scaledMin = Math.round(range0 * (1 + prevEnhancements));
                     const scaledMax = Math.round(range1 * (1 + prevEnhancements));
                     const value = getRandomInt(scaledMin, scaledMax);
@@ -1435,8 +1321,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     const newStatType = availableStats[Math.floor(Math.random() * availableStats.length)];
                     const subDef = SPECIAL_STATS_DATA[newStatType];
                     const prevEnhancements = item.options.specialSubs[optionIndex]?.enhancements ?? 0;
-                    const range0 = subDef.range[0];
-                    const range1 = subDef.range[1];
+                    const range0 = Number(subDef.range[0]);
+                    const range1 = Number(subDef.range[1]);
                     const scaledMin = Math.round(range0 * (1 + prevEnhancements));
                     const scaledMax = Math.round(range1 * (1 + prevEnhancements));
                     const value = getRandomInt(scaledMin, scaledMax);
@@ -1452,25 +1338,58 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     };
                 }
             } else if (refinementType === 'value') {
-                // 옵션 수치 변경
+                // 옵션 수치 변경 — 저장된 range만 믿지 않고 풀+enhancements로 허용 구간을 복구(레거시 깨짐 대응)
                 if (optionType === 'combatSub') {
                     const subOption = item.options.combatSubs[optionIndex];
-                    if (!subOption || !subOption.range) {
+                    if (!subOption || !item.slot) {
                         return { error: '수치를 변경할 수 없는 옵션입니다.' };
                     }
-                    const newValue = getRandomInt(subOption.range[0], subOption.range[1]);
+                    const rules = GRADE_SUB_OPTION_RULES[item.grade];
+                    const pool = SUB_OPTION_POOLS[item.slot][rules.combatTier];
+                    const subDef = resolveCombatSubPoolDefinition(
+                        pool,
+                        subOption.type as CoreStat,
+                        subOption.isPercentage
+                    );
+                    if (!subDef) {
+                        return { error: '수치를 변경할 수 없는 옵션입니다.' };
+                    }
+                    const enh = subOption.enhancements ?? 0;
+                    const stored: [number, number] = subOption.range
+                        ? [Number(subOption.range[0]), Number(subOption.range[1])]
+                        : [subDef.range[0], subDef.range[1]];
+                    const repaired = resolveCombatSubValueRefinementRange(stored, subDef, enh);
+                    if (!repaired) {
+                        return { error: '수치를 변경할 수 없는 옵션입니다.' };
+                    }
+                    const [r0, r1] = repaired;
+                    const newValue = getRandomInt(r0, r1);
                     subOption.value = newValue;
+                    subOption.range = [r0, r1];
                     const statName = (CORE_STATS_DATA as any)[subOption.type]?.name || subOption.type;
-                    subOption.display = `${statName} +${newValue}${subOption.isPercentage ? '%' : ''} [${subOption.range[0]}~${subOption.range[1]}]`;
+                    subOption.display = `${statName} +${newValue}${subOption.isPercentage ? '%' : ''} [${r0}~${r1}]`;
                 } else if (optionType === 'specialSub') {
                     const subOption = item.options.specialSubs[optionIndex];
-                    if (!subOption || !subOption.range) {
+                    if (!subOption) {
                         return { error: '수치를 변경할 수 없는 옵션입니다.' };
                     }
-                    const newValue = getRandomInt(subOption.range[0], subOption.range[1]);
-                    subOption.value = newValue;
                     const subDef = SPECIAL_STATS_DATA[subOption.type as SpecialStat];
-                    subOption.display = `${subDef.name} +${newValue}${subOption.isPercentage ? '%' : ''} [${subOption.range[0]}~${subOption.range[1]}]`;
+                    if (!subDef) {
+                        return { error: '수치를 변경할 수 없는 옵션입니다.' };
+                    }
+                    const enh = subOption.enhancements ?? 0;
+                    const stored: [number, number] = subOption.range
+                        ? [Number(subOption.range[0]), Number(subOption.range[1])]
+                        : [subDef.range[0], subDef.range[1]];
+                    const repaired = resolveSpecialSubValueRefinementRange(stored, subDef, enh);
+                    if (!repaired) {
+                        return { error: '수치를 변경할 수 없는 옵션입니다.' };
+                    }
+                    const [r0, r1] = repaired;
+                    const newValue = getRandomInt(r0, r1);
+                    subOption.value = newValue;
+                    subOption.range = [r0, r1];
+                    subOption.display = `${subDef.name} +${newValue}${subOption.isPercentage ? '%' : ''} [${r0}~${r1}]`;
                 } else {
                     return { error: '수치 변경은 부옵션 또는 특수옵션에만 가능합니다.' };
                 }
@@ -1479,8 +1398,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 if (optionType !== 'mythicSub') {
                     return { error: '신화 옵션 변경은 신화 옵션에만 가능합니다.' };
                 }
-                if (item.grade !== ItemGrade.Mythic) {
-                    return { error: '신화 옵션 변경은 신화 등급 장비에만 가능합니다.' };
+                if (item.grade !== ItemGrade.Mythic && item.grade !== ItemGrade.Transcendent) {
+                    return { error: '신화 옵션 변경은 신화·초월 등급 장비에만 가능합니다.' };
                 }
                 const allMythicStats = Object.values(MythicStat);
                 const usedTypes = new Set(item.options!.mythicSubs.map(s => s.type));

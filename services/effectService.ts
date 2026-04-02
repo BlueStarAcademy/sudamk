@@ -103,22 +103,24 @@ export const calculateUserEffects = (user: User): CalculatedEffects => {
             if (!opt) continue;
 
             const { type, value, isPercentage } = opt;
+            const num = typeof value === 'number' && Number.isFinite(value) ? value : Number(value);
+            if (!Number.isFinite(num)) continue;
 
             if (Object.values(CoreStat).includes(type as CoreStat)) {
                 if (isPercentage) {
-                    calculatedEffects.coreStatBonuses[type as CoreStat].percent += value;
+                    calculatedEffects.coreStatBonuses[type as CoreStat].percent += num;
                 } else {
-                    calculatedEffects.coreStatBonuses[type as CoreStat].flat += value;
+                    calculatedEffects.coreStatBonuses[type as CoreStat].flat += num;
                 }
             } else if (Object.values(SpecialStat).includes(type as SpecialStat)) {
                  if (isPercentage) {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].percent += value;
+                    calculatedEffects.specialStatBonuses[type as SpecialStat].percent += num;
                 } else {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].flat += value;
+                    calculatedEffects.specialStatBonuses[type as SpecialStat].flat += num;
                 }
             } else if (Object.values(MythicStat).includes(type as MythicStat)) {
                 // Mythic stats are generally flat values (e.g., +1 item)
-                calculatedEffects.mythicStatBonuses[type as MythicStat].flat += value;
+                calculatedEffects.mythicStatBonuses[type as MythicStat].flat += num;
             }
         }
     }

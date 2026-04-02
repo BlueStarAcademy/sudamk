@@ -19,6 +19,7 @@ import {
 } from '../../constants/index.js';
 import { calculateRanks } from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
+import { createItemInstancesFromMailAttachments } from '../mailClaimEquipment.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 
 const getRandomInt = (min: number, max: number): number => {
@@ -44,7 +45,10 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
         
             const itemsToCreate: InventoryItem[] = [];
             if (mail.attachments.items) {
-                 const createdItems = createItemInstancesFromReward(mail.attachments.items as { itemId: string; quantity: number }[]);
+                 const createdItems = createItemInstancesFromMailAttachments(
+                     mail.attachments.items as InventoryItem[] | { itemId: string; quantity: number }[],
+                     mail.id
+                 );
                  itemsToCreate.push(...createdItems);
             }
         
@@ -126,7 +130,10 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 totalGuildCoins += mail.attachments!.guildCoins || 0;
                 totalResearchPoints += mail.attachments!.researchPoints || 0;
                 if (mail.attachments!.items) {
-                    const createdItems = createItemInstancesFromReward(mail.attachments!.items as { itemId: string; quantity: number }[]);
+                    const createdItems = createItemInstancesFromMailAttachments(
+                        mail.attachments!.items as InventoryItem[] | { itemId: string; quantity: number }[],
+                        mail.id
+                    );
                     allItemsToCreate.push(...createdItems);
                 }
             }

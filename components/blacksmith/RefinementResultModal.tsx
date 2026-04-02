@@ -27,6 +27,11 @@ type RefinementDiff = {
     mythicAfter?: ItemOption;
 };
 
+function numericOptionValue(v: unknown): number | null {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+}
+
 function optionsEqualEnough(a: ItemOption | undefined, b: ItemOption | undefined): boolean {
     if (!a || !b) return a === b;
     if (a.type !== b.type) return false;
@@ -54,8 +59,8 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
             changeHint: hint,
             beforeText: b.main.display,
             afterText: a.main.display,
-            beforeValue: typeof b.main.value === 'number' ? b.main.value : null,
-            afterValue: typeof a.main.value === 'number' ? a.main.value : null,
+            beforeValue: numericOptionValue(b.main.value),
+            afterValue: numericOptionValue(a.main.value),
             isPercentage: !!a.main.isPercentage,
             isMythic: false,
         });
@@ -79,8 +84,8 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
             changeHint: hint,
             beforeText: bs.display,
             afterText: as.display,
-            beforeValue: typeof bs.value === 'number' ? bs.value : null,
-            afterValue: typeof as.value === 'number' ? as.value : null,
+            beforeValue: numericOptionValue(bs.value),
+            afterValue: numericOptionValue(as.value),
             isPercentage: !!as.isPercentage,
             isMythic: false,
         });
@@ -104,8 +109,8 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
             changeHint: hint,
             beforeText: bs.display,
             afterText: as.display,
-            beforeValue: typeof bs.value === 'number' ? bs.value : null,
-            afterValue: typeof as.value === 'number' ? as.value : null,
+            beforeValue: numericOptionValue(bs.value),
+            afterValue: numericOptionValue(as.value),
             isPercentage: !!as.isPercentage,
             isMythic: false,
         });
@@ -129,8 +134,8 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
             changeHint: hint,
             beforeText: bs.display,
             afterText: as.display,
-            beforeValue: typeof bs.value === 'number' ? bs.value : null,
-            afterValue: typeof as.value === 'number' ? as.value : null,
+            beforeValue: numericOptionValue(bs.value),
+            afterValue: numericOptionValue(as.value),
             isPercentage: false,
             isMythic: true,
             mythicBefore: bs,

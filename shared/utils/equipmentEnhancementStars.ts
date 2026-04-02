@@ -1,12 +1,7 @@
-import type { InventoryItem, ItemOption } from '../types/entities.js';
+import type { InventoryItem } from '../types/entities.js';
 import { ItemGrade, CoreStat } from '../types/enums.js';
-import {
-    MAIN_ENHANCEMENT_STEP_MULTIPLIER,
-    CORE_STATS_DATA,
-    GRADE_SUB_OPTION_RULES,
-    SUB_OPTION_POOLS,
-    resolveCombatSubPoolDefinition,
-} from '../constants/index.js';
+import { MAIN_ENHANCEMENT_STEP_MULTIPLIER, CORE_STATS_DATA } from '../constants/index.js';
+import { applySuccessfulEnhancementTick, getEnhancementStepBonusMultiplier } from './equipmentEnhancementTick.js';
 
 /** 관리자·API 페이로드 등에서 강화 단계(0~10) 정수로 정규화 (문자열 등 대응) */
 export function parseEquipmentStarsFromPayload(raw: unknown): number {
@@ -21,103 +16,83 @@ export function isMailAttachmentEquipment(item: InventoryItem): boolean {
     return item.slot != null;
 }
 
-const getRandomInt = (min: number, max: number): number =>
-    Math.floor(Math.random() * (max - min + 1)) + min;
+/** 문자열 → 32비트 시드 (결정론 강화 롤용) */
+export function hashStringToSeed32(str: string): number {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
+
+/** 동일 시드 키 → 재현 가능한 [0,1) 난수 스트림 (관리자 우편·수령 보정용) */
+export function createSeededRandom(seedKey: string): () => number {
+    let state = hashStringToSeed32(seedKey) || 1;
+    return () => {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+        return state / 4294967296;
+    };
+}
+
+export type ApplyEnhancementStarsOptions = {
+    /** 기본 Math.random. 관리자 우편 등에서는 createSeededRandom 권장 */
+    rng?: () => number;
+};
 
 /**
- * ENHANCE_ITEM 성공 시와 동일한 규칙으로 부옵션(전투)만 1회 강화를 시뮬레이션.
- * (인게임 강화는 특수옵션·신화옵션 수치를 올리지 않음 — 생성 시 롤 값 유지)
+ * +0 상태(템플릿에서 막 생성된 주옵·부옵·특수·신화)에서 시작해, ENHANCE_ITEM 성공과 동일한 틱을 `stars`번 순서대로 적용.
+ * 주옵은 매 틱마다 인게임과 같이 누적 증가한다.
  */
-function simulateOneEnhancementTickForCombatSubs(item: InventoryItem): void {
-    const opts = item.options;
-    const slot = item.slot;
-    if (!opts || !slot) return;
-
-    const main = opts.main;
-    const grade = item.grade ?? ItemGrade.Normal;
-
-    if (opts.combatSubs.length < 4) {
-        const rules = GRADE_SUB_OPTION_RULES[grade];
-        const existingSubTypes = new Set([main.type, ...opts.combatSubs.map((s) => s.type)]);
-        const combatTier = rules.combatTier;
-        const combatPool = SUB_OPTION_POOLS[slot][combatTier].filter((opt) => !existingSubTypes.has(opt.type));
-        if (combatPool.length > 0) {
-            const newSubDef = combatPool[Math.floor(Math.random() * combatPool.length)];
-            const value = getRandomInt(newSubDef.range[0], newSubDef.range[1]);
-            const newSub: ItemOption = {
-                type: newSubDef.type,
-                value,
-                isPercentage: newSubDef.isPercentage,
-                display: `${newSubDef.type} +${value}${newSubDef.isPercentage ? '%' : ''} [${newSubDef.range[0]}~${newSubDef.range[1]}]`,
-                range: newSubDef.range,
-                enhancements: 0,
-            };
-            opts.combatSubs.push(newSub);
-        }
-    } else {
-        const subToUpgrade = opts.combatSubs[Math.floor(Math.random() * opts.combatSubs.length)];
-        subToUpgrade.enhancements = (subToUpgrade.enhancements || 0) + 1;
-
-        const itemTier = GRADE_SUB_OPTION_RULES[grade].combatTier;
-        const subOptionPool = SUB_OPTION_POOLS[slot][itemTier];
-        const subDef = resolveCombatSubPoolDefinition(
-            subOptionPool,
-            subToUpgrade.type as CoreStat,
-            subToUpgrade.isPercentage
-        );
-
-        if (subDef) {
-            const increaseAmount = getRandomInt(subDef.range[0], subDef.range[1]);
-            subToUpgrade.value += increaseAmount;
-
-            if (!subToUpgrade.range) {
-                subToUpgrade.range = [subDef.range[0], subDef.range[1]];
-            } else {
-                subToUpgrade.range[0] += subDef.range[0];
-                subToUpgrade.range[1] += subDef.range[1];
-            }
-
-            subToUpgrade.display = `${subToUpgrade.type} +${subToUpgrade.value}${subToUpgrade.isPercentage ? '%' : ''} [${subToUpgrade.range[0]}~${subToUpgrade.range[1]}]`;
-        } else {
-            subToUpgrade.value = parseFloat((subToUpgrade.value * 1.1).toFixed(2));
-            subToUpgrade.display = `${subToUpgrade.type} +${subToUpgrade.value}${subToUpgrade.isPercentage ? '%' : ''}`;
-        }
-    }
-}
-
-/** +0~+10 강화 단계에 맞춰 주옵션·부옵션(전투)을 ENHANCE_ITEM과 동일 규칙으로 반영. 특수/신화는 생성 롤 유지 */
-export function applyEnhancementStarsToEquipmentItem(item: InventoryItem, stars: number): void {
+export function applyEnhancementStarsToEquipmentItem(
+    item: InventoryItem,
+    stars: number,
+    options?: ApplyEnhancementStarsOptions
+): void {
     if (!isMailAttachmentEquipment(item) || !item.options?.main?.baseValue) return;
     const clamped = Math.max(0, Math.min(10, Math.floor(Number(stars)) || 0));
-    item.stars = clamped;
-
-    for (let t = 0; t < clamped; t++) {
-        simulateOneEnhancementTickForCombatSubs(item);
-    }
+    const rng = options?.rng ?? Math.random;
 
     const main = item.options.main;
-    const baseValue = main.baseValue!;
-    const multipliers = MAIN_ENHANCEMENT_STEP_MULTIPLIER[item.grade];
-    let enhancedIncreaseTotal = 0;
-    for (let i = 0; i < clamped; i++) {
-        const idx = Math.max(0, Math.min(9, i));
-        enhancedIncreaseTotal += Math.round(baseValue * (multipliers?.[idx] ?? 1));
-    }
-    const enhancedValue = parseFloat((baseValue + enhancedIncreaseTotal).toFixed(2));
+    const baseValue = Number(main.baseValue);
+    if (!Number.isFinite(baseValue)) return;
     const statName = CORE_STATS_DATA[main.type as CoreStat]?.name || main.type;
-    main.value = enhancedValue;
-    main.display = `${statName} +${enhancedValue}${main.isPercentage ? '%' : ''}`;
+
+    item.stars = 0;
+    main.value = baseValue;
+    main.display = `${statName} +${main.value}${main.isPercentage ? '%' : ''}`;
+
+    for (let n = 0; n < clamped; n++) {
+        applySuccessfulEnhancementTick(item, rng);
+    }
+
+    main.display = `${statName} +${main.value}${main.isPercentage ? '%' : ''}`;
 }
 
-function computeEnhancedMainValueAtStars(baseValue: number, grade: ItemGrade, stars: number): number {
+/** +0~+10 주옵 기대값 (MAIN_ENHANCEMENT_STEP_MULTIPLIER·단계 보너스와 동일) */
+export function computeEnhancedMainValueAtStars(baseValue: number, grade: ItemGrade, stars: number): number {
     const s = Math.max(0, Math.min(10, Math.floor(stars)));
     const multipliers = MAIN_ENHANCEMENT_STEP_MULTIPLIER[grade];
     let enhancedIncreaseTotal = 0;
     for (let i = 0; i < s; i++) {
         const idx = Math.max(0, Math.min(9, i));
-        enhancedIncreaseTotal += Math.round(baseValue * (multipliers?.[idx] ?? 1));
+        const stepBonusMultiplier = getEnhancementStepBonusMultiplier(i + 1);
+        enhancedIncreaseTotal += Math.round(baseValue * (multipliers?.[idx] ?? 1)) * stepBonusMultiplier;
     }
     return parseFloat((baseValue + enhancedIncreaseTotal).toFixed(2));
+}
+
+/**
+ * 주옵션이 이미 `stars`에 맞게 강화된 값인지 (우편 수령 시 부옵션 이중 적용 방지용)
+ */
+export function isEquipmentMainAlreadyEnhancedForStars(item: InventoryItem): boolean {
+    const main = item.options?.main;
+    if (!main?.baseValue || main.value == null || Number.isNaN(Number(main.value))) return false;
+    const starCount = Math.max(0, Math.min(10, Math.floor(Number(item.stars ?? 0))));
+    if (starCount <= 0) return false;
+    const expected = computeEnhancedMainValueAtStars(main.baseValue, item.grade ?? ItemGrade.Normal, starCount);
+    const current = Number(main.value);
+    return Math.abs(current - expected) < 0.51;
 }
 
 /** 주옵션 수치로부터 강화 단계(0~10) 역추정 (직렬화 등으로 stars 필드가 없을 때) */
