@@ -8,7 +8,7 @@ const DOCK_ITEMS: { tab: DockTab; label: string }[] = [
     { tab: 'ranking', label: '랭킹' },
     { tab: 'arena', label: '경기장' },
     { tab: 'tournament', label: '챔피언십' },
-    { tab: 'singleplayer', label: '싱글' },
+    { tab: 'singleplayer', label: '싱글플레이' },
     { tab: 'tower', label: '도전의 탑' },
 ];
 
@@ -63,6 +63,7 @@ const NativeMobileDock: React.FC = () => {
             className="flex w-full shrink-0 justify-center border-t border-color/40 bg-primary/98 px-1 py-1 backdrop-blur-sm"
             aria-label="주요 메뉴"
         >
+            <div className="w-full rounded-2xl border border-amber-500/25 bg-gradient-to-b from-stone-900/85 via-stone-900/75 to-black/70 p-1 shadow-[0_-6px_24px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)]">
             <div className="grid w-full grid-cols-6 gap-1">
                 {DOCK_ITEMS.map(({ tab, label }) => {
                     const on = activeTab === tab;
@@ -72,23 +73,29 @@ const NativeMobileDock: React.FC = () => {
                             type="button"
                             onClick={() => go(tab)}
                             className={[
-                                'flex min-h-[44px] flex-col items-center justify-center rounded-xl border px-px py-0.5 text-center transition-all duration-200 active:scale-[0.97] sm:min-h-[48px] sm:rounded-2xl sm:px-0.5 sm:py-1',
+                                'group relative flex aspect-square w-full min-h-[52px] flex-col items-center justify-center overflow-hidden rounded-xl border text-center transition-all duration-200 active:scale-[0.96] sm:min-h-[58px] sm:rounded-2xl',
                                 on
-                                    ? 'border-amber-400/70 bg-gradient-to-br from-amber-900/35 via-stone-900/80 to-stone-950/95 text-amber-100 shadow-[0_0_14px_rgba(251,191,36,0.22),inset_0_1px_0_rgba(255,255,255,0.08)]'
-                                    : 'border-stone-600/45 bg-gradient-to-br from-slate-800/85 via-slate-900/90 to-slate-950/95 text-stone-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-stone-500/55 hover:from-slate-700/90',
+                                    ? 'border-amber-300/70 bg-gradient-to-br from-amber-700/45 via-amber-900/70 to-stone-950/95 text-amber-50 shadow-[0_8px_18px_rgba(251,191,36,0.25),inset_0_1px_0_rgba(255,255,255,0.22)]'
+                                    : 'border-stone-500/50 bg-gradient-to-br from-slate-700/85 via-slate-900/90 to-slate-950/95 text-stone-100 shadow-[0_4px_14px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.1)] hover:border-stone-400/60',
                             ].join(' ')}
                         >
-                            {tab === 'tower' ? (
-                                <>
-                                    <span className="text-[9px] font-bold leading-tight tracking-tight">도전의</span>
-                                    <span className="text-[9px] font-bold leading-tight tracking-tight">탑</span>
-                                </>
-                            ) : (
-                                <span className="text-[10px] font-bold leading-tight tracking-tight">{label}</span>
-                            )}
+                            <span className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/45 to-transparent" />
+                            <span
+                                className={[
+                                    'relative whitespace-nowrap bg-gradient-to-b from-white via-amber-100 to-amber-300 bg-clip-text text-transparent',
+                                    'font-extrabold leading-none tracking-tight',
+                                    'drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] [text-shadow:0_0_10px_rgba(251,191,36,0.22)]',
+                                    tab === 'tournament' || tab === 'tower' || tab === 'singleplayer'
+                                        ? 'text-[15px] tracking-tighter'
+                                        : 'text-[18px] tracking-tight',
+                                ].join(' ')}
+                            >
+                                {label}
+                            </span>
                         </button>
                     );
                 })}
+            </div>
             </div>
         </nav>
     );

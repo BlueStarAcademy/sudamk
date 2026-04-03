@@ -12,7 +12,7 @@ import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
 import NativeMobileDock from './components/mobile/NativeMobileDock.js';
-import { NATIVE_MOBILE_SHELL_MAX_WIDTH } from './constants/ads.js';
+import { NATIVE_MOBILE_SHELL_MAX_WIDTH, NATIVE_MOBILE_MODAL_MAX_WIDTH_PX } from './constants/ads.js';
 
 /**
  * 세로로 든 폰에서 전체 UI를 CSS로 90° 돌리면( index.css 의 sudamr-handheld-* )
@@ -149,7 +149,7 @@ const AppContent: React.FC = () => {
     const backgroundClass = currentUser ? 'bg-primary' : 'bg-login-background';
 
     const isHandheld = useIsHandheldDevice(1025);
-    const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout !== false;
+    const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout === true;
     /** 스케일 셸 전용: 네이티브 모드에서는 좌우 레일·하단 배너로 대체 */
     const showLobbySideAds = Boolean(currentUser && !isGameView && !isNativeMobile);
 
@@ -179,39 +179,37 @@ const AppContent: React.FC = () => {
         return () => ro.disconnect();
     }, [isNativeMobile]);
 
-    // 휴대기기: CSS 전체 회전과 같이 쓰면 키보드 방향이 꼬이므로, 래퍼 사용 시에만 시도
+    // 휴대기기: 세로 모드 고정(PWA manifest와 동일). 일부 브라우저는 사용자 제스처 후에만 lock 성공.
     useEffect(() => {
-        if (!USE_HANDHELD_CSS_ORIENTATION_WRAPPER) return;
         if (typeof window === 'undefined' || !isHandheld) return;
         const orient = (window as any).screen?.orientation;
         if (!orient?.lock) return;
 
         let lastLockAttempt = 0;
-        const tryLockLandscape = () => {
+        const tryLockPortrait = () => {
             const now = Date.now();
             if (now - lastLockAttempt < 400) return;
             lastLockAttempt = now;
-            orient.lock('landscape').catch(() => {
-                orient.lock('landscape-primary').catch(() => {});
+            orient.lock('portrait').catch(() => {
+                orient.lock('portrait-primary').catch(() => {});
             });
         };
 
         const onVisibilityChange = () => {
-            if (document.visibilityState === 'visible') tryLockLandscape();
+            if (document.visibilityState === 'visible') tryLockPortrait();
         };
 
-        tryLockLandscape();
-        window.addEventListener('orientationchange', tryLockLandscape);
+        tryLockPortrait();
+        window.addEventListener('orientationchange', tryLockPortrait);
         document.addEventListener('visibilitychange', onVisibilityChange);
-        orient.addEventListener?.('change', tryLockLandscape);
-        // 사용자 제스처 뒤에만 lock이 되는 브라우저 대비 — 짧게 스로틀하여 반복 시도
-        const onGesture = () => tryLockLandscape();
+        orient.addEventListener?.('change', tryLockPortrait);
+        const onGesture = () => tryLockPortrait();
         document.addEventListener('touchstart', onGesture, { passive: true, capture: true });
         document.addEventListener('click', onGesture, { capture: true });
         return () => {
-            window.removeEventListener('orientationchange', tryLockLandscape);
+            window.removeEventListener('orientationchange', tryLockPortrait);
             document.removeEventListener('visibilitychange', onVisibilityChange);
-            orient.removeEventListener?.('change', tryLockLandscape);
+            orient.removeEventListener?.('change', tryLockPortrait);
             document.removeEventListener('touchstart', onGesture, { capture: true } as AddEventListenerOptions);
             document.removeEventListener('click', onGesture, { capture: true } as AddEventListenerOptions);
         };
@@ -239,6 +237,12 @@ const AppContent: React.FC = () => {
             
             {isNativeMobile ? (
                 <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative">
+                    <style>{`
+                        #sudamr-modal-root [data-draggable-window] {
+                            max-width: ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px !important;
+                            box-sizing: border-box;
+                        }
+                    `}</style>
                     <div
                         id="sudamr-modal-root"
                         className="fixed inset-0 z-[180] pointer-events-none"

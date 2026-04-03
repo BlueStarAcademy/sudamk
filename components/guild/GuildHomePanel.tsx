@@ -11,6 +11,7 @@ const ensureTimestamp = (v: number | string | undefined): number =>
     typeof v === 'number' ? v : new Date((v as string) || 0).getTime();
 import { AVATAR_POOL, BORDER_POOL } from '../../constants/index.js';
 import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
+import { containsProfanity } from '../../profanity.js';
 
 // 고급 버튼 스타일 함수
 const luxuryButtonBase = "relative overflow-hidden whitespace-normal break-keep text-sm px-4 py-2 rounded-xl backdrop-blur-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-1";
@@ -95,8 +96,8 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
         <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-2 sm:p-4 rounded-xl flex flex-col h-full border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
             <div className="relative z-10 flex flex-col h-full min-h-0">
-                <div className="flex justify-between items-center mb-2 flex-shrink-0">
-                    <h3 className="font-bold text-sm sm:text-lg text-highlight drop-shadow-lg flex items-center gap-1 sm:gap-2">
+                <div className="mb-2 flex flex-shrink-0 items-center justify-between gap-2">
+                    <h3 className="flex items-center gap-1 text-sm font-bold text-highlight drop-shadow-lg sm:gap-2 sm:text-lg">
                         <span className="text-base sm:text-xl">📅</span>
                         <span className="whitespace-nowrap">길드 출석부</span>
                     </h3>
@@ -104,7 +105,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
                         onClick={handleCheckIn} 
                         disabled={hasCheckedInToday} 
                         colorScheme="none"
-                        className={`${hasCheckedInToday ? getLuxuryButtonClasses('gray') : getLuxuryButtonClasses('green')} !text-xs sm:!text-sm !py-1 sm:!py-2 !px-2 sm:!px-4`}
+                        className={`${hasCheckedInToday ? getLuxuryButtonClasses('gray') : getLuxuryButtonClasses('green')} !text-xs sm:!text-sm !py-1 sm:!py-2 !px-2 sm:!px-4 shrink-0`}
                     >
                         {hasCheckedInToday ? '출석 완료' : '출석하기'}
                     </Button>
@@ -234,6 +235,7 @@ export const GuildAnnouncementPanel: React.FC<{ guild: GuildType }> = ({ guild }
 export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember | undefined }> = ({ guild, myMemberInfo }) => {
     const { handlers, allUsers, currentUserWithStatus, waitingRoomChats } = useAppContext();
     const [message, setMessage] = useState('');
+    const [cooldown, setCooldown] = useState(0);
     const [activeTab, setActiveTab] = useState<'guild' | 'global'>('global');
     const [showQuickChat, setShowQuickChat] = useState(false);
     const chatBodyRef = useRef<HTMLDivElement>(null);
@@ -250,6 +252,13 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
     }, [guild.chatHistory, globalChatMessages, activeTab]);
 
     useEffect(() => {
+        if (cooldown > 0) {
+            const timer = setTimeout(() => setCooldown(prev => Math.max(0, prev - 1)), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [cooldown]);
+
+    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (quickChatRef.current && !quickChatRef.current.contains(event.target as Node)) {
                 setShowQuickChat(false);
@@ -259,26 +268,27 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const handleSend = (message: { text?: string, emoji?: string }) => {
+    const handleSend = (payload: { text?: string; emoji?: string }) => {
+        if (cooldown > 0) return;
+        let didSend = false;
         if (activeTab === 'guild') {
-            if (message.text) {
-                handlers.handleAction({ type: 'SEND_GUILD_CHAT_MESSAGE', payload: { content: message.text } });
+            if (payload.text) {
+                handlers.handleAction({ type: 'SEND_GUILD_CHAT_MESSAGE', payload: { content: payload.text } });
+                didSend = true;
             }
         } else {
-            if (message.text) {
-                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', text: message.text, location: '[홈]' } });
-            } else if (message.emoji) {
-                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', emoji: message.emoji, location: '[홈]' } });
+            if (payload.text) {
+                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', text: payload.text, location: '[홈]' } });
+                didSend = true;
+            } else if (payload.emoji) {
+                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', emoji: payload.emoji, location: '[홈]' } });
+                didSend = true;
             }
         }
-        setShowQuickChat(false);
-        setMessage('');
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (message.trim()) {
-            handleSend({ text: message });
+        if (didSend) {
+            setShowQuickChat(false);
+            setMessage('');
+            setCooldown(5);
         }
     };
 
@@ -292,6 +302,30 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                 } 
             });
         }
+    };
+
+    if (!currentUserWithStatus) {
+        return null;
+    }
+
+    const isBanned = (currentUserWithStatus.chatBanUntil ?? 0) > Date.now();
+    const banTimeLeft = isBanned ? Math.ceil((currentUserWithStatus.chatBanUntil! - Date.now()) / 1000 / 60) : 0;
+    const isInputDisabled = isBanned || cooldown > 0;
+    const placeholderText = isBanned
+        ? `채팅 금지 중 (${banTimeLeft}분 남음)`
+        : isInputDisabled
+            ? `(${cooldown}초)`
+            : '[메시지 입력]';
+
+    const handleSendTextSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!message.trim() || isInputDisabled) return;
+        if (containsProfanity(message)) {
+            alert('부적절한 단어가 포함되어 있어 메시지를 전송할 수 없습니다.');
+            setMessage('');
+            return;
+        }
+        handleSend({ text: message });
     };
 
     return (
@@ -425,30 +459,32 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                         </ul>
                     </div>
                 )}
-                <form onSubmit={handleSubmit} className="flex gap-3 flex-shrink-0 relative z-10">
+                <form onSubmit={handleSendTextSubmit} className="relative z-10 flex flex-shrink-0 gap-1">
                     <button
                         type="button"
-                        onClick={() => setShowQuickChat(!showQuickChat)}
-                        className="px-3 py-2 bg-tertiary/80 border-2 border-black/30 rounded-lg hover:bg-tertiary transition-colors flex items-center justify-center"
+                        onClick={() => setShowQuickChat(s => !s)}
+                        className="flex items-center justify-center rounded-md bg-secondary px-2.5 text-lg font-bold text-primary transition-colors hover:bg-tertiary"
                         title="빠른 채팅"
+                        disabled={isInputDisabled}
                     >
-                        <span className="text-xl">😊</span>
+                        <span>🙂</span>
                     </button>
-                    <textarea 
-                        value={message} 
-                        onChange={e => setMessage(e.target.value)} 
-                        placeholder="메시지를 입력하세요..." 
-                        className="flex-grow bg-tertiary/80 border-2 border-black/30 rounded-lg p-3 text-sm resize-none shadow-inner backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all" 
-                        rows={1} 
-                        maxLength={200} 
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} 
+                    <input
+                        type="text"
+                        value={message}
+                        onChange={e => setMessage(e.target.value)}
+                        placeholder={placeholderText}
+                        className="flex-grow rounded-md border border-color bg-tertiary p-1 text-xs focus:border-accent focus:ring-accent disabled:bg-secondary disabled:text-tertiary"
+                        maxLength={30}
+                        disabled={isInputDisabled}
                     />
-                    <Button 
-                        type="submit" 
-                        colorScheme="none"
-                        className={getLuxuryButtonClasses('primary')}
+                    <Button
+                        type="submit"
+                        disabled={!message.trim() || isInputDisabled}
+                        className="!px-2 !py-1"
+                        title="보내기"
                     >
-                        전송
+                        💬
                     </Button>
                 </form>
             </div>

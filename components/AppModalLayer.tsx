@@ -1,5 +1,6 @@
 import React, { useMemo, Suspense, lazy } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import NegotiationModal from './NegotiationModal.js';
 import ChallengeReceivedModal from './ChallengeReceivedModal.js';
 
@@ -229,7 +230,10 @@ const AppModalLayer: React.FC = () => {
             {modals.isMbtiInfoModalOpen && <MbtiInfoModal onClose={handlers.closeMbtiInfoModal} isTopmost={topmostModalId === 'mbtiInfo'} />}
             {modals.mutualDisconnectMessage && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">
-                    <div className="bg-panel border border-color rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 text-center">
+                    <div
+                        className={`bg-panel border border-color rounded-xl shadow-2xl w-full mx-4 p-6 text-center ${isNativeMobile ? 'max-w-[720px]' : 'max-w-md'}`}
+                        style={isNativeMobile ? { maxWidth: NATIVE_MOBILE_MODAL_MAX_WIDTH_PX } : undefined}
+                    >
                         <h2 id="mutual-disconnect-title" className="text-lg font-bold text-on-panel mb-3">대국 종료 안내</h2>
                         <p className="text-on-panel/90 mb-6">{modals.mutualDisconnectMessage}</p>
                         <button type="button" onClick={handlers.closeMutualDisconnectModal} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
@@ -238,7 +242,9 @@ const AppModalLayer: React.FC = () => {
             )}
             {modals.showOtherDeviceLoginModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="other-device-login-title">
-                    <div className="bg-panel border border-color rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 text-center">
+                    <div
+                        className={`bg-panel border border-color rounded-xl shadow-2xl w-full mx-4 p-6 text-center ${isNativeMobile ? 'max-w-[min(100%,720px)]' : 'max-w-md'}`}
+                    >
                         <h2 id="other-device-login-title" className="text-lg font-bold text-on-panel mb-3">로그아웃 안내</h2>
                         <p className="text-on-panel/90 mb-6">다른 곳에서 로그인 되었습니다. 로그아웃 됩니다.</p>
                         <button type="button" onClick={handlers.confirmOtherDeviceLoginAndLogout} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>

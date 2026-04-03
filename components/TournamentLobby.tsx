@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat, ItemGrade } from '../types.js';
 import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LEVEL_REQUIREMENTS, emptySlotImages } from '../constants';
 import Avatar from './Avatar.js';
@@ -11,6 +11,7 @@ import PointsInfoPanel from './PointsInfoPanel.js';
 import Button from './Button.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import ChampionshipHelpModal from './ChampionshipHelpModal.js';
+import ChampionshipPointsModal from './ChampionshipPointsModal.js';
 import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
@@ -478,72 +479,116 @@ const TournamentCard: React.FC<{
     
     return (
         <div
-            className={`group relative flex flex-col rounded-lg bg-gray-800 text-center shadow-lg transition-all hover:shadow-purple-500/30 ${compact ? 'min-h-0 p-1' : 'h-full transform p-2 hover:-translate-y-1 sm:p-3'}`}
+            className={`group relative flex flex-col rounded-lg bg-gray-800 text-center shadow-lg transition-all hover:shadow-purple-500/30 ${compact ? 'flex h-full min-h-0 flex-col p-1.5' : 'h-full transform p-2 hover:-translate-y-1 sm:p-3'}`}
         >
             {/* 보상 미수령 표시: 붉은 점 */}
             {hasUnclaimedReward && (
                 <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full z-10 border-2 border-gray-800"></div>
             )}
-            <div className={`flex items-center justify-between ${compact ? 'mb-0.5' : 'mb-1.5 sm:mb-2'}`}>
+            <div className={`flex flex-shrink-0 items-center justify-between ${compact ? 'mb-1' : 'mb-1.5 sm:mb-2'}`}>
                 <div className="flex min-w-0 items-center gap-0.5">
-                    <h2 className={`truncate font-bold ${compact ? 'text-[9px]' : 'text-xs sm:text-sm lg:text-lg'}`}>
+                    <h2 className={`truncate font-bold ${compact ? 'text-[11px] leading-tight sm:text-xs' : 'text-xs sm:text-sm lg:text-lg'}`}>
                         {definition.name}
                     </h2>
                     {isCompletedToday ? (
-                        <span className={`text-green-400 font-semibold ${compact ? 'text-[7px]' : 'flex items-center gap-0.5 text-[10px] sm:text-xs'}`}>
+                        <span className={`text-green-400 font-semibold ${compact ? 'text-[9px]' : 'flex items-center gap-0.5 text-[10px] sm:text-xs'}`}>
                             {compact ? '✓' : (<><span>✓</span><span>완료</span></>)}
                         </span>
                     ) : isPausedInProgress ? (
-                        <span className={`text-amber-400 font-semibold ${compact ? 'text-[7px]' : 'text-[10px] sm:text-xs'}`}>{compact ? '..' : '진행중..'}</span>
+                        <span className={`text-amber-400 font-semibold ${compact ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>{compact ? '..' : '진행중..'}</span>
                     ) : (
-                        <span className={`text-gray-300 font-semibold ${compact ? 'text-[7px]' : 'text-[10px] sm:text-xs'}`}>({playedCountToday}/1)</span>
+                        <span className={`text-gray-300 font-semibold ${compact ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>({playedCountToday}/1)</span>
                     )}
                 </div>
                 {dungeonProgress.currentStage > 0 && (
-                    <span className={`flex-shrink-0 text-yellow-400 ${compact ? 'text-[7px]' : 'text-[10px] sm:text-xs'}`}>{compact ? `${dungeonProgress.currentStage}단` : `최고 ${dungeonProgress.currentStage}단계`}</span>
+                    <span className={`flex-shrink-0 text-yellow-400 ${compact ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>{compact ? `${dungeonProgress.currentStage}단` : `최고 ${dungeonProgress.currentStage}단계`}</span>
                 )}
             </div>
-            <div
-                className={`relative w-full overflow-hidden rounded-md bg-gray-700 ${compact ? 'h-11 flex-none' : 'aspect-video flex-grow'}`}
-            >
-                <img src={definition.image} alt={definition.name} className="h-full w-full object-cover" />
-            </div>
-
-            {/* 단계 설정: 입장 카드에서 선택 가능 (1~3위 시 다음 단계 열림 안내는 도움말 참고) */}
-            <div className={`relative ${compact ? 'mt-0.5' : 'mt-1.5 sm:mt-2'}`}>
-                <div className="flex flex-row items-center gap-0.5">
-                    <select
-                        value={selectedStage}
-                        onChange={(e) => setSelectedStage(Number(e.target.value))}
-                        onClick={(e) => e.stopPropagation()}
-                        className={`min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 text-white focus:border-purple-500 focus:outline-none ${compact ? 'px-0.5 py-px text-[7px]' : 'px-2 py-1 text-[10px] sm:text-xs'}`}
-                        title="진행 가능 단계 선택"
-                    >
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
-                            const isUnlocked = dungeonProgress.unlockedStages.includes(stage);
-                            const maxUnlocked = dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1;
-                            const isCleared = isStageCleared(dungeonProgress.stageResults, stage, dungeonProgress.currentStage, maxUnlocked);
-                            return (
-                                <option
-                                    key={stage}
-                                    value={stage}
-                                    disabled={!isUnlocked}
-                                    className={!isUnlocked ? 'text-gray-500' : isCleared ? 'text-green-400' : ''}
-                                >
-                                    {stage}단계{isCleared ? ' ✓ 클리어' : ''}{!isUnlocked ? ' (잠김)' : ''}
-                                </option>
-                            );
-                        })}
-                    </select>
-                    <button
-                        onClick={handleMainButtonClick}
-                        className={`flex-shrink-0 rounded bg-purple-600 font-bold text-white transition-colors hover:bg-purple-700 ${compact ? 'px-1 py-px text-[7px]' : 'px-2 py-1 text-[10px] sm:text-xs lg:text-sm'}`}
-                    >
-                        <span className="break-words leading-tight">{buttonText}</span>
-                        <span className="hidden sm:inline"> &rarr;</span>
-                    </button>
+            {compact ? (
+                <div className="mt-1 flex min-h-0 flex-1 flex-row items-stretch gap-1.5">
+                    <div className="relative min-h-0 min-w-0 flex-[8] overflow-hidden rounded-md bg-gray-700">
+                        <img
+                            src={definition.image}
+                            alt={definition.name}
+                            className="h-full w-full object-cover object-center"
+                        />
+                    </div>
+                    <div className="flex min-h-0 min-w-0 flex-[2] flex-col justify-center gap-1.5">
+                        <select
+                            value={selectedStage}
+                            onChange={(e) => setSelectedStage(Number(e.target.value))}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full rounded border border-gray-600 bg-gray-700 px-1.5 py-1 text-[9px] text-white focus:border-purple-500 focus:outline-none sm:text-[10px]"
+                            title="진행 가능 단계 선택"
+                        >
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
+                                const isUnlocked = dungeonProgress.unlockedStages.includes(stage);
+                                const maxUnlocked = dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1;
+                                const isCleared = isStageCleared(dungeonProgress.stageResults, stage, dungeonProgress.currentStage, maxUnlocked);
+                                return (
+                                    <option
+                                        key={stage}
+                                        value={stage}
+                                        disabled={!isUnlocked}
+                                        className={!isUnlocked ? 'text-gray-500' : isCleared ? 'text-green-400' : ''}
+                                    >
+                                        {stage}단계{isCleared ? ' ✓ 클리어' : ''}{!isUnlocked ? ' (잠김)' : ''}
+                                    </option>
+                                );
+                            })}
+                        </select>
+                        <button
+                            type="button"
+                            onClick={handleMainButtonClick}
+                            className="w-full rounded bg-purple-600 px-2 py-1.5 text-[9px] font-bold leading-tight text-white transition-colors hover:bg-purple-700 sm:text-[10px]"
+                        >
+                            <span className="break-words">{buttonText}</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <>
+                    <div className="relative aspect-video w-full flex-grow overflow-hidden rounded-md bg-gray-700">
+                        <img src={definition.image} alt={definition.name} className="h-full w-full object-cover" />
+                    </div>
+
+                    <div className="relative mt-1.5 sm:mt-2">
+                        <div className="flex flex-row items-center gap-1">
+                            <select
+                                value={selectedStage}
+                                onChange={(e) => setSelectedStage(Number(e.target.value))}
+                                onClick={(e) => e.stopPropagation()}
+                                className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-1 text-[10px] text-white focus:border-purple-500 focus:outline-none sm:text-xs"
+                                title="진행 가능 단계 선택"
+                            >
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
+                                    const isUnlocked = dungeonProgress.unlockedStages.includes(stage);
+                                    const maxUnlocked = dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1;
+                                    const isCleared = isStageCleared(dungeonProgress.stageResults, stage, dungeonProgress.currentStage, maxUnlocked);
+                                    return (
+                                        <option
+                                            key={stage}
+                                            value={stage}
+                                            disabled={!isUnlocked}
+                                            className={!isUnlocked ? 'text-gray-500' : isCleared ? 'text-green-400' : ''}
+                                        >
+                                            {stage}단계{isCleared ? ' ✓ 클리어' : ''}{!isUnlocked ? ' (잠김)' : ''}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={handleMainButtonClick}
+                                className="flex-shrink-0 rounded bg-purple-600 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-purple-700 sm:text-xs lg:text-sm"
+                            >
+                                <span className="break-words leading-tight">{buttonText}</span>
+                                <span className="hidden sm:inline"> &rarr;</span>
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 };
@@ -597,11 +642,12 @@ const coreStatAbbreviations: Record<CoreStat, string> = {
     [CoreStat.Stability]: '안정',
 };
 
-const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: boolean }> = ({ currentUser, isMobile = false }) => {
+const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: boolean; tight?: boolean }> = ({ currentUser, isMobile = false, tight = false }) => {
     const { coreStatBonuses } = useMemo(() => calculateUserEffects(currentUser), [currentUser]);
-    
+    const gapClass = tight && isMobile ? 'gap-0.5' : 'gap-1 sm:gap-1.5 lg:gap-2';
+
     return (
-        <div className="grid grid-cols-2 gap-1 sm:gap-1.5 lg:gap-2">
+        <div className={`grid grid-cols-2 ${gapClass}`}>
             {Object.values(CoreStat).map(stat => {
                 const baseValue = (currentUser.baseStats[stat] || 0) + (currentUser.spentStatPoints?.[stat] || 0);
                 // Align with calculateTotalStats: final = floor((base + flat) * (1 + percent/100))
@@ -615,7 +661,7 @@ const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: bool
                 // 4자리 이상이면 텍스트 크기를 줄임
                 const getValueTextSize = () => {
                     if (isMobile) {
-                        return valueDigits >= 4 ? 'text-[7px]' : 'text-[8px]';
+                        return valueDigits >= 4 ? 'text-[10px]' : 'text-xs';
                     }
                     if (valueDigits >= 4) {
                         return 'text-[9px] sm:text-[10px]';
@@ -625,7 +671,7 @@ const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: bool
                 
                 const getBonusTextSize = () => {
                     if (isMobile) {
-                        return totalDigits >= 7 ? 'text-[6px]' : 'text-[7px]';
+                        return totalDigits >= 7 ? 'text-[9px]' : 'text-[10px]';
                     }
                     if (totalDigits >= 7) {
                         return 'text-[8px] sm:text-[9px]';
@@ -633,9 +679,10 @@ const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: bool
                     return 'text-[9px] sm:text-xs';
                 };
                 
+                const padClass = tight && isMobile ? 'px-1 py-0.5' : isMobile ? 'p-1.5' : 'p-1.5 sm:p-2';
                 return (
-                    <div key={stat} className={`bg-gray-700/50 ${isMobile ? 'p-1' : 'p-1.5 sm:p-2'} rounded-md flex items-center justify-between ${isMobile ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}>
-                        <span className="font-semibold text-gray-300 whitespace-nowrap">{coreStatAbbreviations[stat]}</span>
+                    <div key={stat} className={`bg-gray-700/50 ${padClass} rounded-md flex items-center justify-between ${isMobile ? 'text-xs' : 'text-[10px] sm:text-xs'}`}>
+                        <span className={`font-semibold text-gray-300 whitespace-nowrap ${isMobile ? (tight ? 'text-[11px]' : 'text-xs') : ''}`}>{coreStatAbbreviations[stat]}</span>
                         <span className={`font-mono font-bold whitespace-nowrap ${getValueTextSize()}`} title={`기본: ${baseValue}, 장비: ${bonus}`}>
                             {finalValue}
                             {bonus > 0 && <span className={`text-green-400 ${getBonusTextSize()} ml-0.5`}>(+{bonus})</span>}
@@ -647,9 +694,20 @@ const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: bool
     );
 };
 
-const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem; onClick?: () => void; compact?: boolean }> = ({ slot, item, onClick, compact = false }) => {
+const EquipmentSlotDisplay: React.FC<{
+    slot: EquipmentSlot;
+    item?: InventoryItem;
+    onClick?: () => void;
+    /** 작은 슬롯(별 10px) */
+    compact?: boolean;
+    /** compact와 일반 사이: 별 12px, 장비 아이콘 패딩 약간 축소 */
+    medium?: boolean;
+    className?: string;
+}> = ({ slot, item, onClick, compact = false, medium = false, className = '' }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
-    
+    const starFontPx = compact ? 10 : medium ? 12 : 14;
+    const itemPadClass = medium ? 'p-1' : 'p-1.5';
+
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
         const titleText = `${item.name} (착용 레벨 합: ${requiredLevel}) - 클릭하여 상세보기`;
@@ -657,13 +715,13 @@ const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
-                className={`relative w-full aspect-square rounded-lg border-2 border-color/50 bg-tertiary/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+                className={`relative w-full aspect-square rounded-lg border-2 border-color/50 bg-tertiary/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''} ${className}`}
                 title={titleText}
                 onClick={onClick}
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
                 {item.stars > 0 && (
-                    <div className={`absolute top-1 right-2.5 text-sm font-bold z-10 ${starInfo.colorClass}`} style={{ textShadow: '1px 1px 2px black', fontSize: compact ? '10px' : '14px' }}>
+                    <div className={`absolute top-1 right-2.5 font-bold z-10 ${starInfo.colorClass}`} style={{ textShadow: '1px 1px 2px black', fontSize: `${starFontPx}px` }}>
                         ★{item.stars}
                     </div>
                 )}
@@ -671,7 +729,7 @@ const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem
                     <img
                         src={item.image}
                         alt={item.name}
-                        className="absolute object-contain p-1.5"
+                        className={`absolute object-contain ${itemPadClass}`}
                         style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                     />
                 )}
@@ -679,7 +737,7 @@ const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem
         );
     } else {
          return (
-             <img src={emptySlotImages[slot]} alt={`${slot} empty slot`} className="w-full aspect-square rounded-lg bg-tertiary/50 border-2 border-color/50" />
+             <img src={emptySlotImages[slot]} alt={`${slot} empty slot`} className={`w-full aspect-square rounded-lg bg-tertiary/50 border-2 border-color/50 ${className}`} />
         );
     }
 };
@@ -687,12 +745,38 @@ const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem
 const TournamentLobby: React.FC = () => {
     const { currentUserWithStatus, allUsers, handlers, waitingRoomChats, presets } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
+
+    /** 네이티브 상단 행(입장카드·장비·퀵메뉴) 높이: 퀵메뉴 고유 높이에 맞춤 — 퀵메뉴 버튼이 세로로 늘어나지 않도록 */
+    const nativeQuickMenuMeasureRef = useRef<HTMLDivElement>(null);
+    const [nativeTopRowHeightPx, setNativeTopRowHeightPx] = useState<number | null>(null);
+
+    useLayoutEffect(() => {
+        if (!isNativeMobile || !currentUserWithStatus) return;
+        const outer = nativeQuickMenuMeasureRef.current;
+        if (!outer) return;
+        const update = () => {
+            const inner = outer.querySelector<HTMLElement>('[data-quick-access-sidebar-root]');
+            if (!inner) return;
+            const st = getComputedStyle(outer);
+            const padY = parseFloat(st.paddingTop) + parseFloat(st.paddingBottom);
+            const borderY = parseFloat(st.borderTopWidth) + parseFloat(st.borderBottomWidth);
+            const h = inner.getBoundingClientRect().height + padY + borderY;
+            if (h > 0) setNativeTopRowHeightPx(Math.round(h));
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(outer);
+        const innerRoot = outer.querySelector('[data-quick-access-sidebar-root]');
+        if (innerRoot) ro.observe(innerRoot);
+        return () => ro.disconnect();
+    }, [isNativeMobile, currentUserWithStatus]);
     
     const [viewingTournament, setViewingTournament] = useState<TournamentState | null>(null);
     const [hasRankChanged, setHasRankChanged] = useState(false);
     const [enrollingIn, setEnrollingIn] = useState<TournamentType | null>(null);
     const [selectedPreset, setSelectedPreset] = useState(0);
     const [isChampionshipHelpOpen, setIsChampionshipHelpOpen] = useState(false);
+    const [isPointsInfoOpen, setIsPointsInfoOpen] = useState(false);
 
     if (!currentUserWithStatus) {
         return (
@@ -772,60 +856,147 @@ const TournamentLobby: React.FC = () => {
         <div
             className={`relative flex w-full flex-col overflow-hidden ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 px-0.5 pb-0.5' : 'h-full min-h-0 p-4 sm:p-6 lg:p-8'}`}
         >
-            <header className={`flex flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0.5 px-0.5' : 'mb-4 sm:mb-6'}`}>
-                <button
-                    onClick={() => window.location.hash = '#/profile'}
-                    className="transition-transform active:scale-90 filter hover:drop-shadow-lg"
-                >
-                    <img src="/images/button/back.png" alt="Back" className={isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'} />
-                </button>
-                <div className="min-w-0 flex-1 text-center">
-                    <h1 className={`font-bold ${isNativeMobile ? 'text-sm' : 'text-xl sm:text-2xl lg:text-4xl'}`}>챔피언십</h1>
-                </div>
-                <div className="flex items-center gap-1">
+            {isNativeMobile ? (
+                <header className="relative mb-0.5 flex min-h-9 shrink-0 items-center justify-center px-1">
+                    <h1 className="pointer-events-none select-none px-14 text-center text-sm font-bold">챔피언십</h1>
+                    <div className="absolute right-0.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                        <button
+                            type="button"
+                            onClick={() => setIsPointsInfoOpen(true)}
+                            className="rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[10px] font-semibold text-slate-100 shadow-sm backdrop-blur-sm transition-transform active:scale-95 sm:text-[11px]"
+                            aria-label="일일 획득 가능 점수"
+                        >
+                            획득 점수
+                        </button>
+                        <button
+                            onClick={() => setIsChampionshipHelpOpen(true)}
+                            className="flex h-7 w-7 items-center justify-center transition-transform hover:scale-110"
+                            aria-label="도움말"
+                            title="도움말"
+                        >
+                            <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
+                        </button>
+                    </div>
+                </header>
+            ) : (
+                <header className="mb-4 flex flex-shrink-0 items-center justify-between sm:mb-6">
                     <button
-                        onClick={() => setIsChampionshipHelpOpen(true)}
-                        className={`flex items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-10 sm:w-10'}`}
-                        aria-label="도움말"
-                        title="도움말"
+                        onClick={() => window.location.hash = '#/profile'}
+                        className="transition-transform active:scale-90 filter hover:drop-shadow-lg"
                     >
-                        <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
+                        <img src="/images/button/back.png" alt="Back" className="h-10 w-10 sm:h-12 sm:w-12" />
                     </button>
-                </div>
-            </header>
+                    <div className="min-w-0 flex-1 text-center">
+                        <h1 className="text-xl font-bold sm:text-2xl lg:text-4xl">챔피언십</h1>
+                    </div>
+                    <div className="flex shrink-0 items-center justify-center">
+                        <button
+                            onClick={() => setIsChampionshipHelpOpen(true)}
+                            className="flex h-8 w-8 items-center justify-center transition-transform hover:scale-110 sm:h-10 sm:w-10"
+                            aria-label="도움말"
+                            title="도움말"
+                        >
+                            <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
+                        </button>
+                    </div>
+                </header>
+            )}
 
             {isNativeMobile ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
-                    <div className="grid max-h-[28dvh] min-h-0 shrink-0 grid-cols-3 gap-0.5">
-                        <TournamentCard
-                            compact
-                            type="neighborhood"
-                            onClick={(stage) => handleEnterArena('neighborhood', stage)}
-                            onContinue={() => handleContinueTournament('neighborhood')}
-                            inProgress={neighborhoodState || null}
-                            currentUser={currentUserWithStatus}
-                        />
-                        <TournamentCard
-                            compact
-                            type="national"
-                            onClick={(stage) => handleEnterArena('national', stage)}
-                            onContinue={() => handleContinueTournament('national')}
-                            inProgress={nationalState || null}
-                            currentUser={currentUserWithStatus}
-                        />
-                        <TournamentCard
-                            compact
-                            type="world"
-                            onClick={(stage) => handleEnterArena('world', stage)}
-                            onContinue={() => handleContinueTournament('world')}
-                            inProgress={worldState || null}
-                            currentUser={currentUserWithStatus}
-                        />
-                    </div>
-                    <div className="grid min-h-0 flex-[1.15] grid-cols-2 gap-0.5 overflow-hidden">
-                        <div className="min-h-0 overflow-y-auto overflow-x-hidden rounded-md bg-gray-800/60">
-                            <PointsInfoPanel />
+                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+                    {/* 상단: 경기장 입장(세로) · 장착 장비 · 퀵메뉴 — 일일 점수는 헤더「획득 점수」모달 */}
+                    <div
+                        className="grid min-h-0 shrink-0 grid-cols-[minmax(0,1.2fr)_minmax(0,0.75fr)_5.5rem] gap-0.5 overflow-hidden"
+                        style={{
+                            height: nativeTopRowHeightPx != null ? `${nativeTopRowHeightPx}px` : undefined,
+                            maxHeight: 'min(44dvh, 90vh)',
+                        }}
+                    >
+                        <div className="flex h-full min-h-0 min-w-0 flex-col gap-1 overflow-hidden rounded-md border border-color/40 bg-gray-800/40 p-0.5">
+                            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
+                                <div className="relative min-h-0 flex flex-1 flex-col overflow-hidden">
+                                    <TournamentCard
+                                        compact
+                                        type="neighborhood"
+                                        onClick={(stage) => handleEnterArena('neighborhood', stage)}
+                                        onContinue={() => handleContinueTournament('neighborhood')}
+                                        inProgress={neighborhoodState || null}
+                                        currentUser={currentUserWithStatus}
+                                    />
+                                </div>
+                                <div className="relative min-h-0 flex flex-1 flex-col overflow-hidden">
+                                    <TournamentCard
+                                        compact
+                                        type="national"
+                                        onClick={(stage) => handleEnterArena('national', stage)}
+                                        onContinue={() => handleContinueTournament('national')}
+                                        inProgress={nationalState || null}
+                                        currentUser={currentUserWithStatus}
+                                    />
+                                </div>
+                                <div className="relative min-h-0 flex flex-1 flex-col overflow-hidden">
+                                    <TournamentCard
+                                        compact
+                                        type="world"
+                                        onClick={(stage) => handleEnterArena('world', stage)}
+                                        onContinue={() => handleContinueTournament('world')}
+                                        inProgress={worldState || null}
+                                        currentUser={currentUserWithStatus}
+                                    />
+                                </div>
+                            </div>
                         </div>
+                        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel text-on-panel">
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-1 py-1">
+                                <h3 className="flex-shrink-0 text-center text-xs font-semibold leading-tight text-secondary sm:text-sm">장착 장비</h3>
+                                <div className="grid shrink-0 grid-cols-3 grid-rows-2 gap-x-0.5 gap-y-px px-0.5">
+                                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
+                                        const item = getItemForSlot(slot);
+                                        return (
+                                            <div key={slot} className="aspect-square min-h-0 w-full min-w-0">
+                                                <EquipmentSlotDisplay
+                                                    slot={slot}
+                                                    item={item}
+                                                    medium
+                                                    onClick={() => item && handlers.openViewingItem(item, true)}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex shrink-0 items-center justify-center gap-1 pt-0.5">
+                                    <select
+                                        value={selectedPreset}
+                                        onChange={handlePresetChange}
+                                        className="min-w-0 flex-1 rounded border border-color bg-secondary px-1.5 py-0.5 text-xs font-semibold leading-tight sm:text-[13px]"
+                                    >
+                                        {presets && presets.map((preset, index) => (
+                                            <option key={index} value={index}>{preset.name}</option>
+                                        ))}
+                                    </select>
+                                    <Button
+                                        onClick={handlers.openEquipmentEffectsModal}
+                                        colorScheme="none"
+                                        className="!px-2 !py-0.5 !text-[10px] flex-shrink-0 justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white sm:!text-xs"
+                                    >
+                                        효과
+                                    </Button>
+                                </div>
+                                <div className="flex min-h-0 min-w-0 flex-1 flex-col border-t border-color pt-0.5">
+                                    <StatsDisplayPanel currentUser={currentUserWithStatus} isMobile tight />
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            ref={nativeQuickMenuMeasureRef}
+                            className="box-border flex h-fit min-h-0 min-w-0 flex-col self-start overflow-hidden rounded-md border border-color/50 bg-panel/95 p-0.5"
+                        >
+                            <QuickAccessSidebar nativeHomeColumn fillHeight={false} />
+                        </div>
+                    </div>
+
+                    {/* 채팅 · 챔피언십 랭킹 */}
+                    <div className="grid min-h-0 flex-1 grid-cols-2 gap-0.5 overflow-hidden">
                         <div className="min-h-0 overflow-hidden rounded-md bg-gray-800/50">
                             <ChatWindow
                                 messages={waitingRoomChats.global || []}
@@ -835,55 +1006,9 @@ const TournamentLobby: React.FC = () => {
                                 locationPrefix="[챔피언십]"
                             />
                         </div>
-                    </div>
-                    <div className="grid max-h-[24dvh] min-h-0 shrink-0 grid-cols-5 gap-0.5 overflow-hidden">
-                        <div className="col-span-3 flex min-h-0 flex-col overflow-hidden rounded-md border border-color bg-panel text-on-panel">
-                            <div className="flex min-h-0 flex-1 flex-col p-0.5">
-                                <h3 className="mb-0.5 flex-shrink-0 text-center text-[9px] font-semibold text-secondary">장착</h3>
-                                <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-px">
-                                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                        const item = getItemForSlot(slot);
-                                        return (
-                                            <div key={slot} className="min-h-0 min-w-0">
-                                                <EquipmentSlotDisplay
-                                                    slot={slot}
-                                                    item={item}
-                                                    onClick={() => item && handlers.openViewingItem(item, true)}
-                                                />
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="mt-0.5 flex shrink-0 items-center gap-0.5">
-                                    <select
-                                        value={selectedPreset}
-                                        onChange={handlePresetChange}
-                                        className="min-w-0 flex-1 rounded border border-color bg-secondary p-px text-[8px]"
-                                    >
-                                        {presets && presets.map((preset, index) => (
-                                            <option key={index} value={index}>{preset.name}</option>
-                                        ))}
-                                    </select>
-                                    <Button
-                                        onClick={handlers.openEquipmentEffectsModal}
-                                        colorScheme="none"
-                                        className="!px-1 !py-0 !text-[7px] flex-shrink-0 justify-center rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
-                                    >
-                                        효과
-                                    </Button>
-                                </div>
-                                <div className="mt-0.5 max-h-[4.5rem] shrink-0 overflow-y-auto border-t border-color pt-0.5">
-                                    <h3 className="text-[8px] font-semibold text-secondary">능력</h3>
-                                    <StatsDisplayPanel currentUser={currentUserWithStatus} />
-                                </div>
-                            </div>
+                        <div className="min-h-0 overflow-hidden rounded-md border border-color/40 bg-panel/90 p-0.5">
+                            <ChampionshipRankingPanel compact />
                         </div>
-                        <div className="col-span-2 min-h-0 overflow-hidden rounded-md bg-panel/90 p-0.5">
-                            <QuickAccessSidebar compact fillHeight={false} />
-                        </div>
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-hidden">
-                        <ChampionshipRankingPanel compact dense />
                     </div>
                 </div>
             ) : (
@@ -966,6 +1091,7 @@ const TournamentLobby: React.FC = () => {
             </div>
             )}
             {isChampionshipHelpOpen && <ChampionshipHelpModal onClose={() => setIsChampionshipHelpOpen(false)} />}
+            {isPointsInfoOpen && <ChampionshipPointsModal onClose={() => setIsPointsInfoOpen(false)} isTopmost />}
         </div>
     );
 };

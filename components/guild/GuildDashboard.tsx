@@ -5,7 +5,7 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
-import GuildHomePanel, { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
+import { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
 import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
 import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT } from '../../constants/index.js';
@@ -47,10 +47,10 @@ const getGuildIconPath = (icon: string | undefined): string => {
 
 const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null; onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void; goldButtonRef: React.RefObject<HTMLDivElement>; diamondButtonRef: React.RefObject<HTMLDivElement> }> = ({ guild, guildDonationAnimation, onDonationComplete, goldButtonRef, diamondButtonRef }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
-    const { isNativeMobile } = useNativeMobileShell();
     const [isDonating, setIsDonating] = useState(false);
     const [donationType, setDonationType] = useState<'gold' | 'diamond' | null>(null);
     const [donationModal, setDonationModal] = useState<{ type: 'gold' | 'diamond'; count: number } | null>(null);
+    const [donationLogModalOpen, setDonationLogModalOpen] = useState(false);
     const donationInFlight = useRef(false);
     const now = Date.now();
     const dailyDonations = (currentUserWithStatus?.dailyDonations && isSameDayKST(currentUserWithStatus.dailyDonations.date, now))
@@ -124,63 +124,91 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
             .map(([userId, agg]) => ({ userId, ...agg }))
             .sort((a, b) => b.totalCoins - a.totalCoins);
     }, [guild?.donationLog]);
-    const isMobile = isNativeMobile;
+
+    const donationLogModalContent = (
+        <div className="max-h-[min(70vh,28rem)] overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/50 p-3 shadow-inner backdrop-blur-sm">
+            <div className="space-y-0.5 text-xs text-secondary">
+                {donationByUser.length === 0 ? (
+                    <div className="py-4 text-center text-stone-500">기록 없음</div>
+                ) : (
+                    donationByUser.map((agg) => (
+                        <div
+                            key={agg.userId}
+                            className="leading-relaxed break-words"
+                            title={`${agg.nickname} · 골드 ${agg.goldCount}회 · 다이아 ${agg.diamondCount}회 · 길드코인 ${agg.totalCoins.toLocaleString()} · RP ${agg.totalResearch.toLocaleString()}`}
+                        >
+                            <span className="text-amber-200/90">[{agg.nickname}]</span>{' '}
+                            <span className="text-amber-200/95">
+                                골드 <span className="font-semibold text-white">{agg.goldCount}</span>회
+                            </span>
+                            {' · '}
+                            <span className="text-blue-200/95">
+                                다이아 <span className="font-semibold text-white">{agg.diamondCount}</span>회
+                            </span>
+                            {' · '}
+                            <img src="/images/guild/tokken.png" alt="코인" className="inline h-2.5 w-2.5 align-middle" />
+                            <span className="font-semibold text-amber-200">{agg.totalCoins.toLocaleString()}</span>
+                            {' · '}
+                            <img src="/images/guild/button/guildlab.png" alt="RP" className="inline h-2.5 w-2.5 align-middle" />
+                            <span className="font-semibold text-blue-200">{agg.totalResearch.toLocaleString()}</span>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    );
 
     return (
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col gap-3 relative overflow-hidden border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-1 min-h-[200px] max-h-[320px]" style={{ minHeight: '200px' }}>
-            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none rounded-xl" />
-            <h3 className="font-bold text-base text-highlight text-center relative z-10 flex items-center justify-center gap-2 drop-shadow-lg flex-shrink-0">
-                <span className="text-lg">💎</span>
-                <span>길드 기부</span>
-            </h3>
+        <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-2 shadow-2xl backdrop-blur-md sm:gap-3 sm:p-3">
+            <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10" />
 
-            <div className="flex flex-row gap-3 relative z-10 min-w-0 flex-1 min-h-0 items-stretch">
-            {/* 좌측: 기부 버튼 — 뷰포트 md 대신 항상 PC와 동일(캔버스 내부는 설계 너비 기준) */}
-            <div className="flex-[1] flex flex-row gap-4 min-w-0 shrink-0 justify-center items-stretch">
-                {/* 골드 기부 */}
-                <div className="flex-1 flex flex-col gap-1.5 min-w-[100px] max-w-[140px] shrink-0 items-center justify-center">
-                    <div className="text-xs text-amber-200 font-semibold whitespace-nowrap text-center w-full">골드 기부</div>
+            <div className="relative z-10 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2">
+                <div className="flex w-full min-w-0 flex-col gap-1.5">
+                    <div className="text-center text-[10px] font-semibold text-amber-200 sm:text-xs">골드 기부</div>
                     <div ref={goldButtonRef} className="w-full min-w-0">
                         <Button
                             onClick={() => openDonationModal('gold')}
                             disabled={!canDonateGold || isDonating}
                             colorScheme="none"
-                            className={`w-full justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 font-bold text-sm py-2.5 px-2 shadow-[0_1px_2px_rgba(0,0,0,0.3)] [text-shadow:0_1px_0_rgba(255,255,255,0.3)] flex flex-col items-center gap-0.5 leading-tight ${!canDonateGold || isDonating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 py-2.5 text-sm font-bold text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.3)] [text-shadow:0_1px_0_rgba(255,255,255,0.3)] leading-tight ${!canDonateGold || isDonating ? 'cursor-not-allowed opacity-50' : ''}`}
                         >
                             {isDonating && donationType === 'gold' ? (
                                 <span className="animate-spin">⏳</span>
                             ) : (
                                 <>
                                     <span className="flex items-center gap-1 whitespace-nowrap">
-                                        <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4 flex-shrink-0" />
+                                        <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 shrink-0" />
                                         <span>{GUILD_DONATION_GOLD_COST.toLocaleString()}</span>
                                     </span>
-                                    <span className="text-[10px] opacity-90">{goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}</span>
+                                    <span className="text-[10px] opacity-90">
+                                        {goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}
+                                    </span>
                                 </>
                             )}
                         </Button>
                     </div>
                 </div>
 
-                {/* 다이아 기부 */}
-                <div className="flex-1 flex flex-col gap-1.5 min-w-[100px] max-w-[140px] shrink-0 items-center justify-center">
-                    <div className="text-xs text-blue-200 font-semibold whitespace-nowrap text-center w-full">다이아 기부</div>
+                <div className="flex w-full min-w-0 flex-col gap-1.5">
+                    <div className="text-center text-[10px] font-semibold text-blue-200 sm:text-xs">다이아 기부</div>
                     <div ref={diamondButtonRef} className="w-full min-w-0">
                         <Button
                             onClick={() => openDonationModal('diamond')}
                             disabled={!canDonateDiamond || isDonating}
                             colorScheme="none"
-                            className={`w-full justify-center rounded-xl border border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white font-bold text-sm py-2.5 px-2 shadow-[0_1px_2px_rgba(0,0,0,0.3)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] flex flex-col items-center gap-0.5 leading-tight ${!canDonateDiamond || isDonating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 py-2.5 text-sm font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.3)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] leading-tight ${!canDonateDiamond || isDonating ? 'cursor-not-allowed opacity-50' : ''}`}
                         >
                             {isDonating && donationType === 'diamond' ? (
                                 <span className="animate-spin">⏳</span>
                             ) : (
                                 <>
                                     <span className="flex items-center gap-1 whitespace-nowrap">
-                                        <img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4 flex-shrink-0" />
+                                        <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 shrink-0" />
                                         <span>{GUILD_DONATION_DIAMOND_COST.toLocaleString()}</span>
                                     </span>
-                                    <span className="text-[10px] opacity-90">{diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}</span>
+                                    <span className="text-[10px] opacity-90">
+                                        {diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}
+                                    </span>
                                 </>
                             )}
                         </Button>
@@ -188,36 +216,16 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                 </div>
             </div>
 
-            {/* 우측: 기부 기록 - 고정 높이, 내용 많으면 내부 스크롤 */}
-            <div className="flex-[1.5] min-w-0 flex flex-col min-h-0 relative z-10 border-l border-stone-600/50 pl-3 pt-0">
-                <div className="text-xs font-semibold text-highlight mb-1 flex-shrink-0">기부 기록</div>
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1 rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner backdrop-blur-sm">
-                    <div className="p-3 space-y-0.5 text-xs text-secondary min-h-full">
-                            {donationByUser.length === 0 ? (
-                                <div className="text-stone-500 py-1">기록 없음</div>
-                            ) : (
-                                donationByUser.map((agg) => (
-                                    <div key={agg.userId} className="leading-tight truncate" title={`${agg.nickname} · 골드 ${agg.goldCount}회 · 다이아 ${agg.diamondCount}회 · 길드코인 ${agg.totalCoins.toLocaleString()} · RP ${agg.totalResearch.toLocaleString()}`}>
-                                        <span className="text-amber-200/90">[{agg.nickname}]</span>
-                                        {' '}
-                                        <span className="text-amber-200/95">골드 <span className="font-semibold text-white">{agg.goldCount}</span>회</span>
-                                        {' · '}
-                                        <span className="text-blue-200/95">다이아 <span className="font-semibold text-white">{agg.diamondCount}</span>회</span>
-                                        {' · '}
-                                        <img src="/images/guild/tokken.png" alt="코인" className="w-2.5 h-2.5 inline align-middle" />
-                                        <span className="font-semibold text-amber-200">{agg.totalCoins.toLocaleString()}</span>
-                                        {' · '}
-                                        <img src="/images/guild/button/guildlab.png" alt="RP" className="w-2.5 h-2.5 inline align-middle" />
-                                        <span className="font-semibold text-blue-200">{agg.totalResearch.toLocaleString()}</span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <Button
+                type="button"
+                colorScheme="none"
+                onClick={() => setDonationLogModalOpen(true)}
+                className="relative z-10 w-full shrink-0 rounded-xl border border-stone-500/50 bg-gradient-to-br from-stone-800/90 to-stone-900/90 py-2 text-xs font-semibold text-highlight shadow-md transition-all hover:brightness-110 sm:text-sm"
+            >
+                기부 기록
+            </Button>
 
-            {/* 기부 횟수 선택 모달 - createPortal로 document.body에 렌더링 */}
+            {/* 기부 횟수 선택 모달 */}
             {donationModal && createPortal(
                 <div className="fixed inset-0 flex items-center justify-center z-[99999] pointer-events-auto" style={{ isolation: 'isolate' }}>
                     <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-0 pointer-events-auto" onClick={() => setDonationModal(null)} />
@@ -303,6 +311,42 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                 </div>,
                 document.getElementById('sudamr-modal-root') ?? document.body
             )}
+            {donationLogModalOpen &&
+                createPortal(
+                    <div
+                        className="pointer-events-auto fixed inset-0 z-[99999] flex items-center justify-center p-4"
+                        style={{ isolation: 'isolate' }}
+                    >
+                        <div
+                            className="absolute inset-0 z-0 bg-black/70 backdrop-blur-sm"
+                            onClick={() => setDonationLogModalOpen(false)}
+                            aria-hidden
+                        />
+                        <div
+                            className="relative z-10 flex max-h-[min(90vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="guild-donation-log-title"
+                        >
+                            <div className="flex flex-shrink-0 items-center justify-between border-b border-stone-600/50 px-4 py-3">
+                                <h3 id="guild-donation-log-title" className="text-lg font-bold text-highlight">
+                                    기부 기록
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setDonationLogModalOpen(false)}
+                                    className="rounded-lg p-1 text-2xl leading-none text-tertiary transition-colors hover:bg-stone-700/50 hover:text-primary"
+                                    aria-label="닫기"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <div className="min-h-0 flex-1 overflow-hidden p-4">{donationLogModalContent}</div>
+                        </div>
+                    </div>,
+                    document.getElementById('sudamr-modal-root') ?? document.body
+                )}
         </div>
     );
 };
@@ -316,10 +360,6 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
     ];
     return (
         <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-shrink-0">
-            <h3 className="font-bold text-base text-highlight mb-2 text-center flex items-center justify-center gap-2 flex-shrink-0">
-                <span className="text-xl">⚡</span>
-                <span>길드 활동</span>
-            </h3>
             <div className="flex justify-around items-center gap-2">
                 {activities.map(act => (
                     <button 
@@ -343,9 +383,52 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
     );
 };
 
+/** 우측 6rem 열: 길드 컨텐츠 버튼 아래 세로 배치 */
+const GuildActivityRailStrip: React.FC<{
+    onOpenMissions: () => void;
+    onOpenResearch: () => void;
+    onOpenShop: () => void;
+    onOpenBossGuide: () => void;
+    missionNotification: boolean;
+}> = ({ onOpenMissions, onOpenResearch, onOpenShop, onOpenBossGuide, missionNotification }) => {
+    const activities = [
+        { name: '길드 미션', icon: '/images/guild/button/guildmission.png', action: onOpenMissions, notification: missionNotification },
+        { name: '길드 연구소', icon: '/images/guild/button/guildlab.png', action: onOpenResearch, notification: false },
+        { name: '길드 상점', icon: '/images/guild/button/guildstore.png', action: onOpenShop, notification: false },
+        { name: '보스 도감', icon: '/images/guild/button/bossraid1.png', action: onOpenBossGuide, notification: false },
+    ];
+    return (
+        <div className="flex w-full shrink-0 flex-col gap-1.5">
+            {activities.map((act) => (
+                <button
+                    key={act.name}
+                    type="button"
+                    onClick={act.action}
+                    title={act.name}
+                    className="relative flex w-full flex-col items-center gap-1 rounded-lg border border-stone-600/50 bg-gradient-to-br from-stone-800/85 to-stone-900/80 py-2 px-0.5 transition-all hover:brightness-110 active:scale-[0.98]"
+                >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-stone-600/40 bg-stone-700/50">
+                        <img src={act.icon} alt="" className="h-9 w-9 object-contain drop-shadow-md" />
+                    </div>
+                    <span className="max-w-full break-keep px-0.5 text-center text-[8px] font-semibold leading-tight text-highlight">
+                        {act.name}
+                    </span>
+                    {act.notification && (
+                        <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border border-stone-800 bg-red-500 shadow-sm" aria-hidden />
+                    )}
+                </button>
+            ))}
+        </div>
+    );
+};
+
 const BOSS_SKILL_TOOLTIP_HIDE_DELAY_MS = 200;
 
-const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, className }) => {
+const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPanelLayout?: boolean }> = ({
+    guild,
+    className,
+    forceDesktopPanelLayout,
+}) => {
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const [hoveredSkill, setHoveredSkill] = useState<GuildBossSkill | null>(null);
@@ -513,8 +596,8 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
 
     const theme = getBossTheme(currentBoss.id);
 
-    const isMobile = isNativeMobile;
-    
+    const isMobile = forceDesktopPanelLayout ? false : isNativeMobile;
+
     return (
         <div className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center w-full relative overflow-hidden h-full ${className || ''}`}>
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
@@ -752,7 +835,11 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
     );
 };
 
-const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, className }) => {
+const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPanelLayout?: boolean }> = ({
+    guild,
+    className,
+    forceDesktopPanelLayout,
+}) => {
     const { currentUserWithStatus, handlers, guilds, allUsers } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const [showRewardModal, setShowRewardModal] = React.useState(false);
@@ -1349,7 +1436,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     const opponentGuildIdForDisplay = activeWar ? (activeWar.guild1Id === guild.id ? activeWar.guild2Id : activeWar.guild1Id) : null;
     const displayOpponent = opponentGuild ?? (opponentGuildIdForDisplay === GUILD_WAR_BOT_GUILD_ID ? { id: GUILD_WAR_BOT_GUILD_ID, name: '[데모]길드전AI', level: 1, members: [], leaderId: GUILD_WAR_BOT_GUILD_ID } : null);
     const enemyGuildName = displayOpponent?.name || '상대 길드';
-    const isMobile = isNativeMobile;
+    const isMobile = forceDesktopPanelLayout ? false : isNativeMobile;
     const isPastApplicationDeadline = applicationDeadline != null && Date.now() >= applicationDeadline;
     
     return (
@@ -1982,8 +2069,10 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [isIconSelectOpen, setIsIconSelectOpen] = useState(false);
     const isMobile = isNativeMobile;
-    const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
-    const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+    const [isGuildContentDrawerOpen, setIsGuildContentDrawerOpen] = useState(false);
+    useEffect(() => {
+        if (activeTab !== 'home') setIsGuildContentDrawerOpen(false);
+    }, [activeTab]);
     const goldButtonRef = useRef<HTMLDivElement>(null);
     const diamondButtonRef = useRef<HTMLDivElement>(null);
     const [goldButtonPos, setGoldButtonPos] = useState<{ top: number; left: number } | null>(null);
@@ -2000,8 +2089,15 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
 
 
 
-    const xpForNextLevel = GUILD_XP_PER_LEVEL(currentGuild?.level || 1);
-    const xpProgress = Math.min(((currentGuild?.xp ?? currentGuild?.experience ?? 0) / xpForNextLevel) * 100, 100);
+    const guildLevel = currentGuild?.level || 1;
+    const guildXp = currentGuild?.xp ?? currentGuild?.experience ?? 0;
+    const xpForNextLevel = GUILD_XP_PER_LEVEL(guildLevel);
+    const xpProgress = Math.min((guildXp / xpForNextLevel) * 100, 100);
+    const guildDisplayName = React.useMemo(() => {
+        if (!currentGuild) return '';
+        const g = guilds[currentGuild.id || guild.id];
+        return g?.name || currentGuild?.name || guild?.name || '길드';
+    }, [currentGuild, guild.id, guild?.name, guilds]);
     const myGuildCoins = currentUserWithStatus?.guildCoins ?? 0;
     const dashboardBossTodayKST = getTodayKSTDateString();
     const dashboardBossUsedToday = currentUserWithStatus?.guildBossLastAttemptDayKST === dashboardBossTodayKST ? (currentUserWithStatus?.guildBossAttemptsUsedToday ?? 0) : 0;
@@ -2100,7 +2196,36 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     if (canManage) {
         tabs.push({ id: 'management' as GuildTab, label: '관리' });
     }
-    
+
+    const activityRailProps = {
+        onOpenMissions: () => setIsMissionsOpen(true),
+        onOpenResearch: () => setIsResearchOpen(true),
+        onOpenShop: () => setIsShopOpen(true),
+        onOpenBossGuide: () => setIsBossGuideOpen(true),
+        missionNotification: missionTabNotification,
+    };
+
+    /** 홈 대기실과 동일: 퀵 박스 높이는 flex로 늘어나지 않음 (min(21rem,68dvh) 고정) + 길드 컨텐츠 + 길드 활동, 열 전체 높이는 stretch */
+    const guildHomeQuickRail = (
+        <div className="flex h-full min-h-0 w-[6rem] shrink-0 flex-col gap-1 self-stretch overflow-y-auto overflow-x-hidden">
+            <div className="flex h-[min(21rem,68dvh)] min-h-[11rem] max-h-[min(21rem,68dvh)] w-full shrink-0 flex-col overflow-hidden rounded-lg border border-color bg-panel">
+                <QuickAccessSidebar nativeHomeColumn fillHeight />
+            </div>
+            <button
+                type="button"
+                onClick={() => setIsGuildContentDrawerOpen(true)}
+                title="길드 컨텐츠"
+                className="flex h-[3rem] w-full shrink-0 flex-row items-center justify-center gap-1 rounded-lg border border-indigo-400/40 bg-gradient-to-b from-indigo-900/70 via-slate-900/85 to-purple-900/70 px-1 text-[8px] font-bold leading-none text-indigo-100 shadow-md active:scale-[0.98]"
+            >
+                <span className="shrink-0 text-base leading-none">☰</span>
+                <span className="whitespace-nowrap leading-tight">길드 컨텐츠</span>
+            </button>
+            <div className="min-h-0 w-full shrink-0">
+                <GuildActivityRailStrip {...activityRailProps} />
+            </div>
+        </div>
+    );
+
     return (
         <div className="relative z-10 flex h-full min-h-0 w-full flex-col">
             {isMissionsOpen && <GuildMissionsPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsMissionsOpen(false)} />}
@@ -2133,34 +2258,27 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                             </button>
                         )}
                     </div>
-                    <div className="flex flex-col items-center gap-1 min-w-0 flex-1 max-w-md">
-                        <h1 className="w-full truncate break-words text-center text-3xl font-bold text-highlight drop-shadow-md" title={(() => {
-                            if (!currentGuild) return '';
-                            const guildsGuild = guilds[currentGuild.id || guild.id];
-                            return guildsGuild?.name || currentGuild?.name || guild?.name || '';
-                        })()}>
-                            {(() => {
-                                if (!currentGuild) return '로딩 중...';
-                                const guildsGuild = guilds[currentGuild.id || guild.id];
-                                return guildsGuild?.name || currentGuild?.name || guild?.name || '길드';
-                            })()}
+                    <div className="flex flex-col items-center gap-1.5 min-w-0 flex-1 max-w-md">
+                        <h1
+                            className="w-full min-w-0 text-center font-bold text-highlight drop-shadow-md flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5"
+                            title={guildDisplayName ? `Lv.${guildLevel} ${guildDisplayName}` : ''}
+                        >
+                            <span className="shrink-0 text-lg sm:text-2xl font-semibold text-secondary tabular-nums">Lv.{guildLevel}</span>
+                            <span className="min-w-0 max-w-full truncate text-xl sm:text-3xl">
+                                {currentGuild ? guildDisplayName : '로딩 중...'}
+                            </span>
                         </h1>
-                        <div className="flex items-center gap-3 w-full flex-wrap justify-center">
-                            <div className="text-lg font-semibold text-secondary">레벨 {currentGuild?.level || 1}</div>
-                            {!isMobile && (
-                                <div className="flex-1 min-w-[180px] max-w-md">
-                                    <div className="flex justify-between text-xs text-secondary mb-1">
-                                        <span className="font-semibold">경험치</span>
-                                        <span className="font-semibold">{(currentGuild?.xp ?? currentGuild?.experience ?? 0).toLocaleString()} / {xpForNextLevel.toLocaleString()}</span>
-                                    </div>
-                                    <div className="w-full bg-gray-700/50 rounded-full h-2.5 border border-gray-600/50 overflow-hidden shadow-inner">
-                                        <div 
-                                            className="bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                                            style={{ width: `${xpProgress}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-                            )}
+                        <div className="w-full max-w-md px-0 sm:px-1">
+                            <div className="flex justify-between text-[10px] sm:text-xs text-secondary mb-1">
+                                <span className="font-semibold">경험치</span>
+                                <span className="font-semibold tabular-nums">{guildXp.toLocaleString()} / {xpForNextLevel.toLocaleString()}</span>
+                            </div>
+                            <div className="w-full bg-gray-700/50 rounded-full h-2 sm:h-2.5 border border-gray-600/50 overflow-hidden shadow-inner">
+                                <div
+                                    className="bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                                    style={{ width: `${xpProgress}%` }}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2179,112 +2297,63 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
 
             </header>
 
-            {/* 모바일 경험치 바 */}
-            {isMobile && (
-                <div className="w-full max-w-64 mx-auto mb-4">
-                    <div className="flex justify-between text-xs text-secondary mb-1.5">
-                        <span className="font-semibold">경험치</span>
-                        <span className="font-semibold">{(guild.xp ?? 0).toLocaleString()} / {xpForNextLevel.toLocaleString()}</span>
-                    </div>
-                    <div className="w-full bg-gray-700/50 rounded-full h-3 border border-gray-600/50 overflow-hidden shadow-inner">
-                        <div 
-                            className="bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                            style={{ width: `${xpProgress}%` }}
-                        ></div>
-                    </div>
-                </div>
-            )}
-
-            {/* 모바일 좌측 사이드바 (기부 + 채팅) */}
-            {isMobile && (
+            {/* 길드 홈 우측 드로어: PC와 동일 패널 구성(보스전·길드전). 길드활동(미션·연구소 등)은 홈 레일에서만 진입 */}
+            {isGuildContentDrawerOpen && (
                 <>
-                    <div className={`fixed top-0 left-0 h-full w-[320px] bg-primary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isLeftSidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
-                        <div className="flex items-center justify-between p-4 border-b border-color">
-                            <h2 className="text-lg font-bold text-highlight">길드 기부 & 채팅</h2>
-                            <button 
-                                onClick={() => setIsLeftSidebarOpen(false)} 
-                                className="text-2xl p-2 text-tertiary hover:text-primary"
+                    <div
+                        className="fixed inset-0 z-40 bg-black/50"
+                        onClick={() => setIsGuildContentDrawerOpen(false)}
+                        aria-hidden
+                    />
+                    <div
+                        className="fixed top-0 right-0 z-50 flex h-full w-[min(22rem,100vw)] flex-col bg-primary shadow-2xl sm:w-[min(36rem,96vw)] sm:max-w-[40rem]"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="guild-content-drawer-title"
+                    >
+                        <div className="flex flex-shrink-0 items-center justify-between border-b border-color p-3 sm:p-4">
+                            <h2 id="guild-content-drawer-title" className="text-base font-bold text-highlight sm:text-lg">
+                                길드 컨텐츠
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setIsGuildContentDrawerOpen(false)}
+                                className="p-2 text-2xl text-tertiary hover:text-primary"
+                                aria-label="닫기"
                             >
                                 ×
                             </button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 min-h-0">
-                            {/* 길드 기부 */}
-                            <div className="flex-shrink-0">
-                                <GuildDonationPanel 
+                        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-4 sm:p-4">
+                            <div className="flex min-h-[min(280px,52dvh)] shrink-0 flex-col">
+                                <BossPanel
                                     guild={currentGuild || guild}
-                                    guildDonationAnimation={guildDonationAnimation} 
-                                    onDonationComplete={onDonationComplete} 
-                                    goldButtonRef={goldButtonRef} 
-                                    diamondButtonRef={diamondButtonRef} 
+                                    className="min-h-[260px]"
+                                    forceDesktopPanelLayout
                                 />
                             </div>
-                            {/* 채팅창 */}
-                            <div className="flex-1 min-h-0" data-guild-chat>
-                                <GuildChat guild={currentGuild || guild} myMemberInfo={myMemberInfo} />
+                            <div className="flex min-h-[min(340px,48dvh)] flex-1 flex-col">
+                                <WarPanel
+                                    guild={currentGuild || guild}
+                                    className="h-full min-h-[320px]"
+                                    forceDesktopPanelLayout
+                                />
                             </div>
                         </div>
                     </div>
-                    {isLeftSidebarOpen && (
-                        <div 
-                            className="fixed inset-0 bg-black/50 z-40" 
-                            onClick={() => setIsLeftSidebarOpen(false)}
-                        ></div>
-                    )}
                 </>
             )}
 
-            {/* 모바일 우측 사이드바 (활동, 보스전, 전쟁) */}
-            {isMobile && (
-                <>
-                    <div className={`fixed top-0 right-0 h-full w-[320px] bg-primary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
-                        <div className="flex items-center justify-between p-4 border-b border-color">
-                            <h2 className="text-lg font-bold text-highlight">길드 메뉴</h2>
-                            <button 
-                                onClick={() => setIsRightSidebarOpen(false)} 
-                                className="text-2xl p-2 text-tertiary hover:text-primary"
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 min-h-0">
-                            {/* 길드 활동 퀵메뉴 */}
-                            <div className="flex-shrink-0">
-                                <ActivityPanel 
-                                    onOpenMissions={() => { setIsMissionsOpen(true); setIsRightSidebarOpen(false); }} 
-                                    onOpenResearch={() => { setIsResearchOpen(true); setIsRightSidebarOpen(false); }} 
-                                    onOpenShop={() => { setIsShopOpen(true); setIsRightSidebarOpen(false); }} 
-                                    missionNotification={missionTabNotification}
-                                    onOpenBossGuide={() => { setIsBossGuideOpen(true); setIsRightSidebarOpen(false); }}
-                                />
-                            </div>
-                            
-                            {/* 길드 보스전과 길드 전쟁을 위아래로 배치 */}
-                            <div className="flex-1 flex flex-col gap-3 min-h-0">
-                                <div className="flex-1 min-h-0">
-                                    <BossPanel guild={currentGuild || guild} className="h-full" />
-                                </div>
-                                <div className="flex-1 min-h-0">
-                                    <WarPanel guild={currentGuild || guild} className="h-full" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {isRightSidebarOpen && (
-                        <div 
-                            className="fixed inset-0 bg-black/50 z-40" 
-                            onClick={() => setIsRightSidebarOpen(false)}
-                        ></div>
-                    )}
-                </>
-            )}
-
-            {/* 뷰포트가 아닌 설계 캔버스 너비 기준으로 PC와 동일한 3+2 열 유지 */}
-            <main className="grid min-h-0 flex-1 grid-cols-5 gap-2">
-                <div className="col-span-3 flex min-h-0 flex-col gap-2">
-                    {!isMobile && (
-                        <div className="flex-shrink-0">
-                            <div className="flex bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 rounded-xl w-full max-w-md border border-stone-600/40 shadow-md">
+            {/* 좌측: 탭·콘텐츠 / 우측 6rem: 퀵·길드컨텐츠·길드활동 (모든 탭 공통) */}
+            <main className="flex min-h-0 flex-1 flex-col gap-2">
+                <div
+                    className={`flex min-h-0 min-w-0 items-stretch gap-2 ${
+                        !isMobile && activeTab !== 'home' ? 'min-h-[12rem] flex-[2]' : 'flex-1'
+                    }`}
+                >
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 pr-1 sm:pr-2">
+                        <div className="w-full max-w-full flex-shrink-0">
+                            <div className="flex w-full rounded-xl border border-stone-600/40 bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 shadow-md">
                                 {tabs.map(tab => {
                                     const tabColors = {
                                         home: { active: 'from-amber-600 to-amber-500', inactive: 'text-amber-300/70 hover:text-amber-300' },
@@ -2295,10 +2364,13 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                                     return (
                                         <button
                                             key={tab.id}
+                                            type="button"
                                             onClick={() => setActiveTab(tab.id)}
-                                            className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${
-                                                activeTab === tab.id 
-                                                    ? `bg-gradient-to-r ${colors.active} text-white shadow-lg` 
+                                            className={`flex-1 font-bold rounded-lg transition-all ${
+                                                isMobile ? 'py-2 text-xs' : 'py-2.5 text-sm'
+                                            } ${
+                                                activeTab === tab.id
+                                                    ? `bg-gradient-to-r ${colors.active} text-white shadow-lg`
                                                     : `${colors.inactive} hover:bg-stone-700/50`
                                             }`}
                                         >
@@ -2308,85 +2380,79 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                                 })}
                             </div>
                         </div>
-                    )}
-                    
-                    <div className="flex-1 min-h-0 overflow-y-auto">
-                        {activeTab === 'home' && (
-                            <div className={`flex h-full flex-col ${isMobile ? 'gap-2' : 'gap-2'}`}>
-                                {isMobile ? (
-                                    <>
-                                        {/* 모바일: 출석부와 공지만 표시 */}
-                                        <div className="flex-shrink-0">
+
+                        <div className="flex-1 min-h-0 overflow-y-auto">
+                            {activeTab === 'home' && (
+                                <div className="flex h-full min-h-0 flex-col gap-2">
+                                    <div
+                                        className={`grid shrink-0 gap-2 ${
+                                            isMobile
+                                                ? 'grid-cols-[minmax(0,3.35fr)_minmax(0,1.25fr)] min-h-[min(36vh,14rem)] max-h-[42vh]'
+                                                : 'grid-cols-[minmax(0,4fr)_minmax(0,1fr)] h-[min(32vh,20rem)] min-h-[16rem]'
+                                        }`}
+                                    >
+                                        <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden">
                                             <GuildCheckInPanel guild={currentGuild || guild} />
                                         </div>
-                                        {/* 사이드 버튼들 - 출석부와 공지 사이 */}
-                                        <div className="flex items-center justify-between gap-2 py-2 flex-shrink-0">
-                                            {/* 좌측 사이드 버튼 */}
-                                            <button 
-                                                onClick={() => setIsLeftSidebarOpen(true)} 
-                                                className="flex-1 h-12 bg-secondary/80 backdrop-blur-sm rounded-lg flex items-center justify-center text-primary shadow-lg hover:bg-secondary transition-colors border border-accent/20"
-                                                aria-label="왼쪽 사이드바 열기"
-                                            >
-                                                <span className="font-bold text-xl">{'<'}</span>
-                                                <span className="ml-2 text-sm font-semibold">기부 & 채팅</span>
-                                            </button>
-                                            {/* 우측 사이드 버튼 */}
-                                            <button 
-                                                onClick={() => setIsRightSidebarOpen(true)} 
-                                                className="flex-1 h-12 bg-secondary/80 backdrop-blur-sm rounded-lg flex items-center justify-center text-primary shadow-lg hover:bg-secondary transition-colors border border-accent/20"
-                                                aria-label="오른쪽 사이드바 열기"
-                                            >
-                                                <span className="font-bold text-xl">{'>'}</span>
-                                                <span className="mr-2 text-sm font-semibold">길드 메뉴</span>
-                                            </button>
+                                        <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden">
+                                            <GuildDonationPanel
+                                                guild={currentGuild || guild}
+                                                guildDonationAnimation={guildDonationAnimation}
+                                                onDonationComplete={onDonationComplete}
+                                                goldButtonRef={goldButtonRef}
+                                                diamondButtonRef={diamondButtonRef}
+                                            />
                                         </div>
-                                        <div className="flex-1 min-h-0">
+                                    </div>
+                                    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                                        <div className="flex min-h-0 min-w-0 flex-col" data-guild-chat>
+                                            <GuildChat guild={currentGuild || guild} myMemberInfo={myMemberInfo} />
+                                        </div>
+                                        <div className="flex min-h-0 min-w-0 flex-col">
                                             <GuildAnnouncementPanel guild={currentGuild || guild} />
                                         </div>
-                                    </>
-                                ) : (
-                                    <GuildHomePanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} rightOfChat={<BossPanel guild={currentGuild || guild} className="h-full" />} />
-                                )}
-                            </div>
-                        )}
-                        {activeTab === 'members' && (
-                            <NineSlicePanel className="h-full">
-                                <GuildMembersPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} />
-                            </NineSlicePanel>
-                        )}
-                        {activeTab === 'management' && canManage && (
-                            <NineSlicePanel className="h-full">
-                                <GuildManagementPanel guild={currentGuild || guild} />
-                            </NineSlicePanel>
-                        )}
+                                    </div>
+                                </div>
+                            )}
+                            {activeTab === 'members' && (
+                                <NineSlicePanel className="h-full">
+                                    <GuildMembersPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} />
+                                </NineSlicePanel>
+                            )}
+                            {activeTab === 'management' && canManage && (
+                                <NineSlicePanel className="h-full">
+                                    <GuildManagementPanel guild={currentGuild || guild} />
+                                </NineSlicePanel>
+                            )}
+                        </div>
                     </div>
+
+                    {guildHomeQuickRail}
                 </div>
 
-                <div className="col-span-2 flex h-full min-h-0 flex-col gap-1 overflow-hidden">
-                    {!isMobile && (
-                        <>
-                            <div className="flex gap-1 flex-shrink-0">
-                                <div className="flex-1 min-w-0 flex flex-col gap-1">
-                                    <GuildDonationPanel guild={currentGuild || guild} guildDonationAnimation={guildDonationAnimation} onDonationComplete={onDonationComplete} goldButtonRef={goldButtonRef} diamondButtonRef={diamondButtonRef} />
-                                    <ActivityPanel 
-                                        onOpenMissions={() => setIsMissionsOpen(true)} 
-                                        onOpenResearch={() => setIsResearchOpen(true)} 
-                                        onOpenShop={() => setIsShopOpen(true)} 
-                                        missionNotification={missionTabNotification} 
-                                        onOpenBossGuide={() => setIsBossGuideOpen(true)} 
-                                    />
-                                </div>
-                                <div className="w-24 min-w-[96px] flex-shrink-0 flex flex-col">
-                                    <QuickAccessSidebar compact={true} fillHeight={true} />
-                                </div>
-                            </div>
-                            <div className="flex-1 min-h-0 overflow-hidden">
-                                <WarPanel guild={currentGuild || guild} className="h-full w-full" />
-                            </div>
-                        </>
-                    )}
-                </div>
-                
+                {!isMobile && activeTab !== 'home' && (
+                    <div className="flex min-h-0 min-w-0 flex-1 gap-1">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1">
+                            <GuildDonationPanel
+                                guild={currentGuild || guild}
+                                guildDonationAnimation={guildDonationAnimation}
+                                onDonationComplete={onDonationComplete}
+                                goldButtonRef={goldButtonRef}
+                                diamondButtonRef={diamondButtonRef}
+                            />
+                            <ActivityPanel
+                                onOpenMissions={() => setIsMissionsOpen(true)}
+                                onOpenResearch={() => setIsResearchOpen(true)}
+                                onOpenShop={() => setIsShopOpen(true)}
+                                missionNotification={missionTabNotification}
+                                onOpenBossGuide={() => setIsBossGuideOpen(true)}
+                            />
+                        </div>
+                        <div className="min-h-0 min-w-0 flex-[1.35] overflow-hidden">
+                            <WarPanel guild={currentGuild || guild} className="h-full w-full" />
+                        </div>
+                    </div>
+                )}
             </main>
             {goldAnimation}
             {diamondAnimation}

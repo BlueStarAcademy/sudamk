@@ -245,6 +245,8 @@ function calculateChampionshipRankings(allUsers: any[]): RankingEntry[] {
         if (!user || !user.id) continue;
 
         const score = typeof user.cumulativeTournamentScore === 'number' ? user.cumulativeTournamentScore : 0;
+        if (score <= 0) continue;
+
         const totalGames = calculateTotalGames(user, allGameModes);
         let wins = 0;
         let losses = 0;

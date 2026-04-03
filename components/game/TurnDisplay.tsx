@@ -281,28 +281,50 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     }, [isItemMode, session.itemUseDeadline, isPaused, session.gameStatus, onAction, session.id]);
 
     const isSinglePlayer = session.isSinglePlayer;
-    const baseClasses = "flex-shrink-0 rounded-lg flex flex-col items-center justify-center shadow-inner py-1 h-12 border";
+    const baseClasses = `flex-shrink-0 rounded-lg flex flex-col items-center justify-center border shadow-inner ${
+        isMobile ? 'min-h-[3.25rem] px-2 py-1.5' : 'h-12 py-1'
+    }`;
     const themeClasses = isSinglePlayer 
         ? "bg-stone-800/70 backdrop-blur-sm border-stone-700/50" 
         : "bg-secondary border-color";
     const textClass = isSinglePlayer ? "text-amber-300" : "text-highlight";
 
     const showSidebarButton = Boolean(isMobile && onOpenSidebar);
-    const paddingClass = showSidebarButton ? 'pr-12' : '';
+    const paddingClass = showSidebarButton ? 'pr-[3.5rem] sm:pr-14' : '';
 
     const sidebarToggle = showSidebarButton ? (
         <button
             type="button"
             onClick={onOpenSidebar}
-            className="absolute top-1/2 -translate-y-1/2 right-1.5 w-11 h-12 sm:w-12 sm:h-14 bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
+            className={`group absolute top-1/2 right-1.5 z-10 flex h-[3.375rem] w-[3rem] -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-l-2xl border border-r-0 border-white/18 bg-gradient-to-br from-white/[0.14] via-white/[0.05] to-black/45 backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(0,0,0,0.25)] transition-all duration-300 ease-out hover:scale-[1.03] hover:border-white/28 hover:shadow-[0_14px_44px_rgba(0,0,0,0.52)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:scale-100 ${
+                isSinglePlayer
+                    ? 'hover:from-amber-400/18 hover:via-stone-900/82 hover:to-stone-950 hover:border-amber-400/35'
+                    : 'hover:from-cyan-400/14 hover:via-slate-900/88 hover:to-slate-950 hover:border-cyan-400/32'
+            }`}
             aria-label="메뉴 열기"
         >
-            <span className="relative font-bold text-2xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                {'<'}
-                {sidebarNotification && (
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg animate-pulse"></span>
-                )}
+            <div
+                className={`flex flex-col gap-[5px] rounded-lg bg-black/40 px-2 py-1.5 ring-1 ring-inset transition-[box-shadow] duration-300 ${
+                    isSinglePlayer
+                        ? 'ring-amber-400/18 group-hover:ring-amber-300/40 group-hover:shadow-[0_0_16px_-4px_rgba(251,191,36,0.35)]'
+                        : 'ring-cyan-400/12 group-hover:ring-cyan-300/35 group-hover:shadow-[0_0_16px_-4px_rgba(34,211,238,0.28)]'
+                }`}
+                aria-hidden
+            >
+                <span className="h-[2px] w-[1.05rem] rounded-full bg-gradient-to-r from-white to-white/55 shadow-[0_1px_2px_rgba(0,0,0,0.4)]" />
+                <span className="h-[2px] w-[1.05rem] rounded-full bg-gradient-to-r from-white to-white/55 shadow-[0_1px_2px_rgba(0,0,0,0.4)]" />
+                <span className="h-[2px] w-[1.05rem] rounded-full bg-gradient-to-r from-white to-white/55 shadow-[0_1px_2px_rgba(0,0,0,0.4)]" />
+            </div>
+            <span
+                className={`text-[8px] font-bold uppercase tracking-[0.18em] text-white/50 transition-colors duration-300 ${
+                    isSinglePlayer ? 'group-hover:text-amber-100/95' : 'group-hover:text-cyan-100/95'
+                }`}
+            >
+                메뉴
             </span>
+            {sidebarNotification && (
+                <span className="absolute right-1 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white/90 bg-gradient-to-br from-rose-400 to-red-600 shadow-[0_0_10px_rgba(239,68,68,0.85)] ring-2 ring-red-500/40 animate-pulse" />
+            )}
         </button>
     ) : null;
 
@@ -425,7 +447,13 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     return wrapContent(
         `${baseClasses} ${themeClasses}`,
         <>
-            <p className={`font-bold ${textClass} tracking-wider text-[clamp(0.8rem,2.5vmin,1rem)] text-center px-2`}>{statusText}</p>
+            <p
+                className={`text-center font-bold tracking-wider ${textClass} ${
+                    isMobile ? 'text-sm leading-snug sm:text-base' : 'px-2 text-[clamp(0.8rem,2.5vmin,1rem)]'
+                }`}
+            >
+                {statusText}
+            </p>
             {isPlayfulTurn && (
                 <div className="w-11/12 h-1 bg-tertiary rounded-full mt-1">
                     <div className="h-1 bg-red-500 rounded-full" style={{ width: `${percentage}%` }} />

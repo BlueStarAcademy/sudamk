@@ -571,30 +571,30 @@ const PlayerProfilePanel: React.FC<{
                         loading="lazy"
                     />
                 )}
-                 <Avatar key={`avatar-${playerId}`} userId={playerId} userName={playerNickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={isMobile ? 24 : 32} className={`${isMobile ? 'w-6 h-6' : 'w-10 h-10'} flex-shrink-0`} />
+                 <Avatar key={`avatar-${playerId}`} userId={playerId} userName={playerNickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={isMobile ? 40 : 32} className={`${isMobile ? 'w-10 h-10' : 'w-10 h-10'} flex-shrink-0`} />
                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-row items-center gap-1.5">
-                        <h4 className={`font-bold ${isMobile ? 'text-[10px]' : 'text-base'} truncate`}>{playerNickname}</h4>
-                        <span className={`${isMobile ? 'text-[8px]' : 'text-xs'} text-blue-300 font-semibold whitespace-nowrap`}>바둑능력: {totalAbilityScore}</span>
+                    <div className={`flex flex-row items-center ${isMobile ? 'gap-1 flex-wrap' : 'gap-1.5'}`}>
+                        <h4 className={`font-bold ${isMobile ? 'text-sm' : 'text-base'} truncate`}>{playerNickname}</h4>
+                        <span className={`${isMobile ? 'text-xs' : 'text-xs'} text-blue-300 font-semibold whitespace-nowrap`}>바둑능력: {totalAbilityScore}</span>
                     </div>
-                    <p className={`${isMobile ? 'text-[8px]' : 'text-xs'} text-gray-400 truncate`}>({cumulativeStats.wins}승 {cumulativeStats.losses}패)</p>
+                    <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-gray-400 truncate`}>({cumulativeStats.wins}승 {cumulativeStats.losses}패)</p>
                  </div>
             </div>
             {/* 컨디션 표시 영역 - 항상 동일한 공간 유지 (경기 종료 후에는 숨김) */}
-            <div className={`font-bold ${isMobile ? 'text-[8px]' : 'text-sm'} mt-0 relative flex items-center gap-2 w-full justify-center flex-shrink-0`} style={{ 
+            <div className={`font-bold ${isMobile ? 'text-xs' : 'text-sm'} mt-0 relative flex items-center gap-2 w-full justify-center flex-shrink-0`} style={{ 
                 visibility: (tournamentStatus === 'round_in_progress' || tournamentStatus === 'bracket_ready') ? 'visible' : 'hidden',
                 height: (tournamentStatus === 'round_in_progress' || tournamentStatus === 'bracket_ready') ? 'auto' : '1.25rem',
                 minHeight: '1.25rem'
             }}>
-                <span className={isMobile ? 'text-[8px]' : 'text-sm'}>컨디션:</span> 
-                <span className={`text-yellow-300 ${isMobile ? 'text-[8px]' : 'text-sm'} relative transition-all duration-300 ${
+                <span className={isMobile ? 'text-xs' : 'text-sm'}>컨디션:</span> 
+                <span className={`text-yellow-300 ${isMobile ? 'text-xs' : 'text-sm'} relative transition-all duration-300 ${
                     showConditionIncrease ? 'scale-125 text-green-300' : ''
                 }`}>
                     {playerCondition === 1000 ? '-' : playerCondition}
                 </span>
                 {showConditionIncrease && conditionIncreaseAmount > 0 && (
-                    <span className={`absolute ${isMobile ? 'text-[10px]' : 'text-base'} font-bold text-green-400 pointer-events-none whitespace-nowrap ${
-                        isMobile ? 'top-[-12px]' : 'top-[-20px]'
+                    <span className={`absolute ${isMobile ? 'text-sm' : 'text-base'} font-bold text-green-400 pointer-events-none whitespace-nowrap ${
+                        isMobile ? 'top-[-14px]' : 'top-[-20px]'
                     }`} style={{
                         animation: 'fadeUp 2s ease-out forwards',
                         textShadow: '0 0 8px rgba(34, 197, 94, 0.8)'
@@ -611,7 +611,7 @@ const PlayerProfilePanel: React.FC<{
                             onUseConditionPotion();
                         }}
                         disabled={playerCondition >= 100}
-                        className={`ml-2 ${isMobile ? 'text-[10px] w-4 h-4' : 'text-base w-6 h-6'} ${
+                        className={`ml-2 ${isMobile ? 'text-sm w-6 h-6' : 'text-base w-6 h-6'} ${
                             playerCondition >= 100 ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-green-600 hover:bg-green-700'
                         } text-white rounded-full transition-colors flex-shrink-0 flex items-center justify-center font-bold`}
                         title={playerCondition >= 100 ? "컨디션이 이미 최대입니다" : "컨디션 회복제 사용 (1회차 경기 시작 전에만 가능)"}
@@ -620,7 +620,7 @@ const PlayerProfilePanel: React.FC<{
                     </button>
                 )}
             </div>
-            <div className={`w-full grid grid-cols-4 gap-x-3 gap-y-0.5 ${isMobile ? 'text-[8px]' : 'text-xs'} mt-0 border-t border-gray-600 pt-0.5 flex-shrink-0 overflow-hidden`}>
+            <div className={`w-full grid grid-cols-4 gap-x-3 gap-y-0.5 ${isMobile ? 'text-[10px]' : 'text-xs'} mt-0 border-t border-gray-600 pt-0.5 flex-shrink-0 overflow-hidden`}>
                 {Object.values(CoreStat).map(stat => {
                     try {
                         // 초기값: initialPlayer가 있으면 그것을 사용, 없으면 initialStats 사용
@@ -635,9 +635,9 @@ const PlayerProfilePanel: React.FC<{
                         <React.Fragment key={stat}>
                             <span className={`text-gray-400 truncate whitespace-nowrap ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''}`}>{stat}</span>
                             <div className="flex justify-end items-baseline relative min-w-0">
-                                <span className={`font-mono text-white ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''} ${isMobile ? 'min-w-[20px] text-[8px]' : 'min-w-[40px] text-right text-xs'} whitespace-nowrap`}>{currentValue}</span>
+                                <span className={`font-mono text-white ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''} ${isMobile ? 'min-w-[22px] text-[10px]' : 'min-w-[40px] text-right text-xs'} whitespace-nowrap`}>{currentValue}</span>
                                 {/* [N]: 항상 보이는 누적된 변화값 (초기값 대비 현재까지 누적된 변화) */}
-                                <span className={`ml-1 font-bold ${isMobile ? 'text-[7px] min-w-[22px]' : 'text-xs min-w-[45px]'} text-right whitespace-nowrap`}>
+                                <span className={`ml-1 font-bold ${isMobile ? 'text-[9px] min-w-[24px]' : 'text-xs min-w-[45px]'} text-right whitespace-nowrap`}>
                                     {tournamentStatus === 'round_in_progress' && change !== 0 ? (
                                         <span className={`${change > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                             [{change > 0 ? '+' : ''}{change}]
@@ -687,18 +687,18 @@ const PlayerProfilePanel: React.FC<{
             {/* 초반/중반/종반 능력치 표시 */}
             {phaseStats && typeof phaseStats === 'object' && (
                 <div className="w-full border-t border-gray-600 mt-0 pt-0.5 flex-shrink-0">
-                    <div className={`grid grid-cols-3 gap-1 ${isMobile ? 'text-[8px]' : 'text-xs'}`}>
+                    <div className={`grid grid-cols-3 gap-1 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
                         <div className={`bg-blue-900/30 rounded ${isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5'} text-center border border-blue-700/50`}>
                             <div className={`text-gray-300 font-semibold ${isMobile ? 'mb-0' : 'mb-0'}`}>초반능력</div>
-                            <div className={`text-blue-300 font-bold ${isMobile ? 'text-[8px]' : 'text-sm'}`}>{phaseStats?.early ?? 0}</div>
+                            <div className={`text-blue-300 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`}>{phaseStats?.early ?? 0}</div>
                         </div>
                         <div className={`bg-purple-900/30 rounded ${isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5'} text-center border border-purple-700/50`}>
                             <div className={`text-gray-300 font-semibold ${isMobile ? 'mb-0' : 'mb-0'}`}>중반능력</div>
-                            <div className={`text-purple-300 font-bold ${isMobile ? 'text-[8px]' : 'text-sm'}`}>{phaseStats?.mid ?? 0}</div>
+                            <div className={`text-purple-300 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`}>{phaseStats?.mid ?? 0}</div>
                         </div>
                         <div className={`bg-orange-900/30 rounded ${isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5'} text-center border border-orange-700/50`}>
                             <div className={`text-gray-300 font-semibold ${isMobile ? 'mb-0' : 'mb-0'}`}>종반능력</div>
-                            <div className={`text-orange-300 font-bold ${isMobile ? 'text-[8px]' : 'text-sm'}`}>{phaseStats?.end ?? 0}</div>
+                            <div className={`text-orange-300 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`}>{phaseStats?.end ?? 0}</div>
                         </div>
                     </div>
                 </div>
@@ -2763,7 +2763,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const prevStatusRef = useRef(tournament?.status || 'bracket_ready');
     const initialMatchPlayersSetRef = useRef(false);
     const [nextRoundTrigger, setNextRoundTrigger] = useState(0);
-    const [sgfViewerSize, setSgfViewerSize] = useState<25 | 50>(50); // 모바일에서 SGF 뷰어 크기 (25=50% 표시, 50=100% 표시)
+    const [sgfViewerSize, setSgfViewerSize] = useState<25 | 50>(25); // 모바일에서 SGF 뷰어 영역 (25=50% 높이, 50=100% 높이) — 기본 50%
     const p1ProfileRef = useRef<HTMLDivElement>(null);
     const p2ProfileRef = useRef<HTMLDivElement>(null);
     const [autoNextCountdown, setAutoNextCountdown] = useState<number | null>(null); // 자동 다음 경기 카운트다운
@@ -4333,13 +4333,24 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             {isMobile ? (
                 <>
                     <div className="flex-1 flex flex-col gap-1 sm:gap-2 min-h-0 relative overflow-y-auto p-1 sm:p-2 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-                        <div className="absolute top-1/2 -translate-y-1/2 right-2 z-20">
-                            <button 
-                                onClick={() => setIsMobileSidebarOpen(true)} 
-                                className="w-11 h-12 sm:w-12 sm:h-14 bg-gradient-to-r from-accent/90 via-accent/95 to-accent/90 backdrop-blur-sm rounded-l-xl flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:from-accent hover:via-accent hover:to-accent hover:shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-95 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
+                        <div className="absolute top-1/2 right-2 z-20 -translate-y-1/2">
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileSidebarOpen(true)}
+                                className="group flex h-[3.375rem] w-[3rem] flex-col items-center justify-center gap-1 rounded-l-2xl border border-r-0 border-amber-400/20 bg-gradient-to-br from-amber-500/12 via-slate-900/88 to-slate-950/95 text-white shadow-[0_10px_36px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.15),inset_0_-1px_0_rgba(0,0,0,0.25)] backdrop-blur-md transition-all duration-300 ease-out hover:scale-[1.03] hover:border-amber-300/40 hover:from-amber-400/22 hover:shadow-[0_14px_44px_rgba(0,0,0,0.55)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:scale-100"
                                 aria-label="메뉴 열기"
                             >
-                                <span className="relative font-bold text-2xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{'<<'}</span>
+                                <div
+                                    className="flex flex-col gap-[5px] rounded-lg bg-black/45 px-2 py-1.5 ring-1 ring-inset ring-amber-400/22 transition-[box-shadow] group-hover:ring-amber-300/45 group-hover:shadow-[0_0_16px_-4px_rgba(251,191,36,0.35)]"
+                                    aria-hidden
+                                >
+                                    <span className="h-[2px] w-[1.05rem] rounded-full bg-gradient-to-r from-amber-100 to-amber-200/60 shadow-sm" />
+                                    <span className="h-[2px] w-[1.05rem] rounded-full bg-gradient-to-r from-amber-100 to-amber-200/60 shadow-sm" />
+                                    <span className="h-[2px] w-[1.05rem] rounded-full bg-gradient-to-r from-amber-100 to-amber-200/60 shadow-sm" />
+                                </div>
+                                <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-amber-100/55 transition-colors group-hover:text-amber-50">
+                                    메뉴
+                                </span>
                             </button>
                         </div>
                         <div className="w-full pb-2" style={{ minHeight: 'min-content' }}>

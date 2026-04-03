@@ -18,6 +18,8 @@ interface ImageButtonProps {
     title?: string;
     variant?: 'primary' | 'danger';
     count?: number; // 아이템 남은 개수
+    /** 모바일 푸터 한 줄 유지용 작은 크기 */
+    compact?: boolean;
 }
 
 const ItemCountBadge: React.FC<{ count: number; disabled?: boolean }> = ({ count, disabled = false }) => (
@@ -33,10 +35,13 @@ const CountOverlay: React.FC<{ count: number; disabled?: boolean; children: Reac
     </div>
 );
 
-const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count }) => {
+const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count, compact = false }) => {
     const variantClasses = variant === 'danger'
         ? 'border-red-400 shadow-red-500/40 focus:ring-red-400'
         : 'border-amber-400 shadow-amber-500/30 focus:ring-amber-300';
+    const sizeClass = compact
+        ? 'w-11 h-11 sm:w-12 sm:h-12 md:w-20 md:h-20 rounded-lg md:rounded-xl'
+        : 'w-16 h-16 md:w-20 md:h-20 rounded-xl';
 
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
@@ -55,7 +60,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
             onClick={handleClick}
             disabled={disabled}
             title={title}
-            className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700 shadow-none' : 'hover:scale-105 active:scale-95 shadow-lg cursor-pointer'}`}
+            className={`relative ${sizeClass} border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 shrink-0 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700 shadow-none' : 'hover:scale-105 active:scale-95 shadow-lg cursor-pointer'}`}
         >
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
             {count !== undefined && (
@@ -70,12 +75,12 @@ interface LabeledControlButtonProps extends ImageButtonProps {
     caption?: string;
 }
 
-const LabeledControlButton: React.FC<LabeledControlButtonProps> = ({ label, caption, ...buttonProps }) => {
+const LabeledControlButton: React.FC<LabeledControlButtonProps> = ({ label, caption, compact = false, ...buttonProps }) => {
     const { disabled = false } = buttonProps;
     return (
-        <div className="flex flex-col items-center gap-1 min-w-[4.5rem]">
-            <ImageButton {...buttonProps} />
-            <span className={`text-[10px] font-semibold tracking-wide ${disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'}`}>
+        <div className={`flex flex-col items-center gap-0.5 shrink-0 ${compact ? 'min-w-0 max-w-[3.1rem]' : 'min-w-[4.5rem]'}`}>
+            <ImageButton {...buttonProps} compact={compact} />
+            <span className={`font-semibold tracking-wide leading-none text-center ${compact ? 'text-[9px]' : 'text-[10px] tracking-wide'} ${disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'}`}>
                 {label}
             </span>
             {/* caption은 제거하고 count로 대체 */}
@@ -121,6 +126,7 @@ interface ActionButtonsPanelProps {
     isSpectator: boolean;
     onAction: (action: ServerAction) => void;
     currentUser: GameProps['currentUser'];
+    isMobile?: boolean;
 }
 
 const ACTIVE_GAME_STATUSES: GameStatus[] = [
@@ -133,7 +139,7 @@ const ACTIVE_GAME_STATUSES: GameStatus[] = [
     'thief_placing',
 ];
 
-const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpectator, onAction, currentUser }) => {
+const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpectator, onAction, currentUser, isMobile = false }) => {
     const [cooldownTime, setCooldownTime] = useState('00:00');
     const { id: gameId, mode, gameStatus } = session;
 
@@ -168,14 +174,22 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
     const isReady = cooldownTime === 'READY';
 
     return (
-        <div className="flex items-center justify-center gap-2 flex-wrap">
+        <div
+            className={`flex items-center gap-1.5 min-w-0 ${
+                isMobile ? 'w-full flex-wrap justify-evenly gap-2 py-0.5' : 'flex-wrap justify-center gap-2'
+            }`}
+        >
             {hasButtons && !hasUsedThisCycle ? (
                 myActionButtons.map(button => (
                     <Button
                         key={button.name}
                         onClick={() => onAction({ type: 'USE_ACTION_BUTTON', payload: { gameId, buttonName: button.name } })}
                         colorScheme={button.type === 'manner' ? 'green' : 'orange'}
-                        className="whitespace-nowrap text-[clamp(0.5rem,1.8vmin,0.75rem)] px-[clamp(0.3rem,1.5vmin,0.5rem)] py-[clamp(0.15rem,1vmin,0.25rem)]"
+                        className={`shrink-0 whitespace-nowrap ${
+                            isMobile
+                                ? 'text-[0.62rem] leading-tight px-1.5 py-0.5 max-w-[32vw]'
+                                : 'text-[clamp(0.5rem,1.8vmin,0.75rem)] px-[clamp(0.3rem,1.5vmin,0.5rem)] py-[clamp(0.15rem,1vmin,0.25rem)]'
+                        }`}
                         title={button.message}
                         disabled={isSpectator || !isGameActive}
                     >
@@ -183,9 +197,9 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
                     </Button>
                 ))
             ) : (
-                <span className="text-xs text-gray-400">다음 액션 대기중...</span>
+                <span className={`shrink-0 text-gray-400 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>다음 액션 대기중...</span>
             )}
-            <span className={`text-xs font-mono ${isReady && !hasUsedThisCycle ? 'text-green-400' : 'text-gray-400'}`}>
+            <span className={`shrink-0 font-mono ${isMobile ? 'text-[10px]' : 'text-xs'} ${isReady && !hasUsedThisCycle ? 'text-green-400' : 'text-gray-400'}`}>
                 {cooldownTime}
             </span>
         </div>
@@ -204,15 +218,17 @@ const DiceGoLuxuryItemCard: React.FC<{
     count: number;
     usable: boolean;
     onUse: () => void;
-}> = ({ kind, count, usable, onUse }) => {
+    compact?: boolean;
+}> = ({ kind, count, usable, onUse, compact = false }) => {
     const [diceSize, setDiceSize] = React.useState(48);
     React.useEffect(() => {
+        if (compact) return;
         const q = window.matchMedia('(min-width: 768px)');
         const sync = () => setDiceSize(q.matches ? 62 : 48);
         sync();
         q.addEventListener('change', sync);
         return () => q.removeEventListener('change', sync);
-    }, []);
+    }, [compact]);
 
     const meta = (() => {
         switch (kind) {
@@ -276,11 +292,13 @@ const DiceGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
+    const effectiveDiceSize = compact ? 34 : diceSize;
+    const outerSizeClass = compact ? 'h-12 w-12 rounded-lg' : 'h-16 w-16 rounded-xl md:h-20 md:w-20';
 
     return (
         <div
             title={meta.title}
-            className={`group relative h-16 w-16 shrink-0 select-none rounded-xl p-[1px] transition-all duration-300 md:h-20 md:w-20 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
+            className={`group relative ${outerSizeClass} shrink-0 select-none p-[1px] transition-all duration-300 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
             role="group"
             aria-label={meta.ariaLabel}
         >
@@ -303,7 +321,7 @@ const DiceGoLuxuryItemCard: React.FC<{
                             color={meta.diceColor}
                             value={null}
                             isRolling={false}
-                            size={diceSize}
+                            size={effectiveDiceSize}
                             onClick={onUse}
                             disabled={!usable}
                             outerClassName="!shadow-md rounded-xl !p-0.5"
@@ -319,11 +337,12 @@ const LabeledDiceGoItem: React.FC<{
     label: string;
     disabled: boolean;
     children: React.ReactNode;
-}> = ({ label, disabled, children }) => (
-    <div className="flex flex-col items-center gap-1 min-w-[3.5rem] sm:min-w-[4rem]">
+    compact?: boolean;
+}> = ({ label, disabled, children, compact = false }) => (
+    <div className={`flex flex-col items-center gap-0.5 shrink-0 ${compact ? 'min-w-0 max-w-[2.85rem]' : 'min-w-[3.5rem] sm:min-w-[4rem]'}`}>
         {children}
         <span
-            className={`text-[10px] font-semibold tracking-wide text-center leading-tight max-w-[4.5rem] ${
+            className={`font-semibold tracking-wide text-center leading-tight ${compact ? 'text-[8px] max-w-[2.85rem]' : 'text-[10px] max-w-[4.5rem]'} ${
                 disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'
             }`}
         >
@@ -341,7 +360,9 @@ export const DicePanel: React.FC<{
     currentUser: User;
     /** all: 기본(주+홀+짝) · mainOnly: 일반 주사위만(판 옆) · itemsOnly: 홀·짝만(놀이 기능) */
     variant?: DicePanelVariant;
-}> = ({ session, isMyTurn, onAction, currentUser, variant = 'all' }) => {
+    /** 모바일 경기장 하단 푸터 한 줄 유지 */
+    footerCompact?: boolean;
+}> = ({ session, isMyTurn, onAction, currentUser, variant = 'all', footerCompact = false }) => {
     const { id: gameId, gameStatus } = session;
     const [localRollEndTime, setLocalRollEndTime] = React.useState<number>(0);
     const [itemConfirm, setItemConfirm] = React.useState<DiceGoPanelItemKind | null>(null);
@@ -504,19 +525,23 @@ export const DicePanel: React.FC<{
         }
     };
 
+    const itemRowClass = footerCompact
+        ? 'flex w-full min-w-0 flex-row flex-wrap items-end justify-evenly gap-x-1 gap-y-1'
+        : 'flex flex-row flex-wrap items-end justify-center gap-x-3 gap-y-2';
+
     const diceGoItemsRow = showItems ? (
-        <div className="flex flex-row flex-wrap items-end justify-center gap-x-3 gap-y-2">
-            <LabeledDiceGoItem label="홀수" disabled={!oddItemUsable}>
-                <DiceGoLuxuryItemCard kind="odd" count={oddCount} usable={oddItemUsable} onUse={() => handleRoll('odd')} />
+        <div className={itemRowClass}>
+            <LabeledDiceGoItem label="홀수" disabled={!oddItemUsable} compact={footerCompact}>
+                <DiceGoLuxuryItemCard kind="odd" count={oddCount} usable={oddItemUsable} onUse={() => handleRoll('odd')} compact={footerCompact} />
             </LabeledDiceGoItem>
-            <LabeledDiceGoItem label="짝수" disabled={!evenItemUsable}>
-                <DiceGoLuxuryItemCard kind="even" count={evenCount} usable={evenItemUsable} onUse={() => handleRoll('even')} />
+            <LabeledDiceGoItem label="짝수" disabled={!evenItemUsable} compact={footerCompact}>
+                <DiceGoLuxuryItemCard kind="even" count={evenCount} usable={evenItemUsable} onUse={() => handleRoll('even')} compact={footerCompact} />
             </LabeledDiceGoItem>
-            <LabeledDiceGoItem label="낮은수" disabled={!lowItemUsable}>
-                <DiceGoLuxuryItemCard kind="low" count={lowCount} usable={lowItemUsable} onUse={() => handleRoll('low')} />
+            <LabeledDiceGoItem label="낮은수" disabled={!lowItemUsable} compact={footerCompact}>
+                <DiceGoLuxuryItemCard kind="low" count={lowCount} usable={lowItemUsable} onUse={() => handleRoll('low')} compact={footerCompact} />
             </LabeledDiceGoItem>
-            <LabeledDiceGoItem label="높은수" disabled={!highItemUsable}>
-                <DiceGoLuxuryItemCard kind="high" count={highCount} usable={highItemUsable} onUse={() => handleRoll('high')} />
+            <LabeledDiceGoItem label="높은수" disabled={!highItemUsable} compact={footerCompact}>
+                <DiceGoLuxuryItemCard kind="high" count={highCount} usable={highItemUsable} onUse={() => handleRoll('high')} compact={footerCompact} />
             </LabeledDiceGoItem>
         </div>
     ) : null;
@@ -550,11 +575,15 @@ export const DicePanel: React.FC<{
                     </div>
                 </div>
             )}
-            <div className="flex flex-row flex-wrap items-center justify-center gap-3 border-0 p-0 transition-all">
+            <div
+                className={`flex flex-row items-center border-0 p-0 transition-all ${
+                    footerCompact ? 'w-full min-w-0 flex-wrap justify-evenly gap-2' : 'flex-wrap justify-center gap-3'
+                }`}
+            >
                 {variant === 'all' ? (
                     <>
                         <div
-                            className={`flex flex-col items-center ${canRoll ? 'animate-pulse-border-yellow' : 'border-2 border-transparent p-2 rounded-lg'}`}
+                            className={`flex flex-col items-center shrink-0 ${canRoll ? 'animate-pulse-border-yellow' : 'border-2 border-transparent p-2 rounded-lg'}`}
                         >
                             {mainDice}
                         </div>
@@ -570,7 +599,13 @@ export const DicePanel: React.FC<{
     );
 };
 
-const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; onAction: (a: ServerAction) => void; currentUser: User; }> = ({ session, isMyTurn, onAction, currentUser }) => {
+const AlkkagiItemPanel: React.FC<{
+    session: LiveGameSession;
+    isMyTurn: boolean;
+    onAction: (a: ServerAction) => void;
+    currentUser: User;
+    compact?: boolean;
+}> = ({ session, isMyTurn, onAction, currentUser, compact = false }) => {
     const { id: gameId, gameStatus, activeAlkkagiItems } = session;
     const myItems = session.alkkagiItemUses?.[currentUser.id];
     const slowCount = myItems?.slow ?? session.settings.alkkagiSlowItemCount ?? 0;
@@ -586,9 +621,11 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
     const canUse = isMyTurn && gameStatus === 'alkkagi_playing';
 
     const totalRounds = session.settings.alkkagiRounds || 1;
+    const rowClass = compact ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2' : 'flex items-center justify-center gap-3';
+
     if (totalRounds <= 1) {
         return (
-            <div className="flex items-center justify-center gap-3">
+            <div className={rowClass}>
                 <LabeledControlButton
                     src="/images/button/slow.png"
                     alt="슬로우"
@@ -598,6 +635,7 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                     onClick={() => useItem('slow')}
                     disabled={!canUse || slowCount <= 0 || isSlowActive}
                     title={`파워 게이지 속도를 50% 감소시킵니다. 남은 개수: ${slowCount}`}
+                    compact={compact}
                 />
                 <LabeledControlButton
                     src="/images/button/target.png"
@@ -608,6 +646,7 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                     onClick={() => useItem('aimingLine')}
                     disabled={!canUse || aimCount <= 0 || isAimActive}
                     title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
+                    compact={compact}
                 />
             </div>
         );
@@ -618,12 +657,12 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
     const myRefillsLeft = maxRefills - myRefillsUsed;
 
     return (
-        <div className="flex items-center justify-center gap-3">
-            <div className="flex flex-col text-center text-xs font-semibold text-yellow-300">
+        <div className={compact ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2' : 'flex items-center justify-center gap-3'}>
+            <div className={`flex flex-col text-center font-semibold text-yellow-300 shrink-0 ${compact ? 'text-[9px]' : 'text-xs'}`}>
                 <span>리필: {myRefillsLeft} / {maxRefills}</span>
             </div>
-            <div className="h-8 w-px bg-gray-600 mx-2"></div>
-            <div className="flex items-center justify-center gap-3">
+            <div className={`h-8 w-px bg-gray-600 shrink-0 ${compact ? 'mx-1' : 'mx-2'}`}></div>
+            <div className={rowClass}>
                 <LabeledControlButton
                     src="/images/button/slow.png"
                     alt="슬로우"
@@ -633,6 +672,7 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                     onClick={() => useItem('slow')}
                     disabled={!canUse || slowCount <= 0 || isSlowActive}
                     title={`파워 게이지 속도를 50% 감소시킵니다. 남은 개수: ${slowCount}`}
+                    compact={compact}
                 />
                 <LabeledControlButton
                     src="/images/button/target.png"
@@ -643,6 +683,7 @@ const AlkkagiItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                     onClick={() => useItem('aimingLine')}
                     disabled={!canUse || aimCount <= 0 || isAimActive}
                     title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
+                    compact={compact}
                 />
             </div>
         </div>
@@ -664,15 +705,17 @@ const ThiefGoLuxuryItemCard: React.FC<{
     count: number;
     usable: boolean;
     onUse: () => void;
-}> = ({ kind, count, usable, onUse }) => {
+    compact?: boolean;
+}> = ({ kind, count, usable, onUse, compact = false }) => {
     const [diceSize, setDiceSize] = React.useState(48);
     React.useEffect(() => {
+        if (compact) return;
         const q = window.matchMedia('(min-width: 768px)');
         const sync = () => setDiceSize(q.matches ? 62 : 48);
         sync();
         q.addEventListener('change', sync);
         return () => q.removeEventListener('change', sync);
-    }, []);
+    }, [compact]);
 
     const meta = (() => {
         switch (kind) {
@@ -708,11 +751,13 @@ const ThiefGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
+    const effectiveDiceSize = compact ? 34 : diceSize;
+    const outerSizeClass = compact ? 'h-12 w-12 rounded-lg' : 'h-16 w-16 rounded-xl md:h-20 md:w-20';
 
     return (
         <div
             title={meta.title}
-            className={`group relative h-16 w-16 shrink-0 select-none rounded-xl p-[1px] transition-all duration-300 md:h-20 md:w-20 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
+            className={`group relative ${outerSizeClass} shrink-0 select-none p-[1px] transition-all duration-300 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
             role="group"
             aria-label={meta.ariaLabel}
         >
@@ -731,7 +776,7 @@ const ThiefGoLuxuryItemCard: React.FC<{
                             color={meta.diceColor}
                             value={null}
                             isRolling={false}
-                            size={diceSize}
+                            size={effectiveDiceSize}
                             onClick={onUse}
                             disabled={!usable}
                             outerClassName="!shadow-md rounded-xl !p-0.5"
@@ -751,9 +796,10 @@ interface ThiefPanelProps {
     onAction: (a: ServerAction) => void;
     currentUser: User;
     variant?: ThiefPanelVariant;
+    footerCompact?: boolean;
 }
 
-export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAction, currentUser, variant = 'all' }) => {
+export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAction, currentUser, variant = 'all', footerCompact = false }) => {
     const { id: gameId, gameStatus, animation, currentPlayer, blackPlayerId, whitePlayerId, thiefPlayerId } = session;
 
     const [localRollEndTime, setLocalRollEndTime] = React.useState<number>(0);
@@ -909,13 +955,17 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
         }
     };
 
+    const thiefItemRowClass = footerCompact
+        ? 'flex w-full min-w-0 flex-row flex-wrap items-end justify-evenly gap-x-1 gap-y-1'
+        : 'flex flex-row flex-wrap items-end justify-center gap-x-3 gap-y-2';
+
     const thiefItemsRow = showItems ? (
-        <div className="flex flex-row flex-wrap items-end justify-center gap-x-3 gap-y-2">
-            <LabeledDiceGoItem label="높은수" disabled={!high36Usable}>
-                <ThiefGoLuxuryItemCard kind="high36" count={high36Count} usable={high36Usable} onUse={() => handleRoll('high36')} />
+        <div className={thiefItemRowClass}>
+            <LabeledDiceGoItem label="높은수" disabled={!high36Usable} compact={footerCompact}>
+                <ThiefGoLuxuryItemCard kind="high36" count={high36Count} usable={high36Usable} onUse={() => handleRoll('high36')} compact={footerCompact} />
             </LabeledDiceGoItem>
-            <LabeledDiceGoItem label="1방지" disabled={!noOneUsable}>
-                <ThiefGoLuxuryItemCard kind="noOne" count={noOneCount} usable={noOneUsable} onUse={() => handleRoll('noOne')} />
+            <LabeledDiceGoItem label="1방지" disabled={!noOneUsable} compact={footerCompact}>
+                <ThiefGoLuxuryItemCard kind="noOne" count={noOneCount} usable={noOneUsable} onUse={() => handleRoll('noOne')} compact={footerCompact} />
             </LabeledDiceGoItem>
         </div>
     ) : null;
@@ -959,10 +1009,14 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
                     </div>
                 </div>
             )}
-            <div className="flex flex-row flex-wrap items-center justify-center gap-3 border-0 p-0 transition-all">
+            <div
+                className={`flex flex-row items-center border-0 p-0 transition-all ${
+                    footerCompact ? 'w-full min-w-0 flex-wrap justify-evenly gap-2' : 'flex-wrap justify-center gap-3'
+                }`}
+            >
                 {variant === 'all' ? (
                     <>
-                        <div className={`flex flex-col items-center ${canRoll ? 'animate-pulse-border-yellow' : 'rounded-lg border-2 border-transparent p-2'}`}>
+                        <div className={`flex flex-col items-center shrink-0 ${canRoll ? 'animate-pulse-border-yellow' : 'rounded-lg border-2 border-transparent p-2'}`}>
                             {mainDice}
                         </div>
                         {thiefItemsRow}
@@ -977,7 +1031,13 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
     );
 };
 
-const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; onAction: (a: ServerAction) => void; currentUser: User; }> = ({ session, isMyTurn, onAction, currentUser }) => {
+const CurlingItemPanel: React.FC<{
+    session: LiveGameSession;
+    isMyTurn: boolean;
+    onAction: (a: ServerAction) => void;
+    currentUser: User;
+    compact?: boolean;
+}> = ({ session, isMyTurn, onAction, currentUser, compact = false }) => {
     const { id: gameId, gameStatus, activeCurlingItems } = session;
     const myItems = session.curlingItemUses?.[currentUser.id];
     const slowCount = myItems?.slow ?? session.settings.curlingSlowItemCount ?? 0;
@@ -992,8 +1052,9 @@ const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
     const isSlowActive = myActiveItems.includes('slow');
     const isAimActive = myActiveItems.includes('aimingLine');
     const canUse = isMyTurn && gameStatus === 'curling_playing';
+    const rowClass = compact ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2' : 'flex items-center justify-center gap-3';
     return (
-        <div className="flex items-center justify-center gap-3">
+        <div className={rowClass}>
             <LabeledControlButton
                 src="/images/button/slow.png"
                 alt="슬로우"
@@ -1002,6 +1063,7 @@ const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                 onClick={() => useItem('slow')}
                 disabled={!canUse || slowCount <= 0 || isSlowActive}
                 title={`파워 게이지 속도를 50% 감소시킵니다. 남은 개수: ${slowCount}`}
+                compact={compact}
             />
             <LabeledControlButton
                 src="/images/button/target.png"
@@ -1011,6 +1073,7 @@ const CurlingItemPanel: React.FC<{ session: LiveGameSession; isMyTurn: boolean; 
                 onClick={() => useItem('aimingLine')}
                 disabled={!canUse || aimCount <= 0 || isAimActive}
                 title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
+                compact={compact}
             />
         </div>
     );
@@ -1154,7 +1217,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         });
     }, [session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, opponentPlayerEnum]);
     
-    const luxuryButtonBase = "relative overflow-hidden whitespace-normal break-keep text-[clamp(0.6rem,2vmin,0.85rem)] px-[clamp(0.45rem,1.6vmin,0.85rem)] py-[clamp(0.32rem,1.1vmin,0.6rem)] rounded-xl backdrop-blur-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-1";
+    const luxuryButtonBase = isMobile
+        ? 'relative overflow-hidden whitespace-nowrap break-keep text-[0.62rem] leading-tight px-1.5 py-1 rounded-lg backdrop-blur-sm font-semibold tracking-tight transition-all duration-200 flex items-center justify-center gap-0.5 min-h-0 min-w-0 shrink'
+        : 'relative overflow-hidden whitespace-normal break-keep text-[clamp(0.6rem,2vmin,0.85rem)] px-[clamp(0.45rem,1.6vmin,0.85rem)] py-[clamp(0.32rem,1.1vmin,0.6rem)] rounded-xl backdrop-blur-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-1';
 
     const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral' | 'accent' | 'success' = 'primary') => {
         const variants: Record<typeof variant, string> = {
@@ -1202,6 +1267,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     disabled={hiddenDisabled}
                     title="히든 스톤 배치"
                     count={hiddenLeft}
+                    compact={isMobile}
                 />
             );
 
@@ -1217,6 +1283,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     disabled={scanDisabled}
                     title="상대 히든 스톤 탐지"
                     count={scansLeft}
+                    compact={isMobile}
                 />
             );
         }
@@ -1234,6 +1301,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     disabled={missileDisabled}
                     title="미사일 발사"
                     count={missilesLeft}
+                    compact={isMobile}
                 />
             );
         }
@@ -1382,8 +1450,14 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             return (
                 <>
                 <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full h-[136px]">
-                    <div className="bg-gray-900/70 border border-stone-700 rounded-xl px-4 py-3 flex flex-wrap items-center justify-center gap-3">
-                        <Button onClick={handleShowResults} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap">
+                    <div
+                        className={`bg-gray-900/70 border border-stone-700 rounded-xl py-3 flex items-center gap-2 min-w-0 ${
+                            isMobile
+                                ? 'flex flex-wrap items-center justify-evenly gap-2 px-2 py-3 min-w-0'
+                                : 'flex-wrap justify-center px-4 gap-3'
+                        }`}
+                    >
+                        <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
                             결과 확인
                         </Button>
                         {isPvpRematchEligible && (
@@ -1401,7 +1475,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 }}
                                 disabled={rematchRequested}
                                 colorScheme="none"
-                                className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-emerald-400/50 bg-gradient-to-r from-emerald-500/90 via-lime-400/85 to-green-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(74,222,128,0.75)] hover:from-emerald-300 hover:to-green-500 whitespace-nowrap disabled:opacity-60"
+                                className={`justify-center rounded-xl border border-emerald-400/50 bg-gradient-to-r from-emerald-500/90 via-lime-400/85 to-green-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(74,222,128,0.75)] hover:from-emerald-300 hover:to-green-500 whitespace-nowrap disabled:opacity-60 shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}
                             >
                                 {rematchRequested ? '신청중' : '재대결'}
                             </Button>
@@ -1410,18 +1484,18 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             <Button
                                 onClick={onOpenRematchSettings}
                                 colorScheme="none"
-                                className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-emerald-400/50 bg-gradient-to-r from-emerald-500/90 via-lime-400/85 to-green-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(74,222,128,0.75)] hover:from-emerald-300 hover:to-green-500 whitespace-nowrap"
+                                className={`justify-center rounded-xl border border-emerald-400/50 bg-gradient-to-r from-emerald-500/90 via-lime-400/85 to-green-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(74,222,128,0.75)] hover:from-emerald-300 hover:to-green-500 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}
                             >
                                 재대결
                             </Button>
                         )}
-                        <Button onClick={handleNextStage} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap" disabled={!canTryNextStage}>
+                        <Button onClick={handleNextStage} colorScheme="none" className={`justify-center rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap shrink-0 max-w-[46vw] truncate ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`} disabled={!canTryNextStage}>
                             다음 단계{canTryNextStage && nextStage ? `: ${nextStage.name}` : ''}{nextStageActionPointCost > 0 && ` (⚡${nextStageActionPointCost})`}
                         </Button>
-                        <Button onClick={handleRetry} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap">
+                        <Button onClick={handleRetry} colorScheme="none" className={`justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
                             재도전 {retryActionPointCost > 0 && `(⚡${retryActionPointCost})`}
                         </Button>
-                        <Button onClick={handleCloseResults} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap">
+                        <Button onClick={handleCloseResults} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
                             나가기
                         </Button>
                     </div>
@@ -1475,228 +1549,296 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const myScansLeft = currentUser.id === p1Id ? (session.scans_p1 ?? scanCountSetting) : (session.scans_p2 ?? scanCountSetting);
         const myMissilesLeft = currentUser.id === p1Id ? (session.missiles_p1 ?? missileCountSetting) : (session.missiles_p2 ?? missileCountSetting);
 
+        const itemColClass = isMobile ? 'flex flex-col items-center gap-0.5 shrink-0' : 'flex flex-col items-center gap-2';
+        const labelClass = isMobile ? 'text-[9px] text-amber-200 font-semibold tracking-wide' : 'text-[10px] text-amber-200 font-semibold tracking-wide';
+
+        const coreControls = (
+            <>
+                <div className={itemColClass}>
+                    <ImageButton
+                        src="/images/button/giveup.png"
+                        alt="기권"
+                        title="기권하기"
+                        onClick={handleResignClick}
+                        disabled={!canResign}
+                        variant="danger"
+                        compact={isMobile}
+                    />
+                    <span className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} text-red-300 font-semibold tracking-wide`}>기권</span>
+                </div>
+                <div className={itemColClass}>
+                    <ImageButton
+                        src="/images/button/reflesh.png"
+                        alt="돌 재배치"
+                        title="돌 재배치"
+                        onClick={handleRefreshClick}
+                        disabled={refreshDisabled}
+                        compact={isMobile}
+                    />
+                    <span className={`${labelClass} flex items-center gap-0.5 justify-center whitespace-nowrap`}>
+                        {remainingRefreshes}/5
+                        {nextCost > 0 && (
+                            <>
+                                <span>·</span>
+                                <img src="/images/icon/Gold.png" alt="골드" className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
+                                <span>{nextCost.toLocaleString()}</span>
+                            </>
+                        )}
+                        {nextCost === 0 && <span>· 무료</span>}
+                    </span>
+                </div>
+            </>
+        );
+
+        const itemControls = (
+            <>
+                {isHiddenMode && (
+                    <div className={itemColClass}>
+                        <ImageButton
+                            src="/images/button/hidden.png"
+                            alt="히든"
+                            title="히든 스톤 배치"
+                            onClick={() => handleUseItem('hidden')}
+                            disabled={!isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0}
+                            count={hiddenLeft > 0 ? hiddenLeft : undefined}
+                            compact={isMobile}
+                        />
+                        <span className={labelClass}>히든</span>
+                    </div>
+                )}
+                {isHiddenMode && (
+                    <div className={itemColClass}>
+                        <ImageButton
+                            src="/images/button/scan.png"
+                            alt="스캔"
+                            title="상대 히든 스톤 탐지"
+                            onClick={() => handleUseItem('scan')}
+                            disabled={!isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan}
+                            count={myScansLeft > 0 ? myScansLeft : undefined}
+                            compact={isMobile}
+                        />
+                        <span className={labelClass}>스캔</span>
+                    </div>
+                )}
+                {isMissileMode && (
+                    <div className={itemColClass}>
+                        <ImageButton
+                            src="/images/button/missile.png"
+                            alt="미사일"
+                            title="미사일 발사"
+                            onClick={() => handleUseItem('missile')}
+                            disabled={!isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0}
+                            count={myMissilesLeft > 0 ? myMissilesLeft : undefined}
+                            compact={isMobile}
+                        />
+                        <span className={labelClass}>미사일</span>
+                    </div>
+                )}
+            </>
+        );
+
         return (
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[136px]">
-                <div className="bg-gray-900/60 border border-stone-700 rounded-xl px-4 py-3 flex flex-row items-center gap-4 w-full">
-                    {/* 좌측 패널: 기권, 배치변경 */}
-                    <div className="flex-1 flex flex-row items-center justify-center gap-4 min-w-0">
-                        <div className="flex flex-col items-center gap-2">
-                            <ImageButton
-                                src="/images/button/giveup.png"
-                                alt="기권"
-                                title="기권하기"
-                                onClick={handleResignClick}
-                                disabled={!canResign}
-                                variant="danger"
-                            />
-                            <span className="text-[10px] text-red-300 font-semibold tracking-wide">기권</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-2">
-                            <ImageButton
-                                src="/images/button/reflesh.png"
-                                alt="돌 재배치"
-                                title="돌 재배치"
-                                onClick={handleRefreshClick}
-                                disabled={refreshDisabled}
-                            />
-                            <span className="text-[10px] text-amber-200 font-semibold tracking-wide flex items-center gap-1">
-                                {remainingRefreshes}/5
-                                {nextCost > 0 && (
-                                    <>
-                                        <span>·</span>
-                                        <img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3" />
-                                        <span>{nextCost.toLocaleString()}</span>
-                                    </>
-                                )}
-                                {nextCost === 0 && <span>· 무료</span>}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    {/* 구분선 */}
-                    <div className="w-px h-12 bg-stone-600/50 flex-shrink-0"></div>
-                    
-                    {/* 우측 패널: 특수 아이템 */}
-                    <div className="flex-1 flex flex-row items-center justify-center gap-4 min-w-0">
-                        {/* 히든 아이템 */}
-                        {isHiddenMode && (
-                            <div className="flex flex-col items-center gap-2">
-                                <ImageButton
-                                    src="/images/button/hidden.png"
-                                    alt="히든"
-                                    title="히든 스톤 배치"
-                                    onClick={() => handleUseItem('hidden')}
-                                    disabled={!isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0}
-                                    count={hiddenLeft > 0 ? hiddenLeft : undefined}
-                                />
-                                <span className="text-[10px] text-amber-200 font-semibold tracking-wide">히든</span>
+                <div
+                    className={`bg-gray-900/60 border border-stone-700 rounded-xl w-full ${
+                        isMobile && (isHiddenMode || isMissileMode)
+                            ? 'flex min-w-0 flex-row items-stretch gap-0 px-2 py-2'
+                            : isMobile
+                              ? 'px-2 py-2 flex min-w-0 flex-row flex-wrap items-center justify-evenly gap-2'
+                              : 'px-4 py-3 flex flex-row items-center gap-4'
+                    }`}
+                >
+                    {isMobile && (isHiddenMode || isMissileMode) ? (
+                        <>
+                            <div className="flex min-h-[2.75rem] min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-stone-600/40 bg-black/15 px-1 py-1">
+                                {coreControls}
                             </div>
-                        )}
-                        
-                        {/* 스캔 아이템 */}
-                        {isHiddenMode && (
-                            <div className="flex flex-col items-center gap-2">
-                                <ImageButton
-                                    src="/images/button/scan.png"
-                                    alt="스캔"
-                                    title="상대 히든 스톤 탐지"
-                                    onClick={() => handleUseItem('scan')}
-                                    disabled={!isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan}
-                                    count={myScansLeft > 0 ? myScansLeft : undefined}
-                                />
-                                <span className="text-[10px] text-amber-200 font-semibold tracking-wide">스캔</span>
+                            <div className="mx-1 w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
+                            <div className="flex min-h-[2.75rem] min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-amber-900/30 bg-amber-950/10 px-1 py-1">
+                                {itemControls}
                             </div>
-                        )}
-                        
-                        {/* 미사일 아이템 */}
-                        {isMissileMode && (
-                            <div className="flex flex-col items-center gap-2">
-                                <ImageButton
-                                    src="/images/button/missile.png"
-                                    alt="미사일"
-                                    title="미사일 발사"
-                                    onClick={() => handleUseItem('missile')}
-                                    disabled={!isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0}
-                                    count={myMissilesLeft > 0 ? myMissilesLeft : undefined}
-                                />
-                                <span className="text-[10px] text-amber-200 font-semibold tracking-wide">미사일</span>
-                            </div>
-                        )}
-                    </div>
+                        </>
+                    ) : isMobile ? (
+                        coreControls
+                    ) : (
+                        <>
+                            {coreControls}
+                            {(isHiddenMode || isMissileMode) && (
+                                <div className={`w-px bg-stone-600/50 shrink-0 self-stretch h-12`} />
+                            )}
+                            {itemControls}
+                        </>
+                    )}
                 </div>
             </footer>
         );
     }
 
+    const primaryControlsInner = (
+        <>
+            {isGameEnded ? (
+                <>
+                    <Button onClick={() => setShowResultModal(true)} colorScheme="none" className={getLuxuryButtonClasses('accent')}>
+                        결과 보기
+                    </Button>
+                    {isAiLobbyGame && onOpenRematchSettings && (
+                        <Button onClick={onOpenRematchSettings} colorScheme="none" className={getLuxuryButtonClasses('success')}>
+                            재대결
+                        </Button>
+                    )}
+                    {showStrategicGameRecordActions && (onAction || onOpenGameRecordList) && (
+                        <>
+                            {onAction && (
+                                <Button
+                                    onClick={async () => {
+                                        if (savingGameRecord || recordAlreadySaved) return;
+                                        if (savedRecordCount >= 10) {
+                                            alert(GAME_RECORD_SLOT_FULL_MESSAGE);
+                                            return;
+                                        }
+                                        setSavingGameRecord(true);
+                                        try {
+                                            const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId } });
+                                            if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) return;
+                                            setSavedOptimistic(true);
+                                        } catch (e) {
+                                            console.error(e);
+                                        } finally {
+                                            setSavingGameRecord(false);
+                                        }
+                                    }}
+                                    disabled={savingGameRecord || recordAlreadySaved}
+                                    colorScheme="none"
+                                    className={`${getLuxuryButtonClasses('accent')} ${recordAlreadySaved ? 'opacity-50' : ''}`}
+                                >
+                                    {savingGameRecord ? '저장 중...' : recordAlreadySaved ? '이미 저장됨' : '기보 저장'}
+                                </Button>
+                            )}
+                            {onOpenGameRecordList && (
+                                <Button onClick={() => onOpenGameRecordList()} colorScheme="none" className={getLuxuryButtonClasses('neutral')}>
+                                    기보 관리
+                                </Button>
+                            )}
+                        </>
+                    )}
+                </>
+            ) : (
+                <>
+                    {isStrategic && mode !== GameMode.Capture && !isAiLobbyGame && (
+                        <LabeledControlButton
+                            key="pass"
+                            src="/images/button/pass.png"
+                            alt="통과"
+                            label="통과"
+                            onClick={handlePass}
+                            disabled={!isMyTurn || isSpectator || isPreGame}
+                            title="한 수 쉬기"
+                            compact={isMobile}
+                        />
+                    )}
+                    <LabeledControlButton
+                        key="resign"
+                        src="/images/button/giveup.png"
+                        alt="기권"
+                        label="기권"
+                        onClick={handleResign}
+                        disabled={isSpectator || isGameEnded || gameStatus === 'pending'}
+                        title="기권하기"
+                        variant="danger"
+                        compact={isMobile}
+                    />
+                </>
+            )}
+        </>
+    );
+
+    const specialControlsInner = isStrategic ? (
+        (() => {
+            if (isGameEnded || !hasItems) return null;
+            const itemButtons = renderItemButtons();
+            if (itemButtons.length === 0) {
+                return <span className={`text-gray-400 ${isMobile ? 'text-[9px] shrink-0' : 'text-[10px]'}`}>사용 가능한 기능 없음</span>;
+            }
+            return itemButtons;
+        })()
+    ) : mode === GameMode.Dice ? (
+        <DicePanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" footerCompact={isMobile} />
+    ) : mode === GameMode.Thief ? (
+        <ThiefPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" footerCompact={isMobile} />
+    ) : mode === GameMode.Curling ? (
+        <CurlingItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} compact={isMobile} />
+    ) : mode === GameMode.Alkkagi ? (
+        <AlkkagiItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} compact={isMobile} />
+    ) : (
+        <PlayfulStonesPanel session={session} currentUser={currentUser} />
+    );
+
+    const primaryStripClass = isMobile
+        ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2'
+        : 'flex items-center justify-center gap-3 flex-wrap flex-grow';
+    const specialStripClass = isMobile
+        ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2'
+        : 'flex items-center justify-center gap-3 flex-wrap flex-grow';
+
     return (
         <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-1 flex flex-col items-stretch justify-center gap-1 w-full">
             {/* Row 1: Manner Actions - PVP 모드에서만 표시 */}
             {!isSinglePlayer && !session.isAiGame ? (
-                <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 w-full">
-                    <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">매너 액션 {usesLeftText}</h3>
-                    <div className="flex-grow flex items-center justify-center">
-                        <ActionButtonsPanel session={session} isSpectator={isSpectator} onAction={onAction} currentUser={currentUser} />
+                <div
+                    className={`bg-gray-900/50 rounded-md flex flex-row items-center w-full min-w-0 ${
+                        isMobile ? 'flex-wrap justify-evenly gap-2 p-1.5' : 'p-2 gap-4'
+                    }`}
+                >
+                    <h3 className={`font-bold text-gray-300 whitespace-nowrap shrink-0 ${isMobile ? 'text-[9px]' : 'text-xs'}`}>
+                        매너 액션 {usesLeftText}
+                    </h3>
+                    <div className={`flex items-center min-w-0 ${isMobile ? 'flex-1 justify-center' : 'flex-grow justify-center'}`}>
+                        <ActionButtonsPanel session={session} isSpectator={isSpectator} onAction={onAction} currentUser={currentUser} isMobile={isMobile} />
                     </div>
                 </div>
             ) : !isSinglePlayer && session.isAiGame ? (
-                <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center justify-center gap-4 w-full">
-                    <p className="text-xs text-gray-400 italic">매너 액션 버튼은 PVP모드에서만 생성됩니다.</p>
+                <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center justify-center gap-4 w-full min-w-0">
+                    <p className="text-xs text-gray-400 italic whitespace-nowrap truncate">매너 액션 버튼은 PVP모드에서만 생성됩니다.</p>
                 </div>
             ) : null}
 
             {/* Row 2: Game and Special/Playful Functions */}
-            <div className="flex flex-row gap-1 w-full">
-                {/* Panel 1: 대국 기능 */}
-                <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 flex-1 min-w-0">
-                    <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">대국 기능</h3>
-                    <div className="flex items-center justify-center gap-3 flex-wrap flex-grow">
-                        {isGameEnded ? (
-                            <>
-                                <Button onClick={() => setShowResultModal(true)} colorScheme="none" className={getLuxuryButtonClasses('accent')}>결과 보기</Button>
-                                {isAiLobbyGame && onOpenRematchSettings && (
-                                    <Button onClick={onOpenRematchSettings} colorScheme="none" className={getLuxuryButtonClasses('success')}>재대결</Button>
-                                )}
-                                {showStrategicGameRecordActions && (onAction || onOpenGameRecordList) && (
-                                    <>
-                                        {onAction && (
-                                            <Button
-                                                onClick={async () => {
-                                                    if (savingGameRecord || recordAlreadySaved) return;
-                                                    if (savedRecordCount >= 10) {
-                                                        alert(GAME_RECORD_SLOT_FULL_MESSAGE);
-                                                        return;
-                                                    }
-                                                    setSavingGameRecord(true);
-                                                    try {
-                                                        const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId } });
-                                                        if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) return;
-                                                        setSavedOptimistic(true);
-                                                    } catch (e) {
-                                                        console.error(e);
-                                                    } finally {
-                                                        setSavingGameRecord(false);
-                                                    }
-                                                }}
-                                                disabled={savingGameRecord || recordAlreadySaved}
-                                                colorScheme="none"
-                                                className={`${getLuxuryButtonClasses('accent')} ${recordAlreadySaved ? 'opacity-50' : ''}`}
-                                            >
-                                                {savingGameRecord ? '저장 중...' : recordAlreadySaved ? '이미 저장됨' : '기보 저장'}
-                                            </Button>
-                                        )}
-                                        {onOpenGameRecordList && (
-                                            <Button
-                                                onClick={() => onOpenGameRecordList()}
-                                                colorScheme="none"
-                                                className={getLuxuryButtonClasses('neutral')}
-                                            >
-                                                기보 관리
-                                            </Button>
-                                        )}
-                                    </>
-                                )}
-                            </>
-                        ) : (
-                            <>
-                                {isStrategic && mode !== GameMode.Capture && !isAiLobbyGame && (
-                                    <LabeledControlButton
-                                        key="pass"
-                                        src="/images/button/pass.png"
-                                        alt="통과"
-                                        label="통과"
-                                        onClick={handlePass}
-                                        disabled={!isMyTurn || isSpectator || isPreGame}
-                                        title="한 수 쉬기"
-                                    />
-                                )}
-                                {/* 기권 버튼 (AI 게임에서도 표시) */}
-                                <LabeledControlButton
-                                    key="resign"
-                                    src="/images/button/giveup.png"
-                                    alt="기권"
-                                    label="기권"
-                                    onClick={handleResign}
-                                    disabled={isSpectator || isGameEnded || gameStatus === 'pending'}
-                                    title="기권하기"
-                                    variant="danger"
-                                />
-                            </>
-                        )}
+            {isMobile ? (
+                <div className="flex w-full min-w-0 gap-2">
+                    <div className="flex min-h-[4.25rem] min-w-0 flex-1 flex-col gap-1 rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">대국</span>
+                        <div className={primaryStripClass}>{primaryControlsInner}</div>
+                    </div>
+                    <div
+                        className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-500/15 via-stone-500/50 to-stone-500/15"
+                        aria-hidden
+                    />
+                    <div className="flex min-h-[4.25rem] min-w-0 flex-1 flex-col gap-1 rounded-lg border border-amber-900/35 bg-gray-900/55 p-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-amber-200/85">{isStrategic ? '특수' : '놀이'}</span>
+                        <div className={specialStripClass}>{specialControlsInner}</div>
                     </div>
                 </div>
-
-                {/* Panel 2: 특수/놀이 기능 */}
-                <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 flex-1 min-w-0">
-                    <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">{isStrategic ? '특수 기능' : '놀이 기능'}</h3>
-                    <div className="flex items-center justify-center gap-3 flex-wrap flex-grow">
-                        {isStrategic ? (
-                            (() => {
-                                if (isGameEnded || !hasItems) return null;
-                                const itemButtons = renderItemButtons();
-                                if (itemButtons.length === 0) {
-                                    return <span className="text-[10px] text-gray-400">사용 가능한 기능 없음</span>;
-                                }
-                                return itemButtons;
-                            })()
-                        ) : (
-                            mode === GameMode.Dice ? (
-                                <DicePanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" />
-                            ) :
-                            mode === GameMode.Thief ? (
-                                <ThiefPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" />
-                            ) :
-                            mode === GameMode.Curling ? <CurlingItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} /> :
-                            mode === GameMode.Alkkagi ? <AlkkagiItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} /> :
-                            <PlayfulStonesPanel session={session} currentUser={currentUser} />
-                        )}
+            ) : (
+                <div className="flex flex-row gap-1 w-full">
+                    <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 flex-1 min-w-0">
+                        <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">대국 기능</h3>
+                        <div className={primaryStripClass}>{primaryControlsInner}</div>
+                    </div>
+                    <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 flex-1 min-w-0">
+                        <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">{isStrategic ? '특수 기능' : '놀이 기능'}</h3>
+                        <div className={specialStripClass}>{specialControlsInner}</div>
                     </div>
                 </div>
-            </div>
+            )}
              {/* Admin Controls */}
             {isSpectator && currentUser.isAdmin && isGameActive && (
-                <div className="bg-purple-900/50 rounded-md p-2 flex flex-row items-center gap-4 w-full mt-1">
-                    <h3 className="text-xs font-bold text-purple-300 whitespace-nowrap">관리자 기능</h3>
-                    <div className="flex items-center justify-center gap-2 flex-wrap flex-grow">
+                <div className="bg-purple-900/50 rounded-md p-2 flex flex-row items-center gap-4 w-full mt-1 min-w-0">
+                    <h3 className="text-xs font-bold text-purple-300 whitespace-nowrap shrink-0">관리자 기능</h3>
+                    <div
+                        className={`flex items-center gap-2 flex-grow min-w-0 ${
+                            isMobile ? 'flex-wrap justify-evenly' : 'flex-wrap justify-center'
+                        }`}
+                    >
                         <Button
                             onClick={() => {
                                 if (window.confirm(`${player1.nickname}님을 기권승 처리하시겠습니까?`)) {

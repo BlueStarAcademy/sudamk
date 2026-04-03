@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { UserWithStatus, GameMode, ServerAction } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import DraggableWindow from './DraggableWindow.js';
@@ -43,31 +43,27 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
         <DraggableWindow title={title} onClose={onClose} windowId="detailed-stats" initialWidth={600}>
             <div className="max-h-[calc(var(--vh,1vh)*60)] overflow-y-auto pr-2">
                 <ul className="space-y-3">
-                    {modes.map(({ mode }) => {
+                    {modes.map(({ mode, name }) => {
                         const gameStats = stats?.[mode];
-                        if (!gameStats || (gameStats.wins === 0 && gameStats.losses === 0)) return null;
-
-                        const totalGames = gameStats.wins + gameStats.losses;
-                        const winRate = totalGames > 0 ? Math.round((gameStats.wins / totalGames) * 100) : 0;
+                        const wins = gameStats?.wins ?? 0;
+                        const losses = gameStats?.losses ?? 0;
+                        const totalGames = wins + losses;
+                        const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
 
                         return (
                             <li key={mode} className="bg-gray-900/50 p-4 rounded-lg">
-                                <div className="flex justify-between items-start">
-                                    <h3 className="text-lg font-bold text-yellow-300 mb-2">{mode}</h3>
-                                    <Button onClick={() => handleResetSingle(mode)} disabled={!canAffordSingle} className="!text-xs !py-1" colorScheme="orange" title={`비용: 💎 ${singleResetCost}`}>초기화</Button>
+                                <div className="flex justify-between items-start gap-2">
+                                    <h3 className="text-lg font-bold text-yellow-300 mb-2 min-w-0">{name}</h3>
+                                    <Button onClick={() => handleResetSingle(mode)} disabled={!canAffordSingle} className="!text-xs !py-1 shrink-0" colorScheme="orange" title={`비용: 💎 ${singleResetCost}`}>초기화</Button>
                                 </div>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-center">
+                                <div className="grid grid-cols-2 gap-2 text-sm text-center">
                                     <div className="bg-gray-800 p-2 rounded-md">
                                         <p className="text-gray-400">승/패</p>
-                                        <p className="font-semibold text-white">{gameStats.wins}승 {gameStats.losses}패</p>
+                                        <p className="font-semibold text-white">{wins}승 {losses}패</p>
                                     </div>
                                     <div className="bg-gray-800 p-2 rounded-md">
                                         <p className="text-gray-400">승률</p>
                                         <p className="font-semibold text-white">{winRate}%</p>
-                                    </div>
-                                    <div className="bg-gray-800 p-2 rounded-md">
-                                        <p className="text-gray-400">랭킹 점수</p>
-                                        <p className="font-semibold text-white">{gameStats.rankingScore}점</p>
                                     </div>
                                 </div>
                             </li>

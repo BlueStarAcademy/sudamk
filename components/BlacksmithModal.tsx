@@ -9,6 +9,7 @@ import InventoryGrid from './blacksmith/InventoryGrid.js';
 import DisassemblyResultModal from './DisassemblyResultModal.js'; // New import
 import RefinementResultModal from './blacksmith/RefinementResultModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { BLACKSMITH_MAX_LEVEL, BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL, BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES, BLACKSMITH_DISASSEMBLY_JACKPOT_RATES, BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP } from '../constants/rules';
 import { InventoryItem, EnhancementResult, ServerAction } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
@@ -38,6 +39,7 @@ type SortOption = 'grade' | 'stars' | 'name' | 'date';
 
 const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, selectedItemForEnhancement, activeTab, onSetActiveTab, enhancementOutcome }) => {
     const { currentUserWithStatus, handlers, modals } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(selectedItemForEnhancement);
     const [combinationItems, setCombinationItems] = useState<(InventoryItem | null)[]>([null, null, null]);
     const [selectedForDisassembly, setSelectedForDisassembly] = useState<Set<string>>(new Set()); // New state
@@ -336,6 +338,93 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 variant="store"
             >
                 <div className={`flex h-full min-h-0`}>
+                    {isNativeMobile ? (
+                        <div className="flex h-full min-h-0 w-full flex-col gap-2">
+                            <div className="grid min-h-0 shrink-0 grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-2">
+                                <div className="rounded-xl border border-cyan-300/30 bg-tertiary/30 p-2">
+                                    <div className="relative overflow-hidden rounded-lg border border-cyan-300/20">
+                                        <img src="/images/equipments/moru.png" alt="Blacksmith" className="h-[120px] w-full object-cover" />
+                                        <button
+                                            onClick={handlers.openBlacksmithHelp}
+                                            className="absolute left-2 top-2 rounded-md border border-amber-300/35 bg-black/65 px-2 py-1 text-[10px] font-semibold text-amber-100 hover:bg-black/80"
+                                        >
+                                            대장간 효과
+                                        </button>
+                                    </div>
+                                    <div className="mt-2">
+                                        <h2 className="text-sm font-bold">
+                                            대장간 <span className="text-yellow-400">Lv.{blacksmithLevel ?? 1}</span>
+                                        </h2>
+                                        <div className="mt-1 flex items-center justify-between text-[10px]">
+                                            <span>경험치</span>
+                                            {isMaxLevel ? (
+                                                <span>{(blacksmithXp ?? 0).toLocaleString()} (Max)</span>
+                                            ) : (
+                                                <span>
+                                                    {(blacksmithXp ?? 0)} / {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="mt-1 h-2 w-full rounded-full border border-color bg-black/50">
+                                            <div
+                                                className="h-full rounded-full bg-yellow-500 transition-all"
+                                                style={{ width: isMaxLevel ? '100%' : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="rounded-xl border border-cyan-300/30 bg-tertiary/20 p-2">
+                                    <div className="grid h-full grid-cols-2 gap-1.5">
+                                        {tabs.map(tab => (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => onSetActiveTab(tab.id as 'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine')}
+                                                className={`rounded-md border px-2 py-2 text-[11px] font-semibold leading-tight transition ${
+                                                    activeTab === tab.id
+                                                        ? 'border-accent bg-accent/15 text-accent'
+                                                        : 'border-color/40 bg-secondary/20 text-secondary hover:bg-secondary/35'
+                                                }`}
+                                            >
+                                                {tab.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="min-h-0 flex-1 rounded-xl border border-color/40 bg-tertiary/20 p-2">
+                                {renderContent()}
+                            </div>
+
+                            <div className="min-h-0 shrink-0 rounded-xl border border-color/40 bg-primary/40 p-2">
+                                <div className="mb-1.5 flex items-center justify-between">
+                                    <h3 className="text-sm font-bold text-on-panel">{bagHeaderText}</h3>
+                                    <select
+                                        value={sortOption}
+                                        onChange={(e) => setSortOption(e.target.value as SortOption)}
+                                        className="rounded border border-color bg-secondary px-2 py-1 text-[10px] text-on-panel"
+                                    >
+                                        <option value="grade">등급순</option>
+                                        <option value="stars">강화순</option>
+                                        <option value="name">이름순</option>
+                                        <option value="date">최신순</option>
+                                    </select>
+                                </div>
+                                <div className="h-[170px] overflow-y-auto pr-1">
+                                    <InventoryGrid
+                                        inventory={filteredInventory}
+                                        inventorySlots={inventorySlotsToDisplay}
+                                        onSelectItem={handleSelectItem}
+                                        selectedItemId={selectedItem?.id || null}
+                                        disabledItemIds={disabledItemIds}
+                                        selectedItemIdsForDisassembly={activeTab === 'disassemble' ? selectedForDisassembly : undefined}
+                                        onToggleDisassemblySelection={activeTab === 'disassemble' ? handleToggleDisassemblySelection : undefined}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                    <>
                     {/* Left Panel */}
                     <div className={`w-[360px] bg-tertiary/30 p-4 flex flex-col items-center gap-4 flex-shrink-0 overflow-hidden`}>
                         <div className="w-full aspect-w-3 aspect-h-2 prism-border rounded-lg overflow-hidden relative flex-shrink-0">
@@ -478,6 +567,8 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                             </div>
                         </div>
                     </div>
+                    </>
+                    )}
                 </div>
             </DraggableWindow>
 

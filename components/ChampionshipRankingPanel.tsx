@@ -6,8 +6,9 @@ import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import Avatar from './Avatar.js';
 
 const CHAMPIONSHIP_TOP = 100;
-const INITIAL_DISPLAY = 10;
-const LOAD_MORE = 10;
+/** 첫 화면에 약 6명 분량이 보이도록 행 높이와 맞춘 초기 로드 개수 */
+const INITIAL_DISPLAY = 6;
+const LOAD_MORE = 8;
 
 /** 게임/바둑 랭킹과 동일한 한 줄 행 (compact용) */
 const CompactRankRow: React.FC<{
@@ -48,17 +49,17 @@ const RankRow: React.FC<{
 
     return (
         <li
-            className={`flex items-center rounded-lg p-1.5 lg:p-2 ${isCurrentUser ? 'bg-blue-900/60 border border-blue-600' : 'bg-gray-900/50'} ${!isCurrentUser ? 'cursor-pointer hover:bg-gray-700/50' : ''}`}
+            className={`flex min-h-[3.5rem] items-center rounded-lg p-2.5 lg:p-3 ${isCurrentUser ? 'bg-blue-900/60 border border-blue-600' : 'bg-gray-900/50'} ${!isCurrentUser ? 'cursor-pointer hover:bg-gray-700/50' : ''}`}
             onClick={!isCurrentUser ? () => onViewUser(entry.id) : undefined}
             title={!isCurrentUser ? `${entry.nickname} 프로필 보기` : ''}
         >
-            <div className="w-12 text-center flex-shrink-0 flex flex-col items-center justify-center">
+            <div className="w-14 flex-shrink-0 flex flex-col items-center justify-center text-center">
                 {rankDisplay}
             </div>
-            <Avatar userId={entry.id} userName={entry.nickname} size={32} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-            <div className="ml-2 lg:ml-3 flex-grow overflow-hidden">
-                <p className="font-semibold text-sm truncate">{entry.nickname}</p>
-                <p className="text-xs text-yellow-400 font-mono">{entry.score.toLocaleString()}점</p>
+            <Avatar userId={entry.id} userName={entry.nickname} size={40} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+            <div className="ml-2.5 lg:ml-3 flex-grow overflow-hidden">
+                <p className="truncate font-semibold text-base">{entry.nickname}</p>
+                <p className="font-mono text-sm text-yellow-400">{entry.score.toLocaleString()}점</p>
             </div>
         </li>
     );
@@ -73,7 +74,13 @@ interface ChampionshipRankingPanelProps {
 
 const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ compact = false, dense = false }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
-    const { rankings, loading, error, total } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
+    const { rankings, loading, error } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
+
+    /** 0점 유저는 표시하지 않음 (API와 동일, 캐시 지연 대비 클라이언트에서도 재필터) */
+    const visibleRankings = useMemo(() => {
+        const filtered = rankings.filter(e => e.score > 0);
+        return filtered.map((e, i) => ({ ...e, rank: i + 1 }));
+    }, [rankings]);
 
     const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY);
     const loadMoreRef = useRef<HTMLDivElement | HTMLLIElement>(null);
@@ -81,11 +88,11 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
 
     useEffect(() => {
         if (observerRef.current) observerRef.current.disconnect();
-        if (loadMoreRef.current && displayCount < rankings.length) {
+        if (loadMoreRef.current && displayCount < visibleRankings.length) {
             observerRef.current = new IntersectionObserver(
                 (entries) => {
                     if (entries[0].isIntersecting) {
-                        setDisplayCount(prev => Math.min(prev + LOAD_MORE, rankings.length));
+                        setDisplayCount(prev => Math.min(prev + LOAD_MORE, visibleRankings.length));
                     }
                 },
                 { threshold: 0.1 }
@@ -93,14 +100,14 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
             observerRef.current.observe(loadMoreRef.current);
         }
         return () => { observerRef.current?.disconnect(); };
-    }, [displayCount, rankings.length]);
+    }, [displayCount, visibleRankings.length]);
 
-    const displayedEntries = useMemo(() => rankings.slice(0, displayCount), [rankings, displayCount]);
+    const displayedEntries = useMemo(() => visibleRankings.slice(0, displayCount), [visibleRankings, displayCount]);
 
     const myEntry = useMemo(() => {
         if (!currentUserWithStatus) return null;
-        return rankings.find(e => e.id === currentUserWithStatus.id) ?? null;
-    }, [rankings, currentUserWithStatus]);
+        return visibleRankings.find(e => e.id === currentUserWithStatus.id) ?? null;
+    }, [visibleRankings, currentUserWithStatus]);
 
     const myRankDisplay = useMemo(() => {
         if (!currentUserWithStatus) return null;
@@ -137,21 +144,19 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
 
         return (
             <div
-                className={`bg-panel text-on-panel flex h-full min-h-0 flex-col rounded-lg border border-color ${dense ? 'gap-0.5 p-0.5' : 'gap-1 p-1.5'}`}
+                className={`bg-panel text-on-panel flex h-full min-h-0 flex-col rounded-lg border border-color ${dense ? 'gap-0.5 p-0.5' : 'gap-1.5 p-2'}`}
             >
-                <h3 className={`text-center font-semibold text-secondary flex-shrink-0 ${dense ? 'text-[8px] leading-tight' : 'text-xs'}`}>챔피언십 랭킹</h3>
-                <div className={`flex min-h-0 flex-grow flex-col gap-0.5 overflow-y-auto pr-0.5 ${dense ? 'text-[8px]' : 'pr-1 text-xs'}`}
+                <h3 className={`text-center font-semibold text-secondary flex-shrink-0 ${dense ? 'text-[8px] leading-tight' : 'text-sm'}`}>챔피언십 랭킹</h3>
+                <div className={`flex min-h-0 flex-grow flex-col overflow-y-auto pr-0.5 ${dense ? 'gap-0.5 text-[8px]' : 'gap-1 pr-1'}`}
                 >
                     {loading && rankings.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-gray-400 text-xs">데이터 로딩 중...</div>
                     ) : error ? (
                         <div className="flex items-center justify-center h-full text-red-400 text-xs">랭킹을 불러오는데 실패했습니다.</div>
-                    ) : rankings.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-gray-400 text-xs">랭킹 데이터가 없습니다.</div>
                     ) : (
                         <>
                             {currentUserEntry && (
-                                <div className="sticky top-0 bg-panel z-10">
+                                <div className="sticky top-0 z-10 bg-panel">
                                     <CompactRankRow
                                         entry={currentUserEntry}
                                         isCurrentUser={true}
@@ -160,20 +165,26 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                                     />
                                 </div>
                             )}
-                            <div className="flex flex-col gap-0.5">
-                                {displayedEntries.map((entry) => (
-                                    <CompactRankRow
-                                        key={entry.id}
-                                        entry={entry}
-                                        isCurrentUser={entry.id === currentUserWithStatus.id}
-                                        onViewUser={handlers.openViewingUser}
-                                        dense={dense}
-                                    />
-                                ))}
-                                {displayCount < rankings.length && (
-                                    <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="text-center text-gray-400 py-2 text-xs">로딩 중...</div>
-                                )}
-                            </div>
+                            {visibleRankings.length === 0 ? (
+                                <div className="flex flex-1 items-center justify-center py-3 text-center text-gray-400 text-xs">
+                                    랭킹에 표시할 점수가 있는 유저가 없습니다.
+                                </div>
+                            ) : (
+                                <div className={`flex flex-col ${dense ? 'gap-0.5' : 'gap-1'}`}>
+                                    {displayedEntries.map((entry) => (
+                                        <CompactRankRow
+                                            key={entry.id}
+                                            entry={entry}
+                                            isCurrentUser={entry.id === currentUserWithStatus.id}
+                                            onViewUser={handlers.openViewingUser}
+                                            dense={dense}
+                                        />
+                                    ))}
+                                    {displayCount < visibleRankings.length && (
+                                        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="py-2 text-center text-xs text-gray-400">로딩 중...</div>
+                                    )}
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
@@ -197,8 +208,8 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                 <>
                     {myRankDisplay && (
                         <div className="flex-shrink-0 mb-3">
-                            <div className="flex items-center rounded-lg bg-yellow-900/40 border border-yellow-700 p-1.5 lg:p-2">
-                                <div className="w-12 text-center flex-shrink-0 flex flex-col items-center justify-center">
+                            <div className="flex min-h-[3.5rem] items-center rounded-lg border border-yellow-700 bg-yellow-900/40 p-2.5 lg:p-3">
+                                <div className="w-14 flex-shrink-0 flex flex-col items-center justify-center text-center">
                                     {myRankDisplay.rank === null ? (
                                         <span className="text-2xl font-bold text-gray-400">-</span>
                                     ) : myRankDisplay.rank === 1 ? (
@@ -214,19 +225,19 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                                 <Avatar
                                     userId={currentUserWithStatus.id}
                                     userName={currentUserWithStatus.nickname}
-                                    size={32}
+                                    size={40}
                                     avatarUrl={AVATAR_POOL.find(a => a.id === currentUserWithStatus.avatarId)?.url}
                                     borderUrl={BORDER_POOL.find(b => b.id === currentUserWithStatus.borderId)?.url}
                                 />
-                                <div className="ml-2 lg:ml-3 flex-grow overflow-hidden">
-                                    <p className="font-semibold text-sm truncate">{currentUserWithStatus.nickname}</p>
-                                    <p className="text-xs text-yellow-400 font-mono">{myRankDisplay.score.toLocaleString()}점</p>
+                                <div className="ml-2.5 lg:ml-3 flex-grow overflow-hidden">
+                                    <p className="truncate font-semibold text-base">{currentUserWithStatus.nickname}</p>
+                                    <p className="font-mono text-sm text-yellow-400">{myRankDisplay.score.toLocaleString()}점</p>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    <ul className="space-y-2 overflow-y-auto pr-2 flex-grow min-h-0">
+                    <ul className="min-h-0 flex-grow space-y-3 overflow-y-auto pr-2">
                         {displayedEntries.length > 0 ? (
                             <>
                                 {displayedEntries.map((entry) => (
@@ -237,7 +248,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                                         onViewUser={handlers.openViewingUser}
                                     />
                                 ))}
-                                {displayCount < rankings.length && (
+                                {displayCount < visibleRankings.length && (
                                     <li ref={loadMoreRef as React.RefObject<HTMLLIElement>} className="text-center text-gray-500 py-2 text-xs">스크롤하여 더 보기...</li>
                                 )}
                             </>

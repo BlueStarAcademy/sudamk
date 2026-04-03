@@ -22,7 +22,6 @@ import Avatar from '../Avatar.js';
 import { GUILD_ATTACK_ICON, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_REGEN_IMG } from '../../assets.js';
 import RadarChart from '../RadarChart.js';
 import GuildBossBattleResultModal from './GuildBossBattleResultModal.js';
-import MobileSlideDeck from '../mobile/MobileSlideDeck.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 
 const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { chance?: number; description: string; } | null => {
@@ -129,9 +128,11 @@ interface UserStatsPanelProps {
     onOpenPresets: () => void;
     isSimulating: boolean;
     activeDebuffs: Record<string, { value: number; turns: number }>;
+    /** 네이티브 모바일 보스전 한 화면 레이아웃용 압축 UI */
+    compact?: boolean;
 }
 
-const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp, damageNumbers, onOpenEffects, onOpenPresets, isSimulating, activeDebuffs }) => {
+const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp, damageNumbers, onOpenEffects, onOpenPresets, isSimulating, activeDebuffs, compact = false }) => {
     const { handlers } = useAppContext();
     const myGuild = guild;
     
@@ -201,7 +202,7 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
     };
 
     return (
-        <div className="bg-panel border border-color rounded-lg p-3 flex flex-col flex-1 min-h-0">
+        <div className={`bg-panel border border-color rounded-lg flex flex-col flex-1 min-h-0 ${compact ? 'p-2 gap-0.5' : 'p-3'}`}>
             <style>{`
                 @keyframes float-up-and-fade {
                     from { transform: translateY(0) scale(1); opacity: 1; }
@@ -212,37 +213,37 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                 }
             `}</style>
             
-            <div className="flex items-center gap-3 mb-2 flex-shrink-0">
-                <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={48} />
-                <h3 className="font-bold text-lg">{user.nickname}</h3>
+            <div className={`flex items-center flex-shrink-0 ${compact ? 'gap-2 mb-1' : 'gap-3 mb-2'}`}>
+                <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={compact ? 36 : 48} />
+                <h3 className={`font-bold truncate ${compact ? 'text-sm' : 'text-lg'}`}>{user.nickname}</h3>
             </div>
             
-            <div className="relative mb-3 flex-shrink-0">
-                <div className="w-full bg-tertiary rounded-full h-4 border-2 border-color relative">
+            <div className={`relative flex-shrink-0 ${compact ? 'mb-1.5' : 'mb-3'}`}>
+                <div className={`w-full bg-tertiary rounded-full border-2 border-color relative ${compact ? 'h-3' : 'h-4'}`}>
                     <div className="bg-gradient-to-r from-green-400 to-green-600 h-full rounded-full" style={{ width: `${hpPercent}%`, transition: 'width 0.5s linear' }}></div>
-                     <span className="absolute inset-0 text-xs font-bold text-white flex items-center justify-center" style={{textShadow: '1px 1px 2px black'}}>
+                     <span className={`absolute inset-0 font-bold text-white flex items-center justify-center ${compact ? 'text-[10px]' : 'text-xs'}`} style={{textShadow: '1px 1px 2px black'}}>
                         HP: {Math.ceil(hp).toLocaleString()} / {maxHp.toLocaleString()}
                     </span>
                 </div>
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-24 w-full overflow-hidden pointer-events-none">
+                <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-full overflow-hidden pointer-events-none ${compact ? 'h-16' : 'h-24'}`}>
                     {damageNumbers.map(dn => (
-                        <div key={dn.id} className={`absolute bottom-0 left-1/2 -translate-x-1/2 font-bold text-lg damage-number-animation ${dn.color}`} style={{ textShadow: '1px 1px 3px black' }}>
+                        <div key={dn.id} className={`absolute bottom-0 left-1/2 -translate-x-1/2 font-bold damage-number-animation ${dn.color} ${compact ? 'text-sm' : 'text-lg'}`} style={{ textShadow: '1px 1px 3px black' }}>
                             {dn.text}
                         </div>
                     ))}
                 </div>
             </div>
             
-            <div className="flex flex-row gap-2 items-center mb-2">
-                <div className="w-1/2">
-                    <RadarChart datasets={radarDataset} maxStatValue={1000} size={150} />
+            <div className={`flex flex-row items-center ${compact ? 'gap-1.5 mb-1' : 'gap-2 mb-2'}`}>
+                <div className="w-1/2 flex justify-center">
+                    <RadarChart datasets={radarDataset} maxStatValue={1000} size={compact ? 88 : 150} />
                 </div>
-                <div className="w-1/2 grid grid-cols-1 gap-1 text-xs">
+                <div className={`w-1/2 grid grid-cols-1 gap-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
                     {Object.values(CoreStat).map(stat => {
                         const bonus = equipmentBonuses[stat] || 0;
                         const isDebuffed = stat === CoreStat.CombatPower && activeDebuffs['user_combat_power_reduction_percent']?.turns > 0;
                         return (
-                            <div key={stat} className="flex justify-between items-center bg-tertiary/40 p-1 rounded-md">
+                            <div key={stat} className={`flex justify-between items-center bg-tertiary/40 rounded-md ${compact ? 'p-0.5' : 'p-1'}`}>
                                 <span className={`font-semibold text-secondary ${isDebuffed ? 'text-red-400' : ''}`}>{stat}</span>
                                 <div className="flex items-baseline">
                                     <span className={`font-mono font-bold ${isDebuffed ? 'text-red-400' : 'text-primary'}`}>{totalStats[stat]}</span>
@@ -254,7 +255,7 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                 </div>
             </div>
             
-            <div className="grid grid-cols-6 gap-1 px-1">
+            <div className={`grid grid-cols-6 px-1 ${compact ? 'gap-0.5' : 'gap-1'}`}>
                 {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => (
                     <div key={slot} className="w-full">
                         <EquipmentSlotDisplay
@@ -269,9 +270,9 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                 ))}
             </div>
             
-            <div className="mt-2 flex items-center justify-end gap-2">
+            <div className={`flex items-center justify-end gap-2 ${compact ? 'mt-1' : 'mt-2'}`}>
                 {/* FIX: Corrected typo from openEquipmentEffectsModal to openGuildEffectsModal, then corrected back to openEquipmentEffectsModal as it's for user equipment. */}
-                <Button onClick={handlers.openEquipmentEffectsModal} colorScheme="purple" className="flex-1 !text-xs !py-1.5">장비 효과</Button>
+                <Button onClick={handlers.openEquipmentEffectsModal} colorScheme="purple" className={`flex-1 ${compact ? '!text-[10px] !py-1' : '!text-xs !py-1.5'}`}>장비 효과</Button>
                 <select
                     onChange={(e) => {
                         const index = parseInt(e.target.value, 10);
@@ -281,7 +282,7 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                         e.target.value = "";
                     }}
                     disabled={isSimulating}
-                    className="bg-secondary border border-color rounded-md p-1.5 text-xs font-semibold text-primary hover:bg-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-32"
+                    className={`bg-secondary border border-color rounded-md font-semibold text-primary hover:bg-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'p-1 text-[10px] w-24' : 'p-1.5 text-xs w-32'}`}
                     defaultValue=""
                 >
                     <option value="" disabled>프리셋 불러오기</option>
@@ -293,9 +294,9 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                 </select>
             </div>
 
-            <div className="mt-2 pt-2 border-t border-color flex-1 min-h-0 flex flex-col">
-                <h4 className="font-semibold text-sm text-center text-secondary mb-1 flex-shrink-0">연구소 스킬 효과</h4>
-                 <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-1 text-xs">
+            <div className={`border-t border-color flex-1 min-h-0 flex flex-col ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
+                <h4 className={`font-semibold text-center text-secondary flex-shrink-0 ${compact ? 'text-xs mb-1' : 'text-sm mb-1'}`}>연구소 스킬 효과</h4>
+                 <div className={`flex-1 min-h-0 overflow-y-auto pr-1 ${compact ? 'space-y-1.5 text-xs' : 'space-y-1 text-xs'}`}>
                     {allBossResearch.map(project => {
                         const currentLevel = guild?.research?.[project.id]?.level || 0;
                         const displayInfo = getResearchSkillDisplay(project.id, currentLevel);
@@ -308,18 +309,18 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                         const displayName = simpleNameMap[project.id] || project.name;
                         
                         return (
-                            <div key={project.id} className={`flex items-center gap-2 bg-tertiary/50 p-1 rounded-md ${!displayInfo ? 'opacity-60' : ''}`} title={project.description}>
-                                <div className="flex items-center gap-2 flex-shrink-0 w-28">
-                                    <img src={project.image} alt={displayName} className="w-12 h-12"/>
-                                    <span className="font-semibold text-primary text-sm">{displayName}</span>
+                            <div key={project.id} className={`flex items-center bg-tertiary/50 rounded-md ${!displayInfo ? 'opacity-60' : ''} ${compact ? 'gap-1.5 p-1.5' : 'gap-2 p-1'}`} title={project.description}>
+                                <div className={`flex items-center flex-shrink-0 ${compact ? 'gap-1.5 min-w-0 w-[6.25rem]' : 'gap-2 w-28'}`}>
+                                    <img src={project.image} alt={displayName} className={compact ? 'h-10 w-10 shrink-0' : 'w-12 h-12'}/>
+                                    <span className={`font-semibold text-primary leading-tight ${compact ? 'text-xs' : 'text-sm'}`}>{displayName}</span>
                                 </div>
-                                <div className="flex-grow min-w-0 text-right">
+                                <div className="min-w-0 flex-1 text-right">
                                     {displayInfo ? (
-                                        <p className="font-mono font-bold text-yellow-400">
-                                            {displayInfo.chance !== undefined ? `[${displayInfo.chance}% 확률] ` : ''}{displayInfo.description}
+                                        <p className={`font-mono font-bold text-yellow-400 ${compact ? 'text-xs leading-snug' : ''}`}>
+                                            {displayInfo.chance !== undefined ? `[${displayInfo.chance}%] ` : ''}{displayInfo.description}
                                         </p>
                                     ) : (
-                                        <p className="text-tertiary text-[10px]">비활성</p>
+                                        <p className={`text-tertiary ${compact ? 'text-xs' : 'text-[10px]'}`}>비활성</p>
                                     )}
                                 </div>
                             </div>
@@ -336,6 +337,7 @@ interface BossPanelProps {
     hp: number;
     maxHp: number;
     damageNumbers: { id: number; text: string; color: string; isHeal: boolean; isCrit?: boolean }[];
+    compact?: boolean;
 }
 
 const BossSkillTile: React.FC<{ skill: GuildBossInfo['skills'][number]; className?: string }> = ({ skill, className = '' }) => (
@@ -363,10 +365,14 @@ const BossSkillTile: React.FC<{ skill: GuildBossInfo['skills'][number]; classNam
     </button>
 );
 
-const BossRecommendedStatsTip: React.FC<{ stats: CoreStat[] }> = ({ stats }) => (
+const BossRecommendedStatsTip: React.FC<{ stats: CoreStat[]; compact?: boolean }> = ({ stats, compact = false }) => (
     <button
         type="button"
-        className="group/tip relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-400/35 bg-black/60 text-2xl shadow-md outline-none transition hover:border-amber-300/50 hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-amber-400/70 active:scale-95 sm:h-12 sm:w-12 sm:text-3xl"
+        className={
+            compact
+                ? 'group/tip relative flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-amber-400/35 bg-black/60 text-lg shadow-md outline-none transition hover:border-amber-300/50 hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-amber-400/70 active:scale-95'
+                : 'group/tip relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-400/35 bg-black/60 text-2xl shadow-md outline-none transition hover:border-amber-300/50 hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-amber-400/70 active:scale-95 sm:h-12 sm:w-12 sm:text-3xl'
+        }
         aria-label={`보스 공략 추천 능력치: ${stats.join(', ')}`}
     >
         <span className="select-none leading-none" aria-hidden>
@@ -392,22 +398,28 @@ const BossRecommendedStatsTip: React.FC<{ stats: CoreStat[] }> = ({ stats }) => 
     </button>
 );
 
-const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers }) => {
+const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers, compact = false }) => {
     const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
 
     return (
-        <div className="flex flex-col gap-2 h-full">
-            <div className="relative flex-shrink-0 group">
-                <img src={boss.image} alt={boss.name} className="w-full object-contain rounded-lg" />
+        <div className={`flex h-full flex-col ${compact ? 'min-h-0 gap-1' : 'gap-2'}`}>
+            <div
+                className={`relative min-h-0 group ${compact ? 'flex min-h-0 flex-1 flex-col' : 'flex-shrink-0'}`}
+            >
+                <img
+                    src={boss.image}
+                    alt={boss.name}
+                    className={`mx-auto w-full rounded-lg object-contain ${compact ? 'min-h-0 flex-1' : 'max-h-[min(72vh,640px)]'}`}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/50 rounded-lg pointer-events-none"></div>
                 
-                <div className="absolute top-2 left-2 right-2">
-                     <div className="w-full bg-tertiary rounded-full h-5 border-2 border-black/50 relative">
+                <div className={`absolute left-2 right-2 ${compact ? 'top-1' : 'top-2'}`}>
+                     <div className={`w-full bg-tertiary rounded-full border-2 border-black/50 relative ${compact ? 'h-4' : 'h-5'}`}>
                         <div className="bg-gradient-to-r from-red-500 to-red-700 h-full rounded-full" style={{ width: `${hpPercent}%`, transition: 'width 0.5s linear' }}></div>
-                         <span className="absolute inset-0 text-sm font-bold text-white flex items-center justify-center" style={{textShadow: '1px 1px 2px black'}}>
+                         <span className={`absolute inset-0 font-bold text-white flex items-center justify-center ${compact ? 'text-[10px]' : 'text-sm'}`} style={{textShadow: '1px 1px 2px black'}}>
                             {Math.ceil(hp).toLocaleString()} / {maxHp.toLocaleString()} ({hpPercent.toFixed(1)}%)
                         </span>
-                        <div className="absolute top-full left-0 right-0 h-24 pointer-events-none">
+                        <div className={`absolute top-full left-0 right-0 pointer-events-none ${compact ? 'h-16' : 'h-24'}`}>
                             {damageNumbers.map(dn => (
                                 <div 
                                     key={dn.id} 
@@ -421,17 +433,25 @@ const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers })
                     </div>
                 </div>
                 
-                <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-3 p-2 sm:gap-4">
+                <div className={`absolute bottom-0 left-0 right-0 flex items-center justify-center ${compact ? 'gap-1.5 p-1' : 'gap-3 p-2 sm:gap-4'}`}>
                     <div
-                        className="flex max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1.5 overflow-visible rounded-xl border border-white/20 bg-black/45 p-1.5 shadow-lg sm:gap-2 sm:p-2"
+                        className={`flex max-w-full shrink-0 flex-row flex-nowrap items-center justify-center overflow-visible rounded-xl border border-white/20 bg-black/45 shadow-lg ${compact ? 'gap-0.5 p-1' : 'gap-1.5 p-1.5 sm:gap-2 sm:p-2'}`}
                         aria-label="보스 스킬"
                     >
                         {boss.skills.map((skill) => (
-                            <BossSkillTile key={skill.id} skill={skill} className="h-14 w-14 shrink-0 sm:h-16 sm:w-16 md:h-[4.5rem] md:w-[4.5rem]" />
+                            <BossSkillTile
+                                key={skill.id}
+                                skill={skill}
+                                className={
+                                    compact
+                                        ? 'h-9 w-9 shrink-0'
+                                        : 'h-14 w-14 shrink-0 sm:h-16 sm:w-16 md:h-[4.5rem] md:w-[4.5rem]'
+                                }
+                            />
                         ))}
                     </div>
-                    <div className="h-10 w-px shrink-0 bg-gray-500/50 sm:h-12"></div>
-                    <BossRecommendedStatsTip stats={boss.recommendedStats} />
+                    <div className={`w-px shrink-0 bg-gray-500/50 ${compact ? 'h-8' : 'h-10 sm:h-12'}`}></div>
+                    <BossRecommendedStatsTip stats={boss.recommendedStats} compact={compact} />
                 </div>
             </div>
         </div>
@@ -443,25 +463,28 @@ interface DamageRankingPanelProps {
     fullDamageRanking: { userId: string; nickname: string; damage: number }[];
     myRankData: { userId: string; nickname: string; damage: number; rank: number } | null;
     myCurrentBattleDamage: number;
+    compact?: boolean;
 }
 
 
-const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({ fullDamageRanking, myRankData, myCurrentBattleDamage }) => {
+const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({ fullDamageRanking, myRankData, myCurrentBattleDamage, compact = false }) => {
     const { handlers } = useAppContext();
     const top3 = fullDamageRanking.slice(0, 3);
     const amIInTop3 = myRankData ? myRankData.rank <= 3 : false;
 
     return (
-        <div className="bg-panel border border-color rounded-lg p-3 flex flex-col min-h-0 h-full">
-            <h4 className="font-bold text-yellow-300 mb-2 text-center flex-shrink-0">누적 피해 랭킹 Top 3</h4>
+        <div className={`bg-panel border border-color rounded-lg flex flex-col min-h-0 h-full ${compact ? 'p-2' : 'p-3'}`}>
+            <h4 className={`font-bold text-yellow-300 text-center flex-shrink-0 ${compact ? 'text-sm mb-1' : 'text-base mb-2'}`}>
+                {compact ? '누적 피해 Top 3' : '누적 피해 랭킹 Top 3'}
+            </h4>
             
-            <div className="flex-grow overflow-y-auto pr-1">
+            <div className="flex-grow min-h-0 overflow-y-auto pr-1">
                 {top3.length > 0 ? (
-                    <ul className="space-y-1">
+                    <ul className={compact ? 'space-y-1' : 'space-y-1'}>
                         {top3.map((rank, index) => (
-                            <li key={rank.userId} onClick={() => handlers.openViewingUser(rank.userId)} className="flex items-center justify-between bg-tertiary/50 p-1.5 rounded-md text-xs cursor-pointer hover:bg-secondary">
+                            <li key={rank.userId} onClick={() => handlers.openViewingUser(rank.userId)} className="flex cursor-pointer items-center justify-between rounded-md bg-tertiary/50 p-1.5 text-xs hover:bg-secondary">
                                 <div className="flex items-center gap-1.5">
-                                    <span className="font-bold w-5 text-center">{index + 1}.</span>
+                                    <span className={`font-bold text-center ${compact ? 'w-6' : 'w-5'}`}>{index + 1}.</span>
                                     <span className="font-semibold truncate">{rank.nickname}</span>
                                 </div>
                                 <span className="font-mono text-highlight">{rank.damage.toLocaleString()}</span>
@@ -469,12 +492,12 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({ fullDamageRanki
                         ))}
                     </ul>
                 ) : (
-                    <div className="h-full flex items-center justify-center text-tertiary text-sm">기록 없음</div>
+                    <div className={`h-full flex items-center justify-center text-tertiary ${compact ? 'text-xs' : 'text-sm'}`}>기록 없음</div>
                 )}
             </div>
             {myRankData && !amIInTop3 && (
-                <div className="mt-2 pt-2 border-t border-color/50 flex-shrink-0">
-                    <div className="flex items-center justify-between bg-blue-900/40 p-1.5 rounded-md text-xs">
+                <div className={`border-t border-color/50 flex-shrink-0 ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
+                    <div className={`flex items-center justify-between bg-blue-900/40 rounded-md ${compact ? 'p-1.5 text-xs' : 'p-1.5 text-xs'}`}>
                          <div className="flex items-center gap-1.5">
                             <span className="font-bold w-5 text-center">{myRankData.rank}</span>
                             <span className="font-semibold truncate">{myRankData.nickname} (나)</span>
@@ -483,8 +506,11 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({ fullDamageRanki
                     </div>
                 </div>
             )}
-            <div className="mt-2 pt-2 border-t border-color/50 flex-shrink-0 text-center">
-                <p className="text-sm">이번 전투 피해량: <span className="font-bold text-yellow-300">{myCurrentBattleDamage.toLocaleString()}</span></p>
+            <div className={`border-t border-color/50 flex-shrink-0 text-center ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
+                <p className={compact ? 'text-xs' : 'text-sm'}>
+                    {compact ? '이번 전투: ' : '이번 전투 피해량: '}
+                    <span className="font-bold text-yellow-300">{myCurrentBattleDamage.toLocaleString()}</span>
+                </p>
             </div>
         </div>
     );
@@ -830,12 +856,15 @@ const GuildBoss: React.FC = () => {
     const attemptsLeft = GUILD_BOSS_MAX_ATTEMPTS - usedToday;
     
     return (
-        <div style={backgroundStyle} className="relative mx-auto flex h-full w-full max-w-[98%] flex-col p-6">
-            <header className="relative flex justify-center items-center mb-4 flex-shrink-0 py-2">
+        <div
+            style={backgroundStyle}
+            className={`relative mx-auto flex h-full w-full max-w-[98%] flex-col ${isNativeMobile ? 'p-2 pb-1' : 'p-6'}`}
+        >
+            <header className={`relative flex justify-center items-center flex-shrink-0 ${isNativeMobile ? 'mb-1 py-1' : 'mb-4 py-2'}`}>
                 <div className="absolute left-0 top-1/2 -translate-y-1/2">
                     <BackButton onClick={() => window.location.hash = '#/guild'} />
                 </div>
-                <h1 className="text-3xl font-bold text-white" style={{ textShadow: '2px 2px 5px black' }}>길드 보스전</h1>
+                <h1 className={`font-bold text-white ${isNativeMobile ? 'text-xl' : 'text-3xl'}`} style={{ textShadow: '2px 2px 5px black' }}>길드 보스전</h1>
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">
                     <button
                         type="button"
@@ -849,65 +878,92 @@ const GuildBoss: React.FC = () => {
                 </div>
             </header>
 
-            {/* 뷰포트 lg/xl이 아니라 설계 캔버스 기준으로 PC와 동일 20% | flex-1 | 26% — 네이티브는 가로 슬라이드 */}
+            {/* 네이티브 모바일: 좌 보스·랭킹 | 우 유저정보 | 하단 공격 로그 + 도전 */}
             {isNativeMobile ? (
-                <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[48vh]">
-                    <div className="flex min-h-0 w-full flex-col gap-4 px-1 pb-4">
-                        <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={scaledBoss.maxHp} damageNumbers={bossDamageNumbers} />
-                        <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
-                    </div>
-                    <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col gap-4 px-1 pb-4">
-                        <div className="bg-panel border border-color flex min-h-[40vh] flex-col rounded-lg p-4">
-                            <h3 className="mb-2 flex-shrink-0 text-center text-lg font-bold text-red-300">보스의 공격</h3>
-                            <div ref={bossLogContainerRef} className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-2 pr-2 text-sm space-y-2">
-                                {bossLogs.map((entry, index) => (
-                                    <div key={index} className="flex items-center gap-2 animate-fade-in">
-                                        <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
-                                        {entry.icon && <img src={entry.icon} alt="action" className="w-6 h-6 flex-shrink-0" />}
-                                        <span>{entry.message}</span>
-                                    </div>
-                                ))}
+                <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="flex min-h-0 flex-1 flex-row gap-1.5 overflow-hidden">
+                        <div className="flex min-h-0 w-[50%] max-w-[50%] flex-col gap-1.5 overflow-hidden">
+                            <div className="min-h-0 flex-[1.55] overflow-hidden">
+                                <BossPanel
+                                    boss={currentBoss}
+                                    hp={simulatedBossHp}
+                                    maxHp={scaledBoss.maxHp}
+                                    damageNumbers={bossDamageNumbers}
+                                    compact
+                                />
+                            </div>
+                            <div className="min-h-0 max-h-[34%] flex-shrink-0 basis-[28%] overflow-hidden">
+                                <DamageRankingPanel
+                                    fullDamageRanking={fullDamageRanking}
+                                    myRankData={myRankData}
+                                    myCurrentBattleDamage={currentBattleDamage}
+                                    compact
+                                />
                             </div>
                         </div>
-                        <div className="bg-panel border border-color flex min-h-[40vh] flex-col rounded-lg p-4">
-                            <h3 className="mb-2 flex-shrink-0 text-center text-lg font-bold text-blue-300">나의 공격</h3>
-                            <div ref={userLogContainerRef} className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-2 pr-2 text-sm space-y-2">
-                                {userLogs.map((entry, index) => (
-                                    <div key={index} className="flex items-center gap-2 animate-fade-in justify-start">
-                                        <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
-                                        {entry.icon && <img src={entry.icon} alt="action" className="w-6 h-6 flex-shrink-0" />}
-                                        <span>{entry.message}</span>
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="flex min-h-0 min-w-0 w-[50%] max-w-[50%] flex-1 flex-col overflow-y-auto overflow-x-hidden">
+                            <UserStatsPanel
+                                user={currentUserWithStatus}
+                                guild={myGuild}
+                                hp={userHp}
+                                maxHp={maxUserHp}
+                                damageNumbers={damageNumbers}
+                                onOpenEffects={handlers.openEquipmentEffectsModal}
+                                onOpenPresets={handlers.openPresetModal}
+                                isSimulating={isSimulating}
+                                activeDebuffs={activeDebuffs}
+                                compact
+                            />
                         </div>
                     </div>
-                    <div className="flex min-h-0 w-full flex-col gap-4 px-1 pb-6">
-                        <UserStatsPanel
-                            user={currentUserWithStatus}
-                            guild={myGuild}
-                            hp={userHp}
-                            maxHp={maxUserHp}
-                            damageNumbers={damageNumbers}
-                            onOpenEffects={handlers.openEquipmentEffectsModal}
-                            onOpenPresets={handlers.openPresetModal}
-                            isSimulating={isSimulating}
-                            activeDebuffs={activeDebuffs}
-                        />
-                        <div className="flex-shrink-0 bg-panel border border-color rounded-lg p-3 space-y-2 text-center">
-                            <Button
-                                onClick={handleBattleStart}
-                                disabled={attemptsLeft <= 0 || isSimulating}
-                                className="w-full mt-3 flex items-center justify-center gap-2"
+
+                    <section
+                        className="flex min-h-0 shrink-0 basis-[min(30vh,200px)] flex-row gap-1.5"
+                        aria-label="공격 정보"
+                    >
+                        <div className="bg-panel border border-color flex min-h-0 min-w-0 flex-1 flex-col rounded-lg p-1.5">
+                            <h3 className="mb-0.5 flex-shrink-0 text-center text-[11px] font-bold text-red-300">보스의 공격</h3>
+                            <div
+                                ref={bossLogContainerRef}
+                                className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-1 text-[10px] leading-snug space-y-1"
                             >
-                                {!isSimulating && (
-                                    <img src="/images/guild/ticket.png" alt="도전권" className="w-5 h-5" />
-                                )}
-                                <span>{isSimulating ? '전투 중...' : `도전하기 (${attemptsLeft}/${GUILD_BOSS_MAX_ATTEMPTS})`}</span>
-                            </Button>
+                                {bossLogs.map((entry, index) => (
+                                    <div key={index} className="flex items-start gap-1 animate-fade-in">
+                                        <span className="font-bold text-yellow-300 flex-shrink-0">[{entry.turn}]</span>
+                                        {entry.icon && <img src={entry.icon} alt="" className="h-4 w-4 flex-shrink-0" />}
+                                        <span className="min-w-0 break-words">{entry.message}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
+                        <div className="bg-panel border border-color flex min-h-0 min-w-0 flex-1 flex-col rounded-lg p-1.5">
+                            <h3 className="mb-0.5 flex-shrink-0 text-center text-[11px] font-bold text-blue-300">나의 공격</h3>
+                            <div
+                                ref={userLogContainerRef}
+                                className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-1 text-[10px] leading-snug space-y-1"
+                            >
+                                {userLogs.map((entry, index) => (
+                                    <div key={index} className="flex items-start gap-1 animate-fade-in">
+                                        <span className="font-bold text-yellow-300 flex-shrink-0">[{entry.turn}]</span>
+                                        {entry.icon && <img src={entry.icon} alt="" className="h-4 w-4 flex-shrink-0" />}
+                                        <span className="min-w-0 break-words">{entry.message}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    <div className="flex-shrink-0 bg-panel border border-color rounded-lg p-1.5">
+                        <Button
+                            onClick={handleBattleStart}
+                            disabled={attemptsLeft <= 0 || isSimulating}
+                            className="w-full flex items-center justify-center gap-1.5 !py-2 !text-sm"
+                        >
+                            {!isSimulating && <img src="/images/guild/ticket.png" alt="도전권" className="h-4 w-4" />}
+                            <span>{isSimulating ? '전투 중...' : `도전하기 (${attemptsLeft}/${GUILD_BOSS_MAX_ATTEMPTS})`}</span>
+                        </Button>
                     </div>
-                </MobileSlideDeck>
+                </main>
             ) : (
             <main className="flex min-h-0 min-w-0 flex-1 flex-row gap-4">
                 <div className="flex w-[20%] min-w-0 shrink-0 flex-col gap-4">

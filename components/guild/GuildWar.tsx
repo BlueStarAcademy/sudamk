@@ -5,7 +5,6 @@ import Button from '../Button.js';
 import Avatar from '../Avatar.js';
 import { GuildWar as GuildWarType } from '../../types/index.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
-import MobileSlideDeck from '../mobile/MobileSlideDeck.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import {
     BLACK_BASE_STONE_IMG,
@@ -142,6 +141,8 @@ interface Board {
     /** 프로필(홈) 테두리 — BORDER_POOL id */
     occupierBorderId?: string | null;
     occupierLevel?: number;
+    /** 봇 점령 시 occupierLevel은 AI 난이도(1~20), 유저는 전략+놀이 통합 */
+    occupierIsAiBot?: boolean;
     occupierCaptures?: number;
     occupierScoreDiff?: number;
     occupierIsMyGuild?: boolean;
@@ -166,6 +167,8 @@ const GuildWar = () => {
     const [myTeamTickets, setMyTeamTickets] = useState({ used: 0, total: 0 });
     const [opponentTeamTickets, setOpponentTeamTickets] = useState({ used: 0, total: 0, unknown: false });
     const [remainingTime, setRemainingTime] = useState<string>('');
+    /** 네이티브 모바일: 바둑판 탭 시 우측 상황판 드로어 */
+    const [mySituationDrawerOpen, setMySituationDrawerOpen] = useState(false);
     const [isDemoMode, setIsDemoMode] = useState(false);
     const isDemoModeRef = useRef(false);
     useEffect(() => {
@@ -298,6 +301,7 @@ const GuildWar = () => {
                                 (board as any).occupierAvatarUrl = seeded.avatarUrl;
                                 (board as any).occupierBorderId = 'default';
                                 (board as any).occupierLevel = seeded.level;
+                                (board as any).occupierIsAiBot = true;
                             } else {
                                 occupierNickname = serv?.nickname ?? occUser?.nickname ?? '알 수 없음';
                                 const avatarId = serv?.avatarId ?? (occUser as any)?.avatarId;
@@ -309,6 +313,7 @@ const GuildWar = () => {
                                 const pl =
                                     Number(serv?.playfulLevel ?? (occUser as any)?.playfulLevel ?? 0) || 0;
                                 (board as any).occupierLevel = st + pl;
+                                (board as any).occupierIsAiBot = false;
                             }
                             (board as any).occupierCaptures = Number(holderResult.captures ?? 0) || 0;
                             (board as any).occupierScoreDiff = typeof holderResult.scoreDiff === 'number'
@@ -343,6 +348,7 @@ const GuildWar = () => {
                         occupierAvatarUrl: (board as any).occupierAvatarUrl,
                         occupierBorderId: (board as any).occupierBorderId,
                         occupierLevel: (board as any).occupierLevel,
+                        occupierIsAiBot: (board as any).occupierIsAiBot,
                         occupierCaptures: (board as any).occupierCaptures,
                         occupierScoreDiff: (board as any).occupierScoreDiff,
                         occupierIsMyGuild,
@@ -595,6 +601,7 @@ const GuildWar = () => {
                 occupierAvatarUrl: botSeed?.avatarUrl,
                 occupierBorderId: board.guild2BestResult ? 'default' : undefined,
                 occupierLevel: botSeed?.level,
+                occupierIsAiBot: !!board.guild2BestResult,
                 occupierCaptures: board.guild2BestResult?.captures,
                 occupierScoreDiff: board.guild2BestResult?.scoreDiff,
                 occupierIsMyGuild: false,
@@ -673,6 +680,77 @@ const GuildWar = () => {
         ? personalTicketTotal
         : Math.max(0, personalTicketTotal - myDailyAttempts);
 
+    const renderGuildWarBoardGrid = (compact: boolean, onAfterSelectBoard?: () => void) => (
+        <div
+            className={
+                compact
+                    ? 'grid min-h-0 flex-1 grid-cols-3 grid-rows-3 gap-x-0.5 gap-y-0.5 px-0.5'
+                    : 'grid flex-1 grid-cols-3 grid-rows-3 gap-x-8 gap-y-4'
+            }
+        >
+            {boards.map((board) => {
+                let ownerGuildId: string | undefined = board.ownerGuildId;
+                if (!ownerGuildId) {
+                    if (board.myStars > board.opponentStars) {
+                        ownerGuildId = myGuild.id;
+                    } else if (board.opponentStars > board.myStars) {
+                        ownerGuildId = opponentGuild.id;
+                    }
+                }
+
+                const isMyGuildOccupied = ownerGuildId === myGuild.id;
+                const isOpponentOccupied = ownerGuildId === opponentGuild.id;
+                const isSelected = selectedBoard?.id === board.id;
+
+                const boardImg = compact ? 'h-[min(26vw,5.25rem)] w-[min(26vw,5.25rem)]' : 'h-24 w-24';
+                const flagClass = compact
+                    ? 'absolute left-0 top-1/2 z-10 h-5 w-5 -translate-x-full -translate-y-1/2'
+                    : 'absolute left-0 top-1/2 z-10 h-8 w-8 -translate-x-full -translate-y-1/2';
+                const flagClassR = compact
+                    ? 'absolute right-0 top-1/2 z-10 h-5 w-5 translate-x-full -translate-y-1/2'
+                    : 'absolute right-0 top-1/2 z-10 h-8 w-8 translate-x-full -translate-y-1/2';
+                const starSz = compact ? 'h-3.5 w-3.5' : 'w-5 h-5';
+                const ring = compact ? 'ring-2 ring-yellow-400' : 'ring-4 ring-yellow-400';
+                const scaleHover = compact ? 'hover:scale-[1.03]' : 'hover:scale-105';
+                const scaleSel = compact ? 'scale-105' : 'scale-110';
+
+                return (
+                    <div
+                        key={board.id}
+                        className={`relative flex cursor-pointer flex-col items-center justify-center gap-0.5 transition-all ${isSelected ? scaleSel : scaleHover}`}
+                        onClick={() => {
+                            setSelectedBoard(board);
+                            onAfterSelectBoard?.();
+                        }}
+                    >
+                        <StarDisplay count={board.myStars} size={starSz} />
+                        <div className="relative flex items-center justify-center">
+                            {isMyGuildOccupied && (
+                                <img src={GUILD_WAR_BLUE_FLAG} alt="우리 길드 점령" className={flagClass} />
+                            )}
+                            <img
+                                src={GUILD_WAR_BOARD_IMG}
+                                alt="바둑판"
+                                className={`${boardImg} ${isSelected ? ring : ''}`}
+                            />
+                            {isOpponentOccupied && (
+                                <img src={GUILD_WAR_RED_FLAG} alt="상대 길드 점령" className={flagClassR} />
+                            )}
+                        </div>
+                        <span
+                            className={`max-w-full -mt-1 truncate rounded-md bg-black/60 font-semibold text-white ${
+                                compact ? 'px-1 py-0 text-[10px]' : '-mt-2 px-2 py-0.5 text-sm'
+                            }`}
+                        >
+                            {board.name}
+                        </span>
+                        <StarDisplay count={board.opponentStars} size={starSz} />
+                    </div>
+                );
+            })}
+        </div>
+    );
+
     const StatusAndViewerPanel: React.FC<{
         team: 'blue' | 'red';
         challengingMembers: { name: string, board: string, level: number, avatarUrl: string }[];
@@ -722,34 +800,84 @@ const GuildWar = () => {
                         <div className={`rounded-lg border px-2 py-1.5 ${isBlue ? 'bg-blue-950/30 border-blue-800/60' : 'bg-red-950/30 border-red-800/60'}`}>
                             <p className={`text-[10px] sm:text-[11px] font-semibold ${secondaryTextClasses}`}>현재 점령자</p>
                             {board?.ownerGuildId && board.occupierNickname ? (
-                                <div className="mt-1 flex items-center justify-between gap-2 min-w-0">
-                                    <Avatar
-                                        userId={board.occupierNickname}
-                                        userName={board.occupierNickname}
-                                        avatarUrl={board.occupierAvatarUrl || '/images/profiles/profile1.png'}
-                                        borderUrl={
-                                            BORDER_POOL.find((b) => b.id === (board.occupierBorderId || 'default'))
-                                                ?.url ?? '#FFFFFF'
-                                        }
-                                        size={40}
-                                        className="shrink-0"
-                                    />
-                                    <div className="min-w-0 flex-1 text-right">
-                                        <span className="text-sm sm:text-base font-bold text-slate-100 truncate block" title={board.occupierNickname}>
-                                            {board.occupierNickname}
-                                        </span>
-                                        <span className="text-[10px] sm:text-[11px] text-slate-200/85">
-                                            Lv.{Number(board.occupierLevel ?? 0) || 0}
-                                        </span>
-                                        {(board.gameMode === 'capture' || board.gameMode === 'hidden' || board.gameMode === 'missile') && (
-                                            <span className="text-[10px] sm:text-[11px] text-amber-200/90">
-                                                {board.gameMode === 'capture'
-                                                    ? `점령 기록: 따낸 돌 ${board.occupierCaptures ?? 0}개`
-                                                    : `점령 기록: 집 차이 ${board.occupierScoreDiff ?? 0}집`}
+                                isNativeMobile ? (
+                                    <div className="mt-1.5 flex min-w-0 gap-2.5">
+                                        <div className="flex w-[5.5rem] shrink-0 flex-col items-center gap-1">
+                                            <Avatar
+                                                userId={board.occupierNickname}
+                                                userName={board.occupierNickname}
+                                                avatarUrl={board.occupierAvatarUrl || '/images/profiles/profile1.png'}
+                                                borderUrl={
+                                                    BORDER_POOL.find((b) => b.id === (board.occupierBorderId || 'default'))
+                                                        ?.url ?? '#FFFFFF'
+                                                }
+                                                size={48}
+                                                className="shrink-0"
+                                            />
+                                            <span
+                                                className="w-full truncate text-center text-xs font-bold leading-tight text-slate-100"
+                                                title={board.occupierNickname}
+                                            >
+                                                {board.occupierNickname}
                                             </span>
-                                        )}
+                                            <span className="text-center text-[10px] font-semibold leading-none text-slate-200/90">
+                                                {board.occupierIsAiBot
+                                                    ? `AI Lv.${Number(board.occupierLevel ?? 0) || 0}`
+                                                    : `통합 Lv.${Number(board.occupierLevel ?? 0) || 0}`}
+                                            </span>
+                                        </div>
+                                        <div className="flex min-w-0 flex-1 flex-col justify-center border-l border-white/15 pl-2.5">
+                                            <span className="text-[10px] font-bold text-amber-200/90">점령 기록</span>
+                                            {board.gameMode === 'capture' ||
+                                            board.gameMode === 'hidden' ||
+                                            board.gameMode === 'missile' ? (
+                                                <p className="mt-1 text-sm font-bold leading-snug text-amber-50">
+                                                    {board.gameMode === 'capture'
+                                                        ? `따낸 돌 ${board.occupierCaptures ?? 0}개`
+                                                        : `집 차이 ${board.occupierScoreDiff ?? 0}집`}
+                                                </p>
+                                            ) : (
+                                                <p className="mt-1 text-xs text-slate-400">—</p>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
+                                        <Avatar
+                                            userId={board.occupierNickname}
+                                            userName={board.occupierNickname}
+                                            avatarUrl={board.occupierAvatarUrl || '/images/profiles/profile1.png'}
+                                            borderUrl={
+                                                BORDER_POOL.find((b) => b.id === (board.occupierBorderId || 'default'))
+                                                    ?.url ?? '#FFFFFF'
+                                            }
+                                            size={40}
+                                            className="shrink-0"
+                                        />
+                                        <div className="min-w-0 flex-1 text-right">
+                                            <span
+                                                className="block truncate text-sm font-bold text-slate-100 sm:text-base"
+                                                title={board.occupierNickname}
+                                            >
+                                                {board.occupierNickname}
+                                            </span>
+                                            <span className="text-[10px] text-slate-200/85 sm:text-[11px]">
+                                                {board.occupierIsAiBot
+                                                    ? `AI Lv.${Number(board.occupierLevel ?? 0) || 0}`
+                                                    : `통합 Lv.${Number(board.occupierLevel ?? 0) || 0}`}
+                                            </span>
+                                            {(board.gameMode === 'capture' ||
+                                                board.gameMode === 'hidden' ||
+                                                board.gameMode === 'missile') && (
+                                                <span className="text-[10px] text-amber-200/90 sm:text-[11px]">
+                                                    {board.gameMode === 'capture'
+                                                        ? `점령 기록: 따낸 돌 ${board.occupierCaptures ?? 0}개`
+                                                        : `점령 기록: 집 차이 ${board.occupierScoreDiff ?? 0}집`}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
                             ) : (
                                 <span className="text-xs text-slate-500">없음</span>
                             )}
@@ -1000,8 +1128,11 @@ const GuildWar = () => {
     };
 
     return (
-        <div className="h-full w-full flex flex-col bg-tertiary text-primary p-4 bg-cover bg-center" style={{ backgroundImage: "url('/images/guild/guildwar/warmap.png')" }}>
-            <header className="flex justify-between items-center mb-4 flex-shrink-0">
+        <div
+            className={`flex h-full w-full flex-col bg-tertiary bg-cover bg-center text-primary ${isNativeMobile ? 'p-2' : 'p-4'}`}
+            style={{ backgroundImage: "url('/images/guild/guildwar/warmap.png')" }}
+        >
+            <header className={`flex flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-1' : 'mb-4'}`}>
                  <BackButton onClick={() => {
                      if (isDemoMode) {
                          setIsDemoMode(false);
@@ -1013,141 +1144,54 @@ const GuildWar = () => {
                          replaceAppHash('#/guild');
                      }
                  }} />
-                <h1 className="text-3xl font-bold text-white" style={{textShadow: '2px 2px 5px black'}}>
+                <h1 className={`font-bold text-white ${isNativeMobile ? 'text-xl' : 'text-3xl'}`} style={{textShadow: '2px 2px 5px black'}}>
                     길드 전쟁 {isDemoMode && <span className="text-lg text-yellow-400">(데모)</span>}
                 </h1>
-                 <div className="w-40 text-right">
-                    <p className="text-sm text-white font-semibold" style={{textShadow: '1px 1px 3px black'}}>
+                 <div className={isNativeMobile ? 'max-w-[38%] text-right' : 'w-40 text-right'}>
+                    <p className={`font-semibold text-white ${isNativeMobile ? 'text-xs leading-tight' : 'text-sm'}`} style={{textShadow: '1px 1px 3px black'}}>
                         {isDemoMode ? '데모 모드' : (remainingTime || '계산 중...')}
                     </p>
                 </div>
             </header>
             {isNativeMobile ? (
-                <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[52vh]">
-                {/* Left Panel */}
-                <div className="min-h-0 flex w-full flex-col px-1 pb-2">
-                    <StatusAndViewerPanel
-                        team="blue"
-                        challengingMembers={myMembersChallenging}
-                        teamUsedTickets={myTeamTickets.used}
-                        teamTotalTickets={myTeamTickets.total}
-                        board={selectedBoard}
-                        personalTicketsRemaining={personalTicketsRemaining}
-                        personalTicketsTotal={personalTicketTotal}
-                    />
-                </div>
-
-                {/* Center Panel */}
-                <div className="flex min-h-0 w-full flex-col overflow-y-auto px-1 pb-4">
-                    <div className="grid grid-cols-[176px_minmax(0,1fr)_176px] items-start gap-4 mb-4">
-                        <div className="w-44 justify-self-start flex flex-col items-center">
-                            <div className="relative w-24 h-32">
-                                <img src="/images/guild/guildwar/blueteam.png" alt="Blue Team Flag" className="w-full h-full" />
-                                <img src={myGuild.icon || myGuild.emblem || '/images/guild/profile/icon1.png'} alt="My Guild Emblem" className="absolute top-[30px] left-1/2 -translate-x-1/2 w-14 h-14 object-contain" />
+                <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-hidden">
+                    <div className="shrink-0 rounded-xl border border-amber-300/35 bg-gradient-to-b from-black/55 via-black/45 to-black/55 px-2 py-1.5 shadow-[0_6px_20px_rgba(0,0,0,0.4)]">
+                        <div className="flex items-center gap-2 text-white" style={{ textShadow: '1px 1px 3px black' }}>
+                            <div className="flex min-w-0 flex-1 flex-col items-center">
+                                <img
+                                    src={myGuild.icon || myGuild.emblem || '/images/guild/profile/icon1.png'}
+                                    alt=""
+                                    className="h-8 w-8 shrink-0 rounded-md object-contain ring-1 ring-blue-400/40"
+                                />
+                                <span className="mt-0.5 max-w-full truncate text-center text-[10px] font-bold">{myGuild.name}</span>
                             </div>
-                            <div className="bg-black/60 px-3 py-1 rounded-md -mt-5 z-10 shadow-lg">
-                                <span className="font-bold text-white block max-w-[150px] truncate text-center">{myGuild.name}</span>
-                            </div>
-                        </div>
-                        
-                        <div className="w-full flex flex-col items-center gap-2 pt-1">
-                            <div className="w-full max-w-[560px] rounded-2xl border border-amber-300/35 bg-gradient-to-b from-black/55 via-black/45 to-black/55 shadow-[0_10px_30px_rgba(0,0,0,0.45)] px-5 py-3">
-                                <div className="grid grid-cols-[1fr_auto_1fr] items-center text-white" style={{ textShadow: '2px 2px 4px black' }}>
-                                    <div className="justify-self-center inline-flex items-center justify-end gap-2 min-w-[120px]">
-                                        <img src={GUILD_WAR_STAR_IMG} alt="star" className="w-8 h-8" />
-                                        <span className="text-4xl font-black tabular-nums">{totalMyStars}</span>
-                                    </div>
-                                    <span className="mx-4 text-xl font-extrabold text-amber-200/90">VS</span>
-                                    <div className="justify-self-center inline-flex items-center justify-start gap-2 min-w-[120px]">
-                                        <span className="text-4xl font-black tabular-nums">{totalOpponentStars}</span>
-                                        <img src={GUILD_WAR_STAR_IMG} alt="star" className="w-8 h-8" />
-                                    </div>
+                            <div className="min-w-0 flex-[1.4] text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                    <img src={GUILD_WAR_STAR_IMG} alt="" className="h-5 w-5 shrink-0" />
+                                    <span className="text-2xl font-black tabular-nums">{totalMyStars}</span>
+                                    <span className="text-xs font-extrabold text-amber-200/90">VS</span>
+                                    <span className="text-2xl font-black tabular-nums">{totalOpponentStars}</span>
+                                    <img src={GUILD_WAR_STAR_IMG} alt="" className="h-5 w-5 shrink-0" />
                                 </div>
-                                <div className="mt-2 flex items-center justify-end text-[12px] font-semibold text-slate-100/95">
-                                    <span className="text-amber-200/95">동점 시 집점수 비교</span>
-                                </div>
-                                <div className="mt-1 flex items-center justify-between text-sm font-bold text-cyan-100 tabular-nums">
-                                    <span>집점수 {myTotalHouseScore}</span>
-                                    <span>집점수 {opponentTotalHouseScore}</span>
+                                <p className="mt-0.5 text-[9px] font-semibold text-amber-200/90">동점 시 집점수 비교</p>
+                                <div className="mt-0.5 flex justify-between gap-1 text-[10px] font-bold tabular-nums text-cyan-100">
+                                    <span className="min-w-0 truncate">집 {myTotalHouseScore}</span>
+                                    <span className="min-w-0 truncate">집 {opponentTotalHouseScore}</span>
                                 </div>
                             </div>
-                        </div>
-
-                        <div className="w-44 justify-self-end flex flex-col items-center">
-                            <div className="relative w-24 h-32">
-                                <img src="/images/guild/guildwar/redteam.png" alt="Red Team Flag" className="w-full h-full" />
-                                <img src={opponentGuild.icon || opponentGuild.emblem || '/images/guild/profile/icon1.png'} alt="Opponent Guild Emblem" className="absolute top-[30px] left-1/2 -translate-x-1/2 w-14 h-14 object-contain" />
-                            </div>
-                             <div className="bg-black/60 px-3 py-1 rounded-md -mt-5 z-10 shadow-lg">
-                                <span className="font-bold text-white block max-w-[150px] truncate text-center">{opponentGuild.name}</span>
+                            <div className="flex min-w-0 flex-1 flex-col items-center">
+                                <img
+                                    src={opponentGuild.icon || opponentGuild.emblem || '/images/guild/profile/icon1.png'}
+                                    alt=""
+                                    className="h-8 w-8 shrink-0 rounded-md object-contain ring-1 ring-red-400/40"
+                                />
+                                <span className="mt-0.5 max-w-full truncate text-center text-[10px] font-bold">{opponentGuild.name}</span>
                             </div>
                         </div>
                     </div>
-                    
-                    <div className="flex-1 grid grid-cols-3 grid-rows-3 gap-x-8 gap-y-4">
-                        {boards.map(board => {
-                            // 점령 상태 결정: ownerGuildId가 있으면 사용, 없으면 별 개수 비교
-                            let ownerGuildId: string | undefined = board.ownerGuildId;
-                            if (!ownerGuildId) {
-                                if (board.myStars > board.opponentStars) {
-                                    ownerGuildId = myGuild.id;
-                                } else if (board.opponentStars > board.myStars) {
-                                    ownerGuildId = opponentGuild.id;
-                                }
-                            }
-                            
-                            const isMyGuildOccupied = ownerGuildId === myGuild.id;
-                            const isOpponentOccupied = ownerGuildId === opponentGuild.id;
-                            
-                            const isSelected = selectedBoard?.id === board.id;
-                            
-                            return (
-                                <div key={board.id} className={`relative flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${isSelected ? 'scale-110' : 'hover:scale-105'}`} 
-                                    onClick={() => setSelectedBoard(board)}>
-                                    <StarDisplay count={board.myStars} size="w-5 h-5"/>
-                                    <div className="relative flex items-center justify-center">
-                                        {/* 좌측 파란 깃발 */}
-                                        {isMyGuildOccupied && (
-                                            <img 
-                                                src="/images/guild/guildwar/blueflag.png" 
-                                                alt="Blue Flag" 
-                                                className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 w-8 h-8 z-10" 
-                                            />
-                                        )}
-                                        <img 
-                                            src="/images/guild/guildwar/board.png" 
-                                            alt="Go Board" 
-                                            className={`w-24 h-24 ${isSelected ? 'ring-4 ring-yellow-400' : ''}`}
-                                        />
-                                        {/* 우측 빨간 깃발 */}
-                                        {isOpponentOccupied && (
-                                            <img 
-                                                src="/images/guild/guildwar/redflag.png" 
-                                                alt="Red Flag" 
-                                                className="absolute right-0 top-1/2 translate-x-full -translate-y-1/2 w-8 h-8 z-10" 
-                                            />
-                                        )}
-                                    </div>
-                                    <span className="bg-black/60 px-2 py-0.5 rounded-md text-sm font-semibold -mt-2">{board.name}</span>
-                                    <StarDisplay count={board.opponentStars} size="w-5 h-5"/>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
 
-                {/* Right Panel */}
-                <div className="min-h-0 flex w-full flex-col px-1 pb-2">
-                     <StatusAndViewerPanel
-                        team="red"
-                        challengingMembers={opponentMembersChallenging}
-                        teamUsedTickets={opponentTeamTickets.used}
-                        teamTotalTickets={opponentTeamTickets.total}
-                        teamTicketsUnknown={opponentTeamTickets.unknown}
-                        board={selectedBoard}
-                    />
-                </div>
-                </MobileSlideDeck>
+                    {renderGuildWarBoardGrid(true, () => setMySituationDrawerOpen(true))}
+                </main>
             ) : (
                 <main className="flex-1 grid grid-cols-5 gap-4 min-h-0">
                 {/* Left Panel */}
@@ -1210,56 +1254,7 @@ const GuildWar = () => {
                         </div>
                     </div>
                     
-                    <div className="flex-1 grid grid-cols-3 grid-rows-3 gap-x-8 gap-y-4">
-                        {boards.map(board => {
-                            // 점령 상태 결정: ownerGuildId가 있으면 사용, 없으면 별 개수 비교
-                            let ownerGuildId: string | undefined = board.ownerGuildId;
-                            if (!ownerGuildId) {
-                                if (board.myStars > board.opponentStars) {
-                                    ownerGuildId = myGuild.id;
-                                } else if (board.opponentStars > board.myStars) {
-                                    ownerGuildId = opponentGuild.id;
-                                }
-                            }
-                            
-                            const isMyGuildOccupied = ownerGuildId === myGuild.id;
-                            const isOpponentOccupied = ownerGuildId === opponentGuild.id;
-                            
-                            const isSelected = selectedBoard?.id === board.id;
-                            
-                            return (
-                                <div key={board.id} className={`relative flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${isSelected ? 'scale-110' : 'hover:scale-105'}`} 
-                                    onClick={() => setSelectedBoard(board)}>
-                                    <StarDisplay count={board.myStars} size="w-5 h-5"/>
-                                    <div className="relative flex items-center justify-center">
-                                        {/* 좌측 파란 깃발 */}
-                                        {isMyGuildOccupied && (
-                                            <img 
-                                                src="/images/guild/guildwar/blueflag.png" 
-                                                alt="Blue Flag" 
-                                                className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 w-8 h-8 z-10" 
-                                            />
-                                        )}
-                                        <img 
-                                            src="/images/guild/guildwar/board.png" 
-                                            alt="Go Board" 
-                                            className={`w-24 h-24 ${isSelected ? 'ring-4 ring-yellow-400' : ''}`}
-                                        />
-                                        {/* 우측 빨간 깃발 */}
-                                        {isOpponentOccupied && (
-                                            <img 
-                                                src="/images/guild/guildwar/redflag.png" 
-                                                alt="Red Flag" 
-                                                className="absolute right-0 top-1/2 translate-x-full -translate-y-1/2 w-8 h-8 z-10" 
-                                            />
-                                        )}
-                                    </div>
-                                    <span className="bg-black/60 px-2 py-0.5 rounded-md text-sm font-semibold -mt-2">{board.name}</span>
-                                    <StarDisplay count={board.opponentStars} size="w-5 h-5"/>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    {renderGuildWarBoardGrid(false)}
                 </div>
 
                 {/* Right Panel */}
@@ -1274,6 +1269,55 @@ const GuildWar = () => {
                     />
                 </div>
                 </main>
+            )}
+
+            {isNativeMobile && (
+                <>
+                    <div
+                        aria-hidden={!mySituationDrawerOpen}
+                        className={`fixed inset-0 z-[10050] bg-black/55 backdrop-blur-[2px] transition-opacity duration-300 ${
+                            mySituationDrawerOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+                        }`}
+                        onClick={() => setMySituationDrawerOpen(false)}
+                    />
+                    <aside
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="guild-war-my-situation-title"
+                        aria-hidden={!mySituationDrawerOpen}
+                        className={`fixed top-0 right-0 z-[10051] flex h-[100dvh] max-h-[100dvh] w-[min(92vw,22rem)] flex-col border-l border-white/20 bg-gray-950/98 shadow-[-12px_0_32px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
+                            mySituationDrawerOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+                        }`}
+                        style={{
+                            paddingTop: 'env(safe-area-inset-top, 0px)',
+                            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+                        }}
+                    >
+                        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+                            <h2 id="guild-war-my-situation-title" className="text-base font-bold text-white" style={{ textShadow: '1px 1px 3px black' }}>
+                                우리 길드 상황판
+                            </h2>
+                            <button
+                                type="button"
+                                className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-white/20"
+                                onClick={() => setMySituationDrawerOpen(false)}
+                            >
+                                닫기
+                            </button>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
+                            <StatusAndViewerPanel
+                                team="blue"
+                                challengingMembers={myMembersChallenging}
+                                teamUsedTickets={myTeamTickets.used}
+                                teamTotalTickets={myTeamTickets.total}
+                                board={selectedBoard}
+                                personalTicketsRemaining={personalTicketsRemaining}
+                                personalTicketsTotal={personalTicketTotal}
+                            />
+                        </div>
+                    </aside>
+                </>
             )}
         </div>
     );

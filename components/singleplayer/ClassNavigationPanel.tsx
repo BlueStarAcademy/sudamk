@@ -45,15 +45,15 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedCla
                     onClick={handlePrevious}
                     disabled={currentIndex === 0}
                     className={`
-                        absolute left-0 z-10 ${isMobile ? 'h-6 w-6' : 'h-12 w-12'} rounded-full bg-gray-700 hover:bg-gray-600
+                        absolute left-0 z-10 ${isMobile ? 'h-10 w-10' : 'h-14 w-14'} rounded-full bg-gray-700 hover:bg-gray-600
                         flex items-center justify-center transition-all duration-200
                         ${currentIndex === 0 ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:scale-110 cursor-pointer active:scale-95'}
-                        shadow-lg ${isMobile ? 'border' : 'border-2'} border-gray-600
+                        shadow-lg ${isMobile ? 'border-2' : 'border-2'} border-gray-600
                     `}
                     aria-label="이전 단계"
                 >
                     <svg 
-                        className={`${isMobile ? 'h-3 w-3' : 'h-6 w-6'} text-gray-200`}
+                        className={`${isMobile ? 'h-5 w-5' : 'h-8 w-8'} text-gray-200`}
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
@@ -63,8 +63,8 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedCla
                 </button>
 
                 {/* 현재 선택된 클래스 이미지 */}
-                <div className={`relative flex h-full flex-1 flex-col items-center justify-center ${isMobile ? 'mx-6' : 'mx-12'}`}>
-                    <div className={`relative h-full w-full ${isMobile ? 'max-h-[min(22dvh,120px)]' : 'max-h-[500px]'} overflow-hidden rounded-lg shadow-xl ${isMobile ? 'border-2' : 'border-4'} border-purple-600`}>
+                <div className={`relative flex h-full flex-1 flex-col items-center justify-center ${isMobile ? 'mx-11' : 'mx-16'}`}>
+                    <div className={`relative h-full w-full ${isMobile ? 'max-h-[min(32dvh,200px)]' : 'max-h-[500px]'} overflow-hidden rounded-lg shadow-xl ${isMobile ? 'border-2' : 'border-4'} border-purple-600`}>
                         <img 
                             src={currentClass.image} 
                             alt={currentClass.name}
@@ -115,15 +115,15 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedCla
                     onClick={handleNext}
                     disabled={currentIndex === CLASS_INFO.length - 1}
                     className={`
-                        absolute right-0 z-10 ${isMobile ? 'h-6 w-6' : 'h-12 w-12'} rounded-full bg-gray-700 hover:bg-gray-600
+                        absolute right-0 z-10 ${isMobile ? 'h-10 w-10' : 'h-14 w-14'} rounded-full bg-gray-700 hover:bg-gray-600
                         flex items-center justify-center transition-all duration-200
                         ${currentIndex === CLASS_INFO.length - 1 ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:scale-110 cursor-pointer active:scale-95'}
-                        shadow-lg ${isMobile ? 'border' : 'border-2'} border-gray-600
+                        shadow-lg ${isMobile ? 'border-2' : 'border-2'} border-gray-600
                     `}
                     aria-label="다음 단계"
                 >
                     <svg 
-                        className={`${isMobile ? 'h-3 w-3' : 'h-6 w-6'} text-gray-200`}
+                        className={`${isMobile ? 'h-5 w-5' : 'h-8 w-8'} text-gray-200`}
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"

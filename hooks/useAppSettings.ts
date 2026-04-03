@@ -7,7 +7,8 @@ export const defaultSettings: AppSettings = {
         panelColor: undefined,
         textColor: undefined,
         panelEdgeStyle: 'default',
-        pcLikeMobileLayout: true,
+        /** false: 휴대기기에서 모바일 전용 UI(기본). true: 옵션으로 PC(16:9) 화면 보기 */
+        pcLikeMobileLayout: false,
     },
     sound: {
         masterVolume: 0.5,

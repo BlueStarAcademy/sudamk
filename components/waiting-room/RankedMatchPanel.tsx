@@ -22,6 +22,8 @@ interface RankedMatchPanelProps {
     matchingStartTime?: number;
     onCancelMatching?: () => void;
     onMatchingStateChange?: (isMatching: boolean, startTime: number) => void;
+    /** 네이티브 대기실: 유저 목록 우측 좁은 열 — 현재/최고 시즌 카드를 세로로만 배치 */
+    variant?: 'default' | 'nativeNarrow';
 }
 
 const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({ 
@@ -31,8 +33,10 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     isMatching = false,
     matchingStartTime = 0,
     onCancelMatching,
-    onMatchingStateChange
+    onMatchingStateChange,
+    variant = 'default',
 }) => {
+    const nativeNarrow = variant === 'nativeNarrow';
     const [elapsedTime, setElapsedTime] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -151,15 +155,29 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
 
     return (
         <>
-            <div className="p-3 sm:p-3.5 lg:p-4 flex flex-col h-full min-h-0 text-on-panel relative overflow-x-auto">
+            <div
+                className={`flex h-full min-h-0 flex-col text-on-panel relative ${
+                    nativeNarrow ? 'overflow-y-auto overflow-x-hidden p-2' : 'overflow-x-auto p-3 sm:p-3.5 lg:p-4'
+                }`}
+            >
                 {/* 배경 그라데이션 효과 */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/5 to-blue-900/10 pointer-events-none rounded-lg"></div>
                 
                 {/* 헤더: 타이틀 + 랭킹전 시작/취소 버튼 */}
-                <div className="relative z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-3 pb-3 border-b-2 border-gradient-to-r from-transparent via-indigo-500/30 to-transparent flex-shrink-0">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-1 h-8 bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 rounded-full shadow-[0_0_8px_rgba(234,179,8,0.5)] flex-shrink-0"></div>
-                        <h2 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] whitespace-nowrap">
+                <div
+                    className={`relative z-10 mb-2 flex-shrink-0 border-b-2 border-gradient-to-r from-transparent via-indigo-500/30 to-transparent pb-2 ${
+                        nativeNarrow
+                            ? 'flex flex-row flex-nowrap items-center justify-between gap-1'
+                            : 'mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-3'
+                    }`}
+                >
+                    <div className={`flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2 ${nativeNarrow ? '' : 'gap-3'}`}>
+                        <div className="h-6 w-1 flex-shrink-0 rounded-full bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.5)] sm:h-8"></div>
+                        <h2
+                            className={`min-w-0 truncate font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${
+                                nativeNarrow ? 'text-sm leading-tight' : 'whitespace-nowrap text-xl lg:text-2xl'
+                            }`}
+                        >
                             랭킹전
                         </h2>
                     </div>
@@ -167,20 +185,28 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                         <Button
                             onClick={() => setIsModalOpen(true)}
                             colorScheme="none"
-                            className="!py-2 !px-3 !text-xs font-bold flex-shrink-0 bg-gradient-to-r from-green-600/90 via-emerald-600/90 to-green-600/90 hover:from-green-500 hover:via-emerald-500 hover:to-green-500 text-white rounded-lg shadow-[0_2px_12px_rgba(34,197,94,0.4)] hover:shadow-[0_4px_16px_rgba(34,197,94,0.5)] transition-all duration-200 border border-green-400/30 hover:border-green-300/50"
+                            className={`shrink-0 font-bold text-white transition-all duration-200 ${
+                                nativeNarrow
+                                    ? '!w-auto !py-1 !px-1.5 !text-[9px] bg-gradient-to-r from-green-600/90 via-emerald-600/90 to-green-600/90 hover:from-green-500 hover:via-emerald-500 hover:to-green-500 rounded-md border border-green-400/30 shadow-sm'
+                                    : '!flex-shrink-0 !py-2 !px-3 !text-xs bg-gradient-to-r from-green-600/90 via-emerald-600/90 to-green-600/90 hover:from-green-500 hover:via-emerald-500 hover:to-green-500 rounded-lg shadow-[0_2px_12px_rgba(34,197,94,0.4)] hover:shadow-[0_4px_16px_rgba(34,197,94,0.5)] border border-green-400/30 hover:border-green-300/50'
+                            }`}
                         >
-                            <span className="flex items-center gap-1.5">
-                                <span>⚔️</span>
-                                <span>랭킹전 시작</span>
+                            <span className={`flex items-center justify-center gap-0.5 ${nativeNarrow ? '' : 'gap-1.5'}`}>
+                                <span className={nativeNarrow ? 'text-[10px]' : ''}>⚔️</span>
+                                <span>{nativeNarrow ? '시작' : '랭킹전 시작'}</span>
                             </span>
                         </Button>
                     ) : (
                         <Button
                             onClick={handleCancelMatching}
                             colorScheme="none"
-                            className="!py-2 !px-3 !text-xs font-bold flex-shrink-0 bg-gradient-to-r from-red-600/90 via-rose-600/90 to-red-600/90 hover:from-red-500 hover:via-rose-500 hover:to-red-500 text-white rounded-lg shadow-[0_2px_12px_rgba(220,38,38,0.4)] hover:shadow-[0_4px_16px_rgba(220,38,38,0.5)] transition-all duration-200 border border-red-400/30 hover:border-red-300/50"
+                            className={`shrink-0 font-bold text-white transition-all duration-200 ${
+                                nativeNarrow
+                                    ? '!w-auto !py-1 !px-1.5 !text-[9px] bg-gradient-to-r from-red-600/90 via-rose-600/90 to-red-600/90 hover:from-red-500 hover:via-rose-500 hover:to-red-500 rounded-md border border-red-400/30 shadow-sm'
+                                    : '!flex-shrink-0 !py-2 !px-3 !text-xs bg-gradient-to-r from-red-600/90 via-rose-600/90 to-red-600/90 hover:from-red-500 hover:via-rose-500 hover:to-red-500 rounded-lg shadow-[0_2px_12px_rgba(220,38,38,0.4)] hover:shadow-[0_4px_16px_rgba(220,38,38,0.5)] border border-red-400/30 hover:border-red-300/50'
+                            }`}
                         >
-                            <span className="flex items-center gap-1.5">
+                            <span className="flex items-center justify-center gap-1">
                                 <span>✕</span>
                                 <span>취소</span>
                             </span>
@@ -191,8 +217,12 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                 {!isMatching ? (
                     <>
                         <div className="relative z-10 flex flex-col gap-2 overflow-visible flex-shrink-0">
-                            {/* 현재 시즌 / 최고 시즌 2단 구성 - 내부 스크롤 없이 한 화면에 표시 */}
-                            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 flex-shrink-0 min-w-[16rem]">
+                            {/* 현재 시즌 / 최고 시즌 — 기본 2열, 네이티브 좁은 열에서는 세로 스택 */}
+                            <div
+                                className={`flex-shrink-0 ${
+                                    nativeNarrow ? 'flex min-w-0 flex-col gap-2' : 'grid min-w-[16rem] grid-cols-2 gap-2.5 sm:gap-3'
+                                }`}
+                            >
                                 {/* 현재 시즌 */}
                                 <div className="group relative overflow-hidden rounded-lg bg-gradient-to-br from-blue-900/40 via-indigo-900/30 to-purple-900/40 border-2 border-blue-500/50 p-2.5 sm:p-3 shadow-[0_4px_20px_rgba(59,130,246,0.3)] hover:border-blue-400/70 hover:shadow-[0_6px_24px_rgba(59,130,246,0.4)] transition-all duration-300">
                                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -331,22 +361,47 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                     </>
                 ) : (
                     <div className="relative z-10 flex flex-col gap-3 flex-1 min-h-0 overflow-hidden">
-                        <div className="relative overflow-hidden bg-gradient-to-br from-yellow-900/50 via-amber-900/40 to-yellow-900/50 border-2 border-yellow-500/60 rounded-xl p-4 shadow-[0_8px_32px_rgba(234,179,8,0.4)] flex-shrink-0">
+                        <div
+                            className={`relative flex-shrink-0 overflow-hidden rounded-xl border-2 border-yellow-500/60 bg-gradient-to-br from-yellow-900/50 via-amber-900/40 to-yellow-900/50 shadow-[0_8px_32px_rgba(234,179,8,0.4)] ${
+                                nativeNarrow ? 'p-2' : 'p-4'
+                            }`}
+                        >
                             <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/20 via-transparent to-yellow-500/20 animate-pulse"></div>
-                            <div className="relative z-10 flex flex-col gap-4">
-                                <div className="flex items-center justify-center gap-3">
-                                    <div className="relative w-14 h-14">
-                                        <div className="absolute inset-0 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-                                        <div className="absolute inset-2 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+                            <div className={`relative z-10 flex flex-col ${nativeNarrow ? 'gap-2' : 'gap-4'}`}>
+                                <div className={`flex items-center justify-center ${nativeNarrow ? 'gap-2' : 'gap-3'}`}>
+                                    <div className={`relative ${nativeNarrow ? 'h-10 w-10' : 'h-14 w-14'}`}>
+                                        <div className="absolute inset-0 rounded-full border-4 border-yellow-400 border-t-transparent animate-spin"></div>
+                                        <div
+                                            className="absolute inset-2 rounded-full border-4 border-amber-400 border-t-transparent animate-spin"
+                                            style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
+                                        ></div>
                                     </div>
-                                    <span className="text-xl font-bold text-yellow-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                                    <span
+                                        className={`font-bold text-yellow-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${
+                                            nativeNarrow ? 'text-sm whitespace-nowrap' : 'text-xl'
+                                        }`}
+                                    >
                                         매칭 중...
                                     </span>
                                 </div>
-                                <div className="bg-gradient-to-r from-yellow-900/60 to-amber-900/60 rounded-lg p-3 border border-yellow-400/30">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-yellow-200 font-medium">대기 시간</span>
-                                        <span className="text-2xl text-yellow-100 font-mono font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                                <div
+                                    className={`rounded-lg border border-yellow-400/30 bg-gradient-to-r from-yellow-900/60 to-amber-900/60 ${
+                                        nativeNarrow ? 'px-2 py-1.5' : 'p-3'
+                                    }`}
+                                >
+                                    <div className="flex min-w-0 flex-nowrap items-center justify-between gap-2">
+                                        <span
+                                            className={`shrink-0 font-medium whitespace-nowrap text-yellow-200 ${
+                                                nativeNarrow ? 'text-[10px]' : 'text-sm'
+                                            }`}
+                                        >
+                                            대기 시간
+                                        </span>
+                                        <span
+                                            className={`shrink-0 font-mono font-bold tabular-nums whitespace-nowrap text-yellow-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${
+                                                nativeNarrow ? 'text-base' : 'text-2xl'
+                                            }`}
+                                        >
                                             {formatTime(elapsedTime)}
                                         </span>
                                     </div>

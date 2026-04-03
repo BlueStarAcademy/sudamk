@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { UserWithStatus, EquipmentSlot, InventoryItem, ItemGrade, GameMode, CoreStat } from '../types.js';
 import Avatar from './Avatar.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -348,25 +348,22 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         return guilds[user.guildId] || null;
     }, [user.guildId, guilds]);
 
-    const DESKTOP_WIDTH = 900;
-    const MOBILE_BREAKPOINT = 768;
-
-    const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
-
-    useEffect(() => {
-        const handleResize = () => setWindowWidth(window.innerWidth);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    const containerWidth = DESKTOP_WIDTH;
+    const PROFILE_MODAL_WIDTH = 900;
 
     return (
-        <DraggableWindow title={`${user.nickname}님의 프로필`} onClose={onClose} windowId={`view-user-${user.id}`} initialWidth={containerWidth} initialHeight={800} isTopmost={isTopmost}>
+        <DraggableWindow
+            title={`${user.nickname}님의 프로필`}
+            onClose={onClose}
+            windowId={`view-user-${user.id}`}
+            initialWidth={PROFILE_MODAL_WIDTH}
+            initialHeight={800}
+            isTopmost={isTopmost}
+            mobileViewportFit
+        >
             {showMbtiComparison && <MbtiComparisonModal opponentUser={user} onClose={() => setShowMbtiComparison(false)} isTopmost={true} />}
-            <div className="flex flex-col md:flex-row gap-3 h-full">
-                    {/* Left Column */}
-                    <div className="w-full md:w-1/3 flex-shrink-0 flex flex-col gap-3">
+            <div className="flex flex-row gap-3 h-full min-h-0 min-w-[900px]">
+                    {/* Left Column — PC와 동일 비율 (모바일은 프레임 내 가로 스크롤) */}
+                    <div className="w-1/3 min-w-[280px] flex-shrink-0 flex flex-col gap-3">
                         <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col gap-2">
                             <div className="flex items-center gap-3">
                                 <Avatar userId={user.id} userName={nickname} size={60} avatarUrl={avatarUrl} borderUrl={borderUrl} />
@@ -554,7 +551,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                     </div>
 
                     {/* Right Column */}
-                    <div className="w-full md:w-2/3 flex flex-col gap-3 min-h-0">
+                    <div className="w-2/3 min-w-0 flex-shrink-0 flex flex-col gap-3 min-h-0">
                         <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col flex-1 min-h-0">
                             <h4 className="font-semibold mb-2 text-blue-400 text-xs flex-shrink-0">전략 전적</h4>
                             <div className="flex-1 pr-2 min-h-0">

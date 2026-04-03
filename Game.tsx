@@ -2759,6 +2759,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     setConfirmModalType={setConfirmModalType}
                                     isMoveInFlight={isMoveInFlight}
                                     isBoardLocked={isBoardLocked}
+                                    isMobile={isMobile}
                                 />
                             ) : isGuildWarTowerStyleUi && mode === GameMode.Hidden ? (
                                 <GuildWarHiddenTowerControls
@@ -2769,6 +2770,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     setConfirmModalType={setConfirmModalType}
                                     isMoveInFlight={isMoveInFlight}
                                     isBoardLocked={isBoardLocked}
+                                    isMobile={isMobile}
                                 />
                             ) : (
                                 <GameControls {...gameControlsProps} />

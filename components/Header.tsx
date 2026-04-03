@@ -1,5 +1,6 @@
 
-import React, { memo, useEffect, useMemo, useState, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { UserWithStatus } from '../types.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
@@ -17,6 +18,9 @@ const RESOURCE_LABEL: Record<ResourceIconKey, string> = {
 const SPECIAL_RESOURCE_LABEL: Record<SpecialResourceIconKey, string> = {
     guildCoins: '길드 코인',
 };
+
+/** 네이티브 모바일 특수재화 팝오버: 전면 광고·모달 루트(z-180)·인터스티셜(z-99999) 위에 표시 */
+const SPECIAL_RESOURCES_POPOVER_Z = 200_000;
 
 const ResourceDisplay = memo<{ icon: ResourceIconKey; value: number; className?: string; dense?: boolean }>(({ icon, value, className, dense }) => {
     const formattedValue = useMemo(() => value.toLocaleString(), [value]);
@@ -77,14 +81,40 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const dense = isMobile || compact;
     const [isSpecialResourcesOpen, setIsSpecialResourcesOpen] = useState(false);
     const specialResourcesRef = useRef<HTMLDivElement>(null);
+    const specialResourcesPopoverPortalRef = useRef<HTMLDivElement>(null);
+    const [specialPopoverFixed, setSpecialPopoverFixed] = useState<{ top: number; right: number } | null>(null);
+
+    const updateSpecialPopoverPosition = useCallback(() => {
+        if (!isMobile || !isSpecialResourcesOpen || !specialResourcesRef.current) return;
+        const rect = specialResourcesRef.current.getBoundingClientRect();
+        setSpecialPopoverFixed({
+            top: rect.bottom + 4,
+            right: window.innerWidth - rect.right,
+        });
+    }, [isMobile, isSpecialResourcesOpen]);
+
+    useLayoutEffect(() => {
+        if (!isMobile || !isSpecialResourcesOpen) {
+            setSpecialPopoverFixed(null);
+            return;
+        }
+        updateSpecialPopoverPosition();
+        window.addEventListener('resize', updateSpecialPopoverPosition);
+        window.addEventListener('scroll', updateSpecialPopoverPosition, true);
+        return () => {
+            window.removeEventListener('resize', updateSpecialPopoverPosition);
+            window.removeEventListener('scroll', updateSpecialPopoverPosition, true);
+        };
+    }, [isMobile, isSpecialResourcesOpen, updateSpecialPopoverPosition]);
 
     useEffect(() => {
         // 팝오버 열림 상태에서 외부 클릭으로 닫기
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as HTMLElement;
-            if (isSpecialResourcesOpen && specialResourcesRef.current && !specialResourcesRef.current.contains(target)) {
-                setIsSpecialResourcesOpen(false);
-            }
+            if (!isSpecialResourcesOpen) return;
+            if (specialResourcesRef.current?.contains(target)) return;
+            if (specialResourcesPopoverPortalRef.current?.contains(target)) return;
+            setIsSpecialResourcesOpen(false);
         };
         if (isSpecialResourcesOpen) {
             document.addEventListener('mousedown', handleClickOutside);
@@ -95,8 +125,9 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     if (!currentUserWithStatus) return null;
 
     const { handleLogout, openShop, openSettingsModal, openProfileEditModal, openMailbox } = handlers;
-    const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti } = currentUserWithStatus;
-    
+    const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, strategyLevel, playfulLevel } = currentUserWithStatus;
+    const combinedUserLevel = (Number(strategyLevel) || 0) + (Number(playfulLevel) || 0);
+
     // actionPoints가 없으면 기본값 사용
     const safeActionPoints = actionPoints || { current: 0, max: 30 };
     // gold와 diamonds가 없으면 기본값 사용
@@ -106,7 +137,19 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
 
+    const specialResourcesPopoverPanel = (
+        <div className="bg-primary border border-color rounded-lg shadow-2xl min-w-[100px] py-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-secondary transition-colors">
+                <img src={specialResourceIcons.guildCoins} alt={SPECIAL_RESOURCE_LABEL.guildCoins} className="w-5 h-5 object-contain" />
+                <span className="font-bold text-sm text-primary whitespace-nowrap">
+                    {(guildCoins ?? 0).toLocaleString()}
+                </span>
+            </div>
+        </div>
+    );
+
     return (
+        <>
         <header className="relative z-50 w-full min-w-0 flex-shrink-0 overflow-x-hidden bg-primary/80 shadow-lg backdrop-blur-sm">
             <div
                 className={`flex min-w-0 flex-wrap items-center gap-1 sm:gap-2 sm:flex-nowrap sm:items-center sm:gap-3 ${
@@ -121,7 +164,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                      <div className="min-w-0 flex-1">
                         <h1 className={`font-bold text-primary truncate ${dense ? 'max-w-full text-[11px] sm:text-base' : ''}`}>{currentUserWithStatus.nickname}</h1>
                         <p className={`truncate text-tertiary ${dense ? 'text-[9px] sm:text-xs' : 'text-xs'}`}>
-                            전략 Lv.{currentUserWithStatus.strategyLevel} / 놀이 Lv.{currentUserWithStatus.playfulLevel}
+                            Lv.{combinedUserLevel}
                         </p>
                      </div>
                      {!mbti && (
@@ -176,14 +219,9 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                 </span>
                             </button>
                         </div>
-                        {isSpecialResourcesOpen && (
-                            <div className="absolute top-full right-0 mt-1 bg-primary border border-color rounded-lg shadow-2xl z-[9999999] min-w-[100px] py-2">
-                                <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-secondary transition-colors">
-                                    <img src={specialResourceIcons.guildCoins} alt={SPECIAL_RESOURCE_LABEL.guildCoins} className="w-5 h-5 object-contain" />
-                                    <span className="font-bold text-sm text-primary whitespace-nowrap">
-                                        {(guildCoins ?? 0).toLocaleString()}
-                                    </span>
-                                </div>
+                        {isSpecialResourcesOpen && !isMobile && (
+                            <div className="absolute top-full right-0 z-[99999] mt-1 min-w-[100px]">
+                                {specialResourcesPopoverPanel}
                             </div>
                         )}
                     </div>
@@ -231,6 +269,25 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                 </div>
             </div>
         </header>
+        {isMobile &&
+            isSpecialResourcesOpen &&
+            specialPopoverFixed &&
+            typeof document !== 'undefined' &&
+            createPortal(
+                <div
+                    ref={specialResourcesPopoverPortalRef}
+                    className="pointer-events-auto fixed w-max max-w-[min(16rem,calc(100vw-1rem))]"
+                    style={{
+                        top: specialPopoverFixed.top,
+                        right: specialPopoverFixed.right,
+                        zIndex: SPECIAL_RESOURCES_POPOVER_Z,
+                    }}
+                >
+                    {specialResourcesPopoverPanel}
+                </div>,
+                document.body
+            )}
+        </>
     );
 };
 

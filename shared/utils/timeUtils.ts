@@ -132,6 +132,52 @@ export const getPreviousSeason = (date: Date | number = Date.now()): SeasonInfo 
     return { year: prevYear, season: prevSeason, name: `${shortYear}-${prevSeason}시즌` };
 };
 
+/** 대기실 지난 랭킹: 집계·표시 시작 시즌 (2026년 1분기 = 26-1시즌) */
+export const FIRST_TRACKED_RANKING_SEASON_YEAR = 2026;
+export const FIRST_TRACKED_RANKING_SEASON_QUARTER = 1 as const;
+
+export const getFirstTrackedRankingSeason = (): SeasonInfo => {
+    const year = FIRST_TRACKED_RANKING_SEASON_YEAR;
+    const season = FIRST_TRACKED_RANKING_SEASON_QUARTER;
+    const shortYear = year.toString().slice(-2);
+    return { year, season, name: `${shortYear}-${season}시즌` };
+};
+
+const compareSeasonChronological = (a: SeasonInfo, b: SeasonInfo): number => {
+    if (a.year !== b.year) return a.year - b.year;
+    return a.season - b.season;
+};
+
+/** 직전 시즌 다음(분기 롤오버) */
+export const getNextSeasonInfo = (info: SeasonInfo): SeasonInfo => {
+    if (info.season === 4) {
+        const y = info.year + 1;
+        return { year: y, season: 1, name: `${y.toString().slice(-2)}-1시즌` };
+    }
+    const s = (info.season + 1) as 1 | 2 | 3 | 4;
+    return { year: info.year, season: s, name: `${info.year.toString().slice(-2)}-${s}시즌` };
+};
+
+/**
+ * 종료된 시즌만. 26-1시즌부터 마지막 종료 시즌(getPreviousSeason)까지, 최신순.
+ * 아직 추적 구간에 종료된 시즌이 없으면 빈 배열.
+ */
+export const getCompletedTrackedRankingSeasonsNewestFirst = (date: Date | number = Date.now()): SeasonInfo[] => {
+    const first = getFirstTrackedRankingSeason();
+    const lastCompleted = getPreviousSeason(date);
+    if (compareSeasonChronological(lastCompleted, first) < 0) {
+        return [];
+    }
+    const ascending: SeasonInfo[] = [];
+    let cur: SeasonInfo = { ...first };
+    for (;;) {
+        ascending.push(cur);
+        if (cur.year === lastCompleted.year && cur.season === lastCompleted.season) break;
+        cur = getNextSeasonInfo(cur);
+    }
+    return ascending.reverse();
+};
+
 export const getStartOfDayKST = (timestamp: number = Date.now()): number => {
     const kstDate = getKSTDate(timestamp);
     kstDate.setUTCHours(0, 0, 0, 0);

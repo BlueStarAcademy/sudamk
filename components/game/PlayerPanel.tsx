@@ -26,11 +26,11 @@ const CapturedStones: React.FC<{ count: number; target?: number; panelType: 'bla
         label = '점수';
     }
 
-    const widthClass = isMobile ? 'w-[3rem]' : 'w-[clamp(4.5rem,16vmin,6rem)]';
-    const paddingClass = isMobile ? 'p-0.5' : 'p-1';
-    const labelSize = isMobile ? 'text-[0.5rem]' : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
-    const countSize = isMobile ? 'text-[0.9rem]' : 'text-[clamp(1rem,5vmin,2rem)]';
-    const diceSize = isMobile ? 'w-2 h-2' : 'w-[clamp(0.8rem,3vmin,1rem)] h-[clamp(0.8rem,3vmin,1rem)]';
+    const widthClass = isMobile ? 'w-[4.25rem]' : 'w-[clamp(4.5rem,16vmin,6rem)]';
+    const paddingClass = isMobile ? 'p-1' : 'p-1';
+    const labelSize = isMobile ? 'text-[0.65rem]' : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
+    const countSize = isMobile ? 'text-sm' : 'text-[clamp(1rem,5vmin,2rem)]';
+    const diceSize = isMobile ? 'h-2.5 w-2.5' : 'w-[clamp(0.8rem,3vmin,1rem)] h-[clamp(0.8rem,3vmin,1rem)]';
     const marginClass = isMobile ? 'my-0.5' : 'my-1';
 
     const baseClasses = `flex flex-col items-center justify-center ${widthClass} rounded-lg shadow-lg border-2 ${paddingClass} text-center h-full`;
@@ -64,7 +64,17 @@ const CapturedStones: React.FC<{ count: number; target?: number; panelType: 'bla
 };
 
 
-const TimeBar: React.FC<{ timeLeft: number; totalTime: number; byoyomiTime: number; byoyomiPeriods: number; totalByoyomi: number; isActive: boolean; isInByoyomi: boolean; isFoulMode?: boolean; }> = ({ timeLeft, totalTime, byoyomiTime, byoyomiPeriods, totalByoyomi, isActive, isInByoyomi, isFoulMode = false }) => {
+const TimeBar: React.FC<{
+    timeLeft: number;
+    totalTime: number;
+    byoyomiTime: number;
+    byoyomiPeriods: number;
+    totalByoyomi: number;
+    isActive: boolean;
+    isInByoyomi: boolean;
+    isFoulMode?: boolean;
+    isMobile?: boolean;
+}> = ({ timeLeft, totalTime, byoyomiTime, byoyomiPeriods, totalByoyomi, isActive, isInByoyomi, isFoulMode = false, isMobile = false }) => {
     const percent = useMemo(() => {
         if (isFoulMode) {
              const turnTime = totalTime > 0 ? totalTime : byoyomiTime;
@@ -79,13 +89,14 @@ const TimeBar: React.FC<{ timeLeft: number; totalTime: number; byoyomiTime: numb
 
     const clampedPercent = Math.max(0, Math.min(100, percent));
 
+    const barH = isMobile ? 'h-2' : 'h-1.5';
     return (
         <div className="w-full relative">
             {/* The bar track */}
-            <div className={`w-full h-1.5 rounded-full transition-colors ${isInByoyomi || isFoulMode ? 'bg-red-900/70' : 'bg-gray-700'}`}>
+            <div className={`w-full ${barH} rounded-full transition-colors ${isInByoyomi || isFoulMode ? 'bg-red-900/70' : 'bg-gray-700'}`}>
                 {/* The bar fill */}
                 <div
-                    className={`h-1.5 rounded-full ${isInByoyomi || isFoulMode ? 'bg-red-500' : 'bg-blue-500'} ${isActive && timeLeft < 5 ? 'animate-pulse' : ''}`}
+                    className={`${barH} rounded-full ${isInByoyomi || isFoulMode ? 'bg-red-500' : 'bg-blue-500'} ${isActive && timeLeft < 5 ? 'animate-pulse' : ''}`}
                     style={{ width: `${clampedPercent}%`, transition: 'width 0.2s linear' }}
                 />
             </div>
@@ -217,13 +228,13 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const stonesThrown = session.stonesThrownThisRound?.[user.id] || 0;
     const stonesLeft = totalStones - stonesThrown;
 
-    const avatarSize = isMobile ? 32 : 48;
-    const nameTextSize = isMobile ? 'text-[0.7rem]' : 'text-[clamp(0.8rem,3vmin,1.125rem)]';
-    const levelTextSize = isMobile ? 'text-[0.5rem]' : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
-    const timeTextSize = isMobile ? 'text-[0.75rem]' : 'text-[clamp(1rem,3.5vmin,1.25rem)]';
-    const winLoseTextSize = isMobile ? 'text-lg' : 'text-2xl';
-    const padding = isMobile ? 'p-0.5' : 'p-1';
-    const gap = isMobile ? 'gap-1' : 'gap-2';
+    const avatarSize = isMobile ? 44 : 48;
+    const nameTextSize = isMobile ? 'text-sm' : 'text-[clamp(0.8rem,3vmin,1.125rem)]';
+    const levelTextSize = isMobile ? 'text-xs' : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
+    const timeTextSize = isMobile ? 'text-base' : 'text-[clamp(1rem,3.5vmin,1.25rem)]';
+    const winLoseTextSize = isMobile ? 'text-xl' : 'text-2xl';
+    const padding = isMobile ? 'p-1.5' : 'p-1';
+    const gap = isMobile ? 'gap-2' : 'gap-2';
 
     return (
         <div className={`relative flex items-stretch ${gap} flex-1 ${orderClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}>
@@ -243,7 +254,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                         </div>
                         <p className={`${levelTextSize} ${levelTextClasses}`}>{levelText}</p>
                          {isCurling && (
-                            <div className={`flex items-center gap-2 ${isMobile ? 'text-[0.5rem]' : 'text-xs'} mt-0.5 ${justifyClass} ${levelTextClasses}`}>
+                            <div className={`mt-0.5 flex items-center gap-2 text-xs ${justifyClass} ${levelTextClasses}`}>
                                 <span>{session.curlingRound || 1}/{session.settings.curlingRounds || 3}R</span>
                                 <span className="font-semibold">남은 스톤: {stonesLeft}</span>
                             </div>
@@ -252,7 +263,17 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                 </div>
                 <div className={isMobile ? 'mt-0.5' : 'mt-1'}>
                     {!showElapsedOnly && (
-                        <TimeBar timeLeft={timeLeft} totalTime={totalTime} byoyomiTime={effectiveByoyomiTime} byoyomiPeriods={effectiveByoyomiPeriodsLeft} totalByoyomi={effectiveTotalByoyomi} isActive={isActive && !isGameEnded} isInByoyomi={isInByoyomi} isFoulMode={isFoulMode} />
+                        <TimeBar
+                            timeLeft={timeLeft}
+                            totalTime={totalTime}
+                            byoyomiTime={effectiveByoyomiTime}
+                            byoyomiPeriods={effectiveByoyomiPeriodsLeft}
+                            totalByoyomi={effectiveTotalByoyomi}
+                            isActive={isActive && !isGameEnded}
+                            isInByoyomi={isInByoyomi}
+                            isFoulMode={isFoulMode}
+                            isMobile={isMobile}
+                        />
                     )}
                     {(showElapsedOnly ? isCurrentUser : true) && (
                     <div className={`flex items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-1`}>
@@ -270,7 +291,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                                     src="/images/icon/timer.png"
                                                     alt="남은 기회"
                                                     title={`남은 기회 ${effectiveByoyomiPeriodsLeft}회`}
-                                                    className="w-4 h-4 object-contain"
+                                                    className={`object-contain ${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
                                                 />
                                             ))}
                                         </div>
@@ -279,9 +300,9 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                             <img
                                                 src="/images/icon/timer.png"
                                                 alt="초읽기"
-                                                className="w-4 h-4 object-contain"
+                                                className={`object-contain ${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
                                             />
-                                            <span className="text-xs font-semibold">{effectiveByoyomiPeriodsLeft}</span>
+                                            <span className={`font-semibold ${isMobile ? 'text-sm' : 'text-xs'}`}>{effectiveByoyomiPeriodsLeft}</span>
                                         </div>
                                     )
                                 )}
@@ -523,10 +544,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         (session as any).blackTurnLimitBonus,
     ]);
     
-    const turnInfoSize = isMobile ? 'w-16 h-16' : 'w-24 h-24 md:w-28 md:h-28';
-    const turnInfoLabelSize = isMobile ? 'text-[0.5rem]' : 'text-[11px] md:text-xs';
-    const turnInfoValueSize = isMobile ? 'text-lg' : 'text-2xl md:text-3xl';
-    const turnInfoTotalSize = isMobile ? 'text-[0.6rem]' : 'text-sm md:text-base';
+    const turnInfoSize = isMobile ? 'h-[5.25rem] w-[5.25rem]' : 'w-24 h-24 md:w-28 md:h-28';
+    const turnInfoLabelSize = isMobile ? 'text-xs' : 'text-[11px] md:text-xs';
+    const turnInfoValueSize = isMobile ? 'text-2xl' : 'text-2xl md:text-3xl';
+    const turnInfoTotalSize = isMobile ? 'text-sm' : 'text-sm md:text-base';
 
     const showStrategicTurnBox = strategicLobbyTurnInfo != null;
 
@@ -542,15 +563,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const playfulStonesBoxSize =
         mode === GameMode.Thief
             ? isMobile
-                ? 'w-[4.5rem] min-h-[5.25rem]'
+                ? 'min-h-[5.75rem] w-[5rem]'
                 : 'w-[5.5rem] sm:w-24 md:w-[6.5rem] min-h-[5.25rem]'
             : isMobile
-              ? 'w-[3.75rem] min-h-[4.5rem]'
+              ? 'min-h-[5rem] w-[4.25rem]'
               : 'w-[4.75rem] sm:w-20 md:w-24 min-h-[4.5rem]';
 
     return (
-        <div className={`flex justify-between items-stretch ${isMobile ? 'gap-1' : 'gap-2'} flex-shrink-0 h-full`}>
-            <div className="flex-1 min-w-0 min-h-[4.5rem] flex">
+        <div className={`flex justify-between items-stretch ${isMobile ? 'gap-1.5' : 'gap-2'} flex-shrink-0 h-full`}>
+            <div className="flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]">
                 <SinglePlayerPanel
                     user={leftPlayerUser}
                     playerEnum={leftPlayerEnum}
@@ -613,24 +634,24 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 >
                     {thiefUiRound != null && (
                         <span
-                            className={`${isMobile ? 'text-[0.5rem]' : 'text-[clamp(0.55rem,1.8vmin,0.72rem)]'} mb-0.5 font-bold text-amber-100/95 text-center leading-none tabular-nums`}
+                            className={`${isMobile ? 'text-[0.65rem]' : 'text-[clamp(0.55rem,1.8vmin,0.72rem)]'} mb-0.5 text-center font-bold tabular-nums leading-none text-amber-100/95`}
                         >
                             라운드 {thiefUiRound}/{THIEF_NIGHTS_PER_SEGMENT}
                         </span>
                     )}
                     <span
-                        className={`${isMobile ? 'text-[0.5rem]' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} font-semibold text-amber-200/85 text-center leading-tight whitespace-nowrap`}
+                        className={`${isMobile ? 'text-xs' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} text-center font-semibold leading-tight whitespace-nowrap text-amber-200/85`}
                     >
                         남은 돌
                     </span>
                     <span
-                        className={`font-mono font-bold tabular-nums text-amber-300 ${isMobile ? 'text-2xl' : 'text-3xl md:text-4xl'} leading-none mt-0.5`}
+                        className={`font-mono font-bold tabular-nums text-amber-300 ${isMobile ? 'text-3xl' : 'text-3xl md:text-4xl'} mt-0.5 leading-none`}
                     >
                         {Math.max(0, typeof session.stonesToPlace === 'number' ? session.stonesToPlace : 0)}
                     </span>
                 </div>
             )}
-            <div className="flex-1 min-w-0 min-h-[4.5rem] flex">
+            <div className="flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]">
             <SinglePlayerPanel
                 user={rightPlayerUser}
                 playerEnum={rightPlayerEnum}

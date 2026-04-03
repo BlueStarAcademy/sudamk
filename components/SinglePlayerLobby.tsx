@@ -42,28 +42,36 @@ const SinglePlayerLobby: React.FC = () => {
             className={`relative mx-auto flex w-full flex-col bg-gray-900 text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 px-0.5' : 'h-full min-h-0 p-2 sm:p-4 lg:p-8'}`}
         >
             {/* Header */}
-            <header className={`flex flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0.5 px-0.5' : 'mb-3 px-2 sm:mb-4 sm:px-0 lg:mb-6'}`}>
-                <button
-                    onClick={onBackToProfile}
-                    className={`flex items-center justify-center rounded-lg p-0 transition-transform hover:drop-shadow-lg active:scale-90 hover:bg-gray-800 ${isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'}`}
-                    aria-label="뒤로가기"
-                >
-                    <img src="/images/button/back.png" alt="Back" className="h-full w-full" />
-                </button>
+            <header
+                className={`flex flex-shrink-0 items-center ${isNativeMobile ? 'mb-0.5 justify-center px-0.5' : 'mb-3 justify-between px-2 sm:mb-4 sm:px-0 lg:mb-6'}`}
+            >
+                {!isNativeMobile && (
+                    <button
+                        onClick={onBackToProfile}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg p-0 transition-transform hover:drop-shadow-lg hover:bg-gray-800 active:scale-90 sm:h-12 sm:w-12"
+                        aria-label="뒤로가기"
+                    >
+                        <img src="/images/button/back.png" alt="Back" className="h-full w-full" />
+                    </button>
+                )}
                 <h1 className={`font-bold text-gray-100 ${isNativeMobile ? 'text-sm' : 'text-xl sm:text-2xl lg:text-3xl xl:text-4xl'}`}>싱글플레이</h1>
-                <div className={isNativeMobile ? 'w-8' : 'w-10'} />
+                {!isNativeMobile && <div className="w-10" />}
             </header>
 
             {isNativeMobile ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden pb-0.5">
-                    <div className="max-h-[26dvh] min-h-0 shrink-0 overflow-hidden">
-                        <ClassNavigationPanel selectedClass={selectedClass} onClassSelect={setOverrideClass} compact />
+                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden pb-0.5">
+                    {/* 상단: 좌 단계 선택 · 우 수련 과제 */}
+                    <div className="grid min-h-0 max-h-[min(42dvh,380px)] shrink-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-1 overflow-hidden">
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                            <ClassNavigationPanel selectedClass={selectedClass} onClassSelect={setOverrideClass} compact />
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                            <TrainingQuestPanel currentUser={currentUserWithStatus} compactTopSlot />
+                        </div>
                     </div>
-                    <div className="min-h-0 flex-[1.2] overflow-hidden">
-                        <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} />
-                    </div>
-                    <div className="max-h-[38dvh] min-h-0 shrink-0 overflow-y-auto overflow-x-hidden">
-                        <TrainingQuestPanel currentUser={currentUserWithStatus} />
+                    {/* 하단: 스테이지 패널 */}
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                        <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} compact />
                     </div>
                 </div>
             ) : (

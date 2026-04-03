@@ -21,6 +21,7 @@ interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'c
     setConfirmModalType?: (type: 'resign' | null) => void;
     isMoveInFlight?: boolean;
     isBoardLocked?: boolean;
+    isMobile?: boolean;
 }
 
 interface ImageButtonProps {
@@ -31,16 +32,18 @@ interface ImageButtonProps {
     title?: string;
     count?: number;
     maxCount?: number;
+    compact?: boolean;
 }
 
-const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, maxCount }) => {
+const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, maxCount, compact = false }) => {
+    const sizeClass = compact ? 'w-11 h-11 shrink-0 rounded-lg md:rounded-xl' : 'w-16 h-16 md:w-20 md:h-20 rounded-xl';
     return (
         <button
             type="button"
             onClick={disabled ? undefined : onClick}
             disabled={disabled}
             title={title}
-			className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl border-2 border-amber-400 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
+			className={`relative ${sizeClass} border-2 border-amber-400 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
         >
 			<img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1.5" />
             {count !== undefined && (
@@ -54,7 +57,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
     );
 };
 
-const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, currentUser, showResultModal, setShowResultModal, setConfirmModalType, isMoveInFlight = false, isBoardLocked = false }) => {
+const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, currentUser, showResultModal, setShowResultModal, setConfirmModalType, isMoveInFlight = false, isBoardLocked = false, isMobile = false }) => {
     const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
     const [passConfirmModal, setPassConfirmModal] = useState(false);
     const [turnAddConfirmModal, setTurnAddConfirmModal] = useState(false);
@@ -171,19 +174,26 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             replaceAppHash('#/tower');
         };
 
+        const endBtn = isMobile ? '!py-1 !px-2 !text-[0.65rem] shrink-0' : '!py-1.5 !px-4 !text-sm';
         return (
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[148px]">
-                <div className="bg-gray-900/70 border border-stone-700 rounded-xl px-4 py-3 flex flex-wrap items-center justify-center gap-3">
-                    <Button onClick={handleShowResults} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap`}>
+                <div
+                    className={`bg-gray-900/70 border border-stone-700 rounded-xl py-3 flex items-center gap-2 min-w-0 ${
+                        isMobile
+                            ? 'flex flex-wrap items-center justify-evenly gap-2 px-2 py-3 min-w-0'
+                            : 'flex-wrap justify-center px-4 gap-3'
+                    }`}
+                >
+                    <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap ${endBtn}`}>
                         결과 보기
                     </Button>
-                    <Button onClick={handleRetry} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap`}>
+                    <Button onClick={handleRetry} colorScheme="none" className={`justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap ${endBtn}`}>
                         재도전 {effectiveRetryApCost > 0 && `(⚡${effectiveRetryApCost})`}
                     </Button>
-                    <Button onClick={handleNextFloor} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap`} disabled={!canTryNext}>
+                    <Button onClick={handleNextFloor} colorScheme="none" className={`justify-center rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap max-w-[46vw] truncate ${endBtn}`} disabled={!canTryNext}>
                         다음 층{canTryNext && nextFloor ? `: ${nextFloor}층` : ''}{effectiveNextFloorApCost > 0 && ` (⚡${effectiveNextFloorApCost})`}
                     </Button>
-                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap`}>
+                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap ${endBtn}`}>
                         나가기
                     </Button>
                 </div>
@@ -331,47 +341,143 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const canUseRefresh = session.moveHistory && session.moveHistory.length === 0 && session.gameStatus === 'playing' && session.currentPlayer === Player.Black;
     const refreshDisabled = refreshCount <= 0 || !canUseRefresh;
 
-	return (
-		<footer className="responsive-controls flex-shrink-0 bg-stone-800/70 backdrop-blur-sm rounded-xl p-3 flex items-stretch justify-between gap-4 w-full min-h-[148px] border border-stone-700/50">
-			{/* Left group: 기권, 통과, 배치변경 (가운데 정렬) */}
-			<div className="flex-1 flex items-center justify-center gap-6">
-                <div className="flex flex-col items-center gap-1">
-                    <ImageButton
-                        src="/images/button/giveup.png"
-                        alt="기권"
-                        onClick={handleForfeit}
-                        title="기권하기"
-                    />
-					<span className="text-[11px] font-semibold text-red-300">기권</span>
-                </div>
-				{passAllowed && (
-                    <div className="flex flex-col items-center gap-1">
-                        <ImageButton
-                            src="/images/button/pass.png"
-                            alt="통과"
-                            onClick={handlePassClick}
-                            disabled={!isMyTurn || gameStatus !== 'playing'}
-                            title="한 수 쉬기"
-                        />
-                        <span className={`text-[11px] font-semibold ${!isMyTurn || gameStatus !== 'playing' ? 'text-gray-500' : 'text-amber-100'}`}>통과</span>
-                    </div>
-                )}
-                <div className="flex flex-col items-center gap-1">
-                    <ImageButton
-                        src="/images/button/reflesh.png"
-                        alt="배치변경"
-                        onClick={handleRefresh}
-                        disabled={refreshDisabled}
-                        title="배치 새로고침"
-                        count={refreshCount}
-                        maxCount={refreshMaxCount}
-                    />
-						<span className={`text-[11px] font-semibold ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
-                        배치변경
-                    </span>
-                </div>
-            </div>
+	const colClass = isMobile ? 'flex flex-col items-center gap-0.5 shrink-0' : 'flex flex-col items-center gap-1';
+	const lbl = isMobile ? 'text-[9px]' : 'text-[11px]';
 
+	const coreZone = (
+		<>
+			<div className={colClass}>
+				<ImageButton
+					src="/images/button/giveup.png"
+					alt="기권"
+					onClick={handleForfeit}
+					title="기권하기"
+					compact={isMobile}
+				/>
+				<span className={`${lbl} font-semibold text-red-300`}>기권</span>
+			</div>
+			{passAllowed && (
+				<div className={colClass}>
+					<ImageButton
+						src="/images/button/pass.png"
+						alt="통과"
+						onClick={handlePassClick}
+						disabled={!isMyTurn || gameStatus !== 'playing'}
+						title="한 수 쉬기"
+						compact={isMobile}
+					/>
+					<span className={`${lbl} font-semibold ${!isMyTurn || gameStatus !== 'playing' ? 'text-gray-500' : 'text-amber-100'}`}>통과</span>
+				</div>
+			)}
+			<div className={colClass}>
+				<ImageButton
+					src="/images/button/reflesh.png"
+					alt="배치변경"
+					onClick={handleRefresh}
+					disabled={refreshDisabled}
+					title="배치 새로고침"
+					count={refreshCount}
+					maxCount={refreshMaxCount}
+					compact={isMobile}
+				/>
+				<span className={`${lbl} font-semibold ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
+			</div>
+		</>
+	);
+
+	const itemZone = (
+		<>
+			{showTurnAdd && (
+				<div className={colClass}>
+					<ImageButton
+						src="/images/button/addturn.png"
+						alt="턴 추가"
+						onClick={handleUseTurnAdd}
+						disabled={turnAddDisabled}
+						title="남은 턴 3턴 추가"
+						count={turnAddCount}
+						compact={isMobile}
+					/>
+					<span className={`${lbl} font-semibold ${turnAddDisabled ? 'text-gray-500' : 'text-amber-100'}`}>턴 추가</span>
+				</div>
+			)}
+			{showMissileAndHiddenForHook && (
+				<div className={colClass}>
+					<ImageButton
+						src="/images/button/missile.png"
+						alt="미사일"
+						onClick={handleUseMissile}
+						disabled={missileDisabled}
+						title="미사일 발사"
+						count={missileCount}
+						maxCount={missileMaxCount}
+						compact={isMobile}
+					/>
+					<span className={`${lbl} font-semibold ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
+				</div>
+			)}
+			{showMissileAndHiddenForHook && (
+				<div className={colClass}>
+					<ImageButton
+						src="/images/button/hidden.png"
+						alt="히든"
+						onClick={handleUseHidden}
+						disabled={hiddenDisabled}
+						title="히든 스톤 배치"
+						count={hiddenCount}
+						maxCount={hiddenMaxCount}
+						compact={isMobile}
+					/>
+					<span className={`${lbl} font-semibold ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+				</div>
+			)}
+			{showMissileAndHiddenForHook && (
+				<div className={colClass}>
+					<ImageButton
+						src="/images/button/scan.png"
+						alt="스캔"
+						onClick={handleUseScan}
+						disabled={scanDisabled}
+						title="스캔"
+						count={scanInventoryCount}
+						maxCount={scanCountSettingForHook}
+						compact={isMobile}
+					/>
+					<span className={`${lbl} font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+				</div>
+			)}
+		</>
+	);
+
+	return (
+		<>
+		<footer
+			className={`responsive-controls flex-shrink-0 bg-stone-800/70 backdrop-blur-sm rounded-xl w-full min-h-[148px] border border-stone-700/50 ${
+				isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-2 p-2' : 'p-3 flex items-stretch justify-between gap-4'
+			}`}
+		>
+			{isMobile ? (
+				<>
+					<div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-stone-600/40 bg-black/20 px-1 py-2">
+						{coreZone}
+					</div>
+					{(showTurnAdd || showMissileAndHiddenForHook) && (
+						<>
+							<div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
+							<div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
+								{itemZone}
+							</div>
+						</>
+					)}
+				</>
+			) : (
+				<>
+					{coreZone}
+					{(showTurnAdd || showMissileAndHiddenForHook) && <div className="w-px bg-stone-600/50 shrink-0 self-stretch" />}
+					{itemZone}
+				</>
+			)}
+        </footer>
             {refreshConfirmModal && (
                 <ConfirmModal
                     title="배치변경"
@@ -414,74 +520,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                     windowId="tower-turn-add-confirm-modal"
                 />
             )}
-
-			{/* Right group: 턴 추가 (1~20층) 또는 미사일, 히든 (21층 이상) (가운데 정렬) */}
-			<div className="flex-1 flex items-center justify-center gap-6">
-                {showTurnAdd && (
-                    <div className="flex flex-col items-center gap-1">
-                        <ImageButton
-                            src="/images/button/addturn.png"
-                            alt="턴 추가"
-                            onClick={handleUseTurnAdd}
-                            disabled={turnAddDisabled}
-                            title="남은 턴 3턴 추가"
-                            count={turnAddCount}
-                        />
-						<span className={`text-[11px] font-semibold ${turnAddDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
-                            턴 추가
-                        </span>
-                    </div>
-                )}
-                {showMissileAndHiddenForHook && (
-                    <div className="flex flex-col items-center gap-1">
-                        <ImageButton
-                            src="/images/button/missile.png"
-                            alt="미사일"
-                            onClick={handleUseMissile}
-                            disabled={missileDisabled}
-                            title="미사일 발사"
-                            count={missileCount}
-                            maxCount={missileMaxCount}
-                        />
-						<span className={`text-[11px] font-semibold ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
-                            미사일
-                        </span>
-                    </div>
-                )}
-                {showMissileAndHiddenForHook && (
-                    <div className="flex flex-col items-center gap-1">
-                        <ImageButton
-                            src="/images/button/hidden.png"
-                            alt="히든"
-                            onClick={handleUseHidden}
-                            disabled={hiddenDisabled}
-                            title="히든 스톤 배치"
-                            count={hiddenCount}
-                            maxCount={hiddenMaxCount}
-                        />
-						<span className={`text-[11px] font-semibold ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
-                            히든
-                        </span>
-                    </div>
-                )}
-                {showMissileAndHiddenForHook && (
-                    <div className="flex flex-col items-center gap-1">
-                        <ImageButton
-                            src="/images/button/scan.png"
-                            alt="스캔"
-                            onClick={handleUseScan}
-                            disabled={scanDisabled}
-                            title="스캔"
-                            count={scanInventoryCount}
-                            maxCount={scanCountSettingForHook}
-                        />
-						<span className={`text-[11px] font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
-                            스캔
-                        </span>
-                    </div>
-                )}
-            </div>
-        </footer>
+    </>
     );
 };
 

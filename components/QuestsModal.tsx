@@ -4,7 +4,6 @@ import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
 import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS } from '../constants';
-import { audioService } from '../services/audioService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 
 interface QuestsModalProps {
@@ -23,7 +22,6 @@ const QuestItem: React.FC<{ quest: Quest, onClaim: (id: string) => void }> = ({ 
 
     const handleClaimClick = () => {
         if (isComplete && !quest.isClaimed) {
-            audioService.claimReward();
             onClaim(quest.id);
         }
     };
@@ -132,7 +130,6 @@ const ActivityPanel: React.FC<{
                             <button
                                 onClick={() => {
                                     if (canClaim) {
-                                        audioService.claimReward();
                                         onClaim(index, questType);
                                     }
                                 }}

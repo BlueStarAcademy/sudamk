@@ -341,9 +341,10 @@ export const useApp = () => {
 
     const isNarrowViewport = useIsHandheldDevice(1025);
     const isShortViewportHeight = useViewportHeightBelow(VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT);
+    /** 휴대기기 뷰포트에서 기본은 모바일 전용 UI. PC 화면 보기(pcLikeMobileLayout===true)일 때만 16:9 캔버스 경로 */
     const isNativeMobile = useMemo(
         () =>
-            settings.graphics.pcLikeMobileLayout === false &&
+            settings.graphics.pcLikeMobileLayout !== true &&
             (isNarrowViewport || isShortViewportHeight),
         [isNarrowViewport, isShortViewportHeight, settings.graphics.pcLikeMobileLayout],
     );

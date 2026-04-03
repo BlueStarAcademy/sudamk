@@ -231,28 +231,44 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     <div className="flex-1 min-w-0">
                         <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
                     </div>
-                    <div className="w-20 flex-shrink-0">
-                        <QuickAccessSidebar compact={true} fillHeight={true} />
+                    <div className="flex w-24 min-w-[96px] flex-shrink-0 flex-col min-h-0">
+                        <QuickAccessSidebar />
                     </div>
                 </div>
                 <div className="h-60"><ChatWindow messages={chatMessages} mode={'global'} onAction={handlers.handleAction} locationPrefix={locationPrefix} /></div>
             </div>
-            <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20">
-                <button 
-                    onClick={() => { setIsMobileSidebarOpen(true); setHasNewMessage(false); }}
-                    className="w-8 h-12 bg-secondary/80 backdrop-blur-sm rounded-l-lg flex items-center justify-center text-primary shadow-lg"
+            <div className="absolute top-1/2 right-0 z-20 -translate-y-1/2">
+                <button
+                    type="button"
+                    onClick={() => {
+                        setIsMobileSidebarOpen(true);
+                        setHasNewMessage(false);
+                    }}
+                    className="group relative flex h-[3.25rem] w-[2.875rem] flex-col items-center justify-center gap-1 rounded-l-2xl border border-r-0 border-white/15 bg-gradient-to-br from-indigo-500/25 via-slate-900/88 to-slate-950/95 px-1.5 text-primary shadow-[0_10px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md transition-all duration-300 ease-out hover:scale-[1.03] hover:border-indigo-300/35 hover:from-indigo-400/30 hover:shadow-[0_14px_40px_rgba(0,0,0,0.48)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:scale-100"
                     aria-label="유저 및 랭킹 목록 열기"
                 >
-                    <span className="relative font-bold text-lg">
-                        {'<'}
-                        {hasNewMessage && <div className="absolute -top-1 -right-1.5 w-2.5 h-2.5 bg-danger rounded-full border-2 border-secondary"></div>}
+                    <div
+                        className="flex flex-col gap-[4px] rounded-md bg-black/35 px-1.5 py-1 ring-1 ring-inset ring-indigo-400/20 transition-[box-shadow] group-hover:ring-indigo-300/40 group-hover:shadow-[0_0_14px_-3px_rgba(129,140,248,0.45)]"
+                        aria-hidden
+                    >
+                        <span className="h-[2px] w-[0.95rem] rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200/70 shadow-sm" />
+                        <span className="h-[2px] w-[0.95rem] rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200/70 shadow-sm" />
+                        <span className="h-[2px] w-[0.95rem] rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200/70 shadow-sm" />
+                    </div>
+                    <span className="text-[7px] font-bold uppercase tracking-[0.14em] text-indigo-100/70 transition-colors group-hover:text-indigo-50">
+                        목록
                     </span>
+                    {hasNewMessage && (
+                        <span className="absolute right-1 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white/90 bg-gradient-to-br from-rose-400 to-red-600 shadow-[0_0_8px_rgba(239,68,68,0.8)] ring-2 ring-red-500/35 animate-pulse" />
+                    )}
                 </button>
             </div>
             <div className={`fixed top-0 right-0 h-full w-[320px] bg-primary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
                 <button onClick={() => setIsMobileSidebarOpen(false)} className="self-end text-2xl p-2 text-tertiary hover:text-primary">×</button>
-                <div className="flex-shrink-0 p-2 border-b border-color">
-                    <QuickAccessSidebar mobile={true} />
+                <div className="flex-shrink-0 border-b border-color p-2">
+                    <div className="mx-auto flex h-52 w-24 min-w-[96px] flex-col min-h-0">
+                        <QuickAccessSidebar />
+                    </div>
                 </div>
                 <div className="flex-1 min-h-0"><PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} negotiations={Object.values(negotiations)} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} /></div>
                 <div className="flex-1 min-h-0 border-t border-color"><RankingList mode={mode} onShowTierInfo={() => setIsTierInfoModalOpen(true)} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} onShowPastRankings={handlers.openPastRankings} lobbyType={lobbyType} /></div>

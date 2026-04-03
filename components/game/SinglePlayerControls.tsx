@@ -11,6 +11,7 @@ interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onActio
     setShowResultModal?: (show: boolean) => void;
     isMoveInFlight?: boolean;
     isBoardLocked?: boolean;
+    isMobile?: boolean;
 }
 
 interface ImageButtonProps {
@@ -21,12 +22,14 @@ interface ImageButtonProps {
     title?: string;
     variant?: 'primary' | 'danger';
     count?: number; // 개수 표시 (옵션)
+    compact?: boolean;
 }
 
-const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count }) => {
+const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count, compact = false }) => {
     const variantClasses = variant === 'danger'
         ? 'border-red-400 shadow-red-500/40 focus:ring-red-400'
         : 'border-amber-400 shadow-amber-500/30 focus:ring-amber-300';
+    const sizeClass = compact ? 'w-11 h-11 shrink-0 rounded-md' : 'w-14 h-14 rounded-lg';
     
     return (
         <button
@@ -34,7 +37,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
             onClick={disabled ? undefined : onClick}
             disabled={disabled}
             title={title}
-            className={`relative w-14 h-14 rounded-lg border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
+            className={`relative ${sizeClass} border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
         >
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1" />
             {/* 개수 표시 우측 하단 (옵션) */}
@@ -54,16 +57,18 @@ interface ItemImageButtonProps {
     disabled?: boolean;
     title?: string;
     count: number; // 아이템 개수
+    compact?: boolean;
 }
 
-const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count }) => {
+const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, compact = false }) => {
+    const sizeClass = compact ? 'w-[52px] h-[52px] shrink-0 rounded-md' : 'w-[72px] h-[72px] rounded-lg';
     return (
         <button
             type="button"
             onClick={disabled ? undefined : onClick}
             disabled={disabled}
             title={title}
-            className={`relative w-[72px] h-[72px] rounded-lg border-2 border-amber-400 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
+            className={`relative ${sizeClass} border-2 border-amber-400 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
         >
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1.5" />
             {/* 개수 표시 우측 하단 */}
@@ -74,7 +79,7 @@ const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, di
     );
 };
 
-const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, onAction, currentUser, setShowResultModal, isMoveInFlight = false, isBoardLocked = false }) => {
+const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, onAction, currentUser, setShowResultModal, isMoveInFlight = false, isBoardLocked = false, isMobile = false }) => {
     const [alertModal, setAlertModal] = useState<{ title?: string; message: string } | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ title?: string; message: string; onConfirm: () => void } | null>(null);
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
@@ -274,19 +279,26 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             }
         };
 
+        const endBtn = isMobile ? '!py-1 !px-2 !text-[0.65rem] shrink-0' : '!py-1.5 !px-4 !text-sm';
         return (
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full h-[148px]">
-                <div className="bg-gray-900/70 border border-stone-700 rounded-xl px-4 py-3 flex flex-wrap items-center justify-center gap-3">
-                    <Button onClick={handleShowResults} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap">
+                <div
+                    className={`bg-gray-900/70 border border-stone-700 rounded-xl py-3 flex items-center gap-2 min-w-0 ${
+                        isMobile
+                            ? 'flex flex-wrap items-center justify-evenly gap-2 px-2 py-3 min-w-0'
+                            : 'flex-wrap justify-center px-4 gap-3'
+                    }`}
+                >
+                    <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap ${endBtn}`}>
                         결과 확인
                     </Button>
-                    <Button onClick={handleNextStage} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap" disabled={!canTryNext}>
+                    <Button onClick={handleNextStage} colorScheme="none" className={`justify-center rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap max-w-[48vw] truncate ${endBtn}`} disabled={!canTryNext}>
                         다음 단계{canTryNext && nextStage ? `: ${nextStage.name.replace('스테이지 ', '')}` : ''}{nextStageActionPointCost > 0 && ` (⚡${nextStageActionPointCost})`}
                     </Button>
-                    <Button onClick={handleRetry} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap">
+                    <Button onClick={handleRetry} colorScheme="none" className={`justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap ${endBtn}`}>
                         재도전 {retryActionPointCost > 0 && `(⚡${retryActionPointCost})`}
                     </Button>
-                    <Button onClick={handleExitToLobby} colorScheme="none" className="justify-center !py-1.5 !px-4 !text-sm rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap">
+                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap ${endBtn}`}>
                         나가기
                     </Button>
                 </div>
@@ -294,45 +306,47 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         );
     }
 
-    return (
-        <div className="bg-stone-800/70 backdrop-blur-sm rounded-xl p-3 flex items-stretch justify-between gap-4 w-full h-[148px] border border-stone-700/50">
-            {/* Left group: 기권, 배치 새로고침 (대국 기능) - 가운데 정렬 */}
-            <div className="flex-1 flex items-center justify-center gap-6">
-                <div className="flex flex-col items-center gap-1">
-                    <ImageButton
-                        src="/images/button/giveup.png"
-                        alt="기권"
-                        onClick={handleForfeit}
-                        title="기권하기"
-                        variant="danger"
-                    />
-                    <span className="text-[11px] font-semibold text-red-300">기권</span>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                    <ImageButton
-                        src="/images/button/reflesh.png"
-                        alt="배치 새로고침"
-                        onClick={handleRefresh}
-                        disabled={refreshDisabled}
-                        title={refreshDisabled ? (usedMissileBeforeFirstMove ? '첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.' : !canAfford ? '골드가 부족합니다.' : '배치 새로고침 불가') : `배치 새로고침 (비용: ${nextCost}골드, 남은 횟수: ${remainingRefreshes}/5)`}
-                        count={remainingRefreshes}
-                    />
-                    <span className={`text-[11px] font-semibold ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>
-                        배치변경
-                    </span>
-                    {nextCost > 0 && (
-                        <span className={`text-[10px] flex items-center gap-0.5 ${refreshDisabled ? 'text-gray-500' : 'text-yellow-300'}`}>
-                            <img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3" />
-                            {nextCost.toLocaleString()}
-                        </span>
-                    )}
-                </div>
-            </div>
+    const colClass = isMobile ? 'flex flex-col items-center gap-0.5 shrink-0' : 'flex flex-col items-center gap-1';
+    const lblBase = isMobile ? 'text-[9px]' : 'text-[11px]';
 
-            {/* Right group: 히든, 스캔, 미사일 (특수 아이템) - 가운데 정렬 */}
-            <div className="flex-1 flex items-center justify-center gap-6">
-                {/* 히든 아이템 */}
-                {isHiddenMode && (
+    const coreZoneSp = (
+        <>
+            <div className={colClass}>
+                <ImageButton
+                    src="/images/button/giveup.png"
+                    alt="기권"
+                    onClick={handleForfeit}
+                    title="기권하기"
+                    variant="danger"
+                    compact={isMobile}
+                />
+                <span className={`${lblBase} font-semibold text-red-300`}>기권</span>
+            </div>
+            <div className={colClass}>
+                <ImageButton
+                    src="/images/button/reflesh.png"
+                    alt="배치 새로고침"
+                    onClick={handleRefresh}
+                    disabled={refreshDisabled}
+                    title={refreshDisabled ? (usedMissileBeforeFirstMove ? '첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.' : !canAfford ? '골드가 부족합니다.' : '배치 새로고침 불가') : `배치 새로고침 (비용: ${nextCost}골드, 남은 횟수: ${remainingRefreshes}/5)`}
+                    count={remainingRefreshes}
+                    compact={isMobile}
+                />
+                <span className={`${lblBase} font-semibold ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
+                {nextCost > 0 && (
+                    <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} flex items-center gap-0.5 whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-yellow-300'}`}>
+                        <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'} shrink-0`} />
+                        {nextCost.toLocaleString()}
+                    </span>
+                )}
+            </div>
+        </>
+    );
+
+    const itemZoneSp = (
+        <>
+            {isHiddenMode && (
+                <div className={colClass}>
                     <ItemImageButton
                         src="/images/button/hidden.png"
                         alt="히든"
@@ -340,11 +354,13 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                         disabled={hiddenDisabled}
                         title="히든 스톤 배치"
                         count={hiddenLeft}
+                        compact={isMobile}
                     />
-                )}
-                
-                {/* 스캔 아이템 */}
-                {isHiddenMode && (
+                    <span className={`${lblBase} font-semibold ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+                </div>
+            )}
+            {isHiddenMode && (
+                <div className={colClass}>
                     <ItemImageButton
                         src="/images/button/scan.png"
                         alt="스캔"
@@ -352,11 +368,13 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                         disabled={scanDisabled}
                         title="상대 히든 스톤 탐지"
                         count={myScansLeft}
+                        compact={isMobile}
                     />
-                )}
-                
-                {/* 미사일 아이템 */}
-                {isMissileMode && (
+                    <span className={`${lblBase} font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+                </div>
+            )}
+            {isMissileMode && (
+                <div className={colClass}>
                     <ItemImageButton
                         src="/images/button/missile.png"
                         alt="미사일"
@@ -364,9 +382,41 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                         disabled={missileDisabled}
                         title="미사일 발사"
                         count={myMissilesLeft}
+                        compact={isMobile}
                     />
-                )}
-            </div>
+                    <span className={`${lblBase} font-semibold ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
+                </div>
+            )}
+        </>
+    );
+
+    return (
+        <div
+            className={`bg-stone-800/70 backdrop-blur-sm rounded-xl w-full h-[148px] border border-stone-700/50 ${
+                isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-2 p-2' : 'p-3 flex items-stretch justify-between gap-4'
+            }`}
+        >
+            {isMobile ? (
+                <>
+                    <div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-stone-600/40 bg-black/20 px-1 py-2">
+                        {coreZoneSp}
+                    </div>
+                    {(isHiddenMode || isMissileMode) && (
+                        <>
+                            <div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
+                            <div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
+                                {itemZoneSp}
+                            </div>
+                        </>
+                    )}
+                </>
+            ) : (
+                <>
+                    {coreZoneSp}
+                    {(isHiddenMode || isMissileMode) && <div className="w-px bg-stone-600/50 shrink-0 self-stretch" />}
+                    {itemZoneSp}
+                </>
+            )}
             
             {alertModal && (
                 <AlertModal

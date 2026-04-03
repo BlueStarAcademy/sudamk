@@ -118,7 +118,7 @@ const EquipmentSlotDisplay: React.FC<{
     item?: InventoryItem;
     onClick?: () => void;
     scaleFactor?: number;
-    /** 네이티브 홈 장비 패널: 슬롯·아이콘 약간 축소, 내부 여백 */
+    /** 특정 레이아웃에서만 슬롯·아이콘 축소 */
     compact?: boolean;
 }> = ({ slot, item, onClick, compact = false }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
@@ -185,60 +185,162 @@ const LobbyCard: React.FC<{
     imageUrl: string;
     tier?: { name: string; icon: string; };
     compact?: boolean;
-}> = ({ type, stats, onEnter, onViewStats, level, title, imageUrl, tier, compact }) => {
+    /** 네이티브 경기장 탭: 세로 스택용 큰 텍스트 */
+    arenaMobile?: boolean;
+    /** 경기장 탭: 해당 경기장 통합 랭킹 점수(모드 평균) */
+    integratedRankingScore?: number;
+}> = ({ type, stats, onEnter, onViewStats, level, title, imageUrl, tier, compact, arenaMobile, integratedRankingScore }) => {
     const isStrategic = type === 'strategic';
     const shadowColor = isStrategic ? "hover:shadow-blue-500/30" : "hover:shadow-yellow-500/30";
 
     const totalGames = stats.wins + stats.losses;
     const winRate = totalGames > 0 ? Math.round((stats.wins / totalGames) * 100) : 0;
 
+    const compactMode = Boolean(compact && !arenaMobile);
+
+    if (arenaMobile) {
+        const accentRing = isStrategic ? 'focus-visible:ring-cyan-400/70' : 'focus-visible:ring-amber-400/70';
+        const popEase = 'duration-300 ease-[cubic-bezier(0.34,1.45,0.64,1)]';
+        const hoverLift = isStrategic
+            ? 'hover:shadow-[0_28px_56px_-16px_rgba(0,0,0,0.78),0_14px_42px_-12px_rgba(56,189,248,0.28)] hover:ring-cyan-400/35'
+            : 'hover:shadow-[0_28px_56px_-16px_rgba(0,0,0,0.78),0_14px_42px_-12px_rgba(251,191,36,0.26)] hover:ring-amber-400/35';
+        return (
+            <button
+                type="button"
+                onClick={onEnter}
+                aria-label={`${title} 경기장 입장`}
+                className={`group relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/12 bg-black/40 text-left shadow-[0_14px_44px_-18px_rgba(0,0,0,0.85)] ring-1 ring-white/8 transition-all will-change-transform ${popEase} hover:z-10 hover:-translate-y-2 hover:scale-[1.035] ${hoverLift} active:translate-y-0 active:scale-[1.01] ${accentRing} focus:outline-none focus-visible:ring-2`}
+            >
+                <img
+                    src={imageUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 group-active:scale-[1.02]"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-black/15 to-black/70" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 to-transparent pt-3 pb-10 px-3 sm:pt-4 sm:px-4">
+                    <span
+                        className={`block text-center text-[1.05rem] font-extrabold leading-tight tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] sm:text-xl ${
+                            isStrategic
+                                ? 'bg-gradient-to-br from-sky-100 via-white to-cyan-200 bg-clip-text text-transparent'
+                                : 'bg-gradient-to-br from-amber-100 via-white to-orange-200 bg-clip-text text-transparent'
+                        }`}
+                    >
+                        {title}
+                    </span>
+                </div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/80 via-black/35 to-transparent pb-2 pt-8">
+                    <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-semibold text-white/95 shadow-lg backdrop-blur-sm sm:text-xs ${
+                            isStrategic ? 'bg-blue-600/88 ring-1 ring-white/15' : 'bg-amber-600/88 ring-1 ring-white/15'
+                        }`}
+                    >
+                        탭하여 입장
+                    </span>
+                </div>
+            </button>
+        );
+    }
+
     return (
         <div
             onClick={onEnter}
-            className={`bg-panel border border-color rounded-lg flex flex-col text-center transition-all transform shadow-lg ${shadowColor} cursor-pointer text-on-panel ${compact ? 'min-h-0 p-0.5' : 'h-full p-1 hover:-translate-y-1 lg:p-2'}`}
+            className={`bg-panel border border-color rounded-lg flex flex-col text-center transition-all transform shadow-lg ${shadowColor} cursor-pointer text-on-panel ${compactMode ? 'min-h-0 p-0.5' : 'h-full p-1 hover:-translate-y-1 lg:p-2'}`}
         >
-             <h2 className={`font-bold flex items-center justify-center gap-0.5 ${compact ? 'mb-0 text-[8px] leading-tight' : 'mb-0.5 h-4 text-xs lg:mb-1 lg:h-6 lg:gap-1 lg:text-base'}`}>
+             <h2 className={`font-bold flex items-center justify-center gap-0.5 ${compactMode ? 'mb-0 text-[8px] leading-tight' : 'mb-0.5 h-4 text-xs lg:mb-1 lg:h-6 lg:gap-1 lg:text-base'}`}>
                 {title}
-                {tier && <img src={tier.icon} alt={tier.name} className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3 lg:h-5 lg:w-5'} title={tier.name} />}
-                <span className={`text-highlight font-normal ${compact ? 'text-[8px]' : 'text-[10px] lg:text-sm'}`}>Lv.{level}</span>
+                {tier && <img src={tier.icon} alt={tier.name} className={compactMode ? 'h-2.5 w-2.5' : 'h-3 w-3 lg:h-5 lg:w-5'} title={tier.name} />}
+                <span className={`text-highlight font-normal ${compactMode ? 'text-[8px]' : 'text-[10px] lg:text-sm'}`}>Lv.{level}</span>
             </h2>
             <div
-                className={`w-full overflow-hidden rounded-md bg-tertiary ${compact ? 'h-[3.25rem] flex-none' : 'min-h-0 flex-1'}`}
+                className={`w-full overflow-hidden rounded-md bg-tertiary ${compactMode ? 'h-[3.25rem] flex-none' : 'min-h-0 flex-1'}`}
             >
                 <img src={imageUrl} alt={title} className="h-full w-full object-cover object-center" />
             </div>
             <div
                 onClick={(e) => { e.stopPropagation(); onViewStats(); }}
-                className={`mt-0.5 flex w-full cursor-pointer items-center justify-between rounded-md bg-tertiary/50 hover:bg-tertiary ${compact ? 'px-0.5 py-px text-[7px]' : 'mt-1 p-0.5 text-[10px] transition-colors lg:mt-2 lg:p-1 lg:text-xs'}`}
+                className={`mt-0.5 flex w-full cursor-pointer items-center justify-between rounded-md bg-tertiary/50 hover:bg-tertiary ${compactMode ? 'px-0.5 py-px text-[7px]' : 'mt-1 p-0.5 text-[10px] transition-colors lg:mt-2 lg:p-1 lg:text-xs'}`}
                 title="상세 전적 보기"
             >
-                <span className="min-w-0 truncate">{compact ? `${stats.wins}승${stats.losses}패 ${winRate}%` : `총 전적: ${stats.wins}승 ${stats.losses}패 (${winRate}%)`}</span>
+                <span className="min-w-0 truncate">{compactMode ? `${stats.wins}승${stats.losses}패 ${winRate}%` : `총 전적: ${stats.wins}승 ${stats.losses}패 (${winRate}%)`}</span>
                 <span className="flex-shrink-0 text-accent font-semibold">&rarr;</span>
             </div>
         </div>
     );
 };
 
-const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact }) => {
+const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile }) => {
     const shadowColor = "hover:shadow-purple-500/30";
+    const compactMode = Boolean(compact && !arenaMobile);
+
+    if (arenaMobile) {
+        const popEase = 'duration-300 ease-[cubic-bezier(0.34,1.45,0.64,1)]';
+        const interactive = !isComingSoon && onClick;
+        const shellClass = `relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-white/12 bg-black/35 text-left shadow-[0_14px_44px_-18px_rgba(0,0,0,0.85)] ring-1 ring-purple-500/15 transition-all will-change-transform ${popEase} ${
+            interactive
+                ? 'hover:z-10 hover:-translate-y-2 hover:scale-[1.035] hover:shadow-[0_28px_52px_-14px_rgba(0,0,0,0.72),0_12px_40px_-8px_rgba(168,85,247,0.35)] hover:ring-fuchsia-400/30 active:translate-y-0 active:scale-[1.01] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/60'
+                : 'cursor-not-allowed opacity-[0.92] grayscale-[0.3]'
+        }`;
+        const inner = (
+            <>
+                <img
+                    src={imageUrl}
+                    alt=""
+                    className={`absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 ease-out ${interactive ? 'group-hover:scale-105 group-active:scale-[1.02]' : ''}`}
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-violet-950/20 to-black/75" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/55 to-transparent pt-3 pb-10 px-3 sm:pt-4 sm:px-4">
+                    <span className="block text-center text-[1.05rem] font-extrabold leading-tight tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] sm:text-xl bg-gradient-to-br from-fuchsia-100 via-white to-violet-200 bg-clip-text text-transparent">
+                        {title}
+                    </span>
+                </div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/85 via-black/40 to-transparent pb-2 pt-8">
+                    <span className="rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-slate-100 shadow-lg backdrop-blur-sm ring-1 ring-white/10 sm:text-xs">
+                        {isComingSoon ? '오픈 예정' : '탭하여 입장'}
+                    </span>
+                </div>
+            </>
+        );
+        return (
+            <div className="relative flex h-full min-h-0 flex-1 flex-col">
+                {isComingSoon && (
+                    <div className="pointer-events-none absolute right-0 top-3 z-20 rotate-45 bg-gradient-to-r from-purple-600 to-fuchsia-600 px-9 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-md sm:px-10 sm:text-[10px]">
+                        Soon
+                    </div>
+                )}
+                {interactive ? (
+                    <button type="button" onClick={onClick} className={`group ${shellClass}`} aria-label={`${title} 입장`}>
+                        {inner}
+                    </button>
+                ) : (
+                    <div className={shellClass} role="group" aria-label={title}>
+                        {inner}
+                    </div>
+                )}
+                {footerContent && (
+                    <div className="mt-1 w-full shrink-0 rounded-lg border border-white/5 bg-white/5 p-1 text-[10px] text-slate-300 sm:text-xs">{footerContent}</div>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div
             onClick={onClick}
-            className={`${isComingSoon ? 'bg-panel border border-color opacity-60 grayscale' : 'bg-panel border border-color'} relative flex flex-col overflow-hidden rounded-lg text-center shadow-lg text-on-panel ${compact ? 'min-h-0 p-0.5' : 'h-full p-1 transform transition-all lg:p-2'} ${isComingSoon ? 'cursor-not-allowed' : onClick ? `cursor-pointer ${compact ? '' : `hover:-translate-y-1 ${shadowColor}`}` : 'cursor-not-allowed'} group`}
+            className={`${isComingSoon ? 'bg-panel border border-color opacity-60 grayscale' : 'bg-panel border border-color'} relative flex flex-col overflow-hidden rounded-lg text-center shadow-lg text-on-panel ${compactMode ? 'min-h-0 p-0.5' : 'h-full p-1 transform transition-all lg:p-2'} ${isComingSoon ? 'cursor-not-allowed' : onClick ? `cursor-pointer ${compactMode ? '' : `hover:-translate-y-1 ${shadowColor}`}` : 'cursor-not-allowed'} group`}
         >
             {isComingSoon && (
-                <div className={`absolute z-10 -right-6 rotate-45 bg-purple-600 font-bold text-white ${compact ? 'top-0 px-6 py-px text-[6px]' : 'top-1 px-8 py-0.5 text-[8px] lg:top-2 lg:-right-10 lg:px-10 lg:text-[10px]'}`}>
+                <div className={`absolute z-10 -right-6 rotate-45 bg-purple-600 font-bold text-white ${compactMode ? 'top-0 px-6 py-px text-[6px]' : 'top-1 px-8 py-0.5 text-[8px] lg:top-2 lg:-right-10 lg:px-10 lg:text-[10px]'}`}>
                     Coming Soon
                 </div>
             )}
-            <h2 className={`font-bold ${compact ? 'mb-0 mt-0 text-[8px]' : 'mb-0.5 mt-0.5 h-4 text-xs lg:mb-1 lg:mt-1 lg:h-6 lg:text-base'} ${isComingSoon ? 'text-gray-400' : ''}`}>{title}</h2>
+            <h2 className={`font-bold ${compactMode ? 'mb-0 mt-0 text-[8px]' : 'mb-0.5 mt-0.5 h-4 text-xs lg:mb-1 lg:mt-1 lg:h-6 lg:text-base'} ${isComingSoon ? 'text-gray-400' : ''}`}>{title}</h2>
             <div
-                className={`w-full overflow-hidden rounded-md bg-tertiary ${compact ? 'h-[3rem] flex-none' : 'min-h-0 flex-1'} flex items-center justify-center text-tertiary transition-transform duration-300 ${!isComingSoon && !compact && 'group-hover:scale-105'}`}
+                className={`w-full overflow-hidden rounded-md bg-tertiary ${compactMode ? 'h-[3rem] flex-none' : 'min-h-0 flex-1'} flex items-center justify-center text-tertiary transition-transform duration-300 ${!isComingSoon && !compactMode && 'group-hover:scale-105'}`}
             >
                 <img src={imageUrl} alt={title} className="h-full w-full object-cover object-center" />
             </div>
             {footerContent && (
-                <div className={`mt-0.5 w-full rounded-md bg-tertiary/50 ${compact ? 'p-px text-[7px]' : 'mt-1 p-0.5 text-[10px] lg:mt-2 lg:p-1 lg:text-xs'}`}>
+                <div className={`mt-0.5 w-full rounded-md bg-tertiary/50 ${compactMode ? 'p-px text-[7px]' : 'mt-1 p-0.5 text-[10px] lg:mt-2 lg:p-1 lg:text-xs'}`}>
                     {footerContent}
                 </div>
             )}
@@ -294,6 +396,108 @@ const StatSummaryPanel: React.FC<{ title: string; color: string; children: React
         </div>
     );
 };
+
+/** 경기장 탭: 상단 티어·레벨·통합 한 줄 + 중앙 총 전적 */
+const ArenaMobileStatStrip: React.FC<{
+    variant: 'strategic' | 'playful';
+    agg: { wins: number; losses: number };
+    integratedScore: number;
+    tier: { name: string; icon: string };
+    level: number;
+    onOpenModal: () => void;
+}> = ({ variant, agg, integratedScore, tier, level, onOpenModal }) => {
+    const isStrategic = variant === 'strategic';
+    const pct = (w: number, l: number) => {
+        const t = w + l;
+        return t > 0 ? Math.round((w / t) * 100) : 0;
+    };
+
+    const accentBar = isStrategic
+        ? 'from-transparent via-cyan-400/55 to-transparent'
+        : 'from-transparent via-amber-400/50 to-transparent';
+    const panelBg = isStrategic
+        ? 'from-slate-950/98 via-sky-950/[0.12] to-slate-950/98'
+        : 'from-slate-950/98 via-amber-950/[0.1] to-slate-950/98';
+    const borderTint = isStrategic ? 'border-sky-500/20' : 'border-amber-500/20';
+    const lvTone = isStrategic ? 'text-sky-200' : 'text-amber-200';
+    const scoreTone = isStrategic ? 'text-sky-100' : 'text-amber-100';
+    const rateTone = isStrategic ? 'text-cyan-200/95' : 'text-amber-200/95';
+    const btn = isStrategic
+        ? 'border-sky-500/35 bg-sky-950/50 text-sky-50 shadow-[0_4px_20px_-8px_rgba(56,189,248,0.35)] hover:bg-sky-900/55 hover:border-sky-400/45 active:scale-[0.98]'
+        : 'border-amber-500/35 bg-amber-950/45 text-amber-50 shadow-[0_4px_20px_-8px_rgba(251,191,36,0.28)] hover:bg-amber-950/60 hover:border-amber-400/40 active:scale-[0.98]';
+    const divider = 'h-5 w-px shrink-0 bg-gradient-to-b from-transparent via-white/25 to-transparent';
+
+    return (
+        <div
+            className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border ${borderTint} bg-gradient-to-b ${panelBg} text-on-panel shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_12px_40px_-18px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.06]`}
+        >
+            <div className={`h-[2px] w-full bg-gradient-to-r ${accentBar} opacity-90`} />
+            <div className="flex min-h-0 flex-1 flex-col px-2.5 pb-2.5 pt-3 sm:px-3">
+                {/* 상단: 티어 · 레벨 · 통합 (한 줄) */}
+                <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 sm:gap-x-2.5">
+                    {tier ? (
+                        <img
+                            src={tier.icon}
+                            alt={tier.name}
+                            title={tier.name}
+                            className="h-9 w-9 shrink-0 rounded-md bg-black/30 object-contain p-0.5 ring-1 ring-white/15 shadow-[0_2px_12px_rgba(0,0,0,0.4)] sm:h-10 sm:w-10"
+                        />
+                    ) : (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-sm text-slate-500 ring-1 ring-white/10 sm:h-10 sm:w-10">
+                            —
+                        </div>
+                    )}
+                    <span className={divider} aria-hidden />
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-sm font-medium text-slate-500">Lv</span>
+                        <span className={`font-mono text-lg font-bold tabular-nums tracking-tight sm:text-xl ${lvTone}`}>{level}</span>
+                    </div>
+                    <span className={divider} aria-hidden />
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-sm font-medium tracking-wide text-slate-500">통합</span>
+                        <span className={`font-mono text-xl font-extrabold tabular-nums tracking-tight sm:text-2xl ${scoreTone}`}>{integratedScore}</span>
+                        <span className="text-sm text-slate-500">점</span>
+                    </div>
+                </div>
+
+                <div className="my-3 h-px w-full bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+
+                {/* 중앙: 총 전적 */}
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 py-1">
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 sm:text-sm">총 전적</span>
+                    <p className="text-center font-mono text-[1.75rem] font-extrabold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)] sm:text-[2rem]">
+                        <span>{agg.wins}</span>
+                        <span className="mx-0.5 align-baseline text-[0.55em] font-bold text-slate-500">승</span>
+                        <span className="mx-1 text-slate-600">·</span>
+                        <span>{agg.losses}</span>
+                        <span className="ml-0.5 align-baseline text-[0.55em] font-bold text-slate-500">패</span>
+                    </p>
+                    <p className="text-sm text-slate-400">
+                        승률{' '}
+                        <span className={`font-mono text-base font-semibold tabular-nums sm:text-lg ${rateTone}`}>{pct(agg.wins, agg.losses)}%</span>
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={onOpenModal}
+                    className={`mx-auto mt-1 w-fit min-w-[6rem] rounded-lg border px-4 py-2 text-center text-xs font-semibold tracking-wide transition-all sm:min-w-[6.5rem] sm:text-sm ${btn}`}
+                >
+                    전체보기
+                </button>
+            </div>
+        </div>
+    );
+};
+
+/** 능력 PVP 행 — 입장카드 높이에 맞춘 플레이스홀더 */
+const ArenaMobilePvpStatStrip: React.FC = () => (
+    <div className="relative flex h-full min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-purple-500/30 bg-gradient-to-b from-purple-950/40 via-slate-950/90 to-slate-950/98 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.05]">
+        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-500/25 to-transparent" />
+        <span className="bg-gradient-to-r from-fuchsia-200 via-purple-100 to-violet-200 bg-clip-text text-sm font-bold tracking-wide text-transparent sm:text-base">능력 PVP</span>
+        <span className="mt-2 text-xs font-medium text-slate-500 sm:text-sm">오픈 예정</span>
+    </div>
+);
 
 
 const Profile: React.FC<ProfileProps> = () => {
@@ -619,7 +823,12 @@ const Profile: React.FC<ProfileProps> = () => {
         const strategicTier = getTier(myStrategicScore, myStrategicRank, strategicScores.length);
         const playfulTier = getTier(myPlayfulScore, myPlayfulRank, playfulScores.length);
 
-        return { strategicTier, playfulTier };
+        return {
+            strategicTier,
+            playfulTier,
+            strategicIntegratedScore: Math.round(myStrategicScore),
+            playfulIntegratedScore: Math.round(myPlayfulScore),
+        };
     }, [currentUserWithStatus, allUsers]);
     
     const coreStatAbbreviations: Record<CoreStat, string> = {
@@ -914,28 +1123,27 @@ const Profile: React.FC<ProfileProps> = () => {
                                         {ProfilePanelContent}
                                     </div>
 
-                                    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel px-1 py-1">
-                                        <h3 className="shrink-0 text-center text-[11px] font-semibold text-secondary sm:text-xs">장비</h3>
-                                        <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-x-0.5 gap-y-0.5 px-0.5 pt-0.5">
+                                    <div className="flex min-h-0 min-w-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-md border border-color bg-panel px-3 py-2.5">
+                                        <h3 className="w-full shrink-0 text-center text-[11px] font-semibold text-secondary sm:text-xs">장비</h3>
+                                        <div className="mx-auto grid min-h-0 w-full flex-1 grid-cols-3 grid-rows-2 gap-1.5">
                                             {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                                 const item = getItemForSlot(slot);
                                                 return (
-                                                    <div key={slot} className="min-h-0 min-w-0 p-0.5">
+                                                    <div key={slot} className="w-full aspect-square">
                                                         <EquipmentSlotDisplay
                                                             slot={slot}
                                                             item={item}
-                                                            compact
                                                             onClick={() => item && handlers.openViewingItem(item, true)}
                                                         />
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                        <div className="mt-0 flex shrink-0 items-center gap-0.5 pt-px">
+                                        <div className="mt-0 flex w-full max-w-[14rem] shrink-0 items-center justify-center gap-1 pt-px">
                                             <select
                                                 value={selectedPreset}
                                                 onChange={handlePresetChange}
-                                                className="min-w-0 flex-1 rounded border border-color bg-secondary p-px text-[9px] focus:border-accent focus:ring-accent sm:text-[10px]"
+                                                className="min-w-0 flex-1 rounded border border-color bg-secondary px-1.5 py-1 text-[9px] focus:border-accent focus:ring-accent sm:text-[10px]"
                                             >
                                                 {presets && presets.map((preset, index) => (
                                                     <option key={index} value={index}>{preset.name}</option>
@@ -944,7 +1152,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                             <Button
                                                 onClick={handlers.openEquipmentEffectsModal}
                                                 colorScheme="none"
-                                                className="!px-1 !py-0 !text-[7px] flex-shrink-0 justify-center rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
+                                                className="!px-2 !py-1 !text-[8px] flex-shrink-0 justify-center rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
                                             >
                                                 효과
                                             </Button>
@@ -982,49 +1190,83 @@ const Profile: React.FC<ProfileProps> = () => {
                             </div>
                         )}
                         {profileTab === 'ranking' && (
-                            <div className="flex min-h-0 flex-1 flex-row gap-0.5 overflow-hidden px-0.5 pb-0.5">
-                                <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                                    <GameRankingBoard dense />
+                            <div className="grid min-h-0 flex-1 grid-cols-2 gap-1 overflow-hidden px-0.5 pb-0.5">
+                                <div className="flex min-h-0 h-full min-w-0 flex-col overflow-hidden">
+                                    <GameRankingBoard mobileSplitLarge />
                                 </div>
-                                <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                                    <BadukRankingBoard dense />
-                                </div>
-                                <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                                    <ChampionshipRankingPanel compact dense />
+                                <div className="flex min-h-0 h-full min-w-0 flex-col overflow-hidden">
+                                    <BadukRankingBoard mobileSplitLarge />
                                 </div>
                             </div>
                         )}
                         {profileTab === 'arena' && (
-                            <div className="grid min-h-0 flex-1 grid-cols-3 gap-0.5 overflow-hidden px-0.5 pb-0.5">
-                                <LobbyCard
-                                    type="strategic"
-                                    stats={aggregatedStats.strategic}
-                                    onEnter={() => onSelectLobby('strategic')}
-                                    onViewStats={() => setDetailedStatsType('strategic')}
-                                    level={currentUserWithStatus.strategyLevel}
-                                    title="전략"
-                                    imageUrl={STRATEGIC_GO_LOBBY_IMG}
-                                    tier={overallTiers.strategicTier}
-                                    compact
-                                />
-                                <LobbyCard
-                                    type="playful"
-                                    stats={aggregatedStats.playful}
-                                    onEnter={() => onSelectLobby('playful')}
-                                    onViewStats={() => setDetailedStatsType('playful')}
-                                    level={currentUserWithStatus.playfulLevel}
-                                    title="놀이"
-                                    imageUrl={PLAYFUL_GO_LOBBY_IMG}
-                                    tier={overallTiers.playfulTier}
-                                    compact
-                                />
-                                <PveCard
-                                    title="능력PVP"
-                                    imageUrl={STRATEGIC_GO_LOBBY_IMG}
-                                    layout="tall"
-                                    isComingSoon
-                                    compact
-                                />
+                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-1 pb-1">
+                                <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2">
+                                    <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-hidden">
+                                        <LobbyCard
+                                            type="strategic"
+                                            stats={aggregatedStats.strategic}
+                                            onEnter={() => onSelectLobby('strategic')}
+                                            onViewStats={() => setDetailedStatsType('strategic')}
+                                            level={currentUserWithStatus.strategyLevel}
+                                            title="전략 바둑"
+                                            imageUrl={STRATEGIC_GO_LOBBY_IMG}
+                                            tier={overallTiers.strategicTier}
+                                            integratedRankingScore={overallTiers.strategicIntegratedScore}
+                                            arenaMobile
+                                        />
+                                    </div>
+                                    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
+                                        <ArenaMobileStatStrip
+                                            variant="strategic"
+                                            agg={aggregatedStats.strategic}
+                                            integratedScore={overallTiers.strategicIntegratedScore}
+                                            tier={overallTiers.strategicTier}
+                                            level={currentUserWithStatus.strategyLevel}
+                                            onOpenModal={() => setDetailedStatsType('strategic')}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2">
+                                    <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-hidden">
+                                        <LobbyCard
+                                            type="playful"
+                                            stats={aggregatedStats.playful}
+                                            onEnter={() => onSelectLobby('playful')}
+                                            onViewStats={() => setDetailedStatsType('playful')}
+                                            level={currentUserWithStatus.playfulLevel}
+                                            title="놀이 바둑"
+                                            imageUrl={PLAYFUL_GO_LOBBY_IMG}
+                                            tier={overallTiers.playfulTier}
+                                            integratedRankingScore={overallTiers.playfulIntegratedScore}
+                                            arenaMobile
+                                        />
+                                    </div>
+                                    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
+                                        <ArenaMobileStatStrip
+                                            variant="playful"
+                                            agg={aggregatedStats.playful}
+                                            integratedScore={overallTiers.playfulIntegratedScore}
+                                            tier={overallTiers.playfulTier}
+                                            level={currentUserWithStatus.playfulLevel}
+                                            onOpenModal={() => setDetailedStatsType('playful')}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2">
+                                    <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-hidden">
+                                        <PveCard
+                                            title="능력 PVP"
+                                            imageUrl={STRATEGIC_GO_LOBBY_IMG}
+                                            layout="tall"
+                                            isComingSoon
+                                            arenaMobile
+                                        />
+                                    </div>
+                                    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
+                                        <ArenaMobilePvpStatStrip />
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </>

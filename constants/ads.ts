@@ -14,6 +14,9 @@ export const AD_SLOTS = {
 /** 네이티브 모바일 셸 가로(하단 728×90 배너·콘텐츠 정렬) */
 export const NATIVE_MOBILE_SHELL_MAX_WIDTH = 728;
 
+/** 네이티브 모바일에서 모달 본문 가로 상한(셸 728px보다 약간 좁게) */
+export const NATIVE_MOBILE_MODAL_MAX_WIDTH_PX = 720;
+
 /** 디바이스별 배너 크기 */
 export const BANNER_SIZES: Record<'pc' | 'tablet' | 'mobile', AdBannerSize> = {
   pc: { width: 728, height: 90 },

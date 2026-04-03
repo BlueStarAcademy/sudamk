@@ -231,10 +231,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                         <SettingsSection title="화면">
                             <div className="flex items-center justify-between gap-4 rounded-xl border border-color/50 bg-secondary/25 px-4 py-3.5">
                                 <span className="text-sm font-medium text-text-primary sm:text-[15px]">
-                                    모바일 전용 화면 / PC화면
+                                    PC 화면 보기
                                 </span>
                                 <ToggleSwitch
-                                    checked={settings.graphics.pcLikeMobileLayout !== false}
+                                    checked={settings.graphics.pcLikeMobileLayout === true}
                                     onChange={(checked) => updatePcLikeMobileLayout(checked)}
                                 />
                             </div>

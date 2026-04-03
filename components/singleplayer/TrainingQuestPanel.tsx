@@ -9,9 +9,11 @@ import { audioService } from '../../services/audioService.js';
 
 interface TrainingQuestPanelProps {
     currentUser: UserWithStatus;
+    /** 네이티브 싱글플레이 상단 우측: 높이 제한 시 목록만 스크롤 */
+    compactTopSlot?: boolean;
 }
 
-const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser }) => {
+const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, compactTopSlot = false }) => {
     const { handlers } = useAppContext();
     const [selectedMissionForUpgrade, setSelectedMissionForUpgrade] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(Date.now());
@@ -177,10 +179,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser }) 
     // 재화 수령
     const handleCollectReward = async (missionId: string) => {
         try {
-            // 아이템 획득 사운드 재생
-            audioService.claimReward();
-            
-            // 액션만 호출하고 모달은 useApp에서 처리
+            // 사운드는 RewardSummaryModal(useApp)에서 한 번만 재생
             await handlers.handleAction({
                 type: 'CLAIM_SINGLE_PLAYER_MISSION_REWARD',
                 payload: { missionId }
@@ -275,14 +274,18 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser }) 
 
     return (
         <>
-            <div className="bg-panel rounded-lg shadow-lg p-1.5 sm:p-2 h-full flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between mb-1 sm:mb-1.5 border-b border-color pb-0.5 sm:pb-1 flex-shrink-0">
-                    <h2 className="text-base sm:text-lg font-bold text-on-panel">수련 과제</h2>
+            <div
+                className={`bg-panel flex flex-col overflow-hidden rounded-lg shadow-lg ${compactTopSlot ? 'h-full min-h-0 p-1' : 'h-full p-1.5 sm:p-2'}`}
+            >
+                <div
+                    className={`flex flex-shrink-0 items-center justify-between border-b border-color ${compactTopSlot ? 'mb-0.5 pb-0.5' : 'mb-1 pb-0.5 sm:mb-1.5 sm:pb-1'}`}
+                >
+                    <h2 className={`font-bold text-on-panel ${compactTopSlot ? 'text-xs' : 'text-base sm:text-lg'}`}>수련 과제</h2>
                     {claimableQuestsCount > 0 && (
                         <Button
                             onClick={handleClaimAllRewards}
                             colorScheme="green"
-                            className="!text-[10px] !py-0.5 !px-1.5 sm:!text-xs sm:!py-1 sm:!px-2 whitespace-nowrap"
+                            className={`whitespace-nowrap ${compactTopSlot ? '!px-1 !py-0.5 !text-[9px]' : '!text-[10px] !py-0.5 !px-1.5 sm:!text-xs sm:!py-1 sm:!px-2'}`}
                             disabled={isClaimingAll}
                         >
                             {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
@@ -291,8 +294,8 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser }) 
                 </div>
                 
                 {/* 2x3 그리드 */}
-                <div className="flex-1 overflow-hidden min-h-0">
-                    <div className="grid grid-cols-2 gap-1 sm:gap-1.5 h-full">
+                <div className={`min-h-0 flex-1 ${compactTopSlot ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}>
+                    <div className={`grid grid-cols-2 gap-1 sm:gap-1.5 ${compactTopSlot ? '' : 'h-full'}`}>
                         {trainingQuests.map((quest) => {
                             const { reward, progress, timeUntilNext, isMax } = calculateRewardAndProgress(quest);
                             const isMaxLevel = quest.currentLevel >= 10;

@@ -5,6 +5,7 @@ import { User } from '../types.js';
 import Avatar from './Avatar.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { calculateTotalStats } from '../services/statService.js';
+import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -15,6 +16,7 @@ const RankingRow = ({
     isCurrentUser,
     onViewUser,
     dense,
+    mobileWide,
 }: {
     user: User;
     rank: number;
@@ -22,6 +24,8 @@ const RankingRow = ({
     isCurrentUser: boolean;
     onViewUser?: (userId: string) => void;
     dense?: boolean;
+    /** 모바일 2열 랭킹: 큰 글자·행 높이 */
+    mobileWide?: boolean;
 }) => {
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
@@ -31,6 +35,21 @@ const RankingRow = ({
             onViewUser(user.id);
         }
     };
+
+    if (mobileWide) {
+        return (
+            <div
+                className={`flex min-h-[3rem] items-center rounded-md px-1.5 py-1 ${isCurrentUser ? 'bg-blue-500/30' : onViewUser ? 'cursor-pointer hover:bg-secondary/50' : ''}`}
+                onClick={handleClick}
+                title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
+            >
+                <span className="w-9 shrink-0 text-center text-sm font-bold tabular-nums">{rank}</span>
+                <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={40} />
+                <span className="ml-2 min-w-0 flex-1 truncate text-sm font-semibold">{user.nickname}</span>
+                <span className="w-[4.5rem] shrink-0 text-right font-mono text-sm tabular-nums">{value.toLocaleString()}</span>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -50,9 +69,13 @@ interface GameRankingBoardProps {
     isTopmost?: boolean;
     /** 네이티브 모바일 3열 랭킹용 */
     dense?: boolean;
+    /** 모바일 랭킹 탭 2열: 큰 텍스트·약 10명 분량 높이 */
+    mobileSplitLarge?: boolean;
 }
 
-const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost, dense }) => {
+const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost, dense, mobileSplitLarge }) => {
+    const rowDense = Boolean(dense && !mobileSplitLarge);
+    const wide = Boolean(mobileSplitLarge);
     const { currentUserWithStatus, handlers } = useAppContext();
     const [activeTab, setActiveTab] = useState<'combat' | 'manner'>('combat');
 
@@ -128,69 +151,105 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost, dense })
 
     return (
         <div
-            className={`bg-panel text-on-panel flex h-full min-h-0 flex-col rounded-lg border border-color ${dense ? 'gap-0.5 p-0.5' : 'gap-1 p-1.5'}`}
+            className={`bg-panel text-on-panel flex h-full min-h-0 flex-1 flex-col rounded-lg border border-color ${
+                wide ? 'gap-1 p-2' : rowDense ? 'gap-0.5 p-0.5' : 'gap-1 p-1.5'
+            }`}
         >
-            <h3 className={`text-center font-semibold text-secondary flex-shrink-0 ${dense ? 'text-[8px] leading-tight' : 'text-xs'}`}>게임 랭킹</h3>
-            <div className={`flex flex-shrink-0 rounded-lg bg-gray-900/70 ${dense ? 'p-px' : 'p-0.5'}`}>
+            <h3
+                className={`flex-shrink-0 text-center font-bold text-secondary ${
+                    wide ? 'text-base' : rowDense ? 'text-[8px] leading-tight' : 'text-xs'
+                }`}
+            >
+                게임 랭킹
+            </h3>
+            <div className={`flex flex-shrink-0 rounded-lg bg-gray-900/70 ${wide ? 'p-1' : rowDense ? 'p-px' : 'p-0.5'}`}>
                 <button
                     onClick={() => setActiveTab('combat')}
-                    className={`flex-1 rounded-md font-semibold transition-all ${dense ? 'py-0.5 text-[7px]' : 'py-1 text-xs'} ${activeTab === 'combat' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
+                    className={`flex-1 rounded-md font-semibold transition-all ${
+                        wide ? 'py-2 text-sm' : rowDense ? 'py-0.5 text-[7px]' : 'py-1 text-xs'
+                    } ${activeTab === 'combat' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700/50'}`}
                 >
                     바둑능력
                 </button>
                 <button
                     onClick={() => setActiveTab('manner')}
-                    className={`flex-1 rounded-md font-semibold transition-all ${dense ? 'py-0.5 text-[7px]' : 'py-1 text-xs'} ${activeTab === 'manner' ? 'bg-yellow-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
+                    className={`flex-1 rounded-md font-semibold transition-all ${
+                        wide ? 'py-2 text-sm' : rowDense ? 'py-0.5 text-[7px]' : 'py-1 text-xs'
+                    } ${activeTab === 'manner' ? 'bg-yellow-600 text-white' : 'text-gray-400 hover:bg-gray-700/50'}`}
                 >
                     매너
                 </button>
             </div>
-            <div className={`flex min-h-0 flex-grow flex-col gap-0.5 overflow-y-auto pr-0.5 ${dense ? 'text-[8px]' : 'pr-1 text-xs'}`}
+            <div
+                className={
+                    wide
+                        ? 'flex min-h-0 flex-1 flex-col gap-1 overflow-hidden'
+                        : `flex min-h-0 flex-1 flex-col overflow-hidden ${rowDense ? 'text-[8px]' : 'text-xs'}`
+                }
             >
-                {loading ? (
-                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">
-                        데이터 로딩 중...
-                    </div>
-                ) : error ? (
-                    <div className="flex items-center justify-center h-full text-red-400 text-xs">
-                        랭킹을 불러오는데 실패했습니다.
-                    </div>
-                ) : rankings.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">
-                        랭킹 데이터가 없습니다.
-                    </div>
-                ) : (
-                    <>
-                        {currentUserRanking && (
-                            <div className="sticky top-0 bg-panel z-10">
-                                <RankingRow
-                                    user={currentUserRanking.user}
-                                    rank={currentUserRanking.rank as number}
-                                    value={currentUserRanking.value}
-                                    isCurrentUser={true}
-                                    dense={dense}
-                                />
-                            </div>
-                        )}
-                        <div className="flex flex-col gap-0.5">
-                            {displayedRankings.filter(r => r && r.user && r.user.id).map((r) => (
-                                <RankingRow
-                                    key={r.user.id}
-                                    user={r.user}
-                                    rank={r.rank}
-                                    value={r.value}
-                                    isCurrentUser={false}
-                                    onViewUser={handlers.openViewingUser}
-                                    dense={dense}
-                                />
-                            ))}
-                            {displayCount < rankings.length && (
-                                <div ref={loadMoreRef} className="text-center text-gray-400 py-2 text-xs">
-                                    로딩 중...
+                <div
+                    className={
+                        wide
+                            ? 'flex min-h-0 flex-[7] flex-col overflow-hidden'
+                            : 'flex min-h-0 flex-1 flex-col overflow-hidden'
+                    }
+                >
+                    {loading ? (
+                        <div className={`flex h-full items-center justify-center text-gray-400 ${wide ? 'px-1 text-center text-base leading-snug' : 'text-xs'}`}>
+                            데이터 로딩 중...
+                        </div>
+                    ) : error ? (
+                        <div className={`flex h-full items-center justify-center text-red-400 ${wide ? 'px-1 text-center text-base leading-snug' : 'text-xs'}`}>
+                            랭킹을 불러오는데 실패했습니다.
+                        </div>
+                    ) : rankings.length === 0 ? (
+                        <div className={`flex h-full items-center justify-center text-gray-400 ${wide ? 'px-1 text-center text-base leading-snug' : 'text-xs'}`}>
+                            랭킹 데이터가 없습니다.
+                        </div>
+                    ) : (
+                        <>
+                            {currentUserRanking && (
+                                <div className="z-10 flex-shrink-0 border-b border-color/40 bg-panel pb-1">
+                                    <RankingRow
+                                        user={currentUserRanking.user}
+                                        rank={currentUserRanking.rank as number}
+                                        value={currentUserRanking.value}
+                                        isCurrentUser={true}
+                                        dense={rowDense}
+                                        mobileWide={wide}
+                                    />
                                 </div>
                             )}
-                        </div>
-                    </>
+                            <div
+                                className={`min-h-0 flex-1 overflow-x-hidden overflow-y-auto ${!wide && !rowDense ? 'pr-1' : 'pr-0.5'}`}
+                            >
+                                <div className="flex flex-col gap-0.5">
+                                    {displayedRankings.filter(r => r && r.user && r.user.id).map((r) => (
+                                        <RankingRow
+                                            key={r.user.id}
+                                            user={r.user}
+                                            rank={r.rank}
+                                            value={r.value}
+                                            isCurrentUser={false}
+                                            onViewUser={handlers.openViewingUser}
+                                            dense={rowDense}
+                                            mobileWide={wide}
+                                        />
+                                    ))}
+                                    {displayCount < rankings.length && (
+                                        <div ref={loadMoreRef} className={`py-2 text-center text-gray-400 ${wide ? 'text-sm' : 'text-xs'}`}>
+                                            로딩 중...
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+                {wide && (
+                    <div className="flex min-h-0 flex-[3] flex-col overflow-hidden">
+                        <MobileRankingGuidePanel variant={activeTab === 'combat' ? 'game-combat' : 'game-manner'} />
+                    </div>
                 )}
             </div>
         </div>

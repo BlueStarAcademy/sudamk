@@ -44,13 +44,20 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
 
     useEffect(() => {
         if (!hasAnyReward && items.length === 0) return;
-        void audioService.initialize();
+        let cancelled = false;
         const high = [ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic, ItemGrade.Transcendent];
-        if (bestItemGrade && high.includes(bestItemGrade)) {
-            audioService.gachaEpicOrHigher();
-        } else {
-            audioService.claimReward();
-        }
+        void (async () => {
+            await audioService.initialize();
+            if (cancelled) return;
+            if (bestItemGrade && high.includes(bestItemGrade)) {
+                audioService.gachaEpicOrHigher();
+            } else {
+                audioService.claimReward();
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, [hasAnyReward, items.length, bestItemGrade]);
 
     const frame =

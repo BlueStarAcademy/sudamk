@@ -1,16 +1,104 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { UserWithStatus, InventoryItem, ServerAction, ItemGrade } from '../../types.js';
+import React, { useState, useMemo } from 'react';
+import { InventoryItem, ServerAction, ItemGrade } from '../../types.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { getEnhancementCostRowForDisassembly, MATERIAL_ITEMS } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 
+const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
+    normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
+    uncommon: { color: 'text-green-400', background: '/images/equipments/uncommonbgi.png' },
+    rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.png' },
+    epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
+    legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
+    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
+    transcendent: { color: 'text-cyan-300', background: '/images/equipments/mythicbgi.png' },
+};
+
+const GRADE_NAMES_KO: Record<ItemGrade, string> = {
+    normal: '일반',
+    uncommon: '고급',
+    rare: '희귀',
+    epic: '에픽',
+    legendary: '전설',
+    mythic: '신화',
+    transcendent: '초월',
+};
+
+const SelectedDisassemblyItemsPanel: React.FC<{
+    selectedIds: Set<string>;
+    inventory: InventoryItem[];
+}> = ({ selectedIds, inventory }) => {
+    const items = useMemo(
+        () => inventory.filter(item => selectedIds.has(item.id)),
+        [inventory, selectedIds]
+    );
+
+    return (
+        <div className="flex-shrink-0 rounded-xl border border-cyan-300/20 bg-[#0f1627]/90 p-3 min-h-0">
+            <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-cyan-200/90">선택된 장비</p>
+                <span className="text-[11px] text-slate-400">{items.length.toLocaleString()}개</span>
+            </div>
+            {items.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-slate-600/50 bg-[#0b1120]/80 py-6 text-center text-xs text-slate-500">
+                    인벤토리에서 분해할 장비를 선택하세요
+                </div>
+            ) : (
+                <ul className="max-h-[min(200px,28vh)] space-y-2 overflow-y-auto pr-1">
+                    {items.map(item => {
+                        const styles = gradeStyles[item.grade];
+                        const isTranscendent = item.grade === ItemGrade.Transcendent;
+                        return (
+                            <li
+                                key={item.id}
+                                className="flex items-center gap-3 rounded-lg border border-slate-600/30 bg-slate-900/50 px-2 py-1.5"
+                            >
+                                <div
+                                    className={`relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border border-slate-500/40 ${
+                                        isTranscendent ? 'transcendent-grade-slot' : ''
+                                    }`}
+                                >
+                                    <img
+                                        src={styles.background}
+                                        alt=""
+                                        className="absolute inset-0 h-full w-full rounded-lg object-cover"
+                                    />
+                                    {item.image && (
+                                        <img
+                                            src={item.image}
+                                            alt=""
+                                            className="absolute left-1/2 top-1/2 object-contain p-0.5"
+                                            style={{ width: '78%', height: '78%', transform: 'translate(-50%, -50%)' }}
+                                        />
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className={`truncate text-sm font-bold ${styles.color}`} title={item.name}>
+                                        {item.name}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400">
+                                        {GRADE_NAMES_KO[item.grade]} · +{item.stars ?? 0}
+                                    </p>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </div>
+    );
+};
+
 const DisassemblyPreviewPanel: React.FC<{
     selectedIds: Set<string>;
     inventory: InventoryItem[];
     blacksmithLevel: number;
-}> = ({ selectedIds, inventory, blacksmithLevel }) => {
+    /** 네이티브 모바일: 선택 장비 목록 없이 재료 영역 위주·가독성 강화 */
+    nativeMobile?: boolean;
+}> = ({ selectedIds, inventory, blacksmithLevel, nativeMobile }) => {
     const { rangeMap, totalMaterials, itemCount } = useMemo(() => {
         const selectedItems = inventory.filter(item => selectedIds.has(item.id));
         const materials: Record<string, number> = {};
@@ -48,68 +136,112 @@ const DisassemblyPreviewPanel: React.FC<{
         };
     }, [selectedIds, inventory]);
 
+    const mobileSubline =
+        itemCount === 0
+            ? '아래 장비 인벤토리에서 분해할 장비를 선택(체크)하세요.'
+            : '재료별 최소~최대(같은 이름은 합산)';
+
     return (
-        <div className="w-full h-full bg-gradient-to-br from-[#1d243b] via-[#121a2d] to-[#0b1120] border border-cyan-300/20 rounded-2xl p-5 flex flex-col gap-4 min-h-0">
-            <div className="flex items-center justify-between flex-shrink-0">
-                <div className="text-left">
-                    <p className="text-xs text-slate-300/80">선택된 장비</p>
-                    <p className="text-lg font-semibold text-cyan-200">{itemCount.toLocaleString()}개</p>
-                </div>
-                <div className="text-right text-xs text-emerald-200/80">
-                    평균 환급 재료
-                </div>
+        <div
+            className={`flex h-full min-h-0 flex-col rounded-2xl border border-cyan-300/20 bg-gradient-to-br from-[#1d243b] via-[#121a2d] to-[#0b1120] ${
+                nativeMobile ? 'gap-2 p-3' : 'gap-3 p-4'
+            }`}
+        >
+            <div className="flex-shrink-0 space-y-1">
+                {nativeMobile ? (
+                    <>
+                        <p className="text-base font-bold text-cyan-100">예상 획득 재료</p>
+                        <p className="text-[13px] leading-snug text-slate-300/95">
+                            {itemCount > 0 && (
+                                <span className="font-semibold text-cyan-200/95">선택 {itemCount.toLocaleString()}개 · </span>
+                            )}
+                            {mobileSubline}
+                        </p>
+                    </>
+                ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-cyan-200">예상 획득 재료</p>
+                        <span className="text-[11px] text-slate-400">
+                            대상 {itemCount.toLocaleString()}개 · 범위(최소~최대)
+                        </span>
+                    </div>
+                )}
             </div>
 
-            <div className="rounded-xl border border-slate-600/30 bg-[#0f1627] p-4 shadow-inner flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto">
+            <div
+                className={`flex min-h-0 flex-1 flex-col overflow-y-auto rounded-xl border border-slate-600/30 bg-[#0f1627] shadow-inner ${
+                    nativeMobile ? 'gap-2 p-2.5' : 'gap-3 p-3'
+                }`}
+            >
                 {totalMaterials.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className={nativeMobile ? 'space-y-2' : 'space-y-3'}>
                         {totalMaterials.map(({ name }) => {
                             const template = MATERIAL_ITEMS[name as keyof typeof MATERIAL_ITEMS];
                             const range = rangeMap[name];
                             return (
                                 <div
                                     key={name}
-                                    className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg bg-slate-800/40 border border-slate-600/30"
+                                    className={`flex items-center justify-between gap-2 rounded-lg border border-slate-600/30 bg-slate-800/40 ${
+                                        nativeMobile ? 'px-2.5 py-2.5' : 'gap-3 px-2 py-1.5'
+                                    }`}
                                 >
-                                    <div className="flex items-center gap-3 text-sm text-slate-100">
-                                        <div className="w-8 h-8 rounded-lg bg-slate-900/50 border border-slate-600/40 overflow-hidden flex items-center justify-center">
-                                            {template?.image && <img src={template.image} alt={name} className="w-6 h-6 object-contain" />}
+                                    <div
+                                        className={`flex min-w-0 items-center gap-2.5 text-slate-100 ${
+                                            nativeMobile ? 'text-sm' : 'gap-3 text-sm'
+                                        }`}
+                                    >
+                                        <div
+                                            className={`flex-shrink-0 rounded-lg border border-slate-600/40 bg-slate-900/50 ${
+                                                nativeMobile ? 'h-10 w-10' : 'h-8 w-8'
+                                            } flex items-center justify-center overflow-hidden`}
+                                        >
+                                            {template?.image && (
+                                                <img
+                                                    src={template.image}
+                                                    alt=""
+                                                    className={nativeMobile ? 'h-8 w-8 object-contain' : 'h-6 w-6 object-contain'}
+                                                />
+                                            )}
                                         </div>
-                                        <span>{name}</span>
+                                        <span className="min-w-0 truncate font-medium">{name}</span>
                                     </div>
-                                    <span className="font-mono text-emerald-300 text-sm">
-                                        {range ? `${range.min.toLocaleString()} ~ ${range.max.toLocaleString()}` : '0'}
+                                    <span
+                                        className={`flex-shrink-0 font-mono tabular-nums text-emerald-300 ${
+                                            nativeMobile ? 'text-[15px] font-semibold' : 'text-sm'
+                                        }`}
+                                    >
+                                        {range ? `${range.min.toLocaleString()}~${range.max.toLocaleString()}` : '0'}
                                     </span>
                                 </div>
                             );
                         })}
                     </div>
                 ) : (
-                    <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
-                        분해 시 획득할 재료가 없습니다.
+                    <div
+                        className={`flex flex-1 items-center justify-center text-center ${
+                            nativeMobile ? 'px-2 text-sm leading-relaxed text-slate-300' : 'text-sm text-slate-400'
+                        }`}
+                    >
+                        {itemCount === 0
+                            ? '장비를 선택하면 예상 재료가 표시됩니다.'
+                            : '분해 시 획득할 재료가 없습니다.'}
                     </div>
                 )}
             </div>
 
-            <div className="text-[11px] text-cyan-200/85 text-center bg-[#0f172a] border border-cyan-300/20 rounded-xl py-2 px-3">
-                분해 시 <span className="text-emerald-300 font-semibold">{BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)]}%</span> 확률로
-                <span className="text-amber-200 font-semibold"> '대박'</span>이 발생하여 모든 재료 획득량이 2배가 됩니다.
+            <div
+                className={`flex-shrink-0 rounded-xl border border-cyan-300/20 bg-[#0f172a] text-center text-cyan-200/85 ${
+                    nativeMobile ? 'px-2.5 py-2 text-[11px] leading-snug' : 'px-3 py-2 text-[11px]'
+                }`}
+            >
+                분해 시 <span className="font-semibold text-emerald-300">{BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)]}%</span> 확률로
+                <span className="font-semibold text-amber-200"> 대박</span>이 나면 모든 재료가 2배입니다.
             </div>
         </div>
     );
 };
 
 const GRADES_FOR_SELECTION: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary];
-
-const GRADE_NAMES_KO: Record<ItemGrade, string> = {
-    normal: '일반',
-    uncommon: '고급',
-    rare: '희귀',
-    epic: '에픽',
-    legendary: '전설',
-    mythic: '신화',
-    transcendent: '초월',
-};
 
 const AutoSelectModal: React.FC<{ onClose: () => void; onConfirm: (selectedGrades: ItemGrade[]) => void; }> = ({ onClose, onConfirm }) => {
     const [selectedGrades, setSelectedGrades] = useState<ItemGrade[]>([]);
@@ -164,7 +296,7 @@ interface DisassemblyViewProps {
 }
 
 const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedForDisassembly = new Set(), onToggleDisassemblySelection }) => { // Added default value
-    const isMobile = false;
+    const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus } = useAppContext();
     const [isAutoSelectOpen, setIsAutoSelectOpen] = useState(false);
 
@@ -230,26 +362,42 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedFor
     };
 
     return (
-        <div className={`${isMobile ? 'h-auto' : 'h-full'} flex flex-col ${isMobile ? '' : 'min-h-0'}`}>
+        <div className="flex h-full min-h-0 flex-col">
             {isAutoSelectOpen && (
                 <AutoSelectModal
                     onClose={() => setIsAutoSelectOpen(false)}
                     onConfirm={handleAutoSelectConfirm}
                 />
             )}
-            <div className={`${isMobile ? 'h-auto max-h-[300px] overflow-y-auto' : 'flex-1 min-h-0 overflow-hidden'}`}>
-                <DisassemblyPreviewPanel 
-                    selectedIds={selectedForDisassembly} 
-                    inventory={inventory} 
-                    blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
-                />
-            </div>
-            <div className={`flex-shrink-0 ${isMobile ? 'mt-2 px-1 pb-1' : 'mt-3 px-2 pb-2'}`}>
-                <div className={`flex ${isMobile ? 'flex-col' : 'items-center justify-between'} gap-2 bg-[#111a2f] border border-cyan-300/20 rounded-xl ${isMobile ? 'px-2 py-2' : 'px-4 py-3'}`}>
+            <div
+                className={`flex min-h-0 flex-1 gap-3 ${
+                    isNativeMobile ? 'flex-col' : 'flex-row sm:items-stretch'
+                }`}
+            >
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+                    {!isNativeMobile && (
+                        <SelectedDisassemblyItemsPanel selectedIds={selectedForDisassembly} inventory={inventory} />
+                    )}
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                        <DisassemblyPreviewPanel
+                            selectedIds={selectedForDisassembly}
+                            inventory={inventory}
+                            blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
+                            nativeMobile={isNativeMobile}
+                        />
+                    </div>
+                </div>
+                <div
+                    className={`flex flex-shrink-0 gap-2 ${
+                        isNativeMobile
+                            ? 'w-full flex-row'
+                            : 'w-full flex-col justify-center sm:w-[9.5rem]'
+                    }`}
+                >
                     <ResourceActionButton
                         onClick={() => setIsAutoSelectOpen(true)}
                         variant="accent"
-                        className={`${isMobile ? '!w-full !px-2 !py-1.5 text-[10px]' : '!w-auto !px-5 !py-2 text-sm'}`}
+                        className={`${isNativeMobile ? 'min-h-[44px] flex-1' : '!w-full'} !px-3 !py-2.5 text-sm`}
                     >
                         자동 선택
                     </ResourceActionButton>
@@ -257,7 +405,7 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedFor
                         onClick={handleDisassemble}
                         disabled={selectedForDisassembly.size === 0}
                         variant="materials"
-                        className={`${isMobile ? '!w-full !px-2 !py-1.5 text-[10px]' : '!w-auto !px-5 !py-2 text-sm'} whitespace-nowrap`}
+                        className={`${isNativeMobile ? 'min-h-[44px] flex-1' : '!w-full'} !px-3 !py-2.5 text-sm leading-snug`}
                     >
                         선택 아이템 분해 ({selectedForDisassembly.size})
                     </ResourceActionButton>

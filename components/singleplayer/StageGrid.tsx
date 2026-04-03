@@ -9,9 +9,11 @@ import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
 interface StageGridProps {
     selectedClass: SinglePlayerLevel;
     currentUser: UserWithStatus;
+    /** 네이티브 모바일 등 좁은 레이아웃 */
+    compact?: boolean;
 }
 
-const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser }) => {
+const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compact = false }) => {
     const { handlers } = useAppContext();
     const [rewardsModalOpen, setRewardsModalOpen] = useState(false);
 
@@ -101,7 +103,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser }) => 
         }
     };
 
-    const isMobile = false;
+    const isMobile = compact;
     
     const classLabel =
         selectedClass === SinglePlayerLevel.입문

@@ -129,7 +129,7 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser }) => 
                 </button>
             </div>
         )}
-        <ul className="space-y-3 overflow-y-auto pr-2 flex-grow">
+        <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-2">
           {displayedGames.length > 0 ? displayedGames.map((game, index) => {
             if (!game || !game.player1 || !game.player2) {
               return null;
