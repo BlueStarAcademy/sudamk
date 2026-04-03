@@ -4,6 +4,7 @@ import { containsProfanity } from '../profanity.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 import { getApiUrl } from '../utils/apiConfig.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 const registerPrimaryBtnClass =
   'w-full rounded-xl bg-gradient-to-b from-amber-200/95 via-amber-500 to-amber-800 py-3.5 text-[17px] font-semibold tracking-wide text-amber-950 shadow-[0_8px_28px_rgba(180,83,9,0.28)] ring-1 ring-inset ring-white/30 transition [text-shadow:0_1px_0_rgba(255,255,255,0.25)] hover:brightness-[1.04] hover:shadow-[0_10px_32px_rgba(180,83,9,0.34)] active:translate-y-px active:shadow-[0_5px_18px_rgba(180,83,9,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none';
@@ -13,6 +14,7 @@ const USERNAME_MAX_LENGTH = 20;
 
 const Register: React.FC = () => {
     const { setCurrentUserAndRoute } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -83,7 +85,13 @@ const Register: React.FC = () => {
         'w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-base text-stone-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] placeholder:text-zinc-500 transition focus:border-amber-500/45 focus:outline-none focus:ring-2 focus:ring-amber-500/20 sm:px-5 sm:py-3.5 sm:text-lg';
 
     return (
-        <div className="mx-auto flex w-full min-w-0 max-w-[min(100%,440px)] justify-center py-2 sm:max-w-[min(100%,460px)] lg:max-w-[min(100%,520px)]">
+        <div
+            className={
+                isNativeMobile
+                    ? 'mx-auto flex w-full min-w-0 max-w-full justify-center px-3 py-2'
+                    : 'mx-auto flex w-full min-w-0 max-w-[min(100%,440px)] justify-center py-2 sm:max-w-[min(100%,460px)] lg:max-w-[min(100%,520px)]'
+            }
+        >
             <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 p-6 pb-7 pt-8 shadow-[0_24px_56px_-18px_rgba(0,0,0,0.78)] backdrop-blur-md ring-1 ring-inset ring-white/[0.07] sm:p-7 sm:pt-8 lg:p-8 lg:pt-9">
                 <div
                     className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent"

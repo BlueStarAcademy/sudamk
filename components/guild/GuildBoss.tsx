@@ -22,6 +22,8 @@ import Avatar from '../Avatar.js';
 import { GUILD_ATTACK_ICON, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_REGEN_IMG } from '../../assets.js';
 import RadarChart from '../RadarChart.js';
 import GuildBossBattleResultModal from './GuildBossBattleResultModal.js';
+import MobileSlideDeck from '../mobile/MobileSlideDeck.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 
 const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { chance?: number; description: string; } | null => {
     if (level === 0) return null;
@@ -490,7 +492,8 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({ fullDamageRanki
 
 const GuildBoss: React.FC = () => {
     const { currentUserWithStatus, guilds, handlers } = useAppContext();
-    
+    const { isNativeMobile } = useNativeMobileShell();
+
     const [isSimulating, setIsSimulating] = useState(false);
     const simulationInFlight = useRef(false);
     const [simulationResult, setSimulationResult] = useState<GuildBossBattleResult | null>(null);
@@ -846,7 +849,66 @@ const GuildBoss: React.FC = () => {
                 </div>
             </header>
 
-            {/* 뷰포트 lg/xl이 아니라 설계 캔버스 기준으로 PC와 동일 20% | flex-1 | 26% */}
+            {/* 뷰포트 lg/xl이 아니라 설계 캔버스 기준으로 PC와 동일 20% | flex-1 | 26% — 네이티브는 가로 슬라이드 */}
+            {isNativeMobile ? (
+                <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[48vh]">
+                    <div className="flex min-h-0 w-full flex-col gap-4 px-1 pb-4">
+                        <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={scaledBoss.maxHp} damageNumbers={bossDamageNumbers} />
+                        <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
+                    </div>
+                    <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col gap-4 px-1 pb-4">
+                        <div className="bg-panel border border-color flex min-h-[40vh] flex-col rounded-lg p-4">
+                            <h3 className="mb-2 flex-shrink-0 text-center text-lg font-bold text-red-300">보스의 공격</h3>
+                            <div ref={bossLogContainerRef} className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-2 pr-2 text-sm space-y-2">
+                                {bossLogs.map((entry, index) => (
+                                    <div key={index} className="flex items-center gap-2 animate-fade-in">
+                                        <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
+                                        {entry.icon && <img src={entry.icon} alt="action" className="w-6 h-6 flex-shrink-0" />}
+                                        <span>{entry.message}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="bg-panel border border-color flex min-h-[40vh] flex-col rounded-lg p-4">
+                            <h3 className="mb-2 flex-shrink-0 text-center text-lg font-bold text-blue-300">나의 공격</h3>
+                            <div ref={userLogContainerRef} className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-2 pr-2 text-sm space-y-2">
+                                {userLogs.map((entry, index) => (
+                                    <div key={index} className="flex items-center gap-2 animate-fade-in justify-start">
+                                        <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
+                                        {entry.icon && <img src={entry.icon} alt="action" className="w-6 h-6 flex-shrink-0" />}
+                                        <span>{entry.message}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex min-h-0 w-full flex-col gap-4 px-1 pb-6">
+                        <UserStatsPanel
+                            user={currentUserWithStatus}
+                            guild={myGuild}
+                            hp={userHp}
+                            maxHp={maxUserHp}
+                            damageNumbers={damageNumbers}
+                            onOpenEffects={handlers.openEquipmentEffectsModal}
+                            onOpenPresets={handlers.openPresetModal}
+                            isSimulating={isSimulating}
+                            activeDebuffs={activeDebuffs}
+                        />
+                        <div className="flex-shrink-0 bg-panel border border-color rounded-lg p-3 space-y-2 text-center">
+                            <Button
+                                onClick={handleBattleStart}
+                                disabled={attemptsLeft <= 0 || isSimulating}
+                                className="w-full mt-3 flex items-center justify-center gap-2"
+                            >
+                                {!isSimulating && (
+                                    <img src="/images/guild/ticket.png" alt="도전권" className="w-5 h-5" />
+                                )}
+                                <span>{isSimulating ? '전투 중...' : `도전하기 (${attemptsLeft}/${GUILD_BOSS_MAX_ATTEMPTS})`}</span>
+                            </Button>
+                        </div>
+                    </div>
+                </MobileSlideDeck>
+            ) : (
             <main className="flex min-h-0 min-w-0 flex-1 flex-row gap-4">
                 <div className="flex w-[20%] min-w-0 shrink-0 flex-col gap-4">
                     <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={scaledBoss.maxHp} damageNumbers={bossDamageNumbers} />
@@ -906,6 +968,7 @@ const GuildBoss: React.FC = () => {
                      </div>
                 </div>
             </main>
+            )}
             {showResultModal && battleResult && (
                 <GuildBossBattleResultModal 
                     result={battleResult} 

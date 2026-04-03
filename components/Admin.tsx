@@ -6,10 +6,12 @@ import ServerSettingsPanel from './admin/ServerSettingsPanel.js';
 import HomeBoardPanel from './admin/HomeBoardPanel.js';
 import AdminOperationsPanel from './admin/AdminOperationsPanel.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 const Admin: React.FC = () => {
     const [adminView, setAdminView] = useState<AdminView>('dashboard');
     const { currentUserWithStatus, allUsers, liveGames, adminLogs, gameModeAvailability, announcements, globalOverrideAnnouncement, announcementInterval, homeBoardPosts, handlers } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
 
     const handleBack = () => {
         if (adminView === 'dashboard') {
@@ -65,7 +67,13 @@ const Admin: React.FC = () => {
     };
 
     return (
-        <div className="p-4 lg:p-8">
+        <div
+            className={
+                isNativeMobile
+                    ? 'flex min-h-0 flex-1 flex-col overflow-y-auto p-2'
+                    : 'p-4 lg:p-8'
+            }
+        >
             {renderView()}
         </div>
     );

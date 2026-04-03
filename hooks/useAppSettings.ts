@@ -7,6 +7,7 @@ export const defaultSettings: AppSettings = {
         panelColor: undefined,
         textColor: undefined,
         panelEdgeStyle: 'default',
+        pcLikeMobileLayout: true,
     },
     sound: {
         masterVolume: 0.5,

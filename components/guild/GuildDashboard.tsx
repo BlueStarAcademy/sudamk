@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { Guild as GuildType, UserWithStatus, GuildBossInfo, QuestReward, GuildMember, GuildMemberRole, CoreStat, GuildResearchId, GuildResearchCategory, ItemGrade, ServerAction, GuildBossSkill } from '../../types/index.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
 import GuildHomePanel, { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
@@ -46,6 +47,7 @@ const getGuildIconPath = (icon: string | undefined): string => {
 
 const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null; onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void; goldButtonRef: React.RefObject<HTMLDivElement>; diamondButtonRef: React.RefObject<HTMLDivElement> }> = ({ guild, guildDonationAnimation, onDonationComplete, goldButtonRef, diamondButtonRef }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const [isDonating, setIsDonating] = useState(false);
     const [donationType, setDonationType] = useState<'gold' | 'diamond' | null>(null);
     const [donationModal, setDonationModal] = useState<{ type: 'gold' | 'diamond'; count: number } | null>(null);
@@ -122,7 +124,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
             .map(([userId, agg]) => ({ userId, ...agg }))
             .sort((a, b) => b.totalCoins - a.totalCoins);
     }, [guild?.donationLog]);
-    const isMobile = false;
+    const isMobile = isNativeMobile;
 
     return (
         <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col gap-3 relative overflow-hidden border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-1 min-h-[200px] max-h-[320px]" style={{ minHeight: '200px' }}>
@@ -345,6 +347,7 @@ const BOSS_SKILL_TOOLTIP_HIDE_DELAY_MS = 200;
 
 const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, className }) => {
     const { currentUserWithStatus } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const [hoveredSkill, setHoveredSkill] = useState<GuildBossSkill | null>(null);
     const [clickedSkill, setClickedSkill] = useState<GuildBossSkill | null>(null);
     const [skillTooltipPos, setSkillTooltipPos] = useState<{ top: number; left: number } | null>(null);
@@ -510,7 +513,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
 
     const theme = getBossTheme(currentBoss.id);
 
-    const isMobile = false;
+    const isMobile = isNativeMobile;
     
     return (
         <div className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center w-full relative overflow-hidden h-full ${className || ''}`}>
@@ -751,6 +754,7 @@ const BossPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, 
 
 const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, className }) => {
     const { currentUserWithStatus, handlers, guilds, allUsers } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const [showRewardModal, setShowRewardModal] = React.useState(false);
     const [activeWar, setActiveWar] = React.useState<any>(null);
     const [opponentGuild, setOpponentGuild] = React.useState<any>(null);
@@ -1345,7 +1349,7 @@ const WarPanel: React.FC<{ guild: GuildType, className?: string }> = ({ guild, c
     const opponentGuildIdForDisplay = activeWar ? (activeWar.guild1Id === guild.id ? activeWar.guild2Id : activeWar.guild1Id) : null;
     const displayOpponent = opponentGuild ?? (opponentGuildIdForDisplay === GUILD_WAR_BOT_GUILD_ID ? { id: GUILD_WAR_BOT_GUILD_ID, name: '[데모]길드전AI', level: 1, members: [], leaderId: GUILD_WAR_BOT_GUILD_ID } : null);
     const enemyGuildName = displayOpponent?.name || '상대 길드';
-    const isMobile = false;
+    const isMobile = isNativeMobile;
     const isPastApplicationDeadline = applicationDeadline != null && Date.now() >= applicationDeadline;
     
     return (
@@ -1941,6 +1945,7 @@ type GuildTab = 'home' | 'members' | 'management';
 
 export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDonationAnimation, onDonationComplete }) => {
     const { currentUserWithStatus, handlers, guilds } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     
     // guilds 상태에서 최신 길드 정보 가져오기 (guild prop보다 우선)
     const currentGuild = React.useMemo(() => {
@@ -1976,7 +1981,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [isBossGuideOpen, setIsBossGuideOpen] = useState(false);
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [isIconSelectOpen, setIsIconSelectOpen] = useState(false);
-    const isMobile = false;
+    const isMobile = isNativeMobile;
     const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
     const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
     const goldButtonRef = useRef<HTMLDivElement>(null);

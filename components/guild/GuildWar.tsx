@@ -5,6 +5,8 @@ import Button from '../Button.js';
 import Avatar from '../Avatar.js';
 import { GuildWar as GuildWarType } from '../../types/index.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
+import MobileSlideDeck from '../mobile/MobileSlideDeck.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import {
     BLACK_BASE_STONE_IMG,
     WHITE_BASE_STONE_IMG,
@@ -151,6 +153,7 @@ interface Board {
 
 const GuildWar = () => {
     const { currentUserWithStatus, guilds, handlers, allUsers } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const [selectedBoard, setSelectedBoard] = useState<Board | null>(null);
     const [activeWar, setActiveWar] = useState<GuildWarType | null>(null);
     const [myGuild, setMyGuild] = useState<any>(null);
@@ -1019,7 +1022,134 @@ const GuildWar = () => {
                     </p>
                 </div>
             </header>
-            <main className="flex-1 grid grid-cols-5 gap-4 min-h-0">
+            {isNativeMobile ? (
+                <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[52vh]">
+                {/* Left Panel */}
+                <div className="min-h-0 flex w-full flex-col px-1 pb-2">
+                    <StatusAndViewerPanel
+                        team="blue"
+                        challengingMembers={myMembersChallenging}
+                        teamUsedTickets={myTeamTickets.used}
+                        teamTotalTickets={myTeamTickets.total}
+                        board={selectedBoard}
+                        personalTicketsRemaining={personalTicketsRemaining}
+                        personalTicketsTotal={personalTicketTotal}
+                    />
+                </div>
+
+                {/* Center Panel */}
+                <div className="flex min-h-0 w-full flex-col overflow-y-auto px-1 pb-4">
+                    <div className="grid grid-cols-[176px_minmax(0,1fr)_176px] items-start gap-4 mb-4">
+                        <div className="w-44 justify-self-start flex flex-col items-center">
+                            <div className="relative w-24 h-32">
+                                <img src="/images/guild/guildwar/blueteam.png" alt="Blue Team Flag" className="w-full h-full" />
+                                <img src={myGuild.icon || myGuild.emblem || '/images/guild/profile/icon1.png'} alt="My Guild Emblem" className="absolute top-[30px] left-1/2 -translate-x-1/2 w-14 h-14 object-contain" />
+                            </div>
+                            <div className="bg-black/60 px-3 py-1 rounded-md -mt-5 z-10 shadow-lg">
+                                <span className="font-bold text-white block max-w-[150px] truncate text-center">{myGuild.name}</span>
+                            </div>
+                        </div>
+                        
+                        <div className="w-full flex flex-col items-center gap-2 pt-1">
+                            <div className="w-full max-w-[560px] rounded-2xl border border-amber-300/35 bg-gradient-to-b from-black/55 via-black/45 to-black/55 shadow-[0_10px_30px_rgba(0,0,0,0.45)] px-5 py-3">
+                                <div className="grid grid-cols-[1fr_auto_1fr] items-center text-white" style={{ textShadow: '2px 2px 4px black' }}>
+                                    <div className="justify-self-center inline-flex items-center justify-end gap-2 min-w-[120px]">
+                                        <img src={GUILD_WAR_STAR_IMG} alt="star" className="w-8 h-8" />
+                                        <span className="text-4xl font-black tabular-nums">{totalMyStars}</span>
+                                    </div>
+                                    <span className="mx-4 text-xl font-extrabold text-amber-200/90">VS</span>
+                                    <div className="justify-self-center inline-flex items-center justify-start gap-2 min-w-[120px]">
+                                        <span className="text-4xl font-black tabular-nums">{totalOpponentStars}</span>
+                                        <img src={GUILD_WAR_STAR_IMG} alt="star" className="w-8 h-8" />
+                                    </div>
+                                </div>
+                                <div className="mt-2 flex items-center justify-end text-[12px] font-semibold text-slate-100/95">
+                                    <span className="text-amber-200/95">동점 시 집점수 비교</span>
+                                </div>
+                                <div className="mt-1 flex items-center justify-between text-sm font-bold text-cyan-100 tabular-nums">
+                                    <span>집점수 {myTotalHouseScore}</span>
+                                    <span>집점수 {opponentTotalHouseScore}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="w-44 justify-self-end flex flex-col items-center">
+                            <div className="relative w-24 h-32">
+                                <img src="/images/guild/guildwar/redteam.png" alt="Red Team Flag" className="w-full h-full" />
+                                <img src={opponentGuild.icon || opponentGuild.emblem || '/images/guild/profile/icon1.png'} alt="Opponent Guild Emblem" className="absolute top-[30px] left-1/2 -translate-x-1/2 w-14 h-14 object-contain" />
+                            </div>
+                             <div className="bg-black/60 px-3 py-1 rounded-md -mt-5 z-10 shadow-lg">
+                                <span className="font-bold text-white block max-w-[150px] truncate text-center">{opponentGuild.name}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 grid grid-cols-3 grid-rows-3 gap-x-8 gap-y-4">
+                        {boards.map(board => {
+                            // 점령 상태 결정: ownerGuildId가 있으면 사용, 없으면 별 개수 비교
+                            let ownerGuildId: string | undefined = board.ownerGuildId;
+                            if (!ownerGuildId) {
+                                if (board.myStars > board.opponentStars) {
+                                    ownerGuildId = myGuild.id;
+                                } else if (board.opponentStars > board.myStars) {
+                                    ownerGuildId = opponentGuild.id;
+                                }
+                            }
+                            
+                            const isMyGuildOccupied = ownerGuildId === myGuild.id;
+                            const isOpponentOccupied = ownerGuildId === opponentGuild.id;
+                            
+                            const isSelected = selectedBoard?.id === board.id;
+                            
+                            return (
+                                <div key={board.id} className={`relative flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${isSelected ? 'scale-110' : 'hover:scale-105'}`} 
+                                    onClick={() => setSelectedBoard(board)}>
+                                    <StarDisplay count={board.myStars} size="w-5 h-5"/>
+                                    <div className="relative flex items-center justify-center">
+                                        {/* 좌측 파란 깃발 */}
+                                        {isMyGuildOccupied && (
+                                            <img 
+                                                src="/images/guild/guildwar/blueflag.png" 
+                                                alt="Blue Flag" 
+                                                className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 w-8 h-8 z-10" 
+                                            />
+                                        )}
+                                        <img 
+                                            src="/images/guild/guildwar/board.png" 
+                                            alt="Go Board" 
+                                            className={`w-24 h-24 ${isSelected ? 'ring-4 ring-yellow-400' : ''}`}
+                                        />
+                                        {/* 우측 빨간 깃발 */}
+                                        {isOpponentOccupied && (
+                                            <img 
+                                                src="/images/guild/guildwar/redflag.png" 
+                                                alt="Red Flag" 
+                                                className="absolute right-0 top-1/2 translate-x-full -translate-y-1/2 w-8 h-8 z-10" 
+                                            />
+                                        )}
+                                    </div>
+                                    <span className="bg-black/60 px-2 py-0.5 rounded-md text-sm font-semibold -mt-2">{board.name}</span>
+                                    <StarDisplay count={board.opponentStars} size="w-5 h-5"/>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Right Panel */}
+                <div className="min-h-0 flex w-full flex-col px-1 pb-2">
+                     <StatusAndViewerPanel
+                        team="red"
+                        challengingMembers={opponentMembersChallenging}
+                        teamUsedTickets={opponentTeamTickets.used}
+                        teamTotalTickets={opponentTeamTickets.total}
+                        teamTicketsUnknown={opponentTeamTickets.unknown}
+                        board={selectedBoard}
+                    />
+                </div>
+                </MobileSlideDeck>
+            ) : (
+                <main className="flex-1 grid grid-cols-5 gap-4 min-h-0">
                 {/* Left Panel */}
                 <div className="col-span-1 min-h-0 flex flex-col">
                     <StatusAndViewerPanel
@@ -1143,7 +1273,8 @@ const GuildWar = () => {
                         board={selectedBoard}
                     />
                 </div>
-            </main>
+                </main>
+            )}
         </div>
     );
 };

@@ -16,6 +16,8 @@ import Button from '../Button.js';
 import AiChallengeModal from './AiChallengeModal.js';
 import RankedMatchPanel from './RankedMatchPanel.js';
 import MatchFoundModal from './MatchFoundModal.js';
+import MobileSlideDeck from '../mobile/MobileSlideDeck.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 
 
 interface WaitingRoomComponentProps {
@@ -106,6 +108,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     currentUserWithStatus, onlineUsers, allUsers, liveGames, 
     waitingRoomChats, negotiations, handlers 
   } = useAppContext();
+  const { isNativeMobile } = useNativeMobileShell();
 
   const [isTierInfoModalOpen, setIsTierInfoModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
@@ -327,6 +330,63 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         </div>
       </header>
       <div className="flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6 overflow-hidden">
+          {isNativeMobile ? (
+            <MobileSlideDeck className="h-full" trackClassName="h-full max-h-[calc(100dvh-8rem)]">
+              <div className="flex flex-col gap-3 p-1 min-h-0 h-full">
+                <AnnouncementBoard mode={mode} />
+                <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
+                  <RankedMatchPanel
+                    lobbyType={isStrategic ? 'strategic' : 'playful'}
+                    currentUser={currentUserWithStatus}
+                    onAction={handlers.handleAction}
+                    isMatching={isRankedMatching}
+                    matchingStartTime={rankedMatchingStartTime}
+                    onMatchingStateChange={(isMatching, startTime) => {
+                      setIsRankedMatching(isMatching);
+                      setRankedMatchingStartTime(startTime);
+                    }}
+                    onCancelMatching={() => {
+                      setIsRankedMatching(false);
+                      setRankedMatchingStartTime(0);
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col min-h-0 h-full p-1">
+                <div className="flex-1 min-h-[200px] overflow-hidden">
+                  <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
+                </div>
+              </div>
+              <div className="flex flex-col min-h-0 h-full p-1">
+                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg overflow-hidden flex flex-col">
+                  <PlayerList
+                    users={usersInThisRoom}
+                    mode={mode}
+                    onAction={handlers.handleAction}
+                    currentUser={currentUserWithStatus}
+                    negotiations={Object.values(negotiations)}
+                    onViewUser={handlers.openViewingUser}
+                    lobbyType={isStrategic ? 'strategic' : 'playful'}
+                    userCount={usersInThisRoom.length}
+                    onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
+                  />
+                </div>
+                <div className="w-full max-w-[6rem] mx-auto mt-2 shrink-0">
+                  <QuickAccessSidebar />
+                </div>
+              </div>
+              <div className="flex flex-col min-h-0 h-full p-1">
+                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg overflow-hidden">
+                  <ChatWindow messages={chatMessages} mode={chatChannel} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
+                </div>
+              </div>
+              <div className="flex flex-col min-h-0 h-full p-1">
+                <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg shadow-lg overflow-hidden">
+                  <RankingList currentUser={currentUserWithStatus} mode={mode} onViewUser={handlers.openViewingUser} onShowTierInfo={() => setIsTierInfoModalOpen(true)} onShowPastRankings={handlers.openPastRankings} lobbyType={isStrategic ? 'strategic' : 'playful'} />
+                </div>
+              </div>
+            </MobileSlideDeck>
+          ) : (
           <div ref={desktopContainerRef} className="grid grid-cols-5 h-full gap-4 overflow-hidden">
               {/* Main Content Column */}
                   <div className="col-span-3 flex flex-col gap-4 min-h-0 overflow-hidden">
@@ -390,6 +450,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 </div>
               </div>
           </div>
+          )}
       </div>
       {isTierInfoModalOpen && <TierInfoModal onClose={() => setIsTierInfoModalOpen(false)} />}
       {isHelpModalOpen && <HelpModal mode={mode} onClose={() => setIsHelpModalOpen(false)} />}

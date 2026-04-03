@@ -21,6 +21,8 @@ import HomeBoardPanel from './HomeBoardPanel.js';
 import GuildCreateModal from './guild/GuildCreateModal.js';
 import GuildJoinModal from './guild/GuildJoinModal.js';
 import type { Guild } from '../types/entities.js';
+import MobileSlideDeck from './mobile/MobileSlideDeck.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface ProfileProps {
 }
@@ -261,6 +263,7 @@ const StatSummaryPanel: React.FC<{ title: string; color: string; children: React
 
 const Profile: React.FC<ProfileProps> = () => {
     const { currentUserWithStatus, allUsers, handlers, waitingRoomChats, hasClaimableQuest, presets, homeBoardPosts, guilds } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const { rankings: championshipRankings } = useRanking('championship', 100, 0);
     const championshipMyEntry = useMemo(() => {
         if (!currentUserWithStatus) return null;
@@ -861,7 +864,67 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
             </header>
             <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                {/* --- DESKTOP LAYOUT --- */}
+                {isNativeMobile ? (
+                    <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[min(100dvh-10rem,560px)]">
+                        <div className="p-2 overflow-y-auto">
+                            <div className="bg-panel border border-color rounded-lg p-2">{ProfilePanelContent}</div>
+                        </div>
+                        <div className="p-2 bg-panel border border-color rounded-lg mx-2 overflow-y-auto">
+                            <h3 className="text-center font-semibold text-secondary text-xs mb-2">장착 장비</h3>
+                            <div className="grid grid-cols-3 gap-1.5">
+                                {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
+                                    const item = getItemForSlot(slot);
+                                    return (
+                                        <div key={slot} className="w-full aspect-square">
+                                            <EquipmentSlotDisplay
+                                                slot={slot}
+                                                item={item}
+                                                onClick={() => item && handlers.openViewingItem(item, true)}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="mt-2 flex gap-1.5 items-center">
+                                <select
+                                    value={selectedPreset}
+                                    onChange={handlePresetChange}
+                                    className="bg-secondary border border-color text-xs rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
+                                >
+                                    {presets && presets.map((preset, index) => (
+                                        <option key={index} value={index}>{preset.name}</option>
+                                    ))}
+                                </select>
+                                <Button
+                                    onClick={handlers.openEquipmentEffectsModal}
+                                    colorScheme="none"
+                                    className="!text-[9px] !py-0.5 !px-2 flex-shrink-0 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
+                                >
+                                    장비 효과
+                                </Button>
+                            </div>
+                        </div>
+                        <div className="px-2 pb-4 flex flex-col gap-3 min-h-0 overflow-y-auto">
+                            <GameRankingBoard />
+                            <BadukRankingBoard />
+                            <ChampionshipRankingPanel compact />
+                        </div>
+                        <div className="px-2 min-h-[45vh] flex flex-col">
+                            <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg overflow-hidden flex flex-col">
+                                <ChatWindow messages={globalChat} mode="global" onAction={handlers.handleAction} onViewUser={handlers.openViewingUser} locationPrefix="[홈]" />
+                            </div>
+                        </div>
+                        <div className="px-2 min-h-[40vh] flex flex-col">
+                            <div className="flex-1 min-h-0 bg-panel border border-color rounded-lg overflow-hidden flex flex-col">
+                                <HomeBoardPanel posts={homeBoardPosts || []} isAdmin={currentUserWithStatus.isAdmin} onAction={handlers.handleAction} />
+                            </div>
+                        </div>
+                        <div className="px-2 pb-6 flex flex-col gap-3 overflow-y-auto">
+                            <QuickAccessSidebar />
+                            <div className="overflow-x-auto min-w-0">{LobbyCards}</div>
+                        </div>
+                    </MobileSlideDeck>
+                ) : (
                 <div className="flex flex-col h-full gap-1 min-w-0 overflow-hidden">
                     <div className="flex flex-row gap-1 min-w-0 flex-shrink-0 max-h-[380px]">
                         <div className="w-[30%] min-w-[240px] max-w-[360px] bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col gap-0.5 overflow-hidden">{ProfilePanelContent}</div>
@@ -930,194 +993,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         </div>
                     </div>
                 </div>
-
-                {/* --- MOBILE LAYOUT --- */}
-                <div className="hidden flex-col h-full gap-1 relative">
-                    <div className="flex flex-row gap-1 flex-shrink-0">
-                        <div className="basis-[50%] min-w-[150px] bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col gap-1">
-                            <div className="flex flex-row gap-1 items-center">
-                                <div className="flex-shrink-0 flex flex-col items-center gap-0.5 w-16">
-                                    <div className="relative">
-                                        <Avatar userId={currentUserWithStatus.id} userName={nickname} size={50} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                                        <button 
-                                            onClick={handlers.openProfileEditModal}
-                                            className="absolute bottom-0 right-0 w-4 h-4 flex items-center justify-center bg-secondary hover:bg-tertiary rounded-full p-0.5 border border-primary transition-transform hover:scale-110 active:scale-95"
-                                            title="프로필 수정"
-                                        >
-                                            <span className="text-[10px]">✏️</span>
-                                            {!currentUserWithStatus.mbti && (
-                                                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                                            )}
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-col items-center w-full">
-                                        <div className="flex items-center gap-0.5 w-full justify-center">
-                                            <h2 className="text-[10px] font-bold truncate whitespace-nowrap overflow-hidden" title={nickname}>{nickname}</h2>
-                                        </div>
-                                        <p className="text-[8px] text-tertiary truncate whitespace-nowrap overflow-hidden">
-                                            MBTI: {currentUserWithStatus.mbti ? currentUserWithStatus.mbti : '미설정'}
-                                        </p>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex-grow bg-tertiary/30 p-1 rounded-md flex flex-col gap-0.5 min-w-0">
-                                    <div className="flex items-center gap-1 min-w-0">
-                                        <CombinedLevelBadge level={combinedLevel} compact />
-                                        <div className="flex-1 min-w-0 space-y-0.5 flex flex-col justify-center">
-                                            <div>
-                                                <div className="flex justify-between items-baseline mb-0.5 text-[9px] whitespace-nowrap">
-                                                    <span className="font-semibold whitespace-nowrap overflow-hidden">전략 <span className="text-xs font-bold">Lv.{currentUserWithStatus.strategyLevel}</span></span>
-                                                    <span className="font-mono text-tertiary whitespace-nowrap overflow-hidden">{currentUserWithStatus.strategyXp} / {getXpRequirementForLevel(currentUserWithStatus.strategyLevel)}</span>
-                                                </div>
-                                                <div className="w-full bg-tertiary/50 rounded-full h-2 border border-color">
-                                                    <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full transition-width duration-500" style={{ width: `${Math.min((currentUserWithStatus.strategyXp / getXpRequirementForLevel(currentUserWithStatus.strategyLevel)) * 100, 100)}%` }}></div>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <div className="flex justify-between items-baseline mb-0.5 text-[9px] whitespace-nowrap">
-                                                    <span className="font-semibold whitespace-nowrap overflow-hidden">놀이 <span className="text-xs font-bold">Lv.{currentUserWithStatus.playfulLevel}</span></span>
-                                                    <span className="font-mono text-tertiary whitespace-nowrap overflow-hidden">{currentUserWithStatus.playfulXp} / {getXpRequirementForLevel(currentUserWithStatus.playfulLevel)}</span>
-                                                </div>
-                                                <div className="w-full bg-tertiary/50 rounded-full h-2 border border-color">
-                                                    <div className="bg-gradient-to-r from-yellow-500 to-orange-400 h-full rounded-full transition-width duration-500" style={{ width: `${Math.min((currentUserWithStatus.playfulXp / getXpRequirementForLevel(currentUserWithStatus.playfulLevel)) * 100, 100)}%` }}></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => setShowMannerRankModal(true)}
-                                        className="w-full text-left hover:bg-tertiary/50 rounded-md p-0.5 transition-all"
-                                        title="매너 등급 정보 보기"
-                                    >
-                                        <div className="flex justify-between items-baseline mb-0.5 text-[9px] whitespace-nowrap">
-                                            <span className="font-semibold whitespace-nowrap overflow-hidden">매너 등급</span>
-                                            <span className={`font-semibold text-[9px] whitespace-nowrap overflow-hidden ${mannerRank.color} cursor-pointer transition-all`}>
-                                                {totalMannerScore}점 ({mannerRank.rank})
-                                            </span>
-                                        </div>
-                                        <div className="w-full bg-tertiary/50 rounded-full h-1.5 border border-color">
-                                            <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }}></div>
-                                        </div>
-                                    </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex-grow flex flex-col min-h-0 border-t border-color mt-1 pt-1">
-                                <div className="bg-tertiary/30 p-1 rounded-md mb-1 min-h-[36px]">
-                                    {!guildCheckDone ? (
-                                        <div className="w-full p-1 min-h-[28px]" aria-hidden="true" />
-                                    ) : guildInfo ? (
-                                            <button
-                                                onClick={() => window.location.hash = '#/guild'}
-                                                className="w-full flex items-center gap-1 p-1 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
-                                                title="길드 홈 보기"
-                                            >
-                                                <div className="flex-shrink-0 w-6 h-6 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
-                                                    {guildInfo.icon ? (
-                                                        <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <img src="/images/button/guild.png" alt="길드" className="w-5 h-5 object-contain" />
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 min-w-0 text-left">
-                                                    <div className="font-semibold text-white text-[9px] truncate">
-                                                        {guildInfo.name}
-                                                    </div>
-                                                    <div className="text-[8px] text-gray-400">
-                                                        Lv.{guildInfo.level || 1}
-                                                    </div>
-                                                </div>
-                                                <div className="flex-shrink-0 text-accent text-xs">
-                                                    →
-                                                </div>
-                                            </button>
-                                        ) : guildLoadingFailed ? (
-                                        <div className="flex items-center gap-1">
-                                            <div className="flex-1 flex gap-1">
-                                                <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className="flex-1 !text-[7px] !py-0.5 !px-1 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드창설</Button>
-                                                <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className="flex-1 !text-[7px] !py-0.5 !px-1 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드가입</Button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="w-full p-1 min-h-[28px]" aria-hidden="true" />
-                                    )}
-                                </div>
-                                <div className="flex justify-between items-center mb-0.5 flex-shrink-0 whitespace-nowrap">
-                                    <h3 className="font-semibold text-secondary text-[10px] whitespace-nowrap overflow-hidden">능력치</h3>
-                                    <div className="text-[9px] flex items-center gap-0.5 whitespace-nowrap overflow-hidden">
-                                        <span className="whitespace-nowrap overflow-hidden">보너스: <span className="font-bold text-green-400">{availablePoints}</span>P</span>
-                                        <Button 
-                                            onClick={handlers.openStatAllocationModal} 
-                                            colorScheme="none" 
-                                            className="!text-[5px] !py-0.5 !px-0.5 rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_2px_8px_-6px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 leading-tight"
-                                        >
-                                            분배
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                    {Object.values(CoreStat).map(stat => {
-                                        const baseStats = currentUserWithStatus.baseStats || {};
-                                        const spentStatPoints = currentUserWithStatus.spentStatPoints || {};
-                                        const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
-                                        const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
-                                        const finalValue = Math.floor((baseValue + bonusInfo.flat) * (1 + bonusInfo.percent / 100));
-                                        const bonus = finalValue - baseValue;
-                                        return (
-                                            <div key={stat} className="bg-tertiary/40 p-0.5 rounded-md flex items-center justify-between text-[9px] whitespace-nowrap overflow-hidden">
-                                                <span className="font-semibold text-secondary whitespace-nowrap overflow-hidden">{stat}</span>
-                                                <span className="font-mono font-bold whitespace-nowrap overflow-hidden" title={`기본: ${baseValue}, 장비: ${bonus}`}>
-                                                    {isNaN(finalValue) ? 0 : finalValue}
-                                                    {bonus > 0 && <span className="text-green-400 text-[8px] ml-0.5">(+{bonus})</span>}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="basis-[50%] min-w-[150px] bg-panel border border-color text-on-panel rounded-lg p-2 flex flex-col">
-                            <h3 className="text-center font-semibold text-secondary text-[9px] flex-shrink-0 mb-1 whitespace-nowrap">장착 장비</h3>
-                            <div className="grid grid-cols-3 gap-1.5 px-4 py-1">
-                                {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                    const item = getItemForSlot(slot);
-                                    return (
-                                        <div key={slot} className="w-full aspect-square">
-                                            <EquipmentSlotDisplay
-                                                slot={slot}
-                                                item={item}
-                                                onClick={() => item && handlers.openViewingItem(item, true)}
-                                                scaleFactor={0.68}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="mt-1 flex gap-1 items-center px-3">
-                                <select
-                                    value={selectedPreset}
-                                    onChange={handlePresetChange}
-                                    className="bg-secondary border border-color text-[8px] rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
-                                >
-                                    {presets && presets.map((preset, index) => (
-                                        <option key={index} value={index}>{preset.name}</option>
-                                    ))}
-                                </select>
-                                <Button 
-                                    onClick={handlers.openEquipmentEffectsModal} 
-                                    colorScheme="none" 
-                                    className="!text-[5px] !py-0.5 !px-0.5 flex-shrink-0 justify-center rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_2px_8px_-6px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 leading-tight"
-                                >
-                                    장비 효과
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex-1 min-h-0 overflow-y-auto pr-0.5">
-                        {LobbyCards}
-                    </div>
+                )}
             </main>
             {detailedStatsType && (
                 <DetailedStatsModal

@@ -9,6 +9,8 @@ export interface GraphicsSettings {
     panelColor?: string;
     textColor?: string;
     panelEdgeStyle?: PanelEdgeStyle;
+    /** 좁은 화면에서 16:9 스케일(PC 동일) 레이아웃. false면 네이티브 풀뷰포트+슬라이드 UI */
+    pcLikeMobileLayout?: boolean;
 }
 
 export interface SoundSettings {

@@ -34,7 +34,6 @@ import Button from './components/Button.js';
 import ToggleSwitch from './components/ui/ToggleSwitch.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { useAdContext } from './components/ads/AdProvider.js';
-
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
@@ -98,6 +97,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         activeNegotiation,
         settings,
         updateFeatureSetting,
+        isNativeMobile,
     } = useAppContext();
     const { showInterstitial } = useAdContext();
 
@@ -492,8 +492,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if ((next as any).hidden_stones_p2 == null && typeof parsed.hidden_stones_p2 === 'number') {
                         next = { ...next, hidden_stones_p2: parsed.hidden_stones_p2 } as any;
                     }
-                    // 도전의 탑: 턴 추가 아이템 보너스 — 저장분과 세션 중 큰 값 유지 (새로고침·경량 페이로드로 유실 방지)
-                    if (isTower && parsed.blackTurnLimitBonus != null) {
+                    // 도전의 탑: 턴 추가 보너스 — 세션·저장분 중 큰 값 (저장에 키가 없어도 세션만으로 반영)
+                    if (isTower) {
                         const pb = Number(parsed.blackTurnLimitBonus);
                         const nb = Number((next as any).blackTurnLimitBonus);
                         if (Number.isFinite(pb) || Number.isFinite(nb)) {
@@ -519,10 +519,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [session, isSinglePlayer, isTower, hasStrategicTurnLimit, gameId, (session as any).blackTurnLimitBonus]);
     
-    // --- UI State (가로/캔버스 스케일 환경에서는 PC처럼 렌더링) ---
-    // global scaled canvas(1920x1080) 안에서는 PC 레이아웃이 기준이 되도록 모바일 분기를 끕니다.
+    // --- UI State ---
+    // 스케일 셸(PC동일): 항상 PC 레이아웃. 네이티브 모바일: 드로어/슬라이드 분기 사용.
     const isHandheld = useIsHandheldDevice(1025);
-    const isMobile = false;
+    const isMobile = isNativeMobile;
     const isMobileSafeArea = isHandheld;
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [hasNewMessage, setHasNewMessage] = useState(false);

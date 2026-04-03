@@ -19,6 +19,8 @@ import {
     TOWER_ITEM_SCAN_NAMES,
     TOWER_ITEM_REFRESH_NAMES,
 } from '../utils/towerLobbyInventory.js';
+import MobileSlideDeck from './mobile/MobileSlideDeck.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 // 월간 보상 구간 (매월 1일 0시 KST 지급, 역대 최고 층수 아님 월간 최고 층수 기준)
 // 서버 `processTowerRankingRewards`의 구간·수치와 반드시 동기화할 것
@@ -47,6 +49,7 @@ const TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS = [
 
 const TowerLobby: React.FC = () => {
         const { currentUser, currentUserWithStatus, handlers, towerRankingsRefetchTrigger } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
     const [isItemShopOpen, setIsItemShopOpen] = useState(false);
@@ -162,139 +165,24 @@ const TowerLobby: React.FC = () => {
         }
     }, []);
 
-    return (
-        <div className="w-full h-full flex flex-col relative text-white overflow-hidden min-h-0" style={{
-            background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 20%, #2d2419 40%, #3d2e1f 60%, #4a3a2a 80%, #5c4a35 100%)',
-            backgroundSize: '400% 400%',
-            animation: 'gradientShift 20s ease infinite'
-        }}>
-            <style>{`
-                @keyframes gradientShift {
-                    0% { background-position: 0% 50%; }
-                    50% { background-position: 100% 50%; }
-                    100% { background-position: 0% 50%; }
-                }
-            `}</style>
-            {/* 헤더: 뒤로가기, 타이틀, 도움말 */}
-            <header className="flex-shrink-0 flex items-center justify-between px-2 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 bg-gradient-to-b from-black/60 via-amber-900/20 to-transparent backdrop-blur-sm border-b border-amber-600/40 shadow-[0_4px_20px_rgba(217,119,6,0.3)]">
-                <button
-                    onClick={onBackToProfile}
-                    className="transition-transform active:scale-90 filter hover:drop-shadow-lg p-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg hover:bg-amber-900/40 border border-amber-700/30"
-                    aria-label="뒤로가기"
-                >
-                    <img src="/images/button/back.png" alt="Back" className="w-full h-full" />
-                </button>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-200 tracking-wider drop-shadow-[0_0_12px_rgba(217,119,6,0.9)]">
-                    도전의 탑
-                </h1>
-                <button
-                    onClick={() => setIsHelpOpen(!isHelpOpen)}
-                    className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-transform hover:scale-110"
-                    aria-label="도움말"
-                    title="도움말"
-                >
-                    <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
-                </button>
-            </header>
+    const rankingColClass = isNativeMobile
+        ? 'w-full min-h-0 flex flex-col gap-2 pb-2'
+        : 'flex-[0_0_20%] max-w-[20%] flex flex-col gap-2 min-h-0 overflow-hidden';
+    const imageColClass = isNativeMobile
+        ? 'w-full min-h-[24vh] shrink-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative'
+        : 'flex-[0_0_25%] max-w-[25%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative min-h-0';
+    const stageColClass = isNativeMobile
+        ? 'w-full flex-1 min-h-0 flex flex-col bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50'
+        : 'flex-[0_0_35%] max-w-[35%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50';
+    const quickColClass = isNativeMobile
+        ? 'w-full min-h-0 flex flex-col'
+        : 'flex-shrink-0 w-24 min-w-[96px] overflow-hidden';
 
-            {/* 도움말 모달 */}
-            {isHelpOpen && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-                    <div className="bg-gradient-to-br from-gray-900/95 via-amber-950/90 to-gray-800/95 border-2 border-amber-600/50 rounded-xl p-4 sm:p-6 max-w-md max-h-[80vh] overflow-y-auto shadow-2xl shadow-amber-900/50 backdrop-blur-md">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">도전의 탑 도움말</h2>
-                            <Button
-                                onClick={() => setIsHelpOpen(false)}
-                                colorScheme="none"
-                                className="!p-1 !min-w-0 hover:bg-amber-900/50 rounded border border-amber-700/30"
-                            >
-                                <span className="text-xl text-amber-200">×</span>
-                            </Button>
-                        </div>
-                        <div className="text-sm text-amber-100 space-y-2">
-                            <p>도전의 탑은 100층으로 구성된 PvE 콘텐츠입니다.</p>
-                            <p>각 층을 클리어하면 보상을 받을 수 있습니다.</p>
-                            <p>랭킹은 클리어한 층 수와 시간으로 결정됩니다.</p>
-                            <p className="text-amber-300 font-semibold mt-3">매월 1일 0시(KST)에 모든 층이 초기화됩니다.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 보상정보 모달 */}
-            {isRewardModalOpen && (
-                <DraggableWindow
-                    title="도전의 탑 보상정보"
-                    onClose={() => setIsRewardModalOpen(false)}
-                    windowId="tower-reward-info"
-                    initialWidth={900}
-                    initialHeight={760}
-                    isTopmost
-                >
-                    <div className="h-full overflow-y-auto pr-2 text-sm text-amber-100 space-y-5">
-                        <div className="bg-gradient-to-r from-amber-900/30 to-yellow-900/20 border border-amber-700/40 rounded-lg p-4">
-                            <h3 className="text-lg font-bold text-yellow-300 mb-2">월간 보상</h3>
-                            <p className="text-sm text-amber-200/85">
-                                한 달 동안 클리어한 최고 층수에 따라 보상이 지급됩니다. 누적이 아닌 월간 최고 기록만 반영되며, 매월 1일 0시 KST에 정산됩니다.
-                            </p>
-                        </div>
-
-                        <div className="space-y-3">
-                            {TOWER_MONTHLY_REWARD_TIERS.map((tier, idx) => (
-                                <div
-                                    key={tier.floor}
-                                    className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3"
-                                >
-                                    <span
-                                        className={`${TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS[idx] ?? 'text-amber-300'} font-bold text-base`}
-                                    >
-                                        {tier.floor}층
-                                    </span>
-                                    <div className="flex items-center gap-4 flex-wrap text-sm">
-                                        <span className="inline-flex items-center gap-1">
-                                            <img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />
-                                            {tier.gold.toLocaleString()}
-                                        </span>
-                                        <span className="inline-flex items-center gap-1">
-                                            <img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />
-                                            {tier.diamonds.toLocaleString()}
-                                        </span>
-                                        {tier.items.map((it) => (
-                                            <span key={`${it.itemId}-${it.quantity}`} className="inline-flex items-center gap-1">
-                                                <img
-                                                    src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
-                                                    alt={it.itemId}
-                                                    className="w-5 h-5"
-                                                />
-                                                {it.itemId} ×{it.quantity}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="rounded-lg border border-amber-700/40 bg-amber-950/25 p-4 space-y-2 text-sm">
-                            <h3 className="text-base font-bold text-yellow-300">안내</h3>
-                            <p className="text-amber-200/85">10층 미만 클리어 시 월간 보상이 지급되지 않습니다.</p>
-                            <p className="text-amber-200/85">보상은 매월 1일 0시(KST)에 메일로 지급되며, 30일 이내에 수령해주세요.</p>
-                        </div>
-
-                        <div className="border-t border-amber-700/40 pt-4">
-                            <h3 className="text-base font-bold text-yellow-300 mb-2">층별 클리어 보상</h3>
-                            <div className="space-y-1 text-sm text-amber-200/90">
-                                <p>각 층을 클리어하면 골드와 전략 경험치를 획득할 수 있습니다.</p>
-                                <p>높은 층일수록 더 많은 보상을 받을 수 있습니다.</p>
-                            </div>
-                        </div>
-                    </div>
-                </DraggableWindow>
-            )}
-
-            {/* 메인 레이아웃: 데스크톱 4개 패널 */}
-                <div className="flex-1 flex flex-row justify-center gap-2 sm:gap-3 lg:gap-4 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 lg:py-4 min-h-0 overflow-hidden">
+    function renderTowerMainColumns() {
+        return (
+            <>
                     {/* 좌측: 랭킹 Top 100 + 보유 아이템 (아래쪽 별도 패널) */}
-                    <div className="flex-[0_0_20%] max-w-[20%] flex flex-col gap-2 min-h-0 overflow-hidden">
+                    <div className={rankingColClass}>
                     {/* 랭킹 Top 100 (하단 여유 줄여서 보유 아이템 공간 확보) */}
                     <div className="flex-1 min-h-0 flex flex-col bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
                     <div className="flex items-center justify-between mb-2 flex-shrink-0">
@@ -444,7 +332,7 @@ const TowerLobby: React.FC = () => {
                     </div>
 
                     {/* 가운데: 도전의 탑 이미지 */}
-                    <div className="flex-[0_0_25%] max-w-[25%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative min-h-0">
+                    <div className={imageColClass}>
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-600/10 via-transparent to-yellow-600/10 rounded-xl"></div>
                     <img
                         src={TOWER_CHALLENGE_LOBBY_IMG}
@@ -454,7 +342,7 @@ const TowerLobby: React.FC = () => {
                 </div>
 
                     {/* 우측: 스테이지 */}
-                    <div className="flex-[0_0_35%] max-w-[35%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
+                    <div className={stageColClass}>
                     <h2 className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 mb-3 flex-shrink-0 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
                         스테이지
                     </h2>
@@ -769,13 +657,153 @@ const TowerLobby: React.FC = () => {
                 </div>
 
                 {/* 우측 끝: 퀵메뉴 (홈화면과 동일 크기, 아래로 늘어나지 않음) */}
-                <div className="flex-shrink-0 w-24 min-w-[96px] overflow-hidden">
+                <div className={quickColClass}>
                     <div className="bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-1 backdrop-blur-md shadow-2xl shadow-amber-900/50">
-                        <QuickAccessSidebar fillHeight={false} />
+                        <QuickAccessSidebar fillHeight={isNativeMobile} />
                     </div>
                 </div>
-                </div>
+            </>
+        );
+    }
 
+    return (
+        <div className="w-full h-full flex flex-col relative text-white overflow-hidden min-h-0" style={{
+            background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 20%, #2d2419 40%, #3d2e1f 60%, #4a3a2a 80%, #5c4a35 100%)',
+            backgroundSize: '400% 400%',
+            animation: 'gradientShift 20s ease infinite'
+        }}>
+            <style>{`
+                @keyframes gradientShift {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+            `}</style>
+            {/* 헤더: 뒤로가기, 타이틀, 도움말 */}
+            <header className="flex-shrink-0 flex items-center justify-between px-2 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 bg-gradient-to-b from-black/60 via-amber-900/20 to-transparent backdrop-blur-sm border-b border-amber-600/40 shadow-[0_4px_20px_rgba(217,119,6,0.3)]">
+                <button
+                    onClick={onBackToProfile}
+                    className="transition-transform active:scale-90 filter hover:drop-shadow-lg p-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg hover:bg-amber-900/40 border border-amber-700/30"
+                    aria-label="뒤로가기"
+                >
+                    <img src="/images/button/back.png" alt="Back" className="w-full h-full" />
+                </button>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-200 tracking-wider drop-shadow-[0_0_12px_rgba(217,119,6,0.9)]">
+                    도전의 탑
+                </h1>
+                <button
+                    onClick={() => setIsHelpOpen(!isHelpOpen)}
+                    className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-transform hover:scale-110"
+                    aria-label="도움말"
+                    title="도움말"
+                >
+                    <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
+                </button>
+            </header>
+
+            {/* 도움말 모달 */}
+            {isHelpOpen && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+                    <div className="bg-gradient-to-br from-gray-900/95 via-amber-950/90 to-gray-800/95 border-2 border-amber-600/50 rounded-xl p-4 sm:p-6 max-w-md max-h-[80vh] overflow-y-auto shadow-2xl shadow-amber-900/50 backdrop-blur-md">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">도전의 탑 도움말</h2>
+                            <Button
+                                onClick={() => setIsHelpOpen(false)}
+                                colorScheme="none"
+                                className="!p-1 !min-w-0 hover:bg-amber-900/50 rounded border border-amber-700/30"
+                            >
+                                <span className="text-xl text-amber-200">×</span>
+                            </Button>
+                        </div>
+                        <div className="text-sm text-amber-100 space-y-2">
+                            <p>도전의 탑은 100층으로 구성된 PvE 콘텐츠입니다.</p>
+                            <p>각 층을 클리어하면 보상을 받을 수 있습니다.</p>
+                            <p>랭킹은 클리어한 층 수와 시간으로 결정됩니다.</p>
+                            <p className="text-amber-300 font-semibold mt-3">매월 1일 0시(KST)에 모든 층이 초기화됩니다.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 보상정보 모달 */}
+            {isRewardModalOpen && (
+                <DraggableWindow
+                    title="도전의 탑 보상정보"
+                    onClose={() => setIsRewardModalOpen(false)}
+                    windowId="tower-reward-info"
+                    initialWidth={900}
+                    initialHeight={760}
+                    isTopmost
+                >
+                    <div className="h-full overflow-y-auto pr-2 text-sm text-amber-100 space-y-5">
+                        <div className="bg-gradient-to-r from-amber-900/30 to-yellow-900/20 border border-amber-700/40 rounded-lg p-4">
+                            <h3 className="text-lg font-bold text-yellow-300 mb-2">월간 보상</h3>
+                            <p className="text-sm text-amber-200/85">
+                                한 달 동안 클리어한 최고 층수에 따라 보상이 지급됩니다. 누적이 아닌 월간 최고 기록만 반영되며, 매월 1일 0시 KST에 정산됩니다.
+                            </p>
+                        </div>
+
+                        <div className="space-y-3">
+                            {TOWER_MONTHLY_REWARD_TIERS.map((tier, idx) => (
+                                <div
+                                    key={tier.floor}
+                                    className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3"
+                                >
+                                    <span
+                                        className={`${TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS[idx] ?? 'text-amber-300'} font-bold text-base`}
+                                    >
+                                        {tier.floor}층
+                                    </span>
+                                    <div className="flex items-center gap-4 flex-wrap text-sm">
+                                        <span className="inline-flex items-center gap-1">
+                                            <img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />
+                                            {tier.gold.toLocaleString()}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1">
+                                            <img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />
+                                            {tier.diamonds.toLocaleString()}
+                                        </span>
+                                        {tier.items.map((it) => (
+                                            <span key={`${it.itemId}-${it.quantity}`} className="inline-flex items-center gap-1">
+                                                <img
+                                                    src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
+                                                    alt={it.itemId}
+                                                    className="w-5 h-5"
+                                                />
+                                                {it.itemId} ×{it.quantity}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="rounded-lg border border-amber-700/40 bg-amber-950/25 p-4 space-y-2 text-sm">
+                            <h3 className="text-base font-bold text-yellow-300">안내</h3>
+                            <p className="text-amber-200/85">10층 미만 클리어 시 월간 보상이 지급되지 않습니다.</p>
+                            <p className="text-amber-200/85">보상은 매월 1일 0시(KST)에 메일로 지급되며, 30일 이내에 수령해주세요.</p>
+                        </div>
+
+                        <div className="border-t border-amber-700/40 pt-4">
+                            <h3 className="text-base font-bold text-yellow-300 mb-2">층별 클리어 보상</h3>
+                            <div className="space-y-1 text-sm text-amber-200/90">
+                                <p>각 층을 클리어하면 골드와 전략 경험치를 획득할 수 있습니다.</p>
+                                <p>높은 층일수록 더 많은 보상을 받을 수 있습니다.</p>
+                            </div>
+                        </div>
+                    </div>
+                </DraggableWindow>
+            )}
+
+            {isNativeMobile ? (
+                <MobileSlideDeck className="flex-1 min-h-0 px-2 py-2" trackClassName="min-h-[52vh]">
+                    {renderTowerMainColumns()}
+                </MobileSlideDeck>
+            ) : (
+                <div className="flex-1 flex flex-row justify-center gap-2 sm:gap-3 lg:gap-4 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 lg:py-4 min-h-0 overflow-hidden">
+                    {renderTowerMainColumns()}
+                </div>
+            )}
             {/* 아이템 구매 모달 */}
             {isItemShopOpen && currentUserWithStatus && (
                 <TowerItemShopModal
@@ -791,6 +819,7 @@ const TowerLobby: React.FC = () => {
             )}
         </div>
     );
+
 };
 
 export default TowerLobby;

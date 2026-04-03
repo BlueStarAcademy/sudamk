@@ -87,7 +87,10 @@ export const countTowerLobbyInventoryQty = (
     return inv
         .filter((item: any) => isTowerLobbyInventorySource(item))
         .filter((item: any) => namesOrIds.some((n) => item.name === n || item.id === n))
-        .reduce((sum: number, item: any) => sum + (item.quantity ?? 0), 0);
+        .reduce((sum: number, item: any) => {
+            const q = item.quantity;
+            return sum + (typeof q === 'number' && Number.isFinite(q) ? Math.max(0, q) : 1);
+        }, 0);
 };
 
 /** 도전의 탑 PVE 히든/스캔 모드 초기화 (21층 이상, 히든 스테이지). 싱글플레이와 동일 규칙. */

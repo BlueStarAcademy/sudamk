@@ -6,6 +6,7 @@ import { TournamentBracket } from '../TournamentBracket';
 import Button from '../Button';
 import { TOURNAMENT_DEFINITIONS } from '../../constants';
 import { replaceAppHash } from '../../utils/appUtils.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 
 // Error Boundary for TournamentBracket
 class TournamentBracketErrorBoundary extends Component<
@@ -61,6 +62,7 @@ interface TournamentArenaProps {
 
 const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     const { currentUserWithStatus, handlers, allUsers } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
 
     // stateKey 결정
     let stateKey: keyof Pick<UserWithStatus, 'lastNeighborhoodTournament' | 'lastNationalTournament' | 'lastWorldTournament'>;
@@ -208,7 +210,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
                         onReset={() => handlers.handleAction({ type: 'CLEAR_TOURNAMENT_SESSION', payload: { type: type } })}
                         onSkip={() => handlers.handleAction({ type: 'SKIP_TOURNAMENT_END', payload: { type: type } })}
                         onOpenShop={() => handlers.openShop('consumables')}
-                        isMobile={false}
+                        isMobile={isNativeMobile}
                     />
                 </TournamentBracketErrorBoundary>
             )}

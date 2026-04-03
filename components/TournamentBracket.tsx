@@ -3335,8 +3335,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     }, [pendingRoundSwitchTo]);
 
     // round_in_progress로 전환되면 pending 회차 표시 해제 (이후 회차도 순차 표시 유지)
+    // 동네바둑리그 5회차 직후: 클라이언트가 round_in_progress를 건너뛰고 complete만 받으면 pending이 남아
+    // SGF가 비고(아래 fileIndex가 null) 보상 패널이 깨진 것처럼 보이는 문제가 생김 → complete/eliminated에서도 해제
     useEffect(() => {
-        if (tournament?.status === 'round_in_progress' && pendingRoundSwitchTo != null) {
+        if (pendingRoundSwitchTo == null) return;
+        const s = tournament?.status;
+        if (s === 'round_in_progress' || s === 'complete' || s === 'eliminated') {
             setPendingRoundSwitchTo(null);
         }
     }, [tournament?.status, pendingRoundSwitchTo]);
@@ -3691,9 +3695,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const { onClick: handleForfeitClick } = useButtonClickThrottle(handleForfeitClickRaw);
 
     // 경기가 진행 중이거나, 경기가 막 끝났지만 아직 서버에서 상태가 업데이트되지 않은 경우
-    // currentSimulatingMatch가 있으면 시뮬레이션 중으로 간주
-    const isSimulating = displayTournament.status === 'round_in_progress' || 
-        (displayTournament.currentSimulatingMatch !== null && displayTournament.currentSimulatingMatch !== undefined);
+    // currentSimulatingMatch가 있으면 시뮬레이션 중으로 간주 (단, 토너 종료 후에는 stale 참조로 무한 시뮬 방지)
+    const terminalTournamentStatus =
+        displayTournament.status === 'complete' || displayTournament.status === 'eliminated';
+    const isSimulating =
+        !terminalTournamentStatus &&
+        (displayTournament.status === 'round_in_progress' ||
+            (displayTournament.currentSimulatingMatch !== null &&
+                displayTournament.currentSimulatingMatch !== undefined));
     const currentSimMatch = displayTournament.currentSimulatingMatch 
         ? safeRounds[displayTournament.currentSimulatingMatch.roundIndex]?.matches[displayTournament.currentSimulatingMatch.matchIndex] || null
         : null;
@@ -3974,9 +3983,21 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             Array.isArray(r?.matches) && r.matches.some(m => m.isUserMatch && !m.isFinished)
         );
 
+        // 서버 5초 카운트다운·클라 카운트다운·회차 전환 직전·첫 경기 이후 자동 진행 중에는 수동 시작 버튼 숨김 (카운트 직전 깜빡임 방지)
+        const isAutoStartFlow =
+            tournament.nextRoundStartTime != null ||
+            autoNextCountdown !== null ||
+            pendingRoundSwitchTo != null ||
+            tournament.autoAdvanceEnabled === true;
+
         // 경기 시작 버튼: 1회차 시작 전에만 표시 (동네바둑리그 2·3회차 등은 카운트다운 후 자동 시작되므로 버튼 미표시)
         const isFirstRoundBeforeStart = tournament.type !== 'neighborhood' || (tournament.currentRoundRobinRound === 1);
-        if ((status === 'round_complete' || status === 'bracket_ready') && hasUnfinishedUserMatch && isFirstRoundBeforeStart) {
+        if (
+            (status === 'round_complete' || status === 'bracket_ready') &&
+            hasUnfinishedUserMatch &&
+            isFirstRoundBeforeStart &&
+            !isAutoStartFlow
+        ) {
             // 다음 경기의 선수 정보가 준비되었는지 확인
             let nextMatch: Match | undefined = undefined;
             if (tournament.type === 'neighborhood') {
@@ -4206,8 +4227,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                     isSimulating 
                                         ? currentSimMatch?.sgfFileIndex 
                                         : (() => {
-                                            // 카운트다운 0 직후: 다음 회차 탭 전환 후 바둑판 초기화 상태 → 빈 바둑판
-                                            if (pendingRoundSwitchTo != null) return null;
+                                            // 카운트다운 0 직후(bracket_ready): 다음 회차 탭 전환 후 바둑판 초기화 → 빈 바둑판
+                                            // complete 등 종료 상태에서는 pending 잔존 시에도 SGF/보상 UI가 막히지 않도록 제한
+                                            if (pendingRoundSwitchTo != null && tournament.status === 'bracket_ready') return null;
                                             // round_complete 상태일 때는 마지막 완료된 경기의 SGF 표시 (경기 종료 화면 유지)
                                             if (tournament.status === 'round_complete') {
                                                 return lastUserMatchSgfIndex !== null ? lastUserMatchSgfIndex : (matchForDisplay?.sgfFileIndex !== undefined ? matchForDisplay.sgfFileIndex : null);
@@ -4268,7 +4290,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 className={`${isMobile ? 'w-2/5 min-w-[140px]' : 'flex-[1.4] min-w-[160px]'} bg-gray-800/50 rounded-lg p-2 flex flex-col overflow-hidden`}
                                 style={{ display: 'flex', flexDirection: 'column' }}
                             >
-                                <FinalRewardPanel tournamentState={tournament} currentUser={currentUser} onAction={onAction} onCompleteDungeon={handleCompleteDungeon} dungeonRewardAlreadyRequested={dungeonStageRewardRequested} onDungeonRewardRequested={() => setDungeonStageRewardRequested(true)} onOpenRewardHistory={handleOpenRewardHistory} />
+                                <FinalRewardPanel tournamentState={displayTournament} currentUser={currentUser} onAction={onAction} onCompleteDungeon={handleCompleteDungeon} dungeonRewardAlreadyRequested={dungeonStageRewardRequested} onDungeonRewardRequested={() => setDungeonStageRewardRequested(true)} onOpenRewardHistory={handleOpenRewardHistory} />
                             </div>
                         </div>
                     </div>

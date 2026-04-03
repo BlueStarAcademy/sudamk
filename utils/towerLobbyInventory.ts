@@ -19,5 +19,8 @@ export function countTowerLobbyInventoryQty(
     return inv
         .filter((item) => isTowerLobbyInventorySource(item))
         .filter((item) => namesOrIds.some((n) => item.name === n || item.id === n))
-        .reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+        .reduce((sum, item) => {
+            const q = item.quantity;
+            return sum + (typeof q === 'number' && Number.isFinite(q) ? Math.max(0, q) : 1);
+        }, 0);
 }

@@ -5,6 +5,8 @@ import StageGrid from './singleplayer/StageGrid.js';
 import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
 import { SinglePlayerLevel } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
+import MobileSlideDeck from './mobile/MobileSlideDeck.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 /** singlePlayerProgress(다음 플레이 스테이지 전역 인덱스)에 맞는 반 — 대기실 기본 탭 */
 function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLevel {
@@ -16,6 +18,7 @@ function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLev
 
 const SinglePlayerLobby: React.FC = () => {
     const { currentUser, currentUserWithStatus } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const progressForDefault = currentUserWithStatus?.singlePlayerProgress ?? 0;
     const defaultClass = useMemo(
         () => defaultSinglePlayerLevelFromProgress(progressForDefault),
@@ -50,6 +53,19 @@ const SinglePlayerLobby: React.FC = () => {
                 <div className="w-10"></div>
             </header>
 
+            {isNativeMobile ? (
+                <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[55vh]">
+                    <div className="px-1 pb-4 min-h-0 flex flex-col">
+                        <ClassNavigationPanel selectedClass={selectedClass} onClassSelect={setOverrideClass} />
+                    </div>
+                    <div className="px-1 pb-4 min-h-0 flex flex-col overflow-y-auto">
+                        <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} />
+                    </div>
+                    <div className="px-1 pb-6 min-h-0 flex flex-col overflow-y-auto">
+                        <TrainingQuestPanel currentUser={currentUserWithStatus} />
+                    </div>
+                </MobileSlideDeck>
+            ) : (
             <div className="grid grid-cols-12 gap-4 xl:gap-6 flex-1 min-h-0">
                 <div className="col-span-4 flex flex-col min-h-0">
                     <ClassNavigationPanel 
@@ -70,6 +86,7 @@ const SinglePlayerLobby: React.FC = () => {
                     />
                 </div>
             </div>
+            )}
         </div>
     );
 };

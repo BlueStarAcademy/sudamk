@@ -4,6 +4,8 @@ import { GameMode } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import MobileSlideDeck from './mobile/MobileSlideDeck.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface LobbyProps {
   lobbyType: 'strategic' | 'playful';
@@ -39,6 +41,7 @@ const GameCard: React.FC<{ mode: GameMode, description: string, image: string, a
 
 const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
   const { gameModeAvailability, handlers } = useAppContext();
+  const { isNativeMobile } = useNativeMobileShell();
 
   const isStrategic = lobbyType === 'strategic';
   const title = isStrategic ? '전략 게임' : '놀이 게임';
@@ -49,29 +52,45 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
 
   const onBackToProfile = () => window.location.hash = '#/profile';
 
+  const lobbyHeader = (
+    <header className="relative flex flex-wrap justify-between items-center mb-6 gap-4 shrink-0">
+      <button onClick={onBackToProfile} className="relative z-20 pointer-events-auto p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
+        <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
+      </button>
+      <div className="text-center flex-grow">
+        <h1 className="text-2xl sm:text-4xl font-bold">{title} 로비</h1>
+        <p className="text-secondary mt-2 text-sm sm:text-base">플레이할 게임을 선택하세요.</p>
+      </div>
+      <div className="w-10 sm:w-24 shrink-0" />
+    </header>
+  );
+
+  const modeGrid = (
+    <section className="min-h-0">
+      <h2 className={`text-xl sm:text-2xl font-semibold mb-4 border-l-4 ${sectionBorderColor} pl-4`}>{sectionTitle}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {modes.map(game => (
+          <GameCard key={game.mode} {...game} available={gameModeAvailability[game.mode] ?? game.available} onSelect={() => handlers.handleEnterWaitingRoom(game.mode)} hoverColorClass={hoverColorClass} />
+        ))}
+      </div>
+    </section>
+  );
+
+  if (isNativeMobile) {
+    return (
+      <div className="bg-primary text-primary max-w-7xl mx-auto w-full h-full min-h-0 flex flex-col p-3">
+        <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[50vh]">
+          <div className="flex flex-col px-1 pb-4">{lobbyHeader}</div>
+          <div className="px-1 pb-8 overflow-y-auto">{modeGrid}</div>
+        </MobileSlideDeck>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-primary text-primary p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-      <header className="relative flex flex-wrap justify-between items-center mb-8 gap-4">
-        <button onClick={onBackToProfile} className="relative z-20 pointer-events-auto p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
-          <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
-        </button>
-        <div className="text-center flex-grow">
-          <h1 className="text-4xl font-bold">{title} 로비</h1>
-          <p className="text-secondary mt-2">플레이할 게임을 선택하세요.</p>
-        </div>
-        <div className="w-24"></div> {/* Spacer to balance the back button */}
-      </header>
-
-      <main>
-        <section>
-          <h2 className={`text-2xl font-semibold mb-5 border-l-4 ${sectionBorderColor} pl-4`}>{sectionTitle}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {modes.map(game => (
-              <GameCard key={game.mode} {...game} available={gameModeAvailability[game.mode] ?? game.available} onSelect={() => handlers.handleEnterWaitingRoom(game.mode)} hoverColorClass={hoverColorClass} />
-            ))}
-          </div>
-        </section>
-      </main>
+      {lobbyHeader}
+      <main>{modeGrid}</main>
     </div>
   );
 };

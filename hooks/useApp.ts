@@ -16,6 +16,7 @@ import {
     isOpponentInsufficientActionPointsError,
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
+import { useIsHandheldDevice } from './useIsMobileLayout.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
@@ -338,6 +339,12 @@ export const useApp = () => {
         return defaultSettings;
     });
 
+    const isNarrowViewport = useIsHandheldDevice(1025);
+    const isNativeMobile = useMemo(
+        () => isNarrowViewport && settings.graphics.pcLikeMobileLayout === false,
+        [isNarrowViewport, settings.graphics.pcLikeMobileLayout],
+    );
+
     // --- Server State ---
     const [usersMap, setUsersMap] = useState<Record<string, User>>({});
     const [onlineUsers, setOnlineUsers] = useState<UserWithStatus[]>([]);
@@ -495,6 +502,10 @@ export const useApp = () => {
     
     const updatePanelEdgeStyle = useCallback((edgeStyle: PanelEdgeStyle) => {
         setSettings(s => ({ ...s, graphics: { ...s.graphics, panelEdgeStyle: edgeStyle }}));
+    }, []);
+
+    const updatePcLikeMobileLayout = useCallback((value: boolean) => {
+        setSettings(s => ({ ...s, graphics: { ...s.graphics, pcLikeMobileLayout: value } }));
     }, []);
     
     const resetGraphicsToDefault = useCallback(() => {
@@ -799,16 +810,19 @@ export const useApp = () => {
         }
         
         // 디바운싱: 같은 액션이 짧은 시간 내에 여러 번 호출되면 무시
-        const actionKey = `${action.type}_${JSON.stringify(action.payload || {})}`;
-        const now = Date.now();
-        const lastCallTime = actionDebounceRef.current.get(actionKey);
-        if (lastCallTime && (now - lastCallTime) < ACTION_DEBOUNCE_MS) {
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[handleAction] Action debounced: ${action.type} (${now - lastCallTime}ms since last call)`);
+        // 챔피언싱 시뮬 완료는 5회차 종료 직후 보상 UI·DB 동기화에 필수이므로 디바운스하지 않음
+        if (action.type !== 'COMPLETE_TOURNAMENT_SIMULATION') {
+            const actionKey = `${action.type}_${JSON.stringify(action.payload || {})}`;
+            const now = Date.now();
+            const lastCallTime = actionDebounceRef.current.get(actionKey);
+            if (lastCallTime && (now - lastCallTime) < ACTION_DEBOUNCE_MS) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`[handleAction] Action debounced: ${action.type} (${now - lastCallTime}ms since last call)`);
+                }
+                return;
             }
-            return;
+            actionDebounceRef.current.set(actionKey, now);
         }
-        actionDebounceRef.current.set(actionKey, now);
 
         // 베이스 바둑: base_placement에서 PLACE_BASE_STONE은 즉시 화면에 반영되어야 함.
         // 서버 응답/WS 왕복 전까지는 `baseStones_p1/p2`가 갱신되지 않아서 돌이 늦게 보이던 문제가 있음.
@@ -2875,7 +2889,8 @@ export const useApp = () => {
                                         existingTower &&
                                         (action.type === 'START_HIDDEN_PLACEMENT' ||
                                             action.type === 'START_SCANNING' ||
-                                            action.type === 'SCAN_BOARD')
+                                            action.type === 'SCAN_BOARD' ||
+                                            action.type === 'TOWER_ADD_TURNS')
                                     ) {
                                         nextGame = mergeTowerServerGameWithClientBoardIfStale(nextGame, existingTower);
                                     }
@@ -4513,6 +4528,20 @@ export const useApp = () => {
                                             // 클라이언트가 더 많은 수를 두었거나, 같은 수를 두었지만 클라이언트의 serverRevision이 더 크면 무시 (단, 계가/공개/종료/아이템모드/애니종료 전환은 제외)
                                             if (!isServerScoringOrReveal && !isServerEndedOrNoContest && !isServerItemMode && !isServerMissileAnimating && !isServerExitingAnimation && (localMoveHistoryLength > serverMoveHistoryLength || 
                                                 (localMoveHistoryLength === serverMoveHistoryLength && localServerRevision >= serverRevision))) {
+                                                // 턴 추가(TOWER_ADD_TURNS) 등: 서버만 알고 있는 필드는 병합 (전체 패킷 무시 시 보너스·리비전 유실 방지)
+                                                const serverBonus = Number((game as any).blackTurnLimitBonus) || 0;
+                                                const localBonus = Number((existingGame as any).blackTurnLimitBonus) || 0;
+                                                const mergedBonus = Math.max(serverBonus, localBonus);
+                                                const srvRev = game.serverRevision ?? 0;
+                                                const patch: Partial<LiveGameSession> & { blackTurnLimitBonus?: number } = {};
+                                                if (mergedBonus !== localBonus) patch.blackTurnLimitBonus = mergedBonus;
+                                                if (srvRev > localServerRevision) patch.serverRevision = srvRev;
+                                                if (Object.keys(patch).length > 0) {
+                                                    return {
+                                                        ...currentGames,
+                                                        [gameId]: { ...existingGame, ...patch } as LiveGameSession,
+                                                    };
+                                                }
                                                 // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
                                                 if (process.env.NODE_ENV === 'development') {
                                                     console.log('[WebSocket] Tower game - Ignoring server update (client state is newer):', {
@@ -5845,12 +5874,15 @@ export const useApp = () => {
         unreadMailCount,
         hasClaimableQuest,
         settings,
+        isNarrowViewport,
+        isNativeMobile,
         updateTheme,
         updateSoundSetting,
         updateFeatureSetting,
         updatePanelColor,
         updateTextColor,
         updatePanelEdgeStyle,
+        updatePcLikeMobileLayout,
         resetGraphicsToDefault,
         mainOptionBonuses,
         combatSubOptionBonuses,

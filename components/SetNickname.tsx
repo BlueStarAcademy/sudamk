@@ -4,12 +4,14 @@ import { containsProfanity } from '../profanity.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { getApiUrl } from '../utils/apiConfig.js';
 import { replaceAppHash } from '../utils/appUtils.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 6;
 
 const SetNickname: React.FC = () => {
     const { currentUser, setCurrentUserAndRoute } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     const [nickname, setNickname] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
@@ -154,8 +156,8 @@ const SetNickname: React.FC = () => {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen py-12">
-            <div className="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-lg shadow-2xl border border-color">
+        <div className={`flex items-center justify-center py-8 ${isNativeMobile ? 'min-h-[85dvh] px-3' : 'min-h-screen py-12'}`}>
+            <div className={`w-full space-y-6 bg-gray-800 rounded-lg shadow-2xl border border-color ${isNativeMobile ? 'max-w-full p-5' : 'max-w-md p-8'}`}>
                 <div>
                     <h2 className="text-3xl font-bold text-center text-white">닉네임 설정</h2>
                     <p className="mt-2 text-center text-gray-400">게임에서 사용할 닉네임을 설정해주세요. (2~6자, 비속어 불가, 중복 불가)</p>

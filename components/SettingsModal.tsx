@@ -27,7 +27,7 @@ const THEMES: { id: Theme; name: string; colors: string[] }[] = [
 ];
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => {
-    const { settings, updateTheme, updateSoundSetting, updateFeatureSetting, updatePanelColor, updateTextColor, updatePanelEdgeStyle, resetGraphicsToDefault, handlers, currentUserWithStatus } = useAppContext();
+    const { settings, updateTheme, updateSoundSetting, updateFeatureSetting, updatePanelColor, updateTextColor, updatePanelEdgeStyle, updatePcLikeMobileLayout, resetGraphicsToDefault, handlers, currentUserWithStatus } = useAppContext();
     const [activeTab, setActiveTab] = useState<SettingsTab>('graphics');
     const [showChangeUsername, setShowChangeUsername] = useState(false);
     const [showChangePassword, setShowChangePassword] = useState(false);
@@ -230,6 +230,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                         </div>
                                     </label>
                                 ))}
+                            </div>
+                        </div>
+                        <div className="pt-4 border-t border-color">
+                            <h3 className="text-lg font-semibold text-text-secondary">화면</h3>
+                            <p className="text-xs text-text-secondary/80 mt-1 mb-3">화면 너비가 좁을 때만 적용됩니다.</p>
+                            <div className="flex items-center justify-between gap-3 p-3 bg-tertiary/50 rounded-lg border border-color">
+                                <div>
+                                    <span className="text-text-primary font-medium">PC화면처럼 보기</span>
+                                    <p className="text-xs text-text-secondary mt-0.5">끄면 가로 슬라이드로 모바일 전용 레이아웃을 사용합니다.</p>
+                                </div>
+                                <ToggleSwitch
+                                    checked={settings.graphics.pcLikeMobileLayout !== false}
+                                    onChange={(checked) => updatePcLikeMobileLayout(checked)}
+                                />
                             </div>
                         </div>
                         <div className="pt-4 border-t border-color">
