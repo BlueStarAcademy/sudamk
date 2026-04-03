@@ -6,13 +6,23 @@ import Avatar from './Avatar.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { calculateTotalStats } from '../services/statService.js';
 
-interface GameRankingBoardProps {
-    isTopmost?: boolean;
-}
-
 const IS_DEV = import.meta.env.DEV;
 
-const RankingRow = ({ user, rank, value, isCurrentUser, onViewUser }: { user: User, rank: number, value: number, isCurrentUser: boolean, onViewUser?: (userId: string) => void }) => {
+const RankingRow = ({
+    user,
+    rank,
+    value,
+    isCurrentUser,
+    onViewUser,
+    dense,
+}: {
+    user: User;
+    rank: number;
+    value: number;
+    isCurrentUser: boolean;
+    onViewUser?: (userId: string) => void;
+    dense?: boolean;
+}) => {
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
 
@@ -23,20 +33,26 @@ const RankingRow = ({ user, rank, value, isCurrentUser, onViewUser }: { user: Us
     };
 
     return (
-        <div 
-            className={`flex items-center p-1 rounded-md ${isCurrentUser ? 'bg-blue-500/30' : onViewUser ? 'cursor-pointer hover:bg-secondary/50' : ''}`}
+        <div
+            className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : 'p-1'} ${isCurrentUser ? 'bg-blue-500/30' : onViewUser ? 'cursor-pointer hover:bg-secondary/50' : ''}`}
             onClick={handleClick}
             title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
         >
-            <span className="w-8 text-center font-bold text-xs">{rank}</span>
-            <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={28} />
-            <span className="flex-1 truncate font-semibold ml-1.5 text-xs">{user.nickname}</span>
-            <span className="w-16 text-right font-mono text-xs">{value.toLocaleString()}</span>
+            <span className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : 'w-8 text-xs'}`}>{rank}</span>
+            <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} />
+            <span className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}>{user.nickname}</span>
+            <span className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : 'w-16 text-xs'}`}>{value.toLocaleString()}</span>
         </div>
     );
 };
 
-const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost }) => {
+interface GameRankingBoardProps {
+    isTopmost?: boolean;
+    /** 네이티브 모바일 3열 랭킹용 */
+    dense?: boolean;
+}
+
+const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost, dense }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
     const [activeTab, setActiveTab] = useState<'combat' | 'manner'>('combat');
 
@@ -111,23 +127,26 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost }) => {
     }, [rankings, currentUserWithStatus, activeTab]);
 
     return (
-        <div className="bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col gap-1 h-full">
-            <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0">게임 랭킹</h3>
-            <div className="flex bg-gray-900/70 p-0.5 rounded-lg flex-shrink-0">
-                <button 
+        <div
+            className={`bg-panel text-on-panel flex h-full min-h-0 flex-col rounded-lg border border-color ${dense ? 'gap-0.5 p-0.5' : 'gap-1 p-1.5'}`}
+        >
+            <h3 className={`text-center font-semibold text-secondary flex-shrink-0 ${dense ? 'text-[8px] leading-tight' : 'text-xs'}`}>게임 랭킹</h3>
+            <div className={`flex flex-shrink-0 rounded-lg bg-gray-900/70 ${dense ? 'p-px' : 'p-0.5'}`}>
+                <button
                     onClick={() => setActiveTab('combat')}
-                    className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all ${activeTab === 'combat' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
+                    className={`flex-1 rounded-md font-semibold transition-all ${dense ? 'py-0.5 text-[7px]' : 'py-1 text-xs'} ${activeTab === 'combat' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
                 >
                     바둑능력
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab('manner')}
-                    className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all ${activeTab === 'manner' ? 'bg-yellow-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
+                    className={`flex-1 rounded-md font-semibold transition-all ${dense ? 'py-0.5 text-[7px]' : 'py-1 text-xs'} ${activeTab === 'manner' ? 'bg-yellow-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
                 >
                     매너
                 </button>
             </div>
-            <div className="flex-grow overflow-y-auto pr-1 text-xs flex flex-col gap-0.5 min-h-0">
+            <div className={`flex min-h-0 flex-grow flex-col gap-0.5 overflow-y-auto pr-0.5 ${dense ? 'text-[8px]' : 'pr-1 text-xs'}`}
+            >
                 {loading ? (
                     <div className="flex items-center justify-center h-full text-gray-400 text-xs">
                         데이터 로딩 중...
@@ -144,12 +163,26 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost }) => {
                     <>
                         {currentUserRanking && (
                             <div className="sticky top-0 bg-panel z-10">
-                                <RankingRow user={currentUserRanking.user} rank={currentUserRanking.rank as number} value={currentUserRanking.value} isCurrentUser={true} />
+                                <RankingRow
+                                    user={currentUserRanking.user}
+                                    rank={currentUserRanking.rank as number}
+                                    value={currentUserRanking.value}
+                                    isCurrentUser={true}
+                                    dense={dense}
+                                />
                             </div>
                         )}
                         <div className="flex flex-col gap-0.5">
                             {displayedRankings.filter(r => r && r.user && r.user.id).map((r) => (
-                                <RankingRow key={r.user.id} user={r.user} rank={r.rank} value={r.value} isCurrentUser={false} onViewUser={handlers.openViewingUser} />
+                                <RankingRow
+                                    key={r.user.id}
+                                    user={r.user}
+                                    rank={r.rank}
+                                    value={r.value}
+                                    isCurrentUser={false}
+                                    onViewUser={handlers.openViewingUser}
+                                    dense={dense}
+                                />
                             ))}
                             {displayCount < rankings.length && (
                                 <div ref={loadMoreRef} className="text-center text-gray-400 py-2 text-xs">

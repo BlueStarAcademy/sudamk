@@ -294,6 +294,13 @@ html.sudamr-handheld-real-landscape:not(.sudamr-handheld-portrait-lock) #root > 
     flex: 1 1 auto;
 }
 
+/* PC 스케일 캔버스: 소수 scale 시 글리프가 흐려지는 것을 줄이기 위한 힌트(스냅은 App.tsx snapUniformCanvasScale) */
+.sudamr-pc-scaled-canvas-root {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
 input, textarea {
   -webkit-user-select: text;
   -moz-user-select: text;
@@ -1306,6 +1313,17 @@ input[type="range"]::-moz-range-thumb {
     background-size: cover;
     background-position: center;
     background-color: rgb(var(--bg-tertiary));
+}
+
+/* 네이티브 모바일 라우트: 헤더·하단 독 제외 남은 높이를 채우고 패널이 min-h-0으로 분배 */
+.sudamr-native-route-root {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* --- Ad Container Styles --- */

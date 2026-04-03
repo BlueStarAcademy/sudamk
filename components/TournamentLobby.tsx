@@ -12,7 +12,6 @@ import Button from './Button.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import ChampionshipHelpModal from './ChampionshipHelpModal.js';
 import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
-import MobileSlideDeck from './mobile/MobileSlideDeck.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 const stringToSeed = (str: string): number => {
@@ -369,13 +368,14 @@ const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
 
 // ChampionshipRankingPanel은 별도 파일에서 import
 
-const TournamentCard: React.FC<{ 
-    type: TournamentType; 
+const TournamentCard: React.FC<{
+    type: TournamentType;
     onClick: (stage?: number) => void;
     onContinue: () => void;
     inProgress: TournamentState | null;
     currentUser: UserWithStatus;
-}> = ({ type, onClick, onContinue, inProgress, currentUser }) => {
+    compact?: boolean;
+}> = ({ type, onClick, onContinue, inProgress, currentUser, compact }) => {
     const definition = TOURNAMENT_DEFINITIONS[type];
     const isSimulationInProgress = inProgress && inProgress.status === 'round_in_progress';
     const hasResultToView = inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated');
@@ -477,45 +477,46 @@ const TournamentCard: React.FC<{
     const isPausedInProgress = inProgress && inProgress.status === 'round_in_progress';
     
     return (
-        <div 
-            className="group bg-gray-800 rounded-lg p-2 sm:p-3 flex flex-col text-center transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-purple-500/30 h-full relative"
+        <div
+            className={`group relative flex flex-col rounded-lg bg-gray-800 text-center shadow-lg transition-all hover:shadow-purple-500/30 ${compact ? 'min-h-0 p-1' : 'h-full transform p-2 hover:-translate-y-1 sm:p-3'}`}
         >
             {/* 보상 미수령 표시: 붉은 점 */}
             {hasUnclaimedReward && (
                 <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full z-10 border-2 border-gray-800"></div>
             )}
-            <div className="flex justify-between items-center mb-1.5 sm:mb-2">
-                <div className="flex items-center gap-1.5">
-                    <h2 className="text-xs sm:text-sm lg:text-lg font-bold">
+            <div className={`flex items-center justify-between ${compact ? 'mb-0.5' : 'mb-1.5 sm:mb-2'}`}>
+                <div className="flex min-w-0 items-center gap-0.5">
+                    <h2 className={`truncate font-bold ${compact ? 'text-[9px]' : 'text-xs sm:text-sm lg:text-lg'}`}>
                         {definition.name}
                     </h2>
                     {isCompletedToday ? (
-                        <span className="text-[10px] sm:text-xs text-green-400 font-semibold flex items-center gap-0.5">
-                            <span>✓</span>
-                            <span>완료</span>
+                        <span className={`text-green-400 font-semibold ${compact ? 'text-[7px]' : 'flex items-center gap-0.5 text-[10px] sm:text-xs'}`}>
+                            {compact ? '✓' : (<><span>✓</span><span>완료</span></>)}
                         </span>
                     ) : isPausedInProgress ? (
-                        <span className="text-[10px] sm:text-xs text-amber-400 font-semibold">진행중..</span>
+                        <span className={`text-amber-400 font-semibold ${compact ? 'text-[7px]' : 'text-[10px] sm:text-xs'}`}>{compact ? '..' : '진행중..'}</span>
                     ) : (
-                        <span className="text-[10px] sm:text-xs text-gray-300 font-semibold">({playedCountToday}/1)</span>
+                        <span className={`text-gray-300 font-semibold ${compact ? 'text-[7px]' : 'text-[10px] sm:text-xs'}`}>({playedCountToday}/1)</span>
                     )}
                 </div>
                 {dungeonProgress.currentStage > 0 && (
-                    <span className="text-[10px] sm:text-xs text-yellow-400">최고 {dungeonProgress.currentStage}단계</span>
+                    <span className={`flex-shrink-0 text-yellow-400 ${compact ? 'text-[7px]' : 'text-[10px] sm:text-xs'}`}>{compact ? `${dungeonProgress.currentStage}단` : `최고 ${dungeonProgress.currentStage}단계`}</span>
                 )}
             </div>
-            <div className="w-full aspect-video bg-gray-700 rounded-md flex items-center justify-center text-gray-500 overflow-hidden relative flex-grow">
-                <img src={definition.image} alt={definition.name} className="w-full h-full object-cover" />
+            <div
+                className={`relative w-full overflow-hidden rounded-md bg-gray-700 ${compact ? 'h-11 flex-none' : 'aspect-video flex-grow'}`}
+            >
+                <img src={definition.image} alt={definition.name} className="h-full w-full object-cover" />
             </div>
-            
+
             {/* 단계 설정: 입장 카드에서 선택 가능 (1~3위 시 다음 단계 열림 안내는 도움말 참고) */}
-            <div className="mt-1.5 sm:mt-2 relative">
-                <div className="flex flex-row gap-1 items-center">
+            <div className={`relative ${compact ? 'mt-0.5' : 'mt-1.5 sm:mt-2'}`}>
+                <div className="flex flex-row items-center gap-0.5">
                     <select
                         value={selectedStage}
                         onChange={(e) => setSelectedStage(Number(e.target.value))}
                         onClick={(e) => e.stopPropagation()}
-                        className="flex-1 text-[10px] sm:text-xs bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-purple-500 min-w-0"
+                        className={`min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 text-white focus:border-purple-500 focus:outline-none ${compact ? 'px-0.5 py-px text-[7px]' : 'px-2 py-1 text-[10px] sm:text-xs'}`}
                         title="진행 가능 단계 선택"
                     >
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
@@ -536,9 +537,10 @@ const TournamentCard: React.FC<{
                     </select>
                     <button
                         onClick={handleMainButtonClick}
-                        className="font-bold text-[10px] sm:text-xs lg:text-sm px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors whitespace-nowrap flex-shrink-0"
+                        className={`flex-shrink-0 rounded bg-purple-600 font-bold text-white transition-colors hover:bg-purple-700 ${compact ? 'px-1 py-px text-[7px]' : 'px-2 py-1 text-[10px] sm:text-xs lg:text-sm'}`}
                     >
-                        <span className="break-words">{buttonText}</span> <span>&rarr;</span>
+                        <span className="break-words leading-tight">{buttonText}</span>
+                        <span className="hidden sm:inline"> &rarr;</span>
                     </button>
                 </div>
             </div>
@@ -767,38 +769,64 @@ const TournamentLobby: React.FC = () => {
     };
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 w-full h-full flex flex-col relative overflow-hidden min-h-0">
-            <header className="flex justify-between items-center mb-4 sm:mb-6 flex-shrink-0">
-                <button onClick={() => window.location.hash = '#/profile'} className="transition-transform active:scale-90 filter hover:drop-shadow-lg">
-                    <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
+        <div
+            className={`relative flex w-full flex-col overflow-hidden ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 px-0.5 pb-0.5' : 'h-full min-h-0 p-4 sm:p-6 lg:p-8'}`}
+        >
+            <header className={`flex flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0.5 px-0.5' : 'mb-4 sm:mb-6'}`}>
+                <button
+                    onClick={() => window.location.hash = '#/profile'}
+                    className="transition-transform active:scale-90 filter hover:drop-shadow-lg"
+                >
+                    <img src="/images/button/back.png" alt="Back" className={isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'} />
                 </button>
-                <div className="flex-1 text-center">
-                    <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold">챔피언십</h1>
+                <div className="min-w-0 flex-1 text-center">
+                    <h1 className={`font-bold ${isNativeMobile ? 'text-sm' : 'text-xl sm:text-2xl lg:text-4xl'}`}>챔피언십</h1>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button 
+                <div className="flex items-center gap-1">
+                    <button
                         onClick={() => setIsChampionshipHelpOpen(true)}
-                        className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-transform hover:scale-110"
+                        className={`flex items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-10 sm:w-10'}`}
                         aria-label="도움말"
                         title="도움말"
                     >
-                        <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
+                        <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
                     </button>
                 </div>
             </header>
-            
+
             {isNativeMobile ? (
-                <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[52vh]">
-                    <div className="flex flex-col gap-4 min-h-0 overflow-y-auto px-1 pb-4">
-                        <div className="grid grid-cols-1 gap-3 flex-shrink-0">
-                            <TournamentCard type="neighborhood" onClick={(stage) => handleEnterArena('neighborhood', stage)} onContinue={() => handleContinueTournament('neighborhood')} inProgress={neighborhoodState || null} currentUser={currentUserWithStatus} />
-                            <TournamentCard type="national" onClick={(stage) => handleEnterArena('national', stage)} onContinue={() => handleContinueTournament('national')} inProgress={nationalState || null} currentUser={currentUserWithStatus} />
-                            <TournamentCard type="world" onClick={(stage) => handleEnterArena('world', stage)} onContinue={() => handleContinueTournament('world')} inProgress={worldState || null} currentUser={currentUserWithStatus} />
-                        </div>
-                        <div className="min-h-0 flex-shrink-0">
+                <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                    <div className="grid max-h-[28dvh] min-h-0 shrink-0 grid-cols-3 gap-0.5">
+                        <TournamentCard
+                            compact
+                            type="neighborhood"
+                            onClick={(stage) => handleEnterArena('neighborhood', stage)}
+                            onContinue={() => handleContinueTournament('neighborhood')}
+                            inProgress={neighborhoodState || null}
+                            currentUser={currentUserWithStatus}
+                        />
+                        <TournamentCard
+                            compact
+                            type="national"
+                            onClick={(stage) => handleEnterArena('national', stage)}
+                            onContinue={() => handleContinueTournament('national')}
+                            inProgress={nationalState || null}
+                            currentUser={currentUserWithStatus}
+                        />
+                        <TournamentCard
+                            compact
+                            type="world"
+                            onClick={(stage) => handleEnterArena('world', stage)}
+                            onContinue={() => handleContinueTournament('world')}
+                            inProgress={worldState || null}
+                            currentUser={currentUserWithStatus}
+                        />
+                    </div>
+                    <div className="grid min-h-0 flex-[1.15] grid-cols-2 gap-0.5 overflow-hidden">
+                        <div className="min-h-0 overflow-y-auto overflow-x-hidden rounded-md bg-gray-800/60">
                             <PointsInfoPanel />
                         </div>
-                        <div className="min-h-[40vh] flex flex-col bg-gray-800/50 rounded-lg shadow-lg overflow-hidden">
+                        <div className="min-h-0 overflow-hidden rounded-md bg-gray-800/50">
                             <ChatWindow
                                 messages={waitingRoomChats.global || []}
                                 mode="global"
@@ -808,58 +836,56 @@ const TournamentLobby: React.FC = () => {
                             />
                         </div>
                     </div>
-                    <div className="flex flex-col gap-3 px-1 pb-6 min-h-0 overflow-y-auto">
-                        <div className="flex flex-row gap-2 items-stretch">
-                            <div className="flex-1 bg-panel border border-color text-on-panel rounded-lg flex flex-col overflow-hidden min-w-0">
-                                <div className="max-w-full mx-auto flex flex-col flex-1 p-1.5 w-full">
-                                    <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0 mb-1">장착 장비</h3>
-                                    <div className="grid grid-cols-3 gap-1.5">
-                                        {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                            const item = getItemForSlot(slot);
-                                            return (
-                                                <div key={slot} className="w-full aspect-square">
-                                                    <EquipmentSlotDisplay
-                                                        slot={slot}
-                                                        item={item}
-                                                        onClick={() => item && handlers.openViewingItem(item, true)}
-                                                    />
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="mt-1 flex gap-1.5 items-center">
-                                        <select
-                                            value={selectedPreset}
-                                            onChange={handlePresetChange}
-                                            className="bg-secondary border border-color text-xs rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
-                                        >
-                                            {presets && presets.map((preset, index) => (
-                                                <option key={index} value={index}>{preset.name}</option>
-                                            ))}
-                                        </select>
-                                        <Button
-                                            onClick={handlers.openEquipmentEffectsModal}
-                                            colorScheme="none"
-                                            className="!text-[9px] !py-0.5 !px-2 flex-shrink-0 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
-                                        >
-                                            장비 효과
-                                        </Button>
-                                    </div>
-                                    <div className="border-t border-color mt-1.5 pt-1.5 flex flex-col gap-1 flex-shrink-0">
-                                        <h3 className="text-xs font-semibold text-secondary">능력치</h3>
-                                        <StatsDisplayPanel currentUser={currentUserWithStatus} />
-                                    </div>
+                    <div className="grid max-h-[24dvh] min-h-0 shrink-0 grid-cols-5 gap-0.5 overflow-hidden">
+                        <div className="col-span-3 flex min-h-0 flex-col overflow-hidden rounded-md border border-color bg-panel text-on-panel">
+                            <div className="flex min-h-0 flex-1 flex-col p-0.5">
+                                <h3 className="mb-0.5 flex-shrink-0 text-center text-[9px] font-semibold text-secondary">장착</h3>
+                                <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-px">
+                                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
+                                        const item = getItemForSlot(slot);
+                                        return (
+                                            <div key={slot} className="min-h-0 min-w-0">
+                                                <EquipmentSlotDisplay
+                                                    slot={slot}
+                                                    item={item}
+                                                    onClick={() => item && handlers.openViewingItem(item, true)}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="mt-0.5 flex shrink-0 items-center gap-0.5">
+                                    <select
+                                        value={selectedPreset}
+                                        onChange={handlePresetChange}
+                                        className="min-w-0 flex-1 rounded border border-color bg-secondary p-px text-[8px]"
+                                    >
+                                        {presets && presets.map((preset, index) => (
+                                            <option key={index} value={index}>{preset.name}</option>
+                                        ))}
+                                    </select>
+                                    <Button
+                                        onClick={handlers.openEquipmentEffectsModal}
+                                        colorScheme="none"
+                                        className="!px-1 !py-0 !text-[7px] flex-shrink-0 justify-center rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
+                                    >
+                                        효과
+                                    </Button>
+                                </div>
+                                <div className="mt-0.5 max-h-[4.5rem] shrink-0 overflow-y-auto border-t border-color pt-0.5">
+                                    <h3 className="text-[8px] font-semibold text-secondary">능력</h3>
+                                    <StatsDisplayPanel currentUser={currentUserWithStatus} />
                                 </div>
                             </div>
-                            <div className="w-24 min-w-[96px] flex-shrink-0 overflow-hidden">
-                                <QuickAccessSidebar fillHeight={true} compact={true} />
-                            </div>
                         </div>
-                        <div className="flex-1 min-h-[50vh] overflow-hidden">
-                            <ChampionshipRankingPanel />
+                        <div className="col-span-2 min-h-0 overflow-hidden rounded-md bg-panel/90 p-0.5">
+                            <QuickAccessSidebar compact fillHeight={false} />
                         </div>
                     </div>
-                </MobileSlideDeck>
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                        <ChampionshipRankingPanel compact dense />
+                    </div>
+                </div>
             ) : (
             <div className="flex-1 flex flex-row gap-6 min-h-0 overflow-hidden">
                 <main className="flex-grow flex flex-col gap-6 min-h-0 overflow-hidden">

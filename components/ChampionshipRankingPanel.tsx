@@ -14,19 +14,20 @@ const CompactRankRow: React.FC<{
     entry: RankingEntry;
     isCurrentUser: boolean;
     onViewUser?: (userId: string) => void;
-}> = ({ entry, isCurrentUser, onViewUser }) => {
+    dense?: boolean;
+}> = ({ entry, isCurrentUser, onViewUser, dense }) => {
     const avatarUrl = AVATAR_POOL.find(a => a.id === entry.avatarId)?.url;
     const borderUrl = BORDER_POOL.find(b => b.id === entry.borderId)?.url;
     return (
         <div
-            className={`flex items-center p-1 rounded-md ${isCurrentUser ? 'bg-blue-500/30' : onViewUser ? 'cursor-pointer hover:bg-secondary/50' : ''}`}
+            className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : 'p-1'} ${isCurrentUser ? 'bg-blue-500/30' : onViewUser ? 'cursor-pointer hover:bg-secondary/50' : ''}`}
             onClick={!isCurrentUser && onViewUser ? () => onViewUser(entry.id) : undefined}
             title={!isCurrentUser ? `${entry.nickname} 프로필 보기` : ''}
         >
-            <span className="w-8 text-center font-bold text-xs">{entry.rank === 0 ? '-' : entry.rank}</span>
-            <Avatar userId={entry.id} userName={entry.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={28} />
-            <span className="flex-1 truncate font-semibold ml-1.5 text-xs">{entry.nickname}</span>
-            <span className="w-16 text-right font-mono text-xs">{entry.score.toLocaleString()}</span>
+            <span className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : 'w-8 text-xs'}`}>{entry.rank === 0 ? '-' : entry.rank}</span>
+            <Avatar userId={entry.id} userName={entry.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} />
+            <span className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}>{entry.nickname}</span>
+            <span className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : 'w-16 text-xs'}`}>{entry.score.toLocaleString()}</span>
         </div>
     );
 };
@@ -66,9 +67,11 @@ const RankRow: React.FC<{
 interface ChampionshipRankingPanelProps {
     /** 홈화면용: 게임/바둑 랭킹과 동일한 패널 디자인 */
     compact?: boolean;
+    /** compact 모드에서 더 작게 (3열 랭킹 등) */
+    dense?: boolean;
 }
 
-const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ compact = false }) => {
+const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ compact = false, dense = false }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
     const { rankings, loading, error, total } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
 
@@ -133,9 +136,12 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
         };
 
         return (
-            <div className="bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col gap-1 h-full">
-                <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0">챔피언십 랭킹</h3>
-                <div className="flex-grow overflow-y-auto pr-1 text-xs flex flex-col gap-0.5 min-h-0">
+            <div
+                className={`bg-panel text-on-panel flex h-full min-h-0 flex-col rounded-lg border border-color ${dense ? 'gap-0.5 p-0.5' : 'gap-1 p-1.5'}`}
+            >
+                <h3 className={`text-center font-semibold text-secondary flex-shrink-0 ${dense ? 'text-[8px] leading-tight' : 'text-xs'}`}>챔피언십 랭킹</h3>
+                <div className={`flex min-h-0 flex-grow flex-col gap-0.5 overflow-y-auto pr-0.5 ${dense ? 'text-[8px]' : 'pr-1 text-xs'}`}
+                >
                     {loading && rankings.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-gray-400 text-xs">데이터 로딩 중...</div>
                     ) : error ? (
@@ -150,6 +156,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                                         entry={currentUserEntry}
                                         isCurrentUser={true}
                                         onViewUser={handlers.openViewingUser}
+                                        dense={dense}
                                     />
                                 </div>
                             )}
@@ -160,6 +167,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                                         entry={entry}
                                         isCurrentUser={entry.id === currentUserWithStatus.id}
                                         onViewUser={handlers.openViewingUser}
+                                        dense={dense}
                                     />
                                 ))}
                                 {displayCount < rankings.length && (

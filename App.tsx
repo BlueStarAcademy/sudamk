@@ -7,10 +7,12 @@ import { preloadImages, ALL_IMAGE_URLS } from './services/assetService.js';
 import { audioService } from './services/audioService.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import AppModalLayer from './components/AppModalLayer.js';
-import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
+import { useIsHandheldDevice, VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './hooks/useIsMobileLayout.js';
 import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
+import NativeMobileDock from './components/mobile/NativeMobileDock.js';
+import { NATIVE_MOBILE_SHELL_MAX_WIDTH } from './constants/ads.js';
 
 /**
  * 세로로 든 폰에서 전체 UI를 CSS로 90° 돌리면( index.css 의 sudamr-handheld-* )
@@ -27,6 +29,33 @@ function usePrevious<T>(value: T): T | undefined {
         ref.current = value;
     }, [value]);
     return ref.current;
+}
+
+/**
+ * PC 셸의 transform: scale()이 소수 배율이면 글리프가 뭉개져 보이기 쉬움.
+ * 1) 스케일 후 논리 크기가 정수 CSS 픽셀에 가깝게
+ * 2) devicePixelRatio 그리드에 맞춰(125%/150% 윈도 배율 등) 래스터 정렬
+ */
+function snapUniformCanvasScale(fitW: number, fitH: number, designW: number, designH: number): number {
+    const raw = Math.min(fitW / designW, fitH / designH, 1);
+    if (!Number.isFinite(raw) || raw <= 0) return 1;
+    const wPx = Math.max(1, Math.floor(designW * raw));
+    const hPx = Math.max(1, Math.floor(designH * raw));
+    let scale = Math.min(wPx / designW, hPx / designH);
+
+    if (typeof window !== 'undefined' && window.devicePixelRatio) {
+        const dpr = window.devicePixelRatio;
+        const alignToDevicePx = (s: number) => {
+            const dev = designW * s * dpr;
+            const r = Math.max(1, Math.round(dev));
+            return r / (designW * dpr);
+        };
+        scale = alignToDevicePx(scale);
+        if (designW * scale > fitW + 1e-4) scale = fitW / designW;
+        if (designH * scale > fitH + 1e-4) scale = Math.min(scale, fitH / designH);
+    }
+
+    return scale;
 }
 
 // AppContent is the part of the app that can access the context
@@ -120,6 +149,7 @@ const AppContent: React.FC = () => {
     const backgroundClass = currentUser ? 'bg-primary' : 'bg-login-background';
 
     const isHandheld = useIsHandheldDevice(1025);
+    const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout !== false;
     /** 스케일 셸 전용: 네이티브 모드에서는 좌우 레일·하단 배너로 대체 */
     const showLobbySideAds = Boolean(currentUser && !isGameView && !isNativeMobile);
 
@@ -131,9 +161,7 @@ const AppContent: React.FC = () => {
         const w = window.innerWidth;
         const h = window.innerHeight;
         if (w <= 0 || h <= 0) return 1;
-        const byWidth = w / DESIGN_W;
-        const byHeight = h / DESIGN_H;
-        return Math.min(byWidth, byHeight, 1);
+        return snapUniformCanvasScale(w, h, DESIGN_W, DESIGN_H);
     };
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(getInitialScale);
@@ -143,7 +171,7 @@ const AppContent: React.FC = () => {
         const updateScale = () => {
             const w = el.clientWidth;
             const h = el.clientHeight;
-            if (w > 0 && h > 0) setScale(Math.min(w / DESIGN_W, h / DESIGN_H));
+            if (w > 0 && h > 0) setScale(snapUniformCanvasScale(w, h, DESIGN_W, DESIGN_H));
         };
         updateScale();
         const ro = new ResizeObserver(updateScale);
@@ -211,23 +239,34 @@ const AppContent: React.FC = () => {
             
             {isNativeMobile ? (
                 <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative">
-                    {currentUser && !isGameView && <Header />}
                     <div
                         id="sudamr-modal-root"
                         className="fixed inset-0 z-[180] pointer-events-none"
                         style={{ pointerEvents: 'none' }}
                     />
                     {currentUser ? (
-                        <main
-                            className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden w-full"
-                            style={{
-                                paddingBottom: isHandheld ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
-                                WebkitOverflowScrolling: 'touch',
-                                marginBottom: isHandheld ? 'env(safe-area-inset-bottom, 0px)' : '0px',
-                            }}
+                        <div
+                            className="mx-auto flex min-h-0 w-full flex-1 flex-col"
+                            style={{ maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH }}
                         >
-                            <Router />
-                        </main>
+                            {!isGameView && <Header />}
+                            <main
+                                className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden w-full min-w-0"
+                                style={{
+                                    WebkitOverflowScrolling: 'touch',
+                                }}
+                            >
+                                <Router />
+                            </main>
+                            {!isGameView && (
+                                <>
+                                    <NativeMobileDock />
+                                    <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
+                                        <AdBanner position="bottom" className="py-1" />
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     ) : (
                         <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden bg-transparent px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
                             <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/82 via-black/65 to-black/78" />
@@ -266,15 +305,16 @@ const AppContent: React.FC = () => {
                     <AppModalLayer />
                     <AdInterstitial />
                     <InstallPrompt />
-                    {currentUser && !isGameView && (
-                        <div className="flex-shrink-0 border-t border-color/30 bg-primary/95">
-                            <AdBanner position="bottom" className="py-1" />
-                        </div>
-                    )}
                 </div>
             ) : (
             /* 전체 앱을 16:9 박스 안에 넣고, 내부는 고정 캔버스(1920x1080)를 scale로 맞춰 “한 장 그림”처럼 동일 비율로 확대/축소 */
-            <div className="flex-1 flex items-center justify-center min-h-0 min-w-0">
+            <div
+                className={`flex min-h-0 w-full flex-1 flex-col ${pcLikeMobileLayout ? 'overflow-y-auto overscroll-y-contain' : 'overflow-hidden'}`}
+            >
+                <div
+                    className="flex min-h-0 w-full flex-1 items-center justify-center"
+                    style={pcLikeMobileLayout ? { minHeight: VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } : undefined}
+                >
                 {showLobbySideAds && (
                     <div className="flex flex-shrink-0 items-center justify-center px-0.5 sm:px-1 self-stretch w-40 max-w-[28vw]">
                         <AdBanner position="left" />
@@ -288,12 +328,12 @@ const AppContent: React.FC = () => {
                     <div
                         className="relative shrink-0 overflow-hidden"
                         style={{
-                            width: DESIGN_W * scale,
-                            height: DESIGN_H * scale,
+                            width: Math.round(DESIGN_W * scale),
+                            height: Math.round(DESIGN_H * scale),
                         }}
                     >
                     <div
-                        className="absolute left-0 top-0 flex flex-col"
+                        className="sudamr-pc-scaled-canvas-root absolute left-0 top-0 flex flex-col"
                         style={{
                             width: DESIGN_W,
                             height: DESIGN_H,
@@ -385,6 +425,7 @@ const AppContent: React.FC = () => {
                         <AdBanner position="right" />
                     </div>
                 )}
+                </div>
             </div>
             )}
         </div>

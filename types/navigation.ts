@@ -23,7 +23,12 @@ export function parseHash(hash: string): AppRoute {
         case 'admin': return { view: 'admin', params: {} };
         case 'register': return { view: 'register', params: {} };
         case 'set-nickname': return { view: 'set-nickname', params: {} };
-        case 'profile': return { view: 'profile', params: {} };
+        case 'profile': {
+            const sub = rest[0];
+            if (sub === 'ranking') return { view: 'profile', params: { tab: 'ranking' as const } };
+            if (sub === 'arena') return { view: 'profile', params: { tab: 'arena' as const } };
+            return { view: 'profile', params: { tab: 'home' as const } };
+        }
         case 'auth': 
             if (rest[0] === 'kakao' && rest[1] === 'callback') {
                 return { view: 'kakao-callback', params: {} };

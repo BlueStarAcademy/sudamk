@@ -11,6 +11,9 @@ export const AD_SLOTS = {
   skyscraperRight: '2060641067',  // TODO: AdSense 콘솔에서 새 슬롯 생성 후 교체
 } as const;
 
+/** 네이티브 모바일 셸 가로(하단 728×90 배너·콘텐츠 정렬) */
+export const NATIVE_MOBILE_SHELL_MAX_WIDTH = 728;
+
 /** 디바이스별 배너 크기 */
 export const BANNER_SIZES: Record<'pc' | 'tablet' | 'mobile', AdBannerSize> = {
   pc: { width: 728, height: 90 },

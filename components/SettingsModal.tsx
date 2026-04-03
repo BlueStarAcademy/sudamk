@@ -26,6 +26,25 @@ const THEMES: { id: Theme; name: string; colors: string[] }[] = [
     { id: 'green', name: '깊은 숲의 숨', colors: ['#17251d', '#2c4632', '#7abf8b', '#e3c970'] },
 ];
 
+const SettingsSection: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({
+    title,
+    children,
+    className = '',
+}) => (
+    <section
+        className={`rounded-2xl border border-color/45 bg-gradient-to-br from-tertiary/40 via-tertiary/18 to-tertiary/5 p-4 sm:p-5 shadow-sm ring-1 ring-inset ring-white/[0.06] ${className}`}
+    >
+        <div className="mb-4 flex items-center gap-3">
+            <div
+                className="h-9 w-1 shrink-0 rounded-full bg-accent shadow-[0_0_14px] shadow-accent/30"
+                aria-hidden
+            />
+            <h3 className="text-base font-semibold tracking-tight text-text-primary">{title}</h3>
+        </div>
+        {children}
+    </section>
+);
+
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => {
     const { settings, updateTheme, updateSoundSetting, updateFeatureSetting, updatePanelColor, updateTextColor, updatePanelEdgeStyle, updatePcLikeMobileLayout, resetGraphicsToDefault, handlers, currentUserWithStatus } = useAppContext();
     const [activeTab, setActiveTab] = useState<SettingsTab>('graphics');
@@ -208,55 +227,59 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
         switch (activeTab) {
             case 'graphics':
                 return (
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="text-lg font-semibold text-text-secondary">UI 테마</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                    <div className="flex flex-col gap-5">
+                        <SettingsSection title="화면">
+                            <div className="flex items-center justify-between gap-4 rounded-xl border border-color/50 bg-secondary/25 px-4 py-3.5">
+                                <span className="text-sm font-medium text-text-primary sm:text-[15px]">
+                                    모바일 전용 화면 / PC화면
+                                </span>
+                                <ToggleSwitch
+                                    checked={settings.graphics.pcLikeMobileLayout !== false}
+                                    onChange={(checked) => updatePcLikeMobileLayout(checked)}
+                                />
+                            </div>
+                        </SettingsSection>
+                        <SettingsSection title="UI 테마">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                                 {THEMES.map(theme => (
-                                    <label key={theme.id} className="flex items-center p-3 bg-tertiary/50 rounded-lg cursor-pointer border-2 border-transparent has-[:checked]:border-accent has-[:checked]:ring-2 has-[:checked]:ring-accent">
+                                    <label
+                                        key={theme.id}
+                                        className="flex cursor-pointer items-center gap-3 rounded-xl border border-color/40 bg-secondary/20 p-3.5 transition-all duration-200 has-[:checked]:border-accent has-[:checked]:bg-accent/8 has-[:checked]:shadow-md has-[:checked]:shadow-accent/10 has-[:checked]:ring-1 has-[:checked]:ring-accent/35"
+                                    >
                                         <input
                                             type="radio"
                                             name="theme"
                                             value={theme.id}
                                             checked={settings.graphics.theme === theme.id}
                                             onChange={() => updateTheme(theme.id)}
-                                            className="w-5 h-5 text-accent bg-secondary border-color focus:ring-accent"
+                                            className="h-5 w-5 shrink-0 border-color bg-secondary text-accent focus:ring-accent"
                                         />
-                                    <span className="ml-3 text-text-primary text-sm sm:text-base whitespace-nowrap">{theme.name}</span>
-                                        <div className="ml-auto flex -space-x-2">
+                                        <span className="whitespace-nowrap text-sm font-medium text-text-primary sm:text-base">
+                                            {theme.name}
+                                        </span>
+                                        <div className="ml-auto flex -space-x-1.5">
                                             {theme.colors.map((color, i) => (
-                                                <div key={i} style={{ backgroundColor: color }} className="w-6 h-6 rounded-full border-2 border-primary"></div>
+                                                <div
+                                                    key={i}
+                                                    style={{ backgroundColor: color }}
+                                                    className="h-7 w-7 rounded-full border-2 border-color/80 shadow-sm"
+                                                />
                                             ))}
                                         </div>
                                     </label>
                                 ))}
                             </div>
-                        </div>
-                        <div className="pt-4 border-t border-color">
-                            <h3 className="text-lg font-semibold text-text-secondary">화면</h3>
-                            <p className="text-xs text-text-secondary/80 mt-1 mb-3">화면 너비가 좁을 때만 적용됩니다.</p>
-                            <div className="flex items-center justify-between gap-3 p-3 bg-tertiary/50 rounded-lg border border-color">
-                                <div>
-                                    <span className="text-text-primary font-medium">PC화면처럼 보기</span>
-                                    <p className="text-xs text-text-secondary mt-0.5">끄면 가로 슬라이드로 모바일 전용 레이아웃을 사용합니다.</p>
-                                </div>
-                                <ToggleSwitch
-                                    checked={settings.graphics.pcLikeMobileLayout !== false}
-                                    onChange={(checked) => updatePcLikeMobileLayout(checked)}
-                                />
-                            </div>
-                        </div>
-                        <div className="pt-4 border-t border-color">
-                            <h3 className="text-lg font-semibold text-text-secondary mb-3">패널 엣지 스타일</h3>
+                        </SettingsSection>
+                        <SettingsSection title="패널 엣지 스타일">
                             <div className="space-y-4">
-                                <div className="flex items-center justify-center p-6 bg-tertiary/60 border border-color rounded-xl">
+                                <div className="flex items-center justify-center rounded-xl border border-color/50 bg-panel/80 p-8 shadow-inner">
                                     {renderEdgePreview(settings.graphics.panelEdgeStyle ?? 'default')}
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
                                     {PANEL_EDGE_OPTIONS.map(option => (
                                         <label
                                             key={option.id}
-                                            className="flex items-center gap-2 rounded-lg bg-tertiary/40 border border-transparent transition-all cursor-pointer has-[:checked]:border-accent has-[:checked]:ring-2 has-[:checked]:ring-accent has-[:checked]:bg-tertiary/60 px-2.5 py-2"
+                                            className="flex cursor-pointer items-center gap-2 rounded-xl border border-color/35 bg-secondary/15 px-3 py-2.5 transition-all duration-150 has-[:checked]:border-accent has-[:checked]:bg-accent/10 has-[:checked]:shadow-sm has-[:checked]:ring-1 has-[:checked]:ring-accent/30"
                                         >
                                             <input
                                                 type="radio"
@@ -264,288 +287,321 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                                 value={option.id}
                                                 checked={(settings.graphics.panelEdgeStyle ?? 'default') === option.id}
                                                 onChange={() => updatePanelEdgeStyle(option.id)}
-                                                className="w-4 h-4 text-accent bg-secondary border-color focus:ring-accent flex-shrink-0"
+                                                className="h-4 w-4 shrink-0 border-color bg-secondary text-accent focus:ring-accent"
                                             />
-                                            <span className="text-sm text-text-primary whitespace-nowrap flex-1">{option.label}</span>
+                                            <span className="flex-1 whitespace-nowrap text-sm font-medium text-text-primary">
+                                                {option.label}
+                                            </span>
                                         </label>
                                     ))}
                                 </div>
                             </div>
-                        </div>
+                        </SettingsSection>
                     </div>
                 );
             case 'sound':
                 return (
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-lg font-semibold text-text-secondary mb-2">마스터 볼륨</h3>
-                            <div className="flex items-center gap-4">
-                                <span className="w-12 text-center font-mono text-text-primary text-lg">{(settings.sound.masterVolume * 10).toFixed(0)}</span>
-                                <Slider 
-                                    min={0} 
-                                    max={1} 
-                                    step={0.1}
-                                    value={settings.sound.masterVolume} 
-                                    onChange={(v) => updateSoundSetting('masterVolume', v)}
-                                    disabled={settings.sound.masterMuted}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-text-secondary">효과음 전체</h3>
-                            <ToggleSwitch
-                                checked={!settings.sound.masterMuted}
-                                onChange={(checked) => updateSoundSetting('masterMuted', !checked)}
-                            />
-                        </div>
-                        <div className="space-y-3 pt-4 border-t border-color">
-                             <h3 className="text-lg font-semibold text-text-secondary mb-2">효과음 세부 조절</h3>
-                             {soundCategories.map(({key, label}) => (
-                                <div key={key} className="flex items-center justify-between">
-                                    <span className="text-text-secondary">{label}</span>
+                    <div className="flex flex-col gap-5">
+                        <SettingsSection title="출력">
+                            <div className="space-y-5">
+                                <div>
+                                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-text-secondary/90">
+                                        마스터 볼륨
+                                    </p>
+                                    <div className="flex items-center gap-4 rounded-xl border border-color/40 bg-secondary/20 px-3 py-3">
+                                        <span className="w-11 text-center font-mono text-lg tabular-nums text-text-primary">
+                                            {(settings.sound.masterVolume * 10).toFixed(0)}
+                                        </span>
+                                        <Slider
+                                            min={0}
+                                            max={1}
+                                            step={0.1}
+                                            value={settings.sound.masterVolume}
+                                            onChange={(v) => updateSoundSetting('masterVolume', v)}
+                                            disabled={settings.sound.masterMuted}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 rounded-xl border border-color/40 bg-secondary/20 px-4 py-3">
+                                    <span className="text-sm font-medium text-text-primary">효과음 전체</span>
                                     <ToggleSwitch
-                                        checked={!settings.sound.categoryMuted[key]}
-                                        onChange={(checked) => updateSoundSetting('categoryMuted', {...settings.sound.categoryMuted, [key]: !checked})}
-                                        disabled={settings.sound.masterMuted}
+                                        checked={!settings.sound.masterMuted}
+                                        onChange={(checked) => updateSoundSetting('masterMuted', !checked)}
                                     />
                                 </div>
-                             ))}
-                        </div>
+                            </div>
+                        </SettingsSection>
+                        <SettingsSection title="효과음 세부 조절">
+                            <div className="flex flex-col gap-1">
+                                {soundCategories.map(({ key, label }) => (
+                                    <div
+                                        key={key}
+                                        className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 transition-colors hover:border-color/30 hover:bg-secondary/15"
+                                    >
+                                        <span className="text-sm text-text-secondary">{label}</span>
+                                        <ToggleSwitch
+                                            checked={!settings.sound.categoryMuted[key]}
+                                            onChange={(checked) =>
+                                                updateSoundSetting('categoryMuted', {
+                                                    ...settings.sound.categoryMuted,
+                                                    [key]: !checked,
+                                                })
+                                            }
+                                            disabled={settings.sound.masterMuted}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </SettingsSection>
                     </div>
                 );
             case 'features':
                 return (
-                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-text-secondary mb-4">게임 플레이</h3>
-                        <div className="flex items-center justify-between">
-                            <span className="text-text-secondary">돌 미리보기 (마우스 호버)</span>
-                            <ToggleSwitch
-                                checked={settings.features.stonePreview}
-                                onChange={(checked) => updateFeatureSetting('stonePreview', checked)}
-                            />
-                        </div>
-                         <div className="flex items-center justify-between">
-                            <span className="text-text-secondary">마지막 놓은 자리 표시</span>
-                            <ToggleSwitch
-                                checked={settings.features.lastMoveMarker}
-                                onChange={(checked) => updateFeatureSetting('lastMoveMarker', checked)}
-                            />
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-text-secondary">따낸점수 애니메이션</span>
-                            <ToggleSwitch
-                                checked={settings.features.captureScoreAnimation}
-                                onChange={(checked) => updateFeatureSetting('captureScoreAnimation', checked)}
-                            />
-                        </div>
-                        <h3 className="text-lg font-semibold text-text-secondary mb-4 pt-4 border-t border-color">알림</h3>
-                         <div className="flex items-center justify-between">
-                            <span className="text-text-secondary">퀘스트 완료 알림</span>
-                            <ToggleSwitch
-                                checked={settings.features.questNotifications}
-                                onChange={(checked) => updateFeatureSetting('questNotifications', checked)}
-                            />
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-text-secondary">채팅 내용 알림 (빨간 점)</span>
-                            <ToggleSwitch
-                                checked={settings.features.chatNotifications}
-                                onChange={(checked) => updateFeatureSetting('chatNotifications', checked)}
-                            />
-                        </div>
-                        <h3 className="text-lg font-semibold text-text-secondary mb-4 pt-4 border-t border-color">비상 기능</h3>
-                        <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-4">
-                            <p className="text-sm text-red-200 mb-3">
-                                비상탈출 버튼을 사용하면 모든 플레이 중인 게임이 강제 종료되며, PVP 경기장에서는 기권패 처리됩니다.
-                            </p>
-                            <Button 
-                                onClick={handleEmergencyExit}
-                                colorScheme="red"
-                                className="w-full"
-                            >
-                                🚨 비상탈출
-                            </Button>
-                        </div>
+                    <div className="flex flex-col gap-5">
+                        <SettingsSection title="게임 플레이">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
+                                    <span className="text-sm text-text-secondary">돌 미리보기 (마우스 호버)</span>
+                                    <ToggleSwitch
+                                        checked={settings.features.stonePreview}
+                                        onChange={(checked) => updateFeatureSetting('stonePreview', checked)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
+                                    <span className="text-sm text-text-secondary">마지막 놓은 자리 표시</span>
+                                    <ToggleSwitch
+                                        checked={settings.features.lastMoveMarker}
+                                        onChange={(checked) => updateFeatureSetting('lastMoveMarker', checked)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
+                                    <span className="text-sm text-text-secondary">따낸점수 애니메이션</span>
+                                    <ToggleSwitch
+                                        checked={settings.features.captureScoreAnimation}
+                                        onChange={(checked) => updateFeatureSetting('captureScoreAnimation', checked)}
+                                    />
+                                </div>
+                            </div>
+                        </SettingsSection>
+                        <SettingsSection title="알림">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
+                                    <span className="text-sm text-text-secondary">퀘스트 완료 알림</span>
+                                    <ToggleSwitch
+                                        checked={settings.features.questNotifications}
+                                        onChange={(checked) => updateFeatureSetting('questNotifications', checked)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
+                                    <span className="text-sm text-text-secondary">채팅 내용 알림 (빨간 점)</span>
+                                    <ToggleSwitch
+                                        checked={settings.features.chatNotifications}
+                                        onChange={(checked) => updateFeatureSetting('chatNotifications', checked)}
+                                    />
+                                </div>
+                            </div>
+                        </SettingsSection>
+                        <SettingsSection title="비상 기능">
+                            <div className="rounded-xl border border-red-600/40 bg-gradient-to-br from-red-950/50 to-red-950/20 p-4 ring-1 ring-inset ring-red-500/15">
+                                <p className="mb-4 text-sm leading-relaxed text-red-100/90">
+                                    비상탈출 버튼을 사용하면 모든 플레이 중인 게임이 강제 종료되며, PVP 경기장에서는 기권패 처리됩니다.
+                                </p>
+                                <Button onClick={handleEmergencyExit} colorScheme="red" className="w-full shadow-md shadow-red-900/30">
+                                    비상탈출
+                                </Button>
+                            </div>
+                        </SettingsSection>
                     </div>
                 );
             case 'account':
                 return (
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-text-secondary mb-4">계정 관리</h3>
-                        <div className="flex gap-3 mb-4">
-                            <Button 
-                                onClick={() => {
-                                    setShowChangeUsername(!showChangeUsername);
-                                    setShowChangePassword(false);
-                                    setShowWithdraw(false);
-                                    setError(null);
-                                }}
-                                colorScheme="blue"
-                                className="flex-1"
-                            >
-                                {showChangeUsername ? '아이디 변경 취소' : '아이디 변경'}
-                            </Button>
-                            <Button 
-                                onClick={() => {
-                                    setShowChangePassword(!showChangePassword);
-                                    setShowChangeUsername(false);
-                                    setShowWithdraw(false);
-                                    setError(null);
-                                }}
-                                colorScheme="blue"
-                                className="flex-1"
-                            >
-                                {showChangePassword ? '비밀번호 변경 취소' : '비밀번호 변경'}
-                            </Button>
-                        </div>
-                        {showChangeUsername && (
-                            <div className="bg-tertiary/30 border border-color rounded-lg p-4 mb-4">
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-sm text-text-secondary mb-1">새 아이디</label>
-                                        <input
-                                            type="text"
-                                            value={newUsername}
-                                            onChange={(e) => setNewUsername(e.target.value)}
-                                            className="w-full px-3 py-2 bg-secondary border border-color rounded text-text-primary"
-                                            placeholder="3-20자"
-                                            disabled={isLoading}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm text-text-secondary mb-1">현재 비밀번호</label>
-                                        <input
-                                            type="password"
-                                            value={currentPassword}
-                                            onChange={(e) => setCurrentPassword(e.target.value)}
-                                            className="w-full px-3 py-2 bg-secondary border border-color rounded text-text-primary"
-                                            disabled={isLoading}
-                                        />
-                                    </div>
-                                    {error && <p className="text-sm text-red-400">{error}</p>}
-                                    <Button 
-                                        onClick={handleChangeUsername}
-                                        colorScheme="blue"
-                                        className="w-full"
-                                        disabled={isLoading}
-                                    >
-                                        {isLoading ? '처리 중...' : '변경하기'}
-                                    </Button>
-                                </div>
+                    <div className="flex flex-col gap-5">
+                        <SettingsSection title="계정 관리">
+                            <div className="mb-4 flex flex-col gap-2.5 sm:flex-row">
+                                <Button
+                                    onClick={() => {
+                                        setShowChangeUsername(!showChangeUsername);
+                                        setShowChangePassword(false);
+                                        setShowWithdraw(false);
+                                        setError(null);
+                                    }}
+                                    colorScheme="blue"
+                                    className="flex-1"
+                                >
+                                    {showChangeUsername ? '아이디 변경 취소' : '아이디 변경'}
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        setShowChangePassword(!showChangePassword);
+                                        setShowChangeUsername(false);
+                                        setShowWithdraw(false);
+                                        setError(null);
+                                    }}
+                                    colorScheme="blue"
+                                    className="flex-1"
+                                >
+                                    {showChangePassword ? '비밀번호 변경 취소' : '비밀번호 변경'}
+                                </Button>
                             </div>
-                        )}
-                        {showChangePassword && (
-                            <div className="bg-tertiary/30 border border-color rounded-lg p-4 mb-4">
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-sm text-text-secondary mb-1">현재 비밀번호</label>
-                                        <input
-                                            type="password"
-                                            value={currentPassword}
-                                            onChange={(e) => setCurrentPassword(e.target.value)}
-                                            className="w-full px-3 py-2 bg-secondary border border-color rounded text-text-primary"
+                            {showChangeUsername && (
+                                <div className="mb-4 rounded-xl border border-color/50 bg-secondary/20 p-4 ring-1 ring-inset ring-white/[0.04]">
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="mb-1 block text-sm text-text-secondary">새 아이디</label>
+                                            <input
+                                                type="text"
+                                                value={newUsername}
+                                                onChange={(e) => setNewUsername(e.target.value)}
+                                                className="w-full rounded-lg border border-color bg-secondary px-3 py-2.5 text-text-primary outline-none focus:ring-2 focus:ring-accent/40"
+                                                placeholder="3-20자"
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="mb-1 block text-sm text-text-secondary">현재 비밀번호</label>
+                                            <input
+                                                type="password"
+                                                value={currentPassword}
+                                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                                className="w-full rounded-lg border border-color bg-secondary px-3 py-2.5 text-text-primary outline-none focus:ring-2 focus:ring-accent/40"
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        {error && <p className="text-sm text-red-400">{error}</p>}
+                                        <Button
+                                            onClick={handleChangeUsername}
+                                            colorScheme="blue"
+                                            className="w-full"
                                             disabled={isLoading}
-                                        />
+                                        >
+                                            {isLoading ? '처리 중...' : '변경하기'}
+                                        </Button>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm text-text-secondary mb-1">새 비밀번호</label>
-                                        <input
-                                            type="password"
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full px-3 py-2 bg-secondary border border-color rounded text-text-primary"
-                                            placeholder="최소 6자"
-                                            disabled={isLoading}
-                                        />
-                                    </div>
-                                    {error && <p className="text-sm text-red-400">{error}</p>}
-                                    <Button 
-                                        onClick={handleChangePassword}
-                                        colorScheme="blue"
-                                        className="w-full"
-                                        disabled={isLoading}
-                                    >
-                                        {isLoading ? '처리 중...' : '변경하기'}
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                        <h3 className="text-lg font-semibold text-text-secondary mb-4 pt-4 border-t border-color">회원탈퇴</h3>
-                        <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-4">
-                            <p className="text-sm text-red-200 mb-3">
-                                회원탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다. 동일한 이메일로는 1주일간 재가입이 불가능합니다.
-                            </p>
-                            <Button 
-                                onClick={() => {
-                                    setShowWithdraw(!showWithdraw);
-                                    setShowChangeUsername(false);
-                                    setShowChangePassword(false);
-                                    setError(null);
-                                }}
-                                colorScheme="red"
-                                className="w-full"
-                            >
-                                {showWithdraw ? '취소' : '회원탈퇴'}
-                            </Button>
-                            {showWithdraw && (
-                                <div className="space-y-3 mt-4">
-                                    <div>
-                                        <label className="block text-sm text-red-200 mb-1">비밀번호 확인</label>
-                                        <input
-                                            type="password"
-                                            value={withdrawPassword}
-                                            onChange={(e) => setWithdrawPassword(e.target.value)}
-                                            className="w-full px-3 py-2 bg-secondary border border-red-700/50 rounded text-text-primary"
-                                            disabled={isLoading}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm text-red-200 mb-1">확인 문구 입력: "회원탈퇴"</label>
-                                        <input
-                                            type="text"
-                                            value={withdrawConfirm}
-                                            onChange={(e) => setWithdrawConfirm(e.target.value)}
-                                            className="w-full px-3 py-2 bg-secondary border border-red-700/50 rounded text-text-primary"
-                                            placeholder="회원탈퇴"
-                                            disabled={isLoading}
-                                        />
-                                    </div>
-                                    {error && <p className="text-sm text-red-400">{error}</p>}
-                                    <Button 
-                                        onClick={handleWithdraw}
-                                        colorScheme="red"
-                                        className="w-full"
-                                        disabled={isLoading}
-                                    >
-                                        {isLoading ? '처리 중...' : '탈퇴하기'}
-                                    </Button>
                                 </div>
                             )}
-                        </div>
+                            {showChangePassword && (
+                                <div className="mb-4 rounded-xl border border-color/50 bg-secondary/20 p-4 ring-1 ring-inset ring-white/[0.04]">
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="mb-1 block text-sm text-text-secondary">현재 비밀번호</label>
+                                            <input
+                                                type="password"
+                                                value={currentPassword}
+                                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                                className="w-full rounded-lg border border-color bg-secondary px-3 py-2.5 text-text-primary outline-none focus:ring-2 focus:ring-accent/40"
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="mb-1 block text-sm text-text-secondary">새 비밀번호</label>
+                                            <input
+                                                type="password"
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                className="w-full rounded-lg border border-color bg-secondary px-3 py-2.5 text-text-primary outline-none focus:ring-2 focus:ring-accent/40"
+                                                placeholder="최소 6자"
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        {error && <p className="text-sm text-red-400">{error}</p>}
+                                        <Button
+                                            onClick={handleChangePassword}
+                                            colorScheme="blue"
+                                            className="w-full"
+                                            disabled={isLoading}
+                                        >
+                                            {isLoading ? '처리 중...' : '변경하기'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </SettingsSection>
+                        <SettingsSection title="회원탈퇴">
+                            <div className="rounded-xl border border-red-600/40 bg-gradient-to-br from-red-950/45 to-red-950/15 p-4 ring-1 ring-inset ring-red-500/15">
+                                <p className="mb-4 text-sm leading-relaxed text-red-100/90">
+                                    회원탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다. 동일한 이메일로는 1주일간 재가입이 불가능합니다.
+                                </p>
+                                <Button
+                                    onClick={() => {
+                                        setShowWithdraw(!showWithdraw);
+                                        setShowChangeUsername(false);
+                                        setShowChangePassword(false);
+                                        setError(null);
+                                    }}
+                                    colorScheme="red"
+                                    className="w-full shadow-md shadow-red-900/25"
+                                >
+                                    {showWithdraw ? '취소' : '회원탈퇴'}
+                                </Button>
+                                {showWithdraw && (
+                                    <div className="mt-4 space-y-3 border-t border-red-500/25 pt-4">
+                                        <div>
+                                            <label className="mb-1 block text-sm text-red-100/90">비밀번호 확인</label>
+                                            <input
+                                                type="password"
+                                                value={withdrawPassword}
+                                                onChange={(e) => setWithdrawPassword(e.target.value)}
+                                                className="w-full rounded-lg border border-red-700/40 bg-secondary px-3 py-2.5 text-text-primary focus:ring-2 focus:ring-red-500/35"
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="mb-1 block text-sm text-red-100/90">
+                                                확인 문구 입력: &quot;회원탈퇴&quot;
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={withdrawConfirm}
+                                                onChange={(e) => setWithdrawConfirm(e.target.value)}
+                                                className="w-full rounded-lg border border-red-700/40 bg-secondary px-3 py-2.5 text-text-primary focus:ring-2 focus:ring-red-500/35"
+                                                placeholder="회원탈퇴"
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        {error && <p className="text-sm text-red-400">{error}</p>}
+                                        <Button
+                                            onClick={handleWithdraw}
+                                            colorScheme="red"
+                                            className="w-full"
+                                            disabled={isLoading}
+                                        >
+                                            {isLoading ? '처리 중...' : '탈퇴하기'}
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        </SettingsSection>
                     </div>
                 );
         }
     };
     
     return (
-        <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={600} initialHeight={720} isTopmost={isTopmost}>
-            <div className="h-[620px] flex flex-col">
-                <div className="flex bg-tertiary/70 p-1 rounded-lg mb-4 flex-shrink-0">
+        <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={640} initialHeight={740} isTopmost={isTopmost}>
+            <div className="flex h-[640px] flex-col bg-gradient-to-b from-tertiary/8 via-transparent to-tertiary/15 px-1 pb-1 sm:px-2">
+                <div className="mb-4 flex shrink-0 gap-1 rounded-xl border border-color/40 bg-tertiary/30 p-1 shadow-inner ring-1 ring-inset ring-white/[0.05]">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
+                            type="button"
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === tab.id ? 'bg-accent' : 'text-tertiary hover:bg-secondary/50'}`}
+                            className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-all duration-200 ${
+                                activeTab === tab.id
+                                    ? 'bg-accent font-semibold text-primary shadow-md shadow-accent/25 ring-1 ring-inset ring-white/15'
+                                    : 'text-text-secondary hover:bg-secondary/45 hover:text-text-primary'
+                            }`}
                         >
                             {tab.label}
                         </button>
                     ))}
                 </div>
-                <div className="flex-grow overflow-y-auto pr-2 p-2">
+                <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1 pr-3 sm:px-3">
                     {renderContent()}
                 </div>
-                 <div className="flex justify-end gap-4 mt-4 pt-4 border-t border-color flex-shrink-0">
-                    <Button onClick={onClose} colorScheme="gray">닫기</Button>
+                <div className="mt-auto flex shrink-0 justify-end border-t border-color/50 bg-gradient-to-t from-tertiary/20 to-transparent px-2 pb-1 pt-4 sm:px-3">
+                    <Button onClick={onClose} colorScheme="gray" className="min-w-[5.5rem] shadow-sm">
+                        닫기
+                    </Button>
                 </div>
             </div>
         </DraggableWindow>

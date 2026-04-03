@@ -16,7 +16,7 @@ import {
     isOpponentInsufficientActionPointsError,
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
-import { useIsHandheldDevice } from './useIsMobileLayout.js';
+import { useIsHandheldDevice, useViewportHeightBelow, VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './useIsMobileLayout.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
@@ -340,9 +340,12 @@ export const useApp = () => {
     });
 
     const isNarrowViewport = useIsHandheldDevice(1025);
+    const isShortViewportHeight = useViewportHeightBelow(VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT);
     const isNativeMobile = useMemo(
-        () => isNarrowViewport && settings.graphics.pcLikeMobileLayout === false,
-        [isNarrowViewport, settings.graphics.pcLikeMobileLayout],
+        () =>
+            settings.graphics.pcLikeMobileLayout === false &&
+            (isNarrowViewport || isShortViewportHeight),
+        [isNarrowViewport, isShortViewportHeight, settings.graphics.pcLikeMobileLayout],
     );
 
     // --- Server State ---

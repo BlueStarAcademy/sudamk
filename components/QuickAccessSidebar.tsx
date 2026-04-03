@@ -4,11 +4,22 @@ import { useAppContext } from '../hooks/useAppContext.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
     compact?: boolean;
+    /** 네이티브 모바일 한 화면용: 버튼·글자 축소 */
+    dense?: boolean;
+    /** 네이티브 홈 우측: PC처럼 세로 스택, 높이에 맞춰 균등 분배 */
+    nativeHomeColumn?: boolean;
     showOnlyWhenQuestCompleted?: boolean;
     fillHeight?: boolean;
 }
 
-const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({ mobile = false, compact = false, showOnlyWhenQuestCompleted = false, fillHeight = true }) => {
+const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
+    mobile = false,
+    compact = false,
+    dense = false,
+    nativeHomeColumn = false,
+    showOnlyWhenQuestCompleted = false,
+    fillHeight = true,
+}) => {
     const { handlers, unreadMailCount, hasClaimableQuest, currentUserWithStatus } = useAppContext();
     
     if (showOnlyWhenQuestCompleted && !hasClaimableQuest) {
@@ -25,28 +36,56 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({ mobile = false,
         { label: '가방', iconUrl: '/images/quickmenu/bag.png', handler: handlers.openInventory, disabled: false, notification: false },
     ];
     
-    const containerClass = mobile 
+    const containerClass = nativeHomeColumn
+        ? 'flex h-full min-h-0 w-full flex-col gap-0.5 overflow-hidden rounded-md border border-color/40 bg-panel/95 p-1'
+        : mobile && dense
+        ? "flex flex-wrap justify-center items-center gap-1"
+        : mobile
         ? "flex justify-around items-center gap-2"
         : compact
         ? `bg-panel rounded-lg p-1 flex flex-col justify-around gap-0.5 ${fillHeight ? 'h-full' : ''}`
         : `bg-panel rounded-lg p-1 flex flex-col justify-around gap-0.5 ${fillHeight ? 'h-full' : ''}`;
-    
-    const buttonClass = mobile
+
+    const buttonClass = nativeHomeColumn
+        ? 'flex min-h-0 w-full flex-1 flex-col items-center justify-center rounded-md border border-gray-500/40 bg-gradient-to-br from-gray-700/85 via-gray-600/75 to-gray-700/85 px-1 py-1 shadow-inner transition-transform active:scale-[0.98] basis-0'
+        : mobile && dense
+        ? "flex flex-col items-center justify-center p-0.5 rounded-lg w-[2.35rem] h-[2.35rem] sm:w-11 sm:h-11 bg-gradient-to-br from-gray-700/80 via-gray-600/70 to-gray-700/80 border border-gray-500/50 shadow-md transition-transform active:scale-95"
+        : mobile
         ? "flex flex-col items-center justify-center p-2 rounded-lg w-16 h-16 bg-gradient-to-br from-gray-700/80 via-gray-600/70 to-gray-700/80 hover:from-gray-600/90 hover:via-gray-500/80 hover:to-gray-600/90 border-2 border-gray-500/50 hover:border-gray-400/70 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95"
         : compact
         ? `flex flex-col items-center justify-center p-1 rounded-lg w-full bg-gradient-to-br from-gray-700/80 via-gray-600/70 to-gray-700/80 hover:from-gray-600/90 hover:via-gray-500/80 hover:to-gray-600/90 border-2 border-gray-500/50 hover:border-gray-400/70 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`
         : `flex flex-col items-center justify-center p-1 rounded-lg w-full bg-gradient-to-br from-gray-700/90 via-gray-600/80 to-gray-700/90 hover:from-gray-600/95 hover:via-gray-500/85 hover:to-gray-600/95 border-2 border-gray-500/60 hover:border-gray-400/80 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`;
+
+    const iconSize = nativeHomeColumn
+        ? 'h-6 w-6 max-h-[min(36%,1.6rem)] max-w-[min(36%,1.6rem)] object-contain'
+        : mobile && dense
+          ? "w-4 h-4 object-contain drop-shadow-sm"
+          : mobile
+            ? "w-7 h-7 object-contain drop-shadow-md"
+            : compact
+              ? "w-12 h-12 object-contain drop-shadow-md"
+              : "w-10 h-10 object-contain drop-shadow-md";
+    const labelSize = nativeHomeColumn
+        ? 'mt-1 line-clamp-2 text-center text-[9px] font-semibold leading-tight text-gray-200 sm:text-[10px]'
+        : mobile && dense
+          ? "text-[7px] mt-0.5 font-semibold text-gray-200 leading-none"
+          : mobile
+            ? "text-[11px] mt-1.5 font-semibold text-gray-200"
+            : compact
+              ? "text-[10px] mt-0.5 font-semibold text-gray-200"
+              : "text-[10px] mt-0.5 font-semibold text-gray-200";
     
-    const iconSize = mobile ? "w-7 h-7 object-contain drop-shadow-md" : compact ? "w-12 h-12 object-contain drop-shadow-md" : "w-10 h-10 object-contain drop-shadow-md";
-    const labelSize = mobile ? "text-[11px] mt-1.5 font-semibold text-gray-200" : compact ? "text-[10px] mt-0.5 font-semibold text-gray-200" : "text-[10px] mt-0.5 font-semibold text-gray-200";
+    const notificationDotClass = nativeHomeColumn
+        ? 'absolute right-0 top-0 h-1.5 w-1.5 rounded-full border border-gray-900 bg-red-500'
+        : mobile
+          ? "absolute top-1 right-1 bg-red-500 rounded-full w-2.5 h-2.5 border-2 border-gray-800"
+          : `absolute top-1 right-1 bg-red-500 rounded-full w-2.5 h-2.5 border-2 ${compact ? 'border-gray-800' : 'border-gray-800/50'}`;
     
-    const notificationDotClass = mobile
-        ? "absolute top-1 right-1 bg-red-500 rounded-full w-2.5 h-2.5 border-2 border-gray-800"
-        : `absolute top-1 right-1 bg-red-500 rounded-full w-2.5 h-2.5 border-2 ${compact ? 'border-gray-800' : 'border-gray-800/50'}`;
-    
-    const notificationCountClass = mobile
-        ? "absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-gray-800"
-        : `absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold rounded-full ${compact ? 'w-4 h-4' : 'w-5 h-5'} flex items-center justify-center border-2 ${compact ? 'border-gray-800' : 'border-gray-800/50'}`;
+    const notificationCountClass = nativeHomeColumn
+        ? 'absolute right-0 top-0 flex h-3 w-3 items-center justify-center rounded-full border border-gray-900 bg-red-500 text-[6px] font-bold text-white'
+        : mobile
+          ? "absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-gray-800"
+          : `absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold rounded-full ${compact ? 'w-4 h-4' : 'w-5 h-5'} flex items-center justify-center border-2 ${compact ? 'border-gray-800' : 'border-gray-800/50'}`;
 
 
     const renderButton = (btn: typeof allButtons[0]) => (
@@ -54,7 +93,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({ mobile = false,
             key={btn.label}
             onClick={(e) => { e.preventDefault(); btn.handler(); }}
             disabled={btn.disabled}
-            className={`relative flex-1 ${buttonClass} disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+            className={`relative ${nativeHomeColumn ? 'min-h-0' : mobile && dense ? 'flex-none' : 'flex-1'} ${buttonClass} disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
             title={btn.label}
         >
             <img src={btn.iconUrl} alt={btn.label} className={iconSize} />

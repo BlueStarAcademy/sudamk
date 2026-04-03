@@ -12,6 +12,8 @@ interface AdBannerProps {
 function getBannerSize(position: AdBannerPosition): AdBannerSize {
   if (position === 'sidebar') return SIDEBAR_AD_SIZE;
   if (position === 'left' || position === 'right') return SKYSCRAPER_AD_SIZE;
+  // 하단 배너는 네이티브 모바일 셸(최대 728px)과 동일한 리더보드 규격(728×90)
+  if (position === 'bottom') return BANNER_SIZES.pc;
   if (typeof window === 'undefined') return BANNER_SIZES.pc;
   const w = window.innerWidth;
   if (w < 768) return BANNER_SIZES.mobile;

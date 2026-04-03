@@ -19,7 +19,6 @@ import {
     TOWER_ITEM_SCAN_NAMES,
     TOWER_ITEM_REFRESH_NAMES,
 } from '../utils/towerLobbyInventory.js';
-import MobileSlideDeck from './mobile/MobileSlideDeck.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 // 월간 보상 구간 (매월 1일 0시 KST 지급, 역대 최고 층수 아님 월간 최고 층수 기준)
@@ -166,16 +165,16 @@ const TowerLobby: React.FC = () => {
     }, []);
 
     const rankingColClass = isNativeMobile
-        ? 'w-full min-h-0 flex flex-col gap-2 pb-2'
+        ? 'flex max-h-[32dvh] min-h-0 w-full flex-none flex-col gap-1 overflow-hidden pb-0.5'
         : 'flex-[0_0_20%] max-w-[20%] flex flex-col gap-2 min-h-0 overflow-hidden';
     const imageColClass = isNativeMobile
-        ? 'w-full min-h-[24vh] shrink-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative'
+        ? 'relative h-[14dvh] max-h-[120px] min-h-[72px] w-full flex-shrink-0 overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 shadow-lg shadow-amber-900/40 backdrop-blur-md'
         : 'flex-[0_0_25%] max-w-[25%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative min-h-0';
     const stageColClass = isNativeMobile
-        ? 'w-full flex-1 min-h-0 flex flex-col bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50'
+        ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 p-1 shadow-lg shadow-amber-900/40 backdrop-blur-md sm:p-2'
         : 'flex-[0_0_35%] max-w-[35%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50';
     const quickColClass = isNativeMobile
-        ? 'w-full min-h-0 flex flex-col'
+        ? 'flex max-h-[5.5rem] w-full flex-shrink-0 flex-col overflow-hidden'
         : 'flex-shrink-0 w-24 min-w-[96px] overflow-hidden';
 
     function renderTowerMainColumns() {
@@ -659,7 +658,12 @@ const TowerLobby: React.FC = () => {
                 {/* 우측 끝: 퀵메뉴 (홈화면과 동일 크기, 아래로 늘어나지 않음) */}
                 <div className={quickColClass}>
                     <div className="bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-1 backdrop-blur-md shadow-2xl shadow-amber-900/50">
-                        <QuickAccessSidebar fillHeight={isNativeMobile} />
+                        <QuickAccessSidebar
+                            fillHeight={!isNativeMobile}
+                            compact={isNativeMobile}
+                            dense={isNativeMobile}
+                            mobile={isNativeMobile}
+                        />
                     </div>
                 </div>
             </>
@@ -667,7 +671,9 @@ const TowerLobby: React.FC = () => {
     }
 
     return (
-        <div className="w-full h-full flex flex-col relative text-white overflow-hidden min-h-0" style={{
+        <div
+            className={`relative flex w-full flex-col overflow-hidden text-white ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1' : 'h-full min-h-0'}`}
+            style={{
             background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 20%, #2d2419 40%, #3d2e1f 60%, #4a3a2a 80%, #5c4a35 100%)',
             backgroundSize: '400% 400%',
             animation: 'gradientShift 20s ease infinite'
@@ -680,24 +686,28 @@ const TowerLobby: React.FC = () => {
                 }
             `}</style>
             {/* 헤더: 뒤로가기, 타이틀, 도움말 */}
-            <header className="flex-shrink-0 flex items-center justify-between px-2 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 bg-gradient-to-b from-black/60 via-amber-900/20 to-transparent backdrop-blur-sm border-b border-amber-600/40 shadow-[0_4px_20px_rgba(217,119,6,0.3)]">
+            <header
+                className={`flex flex-shrink-0 items-center justify-between border-b border-amber-600/40 bg-gradient-to-b from-black/60 via-amber-900/20 to-transparent shadow-[0_4px_20px_rgba(217,119,6,0.3)] backdrop-blur-sm ${isNativeMobile ? 'px-1 py-1.5' : 'px-2 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5'}`}
+            >
                 <button
                     onClick={onBackToProfile}
-                    className="transition-transform active:scale-90 filter hover:drop-shadow-lg p-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg hover:bg-amber-900/40 border border-amber-700/30"
+                    className={`flex items-center justify-center rounded-lg border border-amber-700/30 p-0 transition-transform hover:drop-shadow-lg active:scale-90 hover:bg-amber-900/40 ${isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'}`}
                     aria-label="뒤로가기"
                 >
-                    <img src="/images/button/back.png" alt="Back" className="w-full h-full" />
+                    <img src="/images/button/back.png" alt="Back" className="h-full w-full" />
                 </button>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-200 tracking-wider drop-shadow-[0_0_12px_rgba(217,119,6,0.9)]">
+                <h1
+                    className={`truncate font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-200 drop-shadow-[0_0_12px_rgba(217,119,6,0.9)] ${isNativeMobile ? 'max-w-[55%] text-center text-base' : 'text-2xl sm:text-3xl lg:text-4xl'}`}
+                >
                     도전의 탑
                 </h1>
                 <button
                     onClick={() => setIsHelpOpen(!isHelpOpen)}
-                    className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-transform hover:scale-110"
+                    className={`flex items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-10 sm:w-10'}`}
                     aria-label="도움말"
                     title="도움말"
                 >
-                    <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
+                    <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
                 </button>
             </header>
 
@@ -796,9 +806,9 @@ const TowerLobby: React.FC = () => {
             )}
 
             {isNativeMobile ? (
-                <MobileSlideDeck className="flex-1 min-h-0 px-2 py-2" trackClassName="min-h-[52vh]">
+                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-1 py-1">
                     {renderTowerMainColumns()}
-                </MobileSlideDeck>
+                </div>
             ) : (
                 <div className="flex-1 flex flex-row justify-center gap-2 sm:gap-3 lg:gap-4 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 lg:py-4 min-h-0 overflow-hidden">
                     {renderTowerMainColumns()}

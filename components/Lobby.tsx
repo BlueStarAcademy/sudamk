@@ -4,7 +4,6 @@ import { GameMode } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-import MobileSlideDeck from './mobile/MobileSlideDeck.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface LobbyProps {
@@ -53,22 +52,32 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
   const onBackToProfile = () => window.location.hash = '#/profile';
 
   const lobbyHeader = (
-    <header className="relative flex flex-wrap justify-between items-center mb-6 gap-4 shrink-0">
-      <button onClick={onBackToProfile} className="relative z-20 pointer-events-auto p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
-        <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
+    <header
+      className={`relative flex shrink-0 flex-wrap items-center justify-between gap-4 ${isNativeMobile ? 'mb-1 gap-2' : 'mb-6 gap-4'}`}
+    >
+      <button
+        onClick={onBackToProfile}
+        className={`relative z-20 flex items-center justify-center rounded-full p-0 transition-all duration-100 active:scale-95 active:shadow-inner active:translate-y-0.5 pointer-events-auto ${isNativeMobile ? 'h-8 w-8' : 'h-10 w-10'}`}
+      >
+        <img src="/images/button/back.png" alt="Back" className={isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'} />
       </button>
-      <div className="text-center flex-grow">
-        <h1 className="text-2xl sm:text-4xl font-bold">{title} 로비</h1>
-        <p className="text-secondary mt-2 text-sm sm:text-base">플레이할 게임을 선택하세요.</p>
+      <div className="min-w-0 flex-grow text-center">
+        <h1 className={`font-bold ${isNativeMobile ? 'text-sm' : 'text-2xl sm:text-4xl'}`}>{title} 로비</h1>
+        <p className={`text-secondary ${isNativeMobile ? 'mt-0.5 text-[10px]' : 'mt-2 text-sm sm:text-base'}`}>플레이할 게임을 선택하세요.</p>
       </div>
-      <div className="w-10 sm:w-24 shrink-0" />
+      <div className={isNativeMobile ? 'w-8 shrink-0' : 'w-10 shrink-0 sm:w-24'} />
     </header>
   );
 
   const modeGrid = (
     <section className="min-h-0">
-      <h2 className={`text-xl sm:text-2xl font-semibold mb-4 border-l-4 ${sectionBorderColor} pl-4`}>{sectionTitle}</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <h2
+        className={`font-semibold border-l-4 ${sectionBorderColor} ${isNativeMobile ? 'mb-1 border-l-2 pl-2 text-xs' : 'mb-4 pl-4 text-xl sm:text-2xl'}`}
+      >
+        {sectionTitle}
+      </h2>
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${isNativeMobile ? 'gap-2' : 'gap-4 sm:gap-6'}`}
+      >
         {modes.map(game => (
           <GameCard key={game.mode} {...game} available={gameModeAvailability[game.mode] ?? game.available} onSelect={() => handlers.handleEnterWaitingRoom(game.mode)} hoverColorClass={hoverColorClass} />
         ))}
@@ -78,11 +87,13 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
 
   if (isNativeMobile) {
     return (
-      <div className="bg-primary text-primary max-w-7xl mx-auto w-full h-full min-h-0 flex flex-col p-3">
-        <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[50vh]">
-          <div className="flex flex-col px-1 pb-4">{lobbyHeader}</div>
-          <div className="px-1 pb-8 overflow-y-auto">{modeGrid}</div>
-        </MobileSlideDeck>
+      <div className="sudamr-native-route-root mx-auto flex w-full max-w-7xl flex-col bg-primary p-1 text-primary">
+        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+          <div className="shrink-0 px-0.5">{lobbyHeader}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5 pb-1 [&_.grid]:grid-cols-1 [&_h2]:!text-sm [&_h3]:!text-xs [&_p]:!text-[11px]">
+            {modeGrid}
+          </div>
+        </div>
       </div>
     );
   }

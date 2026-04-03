@@ -63,6 +63,36 @@ export function useIsHandheldDevice(breakpoint: number = 1024): boolean {
     return isHandheld;
 }
 
+/** 뷰포트 높이가 이 값 미만이면 네이티브 모바일 레이아웃 후보(PC동일 레이아웃이 꺼진 경우). PC 셸 최소 높이에도 동일 값 사용. */
+export const VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT = 600;
+
+/**
+ * 뷰포트 높이가 maxHeightExclusive 미만인지 (리사이즈·visualViewport 반영).
+ * 짧은 데스크톱 창·가로폭은 넓은 상태에서도 모바일 셸 전환에 사용.
+ */
+export function useViewportHeightBelow(maxHeightExclusive: number): boolean {
+    const [below, setBelow] = useState(() => getViewportSize().height < maxHeightExclusive);
+
+    useEffect(() => {
+        const update = () => {
+            const vv = window.visualViewport;
+            const h = vv?.height ?? window.innerHeight;
+            setBelow(h < maxHeightExclusive);
+        };
+        update();
+        window.addEventListener('resize', update);
+        window.addEventListener('orientationchange', update);
+        window.visualViewport?.addEventListener('resize', update);
+        return () => {
+            window.removeEventListener('resize', update);
+            window.removeEventListener('orientationchange', update);
+            window.visualViewport?.removeEventListener('resize', update);
+        };
+    }, [maxHeightExclusive]);
+
+    return below;
+}
+
 /**
  * 현재 화면이 세로(portrait)인지. 모바일에서 가로 모드만 허용할 때 세로면 "돌려주세요" 오버레이 표시용.
  */

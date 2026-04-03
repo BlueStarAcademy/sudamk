@@ -18,14 +18,14 @@ const SPECIAL_RESOURCE_LABEL: Record<SpecialResourceIconKey, string> = {
     guildCoins: '길드 코인',
 };
 
-const ResourceDisplay = memo<{ icon: ResourceIconKey; value: number; className?: string }>(({ icon, value, className }) => {
+const ResourceDisplay = memo<{ icon: ResourceIconKey; value: number; className?: string; dense?: boolean }>(({ icon, value, className, dense }) => {
     const formattedValue = useMemo(() => value.toLocaleString(), [value]);
     return (
-        <div className={`flex items-center gap-1 sm:gap-2 bg-tertiary/50 rounded-full py-1 pl-1 pr-2 sm:pr-3 shadow-inner flex-shrink-0 ${className ?? ''}`}>
-            <div className="bg-primary w-7 h-7 flex items-center justify-center rounded-full text-lg flex-shrink-0">
-                <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className="w-5 h-5 object-contain" loading="lazy" decoding="async" />
+        <div className={`flex items-center bg-tertiary/50 rounded-full shadow-inner flex-shrink-0 ${dense ? 'gap-0.5 py-0.5 pl-0.5 pr-1.5' : 'gap-1 sm:gap-2 py-1 pl-1 pr-2 sm:pr-3'} ${className ?? ''}`}>
+            <div className={`bg-primary flex items-center justify-center rounded-full flex-shrink-0 ${dense ? 'w-5 h-5' : 'w-7 h-7 text-lg'}`}>
+                <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className={`object-contain ${dense ? 'w-3.5 h-3.5' : 'w-5 h-5'}`} loading="lazy" decoding="async" />
             </div>
-            <span className="font-bold text-[9px] sm:text-sm text-primary whitespace-nowrap">{formattedValue}</span>
+            <span className={`font-bold text-primary whitespace-nowrap ${dense ? 'text-[8px] max-w-[4.2rem] truncate' : 'text-[9px] sm:text-sm'}`}>{formattedValue}</span>
         </div>
     );
 });
@@ -72,28 +72,25 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus }> = ({ user }) =
 interface HeaderProps { compact?: boolean }
 
 const Header: React.FC<HeaderProps> = ({ compact = false }) => {
-    const { currentUserWithStatus, handlers, unreadMailCount } = useAppContext();
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const isMobile = false;
+    const { currentUserWithStatus, handlers, unreadMailCount, isNativeMobile } = useAppContext();
+    const isMobile = Boolean(isNativeMobile);
+    const dense = isMobile || compact;
     const [isSpecialResourcesOpen, setIsSpecialResourcesOpen] = useState(false);
     const specialResourcesRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // 메뉴가 열려있을 때 외부 클릭으로 닫기
+        // 팝오버 열림 상태에서 외부 클릭으로 닫기
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as HTMLElement;
-            if (isMobileMenuOpen && !target.closest('.mobile-menu-container')) {
-                setIsMobileMenuOpen(false);
-            }
             if (isSpecialResourcesOpen && specialResourcesRef.current && !specialResourcesRef.current.contains(target)) {
                 setIsSpecialResourcesOpen(false);
             }
         };
-        if (isMobileMenuOpen || isSpecialResourcesOpen) {
+        if (isSpecialResourcesOpen) {
             document.addEventListener('mousedown', handleClickOutside);
             return () => document.removeEventListener('mousedown', handleClickOutside);
         }
-    }, [isMobileMenuOpen, isSpecialResourcesOpen]);
+    }, [isSpecialResourcesOpen]);
 
     if (!currentUserWithStatus) return null;
 
@@ -110,46 +107,71 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
 
     return (
-        <header className="flex-shrink-0 bg-primary/80 backdrop-blur-sm shadow-lg relative z-50">
-            <div className={`flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-2 sm:gap-3 ${compact ? 'p-1.5 sm:p-2 min-h-[48px] sm:min-h-[52px]' : 'p-2.5 sm:p-3 min-h-[70px] sm:min-h-[75px]'}`}>
-                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 min-w-0 cursor-pointer relative" onClick={openProfileEditModal}>
-                     <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={compact ? 32 : 40} />
-                     <div className={`${isMobile ? 'hidden' : 'block'} min-w-0`}>
-                        <h1 className="font-bold text-primary truncate whitespace-nowrap">{currentUserWithStatus.nickname}</h1>
-                        <p className="text-xs text-tertiary truncate whitespace-nowrap">전략 Lv.{currentUserWithStatus.strategyLevel} / 놀이 Lv.{currentUserWithStatus.playfulLevel}</p>
+        <header className="relative z-50 w-full min-w-0 flex-shrink-0 overflow-x-hidden bg-primary/80 shadow-lg backdrop-blur-sm">
+            <div
+                className={`flex min-w-0 flex-wrap items-center gap-1 sm:gap-2 sm:flex-nowrap sm:items-center sm:gap-3 ${
+                    dense ? 'min-h-0 px-1.5 py-1 sm:min-h-[52px] sm:p-2' : 'min-h-[70px] p-2.5 sm:min-h-[75px] sm:p-3'
+                } ${dense ? 'gap-y-1' : 'gap-2'}`}
+            >
+                <div
+                    className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-1.5 sm:gap-3 ${dense ? 'max-w-[min(42%,11rem)]' : ''} relative`}
+                    onClick={openProfileEditModal}
+                >
+                     <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 28 : compact ? 32 : 40} />
+                     <div className="min-w-0 flex-1">
+                        <h1 className={`font-bold text-primary truncate ${dense ? 'max-w-full text-[11px] sm:text-base' : ''}`}>{currentUserWithStatus.nickname}</h1>
+                        <p className={`truncate text-tertiary ${dense ? 'text-[9px] sm:text-xs' : 'text-xs'}`}>
+                            전략 Lv.{currentUserWithStatus.strategyLevel} / 놀이 Lv.{currentUserWithStatus.playfulLevel}
+                        </p>
                      </div>
                      {!mbti && (
                         <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
                      )}
                 </div>
 
-                    <div className="flex-1 w-full sm:w-auto flex flex-wrap sm:flex-nowrap items-center justify-end gap-1 sm:gap-2">
-                    <div className="flex items-center flex-shrink-0 gap-1 bg-tertiary/60 rounded-full pl-2 pr-1 py-1 border border-tertiary/40 shadow-inner">
-                        <span className="flex items-center gap-1 font-bold text-[9px] sm:text-xs text-primary whitespace-nowrap">
-                            <span className="text-base leading-none">⚡</span>
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-0.5 sm:w-auto sm:flex-nowrap sm:gap-2">
+                    <div
+                        className={`flex flex-shrink-0 items-center gap-0.5 rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner sm:gap-1 ${
+                            dense ? 'pl-1 pr-0.5 py-0.5' : 'pl-2 pr-1 py-1'
+                        }`}
+                    >
+                        <span
+                            className={`flex items-center gap-0.5 font-bold whitespace-nowrap text-primary sm:gap-1 ${dense ? 'text-[8px]' : 'text-[9px] sm:text-xs'}`}
+                        >
+                            <span className={`leading-none ${dense ? 'text-sm' : 'text-base'}`}>⚡</span>
                             {`${safeActionPoints.current}/${safeActionPoints.max}`}
                         </span>
                         <ActionPointTimer user={currentUserWithStatus} />
                         <button
                             onClick={handlers.openActionPointModal}
-                            className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/70 hover:bg-primary transition-colors border border-primary/60 flex items-center justify-center"
+                            className={`flex flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary ${
+                                dense ? 'h-6 w-6' : 'h-7 w-7 sm:h-8 sm:w-8'
+                            }`}
                             title="행동력 충전 (상점)"
                         >
-                            <img src={resourceIcons.actionPlus} alt="행동력 충전" className="w-4 h-4 sm:w-5 sm:h-5 object-contain" loading="lazy" decoding="async" />
+                            <img
+                                src={resourceIcons.actionPlus}
+                                alt="행동력 충전"
+                                className={`object-contain ${dense ? 'h-3 w-3' : 'h-4 w-4 sm:h-5 sm:w-5'}`}
+                                loading="lazy"
+                                decoding="async"
+                            />
                         </button>
                     </div>
-                    <ResourceDisplay icon="gold" value={safeGold} className="flex-shrink-0" />
+                    <ResourceDisplay icon="gold" value={safeGold} className="flex-shrink-0" dense={dense} />
                     <div className="relative flex-shrink-0" ref={specialResourcesRef}>
-                        <div className="flex items-center gap-1">
-                            <ResourceDisplay icon="diamonds" value={safeDiamonds} className="flex-shrink-0" />
+                        <div className="flex items-center gap-0.5 sm:gap-1">
+                            <ResourceDisplay icon="diamonds" value={safeDiamonds} className="flex-shrink-0" dense={dense} />
                             <button
                                 onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
-                                className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-tertiary/60 hover:bg-tertiary/80 transition-all flex items-center justify-center border border-tertiary/40 ${
-                                    isSpecialResourcesOpen ? 'bg-tertiary/80' : ''
-                                }`}
+                                className={`flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 ${
+                                    dense ? 'h-5 w-5' : 'h-6 w-6 sm:h-7 sm:w-7'
+                                } ${isSpecialResourcesOpen ? 'bg-tertiary/80' : ''}`}
                                 title="특수 재화"
                             >
-                                <span className={`text-[10px] sm:text-xs text-primary transition-transform ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}>
+                                <span
+                                    className={`text-primary transition-transform ${dense ? 'text-[8px]' : 'text-[10px] sm:text-xs'} ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}
+                                >
                                     ▼
                                 </span>
                             </button>
@@ -166,15 +188,15 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         )}
                     </div>
                     
-                    <div className="h-9 w-px bg-border-color mx-1 sm:mx-2 flex-shrink-0"></div>
+                    <div className={`w-px flex-shrink-0 bg-border-color ${dense ? 'mx-0.5 h-6 self-center' : 'mx-1 h-9 sm:mx-2'}`} />
                     
-                    {/* 데스크톱 버튼들 */}
-                    <div className={`${isMobile ? 'hidden' : 'flex'} items-center gap-1 sm:gap-2`}>
+                    {/* 공통 버튼들 (모바일에서도 항상 노출) */}
+                    <div className="flex items-center gap-0.5 sm:gap-2">
                     {isAdmin && (
                         <Button
                             onClick={() => { window.location.hash = '#/admin'; }}
                             colorScheme="none"
-                            className="flex-shrink-0 whitespace-nowrap !px-3 !py-1.5 text-[9px] sm:text-xs rounded-lg border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]"
+                            className={`${isMobile ? '!px-2 !py-1 text-[8px]' : '!px-3 !py-1.5 text-[9px] sm:text-xs'} flex-shrink-0 whitespace-nowrap rounded-lg border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]`}
                             style={{ letterSpacing: '0.08em' }}
                         >
                             관리자
@@ -182,17 +204,17 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     )}
                     <button
                         onClick={openMailbox}
-                        className="relative p-2 rounded-lg text-xl hover:bg-secondary transition-colors"
+                        className={`relative rounded-lg text-xl transition-colors hover:bg-secondary ${isMobile ? 'p-1.5' : 'p-2'}`}
                         title="우편함"
                     >
-                        <img src="/images/icon/mail.png" alt="우편함" className="w-6 h-6" />
+                        <img src="/images/icon/mail.png" alt="우편함" className={`${isMobile ? 'h-5 w-5' : 'w-6 h-6'}`} />
                         {unreadMailCount > 0 && (
                             <span className="absolute top-1 right-1 bg-red-500 rounded-full w-2.5 h-2.5 border-2 border-primary"></span>
                         )}
                     </button>
                     <button
                         onClick={openSettingsModal}
-                        className="p-2 rounded-lg text-xl hover:bg-secondary transition-colors"
+                        className={`rounded-lg text-xl transition-colors hover:bg-secondary ${isMobile ? 'p-1.5 text-lg' : 'p-2'}`}
                         title="설정"
                     >
                         ⚙️
@@ -200,73 +222,11 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     <Button
                         onClick={handleLogout}
                         colorScheme="none"
-                        className="whitespace-nowrap !px-3 !py-1.5 text-[9px] sm:text-xs rounded-lg border border-rose-300/55 bg-gradient-to-r from-rose-500/85 via-red-500/80 to-orange-400/80 text-white shadow-[0_10px_22px_-18px_rgba(248,113,113,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-16px_rgba(248,113,113,0.6)]"
+                        className={`${isMobile ? '!px-2 !py-1 text-[8px]' : '!px-3 !py-1.5 text-[9px] sm:text-xs'} whitespace-nowrap rounded-lg border border-rose-300/55 bg-gradient-to-r from-rose-500/85 via-red-500/80 to-orange-400/80 text-white shadow-[0_10px_22px_-18px_rgba(248,113,113,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-16px_rgba(248,113,113,0.6)]`}
                         style={{ letterSpacing: '0.08em' }}
                     >
                         로그아웃
                     </Button>
-                    </div>
-
-                    {/* 모바일 메뉴 버튼 */}
-                    <div className={`${isMobile ? 'relative' : 'hidden'} mobile-menu-container`}>
-                        <button
-                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="p-2 rounded-lg text-xl hover:bg-secondary transition-colors flex items-center"
-                            title="메뉴"
-                        >
-                            <span className={`transition-transform duration-200 ${isMobileMenuOpen ? 'rotate-180' : ''}`}>
-                                ▼
-                            </span>
-                        </button>
-                        {isMobileMenuOpen && (
-                            <div className="fixed right-2 top-[70px] bg-primary border border-color rounded-lg shadow-2xl z-[9999999] min-w-[60px] py-2" style={{ zIndex: 9999999 }}>
-                                    {isAdmin && (
-                                        <button
-                                            onClick={() => {
-                                                setIsMobileMenuOpen(false);
-                                                window.location.hash = '#/admin';
-                                            }}
-                                            className="w-full px-3 py-3 hover:bg-secondary transition-colors flex items-center justify-center"
-                                            title="관리자"
-                                        >
-                                            <span className="text-2xl">👑</span>
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => {
-                                            setIsMobileMenuOpen(false);
-                                            openMailbox();
-                                        }}
-                                        className="w-full px-3 py-3 hover:bg-secondary transition-colors flex items-center justify-center relative"
-                                        title="우편함"
-                                    >
-                                        <img src="/images/icon/mail.png" alt="우편함" className="w-6 h-6 object-contain" />
-                                        {unreadMailCount > 0 && (
-                                            <span className="absolute top-1 right-1 bg-red-500 rounded-full w-2.5 h-2.5 border-2 border-primary"></span>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setIsMobileMenuOpen(false);
-                                            openSettingsModal();
-                                        }}
-                                        className="w-full px-3 py-3 hover:bg-secondary transition-colors flex items-center justify-center"
-                                        title="설정"
-                                    >
-                                        <span className="text-2xl">⚙️</span>
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setIsMobileMenuOpen(false);
-                                            handleLogout();
-                                        }}
-                                        className="w-full px-3 py-3 bg-red-500/90 hover:bg-red-600 transition-colors flex items-center justify-center rounded"
-                                        title="로그아웃"
-                                    >
-                                        <span className="text-2xl">⏻</span>
-                                    </button>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>

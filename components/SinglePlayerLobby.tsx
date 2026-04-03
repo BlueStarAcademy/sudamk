@@ -5,7 +5,6 @@ import StageGrid from './singleplayer/StageGrid.js';
 import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
 import { SinglePlayerLevel } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
-import MobileSlideDeck from './mobile/MobileSlideDeck.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 /** singlePlayerProgress(다음 플레이 스테이지 전역 인덱스)에 맞는 반 — 대기실 기본 탭 */
@@ -39,32 +38,34 @@ const SinglePlayerLobby: React.FC = () => {
     }
 
     return (
-        <div className="bg-gray-900 text-gray-100 p-2 sm:p-4 lg:p-8 w-full mx-auto flex flex-col h-full relative min-h-0">
+        <div
+            className={`relative mx-auto flex w-full flex-col bg-gray-900 text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 px-0.5' : 'h-full min-h-0 p-2 sm:p-4 lg:p-8'}`}
+        >
             {/* Header */}
-            <header className="flex justify-between items-center mb-3 sm:mb-4 lg:mb-6 flex-shrink-0 px-2 sm:px-0">
-                <button 
-                    onClick={onBackToProfile} 
-                    className="transition-transform active:scale-90 filter hover:drop-shadow-lg p-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg hover:bg-gray-800"
+            <header className={`flex flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0.5 px-0.5' : 'mb-3 px-2 sm:mb-4 sm:px-0 lg:mb-6'}`}>
+                <button
+                    onClick={onBackToProfile}
+                    className={`flex items-center justify-center rounded-lg p-0 transition-transform hover:drop-shadow-lg active:scale-90 hover:bg-gray-800 ${isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'}`}
                     aria-label="뒤로가기"
                 >
-                    <img src="/images/button/back.png" alt="Back" className="w-full h-full" />
+                    <img src="/images/button/back.png" alt="Back" className="h-full w-full" />
                 </button>
-                <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-100">싱글플레이</h1>
-                <div className="w-10"></div>
+                <h1 className={`font-bold text-gray-100 ${isNativeMobile ? 'text-sm' : 'text-xl sm:text-2xl lg:text-3xl xl:text-4xl'}`}>싱글플레이</h1>
+                <div className={isNativeMobile ? 'w-8' : 'w-10'} />
             </header>
 
             {isNativeMobile ? (
-                <MobileSlideDeck className="flex-1 min-h-0" trackClassName="min-h-[55vh]">
-                    <div className="px-1 pb-4 min-h-0 flex flex-col">
-                        <ClassNavigationPanel selectedClass={selectedClass} onClassSelect={setOverrideClass} />
+                <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden pb-0.5">
+                    <div className="max-h-[26dvh] min-h-0 shrink-0 overflow-hidden">
+                        <ClassNavigationPanel selectedClass={selectedClass} onClassSelect={setOverrideClass} compact />
                     </div>
-                    <div className="px-1 pb-4 min-h-0 flex flex-col overflow-y-auto">
+                    <div className="min-h-0 flex-[1.2] overflow-hidden">
                         <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} />
                     </div>
-                    <div className="px-1 pb-6 min-h-0 flex flex-col overflow-y-auto">
+                    <div className="max-h-[38dvh] min-h-0 shrink-0 overflow-y-auto overflow-x-hidden">
                         <TrainingQuestPanel currentUser={currentUserWithStatus} />
                     </div>
-                </MobileSlideDeck>
+                </div>
             ) : (
             <div className="grid grid-cols-12 gap-4 xl:gap-6 flex-1 min-h-0">
                 <div className="col-span-4 flex flex-col min-h-0">
