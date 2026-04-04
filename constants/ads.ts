@@ -11,11 +11,11 @@ export const AD_SLOTS = {
   skyscraperRight: '2060641067',  // TODO: AdSense 콘솔에서 새 슬롯 생성 후 교체
 } as const;
 
-/** 네이티브 모바일 셸 가로(하단 728×90 배너·콘텐츠 정렬) */
-export const NATIVE_MOBILE_SHELL_MAX_WIDTH = 728;
+/** 네이티브 모바일 셸: 세로(포트레이트) 중심 UI — 과도한 가로 폭(728 리더보드 맞춤) 방지 */
+export const NATIVE_MOBILE_SHELL_MAX_WIDTH = 480;
 
-/** 네이티브 모바일에서 모달 본문 가로 상한(셸 728px보다 약간 좁게) */
-export const NATIVE_MOBILE_MODAL_MAX_WIDTH_PX = 720;
+/** 네이티브 모바일 모달 본문 가로 상한(셸보다 약간 좁게) */
+export const NATIVE_MOBILE_MODAL_MAX_WIDTH_PX = 464;
 
 /** 디바이스별 배너 크기 */
 export const BANNER_SIZES: Record<'pc' | 'tablet' | 'mobile', AdBannerSize> = {

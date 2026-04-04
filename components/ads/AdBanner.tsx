@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAdContext } from './AdProvider.js';
 import type { AdBannerPosition, AdBannerSize } from '../../types/ads.js';
 import { BANNER_SIZES, SIDEBAR_AD_SIZE, SKYSCRAPER_AD_SIZE, AD_SLOTS } from '../../constants/ads.js';
@@ -8,14 +8,11 @@ interface AdBannerProps {
   className?: string;
 }
 
-/** 현재 뷰포트에 맞는 배너 크기 반환 */
-function getBannerSize(position: AdBannerPosition): AdBannerSize {
+/** 현재 뷰포트에 맞는 배너 크기 반환 (하단도 좁은 화면에서는 모바일 규격) */
+function getBannerSize(position: AdBannerPosition, viewportWidth: number): AdBannerSize {
   if (position === 'sidebar') return SIDEBAR_AD_SIZE;
   if (position === 'left' || position === 'right') return SKYSCRAPER_AD_SIZE;
-  // 하단 배너는 네이티브 모바일 셸(최대 728px)과 동일한 리더보드 규격(728×90)
-  if (position === 'bottom') return BANNER_SIZES.pc;
-  if (typeof window === 'undefined') return BANNER_SIZES.pc;
-  const w = window.innerWidth;
+  const w = viewportWidth;
   if (w < 768) return BANNER_SIZES.mobile;
   if (w < 1025) return BANNER_SIZES.tablet;
   return BANNER_SIZES.pc;
@@ -35,7 +32,22 @@ const AdBanner: React.FC<AdBannerProps> = ({ position, className = '' }) => {
   const { isAdReady, isProduction, clientId, isAdFree } = useAdContext();
   const adRef = useRef<HTMLModElement>(null);
   const pushedRef = useRef(false);
-  const size = getBannerSize(position);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 1024,
+  );
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    onResize();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
+
+  const size = getBannerSize(position, viewportWidth);
   const slotId = getSlotId(position);
 
   useEffect(() => {
