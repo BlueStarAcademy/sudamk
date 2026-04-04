@@ -144,7 +144,8 @@ const AppContent: React.FC = () => {
     }, [currentUser]);
 
     /**
-     * 터치 폰: 로그인·회원가입 등은 일반 세로 UI. 로그인 후에만 portrait-lock(-90°)·가로 보정 적용(index.css).
+     * 터치 폰: 예전엔 세로 보일 때 html에 portrait-lock(-90°)을 걸어 “가로폭 UI”를 긴 변에 맞췄음.
+     * 네이티브 셸(홈·독)은 이미 세로 레이아웃이므로 로그인 후에도 쓰면 홈만 가로로 돌아간 것처럼 보임 → 폰+로그인에서는 전역 회전 비활성.
      */
     useEffect(() => {
         const clearClasses = () => {
@@ -167,27 +168,7 @@ const AppContent: React.FC = () => {
                 clearClasses();
                 return;
             }
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            const portrait = w <= h;
-            const { type, angle } = readScreenOrientation();
-
-            const portraitLock = portrait;
-            const portraitSecondary = portraitLock && isPortraitSecondaryLayout(w, h, type, angle);
-            const realLandscape = !portrait;
-
-            const el = document.documentElement;
-            el.classList.toggle('sudamr-handheld-portrait-lock', portraitLock);
-            el.classList.toggle('sudamr-handheld-portrait-secondary', portraitSecondary);
-
-            if (realLandscape && !portraitLock) {
-                el.classList.add('sudamr-handheld-real-landscape');
-                const flip = computeHandheldLandscapeFlip180(w, h, type, angle);
-                el.style.setProperty('--sudamr-landscape-ui-rotate', flip ? '180deg' : '0deg');
-            } else {
-                el.classList.remove('sudamr-handheld-real-landscape');
-                el.style.removeProperty('--sudamr-landscape-ui-rotate');
-            }
+            clearClasses();
         };
 
         const syncSoon = () => {
@@ -498,69 +479,6 @@ const AppContent: React.FC = () => {
         </div>
     );
 };
-
-function readScreenOrientation(): { type: string; angle: number | null } {
-    const so = typeof screen !== 'undefined' ? (screen as Screen & { orientation?: { type?: string; angle?: number } }).orientation : undefined;
-    const type = typeof so?.type === 'string' ? so.type : '';
-    const angle = typeof so?.angle === 'number' ? so.angle : null;
-    return { type, angle };
-}
-
-function isPortraitSecondaryLayout(w: number, h: number, type: string, angle: number | null): boolean {
-    if (w > h) return false;
-    if (type === 'portrait-secondary') return true;
-    if (angle === 180 || angle === -180) return true;
-    const wo = (window as Window & { orientation?: number }).orientation;
-    if (typeof wo === 'number' && (wo === 180 || wo === -180)) return true;
-    return false;
-}
-
-/**
- * 실제 가로(w>h)일 때 한쪽 방향(secondary)에서만 UI를 180° 돌려 주소창·기기 방향과 맞춤.
- * 브라우저마다 type/angle/window.orientation 조합이 달라 여러 경로를 본다.
- */
-function computeHandheldLandscapeFlip180(w: number, h: number, type: string, angle: number | null): boolean {
-    if (w <= h) return false;
-    const t = (type || '').toLowerCase();
-
-    const isApple =
-        /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-        (navigator.platform === 'MacIntel' && (navigator as Navigator & { maxTouchPoints?: number }).maxTouchPoints > 1);
-
-    if (t.includes('landscape') && t.includes('secondary')) return true;
-    // iOS: primary면 보통 각도와 일치. Android Chrome은 type이 landscape-primary에 고정되는 기기가 있어
-    // 여기서 false로 끝내면 한쪽 가로에서 angle/window.orientation을 영원히 안 본다 → 한쪽만 안 뒤집힘.
-    if (isApple && (t === 'landscape-primary' || (t.includes('landscape') && t.includes('primary')))) return false;
-
-    const normAngle = angle === null ? null : ((((angle % 360) + 360) % 360) as number);
-    if (normAngle !== null) {
-        if (isApple) {
-            if (normAngle === 270) return true;
-            if (normAngle === 90) return false;
-            if (normAngle === 180) return true;
-        } else {
-            // Android: Chrome angle 해석을 window.orientation 과 맞춤(90↔270 기준 반전)
-            if (normAngle === 90) return true;
-            if (normAngle === 270) return false;
-            if (normAngle === 180) return true;
-        }
-    }
-
-    const wo = (window as Window & { orientation?: number }).orientation;
-    if (typeof wo === 'number') {
-        if (isApple) {
-            // iOS: 가로 양방향이 90 / -90 — 한쪽이 주소창·노치와 맞지 않으면 아래 두 줄을 서로 바꿔 조정
-            if (wo === 90) return true;
-            if (wo === -90) return false;
-        } else {
-            // Android Chrome: 주소창 방향과 맞추기 위해 90일 때만 180° 보정
-            if (wo === 90) return true;
-            if (wo === -90 || wo === 270) return false;
-        }
-    }
-
-    return false;
-}
 
 const App: React.FC = () => {
     return (

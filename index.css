@@ -224,8 +224,7 @@ html, body {
 }
 
 /*
-  터치 폰 + 세로 뷰포트: .app-container 를 -90° 돌려 가로(720 등)로 짠 UI가 긴 변에 맞게 보이게 함.
-  App.tsx 가 computeTouchLayoutProfile().isPhoneHandheldTouch 일 때만 클래스를 붙인다.
+  레거시: 터치 폰 세로 시 전체 셸 -90° 회전. 네이티브 세로 UI 도입 후 App.tsx 에서 로그인한 폰에는 더 이상 붙이지 않음(홈이 가로로 보이는 문제 방지).
 */
 html.sudamr-handheld-portrait-lock,
 html.sudamr-handheld-portrait-lock body {
