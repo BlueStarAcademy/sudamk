@@ -16,7 +16,12 @@ import {
     isOpponentInsufficientActionPointsError,
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
-import { useIsHandheldDevice, useViewportHeightBelow, VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './useIsMobileLayout.js';
+import {
+    useIsHandheldDevice,
+    useViewportHeightBelow,
+    VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT,
+    useTouchLayoutProfile,
+} from './useIsMobileLayout.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
@@ -341,13 +346,35 @@ export const useApp = () => {
 
     const isNarrowViewport = useIsHandheldDevice(1025);
     const isShortViewportHeight = useViewportHeightBelow(VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT);
-    /** 휴대기기 뷰포트에서 기본은 모바일 전용 UI. PC 화면 보기(pcLikeMobileLayout===true)일 때만 16:9 캔버스 경로 */
-    const isNativeMobile = useMemo(
-        () =>
+    const { isPhoneHandheldTouch, isLargeTouchTablet } = useTouchLayoutProfile();
+
+    /**
+     * 터치 폰: 항상 세로형 네이티브 셸(pcLike 무시).
+     * 8인치+ 터치 태블릿: 항상 PC(16:9) 셸.
+     * 그 외(데스크톱 등): 기존처럼 pcLike·뷰포트로 결정.
+     */
+    const isNativeMobile = useMemo(() => {
+        if (isPhoneHandheldTouch) return true;
+        if (isLargeTouchTablet) return false;
+        return (
             settings.graphics.pcLikeMobileLayout !== true &&
-            (isNarrowViewport || isShortViewportHeight),
-        [isNarrowViewport, isShortViewportHeight, settings.graphics.pcLikeMobileLayout],
-    );
+            (isNarrowViewport || isShortViewportHeight)
+        );
+    }, [
+        isPhoneHandheldTouch,
+        isLargeTouchTablet,
+        isNarrowViewport,
+        isShortViewportHeight,
+        settings.graphics.pcLikeMobileLayout,
+    ]);
+
+    const showPcLikeMobileLayoutSetting = !isPhoneHandheldTouch && !isLargeTouchTablet;
+
+    useEffect(() => {
+        if (!isPhoneHandheldTouch) return;
+        if (settings.graphics.pcLikeMobileLayout !== true) return;
+        setSettings((s) => ({ ...s, graphics: { ...s.graphics, pcLikeMobileLayout: false } }));
+    }, [isPhoneHandheldTouch, settings.graphics.pcLikeMobileLayout]);
 
     // --- Server State ---
     const [usersMap, setUsersMap] = useState<Record<string, User>>({});
@@ -5880,6 +5907,9 @@ export const useApp = () => {
         settings,
         isNarrowViewport,
         isNativeMobile,
+        isPhoneHandheldTouch,
+        isLargeTouchTablet,
+        showPcLikeMobileLayoutSetting,
         updateTheme,
         updateSoundSetting,
         updateFeatureSetting,

@@ -46,7 +46,20 @@ const SettingsSection: React.FC<{ title: string; children: React.ReactNode; clas
 );
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => {
-    const { settings, updateTheme, updateSoundSetting, updateFeatureSetting, updatePanelColor, updateTextColor, updatePanelEdgeStyle, updatePcLikeMobileLayout, resetGraphicsToDefault, handlers, currentUserWithStatus } = useAppContext();
+    const {
+        settings,
+        updateTheme,
+        updateSoundSetting,
+        updateFeatureSetting,
+        updatePanelColor,
+        updateTextColor,
+        updatePanelEdgeStyle,
+        updatePcLikeMobileLayout,
+        resetGraphicsToDefault,
+        handlers,
+        currentUserWithStatus,
+        showPcLikeMobileLayoutSetting,
+    } = useAppContext();
     const [activeTab, setActiveTab] = useState<SettingsTab>('graphics');
     const [showChangeUsername, setShowChangeUsername] = useState(false);
     const [showChangePassword, setShowChangePassword] = useState(false);
@@ -228,17 +241,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
             case 'graphics':
                 return (
                     <div className="flex flex-col gap-5">
-                        <SettingsSection title="화면">
-                            <div className="flex items-center justify-between gap-4 rounded-xl border border-color/50 bg-secondary/25 px-4 py-3.5">
-                                <span className="text-sm font-medium text-text-primary sm:text-[15px]">
-                                    PC 화면 보기
-                                </span>
-                                <ToggleSwitch
-                                    checked={settings.graphics.pcLikeMobileLayout === true}
-                                    onChange={(checked) => updatePcLikeMobileLayout(checked)}
-                                />
-                            </div>
-                        </SettingsSection>
+                        {showPcLikeMobileLayoutSetting && (
+                            <SettingsSection title="화면">
+                                <div className="flex items-center justify-between gap-4 rounded-xl border border-color/50 bg-secondary/25 px-4 py-3.5">
+                                    <span className="text-sm font-medium text-text-primary sm:text-[15px]">
+                                        PC 화면 보기
+                                    </span>
+                                    <ToggleSwitch
+                                        checked={settings.graphics.pcLikeMobileLayout === true}
+                                        onChange={(checked) => updatePcLikeMobileLayout(checked)}
+                                    />
+                                </div>
+                            </SettingsSection>
+                        )}
                         <SettingsSection title="UI 테마">
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                                 {THEMES.map(theme => (

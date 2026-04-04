@@ -1,5 +1,69 @@
 import { useEffect, useState } from 'react';
 
+/** 터치 태블릿 ~8인치 이상으로 볼 때 뷰포트 짧은 변 최소값(CSS 논리 px, 기기별 근사) */
+export const TABLET_8IN_MIN_SHORT_SIDE_CSS_PX = 744;
+
+/** 태블릿으로 볼 때 긴 변 상한 — 일반 데스크톱·노트북 전체 폭은 제외 */
+export const TABLET_MAX_LONG_SIDE_CSS_PX = 1600;
+
+export type TouchLayoutProfile = {
+    /** 폰·소형 터치 기기: 항상 세로형 네이티브 셸 */
+    isPhoneHandheldTouch: boolean;
+    /** 8인치급 이상 터치 태블릿: PC(16:9) 셸 */
+    isLargeTouchTablet: boolean;
+};
+
+function computeTouchLayoutProfile(): TouchLayoutProfile {
+    if (typeof window === 'undefined') {
+        return { isPhoneHandheldTouch: false, isLargeTouchTablet: false };
+    }
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const shortSide = Math.min(w, h);
+    const longSide = Math.max(w, h);
+    const hasTouch = (typeof navigator !== 'undefined' ? navigator.maxTouchPoints ?? 0 : 0) > 0;
+    const tabletLikePointer =
+        window.matchMedia?.('(pointer: coarse)').matches === true ||
+        window.matchMedia?.('(hover: none)').matches === true;
+
+    if (!hasTouch || !tabletLikePointer) {
+        return { isPhoneHandheldTouch: false, isLargeTouchTablet: false };
+    }
+
+    if (shortSide >= TABLET_8IN_MIN_SHORT_SIDE_CSS_PX && longSide <= TABLET_MAX_LONG_SIDE_CSS_PX) {
+        return { isPhoneHandheldTouch: false, isLargeTouchTablet: true };
+    }
+    if (shortSide < TABLET_8IN_MIN_SHORT_SIDE_CSS_PX) {
+        return { isPhoneHandheldTouch: true, isLargeTouchTablet: false };
+    }
+
+    return { isPhoneHandheldTouch: false, isLargeTouchTablet: false };
+}
+
+/** 터치 폰 vs 8인치+ 태블릿 구분(리사이즈·미디어쿼리 반영) */
+export function useTouchLayoutProfile(): TouchLayoutProfile {
+    const [profile, setProfile] = useState<TouchLayoutProfile>(() => computeTouchLayoutProfile());
+
+    useEffect(() => {
+        const update = () => setProfile(computeTouchLayoutProfile());
+        update();
+        window.addEventListener('resize', update);
+        window.addEventListener('orientationchange', update);
+        const mqCoarse = window.matchMedia('(pointer: coarse)');
+        const mqHover = window.matchMedia('(hover: none)');
+        mqCoarse.addEventListener('change', update);
+        mqHover.addEventListener('change', update);
+        return () => {
+            window.removeEventListener('resize', update);
+            window.removeEventListener('orientationchange', update);
+            mqCoarse.removeEventListener('change', update);
+            mqHover.removeEventListener('change', update);
+        };
+    }, []);
+
+    return profile;
+}
+
 const getViewportSize = () => {
     if (typeof window === 'undefined') {
         return { width: 0, height: 0 };

@@ -65,6 +65,7 @@ const AppContent: React.FC = () => {
         hasClaimableQuest,
         settings,
         isNativeMobile,
+        isLargeTouchTablet,
     } = useAppContext();
     
     // 에셋 프리로딩은 UX를 위해 백그라운드로 돌리고, 화면을 막지 않도록 함
@@ -148,6 +149,13 @@ const AppContent: React.FC = () => {
 
     const isHandheld = useIsHandheldDevice(1025);
     const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout === true;
+    /** 8인치+ 태블릿(PC 셸)은 세로 스크롤 여유를 PC 화면 보기와 동일하게 둔다 */
+    const pcShellUsesScrollLayout = pcLikeMobileLayout || isLargeTouchTablet;
+    /**
+     * 터치 폰: 항상 세로형 셸. 대형 태블릿은 PC 로그인 셸.
+     */
+    const usePortraitFirstShell =
+        isNativeMobile || (!currentUser && isHandheld && !isLargeTouchTablet);
     /** 스케일 셸 전용: 네이티브 모드에서는 좌우 레일·하단 배너로 대체 */
     const showLobbySideAds = Boolean(currentUser && !isGameView && !isNativeMobile);
 
@@ -238,7 +246,7 @@ const AppContent: React.FC = () => {
                 </div>
             )}
             
-            {isNativeMobile ? (
+            {usePortraitFirstShell ? (
                 <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative">
                     <style>{`
                         #sudamr-modal-root [data-draggable-window] {
@@ -304,7 +312,10 @@ const AppContent: React.FC = () => {
                                     </span>
                                 </p>
                             </header>
-                            <main className="relative z-10 flex w-full min-w-0 max-w-[min(100%,480px)] flex-col items-center justify-center sm:max-w-[520px] lg:max-w-[560px]">
+                            <main
+                                className="relative z-10 flex w-full min-w-0 flex-col items-center justify-center"
+                                style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
+                            >
                                 <Router />
                             </main>
                         </div>
@@ -316,11 +327,11 @@ const AppContent: React.FC = () => {
             ) : (
             /* 전체 앱을 16:9 박스 안에 넣고, 내부는 고정 캔버스(1920x1080)를 scale로 맞춰 “한 장 그림”처럼 동일 비율로 확대/축소 */
             <div
-                className={`flex min-h-0 w-full flex-1 flex-col ${pcLikeMobileLayout ? 'overflow-y-auto overscroll-y-contain' : 'overflow-hidden'}`}
+                className={`flex min-h-0 w-full flex-1 flex-col ${pcShellUsesScrollLayout ? 'overflow-y-auto overscroll-y-contain' : 'overflow-hidden'}`}
             >
                 <div
                     className="flex min-h-0 w-full flex-1 items-center justify-center"
-                    style={pcLikeMobileLayout ? { minHeight: VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } : undefined}
+                    style={pcShellUsesScrollLayout ? { minHeight: VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } : undefined}
                 >
                 {showLobbySideAds && (
                     <div className="flex flex-shrink-0 items-center justify-center px-0.5 sm:px-1 self-stretch w-40 max-w-[28vw]">
@@ -414,7 +425,10 @@ const AppContent: React.FC = () => {
                                         </span>
                                     </p>
                                 </header>
-                                <main className="relative z-10 flex w-full min-w-0 max-w-[min(100%,480px)] flex-col items-center justify-center sm:max-w-[520px] lg:max-w-[560px]">
+                                <main
+                                    className="relative z-10 flex w-full min-w-0 flex-col items-center justify-center"
+                                    style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
+                                >
                                     <Router />
                                 </main>
                             </div>
