@@ -44,12 +44,13 @@ const NativeMobileScaledContent: React.FC<{ children: React.ReactNode }> = ({ ch
                 }}
             >
                 <div
-                    className="absolute left-0 top-0 overflow-hidden"
+                    className="absolute left-0 top-0 overflow-x-hidden overflow-y-auto overscroll-y-contain"
                     style={{
                         width: bw,
                         height: bh,
                         transform: `scale(${scale})`,
                         transformOrigin: 'top left',
+                        WebkitOverflowScrolling: 'touch',
                     }}
                 >
                     <div className="flex min-h-full min-w-0 flex-col">{children}</div>

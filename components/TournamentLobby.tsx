@@ -854,7 +854,7 @@ const TournamentLobby: React.FC = () => {
 
     return (
         <div
-            className={`relative flex w-full flex-col overflow-hidden ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 px-0.5 pb-0.5' : 'h-full min-h-0 p-4 sm:p-6 lg:p-8'}`}
+            className={`relative flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5' : 'h-full min-h-0 overflow-hidden p-4 sm:p-6 lg:p-8'}`}
         >
             {isNativeMobile ? (
                 <header className="relative mb-0.5 flex min-h-9 shrink-0 items-center justify-center px-1">

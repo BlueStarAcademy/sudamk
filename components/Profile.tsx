@@ -1112,18 +1112,20 @@ const Profile: React.FC<ProfileProps> = () => {
                     </button>
                 </div>
             </header>
-            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <main
+                className={`flex min-h-0 flex-1 flex-col ${isNativeMobile ? 'overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'overflow-hidden'}`}
+            >
                 {isNativeMobile ? (
                     <>
                         {profileTab === 'home' && (
-                            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-0.5 pb-0.5">
+                            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5">
                                 {/* 상단 1줄: 프로필 + 장비 + 퀵메뉴(PC처럼 비율) */}
-                                <div className="grid min-h-0 flex-[0.68] grid-cols-[minmax(0,1fr)_minmax(0,280px)_6rem] gap-1 overflow-hidden">
-                                    <div className="min-h-0 flex flex-col overflow-hidden rounded-md border border-color bg-panel p-1.5 text-[clamp(8px,2.5vw,11px)] leading-snug [&_button]:max-w-full">
+                                <div className="grid min-h-0 flex-[0.68] grid-cols-[minmax(0,1fr)_minmax(0,280px)_6rem] gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+                                    <div className="min-h-0 flex flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-md border border-color bg-panel p-1.5 text-[clamp(8px,2.5vw,11px)] leading-snug [&_button]:max-w-full">
                                         {ProfilePanelContent}
                                     </div>
 
-                                    <div className="flex min-h-0 min-w-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-md border border-color bg-panel px-3 py-2.5">
+                                    <div className="flex min-h-0 min-w-0 flex-col items-center justify-center gap-1.5 overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-md border border-color bg-panel px-3 py-2.5">
                                         <h3 className="w-full shrink-0 text-center text-[11px] font-semibold text-secondary sm:text-xs">장비</h3>
                                         <div className="mx-auto grid min-h-0 w-full flex-1 grid-cols-3 grid-rows-2 gap-1.5">
                                             {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
@@ -1159,16 +1161,16 @@ const Profile: React.FC<ProfileProps> = () => {
                                         </div>
                                     </div>
 
-                                    <div className="min-h-0 h-full w-full overflow-hidden">
+                                    <div className="min-h-0 h-full w-full overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         {/* PC의 우측 퀵메뉴 폭(w-24)과 맞추기 위해 6rem 컬럼 */}
                                         <QuickAccessSidebar nativeHomeColumn />
                                     </div>
                                 </div>
 
                                 {/* 아랫줄: 채팅 패널 + 공지사항 */}
-                                <div className="grid min-h-0 flex-[0.72] grid-cols-2 gap-1 overflow-hidden">
-                                    <div className="min-h-0 h-full rounded-md border border-color bg-panel overflow-hidden">
-                                        <div className="min-h-0 h-full">
+                                <div className="grid min-h-0 flex-[0.72] grid-cols-2 gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+                                    <div className="min-h-0 h-full min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-md border border-color bg-panel">
+                                        <div className="min-h-0 h-full min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                             <ChatWindow
                                                 messages={globalChat}
                                                 mode="global"
@@ -1178,7 +1180,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                             />
                                         </div>
                                     </div>
-                                    <div className="min-h-0 min-w-0 overflow-hidden">
+                                    <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <HomeBoardPanel
                                             posts={homeBoardPosts || []}
                                             isAdmin={currentUserWithStatus.isAdmin}
@@ -1190,19 +1192,19 @@ const Profile: React.FC<ProfileProps> = () => {
                             </div>
                         )}
                         {profileTab === 'ranking' && (
-                            <div className="grid min-h-0 flex-1 grid-cols-2 gap-1 overflow-hidden px-0.5 pb-0.5">
-                                <div className="flex min-h-0 h-full min-w-0 flex-col overflow-hidden">
+                            <div className="grid min-h-0 flex-1 grid-cols-2 gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5">
+                                <div className="flex min-h-0 h-full min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                     <GameRankingBoard mobileSplitLarge />
                                 </div>
-                                <div className="flex min-h-0 h-full min-w-0 flex-col overflow-hidden">
+                                <div className="flex min-h-0 h-full min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                     <BadukRankingBoard mobileSplitLarge />
                                 </div>
                             </div>
                         )}
                         {profileTab === 'arena' && (
-                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-1 pb-1">
+                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 pb-1">
                                 <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2">
-                                    <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-hidden">
+                                    <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <LobbyCard
                                             type="strategic"
                                             stats={aggregatedStats.strategic}
@@ -1216,7 +1218,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                             arenaMobile
                                         />
                                     </div>
-                                    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
+                                    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <ArenaMobileStatStrip
                                             variant="strategic"
                                             agg={aggregatedStats.strategic}
@@ -1228,7 +1230,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                     </div>
                                 </div>
                                 <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2">
-                                    <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-hidden">
+                                    <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <LobbyCard
                                             type="playful"
                                             stats={aggregatedStats.playful}
@@ -1242,7 +1244,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                             arenaMobile
                                         />
                                     </div>
-                                    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
+                                    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <ArenaMobileStatStrip
                                             variant="playful"
                                             agg={aggregatedStats.playful}
@@ -1254,7 +1256,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                     </div>
                                 </div>
                                 <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2">
-                                    <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-hidden">
+                                    <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <PveCard
                                             title="능력 PVP"
                                             imageUrl={STRATEGIC_GO_LOBBY_IMG}
@@ -1263,7 +1265,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                             arenaMobile
                                         />
                                     </div>
-                                    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
+                                    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <ArenaMobilePvpStatStrip />
                                     </div>
                                 </div>

@@ -147,11 +147,13 @@ const Login: React.FC = () => {
     <div
       className={
         isNativeMobile
-          ? 'mx-auto flex w-full min-w-0 max-w-full justify-center px-3'
+          ? 'mx-auto flex w-full min-w-0 max-w-full justify-center px-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]'
           : 'mx-auto flex w-full min-w-0 max-w-[min(100%,440px)] justify-center sm:max-w-[min(100%,460px)] lg:max-w-[min(100%,520px)]'
       }
     >
-      <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 p-6 pb-7 pt-7 shadow-[0_24px_56px_-18px_rgba(0,0,0,0.78)] backdrop-blur-md ring-1 ring-inset ring-white/[0.07] sm:p-8 sm:pb-9 sm:pt-9 lg:p-8 lg:pt-9">
+      <div
+        className={`relative w-full rounded-2xl border border-white/10 bg-zinc-950/80 p-6 pb-7 pt-7 shadow-[0_24px_56px_-18px_rgba(0,0,0,0.78)] backdrop-blur-md ring-1 ring-inset ring-white/[0.07] sm:p-8 sm:pb-9 sm:pt-9 lg:p-8 lg:pt-9 ${isNativeMobile ? 'overflow-x-hidden' : 'overflow-hidden'}`}
+      >
         {banInfo && (
           <div className="mb-4 rounded-lg border border-red-500/40 bg-red-950/35 p-3 text-sm text-red-100">
             <div className="font-semibold mb-1">접속 금지 상태입니다.</div>

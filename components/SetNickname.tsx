@@ -156,8 +156,12 @@ const SetNickname: React.FC = () => {
     }
 
     return (
-        <div className={`flex items-center justify-center py-8 ${isNativeMobile ? 'min-h-[85dvh] px-3' : 'min-h-screen py-12'}`}>
-            <div className={`w-full space-y-6 bg-gray-800 rounded-lg shadow-2xl border border-color ${isNativeMobile ? 'max-w-full p-5' : 'max-w-md p-8'}`}>
+        <div
+            className={`flex min-h-0 items-center justify-center py-8 ${isNativeMobile ? 'min-h-[min(85dvh,100%)] w-full px-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))]' : 'min-h-screen py-12'}`}
+        >
+            <div
+                className={`w-full space-y-6 rounded-lg border border-color bg-gray-800 shadow-2xl ${isNativeMobile ? 'max-w-full overflow-x-hidden p-5' : 'max-w-md p-8'}`}
+            >
                 <div>
                     <h2 className="text-3xl font-bold text-center text-white">닉네임 설정</h2>
                     <p className="mt-2 text-center text-gray-400">게임에서 사용할 닉네임을 설정해주세요. (2~6자, 비속어 불가, 중복 불가)</p>

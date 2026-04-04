@@ -887,7 +887,7 @@ const TowerLobby: React.FC = () => {
 
     return (
         <div
-            className={`relative flex w-full flex-col overflow-hidden text-white ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1' : 'h-full min-h-0'}`}
+            className={`relative flex w-full flex-col text-white ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'h-full min-h-0 overflow-hidden'}`}
             style={
                 isNativeMobile
                     ? { background: '#0a0a0a' }
@@ -1033,7 +1033,7 @@ const TowerLobby: React.FC = () => {
             )}
 
             {isNativeMobile ? (
-                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-1 py-1">
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 py-1">
                     {renderTowerMainColumns()}
                 </div>
             ) : (

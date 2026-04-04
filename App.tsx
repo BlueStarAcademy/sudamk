@@ -143,6 +143,85 @@ const AppContent: React.FC = () => {
         }
     }, [currentUser]);
 
+    /**
+     * 터치 폰: 로그인·회원가입 등은 일반 세로 UI. 로그인 후에만 portrait-lock(-90°)·가로 보정 적용(index.css).
+     */
+    useEffect(() => {
+        const clearClasses = () => {
+            const el = document.documentElement;
+            el.classList.remove(
+                'sudamr-handheld-portrait-lock',
+                'sudamr-handheld-portrait-secondary',
+                'sudamr-handheld-real-landscape',
+            );
+            el.style.removeProperty('--sudamr-landscape-ui-rotate');
+        };
+
+        const sync = () => {
+            const { isPhoneHandheldTouch } = computeTouchLayoutProfile();
+            if (!isPhoneHandheldTouch) {
+                clearClasses();
+                return;
+            }
+            if (!currentUser) {
+                clearClasses();
+                return;
+            }
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const portrait = w <= h;
+            const { type, angle } = readScreenOrientation();
+
+            const portraitLock = portrait;
+            const portraitSecondary = portraitLock && isPortraitSecondaryLayout(w, h, type, angle);
+            const realLandscape = !portrait;
+
+            const el = document.documentElement;
+            el.classList.toggle('sudamr-handheld-portrait-lock', portraitLock);
+            el.classList.toggle('sudamr-handheld-portrait-secondary', portraitSecondary);
+
+            if (realLandscape && !portraitLock) {
+                el.classList.add('sudamr-handheld-real-landscape');
+                const flip = computeHandheldLandscapeFlip180(w, h, type, angle);
+                el.style.setProperty('--sudamr-landscape-ui-rotate', flip ? '180deg' : '0deg');
+            } else {
+                el.classList.remove('sudamr-handheld-real-landscape');
+                el.style.removeProperty('--sudamr-landscape-ui-rotate');
+            }
+        };
+
+        const syncSoon = () => {
+            sync();
+            requestAnimationFrame(sync);
+            [16, 50, 120, 280].forEach((ms) => window.setTimeout(sync, ms));
+        };
+
+        const mqCoarse = window.matchMedia?.('(pointer: coarse)');
+        const mqHover = window.matchMedia?.('(hover: none)');
+        mqCoarse?.addEventListener('change', syncSoon);
+        mqHover?.addEventListener('change', syncSoon);
+
+        sync();
+        window.addEventListener('resize', sync);
+        window.addEventListener('orientationchange', syncSoon);
+        const mq = window.matchMedia?.('(orientation: portrait)');
+        mq?.addEventListener('change', syncSoon);
+        const so = typeof screen !== 'undefined' ? (screen as Screen & { orientation?: EventTarget }).orientation : undefined;
+        so?.addEventListener?.('change', syncSoon as EventListener);
+        const vv = window.visualViewport;
+        vv?.addEventListener('resize', sync);
+        return () => {
+            mqCoarse?.removeEventListener('change', syncSoon);
+            mqHover?.removeEventListener('change', syncSoon);
+            window.removeEventListener('resize', sync);
+            window.removeEventListener('orientationchange', syncSoon);
+            mq?.removeEventListener('change', syncSoon);
+            so?.removeEventListener?.('change', syncSoon as EventListener);
+            vv?.removeEventListener('resize', sync);
+            clearClasses();
+        };
+    }, [currentUser]);
+
     const isGameView = currentRoute.view === 'game';
     const backgroundClass = currentUser ? 'bg-primary' : 'bg-login-background';
 
@@ -223,7 +302,9 @@ const AppContent: React.FC = () => {
                             style={{ maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH }}
                         >
                             {!isGameView && <Header />}
-                            <main className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+                            <main
+                                className={`flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden ${isGameView ? 'overflow-hidden' : 'overflow-y-auto overscroll-y-contain'}`}
+                            >
                                 {isPhoneHandheldTouch ? (
                                     <Router />
                                 ) : (
@@ -242,7 +323,7 @@ const AppContent: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-start gap-4 overflow-hidden bg-transparent px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
+                        <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-start gap-4 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-transparent px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
                             <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/82 via-black/65 to-black/78" />
                             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_14%,rgba(180,140,80,0.14),transparent_48%)]" />
                             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_50%_at_50%_92%,rgba(30,58,95,0.18),transparent_52%)]" />
@@ -272,7 +353,7 @@ const AppContent: React.FC = () => {
                                 </p>
                             </header>
                             <main
-                                className="relative z-10 flex w-full min-h-0 min-w-0 flex-1 flex-col items-stretch justify-center"
+                                className="relative z-10 flex w-full min-h-0 min-w-0 flex-1 flex-col items-stretch justify-start overflow-x-hidden overflow-y-auto overscroll-y-contain pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
                                 style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
                             >
                                 {isPhoneHandheldTouch ? (
@@ -481,83 +562,7 @@ function computeHandheldLandscapeFlip180(w: number, h: number, type: string, ang
     return false;
 }
 
-/**
- * 터치 폰에서 세로 뷰포트일 때 html.sudamr-handheld-portrait-lock 으로 .app-container를 -90° 돌려
- * 가로(720 등)로 짠 UI가 화면 긴 변에 맞게 보이게 함(index.css).
- */
 const App: React.FC = () => {
-    useEffect(() => {
-        const clearClasses = () => {
-            const el = document.documentElement;
-            el.classList.remove(
-                'sudamr-handheld-portrait-lock',
-                'sudamr-handheld-portrait-secondary',
-                'sudamr-handheld-real-landscape',
-            );
-            el.style.removeProperty('--sudamr-landscape-ui-rotate');
-        };
-
-        const sync = () => {
-            const { isPhoneHandheldTouch } = computeTouchLayoutProfile();
-            if (!isPhoneHandheldTouch) {
-                clearClasses();
-                return;
-            }
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            const portrait = w <= h;
-            const { type, angle } = readScreenOrientation();
-
-            const portraitLock = portrait;
-            const portraitSecondary = portraitLock && isPortraitSecondaryLayout(w, h, type, angle);
-            const realLandscape = !portrait;
-
-            const el = document.documentElement;
-            el.classList.toggle('sudamr-handheld-portrait-lock', portraitLock);
-            el.classList.toggle('sudamr-handheld-portrait-secondary', portraitSecondary);
-
-            if (realLandscape && !portraitLock) {
-                el.classList.add('sudamr-handheld-real-landscape');
-                const flip = computeHandheldLandscapeFlip180(w, h, type, angle);
-                el.style.setProperty('--sudamr-landscape-ui-rotate', flip ? '180deg' : '0deg');
-            } else {
-                el.classList.remove('sudamr-handheld-real-landscape');
-                el.style.removeProperty('--sudamr-landscape-ui-rotate');
-            }
-        };
-
-        const syncSoon = () => {
-            sync();
-            requestAnimationFrame(sync);
-            [16, 50, 120, 280].forEach((ms) => window.setTimeout(sync, ms));
-        };
-
-        const mqCoarse = window.matchMedia?.('(pointer: coarse)');
-        const mqHover = window.matchMedia?.('(hover: none)');
-        mqCoarse?.addEventListener('change', syncSoon);
-        mqHover?.addEventListener('change', syncSoon);
-
-        sync();
-        window.addEventListener('resize', sync);
-        window.addEventListener('orientationchange', syncSoon);
-        const mq = window.matchMedia?.('(orientation: portrait)');
-        mq?.addEventListener('change', syncSoon);
-        const so = typeof screen !== 'undefined' ? (screen as Screen & { orientation?: EventTarget }).orientation : undefined;
-        so?.addEventListener?.('change', syncSoon as EventListener);
-        const vv = window.visualViewport;
-        vv?.addEventListener('resize', sync);
-        return () => {
-            mqCoarse?.removeEventListener('change', syncSoon);
-            mqHover?.removeEventListener('change', syncSoon);
-            window.removeEventListener('resize', sync);
-            window.removeEventListener('orientationchange', syncSoon);
-            mq?.removeEventListener('change', syncSoon);
-            so?.removeEventListener?.('change', syncSoon as EventListener);
-            vv?.removeEventListener('resize', sync);
-            clearClasses();
-        };
-    }, []);
-
     return (
         <div className="app-container">
             <AdProvider>

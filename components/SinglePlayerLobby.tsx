@@ -39,7 +39,7 @@ const SinglePlayerLobby: React.FC = () => {
 
     return (
         <div
-            className={`relative mx-auto flex w-full flex-col bg-gray-900 text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 px-0.5' : 'h-full min-h-0 p-2 sm:p-4 lg:p-8'}`}
+            className={`relative mx-auto flex w-full flex-col bg-gray-900 text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5' : 'h-full min-h-0 p-2 sm:p-4 lg:p-8'}`}
         >
             {/* Header */}
             <header
@@ -59,18 +59,18 @@ const SinglePlayerLobby: React.FC = () => {
             </header>
 
             {isNativeMobile ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden pb-0.5">
+                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-0.5">
                     {/* 상단: 좌 단계 선택 · 우 수련 과제 */}
-                    <div className="grid min-h-0 max-h-[min(42dvh,380px)] shrink-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-1 overflow-hidden">
-                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                    <div className="grid min-h-0 max-h-[min(42dvh,380px)] shrink-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                             <ClassNavigationPanel selectedClass={selectedClass} onClassSelect={setOverrideClass} compact />
                         </div>
-                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                             <TrainingQuestPanel currentUser={currentUserWithStatus} compactTopSlot />
                         </div>
                     </div>
                     {/* 하단: 스테이지 패널 */}
-                    <div className="min-h-0 flex-1 overflow-hidden">
+                    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
                         <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} compact />
                     </div>
                 </div>

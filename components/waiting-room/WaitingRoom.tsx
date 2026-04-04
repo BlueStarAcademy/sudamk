@@ -385,9 +385,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           </>
         )}
       </header>
-      <div className="flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6 overflow-hidden">
+      <div
+        className={`flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6 ${isNativeMobile ? 'overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'overflow-hidden'}`}
+      >
           {isNativeMobile && isStrategicPlayfulLobby ? (
-            <div className="relative flex h-full min-h-0 flex-1 flex-col gap-1 overflow-hidden px-0.5 pb-0.5">
+            <div className="relative flex h-full min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5">
               {/* 상단 flex-[0.68]: 좌(전광판+랭킹전|유저) · 우 6rem(퀵 flex-1 + 사이드 버튼) */}
               <div className="flex min-h-0 flex-[0.68] gap-1 overflow-hidden">
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1 overflow-hidden">

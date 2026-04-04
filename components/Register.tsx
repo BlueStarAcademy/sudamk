@@ -92,7 +92,9 @@ const Register: React.FC = () => {
                     : 'mx-auto flex w-full min-w-0 max-w-[min(100%,440px)] justify-center py-2 sm:max-w-[min(100%,460px)] lg:max-w-[min(100%,520px)]'
             }
         >
-            <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 p-6 pb-7 pt-8 shadow-[0_24px_56px_-18px_rgba(0,0,0,0.78)] backdrop-blur-md ring-1 ring-inset ring-white/[0.07] sm:p-7 sm:pt-8 lg:p-8 lg:pt-9">
+            <div
+                className={`relative w-full rounded-2xl border border-white/10 bg-zinc-950/80 p-6 pb-7 pt-8 shadow-[0_24px_56px_-18px_rgba(0,0,0,0.78)] backdrop-blur-md ring-1 ring-inset ring-white/[0.07] sm:p-7 sm:pt-8 lg:p-8 lg:pt-9 ${isNativeMobile ? 'overflow-x-hidden' : 'overflow-hidden'}`}
+            >
                 <div
                     className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent"
                     aria-hidden

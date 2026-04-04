@@ -2315,11 +2315,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isBoardRotated={isBoardRotated}
                                         onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
                                     />
-                                    {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
+                                    {/* 착수 확정: PC는 판 옆, 모바일은 하단 고정 */}
                                     {showMoveConfirmPanel && (
                                         <div
-                                            className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
-                                            style={{ left: 'calc(50% + 420px + 8px)' }}
+                                            className={
+                                                isMobile
+                                                    ? 'pointer-events-auto fixed bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] left-1/2 z-[60] -translate-x-1/2'
+                                                    : 'pointer-events-auto absolute top-1/2 z-20 -translate-y-1/2'
+                                            }
+                                            style={isMobile ? undefined : { left: 'calc(50% + 420px + 8px)' }}
                                         >
                                             <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
                                                 <Button
@@ -2480,11 +2484,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
                                     />
-                                {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
+                                {/* 착수 확정: PC는 판 옆, 모바일은 하단 고정 */}
                                 {showMoveConfirmPanel && (
                                         <div
-                                            className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
-                                            style={{ left: 'calc(50% + 420px + 8px)' }}
+                                            className={
+                                                isMobile
+                                                    ? 'pointer-events-auto fixed bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] left-1/2 z-[60] -translate-x-1/2'
+                                                    : 'pointer-events-auto absolute top-1/2 z-20 -translate-y-1/2'
+                                            }
+                                            style={isMobile ? undefined : { left: 'calc(50% + 420px + 8px)' }}
                                         >
                                             <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
                                             <Button
@@ -2691,11 +2699,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             }}
                                         />
                                     </div>
-                                    {/* 착수 확정 UI를 바둑판 우측에 고정 (PC/모바일 공통) */}
+                                    {/* 착수 확정: PC는 판 옆, 모바일은 하단 고정 */}
                                     {showMoveConfirmPanel && (
                                         <div
-                                            className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto"
-                                            style={{ left: 'calc(50% + 420px + 8px)' }}
+                                            className={
+                                                isMobile
+                                                    ? 'pointer-events-auto fixed bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] left-1/2 z-[60] -translate-x-1/2'
+                                                    : 'pointer-events-auto absolute top-1/2 z-20 -translate-y-1/2'
+                                            }
+                                            style={isMobile ? undefined : { left: 'calc(50% + 420px + 8px)' }}
                                         >
                                             <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
                                                 <Button
