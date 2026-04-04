@@ -2,7 +2,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.js';
+import { installPortraitLockLifecycleForPhoneHandheld } from './utils/mobilePortraitLock.js';
 import './index.css';
+
+installPortraitLockLifecycleForPhoneHandheld();
 
 // Register Service Worker for PWA (프로덕션 환경에서만)
 // 일시적으로 Service Worker 비활성화 (백엔드 API 연결 문제 해결을 위해)

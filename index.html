@@ -4,6 +4,32 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/images/Icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- 터치 폰만: React·번들보다 먼저 세로 잠금 시도(첫 페인트 전). 숫자는 hooks/useIsMobileLayout.ts TABLET_* 와 동일 -->
+    <script>
+      (function () {
+        try {
+          var w = window.innerWidth,
+            h = window.innerHeight;
+          var shortSide = Math.min(w, h),
+            longSide = Math.max(w, h);
+          var hasTouch = (navigator.maxTouchPoints || 0) > 0;
+          var tabletLike = false;
+          try {
+            tabletLike =
+              (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+              (window.matchMedia && window.matchMedia('(hover: none)').matches);
+          } catch (e) {}
+          if (!hasTouch || !tabletLike) return;
+          if (shortSide >= 744 && longSide <= 1600) return;
+          if (shortSide >= 744) return;
+          var o = screen.orientation;
+          if (!o || !o.lock) return;
+          o.lock('portrait').catch(function () {
+            o.lock('portrait-primary').catch(function () {});
+          });
+        } catch (e) {}
+      })();
+    </script>
     <meta name="description" content="바둑 게임 - The Ascending Masters" />
     <meta name="theme-color" content="#1a1a1a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

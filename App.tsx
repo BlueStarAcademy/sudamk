@@ -184,47 +184,6 @@ const AppContent: React.FC = () => {
         return () => ro.disconnect();
     }, [isNativeMobile]);
 
-    // 휴대기기: 세로 모드 고정(PWA manifest와 동일). 일부 브라우저는 사용자 제스처 후에만 lock 성공.
-    useEffect(() => {
-        if (typeof window === 'undefined' || !isHandheld) return;
-        const orient = (window as any).screen?.orientation;
-        if (!orient?.lock) return;
-
-        let lastLockAttempt = 0;
-        const tryLockPortrait = () => {
-            const now = Date.now();
-            if (now - lastLockAttempt < 400) return;
-            lastLockAttempt = now;
-            orient.lock('portrait').catch(() => {
-                orient.lock('portrait-primary').catch(() => {});
-            });
-        };
-
-        const onVisibilityChange = () => {
-            if (document.visibilityState === 'visible') tryLockPortrait();
-        };
-
-        tryLockPortrait();
-        if (document.readyState !== 'complete') {
-            window.addEventListener('load', tryLockPortrait, { once: true });
-        }
-        window.addEventListener('focus', tryLockPortrait);
-        window.addEventListener('orientationchange', tryLockPortrait);
-        document.addEventListener('visibilitychange', onVisibilityChange);
-        orient.addEventListener?.('change', tryLockPortrait);
-        const onGesture = () => tryLockPortrait();
-        document.addEventListener('touchstart', onGesture, { passive: true, capture: true });
-        document.addEventListener('click', onGesture, { capture: true });
-        return () => {
-            window.removeEventListener('focus', tryLockPortrait);
-            window.removeEventListener('orientationchange', tryLockPortrait);
-            document.removeEventListener('visibilitychange', onVisibilityChange);
-            orient.removeEventListener?.('change', tryLockPortrait);
-            document.removeEventListener('touchstart', onGesture, { capture: true } as AddEventListenerOptions);
-            document.removeEventListener('click', onGesture, { capture: true } as AddEventListenerOptions);
-        };
-    }, [isHandheld]);
-
     return (
         <div className={`font-sans ${backgroundClass} text-primary flex flex-col`} style={{ 
             minHeight: '100%',

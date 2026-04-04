@@ -5,8 +5,8 @@ import {
 } from '../../constants/ads.js';
 
 /**
- * 720×1280 논리 프레임을 유지한 채, 남는 뷰포트에 맞춰 축소해 항상 세로형으로 보이게 함.
- * (광고·헤더는 바깥 셸에 두고 라우트 본문만 스케일)
+ * 720×1280 논리 프레임을 유지한 채 가로를 셸(하단 독·배너와 동일 폭)에 맞춰 축소한다.
+ * 예전에는 세로까지 맞추느라 min(sx,sy)로 줄여 가로에 빈 여백이 생겼음 → 가로 우선, 세로는 스크롤.
  */
 const NativeMobileScaledContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -18,11 +18,9 @@ const NativeMobileScaledContent: React.FC<{ children: React.ReactNode }> = ({ ch
         const measure = () => {
             const r = el.getBoundingClientRect();
             const sw = r.width;
-            const sh = r.height;
-            if (sw <= 0 || sh <= 0) return;
+            if (sw <= 0) return;
             const sx = sw / NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX;
-            const sy = sh / NATIVE_MOBILE_CONTENT_BASE_HEIGHT_PX;
-            const s = Math.min(sx, sy, 1);
+            const s = Math.min(sx, 1);
             setScale(Number.isFinite(s) && s > 0 ? s : 1);
         };
         measure();
@@ -37,23 +35,21 @@ const NativeMobileScaledContent: React.FC<{ children: React.ReactNode }> = ({ ch
     return (
         <div
             ref={containerRef}
-            className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-center overflow-hidden"
+            className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-y-auto overflow-x-hidden overscroll-y-contain"
         >
             <div
-                className="relative flex-shrink-0 overflow-hidden"
+                className="relative w-full flex-shrink-0 overflow-x-hidden"
                 style={{
-                    width: bw * scale,
                     height: bh * scale,
                 }}
             >
                 <div
-                    className="absolute left-0 top-0 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y"
+                    className="absolute left-0 top-0 overflow-hidden"
                     style={{
                         width: bw,
                         height: bh,
                         transform: `scale(${scale})`,
                         transformOrigin: 'top left',
-                        WebkitOverflowScrolling: 'touch',
                     }}
                 >
                     <div className="flex min-h-full min-w-0 flex-col">{children}</div>

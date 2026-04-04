@@ -87,7 +87,7 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
 
   if (isNativeMobile) {
     return (
-      <div className="sudamr-native-route-root mx-auto flex w-full max-w-7xl flex-col bg-primary p-1 text-primary">
+      <div className="sudamr-native-route-root flex w-full flex-col bg-primary p-1 text-primary">
         <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
           <div className="shrink-0 px-0.5">{lobbyHeader}</div>
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5 pb-1 [&_.grid]:grid-cols-1 [&_h2]:!text-sm [&_h3]:!text-xs [&_p]:!text-[11px]">
