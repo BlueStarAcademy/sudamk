@@ -6,7 +6,6 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import Avatar from '../Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, GUILD_INITIAL_MEMBER_LIMIT, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 import { formatLastSeenGuild } from '../../utils/timeUtils.js';
-import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 
 interface GuildMembersPanelProps {
     guild: GuildType;
@@ -115,7 +114,6 @@ const MemberManagementModal: React.FC<{
 
 const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberInfo }) => {
     const { handlers, allUsers, onlineUsers, currentUserWithStatus } = useAppContext();
-    const { isNativeMobile } = useNativeMobileShell();
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
     const [managingMember, setManagingMember] = useState<GuildMember | null>(null);
 
@@ -241,87 +239,39 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
     };
 
     return (
-        <div
-            className={`relative flex h-full flex-col overflow-visible rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 shadow-2xl backdrop-blur-md ${isNativeMobile ? 'p-3' : 'p-6'}`}
-        >
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
-            <div className="relative z-10 flex h-full flex-col">
-                <div className={`flex flex-shrink-0 items-center justify-between gap-2 ${isNativeMobile ? 'mb-3' : 'mb-6'}`}>
-                    <h3
-                        className={`flex items-center gap-1.5 font-bold text-highlight drop-shadow-lg ${isNativeMobile ? 'min-w-0 flex-1 text-base leading-tight' : 'gap-2 text-2xl'}`}
-                    >
-                        <span className={isNativeMobile ? 'text-base' : 'text-2xl'} aria-hidden>
-                            👥
-                        </span>
-                        <span className="min-w-0">
-                            길드원{' '}
-                            <span className={`whitespace-nowrap text-primary ${isNativeMobile ? 'text-xs font-bold' : 'text-lg'}`}>
-                                ({sortedMembers.length}/{memberLimit})
-                            </span>
-                        </span>
+        <div className="flex flex-col h-full bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md p-6 relative overflow-visible">
+            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
+            <div className="relative z-10 flex flex-col h-full">
+                <div className="flex justify-between items-center mb-6 flex-shrink-0">
+                    <h3 className="text-2xl font-bold text-highlight drop-shadow-lg flex items-center gap-2">
+                        <span className="text-2xl">👥</span>
+                        <span>길드원 목록 <span className="text-lg text-primary">({sortedMembers.length} / {memberLimit})</span></span>
                     </h3>
                     {myMemberInfo && myMemberInfo.role !== 'leader' && (
-                        <Button
-                            onClick={handleLeaveGuild}
-                            colorScheme="red"
-                            className={`shrink-0 border-2 border-red-500/50 shadow-lg transition-all hover:shadow-xl ${isNativeMobile ? '!px-2 !py-1 !text-[10px]' : '!px-4 !py-2 !text-xs'}`}
-                        >
-                            길드 탈퇴
-                        </Button>
+                        <Button onClick={handleLeaveGuild} colorScheme="red" className="!text-xs !py-2 !px-4 border-2 border-red-500/50 shadow-lg hover:shadow-xl transition-all">길드 탈퇴</Button>
                     )}
                     {myMemberInfo && myMemberInfo.role === 'leader' && sortedMembers.length === 1 && (
-                        <Button
-                            onClick={handleLeaveGuild}
-                            colorScheme="red"
-                            className={`shrink-0 border-2 border-red-500/50 shadow-lg transition-all hover:shadow-xl ${isNativeMobile ? '!px-2 !py-1 !text-[10px]' : '!px-4 !py-2 !text-xs'}`}
-                        >
-                            길드 해체
-                        </Button>
+                        <Button onClick={handleLeaveGuild} colorScheme="red" className="!text-xs !py-2 !px-4 border-2 border-red-500/50 shadow-lg hover:shadow-xl transition-all">길드 해체</Button>
                     )}
                 </div>
-                <div className="flex min-h-0 flex-grow flex-col overflow-hidden">
-                <div className={`min-h-0 min-w-0 flex-grow overflow-y-auto ${isNativeMobile ? 'pr-1' : 'pr-3'}`}>
+                <div className="flex flex-col flex-grow min-h-0 overflow-hidden">
+                <div className="overflow-y-auto pr-3 flex-grow min-h-0 min-w-0">
                     {sortedMembers.length === 0 ? (
-                        <div className="flex h-full items-center justify-center py-8">
+                        <div className="flex items-center justify-center h-full py-12">
                             <div className="text-center">
-                                <p className={`text-tertiary font-semibold ${isNativeMobile ? 'mb-1 text-sm' : 'mb-2 text-xl'}`}>길드원이 없습니다</p>
-                                <p className={`text-gray-500 ${isNativeMobile ? 'text-xs' : 'text-sm'}`}>아직 가입한 길드원이 없습니다.</p>
+                                <p className="text-xl text-tertiary font-semibold mb-2">길드원이 없습니다</p>
+                                <p className="text-sm text-gray-500">아직 가입한 길드원이 없습니다.</p>
                             </div>
                         </div>
                     ) : (
-                        <table className="w-full min-w-0 border-collapse">
+                        <table className="w-full border-collapse">
                         <thead className="sticky top-0 z-10">
-                            <tr className="border-b-2 border-stone-600/50 bg-gradient-to-r from-stone-800/95 via-neutral-700/85 to-stone-800/95 font-bold text-highlight">
-                                <th
-                                    className={`text-left ${isNativeMobile ? 'max-w-[40%] px-2 py-2 text-[10px] leading-tight' : 'px-5 py-4 text-base'}`}
-                                >
-                                    길드원
-                                </th>
-                                <th
-                                    className={`text-center whitespace-nowrap ${isNativeMobile ? 'px-0.5 py-2 text-[9px] leading-tight' : 'w-24 py-4 text-sm'}`}
-                                    title="주간 기여도"
-                                >
-                                    {isNativeMobile ? '주간' : '주간 기여도'}
-                                </th>
-                                <th
-                                    className={`text-center whitespace-nowrap ${isNativeMobile ? 'px-0.5 py-2 text-[9px] leading-tight' : 'w-24 py-4 text-sm'}`}
-                                    title="누적 기여도"
-                                >
-                                    {isNativeMobile ? '누적' : '누적 기여도'}
-                                </th>
-                                <th
-                                    className={`text-center ${isNativeMobile ? 'min-w-0 max-w-[4.5rem] px-0.5 py-2 text-[9px] leading-tight' : 'w-28 py-4 text-sm'}`}
-                                    title="최근 접속"
-                                >
-                                    {isNativeMobile ? '접속' : '최근 접속'}
-                                </th>
-                                {canManage && (
-                                    <th
-                                        className={`text-center whitespace-nowrap ${isNativeMobile ? 'px-0.5 py-2 text-[9px]' : 'w-20 py-4 text-sm'}`}
-                                    >
-                                        관리
-                                    </th>
-                                )}
+                            <tr className="text-sm text-highlight font-bold bg-gradient-to-r from-stone-800/95 via-neutral-700/85 to-stone-800/95 border-b-2 border-stone-600/50">
+                                <th className="text-left px-5 py-4 text-base">길드원</th>
+                                <th className="text-center w-24 py-4">주간 기여도</th>
+                                <th className="text-center w-24 py-4">누적 기여도</th>
+                                <th className="text-center w-28 py-4">최근 접속</th>
+                                {canManage && <th className="text-center w-20 py-4">관리</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -353,70 +303,35 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                             : 'bg-gradient-to-r from-stone-800/95 via-neutral-700/90 to-stone-800/95'
                                     }`}
                                 >
-                                    <td className={isNativeMobile ? 'px-2 py-2' : 'px-5 py-4'}>
-                                        <div className={`flex min-w-0 items-center ${isNativeMobile ? 'gap-2' : 'gap-5'}`}>
-                                            <div className="relative shrink-0">
-                                                <Avatar
-                                                    userId={member.userId}
-                                                    userName={memberDisplayName}
-                                                    size={isNativeMobile ? 36 : 56}
-                                                    avatarUrl={avatarUrl}
-                                                    borderUrl={borderUrl}
-                                                />
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center gap-5 min-w-0">
+                                            <div className="relative flex-shrink-0">
+                                                 <Avatar userId={member.userId} userName={memberDisplayName} size={56} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                                             </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p
-                                                    className={`mb-0.5 flex min-w-0 items-center gap-1 font-bold drop-shadow-lg ${isNativeMobile ? 'text-xs leading-snug' : 'mb-1 gap-2 text-xl'}`}
-                                                >
-                                                    <span
-                                                        className={`shrink-0 rounded-full ${isNativeMobile ? 'h-2 w-2' : 'h-2.5 w-2.5'} ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}
-                                                        title={isOnline ? '온라인' : '오프라인'}
-                                                    />
-                                                    <span className="truncate" title={memberDisplayName}>
-                                                        {memberDisplayName}
-                                                    </span>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-xl truncate drop-shadow-lg mb-1 flex items-center gap-2">
+                                                    <span className={`flex-shrink-0 w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} title={isOnline ? '온라인' : '오프라인'} />
+                                                    {memberDisplayName}
                                                 </p>
-                                                <p
-                                                    className={`font-bold drop-shadow-md ${getRoleColor(member.role)} ${isNativeMobile ? 'text-[10px] leading-none' : 'text-sm'}`}
-                                                >
-                                                    {getRoleName(member.role)}
-                                                </p>
+                                                <p className={`text-sm font-bold ${getRoleColor(member.role)} drop-shadow-md`}>{getRoleName(member.role)}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="align-middle text-center">
-                                        <p
-                                            className={`font-bold text-primary drop-shadow-lg ${isNativeMobile ? 'text-xs tabular-nums' : 'text-lg'}`}
-                                        >
-                                            {member.weeklyContribution || 0}
-                                        </p>
+                                    <td className="text-center w-24 align-middle">
+                                        <p className="font-bold text-lg text-primary drop-shadow-lg">{member.weeklyContribution || 0}</p>
                                     </td>
-                                    <td className="align-middle text-center">
-                                        <p
-                                            className={`font-bold text-accent drop-shadow-lg ${isNativeMobile ? 'text-xs tabular-nums' : 'text-lg'}`}
-                                        >
-                                            {member.contributionTotal || 0}
-                                        </p>
+                                    <td className="text-center w-24 align-middle">
+                                        <p className="font-bold text-lg text-accent drop-shadow-lg">{member.contributionTotal || 0}</p>
                                     </td>
-                                    <td className="min-w-0 align-middle text-center">
-                                        <p
-                                            className={`font-semibold ${isNativeMobile ? 'truncate text-[10px] leading-tight' : 'truncate text-sm'}`}
-                                        >
-                                            {isOnline ? (
-                                                <span className="text-green-400 drop-shadow-lg">온라인</span>
-                                            ) : (
-                                                <span className="text-tertiary" title={formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}>
-                                                    {formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}
-                                                </span>
-                                            )}
-                                        </p>
+                                    <td className="text-center w-28 align-middle min-w-0">
+                                        <p className="truncate text-sm font-semibold">{isOnline ? <span className="text-green-400 drop-shadow-lg">온라인</span> : <span className="text-tertiary">{formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}</span>}</p>
                                     </td>
                                     {canManage && (
-                                        <td className="align-middle text-center" onClick={(e) => e.stopPropagation()}>
+                                        <td className="text-center w-20 align-middle" onClick={(e) => e.stopPropagation()}>
                                             {member.userId !== myMemberInfo?.userId && (
                                                 <Button
                                                     onClick={() => setManagingMember(member)}
-                                                    className={`border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl ${isNativeMobile ? '!px-1 !py-1 !text-[9px] leading-none' : 'hover:scale-105 !px-4 !py-2.5 !text-xs'}`}
+                                                    className="!text-xs !py-2.5 !px-4 border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
                                                 >
                                                     관리
                                                 </Button>

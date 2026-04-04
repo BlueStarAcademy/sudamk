@@ -5,12 +5,14 @@ import {
 } from '../../constants/ads.js';
 
 /**
- * 720×1280 논리 프레임을 유지한 채 가로를 셸(하단 독·배너와 동일 폭)에 맞춰 축소한다.
- * 예전에는 세로까지 맞추느라 min(sx,sy)로 줄여 가로에 빈 여백이 생겼음 → 가로 우선, 세로는 스크롤.
+ * 720×(최대 1280) 논리 프레임: 가로는 셸 폭에 맞추고(scale = min(sw/720,1)),
+ * 세로는 할당된 main 높이에 맞게 논리 높이만 줄여 한 화면에 넣는다.
+ * 고정 1280 + 가로만 스케일하면 시각 높이가 뷰포트를 넘겨 바깥 스크롤이 생기고 하단 그리드가 잘린다.
  */
 const NativeMobileScaledContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
+    const [logicalHeight, setLogicalHeight] = useState(NATIVE_MOBILE_CONTENT_BASE_HEIGHT_PX);
 
     useLayoutEffect(() => {
         const el = containerRef.current;
@@ -18,10 +20,14 @@ const NativeMobileScaledContent: React.FC<{ children: React.ReactNode }> = ({ ch
         const measure = () => {
             const r = el.getBoundingClientRect();
             const sw = r.width;
-            if (sw <= 0) return;
+            const sh = r.height;
+            if (sw <= 0 || sh <= 0) return;
             const sx = sw / NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX;
             const s = Math.min(sx, 1);
+            const rawLogicalH = sh / s;
+            const logicalH = Math.min(NATIVE_MOBILE_CONTENT_BASE_HEIGHT_PX, rawLogicalH);
             setScale(Number.isFinite(s) && s > 0 ? s : 1);
+            setLogicalHeight(Number.isFinite(logicalH) && logicalH > 0 ? logicalH : NATIVE_MOBILE_CONTENT_BASE_HEIGHT_PX);
         };
         measure();
         const ro = new ResizeObserver(measure);
@@ -30,30 +36,31 @@ const NativeMobileScaledContent: React.FC<{ children: React.ReactNode }> = ({ ch
     }, []);
 
     const bw = NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX;
-    const bh = NATIVE_MOBILE_CONTENT_BASE_HEIGHT_PX;
 
     return (
         <div
             ref={containerRef}
-            className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-y-auto overflow-x-hidden overscroll-y-contain"
+            className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-hidden overflow-x-hidden overscroll-y-none"
         >
-            <div
-                className="relative w-full flex-shrink-0 overflow-x-hidden"
-                style={{
-                    height: bh * scale,
-                }}
-            >
+            <div className="min-h-0 w-full flex-1 overflow-x-hidden overflow-hidden overscroll-y-none">
                 <div
-                    className="absolute left-0 top-0 overflow-x-hidden overflow-y-auto overscroll-y-contain"
+                    className="relative overflow-hidden"
                     style={{
-                        width: bw,
-                        height: bh,
-                        transform: `scale(${scale})`,
-                        transformOrigin: 'top left',
-                        WebkitOverflowScrolling: 'touch',
+                        width: bw * scale,
+                        height: logicalHeight * scale,
                     }}
                 >
-                    <div className="flex min-h-full min-w-0 flex-col">{children}</div>
+                    <div
+                        className="absolute left-0 top-0 flex min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-hidden"
+                        style={{
+                            width: bw,
+                            height: logicalHeight,
+                            transform: `scale(${scale})`,
+                            transformOrigin: 'top left',
+                        }}
+                    >
+                        <div className="flex h-full min-h-0 min-w-0 flex-col">{children}</div>
+                    </div>
                 </div>
             </div>
         </div>

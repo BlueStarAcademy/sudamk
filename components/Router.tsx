@@ -123,7 +123,11 @@ const Router: React.FC = () => {
         case 'set-nickname':
             return <SetNickname />;
         case 'profile':
-            return <Profile />;
+            return (
+                <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+                    <Profile />
+                </div>
+            );
         case 'lobby':
             const lobbyType = currentRoute.params.type === 'playful' ? 'playful' : 'strategic';
             return <Lobby lobbyType={lobbyType} />;

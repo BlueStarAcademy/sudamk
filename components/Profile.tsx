@@ -65,14 +65,15 @@ const getXpRequirementForLevel = (level: number): number => {
     return xp;
 };
 
-const XpBar: React.FC<{ level: number, currentXp: number, label: string, colorClass: string }> = ({ level, currentXp, label, colorClass }) => {
+const XpBar: React.FC<{ level: number, currentXp: number, label: string, colorClass: string; bumpText?: boolean }> = ({ level, currentXp, label, colorClass, bumpText = false }) => {
     const maxXp = getXpRequirementForLevel(level);
     const percentage = Math.min((currentXp / maxXp) * 100, 100);
+    const fs = bumpText ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)';
     return (
-        <div>
-            <div className="flex justify-between items-baseline mb-0.5 text-xs whitespace-nowrap">
-                <span className="font-semibold whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>{label} <span className="text-base font-bold">Lv.{level}</span></span>
-                <span className="font-mono text-tertiary whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>{currentXp} / {maxXp}</span>
+        <div className="min-w-0">
+            <div className="mb-0.5 flex min-w-0 items-baseline justify-between gap-1 text-xs">
+                <span className="min-w-0 truncate font-semibold" style={{ fontSize: fs }}>{label} <span className="text-base font-bold">Lv.{level}</span></span>
+                <span className="shrink-0 whitespace-nowrap text-right font-mono tabular-nums text-tertiary" style={{ fontSize: fs }}>{currentXp} / {maxXp}</span>
             </div>
             <div className="w-full bg-tertiary/50 rounded-full h-3 border border-color">
                 <div className={`${colorClass} h-full rounded-full transition-width duration-500`} style={{ width: `${percentage}%` }}></div>
@@ -120,8 +121,9 @@ const EquipmentSlotDisplay: React.FC<{
     scaleFactor?: number;
     /** 특정 레이아웃에서만 슬롯·아이콘 축소 */
     compact?: boolean;
-}> = ({ slot, item, onClick, compact = false }) => {
+}> = ({ slot, item, onClick, compact = false, scaleFactor = 1 }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
+    const itemImgPct = Math.min(96, (compact ? 72 : 80) * scaleFactor);
     
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
@@ -147,8 +149,8 @@ const EquipmentSlotDisplay: React.FC<{
                         alt={item.name}
                         className={`absolute object-contain ${compact ? 'p-1' : 'p-1.5'}`}
                         style={{
-                            width: compact ? '72%' : '80%',
-                            height: compact ? '72%' : '80%',
+                            width: `${itemImgPct}%`,
+                            height: `${itemImgPct}%`,
                             left: '50%',
                             top: '50%',
                             transform: 'translate(-50%, -50%)',
@@ -890,10 +892,12 @@ const Profile: React.FC<ProfileProps> = () => {
         return bonuses;
     }, [equippedItems]);
     
-    const ProfilePanelContent = useMemo(() => (
+    const ProfilePanelContent = useMemo(() => {
+        const nh = isNativeMobile;
+        return (
         <>
-            <div className="flex flex-row gap-1.5 items-center">
-                <div className="flex-shrink-0 flex flex-col items-center gap-0.5 w-20">
+            <div className="flex min-w-0 flex-row items-center gap-1.5">
+                <div className="flex w-20 flex-shrink-0 flex-col items-center gap-0.5">
                     <div className="relative">
                         <Avatar userId={currentUserWithStatus.id} userName={nickname} size={64} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                         <button 
@@ -907,32 +911,32 @@ const Profile: React.FC<ProfileProps> = () => {
                             )}
                         </button>
                     </div>
-                    <div className="flex flex-col items-center w-full">
-                        <div className="flex items-center gap-1 w-full justify-center">
-                            <h2 className="text-sm font-bold truncate whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }} title={nickname}>{nickname}</h2>
+                    <div className="flex w-full min-w-0 flex-col items-center">
+                        <div className="flex w-full min-w-0 justify-center">
+                            <h2 className="max-w-full truncate text-sm font-bold" style={{ fontSize: nh ? 'clamp(0.8125rem, 2.15vw, 0.9375rem)' : 'clamp(0.75rem, 2vw, 0.875rem)' }} title={nickname}>{nickname}</h2>
                         </div>
-                         <p className="text-[10px] text-tertiary mt-0.5 truncate whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.625rem)' }}>
+                         <p className="mt-0.5 max-w-full truncate text-tertiary" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.75rem)' : 'clamp(0.625rem, 1.5vw, 0.625rem)' }} title={currentUserWithStatus.mbti ? `MBTI: ${currentUserWithStatus.mbti}` : 'MBTI: 미설정'}>
                             MBTI: {currentUserWithStatus.mbti ? currentUserWithStatus.mbti : '미설정'}
                         </p>
                     </div>
                 </div>
                 
-                <div className="flex-grow bg-tertiary/30 p-1.5 rounded-md flex flex-col gap-1 min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                        <CombinedLevelBadge level={combinedLevel} />
-                        <div className="flex-1 min-w-0 space-y-0.5 flex flex-col justify-center">
-                            <XpBar level={currentUserWithStatus.strategyLevel} currentXp={currentUserWithStatus.strategyXp} label="전략" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
-                            <XpBar level={currentUserWithStatus.playfulLevel} currentXp={currentUserWithStatus.playfulXp} label="놀이" colorClass="bg-gradient-to-r from-yellow-500 to-orange-400" />
+                <div className="min-w-0 flex-1 rounded-md bg-tertiary/30 p-1.5 flex flex-col gap-1">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                        <CombinedLevelBadge level={combinedLevel} compact={nh} />
+                        <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
+                            <XpBar bumpText={nh} level={currentUserWithStatus.strategyLevel} currentXp={currentUserWithStatus.strategyXp} label="전략" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
+                            <XpBar bumpText={nh} level={currentUserWithStatus.playfulLevel} currentXp={currentUserWithStatus.playfulXp} label="놀이" colorClass="bg-gradient-to-r from-yellow-500 to-orange-400" />
                         </div>
                     </div>
                     <button
                         onClick={() => setShowMannerRankModal(true)}
-                        className="w-full text-left hover:bg-tertiary/50 rounded-md p-1 transition-all"
+                        className="w-full min-w-0 text-left hover:bg-tertiary/50 rounded-md p-1 transition-all"
                         title="매너 등급 정보 보기"
                     >
-                        <div className="flex justify-between items-baseline mb-0.5 text-xs whitespace-nowrap">
-                            <span className="font-semibold whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>매너 등급</span>
-                            <span className={`font-semibold text-xs whitespace-nowrap overflow-hidden ${mannerRank.color} cursor-pointer transition-all`} style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>
+                        <div className="mb-0.5 flex min-w-0 items-baseline justify-between gap-1 text-xs">
+                            <span className="min-w-0 shrink-0 font-semibold" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>매너 등급</span>
+                            <span className={`min-w-0 truncate text-right text-xs font-semibold ${mannerRank.color} cursor-pointer transition-all`} style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={`${totalMannerScore}점 (${mannerRank.rank})`}>
                                 {totalMannerScore}점 ({mannerRank.rank})
                             </span>
                         </div>
@@ -963,7 +967,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
-                                    <div className="font-semibold text-white truncate" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }}>
+                                    <div className="truncate font-semibold text-white" style={{ fontSize: nh ? 'clamp(0.8125rem, 2.1vw, 0.9375rem)' : 'clamp(0.75rem, 2vw, 0.875rem)' }}>
                                         {guildInfo.name}
                                     </div>
                                     <div className="text-xs text-gray-400">
@@ -976,30 +980,30 @@ const Profile: React.FC<ProfileProps> = () => {
                             </button>
                     ) : guildLoadingFailed ? (
                         // 확인 완료 후, 서버에서 '가입한 길드 없음'일 때만 창설/가입 버튼
-                        <div className="flex items-center gap-2">
-                            <div className="flex-1 flex gap-2">
-                                <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드창설</Button>
-                                <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className="flex-1 justify-center !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400">길드가입</Button>
+                        <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex min-w-0 flex-1 flex-nowrap gap-2">
+                                <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}>길드창설</Button>
+                                <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}>길드가입</Button>
                             </div>
                         </div>
                     ) : (
                         <div className="w-full p-2 min-h-[40px]" aria-hidden="true" />
                     )}
                 </div>
-                 <div className="flex justify-between items-center mb-1 flex-shrink-0 whitespace-nowrap">
-                    <h3 className="font-semibold text-secondary text-sm whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }}>능력치</h3>
-                    <div className="text-xs flex items-center gap-2 whitespace-nowrap overflow-hidden">
-                        <span className="whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>보너스: <span className="font-bold text-green-400">{availablePoints}</span>P</span>
+                 <div className="mb-1 flex min-w-0 flex-shrink-0 items-center justify-between gap-1">
+                    <h3 className="min-w-0 shrink-0 text-sm font-semibold text-secondary" style={{ fontSize: nh ? 'clamp(0.8125rem, 2.1vw, 0.9375rem)' : 'clamp(0.75rem, 2vw, 0.875rem)' }}>능력치</h3>
+                    <div className="flex min-w-0 items-center gap-1 text-xs sm:gap-2">
+                        <span className="min-w-0 truncate" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={`보너스: ${availablePoints}P`}>보너스: <span className="font-bold text-green-400">{availablePoints}</span>P</span>
                         <Button 
                             onClick={handlers.openStatAllocationModal} 
                             colorScheme="none" 
-                            className="!text-[9px] !py-0.5 !px-2 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
+                            className={`!shrink-0 !whitespace-nowrap !px-2 !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : '!text-[9px]'}`}
                         >
                             분배
                         </Button>
                     </div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <div className={`grid grid-cols-2 gap-y-1 ${nh ? 'gap-x-2' : 'gap-x-4'}`}>
                     {Object.values(CoreStat).map(stat => {
 						const baseStats = currentUserWithStatus.baseStats || {};
 						const spentStatPoints = currentUserWithStatus.spentStatPoints || {};
@@ -1009,11 +1013,11 @@ const Profile: React.FC<ProfileProps> = () => {
 						const finalValue = Math.floor((baseValue + bonusInfo.flat) * (1 + bonusInfo.percent / 100));
 						const bonus = finalValue - baseValue;
                         return (
-                            <div key={stat} className="bg-tertiary/40 p-1 rounded-md flex items-center justify-between text-xs whitespace-nowrap overflow-hidden">
-                                <span className="font-semibold text-secondary whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>{stat}</span>
-                                <span className="font-mono font-bold whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={`기본: ${baseValue}, 장비: ${bonus}`}>
+                            <div key={stat} className="flex min-w-0 items-center justify-between gap-0.5 rounded-md bg-tertiary/40 p-1 text-xs">
+                                <span className="min-w-0 truncate font-semibold text-secondary" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={stat}>{stat}</span>
+                                <span className="shrink-0 whitespace-nowrap text-right font-mono font-bold tabular-nums" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={`기본: ${baseValue}, 장비: ${bonus}`}>
                                     {isNaN(finalValue) ? 0 : finalValue}
-                                    {bonus > 0 && <span className="text-green-400 text-xs ml-0.5">(+{bonus})</span>}
+                                    {bonus > 0 && <span className="ml-0.5 text-xs text-green-400">(+{bonus})</span>}
                                 </span>
                             </div>
                         );
@@ -1021,7 +1025,8 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
             </div>
         </>
-    ), [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds, guildCheckDone, guildLoadingFailed, combinedLevel]);
+        );
+    }, [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds, guildCheckDone, guildLoadingFailed, combinedLevel, nickname, avatarUrl, borderUrl, isNativeMobile]);
     
     const LobbyCards = (
         <div className="grid grid-cols-12 grid-rows-2 gap-2 lg:gap-4 h-full">
@@ -1089,9 +1094,9 @@ const Profile: React.FC<ProfileProps> = () => {
         );
     return (
         <div
-            className={`bg-primary text-primary flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root' : 'h-full p-2 sm:p-4 lg:p-2'}`}
+            className={`bg-primary text-primary flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root h-full max-h-full min-h-0' : 'h-full p-2 sm:p-4 lg:p-2'}`}
         >
-            <header className={`flex flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0 px-1 py-0.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
+            <header className={`flex flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0 px-0.5 py-0.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
                 <h1 className={`font-bold text-primary ${isNativeMobile ? 'text-sm' : 'text-base lg:text-2xl'}`}>
                     {isNativeMobile ? (profileTab === 'ranking' ? '랭킹' : profileTab === 'arena' ? '경기장' : '홈') : '홈'}
                 </h1>
@@ -1118,34 +1123,36 @@ const Profile: React.FC<ProfileProps> = () => {
                 {isNativeMobile ? (
                     <>
                         {profileTab === 'home' && (
-                            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-hidden px-0.5 pb-0.5">
-                                {/* 상단: 뷰포트 대비 고정 상한(스크롤·독 침범 방지). 장비 그리드는 content-start로 행 간 빈 공간 제거 */}
-                                <div className="flex w-full min-h-0 min-w-0 shrink-0 gap-0.5 overflow-hidden h-[min(13.75rem,30svh)]">
-                                    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-md border border-color bg-panel p-1 text-[clamp(7px,2.2vw,10px)] leading-tight [&_button]:max-w-full">
+                            <div className="grid h-full w-full min-h-0 min-w-0 max-w-full flex-1 grid-rows-[6fr_minmax(0,4fr)] gap-y-0.5 overflow-hidden px-0.5 pb-0">
+                                {/* 6:4 세로 비율 → 채팅·공지 높이 축소, 독과 동일 셸 폭(w-full)에 맞춤 */}
+                                <div className="grid min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(3.5rem,0.24fr)] gap-0.5 overflow-hidden">
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel p-1 text-[clamp(8px,2.5vw,11px)] leading-snug antialiased [&_button]:max-w-full">
                                         {ProfilePanelContent}
                                     </div>
 
-                                    <div className="flex h-full min-h-0 min-w-0 max-w-[240px] flex-[1_1_240px] flex-col gap-0.5 overflow-hidden rounded-md border border-color bg-panel px-1 py-1">
-                                        <h3 className="w-full shrink-0 text-center text-[9px] font-semibold text-secondary leading-none">장비</h3>
-                                        <div className="mx-auto grid w-full shrink-0 grid-cols-3 grid-rows-2 gap-0.5 content-start justify-items-center">
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col gap-0.5 overflow-hidden rounded-md border border-color bg-panel px-1 py-1">
+                                        <h3 className="w-full shrink-0 whitespace-nowrap text-center text-[11px] font-semibold text-secondary">장비</h3>
+                                        <div className="grid min-h-0 w-full min-w-0 grid-cols-3 grid-rows-2 gap-0.5 content-start [&>*]:min-w-0">
                                             {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                                 const item = getItemForSlot(slot);
                                                 return (
-                                                    <div key={slot} className="aspect-square w-[min(100%,2.35rem)] max-w-[2.35rem]">
+                                                    <div key={slot} className="aspect-square w-full min-w-0">
                                                         <EquipmentSlotDisplay
                                                             slot={slot}
                                                             item={item}
                                                             onClick={() => item && handlers.openViewingItem(item, true)}
+                                                            scaleFactor={0.92}
                                                         />
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                        <div className="mt-0 flex w-full max-w-[13rem] shrink-0 items-center justify-center gap-0.5 pt-px">
+                                        <div className="mt-0 flex w-full min-w-0 shrink-0 items-stretch gap-0.5 pt-px">
                                             <select
                                                 value={selectedPreset}
                                                 onChange={handlePresetChange}
-                                                className="min-w-0 flex-1 rounded border border-color bg-secondary px-1 py-0.5 text-[8px] focus:border-accent focus:ring-accent"
+                                                className="min-h-[26px] min-w-0 flex-1 basis-0 rounded border border-color bg-secondary px-1 py-0.5 text-[11px] focus:border-accent focus:ring-accent"
+                                                title={presets?.[selectedPreset]?.name}
                                             >
                                                 {presets && presets.map((preset, index) => (
                                                     <option key={index} value={index}>{preset.name}</option>
@@ -1154,33 +1161,31 @@ const Profile: React.FC<ProfileProps> = () => {
                                             <Button
                                                 onClick={handlers.openEquipmentEffectsModal}
                                                 colorScheme="none"
-                                                className="!px-2 !py-1 !text-[8px] flex-shrink-0 justify-center rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
+                                                className="!shrink-0 !whitespace-nowrap !px-2 !py-1 !text-[10px] justify-center rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
                                             >
                                                 효과
                                             </Button>
                                         </div>
                                     </div>
 
-                                    <div className="flex h-full min-h-0 w-[4.25rem] shrink-0 flex-col justify-start overflow-hidden">
-                                        <QuickAccessSidebar nativeHomeColumn nativeDense fillHeight={false} />
+                                    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+                                        <QuickAccessSidebar nativeHomeColumn fillHeight />
                                     </div>
                                 </div>
 
-                                {/* 아랫줄: 남는 높이 */}
-                                <div className="grid min-h-0 min-w-0 flex-1 basis-0 grid-cols-2 gap-0.5 overflow-hidden">
-                                    <div className="min-h-0 min-w-0 overflow-hidden rounded-md border border-color bg-panel">
-                                        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto overscroll-y-contain">
-                                            <ChatWindow
-                                                messages={globalChat}
-                                                mode="global"
-                                                onAction={handlers.handleAction}
-                                                onViewUser={handlers.openViewingUser}
-                                                locationPrefix="[홈]"
-                                            />
-                                        </div>
+                                <div className="grid min-h-0 min-w-0 max-w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-0.5 overflow-hidden">
+                                    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden rounded-md border border-color bg-panel">
+                                        <ChatWindow
+                                            messages={globalChat}
+                                            mode="global"
+                                            onAction={handlers.handleAction}
+                                            onViewUser={handlers.openViewingUser}
+                                            locationPrefix="[홈]"
+                                            compactHome
+                                        />
                                     </div>
-                                    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-                                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+                                    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden">
+                                        <div className="flex h-full min-h-0 max-w-full flex-1 flex-col overflow-hidden">
                                         <HomeBoardPanel
                                             posts={homeBoardPosts || []}
                                             isAdmin={currentUserWithStatus.isAdmin}

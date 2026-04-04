@@ -47,19 +47,67 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, fitViewport = fa
         setSelectedPost(post);
     };
 
-    const headerPad = fitViewport ? 'px-2 py-2 sm:px-3' : 'px-3 py-2.5 sm:px-4';
-    const listPad = fitViewport ? 'px-1.5 pb-1.5 pt-0 sm:px-2' : 'px-2 pb-2 pt-0 sm:px-3';
+    const headerPad = fitViewport ? 'px-1.5 py-1 sm:px-2' : 'px-3 py-2.5 sm:px-4';
+    const listPad = fitViewport
+        ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-1 pb-1 pt-0'
+        : 'flex min-h-0 flex-1 flex-col px-2 pb-2 pt-0 sm:px-3';
+    const displayPostsFit = fitViewport ? sortedPosts.slice(0, 6) : sortedPosts;
 
     return (
         <>
             <div className="bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col h-full overflow-hidden">
                 <div className={`flex-shrink-0 border-b border-color text-center ${headerPad}`}>
-                    <h3 className="text-base font-bold leading-tight text-primary sm:text-lg md:text-xl">공지사항</h3>
+                    <h3
+                        className={
+                            fitViewport
+                                ? 'text-[12px] font-bold leading-tight text-primary sm:text-[13px]'
+                                : 'text-base font-bold leading-tight text-primary sm:text-lg md:text-xl'
+                        }
+                    >
+                        공지사항
+                    </h3>
                 </div>
-                <div className={`flex min-h-0 flex-1 flex-col ${listPad}`}>
+                <div className={listPad}>
                     {sortedPosts.length === 0 ? (
-                        <div className="flex flex-1 items-center justify-center py-6 text-center text-sm text-tertiary sm:text-base">
+                        <div
+                            className={
+                                fitViewport
+                                    ? 'flex flex-1 items-center justify-center py-2 text-center text-[10px] text-tertiary'
+                                    : 'flex flex-1 items-center justify-center py-6 text-center text-sm text-tertiary sm:text-base'
+                            }
+                        >
                             공지사항이 없습니다.
+                        </div>
+                    ) : fitViewport ? (
+                        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden" role="list">
+                            {displayPostsFit.map((post) => (
+                                <button
+                                    key={post.id}
+                                    type="button"
+                                    role="listitem"
+                                    className={`group relative flex min-h-[2.35rem] min-w-0 flex-1 basis-0 cursor-pointer flex-col justify-start overflow-hidden rounded-md border-2 px-1.5 py-1 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_10px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-px hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_14px_rgba(0,0,0,0.32)] active:scale-[0.99] ${
+                                        post.isPinned
+                                            ? 'border-amber-400/90 bg-gradient-to-b from-amber-900/35 via-amber-950/15 to-secondary/70'
+                                            : 'border-slate-500/70 bg-gradient-to-b from-slate-700/35 via-slate-800/25 to-secondary/55'
+                                    }`}
+                                    onClick={() => handlePostClick(post)}
+                                >
+                                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/20" />
+                                    <div className="flex min-w-0 items-start gap-1">
+                                        {post.isPinned && (
+                                            <span className="flex-shrink-0 text-[10px] text-amber-300 drop-shadow" aria-hidden>
+                                                📌
+                                            </span>
+                                        )}
+                                        <span className="line-clamp-2 min-w-0 flex-1 text-[9px] font-semibold leading-snug text-primary sm:text-[10px]">
+                                            {post.title}
+                                        </span>
+                                    </div>
+                                    <div className="mt-0.5 truncate border-t border-white/10 pt-0.5 text-[8px] leading-none text-slate-300 sm:text-[9px]">
+                                        {formatDateTime(post.createdAt).slice(2, 16)}
+                                    </div>
+                                </button>
+                            ))}
                         </div>
                     ) : (
                         <div className="min-h-0 max-h-[min(100%,calc(2.75rem*10+0.25rem))] flex-1 overflow-x-hidden overflow-y-auto rounded-md border border-color/60 bg-secondary/20">

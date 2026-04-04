@@ -234,25 +234,45 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         <Button
                             onClick={() => { window.location.hash = '#/admin'; }}
                             colorScheme="none"
-                            className={`${isMobile ? '!px-2 !py-1 text-[8px]' : '!px-3 !py-1.5 text-[9px] sm:text-xs'} flex-shrink-0 whitespace-nowrap rounded-lg border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]`}
-                            style={{ letterSpacing: '0.08em' }}
+                            className={`${
+                                dense
+                                    ? '!h-6 !min-h-6 !max-h-6 !px-1.5 !py-0 !text-[8px] !leading-none rounded-full border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
+                                    : '!px-3 !py-1.5 text-[9px] sm:text-xs rounded-lg border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
+                            } flex-shrink-0 whitespace-nowrap`}
+                            style={{ letterSpacing: dense ? '0.04em' : '0.08em', ...(dense ? { fontSize: '8px' } : {}) }}
                         >
                             관리자
                         </Button>
                     )}
                     <button
                         onClick={openMailbox}
-                        className={`relative rounded-lg text-xl transition-colors hover:bg-secondary ${isMobile ? 'p-1.5' : 'p-2'}`}
+                        className={
+                            dense
+                                ? 'relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
+                                : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
+                        }
                         title="우편함"
                     >
-                        <img src="/images/icon/mail.png" alt="우편함" className={`${isMobile ? 'h-5 w-5' : 'w-6 h-6'}`} />
+                        <img
+                            src="/images/icon/mail.png"
+                            alt="우편함"
+                            className={`object-contain ${dense ? 'h-3 w-3' : 'h-6 w-6'}`}
+                            loading="lazy"
+                            decoding="async"
+                        />
                         {unreadMailCount > 0 && (
-                            <span className="absolute top-1 right-1 bg-red-500 rounded-full w-2.5 h-2.5 border-2 border-primary"></span>
+                            <span
+                                className={`absolute rounded-full border-2 border-primary bg-red-500 ${dense ? 'top-0 right-0 h-2 w-2' : 'top-1 right-1 h-2.5 w-2.5'}`}
+                            />
                         )}
                     </button>
                     <button
                         onClick={openSettingsModal}
-                        className={`rounded-lg text-xl transition-colors hover:bg-secondary ${isMobile ? 'p-1.5 text-lg' : 'p-2'}`}
+                        className={
+                            dense
+                                ? 'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-sm leading-none transition-colors hover:bg-primary'
+                                : 'rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
+                        }
                         title="설정"
                     >
                         ⚙️
@@ -260,8 +280,12 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     <Button
                         onClick={handleLogout}
                         colorScheme="none"
-                        className={`${isMobile ? '!px-2 !py-1 text-[8px]' : '!px-3 !py-1.5 text-[9px] sm:text-xs'} whitespace-nowrap rounded-lg border border-rose-300/55 bg-gradient-to-r from-rose-500/85 via-red-500/80 to-orange-400/80 text-white shadow-[0_10px_22px_-18px_rgba(248,113,113,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-16px_rgba(248,113,113,0.6)]`}
-                        style={{ letterSpacing: '0.08em' }}
+                        className={`${
+                            dense
+                                ? '!h-6 !min-h-6 !max-h-6 !px-1.5 !py-0 !text-[8px] !leading-none rounded-full border border-rose-300/55 bg-gradient-to-r from-rose-500/85 via-red-500/80 to-orange-400/80 text-white shadow-[0_10px_22px_-18px_rgba(248,113,113,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-16px_rgba(248,113,113,0.6)]'
+                                : '!px-3 !py-1.5 text-[9px] sm:text-xs rounded-lg border border-rose-300/55 bg-gradient-to-r from-rose-500/85 via-red-500/80 to-orange-400/80 text-white shadow-[0_10px_22px_-18px_rgba(248,113,113,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-16px_rgba(248,113,113,0.6)]'
+                        } whitespace-nowrap`}
+                        style={{ letterSpacing: dense ? '0.04em' : '0.08em', ...(dense ? { fontSize: '8px' } : {}) }}
                     >
                         로그아웃
                     </Button>

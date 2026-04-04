@@ -2,10 +2,9 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { Guild as GuildType, UserWithStatus, GuildBossInfo, QuestReward, GuildMember, GuildMemberRole, CoreStat, GuildResearchId, GuildResearchCategory, ItemGrade, ServerAction, GuildBossSkill } from '../../types/index.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
-import { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
+import GuildHomePanel, { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } from './GuildHomePanel.js';
 import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
 import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT } from '../../constants/index.js';
@@ -46,6 +45,267 @@ const getGuildIconPath = (icon: string | undefined): string => {
 };
 
 const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null; onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void; goldButtonRef: React.RefObject<HTMLDivElement>; diamondButtonRef: React.RefObject<HTMLDivElement> }> = ({ guild, guildDonationAnimation, onDonationComplete, goldButtonRef, diamondButtonRef }) => {
+    const { handlers, currentUserWithStatus } = useAppContext();
+    const [isDonating, setIsDonating] = useState(false);
+    const [donationType, setDonationType] = useState<'gold' | 'diamond' | null>(null);
+    const [donationModal, setDonationModal] = useState<{ type: 'gold' | 'diamond'; count: number } | null>(null);
+    const donationInFlight = useRef(false);
+    const now = Date.now();
+    const dailyDonations = (currentUserWithStatus?.dailyDonations && isSameDayKST(currentUserWithStatus.dailyDonations.date, now))
+        ? currentUserWithStatus.dailyDonations
+        : { gold: 0, diamond: 0, date: now };
+
+    const goldDonationsLeft = GUILD_DONATION_GOLD_LIMIT - dailyDonations.gold;
+    const diamondDonationsLeft = GUILD_DONATION_DIAMOND_LIMIT - dailyDonations.diamond;
+    const goldMaxCount = Math.min(goldDonationsLeft, Math.floor((currentUserWithStatus?.gold ?? 0) / GUILD_DONATION_GOLD_COST));
+    const diamondMaxCount = Math.min(diamondDonationsLeft, Math.floor((currentUserWithStatus?.diamonds ?? 0) / GUILD_DONATION_DIAMOND_COST));
+
+    const canDonateGold = goldMaxCount > 0;
+    const canDonateDiamond = diamondMaxCount > 0;
+
+    const handleDonate = async (type: 'GUILD_DONATE_GOLD' | 'GUILD_DONATE_DIAMOND', count: number) => {
+        if (donationInFlight.current || count < 1) return;
+        donationInFlight.current = true;
+        setIsDonating(true);
+        setDonationType(type === 'GUILD_DONATE_GOLD' ? 'gold' : 'diamond');
+        setDonationModal(null);
+        try {
+            const result = await handlers.handleAction({ type, payload: { count } }) as any;
+            if (result?.error) {
+                alert(result.error);
+                setDonationType(null);
+            } else {
+                const donationResult = result?.clientResponse?.donationResult || result?.donationResult;
+                if (donationResult && onDonationComplete) {
+                    onDonationComplete(donationResult.coins, donationResult.research, type === 'GUILD_DONATE_GOLD' ? 'gold' : 'diamond');
+                }
+                await handlers.handleAction({ type: 'GET_GUILD_INFO' });
+            }
+        } catch (error) {
+            alert('기부 중 오류가 발생했습니다.');
+            setDonationType(null);
+        } finally {
+            setIsDonating(false);
+            donationInFlight.current = false;
+        }
+    };
+
+    const openDonationModal = (type: 'gold' | 'diamond') => {
+        const max = type === 'gold' ? goldMaxCount : diamondMaxCount;
+        setDonationModal({ type, count: Math.min(1, max) });
+    };
+
+    // 닉네임(유저)별 누적: 골드/다이아 기부 횟수 분리, 획득 길드코인·연구포인트 합계 (데이터 양 제한)
+    const donationByUser = React.useMemo(() => {
+        const log = guild?.donationLog || [];
+        const map = new Map<string, { nickname: string; goldCount: number; diamondCount: number; totalCoins: number; totalResearch: number }>();
+        for (const entry of log) {
+            const cur = map.get(entry.userId);
+            const nickname = entry.nickname || entry.userId;
+            if (!cur) {
+                map.set(entry.userId, {
+                    nickname,
+                    goldCount: entry.type === 'gold' ? entry.count : 0,
+                    diamondCount: entry.type === 'diamond' ? entry.count : 0,
+                    totalCoins: entry.coins,
+                    totalResearch: entry.research,
+                });
+            } else {
+                cur.nickname = nickname;
+                if (entry.type === 'gold') cur.goldCount += entry.count;
+                else cur.diamondCount += entry.count;
+                cur.totalCoins += entry.coins;
+                cur.totalResearch += entry.research;
+            }
+        }
+        return [...map.entries()]
+            .map(([userId, agg]) => ({ userId, ...agg }))
+            .sort((a, b) => b.totalCoins - a.totalCoins);
+    }, [guild?.donationLog]);
+    const isMobile = false;
+
+    return (
+        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col gap-3 relative overflow-hidden border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-1 min-h-[200px] max-h-[320px]" style={{ minHeight: '200px' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none rounded-xl" />
+            <h3 className="font-bold text-base text-highlight text-center relative z-10 flex items-center justify-center gap-2 drop-shadow-lg flex-shrink-0">
+                <span className="text-lg">💎</span>
+                <span>길드 기부</span>
+            </h3>
+
+            <div className="flex flex-row gap-3 relative z-10 min-w-0 flex-1 min-h-0 items-stretch">
+            {/* 좌측: 기부 버튼 — 뷰포트 md 대신 항상 PC와 동일(캔버스 내부는 설계 너비 기준) */}
+            <div className="flex-[1] flex flex-row gap-4 min-w-0 shrink-0 justify-center items-stretch">
+                {/* 골드 기부 */}
+                <div className="flex-1 flex flex-col gap-1.5 min-w-[100px] max-w-[140px] shrink-0 items-center justify-center">
+                    <div className="text-xs text-amber-200 font-semibold whitespace-nowrap text-center w-full">골드 기부</div>
+                    <div ref={goldButtonRef} className="w-full min-w-0">
+                        <Button
+                            onClick={() => openDonationModal('gold')}
+                            disabled={!canDonateGold || isDonating}
+                            colorScheme="none"
+                            className={`w-full justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 font-bold text-sm py-2.5 px-2 shadow-[0_1px_2px_rgba(0,0,0,0.3)] [text-shadow:0_1px_0_rgba(255,255,255,0.3)] flex flex-col items-center gap-0.5 leading-tight ${!canDonateGold || isDonating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isDonating && donationType === 'gold' ? (
+                                <span className="animate-spin">⏳</span>
+                            ) : (
+                                <>
+                                    <span className="flex items-center gap-1 whitespace-nowrap">
+                                        <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4 flex-shrink-0" />
+                                        <span>{GUILD_DONATION_GOLD_COST.toLocaleString()}</span>
+                                    </span>
+                                    <span className="text-[10px] opacity-90">{goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}</span>
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* 다이아 기부 */}
+                <div className="flex-1 flex flex-col gap-1.5 min-w-[100px] max-w-[140px] shrink-0 items-center justify-center">
+                    <div className="text-xs text-blue-200 font-semibold whitespace-nowrap text-center w-full">다이아 기부</div>
+                    <div ref={diamondButtonRef} className="w-full min-w-0">
+                        <Button
+                            onClick={() => openDonationModal('diamond')}
+                            disabled={!canDonateDiamond || isDonating}
+                            colorScheme="none"
+                            className={`w-full justify-center rounded-xl border border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white font-bold text-sm py-2.5 px-2 shadow-[0_1px_2px_rgba(0,0,0,0.3)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] flex flex-col items-center gap-0.5 leading-tight ${!canDonateDiamond || isDonating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isDonating && donationType === 'diamond' ? (
+                                <span className="animate-spin">⏳</span>
+                            ) : (
+                                <>
+                                    <span className="flex items-center gap-1 whitespace-nowrap">
+                                        <img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4 flex-shrink-0" />
+                                        <span>{GUILD_DONATION_DIAMOND_COST.toLocaleString()}</span>
+                                    </span>
+                                    <span className="text-[10px] opacity-90">{diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}</span>
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* 우측: 기부 기록 - 고정 높이, 내용 많으면 내부 스크롤 */}
+            <div className="flex-[1.5] min-w-0 flex flex-col min-h-0 relative z-10 border-l border-stone-600/50 pl-3 pt-0">
+                <div className="text-xs font-semibold text-highlight mb-1 flex-shrink-0">기부 기록</div>
+                <div className="flex-1 min-h-0 overflow-y-auto pr-1 rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner backdrop-blur-sm">
+                    <div className="p-3 space-y-0.5 text-xs text-secondary min-h-full">
+                            {donationByUser.length === 0 ? (
+                                <div className="text-stone-500 py-1">기록 없음</div>
+                            ) : (
+                                donationByUser.map((agg) => (
+                                    <div key={agg.userId} className="leading-tight truncate" title={`${agg.nickname} · 골드 ${agg.goldCount}회 · 다이아 ${agg.diamondCount}회 · 길드코인 ${agg.totalCoins.toLocaleString()} · RP ${agg.totalResearch.toLocaleString()}`}>
+                                        <span className="text-amber-200/90">[{agg.nickname}]</span>
+                                        {' '}
+                                        <span className="text-amber-200/95">골드 <span className="font-semibold text-white">{agg.goldCount}</span>회</span>
+                                        {' · '}
+                                        <span className="text-blue-200/95">다이아 <span className="font-semibold text-white">{agg.diamondCount}</span>회</span>
+                                        {' · '}
+                                        <img src="/images/guild/tokken.png" alt="코인" className="w-2.5 h-2.5 inline align-middle" />
+                                        <span className="font-semibold text-amber-200">{agg.totalCoins.toLocaleString()}</span>
+                                        {' · '}
+                                        <img src="/images/guild/button/guildlab.png" alt="RP" className="w-2.5 h-2.5 inline align-middle" />
+                                        <span className="font-semibold text-blue-200">{agg.totalResearch.toLocaleString()}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 기부 횟수 선택 모달 - createPortal로 document.body에 렌더링 */}
+            {donationModal && createPortal(
+                <div className="fixed inset-0 flex items-center justify-center z-[99999] pointer-events-auto" style={{ isolation: 'isolate' }}>
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-0 pointer-events-auto" onClick={() => setDonationModal(null)} />
+                    <div 
+                        className={`relative z-10 rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden border-2 pointer-events-auto ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* 헤더 - 그라데이션 */}
+                        <div className={`px-6 py-4 ${donationModal.type === 'gold' ? 'bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-yellow-500/90' : 'bg-gradient-to-r from-sky-600/90 via-blue-500/90 to-indigo-500/90'}`}>
+                            <div className="flex items-center gap-2">
+                                <img src={donationModal.type === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt="" className="w-8 h-8 drop-shadow-lg" />
+                                <h3 className="font-bold text-lg text-white drop-shadow-md">
+                                    {donationModal.type === 'gold' ? '골드' : '다이아'} 기부
+                                </h3>
+                            </div>
+                        </div>
+                        {/* 본문 */}
+                        <div className="bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 p-6">
+                            {/* 보상 미리보기 카드 */}
+                            <div className="rounded-xl bg-stone-800/80 border border-stone-600/50 p-4 mb-5">
+                                <div className="text-xs text-stone-400 font-semibold mb-2">1회당 보상</div>
+                                <div className="flex items-center justify-center gap-6">
+                                    <span className="flex items-center gap-2 text-amber-300 font-bold">
+                                        <img src="/images/guild/tokken.png" alt="" className="w-5 h-5" />
+                                        {donationModal.type === 'gold' ? `${GUILD_DONATION_GOLD_REWARDS.guildCoins[0]}~${GUILD_DONATION_GOLD_REWARDS.guildCoins[1]}` : `${GUILD_DONATION_DIAMOND_REWARDS.guildCoins[0]}~${GUILD_DONATION_DIAMOND_REWARDS.guildCoins[1]}`}
+                                    </span>
+                                    <span className="flex items-center gap-2 text-blue-300 font-bold">
+                                        <img src="/images/guild/button/guildlab.png" alt="" className="w-5 h-5" />
+                                        {donationModal.type === 'gold' ? `${GUILD_DONATION_GOLD_REWARDS.researchPoints[0]}~${GUILD_DONATION_GOLD_REWARDS.researchPoints[1]} RP` : `${GUILD_DONATION_DIAMOND_REWARDS.researchPoints[0]}~${GUILD_DONATION_DIAMOND_REWARDS.researchPoints[1]} RP`}
+                                    </span>
+                                </div>
+                            </div>
+                            {/* 횟수 선택: +, -, Max로 조절 */}
+                            <div className="mb-5">
+                                <div className="text-xs text-stone-400 font-semibold mb-2">기부 횟수 (최대 {donationModal.type === 'gold' ? goldMaxCount : diamondMaxCount}회)</div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        className="w-12 h-12 rounded-xl bg-stone-700/80 hover:bg-stone-600 border border-stone-500/50 text-white font-bold text-xl transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+                                        onClick={() => setDonationModal(m => m ? { ...m, count: Math.max(1, m.count - 1) } : null)}
+                                    >−</button>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={donationModal.type === 'gold' ? goldMaxCount : diamondMaxCount}
+                                        value={donationModal.count}
+                                        onChange={e => {
+                                            const v = parseInt(e.target.value, 10);
+                                            const max = donationModal.type === 'gold' ? goldMaxCount : diamondMaxCount;
+                                            if (!isNaN(v)) setDonationModal(m => m ? { ...m, count: Math.min(max, Math.max(1, v)) } : null);
+                                        }}
+                                        className={`flex-1 bg-stone-800/80 rounded-xl px-4 py-3 text-center text-white font-bold text-lg border border-stone-600/50 focus:outline-none focus:ring-2 ${donationModal.type === 'gold' ? 'focus:ring-amber-400/50' : 'focus:ring-sky-400/50'}`}
+                                    />
+                                    <button
+                                        className="w-12 h-12 rounded-xl bg-stone-700/80 hover:bg-stone-600 border border-stone-500/50 text-white font-bold text-xl transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+                                        onClick={() => setDonationModal(m => m ? { ...m, count: Math.min(donationModal.type === 'gold' ? goldMaxCount : diamondMaxCount, m.count + 1) } : null)}
+                                    >+</button>
+                                    <button
+                                        className={`px-3 py-2 rounded-xl font-bold text-white text-sm transition-all hover:scale-105 active:scale-95 flex-shrink-0 ${donationModal.type === 'gold' ? 'bg-amber-600/80 hover:bg-amber-500/90 border border-amber-500/50' : 'bg-sky-600/80 hover:bg-sky-500/90 border border-sky-500/50'}`}
+                                        onClick={() => {
+                                            const max = donationModal.type === 'gold' ? goldMaxCount : diamondMaxCount;
+                                            setDonationModal(m => m ? { ...m, count: max } : null);
+                                        }}
+                                    >
+                                        Max
+                                    </button>
+                                </div>
+                            </div>
+                            {/* 취소 / 기부하기 */}
+                            <div className="flex gap-3">
+                                <button
+                                    className="flex-1 py-3 rounded-xl bg-stone-700/80 hover:bg-stone-600 border border-stone-500/50 text-stone-200 font-semibold transition-all"
+                                    onClick={() => setDonationModal(null)}
+                                >취소</button>
+                                <button
+                                    className={`flex-[2] py-3 rounded-xl font-bold text-white transition-all hover:scale-[1.02] active:scale-[0.98] ${donationModal.type === 'gold' ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 shadow-lg shadow-amber-500/30' : 'bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-400 hover:to-blue-400 shadow-lg shadow-sky-500/30'}`}
+                                    onClick={() => handleDonate(donationModal.type === 'gold' ? 'GUILD_DONATE_GOLD' : 'GUILD_DONATE_DIAMOND', donationModal.count)}
+                                >
+                                    기부하기 ({donationModal.count}회)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>,
+                document.getElementById('sudamr-modal-root') ?? document.body
+            )}
+        </div>
+    );
+};
+
+const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null; onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void; goldButtonRef: React.RefObject<HTMLDivElement>; diamondButtonRef: React.RefObject<HTMLDivElement> }> = ({ guild, guildDonationAnimation, onDonationComplete, goldButtonRef, diamondButtonRef }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
     const [isDonating, setIsDonating] = useState(false);
     const [donationType, setDonationType] = useState<'gold' | 'diamond' | null>(null);
@@ -360,6 +620,10 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
     ];
     return (
         <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-shrink-0">
+            <h3 className="font-bold text-base text-highlight mb-2 text-center flex items-center justify-center gap-2 flex-shrink-0">
+                <span className="text-xl">⚡</span>
+                <span>길드 활동</span>
+            </h3>
             <div className="flex justify-around items-center gap-2">
                 {activities.map(act => (
                     <button 
@@ -429,8 +693,7 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
     className,
     forceDesktopPanelLayout,
 }) => {
-    const { currentUserWithStatus } = useAppContext();
-    const { isNativeMobile } = useNativeMobileShell();
+    const { currentUserWithStatus, isNativeMobile } = useAppContext();
     const [hoveredSkill, setHoveredSkill] = useState<GuildBossSkill | null>(null);
     const [clickedSkill, setClickedSkill] = useState<GuildBossSkill | null>(null);
     const [skillTooltipPos, setSkillTooltipPos] = useState<{ top: number; left: number } | null>(null);
@@ -840,8 +1103,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     className,
     forceDesktopPanelLayout,
 }) => {
-    const { currentUserWithStatus, handlers, guilds, allUsers } = useAppContext();
-    const { isNativeMobile } = useNativeMobileShell();
+    const { currentUserWithStatus, handlers, guilds, allUsers, isNativeMobile } = useAppContext();
     const [showRewardModal, setShowRewardModal] = React.useState(false);
     const [activeWar, setActiveWar] = React.useState<any>(null);
     const [opponentGuild, setOpponentGuild] = React.useState<any>(null);
@@ -2031,8 +2293,7 @@ interface GuildDashboardProps {
 type GuildTab = 'home' | 'members' | 'management';
 
 export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDonationAnimation, onDonationComplete }) => {
-    const { currentUserWithStatus, handlers, guilds } = useAppContext();
-    const { isNativeMobile } = useNativeMobileShell();
+    const { currentUserWithStatus, handlers, guilds, isNativeMobile: isGuildPhone } = useAppContext();
     
     // guilds 상태에서 최신 길드 정보 가져오기 (guild prop보다 우선)
     const currentGuild = React.useMemo(() => {
@@ -2068,7 +2329,6 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [isBossGuideOpen, setIsBossGuideOpen] = useState(false);
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [isIconSelectOpen, setIsIconSelectOpen] = useState(false);
-    const isMobile = isNativeMobile;
     const [isGuildContentDrawerOpen, setIsGuildContentDrawerOpen] = useState(false);
     useEffect(() => {
         if (activeTab !== 'home') setIsGuildContentDrawerOpen(false);
@@ -2205,7 +2465,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
         missionNotification: missionTabNotification,
     };
 
-    /** 홈 대기실과 동일: 퀵 박스 높이는 flex로 늘어나지 않음 (min(21rem,68dvh) 고정) + 길드 컨텐츠 + 길드 활동, 열 전체 높이는 stretch */
+    /** 터치 폰 길드홈: 홈 대기실과 동일 퀵 레일 + 길드 컨텐츠 드로어 */
     const guildHomeQuickRail = (
         <div className="flex h-full min-h-0 w-[6rem] shrink-0 flex-col gap-1 self-stretch overflow-y-auto overflow-x-hidden">
             <div className="flex h-[min(21rem,68dvh)] min-h-[11rem] max-h-[min(21rem,68dvh)] w-full shrink-0 flex-col overflow-hidden rounded-lg border border-color bg-panel">
@@ -2225,7 +2485,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
             </div>
         </div>
     );
-
+    
     return (
         <div className="relative z-10 flex h-full min-h-0 w-full flex-col">
             {isMissionsOpen && <GuildMissionsPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsMissionsOpen(false)} />}
@@ -2237,7 +2497,147 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 handlers.handleAction({ type: 'GUILD_UPDATE_PROFILE', payload: { guildId: (currentGuild || guild).id, icon } });
                 setIsIconSelectOpen(false);
             }} />}
-            
+
+            {!isGuildPhone && (
+            <>
+            <header className="relative flex flex-shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 py-2 shadow-lg mb-2">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
+                    <BackButton onClick={() => window.location.hash = '#/profile'} />
+                </div>
+                
+                <div className="flex flex-1 items-center justify-center gap-4 px-20">
+                    <div className="relative group flex-shrink-0 overflow-visible">
+                        <div className="absolute inset-0 bg-gradient-to-br from-accent/30 to-accent/10 rounded-xl blur-sm"></div>
+                        <img src={getGuildIconPath(currentGuild?.icon || guild?.icon)} alt="Guild Icon" className="relative z-10 h-20 w-20 bg-tertiary rounded-xl border-2 border-accent/30 shadow-lg" />
+                        {canManage && (
+                            <button
+                                onClick={() => setIsIconSelectOpen(true)}
+                                className="absolute -bottom-1 -right-1 w-6 h-6 bg-accent rounded-full flex items-center justify-center shadow-lg hover:bg-accent/80 transition-all z-20 border-2 border-secondary"
+                                title="길드 마크 변경"
+                                type="button"
+                            >
+                                <span className="text-xs">✏️</span>
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex flex-col items-center gap-1 min-w-0 flex-1 max-w-md">
+                        <h1 className="w-full truncate break-words text-center text-3xl font-bold text-highlight drop-shadow-md" title={(() => {
+                            if (!currentGuild) return '';
+                            const guildsGuild = guilds[currentGuild.id || guild.id];
+                            return guildsGuild?.name || currentGuild?.name || guild?.name || '';
+                        })()}>
+                            {(() => {
+                                if (!currentGuild) return '로딩 중...';
+                                const guildsGuild = guilds[currentGuild.id || guild.id];
+                                return guildsGuild?.name || currentGuild?.name || guild?.name || '길드';
+                            })()}
+                        </h1>
+                        <div className="flex items-center gap-3 w-full flex-wrap justify-center">
+                            <div className="text-lg font-semibold text-secondary">레벨 {currentGuild?.level || 1}</div>
+                                <div className="flex-1 min-w-[180px] max-w-md">
+                                    <div className="flex justify-between text-xs text-secondary mb-1">
+                                        <span className="font-semibold">경험치</span>
+                                        <span className="font-semibold">{(currentGuild?.xp ?? currentGuild?.experience ?? 0).toLocaleString()} / {xpForNextLevel.toLocaleString()}</span>
+                                    </div>
+                                    <div className="w-full bg-gray-700/50 rounded-full h-2.5 border border-gray-600/50 overflow-hidden shadow-inner">
+                                        <div 
+                                            className="bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                                            style={{ width: `${xpProgress}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                        </div>
+                    </div>
+                </div>
+
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
+                        <button 
+                            onClick={() => setIsHelpOpen(true)} 
+                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent/20 bg-tertiary/50 shadow-md transition-all hover:scale-110 hover:bg-tertiary/70" 
+                            title="길드 도움말"
+                        >
+                            <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
+                        </button>
+                    </div>
+
+            </header>
+
+            <main className="grid min-h-0 flex-1 grid-cols-5 gap-2">
+                <div className="col-span-3 flex min-h-0 flex-col gap-2">
+                        <div className="flex-shrink-0">
+                            <div className="flex bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 rounded-xl w-full max-w-md border border-stone-600/40 shadow-md">
+                                {tabs.map(tab => {
+                                    const tabColors = {
+                                        home: { active: 'from-amber-600 to-amber-500', inactive: 'text-amber-300/70 hover:text-amber-300' },
+                                        members: { active: 'from-blue-600 to-blue-500', inactive: 'text-blue-300/70 hover:text-blue-300' },
+                                        management: { active: 'from-purple-600 to-purple-500', inactive: 'text-purple-300/70 hover:text-purple-300' },
+                                    };
+                                    const colors = tabColors[tab.id] || { active: 'from-accent to-accent/80', inactive: 'text-tertiary hover:text-highlight' };
+                                    return (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveTab(tab.id)}
+                                            className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${
+                                                activeTab === tab.id 
+                                                    ? `bg-gradient-to-r ${colors.active} text-white shadow-lg` 
+                                                    : `${colors.inactive} hover:bg-stone-700/50`
+                                            }`}
+                                        >
+                                            {tab.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    
+                    <div className="flex-1 min-h-0 overflow-y-auto">
+                        {activeTab === 'home' && (
+                            <div className="flex h-full flex-col gap-2">
+                                    <GuildHomePanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} rightOfChat={<BossPanel guild={currentGuild || guild} className="h-full" />} />
+                            </div>
+                        )}
+                        {activeTab === 'members' && (
+                            <NineSlicePanel className="h-full">
+                                <GuildMembersPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} />
+                            </NineSlicePanel>
+                        )}
+                        {activeTab === 'management' && canManage && (
+                            <NineSlicePanel className="h-full">
+                                <GuildManagementPanel guild={currentGuild || guild} />
+                            </NineSlicePanel>
+                        )}
+                    </div>
+                </div>
+
+                <div className="col-span-2 flex h-full min-h-0 flex-col gap-1 overflow-hidden">
+                        <>
+                            <div className="flex gap-1 flex-shrink-0">
+                                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                                    <GuildDonationPanel guild={currentGuild || guild} guildDonationAnimation={guildDonationAnimation} onDonationComplete={onDonationComplete} goldButtonRef={goldButtonRef} diamondButtonRef={diamondButtonRef} />
+                                    <ActivityPanel 
+                                        onOpenMissions={() => setIsMissionsOpen(true)} 
+                                        onOpenResearch={() => setIsResearchOpen(true)} 
+                                        onOpenShop={() => setIsShopOpen(true)} 
+                                        missionNotification={missionTabNotification} 
+                                        onOpenBossGuide={() => setIsBossGuideOpen(true)} 
+                                    />
+                                </div>
+                                <div className="w-24 min-w-[96px] flex-shrink-0 flex flex-col">
+                                    <QuickAccessSidebar compact={true} fillHeight={true} />
+                                </div>
+                            </div>
+                            <div className="flex-1 min-h-0 overflow-hidden">
+                                <WarPanel guild={currentGuild || guild} className="h-full w-full" />
+                            </div>
+                        </>
+                </div>
+                
+            </main>
+            </>
+            )}
+
+            {isGuildPhone && (
+            <>
             <header className="relative flex flex-shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 py-2 shadow-lg mb-2">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <BackButton onClick={() => window.location.hash = '#/profile'} />
@@ -2282,22 +2682,8 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                         </div>
                     </div>
                 </div>
-
-                {!isMobile && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
-                        <button 
-                            onClick={() => setIsHelpOpen(true)} 
-                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent/20 bg-tertiary/50 shadow-md transition-all hover:scale-110 hover:bg-tertiary/70" 
-                            title="길드 도움말"
-                        >
-                            <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
-                        </button>
-                    </div>
-                )}
-
             </header>
 
-            {/* 길드 홈 우측 드로어: PC와 동일 패널 구성(보스전·길드전). 길드활동(미션·연구소 등)은 홈 레일에서만 진입 */}
             {isGuildContentDrawerOpen && (
                 <>
                     <div
@@ -2344,11 +2730,10 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 </>
             )}
 
-            {/* 좌측: 탭·콘텐츠 / 우측 6rem: 퀵·길드컨텐츠·길드활동 (모든 탭 공통) */}
             <main className="flex min-h-0 flex-1 flex-col gap-2">
                 <div
                     className={`flex min-h-0 min-w-0 items-stretch gap-2 ${
-                        !isMobile && activeTab !== 'home' ? 'min-h-[12rem] flex-[2]' : 'flex-1'
+                        activeTab !== 'home' ? 'min-h-[12rem] flex-[2]' : 'flex-1'
                     }`}
                 >
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 pr-1 sm:pr-2">
@@ -2366,9 +2751,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                                             key={tab.id}
                                             type="button"
                                             onClick={() => setActiveTab(tab.id)}
-                                            className={`flex-1 font-bold rounded-lg transition-all ${
-                                                isMobile ? 'py-2 text-xs' : 'py-2.5 text-sm'
-                                            } ${
+                                            className={`flex-1 font-bold rounded-lg transition-all py-2 text-xs ${
                                                 activeTab === tab.id
                                                     ? `bg-gradient-to-r ${colors.active} text-white shadow-lg`
                                                     : `${colors.inactive} hover:bg-stone-700/50`
@@ -2385,17 +2768,13 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                             {activeTab === 'home' && (
                                 <div className="flex h-full min-h-0 flex-col gap-2">
                                     <div
-                                        className={`grid shrink-0 gap-2 ${
-                                            isMobile
-                                                ? 'grid-cols-[minmax(0,3.35fr)_minmax(0,1.25fr)] min-h-[min(36vh,14rem)] max-h-[42vh]'
-                                                : 'grid-cols-[minmax(0,4fr)_minmax(0,1fr)] h-[min(32vh,20rem)] min-h-[16rem]'
-                                        }`}
+                                        className="grid shrink-0 gap-2 grid-cols-[minmax(0,3.35fr)_minmax(0,1.25fr)] min-h-[min(36vh,14rem)] max-h-[42vh]"
                                     >
                                         <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden">
                                             <GuildCheckInPanel guild={currentGuild || guild} />
                                         </div>
                                         <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden">
-                                            <GuildDonationPanel
+                                            <GuildDonationPanelPhone
                                                 guild={currentGuild || guild}
                                                 guildDonationAnimation={guildDonationAnimation}
                                                 onDonationComplete={onDonationComplete}
@@ -2430,10 +2809,10 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                     {guildHomeQuickRail}
                 </div>
 
-                {!isMobile && activeTab !== 'home' && (
+                {activeTab !== 'home' && (
                     <div className="flex min-h-0 min-w-0 flex-1 gap-1">
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1">
-                            <GuildDonationPanel
+                            <GuildDonationPanelPhone
                                 guild={currentGuild || guild}
                                 guildDonationAnimation={guildDonationAnimation}
                                 onDonationComplete={onDonationComplete}
@@ -2454,6 +2833,8 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                     </div>
                 )}
             </main>
+            </>
+            )}
             {goldAnimation}
             {diamondAnimation}
         </div>

@@ -64,7 +64,6 @@ const AppContent: React.FC = () => {
         settings,
         isNativeMobile,
         isLargeTouchTablet,
-        isPhoneHandheldTouch,
     } = useAppContext();
     
     // 에셋 프리로딩은 UX를 위해 백그라운드로 돌리고, 화면을 막지 않도록 함
@@ -284,17 +283,11 @@ const AppContent: React.FC = () => {
                         >
                             {!isGameView && <Header />}
                             <main
-                                className={`flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden ${
-                                    isGameView || isPhoneHandheldTouch ? 'overflow-hidden' : 'overflow-y-auto overscroll-y-contain'
-                                }`}
+                                className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden overflow-hidden overscroll-y-none"
                             >
-                                {isPhoneHandheldTouch ? (
+                                <NativeMobileScaledContent>
                                     <Router />
-                                ) : (
-                                    <NativeMobileScaledContent>
-                                        <Router />
-                                    </NativeMobileScaledContent>
-                                )}
+                                </NativeMobileScaledContent>
                             </main>
                             {!isGameView && (
                                 <>
@@ -339,13 +332,9 @@ const AppContent: React.FC = () => {
                                 className="relative z-10 flex w-full min-h-0 min-w-0 flex-1 flex-col items-stretch justify-start overflow-x-hidden overflow-y-auto overscroll-y-contain pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
                                 style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
                             >
-                                {isPhoneHandheldTouch ? (
+                                <NativeMobileScaledContent>
                                     <Router />
-                                ) : (
-                                    <NativeMobileScaledContent>
-                                        <Router />
-                                    </NativeMobileScaledContent>
-                                )}
+                                </NativeMobileScaledContent>
                             </main>
                         </div>
                     )}
