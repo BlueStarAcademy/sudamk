@@ -115,11 +115,10 @@ const TowerLobby: React.FC = () => {
         const update = () => {
             const inner = outer.querySelector<HTMLElement>('[data-quick-access-sidebar-root]');
             if (!inner) return;
-            const st = getComputedStyle(outer);
-            const padY = parseFloat(st.paddingTop) + parseFloat(st.paddingBottom);
-            const borderY = parseFloat(st.borderTopWidth) + parseFloat(st.borderBottomWidth);
-            const h = inner.getBoundingClientRect().height + padY + borderY;
-            if (h > 0) setNativeTopRowHeightPx(Math.round(h));
+            const boxH = Math.ceil(
+                Math.max(outer.getBoundingClientRect().height, outer.scrollHeight, outer.offsetHeight)
+            );
+            if (boxH > 0) setNativeTopRowHeightPx(boxH);
         };
         update();
         const ro = new ResizeObserver(update);
@@ -516,11 +515,12 @@ const TowerLobby: React.FC = () => {
                     <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-[#0a0a0a] via-[#1a1510] to-[#0a0a0a]" />
                     <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
                         <div
-                            className="grid min-h-0 shrink-0 grid-cols-[minmax(0,2fr)_minmax(0,7fr)_5.5rem] gap-1 overflow-hidden"
-                            style={{
-                                height: nativeTopRowHeightPx != null ? `${nativeTopRowHeightPx}px` : undefined,
-                                maxHeight: 'min(44dvh, 90vh)',
-                            }}
+                            className="grid min-h-0 shrink-0 grid-cols-[minmax(0,2.5fr)_minmax(0,6.5fr)_5.5rem] items-stretch gap-1 overflow-hidden"
+                            style={
+                                nativeTopRowHeightPx != null
+                                    ? { height: `${nativeTopRowHeightPx}px`, minHeight: 0 }
+                                    : { minHeight: 0, maxHeight: 'min(44dvh, 90vh)' }
+                            }
                         >
                             <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden p-0.5 ${towerNativeGlass}`}>
                                 <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg">
@@ -532,8 +532,8 @@ const TowerLobby: React.FC = () => {
                                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-transparent" />
                                 </div>
                             </div>
-                            <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden p-2 ${towerNativeGlass}`}>
-                    <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                            <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden p-1 sm:p-2 ${towerNativeGlass}`}>
+                    <div className="mb-1 flex flex-shrink-0 items-center justify-between sm:mb-2">
                         <div className="flex items-center gap-2">
                             <h2 className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
                                 랭킹 Top 100
@@ -634,9 +634,9 @@ const TowerLobby: React.FC = () => {
                                 </div>
                             <div
                                 ref={nativeQuickMenuMeasureRef}
-                                className={`box-border flex h-fit w-full min-w-0 shrink-0 flex-col self-start overflow-hidden p-0.5 ${towerNativeGlass}`}
+                                className={`box-border flex h-fit min-h-0 w-full min-w-0 shrink-0 flex-col self-start overflow-hidden p-0.5 ${towerNativeGlass}`}
                             >
-                                <QuickAccessSidebar nativeHomeColumn fillHeight={false} />
+                                <QuickAccessSidebar nativeHomeColumn />
                             </div>
                         </div>
                         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_5.5rem] gap-1 overflow-hidden">
@@ -875,10 +875,15 @@ const TowerLobby: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 우측 끝: 퀵메뉴 (홈화면과 동일 크기, 아래로 늘어나지 않음) */}
+                {/* 우측 끝: 퀵메뉴 (PC: 기존 밀도·세로 분배 유지 / 네이티브는 별도 상단 행) */}
                 <div className={quickColClass}>
-                    <div className="flex h-full min-h-0 flex-col bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-1 backdrop-blur-md shadow-2xl shadow-amber-900/50">
-                        <QuickAccessSidebar fillHeight />
+                    <div className="bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-1 backdrop-blur-md shadow-2xl shadow-amber-900/50">
+                        <QuickAccessSidebar
+                            fillHeight={!isNativeMobile}
+                            compact={isNativeMobile}
+                            dense={isNativeMobile}
+                            mobile={isNativeMobile}
+                        />
                     </div>
                 </div>
             </>

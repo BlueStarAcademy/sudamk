@@ -465,6 +465,7 @@ export const useApp = () => {
     const [blacksmithActiveTab, setBlacksmithActiveTab] = useState<'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine'>('enhance');
     const [combinationResult, setCombinationResult] = useState<{ item: InventoryItem; xpGained: number; isGreatSuccess: boolean; } | null>(null);
     const [isBlacksmithHelpOpen, setIsBlacksmithHelpOpen] = useState(false);
+    const [isBlacksmithEffectsModalOpen, setIsBlacksmithEffectsModalOpen] = useState(false);
     const [isEnhancementResultModalOpen, setIsEnhancementResultModalOpen] = useState(false);
     const [isInsufficientActionPointsModalOpen, setIsInsufficientActionPointsModalOpen] = useState(false);
     const [isOpponentInsufficientActionPointsModalOpen, setIsOpponentInsufficientActionPointsModalOpen] = useState(false);
@@ -2205,22 +2206,42 @@ export const useApp = () => {
                         } catch {
                             /* ignore */
                         }
-                        const inTower = towerGames[gameId];
-                        const inSingle = singlePlayerGames[gameId];
-                        const inLive = liveGames[gameId];
-                        if (inTower) setTowerGames(current => { const next = { ...current }; delete next[gameId]; return next; });
-                        if (inSingle) setSinglePlayerGames(current => { const next = { ...current }; delete next[gameId]; return next; });
-                        if (inLive) setLiveGames(current => { const next = { ...current }; delete next[gameId]; return next; });
-                        const uid = currentUserRef.current?.id;
-                        if (uid) {
-                            setOnlineUsers(prev => prev.map(u => u.id === uid ? { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined } : u));
-                        }
+                        // flushSync: replaceAppHash 이전에 activeGame이 null이 되도록 해야 함.
+                        // 그렇지 않으면 setTimeout(0) 라우팅 직후 "대국으로 복귀" effect가 종료된 대국으로 다시 끌어당김(postGameRedirect는 이미 삭제됨).
+                        flushSync(() => {
+                            setTowerGames((current) => {
+                                if (!current[gameId]) return current;
+                                const next = { ...current };
+                                delete next[gameId];
+                                return next;
+                            });
+                            setSinglePlayerGames((current) => {
+                                if (!current[gameId]) return current;
+                                const next = { ...current };
+                                delete next[gameId];
+                                return next;
+                            });
+                            setLiveGames((current) => {
+                                if (!current[gameId]) return current;
+                                const next = { ...current };
+                                delete next[gameId];
+                                return next;
+                            });
+                            const uid = currentUserRef.current?.id;
+                            if (uid) {
+                                setOnlineUsers((prev) =>
+                                    prev.map((u) =>
+                                        u.id === uid ? { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined } : u
+                                    )
+                                );
+                            }
+                        });
                     }
                     // 나가기 클릭 시 설정된 대기실로 즉시 이동 (전략바둑 → #/waiting/strategic, 놀이바둑 → #/waiting/playful 등)
                     const postRedirect = sessionStorage.getItem('postGameRedirect');
                     if (postRedirect) {
                         sessionStorage.removeItem('postGameRedirect');
-                        setTimeout(() => { replaceAppHash(postRedirect); }, 0);
+                        replaceAppHash(postRedirect);
                     }
                 }
 
@@ -2235,23 +2256,41 @@ export const useApp = () => {
                             /* ignore */
                         }
 
-                        const inTower = towerGames[gameId];
-                        const inSingle = singlePlayerGames[gameId];
-                        const inLive = liveGames[gameId];
-                        if (inTower) setTowerGames(current => { const next = { ...current }; delete next[gameId]; return next; });
-                        if (inSingle) setSinglePlayerGames(current => { const next = { ...current }; delete next[gameId]; return next; });
-                        if (inLive) setLiveGames(current => { const next = { ...current }; delete next[gameId]; return next; });
+                        flushSync(() => {
+                            setTowerGames((current) => {
+                                if (!current[gameId]) return current;
+                                const next = { ...current };
+                                delete next[gameId];
+                                return next;
+                            });
+                            setSinglePlayerGames((current) => {
+                                if (!current[gameId]) return current;
+                                const next = { ...current };
+                                delete next[gameId];
+                                return next;
+                            });
+                            setLiveGames((current) => {
+                                if (!current[gameId]) return current;
+                                const next = { ...current };
+                                delete next[gameId];
+                                return next;
+                            });
 
-                        const uid = currentUserRef.current?.id;
-                        if (uid) {
-                            setOnlineUsers(prev => prev.map(u => u.id === uid ? { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined } : u));
-                        }
+                            const uid = currentUserRef.current?.id;
+                            if (uid) {
+                                setOnlineUsers((prev) =>
+                                    prev.map((u) =>
+                                        u.id === uid ? { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined } : u
+                                    )
+                                );
+                            }
+                        });
                     }
 
                     const postRedirect = sessionStorage.getItem('postGameRedirect');
                     if (postRedirect) {
                         sessionStorage.removeItem('postGameRedirect');
-                        setTimeout(() => { replaceAppHash(postRedirect); }, 0);
+                        replaceAppHash(postRedirect);
                     }
                 }
                 // SPECTATE_GAME 성공 시 서버가 반환한 전체 게임 데이터를 상태에 넣고 게임 페이지로 이동 (중립 관전)
@@ -5364,6 +5403,11 @@ export const useApp = () => {
         const isGamePage = currentHash.startsWith('#/game/');
 
         if (activeGame && !isGamePage) {
+            // 종료·무효·재대결 대기 대국은 "대국으로 복귀"시키지 않음(나가기 직후 라우팅 레이스·전면 광고 이후 유령 복귀 방지)
+            const gs = activeGame.gameStatus;
+            if (gs === 'ended' || gs === 'no_contest' || gs === 'rematch_pending') {
+                return;
+            }
             // 나가기 클릭 직후: postGameRedirect가 현재 해시와 같으면 경기장으로 다시 보내지 않음 (상태 갱신 전 리다이렉트 방지)
             const postRedirect = sessionStorage.getItem('postGameRedirect');
             if (postRedirect && currentHash === postRedirect) {
@@ -5938,6 +5982,7 @@ export const useApp = () => {
             blacksmithActiveTab,
             combinationResult,
             isBlacksmithHelpOpen,
+            isBlacksmithEffectsModalOpen,
             enhancingItem,
             isEnhancementResultModalOpen,
             tournamentScoreChange,
@@ -6025,9 +6070,13 @@ export const useApp = () => {
                 setIsBlacksmithModalOpen(false);
                 setBlacksmithSelectedItemForEnhancement(null);
                 setBlacksmithActiveTab('enhance'); // Reset to default tab
+                setIsBlacksmithEffectsModalOpen(false);
+                setIsBlacksmithHelpOpen(false);
             },
             openBlacksmithHelp: () => setIsBlacksmithHelpOpen(true),
             closeBlacksmithHelp: () => setIsBlacksmithHelpOpen(false),
+            openBlacksmithEffectsModal: () => setIsBlacksmithEffectsModalOpen(true),
+            closeBlacksmithEffectsModal: () => setIsBlacksmithEffectsModalOpen(false),
             openGameRecordList: () => setIsGameRecordListOpen(true),
             closeGameRecordList: () => setIsGameRecordListOpen(false),
             openGameRecordViewer: (record: GameRecord) => setViewingGameRecord(record),

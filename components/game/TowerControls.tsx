@@ -14,6 +14,7 @@ import {
     TOWER_ITEM_REFRESH_NAMES,
 } from '../../utils/towerLobbyInventory.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
+import { ArenaControlStrip } from './ArenaControlStrip.js';
 
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     showResultModal?: boolean;
@@ -22,6 +23,8 @@ interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'c
     isMoveInFlight?: boolean;
     isBoardLocked?: boolean;
     isMobile?: boolean;
+    /** Game.tsx에서 gameControlsProps 일괄 전달 시 무시 */
+    onLeaveOrResign?: () => void;
 }
 
 interface ImageButtonProps {
@@ -177,15 +180,13 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         const endBtn = isMobile ? '!py-1 !px-2 !text-[0.65rem] shrink-0' : '!py-1.5 !px-4 !text-sm';
         return (
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[148px]">
-                <div
-                    className={`bg-gray-900/70 border border-stone-700 rounded-xl py-3 flex items-center gap-2 min-w-0 ${
-                        isMobile
-                            ? 'flex flex-wrap items-center justify-evenly gap-2 px-2 py-3 min-w-0'
-                            : 'flex-wrap justify-center px-4 gap-3'
-                    }`}
-                >
+                <div className="min-w-0 rounded-xl border border-stone-700 bg-gray-900/70 px-2 py-3 sm:px-4">
+                    <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-1.5' : 'gap-2'}>
                     <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap ${endBtn}`}>
                         결과 보기
+                    </Button>
+                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap ${endBtn}`}>
+                        나가기
                     </Button>
                     <Button onClick={handleRetry} colorScheme="none" className={`justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap ${endBtn}`}>
                         재도전 {effectiveRetryApCost > 0 && `(⚡${effectiveRetryApCost})`}
@@ -193,9 +194,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                     <Button onClick={handleNextFloor} colorScheme="none" className={`justify-center rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap max-w-[46vw] truncate ${endBtn}`} disabled={!canTryNext}>
                         다음 층{canTryNext && nextFloor ? `: ${nextFloor}층` : ''}{effectiveNextFloorApCost > 0 && ` (⚡${effectiveNextFloorApCost})`}
                     </Button>
-                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap ${endBtn}`}>
-                        나가기
-                    </Button>
+                    </ArenaControlStrip>
                 </div>
             </footer>
         );
@@ -354,7 +353,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 					title="기권하기"
 					compact={isMobile}
 				/>
-				<span className={`${lbl} font-semibold text-red-300`}>기권</span>
+				<span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
 			</div>
 			{passAllowed && (
 				<div className={colClass}>
@@ -366,7 +365,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 						title="한 수 쉬기"
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold ${!isMyTurn || gameStatus !== 'playing' ? 'text-gray-500' : 'text-amber-100'}`}>통과</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${!isMyTurn || gameStatus !== 'playing' ? 'text-gray-500' : 'text-amber-100'}`}>통과</span>
 				</div>
 			)}
 			<div className={colClass}>
@@ -380,7 +379,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 					maxCount={refreshMaxCount}
 					compact={isMobile}
 				/>
-				<span className={`${lbl} font-semibold ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
+				<span className={`${lbl} font-semibold whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
 			</div>
 		</>
 	);
@@ -398,7 +397,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 						count={turnAddCount}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold ${turnAddDisabled ? 'text-gray-500' : 'text-amber-100'}`}>턴 추가</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${turnAddDisabled ? 'text-gray-500' : 'text-amber-100'}`}>턴 추가</span>
 				</div>
 			)}
 			{showMissileAndHiddenForHook && (
@@ -413,7 +412,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 						maxCount={missileMaxCount}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
 				</div>
 			)}
 			{showMissileAndHiddenForHook && (
@@ -428,7 +427,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 						maxCount={hiddenMaxCount}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
 				</div>
 			)}
 			{showMissileAndHiddenForHook && (
@@ -443,7 +442,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 						maxCount={scanCountSettingForHook}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
 				</div>
 			)}
 		</>
@@ -453,29 +452,51 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 		<>
 		<footer
 			className={`responsive-controls flex-shrink-0 bg-stone-800/70 backdrop-blur-sm rounded-xl w-full min-h-[148px] border border-stone-700/50 ${
-				isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-2 p-2' : 'p-3 flex items-stretch justify-between gap-4'
+				isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-2 p-2' : 'flex flex-row items-stretch gap-3 p-3'
 			}`}
 		>
 			{isMobile ? (
 				<>
-					<div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-stone-600/40 bg-black/20 px-1 py-2">
-						{coreZone}
+					<div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/40 bg-black/20 px-1 py-2">
+						<div className="flex min-h-0 w-full flex-1 items-center justify-center">
+							<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+								{coreZone}
+							</ArenaControlStrip>
+						</div>
 					</div>
 					{(showTurnAdd || showMissileAndHiddenForHook) && (
 						<>
 							<div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
-							<div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
-								{itemZone}
+							<div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
+								<div className="flex min-h-0 w-full flex-1 items-center justify-center">
+									<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+										{itemZone}
+									</ArenaControlStrip>
+								</div>
 							</div>
 						</>
 					)}
 				</>
-			) : (
+			) : (showTurnAdd || showMissileAndHiddenForHook) ? (
 				<>
-					{coreZone}
-					{(showTurnAdd || showMissileAndHiddenForHook) && <div className="w-px bg-stone-600/50 shrink-0 self-stretch" />}
-					{itemZone}
+					<div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-stone-600/40 bg-black/10 px-2 py-2">
+						<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+							{coreZone}
+						</ArenaControlStrip>
+					</div>
+					<div className="w-px shrink-0 self-stretch bg-stone-600/50" />
+					<div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-amber-900/35 bg-amber-950/10 px-2 py-2">
+						<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+							{itemZone}
+						</ArenaControlStrip>
+					</div>
 				</>
+			) : (
+				<div className="flex w-full min-w-0 items-center justify-center px-2 py-2">
+					<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+						{coreZone}
+					</ArenaControlStrip>
+				</div>
 			)}
         </footer>
             {refreshConfirmModal && (

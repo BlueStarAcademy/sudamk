@@ -14,8 +14,12 @@ export const AD_SLOTS = {
 /** 네이티브 모바일 셸 최대 가로 — 하단 리더보드(728×90)·화면 설계와 맞춤 */
 export const NATIVE_MOBILE_SHELL_MAX_WIDTH = 720;
 
-/** 네이티브 모바일 모달 본문 가로 상한(셸과 동일, 패딩은 컴포넌트에서 처리) */
+/** 네이티브 모바일 모달 본문 가로 상한(레거시·일부 PC 경로) */
 export const NATIVE_MOBILE_MODAL_MAX_WIDTH_PX = 720;
+
+/** 네이티브 모바일: 모달 최대 가로·세로(뷰포트 비율) — DraggableWindow·전역 CSS와 동일하게 유지 */
+export const NATIVE_MOBILE_MODAL_MAX_WIDTH_VW = 95;
+export const NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH = 80;
 
 /** 네이티브 메인 컨텐츠 논리 설계 폭 — NativeMobileScaledContent 가 가로를 셸 폭에 맞출 때 기준 */
 export const NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX = 720;

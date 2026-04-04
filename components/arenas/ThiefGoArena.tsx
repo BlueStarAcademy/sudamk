@@ -128,6 +128,7 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
                         showLastMoveMarker={showLastMoveMarker}
                         gameId={gameId}
                         justCaptured={justCaptured}
+                        captures={session.captures}
                         captureScoreFloatMinPoints={captureScoreFloatMinPoints}
                     />
                     <div

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Guild as GuildType, GuildMember, GuildMemberRole } from '../../types/index.js';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -7,9 +7,22 @@ import Avatar from '../Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, GUILD_INITIAL_MEMBER_LIMIT, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 import { formatLastSeenGuild } from '../../utils/timeUtils.js';
 
+type GuildMemberSortMode = 'role' | 'joinDate' | 'contributionTotal' | 'weeklyContribution' | 'lastLogin' | 'nickname';
+
+const MEMBER_SORT_OPTIONS: { value: GuildMemberSortMode; label: string }[] = [
+    { value: 'role', label: '직책순' },
+    { value: 'joinDate', label: '가입일순' },
+    { value: 'contributionTotal', label: '누적기여도순' },
+    { value: 'weeklyContribution', label: '주간기여도순' },
+    { value: 'lastLogin', label: '최근접속순' },
+    { value: 'nickname', label: '닉네임순' },
+];
+
 interface GuildMembersPanelProps {
     guild: GuildType;
     myMemberInfo: GuildMember | undefined;
+    /** 모바일 길드홈 전체 화면 목록: 글자·아바타 축소, 줄바꿈 최소화 */
+    compact?: boolean;
 }
 
 const MemberManagementModal: React.FC<{
@@ -112,10 +125,11 @@ const MemberManagementModal: React.FC<{
     );
 };
 
-const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberInfo }) => {
+const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberInfo, compact = false }) => {
     const { handlers, allUsers, onlineUsers, currentUserWithStatus } = useAppContext();
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
     const [managingMember, setManagingMember] = useState<GuildMember | null>(null);
+    const [sortMode, setSortMode] = useState<GuildMemberSortMode>('role');
 
     const memberLimit = useMemo(() => {
         const baseLimit = GUILD_INITIAL_MEMBER_LIMIT;
@@ -123,32 +137,97 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
         return baseLimit + researchBonus;
     }, [guild]);
 
+    const resolveDisplayName = useCallback((m: GuildMember) => {
+        const user = allUsers.find((u) => u.id === m.userId || (m.userId === ADMIN_USER_ID && u.isAdmin));
+        return (
+            m.nickname ||
+            (m.userId === ADMIN_USER_ID ? ADMIN_NICKNAME : user?.isAdmin ? ADMIN_NICKNAME : user?.nickname || 'Unknown')
+        );
+    }, [allUsers]);
 
-    const sortedMembers = useMemo(() => {
-        const roleOrder: Record<string, number> = {
-            'leader': 0,
-            'officer': 1,
-            'member': 2,
-        };
+    const baseMembers = useMemo(() => {
         let members = guild.members || [];
-        // members가 비어있는데 현재 사용자가 이 길드에 속해있으면 폴백으로 자신 표시
         if (members.length === 0 && currentUserWithStatus?.guildId === guild.id) {
-            const effectiveUserId = currentUserWithStatus.isAdmin ? ADMIN_USER_ID : currentUserWithStatus.id;
-            members = [{
-                id: `${guild.id}-member-${effectiveUserId}`,
-                guildId: guild.id,
-                userId: effectiveUserId,
-                nickname: currentUserWithStatus.nickname || (currentUserWithStatus.isAdmin ? ADMIN_NICKNAME : ''),
-                role: guild.leaderId === effectiveUserId ? 'leader' : 'member',
-                joinDate: Date.now(),
-                contributionTotal: 0,
-                weeklyContribution: 0,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-            }];
+            const uid = currentUserWithStatus.isAdmin ? ADMIN_USER_ID : currentUserWithStatus.id;
+            members = [
+                {
+                    id: `${guild.id}-member-${uid}`,
+                    guildId: guild.id,
+                    userId: uid,
+                    nickname: currentUserWithStatus.nickname || (currentUserWithStatus.isAdmin ? ADMIN_NICKNAME : ''),
+                    role: guild.leaderId === uid ? 'leader' : 'member',
+                    joinDate: Date.now(),
+                    contributionTotal: 0,
+                    weeklyContribution: 0,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                },
+            ];
         }
-        return [...members].sort((a, b) => (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3));
+        return members;
     }, [guild.members, guild.id, guild.leaderId, currentUserWithStatus?.guildId, currentUserWithStatus?.id, currentUserWithStatus?.isAdmin, currentUserWithStatus?.nickname]);
+
+    const displayMembers = useMemo(() => {
+        const roleOrder: Record<string, number> = { leader: 0, officer: 1, member: 2 };
+        const arr = [...baseMembers];
+        const ONLINE_BIAS = 1e15;
+
+        const lastLoginSortKey = (m: GuildMember) => {
+            const u = allUsers.find((x) => x.id === m.userId || (m.userId === ADMIN_USER_ID && x.isAdmin));
+            const userStatus = onlineUsers.find((ou) => ou.id === m.userId || (m.userId === ADMIN_USER_ID && ou.isAdmin));
+            const isSelf =
+                !!effectiveUserId &&
+                (m.userId === effectiveUserId || m.userId === currentUserWithStatus?.id);
+            const isOnline = !!userStatus || !!isSelf;
+            const base = Math.max(0, m.lastLoginAt ?? u?.lastLoginAt ?? 0);
+            return isOnline ? ONLINE_BIAS + base : base;
+        };
+
+        const tieUser = (a: GuildMember, b: GuildMember) => String(a.userId).localeCompare(String(b.userId));
+
+        arr.sort((a, b) => {
+            const nameA = resolveDisplayName(a);
+            const nameB = resolveDisplayName(b);
+            let cmp = 0;
+            switch (sortMode) {
+                case 'role': {
+                    const ra = roleOrder[a.role] ?? 3;
+                    const rb = roleOrder[b.role] ?? 3;
+                    cmp = ra - rb;
+                    if (cmp === 0) cmp = nameA.localeCompare(nameB, 'ko');
+                    break;
+                }
+                case 'joinDate':
+                    cmp = a.joinDate - b.joinDate;
+                    break;
+                case 'contributionTotal':
+                    cmp = (b.contributionTotal || 0) - (a.contributionTotal || 0);
+                    break;
+                case 'weeklyContribution':
+                    cmp = (b.weeklyContribution || 0) - (a.weeklyContribution || 0);
+                    break;
+                case 'lastLogin':
+                    cmp = lastLoginSortKey(b) - lastLoginSortKey(a);
+                    break;
+                case 'nickname':
+                    cmp = nameA.localeCompare(nameB, 'ko');
+                    break;
+                default:
+                    cmp = 0;
+            }
+            if (cmp !== 0) return cmp;
+            return tieUser(a, b);
+        });
+        return arr;
+    }, [
+        baseMembers,
+        sortMode,
+        allUsers,
+        onlineUsers,
+        effectiveUserId,
+        currentUserWithStatus?.id,
+        resolveDisplayName,
+    ]);
     
     const isMaster = myMemberInfo?.role === 'leader';
     const isVice = myMemberInfo?.role === 'officer';
@@ -239,43 +318,100 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
     };
 
     return (
-        <div className="flex flex-col h-full bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md p-6 relative overflow-visible">
-            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-            <div className="relative z-10 flex flex-col h-full">
-                <div className="flex justify-between items-center mb-6 flex-shrink-0">
-                    <h3 className="text-2xl font-bold text-highlight drop-shadow-lg flex items-center gap-2">
-                        <span className="text-2xl">👥</span>
-                        <span>길드원 목록 <span className="text-lg text-primary">({sortedMembers.length} / {memberLimit})</span></span>
-                    </h3>
-                    {myMemberInfo && myMemberInfo.role !== 'leader' && (
-                        <Button onClick={handleLeaveGuild} colorScheme="red" className="!text-xs !py-2 !px-4 border-2 border-red-500/50 shadow-lg hover:shadow-xl transition-all">길드 탈퇴</Button>
-                    )}
-                    {myMemberInfo && myMemberInfo.role === 'leader' && sortedMembers.length === 1 && (
-                        <Button onClick={handleLeaveGuild} colorScheme="red" className="!text-xs !py-2 !px-4 border-2 border-red-500/50 shadow-lg hover:shadow-xl transition-all">길드 해체</Button>
-                    )}
+        <div
+            className={`relative flex h-full flex-col overflow-visible rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 shadow-2xl backdrop-blur-md ${
+                compact ? 'p-3' : 'p-6'
+            }`}
+        >
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
+            <div className="relative z-10 flex h-full flex-col">
+                <div className={`flex flex-shrink-0 flex-col ${compact ? 'mb-2 gap-2' : 'mb-6 gap-3'}`}>
+                    <div className="flex items-center justify-between gap-1">
+                        <h3
+                            className={`font-bold text-highlight drop-shadow-lg flex min-w-0 items-center gap-1 ${
+                                compact ? 'text-base' : 'gap-2 text-2xl'
+                            }`}
+                        >
+                            <span className={compact ? 'text-lg' : 'text-2xl'}>👥</span>
+                            <span className="min-w-0 truncate">
+                                길드원{' '}
+                                <span className={compact ? 'text-sm text-primary' : 'text-lg text-primary'}>
+                                    ({displayMembers.length}/{memberLimit})
+                                </span>
+                            </span>
+                        </h3>
+                        {myMemberInfo && myMemberInfo.role !== 'leader' && (
+                            <Button
+                                onClick={handleLeaveGuild}
+                                colorScheme="red"
+                                className={`shrink-0 border-2 border-red-500/50 shadow-lg transition-all hover:shadow-xl ${compact ? '!px-3 !py-2 !text-xs' : '!px-4 !py-2 !text-xs'}`}
+                            >
+                                탈퇴
+                            </Button>
+                        )}
+                        {myMemberInfo && myMemberInfo.role === 'leader' && displayMembers.length === 1 && (
+                            <Button
+                                onClick={handleLeaveGuild}
+                                colorScheme="red"
+                                className={`shrink-0 border-2 border-red-500/50 shadow-lg transition-all hover:shadow-xl ${compact ? '!px-3 !py-2 !text-xs' : '!px-4 !py-2 !text-xs'}`}
+                            >
+                                해체
+                            </Button>
+                        )}
+                    </div>
+                    <div className={`flex min-w-0 items-center gap-2 ${compact ? '' : 'max-w-md'}`}>
+                        <span className="shrink-0 text-sm text-stone-400">정렬</span>
+                        <select
+                            value={sortMode}
+                            onChange={(e) => setSortMode(e.target.value as GuildMemberSortMode)}
+                            aria-label="길드원 목록 정렬"
+                            className={`min-w-0 flex-1 rounded-lg border border-stone-500/50 bg-stone-800/90 text-stone-100 shadow-inner outline-none focus:border-cyan-500/60 ${
+                                compact ? 'py-2.5 pl-2.5 pr-8 text-sm' : 'py-2 pl-3 pr-8 text-sm'
+                            }`}
+                        >
+                            {MEMBER_SORT_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                    {o.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
-                <div className="flex flex-col flex-grow min-h-0 overflow-hidden">
-                <div className="overflow-y-auto pr-3 flex-grow min-h-0 min-w-0">
-                    {sortedMembers.length === 0 ? (
-                        <div className="flex items-center justify-center h-full py-12">
+                <div className="flex min-h-0 flex-grow flex-col overflow-hidden">
+                <div className={`min-h-0 min-w-0 flex-grow overflow-y-auto ${compact ? 'pr-1' : 'pr-3'}`}>
+                    {displayMembers.length === 0 ? (
+                        <div className={`flex h-full items-center justify-center ${compact ? 'py-6' : 'py-12'}`}>
                             <div className="text-center">
-                                <p className="text-xl text-tertiary font-semibold mb-2">길드원이 없습니다</p>
-                                <p className="text-sm text-gray-500">아직 가입한 길드원이 없습니다.</p>
+                                <p className={`text-tertiary font-semibold ${compact ? 'mb-1 text-base' : 'mb-2 text-xl'}`}>길드원이 없습니다</p>
+                                <p className={compact ? 'text-sm text-gray-500' : 'text-sm text-gray-500'}>아직 가입한 길드원이 없습니다.</p>
                             </div>
                         </div>
                     ) : (
-                        <table className="w-full border-collapse">
+                        <table className={`w-full border-collapse ${compact ? 'table-fixed' : ''}`}>
+                        {compact && (
+                            <colgroup>
+                                <col className="min-w-0" />
+                                <col className="w-[17%]" />
+                                <col className="w-[17%]" />
+                                <col className="w-[22%]" />
+                                {canManage && <col className="w-[14%]" />}
+                            </colgroup>
+                        )}
                         <thead className="sticky top-0 z-10">
-                            <tr className="text-sm text-highlight font-bold bg-gradient-to-r from-stone-800/95 via-neutral-700/85 to-stone-800/95 border-b-2 border-stone-600/50">
-                                <th className="text-left px-5 py-4 text-base">길드원</th>
-                                <th className="text-center w-24 py-4">주간 기여도</th>
-                                <th className="text-center w-24 py-4">누적 기여도</th>
-                                <th className="text-center w-28 py-4">최근 접속</th>
-                                {canManage && <th className="text-center w-20 py-4">관리</th>}
+                            <tr
+                                className={`border-b-2 border-stone-600/50 bg-gradient-to-r from-stone-800/95 via-neutral-700/85 to-stone-800/95 font-bold text-highlight ${
+                                    compact ? 'text-xs' : 'text-sm'
+                                }`}
+                            >
+                                <th className={`text-left ${compact ? 'px-2 py-2.5' : 'px-5 py-4 text-base'}`}>길드원</th>
+                                <th className={`text-center ${compact ? 'px-2 py-2.5' : 'w-24 py-4'}`}>주간</th>
+                                <th className={`text-center ${compact ? 'px-2 py-2.5' : 'w-24 py-4'}`}>누적</th>
+                                <th className={`text-center ${compact ? 'px-2 py-2.5' : 'w-28 py-4'}`}>접속</th>
+                                {canManage && <th className={`text-center ${compact ? 'px-2 py-2.5' : 'w-20 py-4'}`}>관리</th>}
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedMembers.map(member => {
+                            {displayMembers.map(member => {
                             const user = allUsers.find(u => u.id === member.userId || (member.userId === ADMIN_USER_ID && u.isAdmin));
                             const memberDisplayName = member.nickname
                                 || (member.userId === ADMIN_USER_ID ? ADMIN_NICKNAME : (user?.isAdmin ? ADMIN_NICKNAME : (user?.nickname || 'Unknown')));
@@ -291,7 +427,9 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                     key={member.userId}
                                     onClick={isClickable ? (e) => { e?.stopPropagation(); handlers.openViewingUser(member.userId); } : undefined}
                                     title={isClickable ? `${memberDisplayName} 프로필 보기` : ''}
-                                    className={`border-b-2 border-stone-600/50 transition-all duration-200 ${
+                                    className={`transition-all duration-200 ${
+                                        compact ? 'border-b border-stone-600/40' : 'border-b-2 border-stone-600/50'
+                                    } ${
                                         isClickable 
                                             ? 'cursor-pointer hover:bg-stone-700/50' 
                                             : ''
@@ -303,35 +441,43 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                             : 'bg-gradient-to-r from-stone-800/95 via-neutral-700/90 to-stone-800/95'
                                     }`}
                                 >
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-5 min-w-0">
+                                    <td className={compact ? 'px-2 py-2.5' : 'px-5 py-4'}>
+                                        <div className={`flex min-w-0 items-center ${compact ? 'gap-2.5' : 'gap-5'}`}>
                                             <div className="relative flex-shrink-0">
-                                                 <Avatar userId={member.userId} userName={memberDisplayName} size={56} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                                                 <Avatar userId={member.userId} userName={memberDisplayName} size={compact ? 44 : 56} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                                             </div>
-                                            <div className="min-w-0">
-                                                <p className="font-bold text-xl truncate drop-shadow-lg mb-1 flex items-center gap-2">
-                                                    <span className={`flex-shrink-0 w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} title={isOnline ? '온라인' : '오프라인'} />
-                                                    {memberDisplayName}
+                                            <div className="min-w-0 flex-1 overflow-hidden">
+                                                <p
+                                                    className={`flex items-center gap-1.5 truncate font-bold drop-shadow-lg ${
+                                                        compact ? 'text-sm leading-snug' : 'mb-1 gap-2 text-xl'
+                                                    }`}
+                                                >
+                                                    <span className={`flex-shrink-0 rounded-full ${compact ? 'h-2 w-2' : 'h-2.5 w-2.5'} ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} title={isOnline ? '온라인' : '오프라인'} />
+                                                    <span className="truncate">{memberDisplayName}</span>
                                                 </p>
-                                                <p className={`text-sm font-bold ${getRoleColor(member.role)} drop-shadow-md`}>{getRoleName(member.role)}</p>
+                                                <p className={`truncate font-bold ${getRoleColor(member.role)} drop-shadow-md ${compact ? 'text-xs leading-snug' : 'text-sm'}`}>{getRoleName(member.role)}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="text-center w-24 align-middle">
-                                        <p className="font-bold text-lg text-primary drop-shadow-lg">{member.weeklyContribution || 0}</p>
+                                    <td className={`text-center align-middle ${compact ? 'px-2 py-2' : 'w-24'}`}>
+                                        <p className={`font-bold tabular-nums text-primary drop-shadow-lg ${compact ? 'text-sm leading-tight' : 'text-lg'}`}>{member.weeklyContribution || 0}</p>
                                     </td>
-                                    <td className="text-center w-24 align-middle">
-                                        <p className="font-bold text-lg text-accent drop-shadow-lg">{member.contributionTotal || 0}</p>
+                                    <td className={`text-center align-middle ${compact ? 'px-2 py-2' : 'w-24'}`}>
+                                        <p className={`font-bold tabular-nums text-accent drop-shadow-lg ${compact ? 'text-sm leading-tight' : 'text-lg'}`}>{member.contributionTotal || 0}</p>
                                     </td>
-                                    <td className="text-center w-28 align-middle min-w-0">
-                                        <p className="truncate text-sm font-semibold">{isOnline ? <span className="text-green-400 drop-shadow-lg">온라인</span> : <span className="text-tertiary">{formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}</span>}</p>
+                                    <td className={`min-w-0 text-center align-middle ${compact ? 'px-2 py-2' : 'w-28'}`}>
+                                        <p className={`truncate font-semibold ${compact ? 'text-xs leading-snug' : 'text-sm'}`}>{isOnline ? <span className="text-green-400 drop-shadow-lg">온</span> : <span className="text-tertiary">{formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}</span>}</p>
                                     </td>
                                     {canManage && (
-                                        <td className="text-center w-20 align-middle" onClick={(e) => e.stopPropagation()}>
+                                        <td className={`text-center align-middle ${compact ? 'px-2 py-2' : 'w-20'}`} onClick={(e) => e.stopPropagation()}>
                                             {member.userId !== myMemberInfo?.userId && (
                                                 <Button
                                                     onClick={() => setManagingMember(member)}
-                                                    className="!text-xs !py-2.5 !px-4 border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+                                                    className={
+                                                        compact
+                                                            ? '!px-2 !py-1.5 !text-xs border border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 font-semibold text-white shadow-md'
+                                                            : '!px-4 !py-2.5 !text-xs border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 font-semibold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200'
+                                                    }
                                                 >
                                                     관리
                                                 </Button>

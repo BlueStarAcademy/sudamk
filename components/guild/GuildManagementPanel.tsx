@@ -7,9 +7,11 @@ import ToggleSwitch from '../ui/ToggleSwitch.js';
 
 interface GuildManagementPanelProps {
     guild: GuildType;
+    /** 모바일 길드홈 전체 화면: 패딩·타이포 축소 */
+    compact?: boolean;
 }
 
-const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild }) => {
+const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild, compact = false }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
     const [announcement, setAnnouncement] = useState(guild.announcement || '');
     const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
@@ -48,9 +50,13 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild }) =>
     };
 
     return (
-        <div className="flex flex-col h-full gap-6 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md p-6 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-            <div className="relative z-10 flex flex-col h-full">
+        <div
+            className={`relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 shadow-2xl backdrop-blur-md ${
+                compact ? 'gap-3 p-2' : 'gap-6 p-6'
+            }`}
+        >
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
+            <div className="relative z-10 flex h-full flex-col">
                 {isEditingProfile && (
                     <DraggableWindow title="길드 정보 수정" onClose={() => setIsEditingProfile(false)} windowId={`guild-profile-edit-${guild.id}`}>
                         <div className="space-y-4 p-2">
@@ -100,78 +106,104 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild }) =>
                     </DraggableWindow>
                 )}
 
-                <div className="bg-gradient-to-br from-stone-800/95 via-neutral-700/90 to-stone-800/95 p-7 rounded-xl border-2 border-stone-600/50 shadow-2xl backdrop-blur-md relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
+                <div
+                    className={`relative overflow-hidden rounded-xl border-2 border-stone-600/50 bg-gradient-to-br from-stone-800/95 via-neutral-700/90 to-stone-800/95 shadow-2xl backdrop-blur-md ${
+                        compact ? 'p-3' : 'p-7'
+                    }`}
+                >
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
                     <div className="relative z-10">
-                        <div className="flex justify-between items-start mb-5">
-                            <h3 className="font-bold text-2xl text-highlight drop-shadow-lg flex items-center gap-2">
-                                <span className="text-2xl">📢</span>
+                        <div className={`flex items-start justify-between gap-2 ${compact ? 'mb-2' : 'mb-5'}`}>
+                            <h3 className={`font-bold text-highlight drop-shadow-lg flex items-center gap-1 ${compact ? 'text-sm' : 'gap-2 text-2xl'}`}>
+                                <span className={compact ? 'text-base' : 'text-2xl'}>📢</span>
                                 <span>길드 공지</span>
                             </h3>
                             <Button 
                                 onClick={() => setIsEditingAnnouncement(!isEditingAnnouncement)} 
-                                className="!text-sm !py-2.5 !px-5 border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+                                className={`border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl ${
+                                    compact ? '!px-2 !py-1 !text-[11px]' : 'hover:scale-105 !px-5 !py-2.5 !text-sm'
+                                }`}
                             >
                                 {isEditingAnnouncement ? '취소' : '편집'}
                             </Button>
                         </div>
                         {isEditingAnnouncement ? (
-                            <div className="mt-5">
+                            <div className={compact ? 'mt-2' : 'mt-5'}>
                                 <textarea 
                                     value={announcement} 
                                     onChange={e => setAnnouncement(e.target.value)} 
                                     maxLength={150} 
-                                    className="w-full h-36 p-4 bg-gradient-to-br from-stone-900/95 to-neutral-800/95 rounded-xl border-2 border-stone-600/60 text-primary focus:border-cyan-500/70 focus:outline-none transition-all shadow-inner backdrop-blur-md text-sm leading-relaxed" 
+                                    className={`w-full rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 to-neutral-800/95 text-primary shadow-inner backdrop-blur-md transition-all focus:border-cyan-500/70 focus:outline-none ${
+                                        compact ? 'h-24 p-2 text-xs leading-snug' : 'h-36 p-4 text-sm leading-relaxed'
+                                    }`}
                                 />
                                 <Button 
                                     onClick={handleSaveAnnouncement} 
-                                    className="w-full mt-4 border-2 border-green-500/60 bg-gradient-to-r from-green-600/95 via-emerald-600/95 to-teal-600/95 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 font-semibold py-3"
+                                    className={`mt-2 w-full border-2 border-green-500/60 bg-gradient-to-r from-green-600/95 via-emerald-600/95 to-teal-600/95 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl ${
+                                        compact ? 'py-2 !text-xs' : 'mt-4 py-3 hover:scale-[1.02]'
+                                    }`}
                                 >
                                     저장
                                 </Button>
                             </div>
                         ) : (
-                            <div className="mt-5 p-5 bg-gradient-to-br from-stone-900/85 to-neutral-800/85 rounded-xl border-2 border-stone-600/50 min-h-[120px] shadow-inner backdrop-blur-sm">
-                                <p className="text-sm text-primary whitespace-pre-wrap leading-relaxed drop-shadow-md">{guild.announcement || <span className="text-tertiary italic">등록된 공지사항이 없습니다.</span>}</p>
+                            <div
+                                className={`rounded-xl border-2 border-stone-600/50 bg-gradient-to-br from-stone-900/85 to-neutral-800/85 shadow-inner backdrop-blur-sm ${
+                                    compact ? 'mt-2 min-h-[4.5rem] p-2' : 'mt-5 min-h-[120px] p-5'
+                                }`}
+                            >
+                                <p className={`whitespace-pre-wrap text-primary drop-shadow-md ${compact ? 'text-xs leading-snug' : 'text-sm leading-relaxed'}`}>{guild.announcement || <span className="text-tertiary italic">등록된 공지사항이 없습니다.</span>}</p>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-stone-800/95 via-neutral-700/90 to-stone-800/95 p-7 rounded-xl border-2 border-stone-600/50 shadow-2xl backdrop-blur-md flex-1 min-h-0 flex flex-col relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-                    <div className="relative z-10 flex flex-col h-full">
-                        <div className="flex justify-between items-start mb-5 flex-shrink-0">
-                            <h3 className="font-bold text-2xl text-highlight drop-shadow-lg flex items-center gap-2">
-                                <span className="text-2xl">📝</span>
-                                <span>가입 신청 관리</span>
+                <div
+                    className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-stone-600/50 bg-gradient-to-br from-stone-800/95 via-neutral-700/90 to-stone-800/95 shadow-2xl backdrop-blur-md ${
+                        compact ? 'p-3' : 'p-7'
+                    }`}
+                >
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
+                    <div className="relative z-10 flex h-full flex-col">
+                        <div className={`flex flex-shrink-0 items-start justify-between gap-2 ${compact ? 'mb-2' : 'mb-5'}`}>
+                            <h3 className={`font-bold text-highlight drop-shadow-lg flex items-center gap-1 ${compact ? 'text-sm' : 'gap-2 text-2xl'}`}>
+                                <span className={compact ? 'text-base' : 'text-2xl'}>📝</span>
+                                <span>가입 신청</span>
                             </h3>
                             <Button 
                                 onClick={() => setIsEditingProfile(true)} 
-                                className="!text-sm !py-2.5 !px-5 border-2 border-purple-500/60 bg-gradient-to-r from-purple-600/95 via-indigo-600/95 to-violet-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+                                className={`border-2 border-purple-500/60 bg-gradient-to-r from-purple-600/95 via-indigo-600/95 to-violet-600/95 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl ${
+                                    compact ? '!px-2 !py-1 !text-[11px]' : 'hover:scale-105 !px-5 !py-2.5 !text-sm'
+                                }`}
                             >
                                 정보 수정
                             </Button>
                         </div>
-                        <div className="flex-grow overflow-y-auto pr-3 min-h-0">
+                        <div className={`min-h-0 flex-grow overflow-y-auto ${compact ? 'pr-1' : 'pr-3'}`}>
                             {applicantsWithUserData.length > 0 ? (
-                                <ul className="space-y-4">
+                                <ul className={compact ? 'space-y-2' : 'space-y-4'}>
                                     {applicantsWithUserData.map(applicant => (
                                         <li 
                                             key={applicant.id} 
-                                            className="flex items-center justify-between bg-gradient-to-r from-stone-800/95 via-neutral-700/90 to-stone-800/95 p-5 rounded-xl border-2 border-stone-600/50 shadow-xl backdrop-blur-md transition-all duration-200 hover:border-stone-500/70 hover:shadow-2xl hover:-translate-y-0.5 hover:scale-[1.01]"
+                                            className={`flex items-center justify-between rounded-xl border-2 border-stone-600/50 bg-gradient-to-r from-stone-800/95 via-neutral-700/90 to-stone-800/95 shadow-xl backdrop-blur-md transition-all duration-200 hover:border-stone-500/70 ${
+                                                compact ? 'gap-1 px-2 py-1.5' : 'hover:-translate-y-0.5 hover:scale-[1.01] p-5 hover:shadow-2xl'
+                                            }`}
                                         >
-                                            <span className="font-bold text-lg text-primary drop-shadow-lg">{applicant.nickname}</span>
-                                            <div className="flex gap-3">
+                                            <span className={`min-w-0 flex-1 truncate font-bold text-primary drop-shadow-lg ${compact ? 'text-xs' : 'text-lg'}`}>{applicant.nickname}</span>
+                                            <div className={`flex shrink-0 ${compact ? 'gap-1' : 'gap-3'}`}>
                                                 <Button 
                                                     onClick={() => handleApplicant(applicant.id, true)} 
-                                                    className="!text-xs !py-2.5 !px-5 border-2 border-green-500/60 bg-gradient-to-r from-green-600/95 via-emerald-600/95 to-teal-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+                                                    className={`border-2 border-green-500/60 bg-gradient-to-r from-green-600/95 via-emerald-600/95 to-teal-600/95 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl ${
+                                                        compact ? '!px-2 !py-1 !text-[10px]' : 'hover:scale-105 !px-5 !py-2.5 !text-xs'
+                                                    }`}
                                                 >
                                                     승인
                                                 </Button>
                                                 <Button 
                                                     onClick={() => handleApplicant(applicant.id, false)} 
-                                                    className="!text-xs !py-2.5 !px-5 border-2 border-red-500/60 bg-gradient-to-r from-red-600/95 via-rose-600/95 to-pink-600/95 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+                                                    className={`border-2 border-red-500/60 bg-gradient-to-r from-red-600/95 via-rose-600/95 to-pink-600/95 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl ${
+                                                        compact ? '!px-2 !py-1 !text-[10px]' : 'hover:scale-105 !px-5 !py-2.5 !text-xs'
+                                                    }`}
                                                 >
                                                     거절
                                                 </Button>
@@ -180,8 +212,14 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild }) =>
                                     ))}
                                 </ul>
                             ) : (
-                                <div className="h-full flex items-center justify-center">
-                                    <p className="text-sm text-tertiary text-center bg-gradient-to-br from-stone-900/70 to-neutral-800/70 p-8 rounded-xl border-2 border-stone-600/40 backdrop-blur-md shadow-inner">
+                                <div className="flex h-full items-center justify-center">
+                                    <p
+                                        className={`text-center text-tertiary ${
+                                            compact
+                                                ? 'rounded-lg border border-stone-600/40 bg-gradient-to-br from-stone-900/70 to-neutral-800/70 p-3 text-xs backdrop-blur-md shadow-inner'
+                                                : 'rounded-xl border-2 border-stone-600/40 bg-gradient-to-br from-stone-900/70 to-neutral-800/70 p-8 text-sm backdrop-blur-md shadow-inner'
+                                        }`}
+                                    >
                                         가입 신청이 없습니다.
                                     </p>
                                 </div>

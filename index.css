@@ -1282,6 +1282,14 @@ input[type="range"]::-moz-range-thumb {
     background-color: rgb(var(--bg-tertiary));
 }
 
+/* 모바일 로그인: 가로를 조금 더 길게(비율 완화) + 우하단 기준으로 배치 */
+@media (max-width: 1024px) {
+    .bg-login-background {
+        background-size: 168% 132%;
+        background-position: right bottom;
+    }
+}
+
 .bg-strategic-background {
     background-image: url('/images/bg/strategicbg.png');
     background-size: cover;

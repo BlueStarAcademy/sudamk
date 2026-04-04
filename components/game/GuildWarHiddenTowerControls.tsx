@@ -7,6 +7,7 @@ import { GameProps, Player } from '../../types.js';
 import Button from '../Button.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
+import { ArenaControlStrip } from './ArenaControlStrip.js';
 
 interface GuildWarHiddenTowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     setShowResultModal?: (show: boolean) => void;
@@ -139,13 +140,8 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
         const endBtn = isMobile ? '!py-1 !px-2 !text-[0.65rem] shrink-0' : '!py-1.5 !px-4 !text-sm';
         return (
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[148px]">
-                <div
-                    className={`bg-gray-900/70 border border-stone-700 rounded-xl py-3 flex items-center gap-2 min-w-0 ${
-                        isMobile
-                            ? 'flex flex-wrap items-center justify-evenly gap-2 px-2 py-3 min-w-0'
-                            : 'flex-wrap justify-center px-4 gap-3'
-                    }`}
-                >
+                <div className="min-w-0 rounded-xl border border-stone-700 bg-gray-900/70 px-2 py-3 sm:px-4">
+                    <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-1.5' : 'gap-2'}>
                     <Button
                         onClick={handleShowResults}
                         colorScheme="none"
@@ -160,6 +156,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                     >
                         나가기
                     </Button>
+                    </ArenaControlStrip>
                 </div>
             </footer>
         );
@@ -171,75 +168,91 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
     return (
         <footer
             className={`responsive-controls flex-shrink-0 bg-stone-800/70 backdrop-blur-sm rounded-xl w-full min-h-[148px] border border-stone-700/50 ${
-                isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-2 p-2' : 'p-3 flex items-stretch justify-between gap-4'
+                isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-2 p-2' : 'flex flex-row items-stretch gap-3 p-3'
             }`}
         >
             {isMobile ? (
                 <>
-                    <div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-center gap-2 rounded-lg border border-stone-600/40 bg-black/20 px-2 py-2">
-                        <div className={colClass}>
-                            <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} title="기권하기" compact={isMobile} />
-                            <span className={`${lbl} font-semibold text-red-300`}>기권</span>
+                    <div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/40 bg-black/20 px-2 py-2">
+                        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+                                <div className={colClass}>
+                                    <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} title="기권하기" compact={isMobile} />
+                                    <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
+                                </div>
+                            </ArenaControlStrip>
                         </div>
                     </div>
                     <div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
-                    <div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
-                        <div className={colClass}>
-                            <ImageButton
-                                src="/images/button/hidden.png"
-                                alt="히든"
-                                onClick={handleUseHidden}
-                                disabled={hiddenDisabled}
-                                title="히든 스톤 배치"
-                                count={hiddenLeft}
-                                compact={isMobile}
-                            />
-                            <span className={`${lbl} font-semibold ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
-                        </div>
-                        <div className={colClass}>
-                            <ImageButton
-                                src="/images/button/scan.png"
-                                alt="스캔"
-                                onClick={handleUseScan}
-                                disabled={scanDisabled}
-                                title="스캔"
-                                count={scansLeft}
-                                compact={isMobile}
-                            />
-                            <span className={`${lbl} font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+                    <div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
+                        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+                                <div className={colClass}>
+                                    <ImageButton
+                                        src="/images/button/hidden.png"
+                                        alt="히든"
+                                        onClick={handleUseHidden}
+                                        disabled={hiddenDisabled}
+                                        title="히든 스톤 배치"
+                                        count={hiddenLeft}
+                                        compact={isMobile}
+                                    />
+                                    <span className={`${lbl} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+                                </div>
+                                <div className={colClass}>
+                                    <ImageButton
+                                        src="/images/button/scan.png"
+                                        alt="스캔"
+                                        onClick={handleUseScan}
+                                        disabled={scanDisabled}
+                                        title="스캔"
+                                        count={scansLeft}
+                                        compact={isMobile}
+                                    />
+                                    <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+                                </div>
+                            </ArenaControlStrip>
                         </div>
                     </div>
                 </>
             ) : (
                 <>
-                    <div className={colClass}>
-                        <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} title="기권하기" compact={isMobile} />
-                        <span className={`${lbl} font-semibold text-red-300`}>기권</span>
+                    <div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-stone-600/40 bg-black/10 px-2 py-2">
+                        <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+                            <div className={colClass}>
+                                <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} title="기권하기" compact={isMobile} />
+                                <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
+                            </div>
+                        </ArenaControlStrip>
                     </div>
-                    <div className="w-px bg-stone-600/50 shrink-0 self-stretch" />
-                    <div className={colClass}>
-                        <ImageButton
-                            src="/images/button/hidden.png"
-                            alt="히든"
-                            onClick={handleUseHidden}
-                            disabled={hiddenDisabled}
-                            title="히든 스톤 배치"
-                            count={hiddenLeft}
-                            compact={isMobile}
-                        />
-                        <span className={`${lbl} font-semibold ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
-                    </div>
-                    <div className={colClass}>
-                        <ImageButton
-                            src="/images/button/scan.png"
-                            alt="스캔"
-                            onClick={handleUseScan}
-                            disabled={scanDisabled}
-                            title="스캔"
-                            count={scansLeft}
-                            compact={isMobile}
-                        />
-                        <span className={`${lbl} font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+                    <div className="w-px shrink-0 self-stretch bg-stone-600/50" />
+                    <div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-amber-900/35 bg-amber-950/10 px-2 py-2">
+                        <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+                            <div className={colClass}>
+                                <ImageButton
+                                    src="/images/button/hidden.png"
+                                    alt="히든"
+                                    onClick={handleUseHidden}
+                                    disabled={hiddenDisabled}
+                                    title="히든 스톤 배치"
+                                    count={hiddenLeft}
+                                    compact={isMobile}
+                                />
+                                <span className={`${lbl} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+                            </div>
+                            <div className={colClass}>
+                                <ImageButton
+                                    src="/images/button/scan.png"
+                                    alt="스캔"
+                                    onClick={handleUseScan}
+                                    disabled={scanDisabled}
+                                    title="스캔"
+                                    count={scansLeft}
+                                    compact={isMobile}
+                                />
+                                <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+                            </div>
+                        </ArenaControlStrip>
                     </div>
                 </>
             )}

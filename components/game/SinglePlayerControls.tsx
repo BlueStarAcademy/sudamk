@@ -6,12 +6,15 @@ import AlertModal from '../AlertModal.js';
 import ConfirmModal from '../ConfirmModal.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
+import { ArenaControlStrip } from './ArenaControlStrip.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     setShowResultModal?: (show: boolean) => void;
     isMoveInFlight?: boolean;
     isBoardLocked?: boolean;
     isMobile?: boolean;
+    /** Game.tsx에서 gameControlsProps 일괄 전달 시 무시 */
+    onLeaveOrResign?: () => void;
 }
 
 interface ImageButtonProps {
@@ -282,25 +285,21 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         const endBtn = isMobile ? '!py-1 !px-2 !text-[0.65rem] shrink-0' : '!py-1.5 !px-4 !text-sm';
         return (
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full h-[148px]">
-                <div
-                    className={`bg-gray-900/70 border border-stone-700 rounded-xl py-3 flex items-center gap-2 min-w-0 ${
-                        isMobile
-                            ? 'flex flex-wrap items-center justify-evenly gap-2 px-2 py-3 min-w-0'
-                            : 'flex-wrap justify-center px-4 gap-3'
-                    }`}
-                >
+                <div className="min-w-0 rounded-xl border border-stone-700 bg-gray-900/70 px-2 py-3 sm:px-4">
+                    <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-1.5' : 'gap-2'}>
                     <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap ${endBtn}`}>
                         결과 확인
                     </Button>
-                    <Button onClick={handleNextStage} colorScheme="none" className={`justify-center rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap max-w-[48vw] truncate ${endBtn}`} disabled={!canTryNext}>
+                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap ${endBtn}`}>
+                        나가기
+                    </Button>
+                    <Button onClick={handleNextStage} colorScheme="none" className={`min-w-0 justify-center rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap ${endBtn}`} disabled={!canTryNext}>
                         다음 단계{canTryNext && nextStage ? `: ${nextStage.name.replace('스테이지 ', '')}` : ''}{nextStageActionPointCost > 0 && ` (⚡${nextStageActionPointCost})`}
                     </Button>
                     <Button onClick={handleRetry} colorScheme="none" className={`justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap ${endBtn}`}>
                         재도전 {retryActionPointCost > 0 && `(⚡${retryActionPointCost})`}
                     </Button>
-                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap ${endBtn}`}>
-                        나가기
-                    </Button>
+                    </ArenaControlStrip>
                 </div>
             </footer>
         );
@@ -320,7 +319,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                     variant="danger"
                     compact={isMobile}
                 />
-                <span className={`${lblBase} font-semibold text-red-300`}>기권</span>
+                <span className={`${lblBase} font-semibold whitespace-nowrap text-red-300`}>기권</span>
             </div>
             <div className={colClass}>
                 <ImageButton
@@ -332,7 +331,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                     count={remainingRefreshes}
                     compact={isMobile}
                 />
-                <span className={`${lblBase} font-semibold ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
+                <span className={`${lblBase} font-semibold whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
                 {nextCost > 0 && (
                     <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} flex items-center gap-0.5 whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-yellow-300'}`}>
                         <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'} shrink-0`} />
@@ -356,7 +355,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                         count={hiddenLeft}
                         compact={isMobile}
                     />
-                    <span className={`${lblBase} font-semibold ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+                    <span className={`${lblBase} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
                 </div>
             )}
             {isHiddenMode && (
@@ -370,7 +369,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                         count={myScansLeft}
                         compact={isMobile}
                     />
-                    <span className={`${lblBase} font-semibold ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+                    <span className={`${lblBase} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
                 </div>
             )}
             {isMissileMode && (
@@ -384,7 +383,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                         count={myMissilesLeft}
                         compact={isMobile}
                     />
-                    <span className={`${lblBase} font-semibold ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
+                    <span className={`${lblBase} font-semibold whitespace-nowrap ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
                 </div>
             )}
         </>
@@ -393,29 +392,51 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     return (
         <div
             className={`bg-stone-800/70 backdrop-blur-sm rounded-xl w-full h-[148px] border border-stone-700/50 ${
-                isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-2 p-2' : 'p-3 flex items-stretch justify-between gap-4'
+                isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-2 p-2' : 'flex flex-row items-stretch gap-3 p-3'
             }`}
         >
             {isMobile ? (
                 <>
-                    <div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-stone-600/40 bg-black/20 px-1 py-2">
-                        {coreZoneSp}
+                    <div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/40 bg-black/20 px-1 py-2">
+                        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+                                {coreZoneSp}
+                            </ArenaControlStrip>
+                        </div>
                     </div>
                     {(isHiddenMode || isMissileMode) && (
                         <>
                             <div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
-                            <div className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
-                                {itemZoneSp}
+                            <div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
+                                <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                                    <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+                                        {itemZoneSp}
+                                    </ArenaControlStrip>
+                                </div>
                             </div>
                         </>
                     )}
                 </>
-            ) : (
+            ) : (isHiddenMode || isMissileMode) ? (
                 <>
-                    {coreZoneSp}
-                    {(isHiddenMode || isMissileMode) && <div className="w-px bg-stone-600/50 shrink-0 self-stretch" />}
-                    {itemZoneSp}
+                    <div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-stone-600/40 bg-black/10 px-2 py-2">
+                        <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+                            {coreZoneSp}
+                        </ArenaControlStrip>
+                    </div>
+                    <div className="w-px shrink-0 self-stretch bg-stone-600/50" />
+                    <div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-amber-900/35 bg-amber-950/10 px-2 py-2">
+                        <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+                            {itemZoneSp}
+                        </ArenaControlStrip>
+                    </div>
                 </>
+            ) : (
+                <div className="flex w-full min-w-0 items-center justify-center px-2 py-2">
+                    <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+                        {coreZoneSp}
+                    </ArenaControlStrip>
+                </div>
             )}
             
             {alertModal && (

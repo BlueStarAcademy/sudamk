@@ -16,10 +16,12 @@ const AnimatedBonusText: React.FC<{
     const durS = Math.max(1.2, (animation.duration ?? 2500) / 1000);
     return (
         <g style={{ pointerEvents: 'none' }} transform={`translate(${cx}, ${cy})`}>
-            <g
-                className={`capture-points-float-inner ${isRotated ? 'capture-points-float-inner-rotated' : ''}`}
-                style={{ animationDuration: `${durS}s` }}
-            >
+            {/* 회전 시 클래스 전환으로 CSS 애니메이션이 재시작되지 않도록 scale로 Y만 보정 */}
+            <g transform={isRotated ? 'scale(1,-1)' : undefined}>
+                <g
+                    className="capture-points-float-inner"
+                    style={{ animationDuration: `${durS}s` }}
+                >
                 <text
                     x={0}
                     y={0}
@@ -35,6 +37,7 @@ const AnimatedBonusText: React.FC<{
                 >
                     {text}
                 </text>
+                </g>
             </g>
         </g>
     );
@@ -441,6 +444,8 @@ interface GoBoardProps {
   pendingMove?: { x: number; y: number; player: Player } | null;
   /** 플로트를 띄울 최소 점수(설정 OFF 시 2 = 기존과 동일, ON 시 1 = 일반 따내기 +1 포함) */
   captureScoreFloatMinPoints?: number;
+  /** 따낸 점수 플로트(+N)를 captures 증가분으로 계산할 때 사용. 없으면 justCaptured 슬라이스만 사용(교체형 페이로드에서 오차 가능) */
+  captures?: { [key in Player]?: number };
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
@@ -452,14 +457,30 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         currentPlayer, isItemModeActive, animation, mode, mixedModes, justCaptured, permanentlyRevealedStones, onAction, gameId,
         showLastMoveMarker, blackPatternStones, whitePatternStones, consumedPatternIntersections, isSinglePlayer = false, isRotated = false, pendingMove = null,
         captureScoreFloatMinPoints = 2,
+        captures,
     } = props;
     const [captureScoreFloats, setCaptureScoreFloats] = useState<{ id: string; point: Point; label: string }[]>([]);
     /** 서버는 justCaptured를 누적하므로, 이번 업데이트에서 새로 추가된 항목만 처리 */
     const processedJustCapturedCountRef = useRef<number>(0);
     const captureFloatTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+    const lastMoveForFloatRef = useRef<Point | null>(null);
+    lastMoveForFloatRef.current = lastMove;
+    /** captures 기반: 이미 플로트 처리한 수(moveHistory 인덱스·좌표·플레이어) */
+    const lastFloatedMoveKeyRef = useRef<string>('');
+    const prevCapturesForFloatRef = useRef<Partial<Record<Player, number>> | null>(null);
 
     useEffect(() => {
         processedJustCapturedCountRef.current = 0;
+        lastFloatedMoveKeyRef.current = '';
+        prevCapturesForFloatRef.current = null;
+        if (captures) {
+            prevCapturesForFloatRef.current = { ...captures };
+            const mh = moveHistory;
+            const tail = mh?.length ? mh[mh.length - 1] : null;
+            if (tail && tail.x >= 0 && tail.y >= 0) {
+                lastFloatedMoveKeyRef.current = `${mh!.length}-${tail.player}-${tail.x}-${tail.y}`;
+            }
+        }
     }, [gameId]);
 
     useEffect(() => {
@@ -469,46 +490,96 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         };
     }, []);
 
+    /**
+     * 짧은 간격으로 justCaptured가 늘어날 때(동시 다발 포획) 디바운스.
+     * captures가 넘어오면 이번 수의 따낸 점수는 captures[mover] 증가분으로 계산해,
+     * justCaptured가 턴마다 교체되어 processed 카운트와 어긋날 때(+4 등)를 막는다.
+     */
     useEffect(() => {
-        const list = justCaptured ?? [];
-        if (list.length === 0) {
-            // 서버/낙관 업데이트에서 justCaptured가 빈 배열로 한번 비워질 수 있으므로
-            // 다음 캡처 이벤트를 새 항목으로 인식하도록 카운터를 리셋한다.
-            processedJustCapturedCountRef.current = 0;
-            return;
-        }
+        const DEBOUNCE_MS = 48;
+        const t = window.setTimeout(() => {
+            const list = justCaptured ?? [];
+            const CAPTURE_FLOAT_MS = 2800;
+            const minPts = captureScoreFloatMinPoints;
 
-        const CAPTURE_FLOAT_MS = 2800;
-        const minPts = captureScoreFloatMinPoints;
-        const prevCount = processedJustCapturedCountRef.current;
+            const pushFloat = (totalPts: number, anchor: Point) => {
+                if (totalPts < minPts) return;
+                const floatId = `cap-${anchor.x}-${anchor.y}-${totalPts}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+                setCaptureScoreFloats((prev) => [
+                    ...prev,
+                    { id: floatId, point: anchor, label: `+${totalPts}` },
+                ]);
+                const clearT = setTimeout(() => {
+                    setCaptureScoreFloats((prev) => prev.filter((x) => x.id !== floatId));
+                }, CAPTURE_FLOAT_MS);
+                captureFloatTimeoutsRef.current.push(clearT);
+            };
 
-        if (list.length < prevCount) {
-            processedJustCapturedCountRef.current = 0;
-        }
-        const start = processedJustCapturedCountRef.current;
-        const newEntries = list.slice(start);
-        processedJustCapturedCountRef.current = list.length;
-        if (newEntries.length === 0) return;
+            if (captures && moveHistory?.length) {
+                const last = moveHistory[moveHistory.length - 1];
+                if (!last) return;
 
-        const totalPts = newEntries.reduce((sum, e) => sum + (e.capturePoints ?? (e.wasHidden ? 5 : 1)), 0);
-        if (totalPts < minPts) return;
+                const moveKey = `${moveHistory.length}-${last.player}-${last.x}-${last.y}`;
+                if (moveKey === lastFloatedMoveKeyRef.current) {
+                    return;
+                }
 
-        const anchor = lastMove ? { x: lastMove.x, y: lastMove.y } : newEntries[0].point;
-        const floatId = `cap-${anchor.x}-${anchor.y}-${totalPts}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        setCaptureScoreFloats((prev) => [
-            ...prev,
-            {
-                id: floatId,
-                point: anchor,
-                label: `+${totalPts}`,
-            },
-        ]);
+                const mover = last.player;
+                const prevSnap = prevCapturesForFloatRef.current;
+                const nowM = Number(captures[mover] ?? 0);
+                const prevM = prevSnap ? Number(prevSnap[mover] ?? 0) : 0;
+                const delta = nowM - prevM;
 
-        const t = setTimeout(() => {
-            setCaptureScoreFloats((prev) => prev.filter((x) => x.id !== floatId));
-        }, CAPTURE_FLOAT_MS);
-        captureFloatTimeoutsRef.current.push(t);
-    }, [justCaptured, captureScoreFloatMinPoints, lastMove]);
+                const commitMoveFloatState = () => {
+                    lastFloatedMoveKeyRef.current = moveKey;
+                    prevCapturesForFloatRef.current = { ...captures };
+                    processedJustCapturedCountRef.current = list.length;
+                };
+
+                const isPass = last.x < 0 || last.y < 0;
+
+                if (delta >= minPts) {
+                    const anchor =
+                        !isPass ? { x: last.x, y: last.y } : (lastMoveForFloatRef.current ?? { x: last.x, y: last.y });
+                    if (anchor.x < 0 || anchor.y < 0) {
+                        commitMoveFloatState();
+                        return;
+                    }
+                    commitMoveFloatState();
+                    pushFloat(delta, anchor);
+                    return;
+                }
+
+                if (isPass || (delta === 0 && list.length === 0) || (delta > 0 && delta < minPts)) {
+                    commitMoveFloatState();
+                }
+                return;
+            }
+
+            if (list.length === 0) {
+                processedJustCapturedCountRef.current = 0;
+                return;
+            }
+
+            const prevCount = processedJustCapturedCountRef.current;
+
+            if (list.length < prevCount) {
+                processedJustCapturedCountRef.current = 0;
+            }
+            const start = processedJustCapturedCountRef.current;
+            const newEntries = list.slice(start);
+            processedJustCapturedCountRef.current = list.length;
+            if (newEntries.length === 0) return;
+
+            const totalPts = newEntries.reduce((sum, e) => sum + (e.capturePoints ?? (e.wasHidden ? 5 : 1)), 0);
+            if (totalPts < minPts) return;
+
+            const lm = lastMoveForFloatRef.current;
+            const anchor = lm ? { x: lm.x, y: lm.y } : newEntries[0].point;
+            pushFloat(totalPts, anchor);
+        }, DEBOUNCE_MS);
+        return () => clearTimeout(t);
+    }, [justCaptured, captures, moveHistory, captureScoreFloatMinPoints, gameId]);
 
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const [selectedMissileStone, setSelectedMissileStone] = useState<Point | null>(null);
@@ -1385,7 +1456,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         const sw = Math.max(1.6, cell_size * 0.1);
                         return (
                             <g key={f.id} transform={`translate(${cx}, ${cy})`} style={{ pointerEvents: 'none' }}>
-                                <g className={`capture-points-float-inner ${isRotated ? 'capture-points-float-inner-rotated' : ''}`}>
+                                <g transform={isRotated ? 'scale(1,-1)' : undefined}>
+                                <g className="capture-points-float-inner">
                                     <text
                                         x={0}
                                         y={0}
@@ -1401,6 +1473,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                     >
                                         {f.label}
                                     </text>
+                                </g>
                                 </g>
                             </g>
                         );

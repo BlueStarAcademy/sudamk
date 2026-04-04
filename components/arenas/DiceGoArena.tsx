@@ -111,6 +111,7 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
                         showLastMoveMarker={showLastMoveMarker}
                         gameId={gameId}
                         justCaptured={session.justCaptured}
+                        captures={session.captures}
                         captureScoreFloatMinPoints={captureScoreFloatMinPoints}
                     />
                     {/* Dice controls (desktop): outside board box but not affecting board size */}

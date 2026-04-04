@@ -89,15 +89,23 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     }, [moveHistory, revealedHiddenMoves, currentUser?.id, session]);
 
     // 히든 모드: 마지막 수 표시를 '마지막 비히든 수'로 (새로고침 후 마지막 수가 히든 돌 위치로 겹치는 버그 방지)
-    const displayLastMove = useMemo(() => {
-        if (!hiddenMoves || typeof hiddenMoves !== 'object' || !moveHistory?.length) return lastMove;
+    const displayLastMoveKey = useMemo(() => {
+        if (!hiddenMoves || typeof hiddenMoves !== 'object' || !moveHistory?.length) {
+            return lastMove != null ? `${lastMove.x},${lastMove.y}` : '';
+        }
         for (let i = moveHistory.length - 1; i >= 0; i--) {
             const m = moveHistory[i];
             if (m.x === -1 && m.y === -1) continue;
-            if (!hiddenMoves[i]) return { x: m.x, y: m.y };
+            if (!hiddenMoves[i]) return `${m.x},${m.y}`;
         }
-        return lastMove;
+        return lastMove != null ? `${lastMove.x},${lastMove.y}` : '';
     }, [lastMove, moveHistory, hiddenMoves]);
+
+    const displayLastMove = useMemo((): Point | null => {
+        if (!displayLastMoveKey) return null;
+        const [x, y] = displayLastMoveKey.split(',').map(Number);
+        return { x, y };
+    }, [displayLastMoveKey]);
 
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player2 : player1;
@@ -178,6 +186,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     newlyRevealed={newlyRevealed}
                     myRevealedStones={myRevealedStones}
                     justCaptured={justCaptured}
+                    captures={session.captures}
                     baseStones={baseStones}
                     baseStones_p1={gameStatus === 'base_placement' ? baseStones_p1 : undefined}
                     baseStones_p2={gameStatus === 'base_placement' ? baseStones_p2 : undefined}

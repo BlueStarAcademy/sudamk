@@ -216,15 +216,27 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
     );
 };
 
-export const GuildAnnouncementPanel: React.FC<{ guild: GuildType }> = ({ guild }) => (
-    <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-4 rounded-xl flex flex-col h-full border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-        <h3 className="font-bold text-lg text-highlight mb-3 flex-shrink-0 relative z-10 drop-shadow-lg flex items-center gap-2">
-            <span className="text-xl">📢</span>
+export const GuildAnnouncementPanel: React.FC<{ guild: GuildType; compact?: boolean }> = ({ guild, compact = false }) => (
+    <div
+        className={`relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 shadow-2xl backdrop-blur-md ${
+            compact ? 'p-2' : 'p-4'
+        }`}
+    >
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
+        <h3
+            className={`relative z-10 flex flex-shrink-0 items-center font-bold text-highlight drop-shadow-lg ${
+                compact ? 'mb-1.5 gap-1 text-sm' : 'mb-3 gap-2 text-lg'
+            }`}
+        >
+            <span className={compact ? 'text-base' : 'text-xl'}>📢</span>
             <span>길드 공지</span>
         </h3>
-        <div className="flex-grow overflow-y-auto pr-2 bg-tertiary/50 p-4 rounded-lg min-h-0 border-2 border-black/20 shadow-inner backdrop-blur-sm relative z-10">
-            <p className="text-sm text-primary whitespace-pre-wrap leading-relaxed">
+        <div
+            className={`relative z-10 min-h-0 flex-grow overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner backdrop-blur-sm ${
+                compact ? 'p-2 pr-1.5' : 'p-4 pr-2'
+            }`}
+        >
+            <p className={`whitespace-pre-wrap text-primary leading-relaxed ${compact ? 'text-xs' : 'text-sm'}`}>
                 {guild.announcement || <span className="text-tertiary italic">등록된 공지사항이 없습니다.</span>}
             </p>
         </div>
@@ -323,7 +335,11 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
     };
 
     return (
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-4 rounded-xl h-full flex flex-col border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
+        <div
+            className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl h-full flex flex-col border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden ${
+                isNativeMobile ? 'px-2 py-2 sm:p-4' : 'p-4'
+            }`}
+        >
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
             <div
                 className={`flex flex-shrink-0 rounded-lg bg-gray-900/70 relative z-10 ${isNativeMobile ? 'mb-1 p-0.5' : 'mb-3 p-1'}`}

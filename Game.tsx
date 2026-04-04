@@ -32,12 +32,54 @@ import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import Button from './components/Button.js';
 import ToggleSwitch from './components/ui/ToggleSwitch.js';
+import { DraggableMoveConfirmPanel } from './components/game/DraggableMoveConfirmPanel.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { useAdContext } from './components/ads/AdProvider.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
 const KO_RULE_FLASH_MESSAGE = '패 모양(단순 코)입니다. 바로 다시 따낼 수 없습니다.';
+
+interface MoveConfirmDraggableProps {
+    layoutMode: 'mobile' | 'desktop';
+    pendingMove: Point | null;
+    handleConfirmMove: () => void;
+    mobileConfirm: boolean;
+    updateFeatureSetting: (key: 'mobileConfirm', checked: boolean) => void;
+    setPendingMove: (p: Point | null) => void;
+}
+
+const MoveConfirmDraggable: React.FC<MoveConfirmDraggableProps> = ({
+    layoutMode,
+    pendingMove,
+    handleConfirmMove,
+    mobileConfirm,
+    updateFeatureSetting,
+    setPendingMove,
+}) => (
+    <DraggableMoveConfirmPanel layoutMode={layoutMode}>
+        <Button
+            onClick={pendingMove ? handleConfirmMove : undefined}
+            disabled={!pendingMove || !mobileConfirm}
+            colorScheme="none"
+            className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${!pendingMove || !mobileConfirm ? 'opacity-40 cursor-not-allowed' : ''}`}
+            title={!mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요'}
+        >
+            착수
+        </Button>
+        <div className="w-full h-px bg-gray-700/70" />
+        <div className="flex w-full items-center justify-between gap-2">
+            <span className="whitespace-nowrap text-[10px] text-gray-300">착수 버튼</span>
+            <ToggleSwitch
+                checked={mobileConfirm}
+                onChange={(checked) => {
+                    updateFeatureSetting('mobileConfirm', checked);
+                    if (!checked) setPendingMove(null);
+                }}
+            />
+        </div>
+    </DraggableMoveConfirmPanel>
+);
 
 const isSamePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 
@@ -2274,6 +2316,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             ? () => setIsAiRematchModalOpen(true)
             : undefined,
         onOpenGameRecordList: handlers.openGameRecordList,
+        onLeaveOrResign: handleLeaveOrResignClick,
     };
 
     if (isSinglePlayer) {
@@ -2315,40 +2358,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isBoardRotated={isBoardRotated}
                                         onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
                                     />
-                                    {/* 착수 확정: PC는 판 옆, 모바일은 하단 고정 */}
+                                    {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                     {showMoveConfirmPanel && (
-                                        <div
-                                            className={
-                                                isMobile
-                                                    ? 'pointer-events-auto fixed bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] left-1/2 z-[60] -translate-x-1/2'
-                                                    : 'pointer-events-auto absolute top-1/2 z-20 -translate-y-1/2'
-                                            }
-                                            style={isMobile ? undefined : { left: 'calc(50% + 420px + 8px)' }}
-                                        >
-                                            <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
-                                                <Button
-                                                    onClick={pendingMove ? handleConfirmMove : undefined}
-                                                    disabled={!pendingMove || !settings.features.mobileConfirm}
-                                                    colorScheme="none"
-                                                    className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${(!pendingMove || !settings.features.mobileConfirm) ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                                    title={!settings.features.mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : (pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요')}
-                                                >
-                                                    착수
-                                                </Button>
-                                                {/* 취소 버튼은 사용하지 않음: 다른 곳 클릭 시 예상착점이 이동됨 */}
-                                                <div className="w-full h-px bg-gray-700/70" />
-                                                <div className="flex items-center justify-between gap-2 w-full">
-                                                    <span className="text-[10px] text-gray-300 whitespace-nowrap">착수 버튼</span>
-                                                    <ToggleSwitch
-                                                        checked={settings.features.mobileConfirm}
-                                                        onChange={(checked) => {
-                                                            updateFeatureSetting('mobileConfirm', checked);
-                                                            if (!checked) setPendingMove(null);
-                                                        }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <MoveConfirmDraggable
+                                            layoutMode={isMobile ? 'mobile' : 'desktop'}
+                                            pendingMove={pendingMove}
+                                            handleConfirmMove={handleConfirmMove}
+                                            mobileConfirm={settings.features.mobileConfirm}
+                                            updateFeatureSetting={updateFeatureSetting}
+                                            setPendingMove={setPendingMove}
+                                        />
                                     )}
                                 </div>
                             </div>
@@ -2484,40 +2503,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
                                     />
-                                {/* 착수 확정: PC는 판 옆, 모바일은 하단 고정 */}
+                                {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                 {showMoveConfirmPanel && (
-                                        <div
-                                            className={
-                                                isMobile
-                                                    ? 'pointer-events-auto fixed bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] left-1/2 z-[60] -translate-x-1/2'
-                                                    : 'pointer-events-auto absolute top-1/2 z-20 -translate-y-1/2'
-                                            }
-                                            style={isMobile ? undefined : { left: 'calc(50% + 420px + 8px)' }}
-                                        >
-                                            <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
-                                            <Button
-                                                onClick={pendingMove ? handleConfirmMove : undefined}
-                                                disabled={!pendingMove || !settings.features.mobileConfirm}
-                                                colorScheme="none"
-                                                className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${(!pendingMove || !settings.features.mobileConfirm) ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                                title={!settings.features.mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : (pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요')}
-                                            >
-                                                착수
-                                            </Button>
-                                            {/* 취소 버튼은 사용하지 않음: 다른 곳 클릭 시 예상착점이 이동됨 */}
-                                                <div className="w-full h-px bg-gray-700/70" />
-                                                <div className="flex items-center justify-between gap-2 w-full">
-                                                    <span className="text-[10px] text-gray-300 whitespace-nowrap">착수 버튼</span>
-                                                    <ToggleSwitch
-                                                        checked={settings.features.mobileConfirm}
-                                                    onChange={(checked) => {
-                                                        updateFeatureSetting('mobileConfirm', checked);
-                                                        if (!checked) setPendingMove(null);
-                                                    }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
+                                    <MoveConfirmDraggable
+                                        layoutMode={isMobile ? 'mobile' : 'desktop'}
+                                        pendingMove={pendingMove}
+                                        handleConfirmMove={handleConfirmMove}
+                                        mobileConfirm={settings.features.mobileConfirm}
+                                        updateFeatureSetting={updateFeatureSetting}
+                                        setPendingMove={setPendingMove}
+                                    />
                                 )}
                                 </div>
                             </div>
@@ -2699,40 +2694,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             }}
                                         />
                                     </div>
-                                    {/* 착수 확정: PC는 판 옆, 모바일은 하단 고정 */}
+                                    {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                     {showMoveConfirmPanel && (
-                                        <div
-                                            className={
-                                                isMobile
-                                                    ? 'pointer-events-auto fixed bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] left-1/2 z-[60] -translate-x-1/2'
-                                                    : 'pointer-events-auto absolute top-1/2 z-20 -translate-y-1/2'
-                                            }
-                                            style={isMobile ? undefined : { left: 'calc(50% + 420px + 8px)' }}
-                                        >
-                                            <div className="bg-gray-900/70 border border-gray-700/80 rounded-xl shadow-2xl px-3 py-2 flex flex-col items-center gap-2 min-w-[110px]">
-                                                <Button
-                                                    onClick={pendingMove ? handleConfirmMove : undefined}
-                                                    disabled={!pendingMove || !settings.features.mobileConfirm}
-                                                    colorScheme="none"
-                                                    className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${(!pendingMove || !settings.features.mobileConfirm) ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                                    title={!settings.features.mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : (pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요')}
-                                                >
-                                                    착수
-                                                </Button>
-                                                {/* 취소 버튼은 사용하지 않음: 다른 곳 클릭 시 예상착점이 이동됨 */}
-                                                <div className="w-full h-px bg-gray-700/70" />
-                                                <div className="flex items-center justify-between gap-2 w-full">
-                                                    <span className="text-[10px] text-gray-300 whitespace-nowrap">착수 버튼</span>
-                                                    <ToggleSwitch
-                                                        checked={settings.features.mobileConfirm}
-                                                        onChange={(checked) => {
-                                                            updateFeatureSetting('mobileConfirm', checked);
-                                                            if (!checked) setPendingMove(null);
-                                                        }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <MoveConfirmDraggable
+                                            layoutMode={isMobile ? 'mobile' : 'desktop'}
+                                            pendingMove={pendingMove}
+                                            handleConfirmMove={handleConfirmMove}
+                                            mobileConfirm={settings.features.mobileConfirm}
+                                            updateFeatureSetting={updateFeatureSetting}
+                                            setPendingMove={setPendingMove}
+                                        />
                                     )}
                                     {effectivePaused && (
                                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, ServerAction, LeagueTier, CoreStat, SpecialStat, MythicStat, ItemOptionType, TournamentState, User } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, GRADE_LEVEL_REQUIREMENTS, RANKING_TIERS, SINGLE_PLAYER_STAGES, SINGLE_PLAYER_MISSIONS } from '../constants';
 import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
@@ -10,7 +10,7 @@ import ProfileEditModal from './ProfileEditModal.js';
 import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manner.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-import QuickAccessSidebar from './QuickAccessSidebar.js';
+import QuickAccessSidebar, { NATIVE_QUICK_RAIL_WIDTH_CLASS } from './QuickAccessSidebar.js';
 import ChatWindow from './waiting-room/ChatWindow.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
@@ -520,6 +520,35 @@ const Profile: React.FC<ProfileProps> = () => {
     const [showMannerRankModal, setShowMannerRankModal] = useState(false);
     const [isGuildCreateModalOpen, setIsGuildCreateModalOpen] = useState(false);
     const [isGuildJoinModalOpen, setIsGuildJoinModalOpen] = useState(false);
+
+    /** 홈 상단 행 높이 = 퀵메뉴(정사각 버튼 누적) 고유 높이 — 프로필·장비 패널과 하단 정렬 */
+    const nativeHomeQuickMeasureRef = useRef<HTMLDivElement>(null);
+    const [nativeHomeTopRowHeightPx, setNativeHomeTopRowHeightPx] = useState<number | null>(null);
+
+    useLayoutEffect(() => {
+        if (!isNativeMobile || profileTab !== 'home' || !currentUserWithStatus) {
+            setNativeHomeTopRowHeightPx(null);
+            return;
+        }
+        const outer = nativeHomeQuickMeasureRef.current;
+        if (!outer) return;
+        const update = () => {
+            const inner = outer.querySelector<HTMLElement>('[data-quick-access-sidebar-root]');
+            if (!inner) return;
+            // 전체 래퍼(테두리·패딩·퀵 루트) 기준 — inner만 더하면 누락/반올림으로 하단이 잘릴 수 있음
+            const boxH = Math.ceil(
+                Math.max(outer.getBoundingClientRect().height, outer.scrollHeight, outer.offsetHeight)
+            );
+            const h = boxH > 0 ? boxH : 0;
+            if (h > 0) setNativeHomeTopRowHeightPx(h);
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(outer);
+        const innerRoot = outer.querySelector('[data-quick-access-sidebar-root]');
+        if (innerRoot) ro.observe(innerRoot);
+        return () => ro.disconnect();
+    }, [isNativeMobile, profileTab, currentUserWithStatus]);
 
     useEffect(() => {
         const calculateTime = () => {
@@ -1096,24 +1125,24 @@ const Profile: React.FC<ProfileProps> = () => {
         <div
             className={`bg-primary text-primary flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root h-full max-h-full min-h-0' : 'h-full p-2 sm:p-4 lg:p-2'}`}
         >
-            <header className={`flex flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0 px-0.5 py-0.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
-                <h1 className={`font-bold text-primary ${isNativeMobile ? 'text-sm' : 'text-base lg:text-2xl'}`}>
+            <header className={`flex min-w-0 flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0 gap-1 px-0.5 py-0.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
+                <h1 className={`min-w-0 truncate font-bold text-primary ${isNativeMobile ? 'text-xs' : 'text-base lg:text-2xl'}`}>
                     {isNativeMobile ? (profileTab === 'ranking' ? '랭킹' : profileTab === 'arena' ? '경기장' : '홈') : '홈'}
                 </h1>
-                <div className={`flex items-center ${isNativeMobile ? 'gap-0.5' : 'gap-1 lg:gap-2'}`}>
+                <div className={`flex shrink-0 items-center ${isNativeMobile ? 'gap-0.5' : 'gap-1 lg:gap-2'}`}>
                     <button
                         onClick={handlers.openEncyclopedia}
-                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
+                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-6 w-6' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
                         title="도감"
                     >
-                        <img src="/images/button/itembook.png" alt="도감" className="h-full w-full" />
+                        <img src="/images/button/itembook.png" alt="도감" className="h-full w-full object-contain" />
                     </button>
                     <button
                         onClick={handlers.openInfoModal}
-                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
+                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-6 w-6' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
                         title="도움말"
                     >
-                        <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
+                        <img src="/images/button/help.webp" alt="도움말" className="h-full w-full object-contain" />
                     </button>
                 </div>
             </header>
@@ -1123,58 +1152,80 @@ const Profile: React.FC<ProfileProps> = () => {
                 {isNativeMobile ? (
                     <>
                         {profileTab === 'home' && (
-                            <div className="grid h-full w-full min-h-0 min-w-0 max-w-full flex-1 grid-rows-[6fr_minmax(0,4fr)] gap-y-0.5 overflow-hidden px-0.5 pb-0">
-                                {/* 6:4 세로 비율 → 채팅·공지 높이 축소, 독과 동일 셸 폭(w-full)에 맞춤 */}
-                                <div className="grid min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(3.5rem,0.24fr)] gap-0.5 overflow-hidden">
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel p-1 text-[clamp(8px,2.5vw,11px)] leading-snug antialiased [&_button]:max-w-full">
+                            <div className="grid h-full w-full min-h-0 min-w-0 max-w-full flex-1 grid-rows-[auto_minmax(0,1fr)] gap-y-0.5 overflow-hidden px-0.5 pb-0">
+                                {/* 상단: 프로필·장비·퀵 동일 행 높이(stretch), 퀵은 fillHeight로 하단 정렬 */}
+                                <div
+                                    className="grid min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1.08fr)_minmax(0,0.94fr)_5.5rem] items-stretch gap-0.5 overflow-hidden"
+                                    style={
+                                        nativeHomeTopRowHeightPx != null
+                                            ? {
+                                                  height: `${nativeHomeTopRowHeightPx}px`,
+                                                  minHeight: 0,
+                                                  // 측정값이 퀵 메뉴 전체 높이 — maxHeight로 잘리면 하단 버튼이 잘림
+                                              }
+                                            : { minHeight: 0, maxHeight: 'min(54dvh, 90vh)' }
+                                    }
+                                >
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden rounded-md border border-color bg-panel p-1.5 text-[clamp(8px,2.4vw,10px)] leading-snug antialiased [&_button]:max-w-full">
                                         {ProfilePanelContent}
                                     </div>
 
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col gap-0.5 overflow-hidden rounded-md border border-color bg-panel px-1 py-1">
-                                        <h3 className="w-full shrink-0 whitespace-nowrap text-center text-[11px] font-semibold text-secondary">장비</h3>
-                                        <div className="grid min-h-0 w-full min-w-0 grid-cols-3 grid-rows-2 gap-0.5 content-start [&>*]:min-w-0">
-                                            {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                                const item = getItemForSlot(slot);
-                                                return (
-                                                    <div key={slot} className="aspect-square w-full min-w-0">
-                                                        <EquipmentSlotDisplay
-                                                            slot={slot}
-                                                            item={item}
-                                                            onClick={() => item && handlers.openViewingItem(item, true)}
-                                                            scaleFactor={0.92}
-                                                        />
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="mt-0 flex w-full min-w-0 shrink-0 items-stretch gap-0.5 pt-px">
-                                            <select
-                                                value={selectedPreset}
-                                                onChange={handlePresetChange}
-                                                className="min-h-[26px] min-w-0 flex-1 basis-0 rounded border border-color bg-secondary px-1 py-0.5 text-[11px] focus:border-accent focus:ring-accent"
-                                                title={presets?.[selectedPreset]?.name}
-                                            >
-                                                {presets && presets.map((preset, index) => (
-                                                    <option key={index} value={index}>{preset.name}</option>
-                                                ))}
-                                            </select>
-                                            <Button
-                                                onClick={handlers.openEquipmentEffectsModal}
-                                                colorScheme="none"
-                                                className="!shrink-0 !whitespace-nowrap !px-2 !py-1 !text-[10px] justify-center rounded-lg border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
-                                            >
-                                                효과
-                                            </Button>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel px-1 py-1.5">
+                                        <h3 className="mb-1 w-full shrink-0 whitespace-nowrap text-center text-xs font-bold leading-tight tracking-tight text-secondary">
+                                            장착 장비
+                                        </h3>
+                                        <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden px-0.5 py-0.5">
+                                            <div className="flex w-full min-w-0 shrink-0 flex-col">
+                                                <div className="grid w-full min-w-0 shrink-0 grid-cols-3 grid-rows-2 gap-0.5 [&>*]:min-w-0">
+                                                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
+                                                        const item = getItemForSlot(slot);
+                                                        return (
+                                                            <div key={slot} className="aspect-square w-full min-w-0">
+                                                                <EquipmentSlotDisplay
+                                                                    slot={slot}
+                                                                    item={item}
+                                                                    onClick={() => item && handlers.openViewingItem(item, true)}
+                                                                    scaleFactor={0.9}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <div className="mt-2 flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-2">
+                                                    <select
+                                                        value={selectedPreset}
+                                                        onChange={handlePresetChange}
+                                                        className="min-h-[24px] min-w-0 flex-1 basis-0 rounded border border-color bg-secondary px-1 py-0.5 text-[10px] focus:border-accent focus:ring-accent"
+                                                        title={presets?.[selectedPreset]?.name}
+                                                    >
+                                                        {presets && presets.map((preset, index) => (
+                                                            <option key={index} value={index}>{preset.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    <Button
+                                                        onClick={handlers.openEquipmentEffectsModal}
+                                                        colorScheme="none"
+                                                        className="!shrink-0 !whitespace-nowrap !px-2 !py-0.5 !text-[9px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
+                                                    >
+                                                        효과
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
-                                        <QuickAccessSidebar nativeHomeColumn fillHeight />
+                                    <div className={`relative z-10 flex h-full min-h-0 flex-col overflow-hidden ${NATIVE_QUICK_RAIL_WIDTH_CLASS}`}>
+                                        <div
+                                            ref={nativeHomeQuickMeasureRef}
+                                            className="box-border flex h-fit min-h-0 w-full shrink-0 flex-col self-start overflow-hidden rounded-md border border-color/50 bg-panel/95 p-0.5"
+                                        >
+                                            <QuickAccessSidebar nativeHomeColumn />
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="grid min-h-0 min-w-0 max-w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-0.5 overflow-hidden">
-                                    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden rounded-md border border-color bg-panel">
+                                <div className="grid h-full min-h-0 min-w-0 max-w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1 overflow-hidden pt-px">
+                                    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden rounded-md border border-color bg-panel shadow-sm">
                                         <ChatWindow
                                             messages={globalChat}
                                             mode="global"
@@ -1184,8 +1235,8 @@ const Profile: React.FC<ProfileProps> = () => {
                                             compactHome
                                         />
                                     </div>
-                                    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden">
-                                        <div className="flex h-full min-h-0 max-w-full flex-1 flex-col overflow-hidden">
+                                    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden rounded-md border border-color/80 bg-panel/95 shadow-sm">
+                                        <div className="flex h-full min-h-0 max-w-full min-w-0 flex-1 flex-col overflow-hidden">
                                         <HomeBoardPanel
                                             posts={homeBoardPosts || []}
                                             isAdmin={currentUserWithStatus.isAdmin}
@@ -1284,39 +1335,47 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className="w-[30%] min-w-[240px] max-w-[360px] bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col gap-0.5 overflow-hidden">{ProfilePanelContent}</div>
                         {/* New structure for equipped items, ranking boards, and quick access */}
                         <div className="flex-1 flex flex-row gap-1 min-w-0 overflow-hidden">
-                            <div className="w-[280px] min-w-[200px] max-w-[280px] flex-shrink-0 bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col overflow-hidden">
-                                <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0 mb-1">장착 장비</h3>
-                                <div className="grid grid-cols-3 gap-1.5">
-                                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                        const item = getItemForSlot(slot);
-                                        return (
-                                            <div key={slot} className="w-full aspect-square">
-                                                <EquipmentSlotDisplay
-                                                    slot={slot}
-                                                    item={item}
-                                                    onClick={() => item && handlers.openViewingItem(item, true)}
-                                                />
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="mt-1 flex gap-1.5 items-center">
-                                    <select
-                                        value={selectedPreset}
-                                        onChange={handlePresetChange}
-                                        className="bg-secondary border border-color text-xs rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
-                                    >
-                                        {presets && presets.map((preset, index) => (
-                                            <option key={index} value={index}>{preset.name}</option>
-                                        ))}
-                                    </select>
-                                    <Button 
-                                        onClick={handlers.openEquipmentEffectsModal} 
-                                        colorScheme="none" 
-                                        className="!text-[9px] !py-0.5 !px-2 flex-shrink-0 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
-                                    >
-                                        장비 효과
-                                    </Button>
+                            <div className="flex h-full min-h-0 w-[280px] min-w-[200px] max-w-[280px] flex-shrink-0 flex-col overflow-hidden rounded-md border border-color bg-panel px-1 py-1.5 text-on-panel">
+                                <h3 className="mb-1 w-full shrink-0 whitespace-nowrap text-center text-xs font-bold leading-tight tracking-tight text-secondary">
+                                    장착 장비
+                                </h3>
+                                <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden px-0.5 py-0.5">
+                                    <div className="flex w-full min-w-0 shrink-0 flex-col">
+                                        <div className="grid w-full min-w-0 shrink-0 grid-cols-3 grid-rows-2 gap-0.5 [&>*]:min-w-0">
+                                            {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
+                                                const item = getItemForSlot(slot);
+                                                return (
+                                                    <div key={slot} className="aspect-square w-full min-w-0">
+                                                        <EquipmentSlotDisplay
+                                                            slot={slot}
+                                                            item={item}
+                                                            onClick={() => item && handlers.openViewingItem(item, true)}
+                                                            scaleFactor={0.9}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mt-2 flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-2">
+                                            <select
+                                                value={selectedPreset}
+                                                onChange={handlePresetChange}
+                                                className="min-h-[24px] min-w-0 flex-1 basis-0 rounded border border-color bg-secondary px-1 py-0.5 text-[10px] focus:border-accent focus:ring-accent sm:text-xs"
+                                                title={presets?.[selectedPreset]?.name}
+                                            >
+                                                {presets && presets.map((preset, index) => (
+                                                    <option key={index} value={index}>{preset.name}</option>
+                                                ))}
+                                            </select>
+                                            <Button
+                                                onClick={handlers.openEquipmentEffectsModal}
+                                                colorScheme="none"
+                                                className="!shrink-0 !whitespace-nowrap !px-2 !py-0.5 !text-[9px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
+                                            >
+                                                효과
+                                            </Button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex-1 flex flex-row gap-1 min-w-0 overflow-hidden">

@@ -11,7 +11,7 @@ interface EnhancementResultModalProps {
         itemBefore: InventoryItem;
         itemAfter: InventoryItem;
         xpGained?: number;
-        isRolling?: boolean; // 롤링 애니메이션 상태 (제련 진행 중)
+        isRolling?: boolean;
     };
     onClose: () => void;
     isTopmost?: boolean;
@@ -19,34 +19,55 @@ interface EnhancementResultModalProps {
 
 const getStarDisplayInfo = (stars: number) => {
     if (stars >= 10) {
-        return { text: `(★${stars})`, colorClass: "prism-text-effect" };
-    } else if (stars >= 7) {
-        return { text: `(★${stars})`, colorClass: "text-purple-400" };
-    } else if (stars >= 4) {
-        return { text: `(★${stars})`, colorClass: "text-amber-400" };
-    } else if (stars >= 1) {
-        return { text: `(★${stars})`, colorClass: "text-white" };
+        return { text: `(★${stars})`, colorClass: 'prism-text-effect' };
     }
-    return { text: "", colorClass: "text-white" };
+    if (stars >= 7) {
+        return { text: `(★${stars})`, colorClass: 'text-purple-400' };
+    }
+    if (stars >= 4) {
+        return { text: `(★${stars})`, colorClass: 'text-amber-400' };
+    }
+    if (stars >= 1) {
+        return { text: `(★${stars})`, colorClass: 'text-white' };
+    }
+    return { text: '', colorClass: 'text-white' };
 };
 
-const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
+const ItemDisplay: React.FC<{ item: InventoryItem; label: string; dimmed?: boolean }> = ({ item, label, dimmed }) => {
     const starInfo = getStarDisplayInfo(item.stars);
     return (
-        <div className="flex flex-col items-center">
-            <div className={`relative w-20 h-20 mb-2 ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot rounded-md' : ''}`}>
-                <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
-                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
-                <div className="absolute bottom-0 left-0 right-0 text-center text-xs font-bold bg-black/50 py-0.5">
-                    <span className={starInfo.colorClass}>★{item.stars}</span>
+        <div className={`flex flex-col items-center ${dimmed ? 'opacity-90' : ''}`}>
+            <span className="mb-0.5 hidden text-[8px] font-bold uppercase tracking-wider text-stone-500 sm:mb-1 sm:block sm:text-[9px]">
+                {label}
+            </span>
+            <div
+                className={`relative mb-0.5 h-11 w-11 overflow-hidden rounded-lg border border-stone-600/60 bg-stone-950/80 shadow-inner sm:mb-2 sm:h-[4.25rem] sm:w-[4.25rem] sm:rounded-xl sm:border-2 ${
+                    item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''
+                }`}
+            >
+                <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                {item.image && (
+                    <img
+                        src={item.image}
+                        alt={item.name}
+                        className="absolute object-contain p-0.5 sm:p-1.5"
+                        style={{ width: '78%', height: '78%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                    />
+                )}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent py-0.5 text-center sm:py-1">
+                    <span className={`text-[9px] font-bold tabular-nums sm:text-xs ${starInfo.colorClass}`}>★{item.stars}</span>
                 </div>
             </div>
-            <p className={`font-bold text-sm ${gradeStyles[item.grade].color}`}>{item.name}</p>
+            <p
+                className={`max-w-[3.75rem] truncate text-center text-[8px] font-bold leading-tight sm:max-w-[8.5rem] sm:text-xs md:text-sm ${gradeStyles[item.grade].color}`}
+                title={item.name}
+            >
+                {item.name}
+            </p>
         </div>
     );
 };
 
-// 롤링 애니메이션을 위한 랜덤 수치 생성 함수
 const generateRollingValue = (min: number, max: number, isPercentage: boolean): number => {
     const range = max - min;
     const random = Math.random() * range + min;
@@ -56,55 +77,54 @@ const generateRollingValue = (min: number, max: number, isPercentage: boolean): 
 const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result, onClose, isTopmost }) => {
     const { success, message, itemBefore, itemAfter, xpGained, isRolling } = result;
     const [rollingValues, setRollingValues] = useState<Record<string, number>>({});
-    
-    // 롤링 애니메이션: 옵션 수치가 빠르게 변하는 애니메이션
+
     useEffect(() => {
         if (!isRolling) {
             setRollingValues({});
             return;
         }
-        
+
         const interval = setInterval(() => {
             const newValues: Record<string, number> = {};
-            
-            // 주옵션 롤링
+
             if (itemAfter.options?.main) {
                 const main = itemAfter.options.main;
-                // 실제 값의 범위를 추정 (일반적으로 0~100 또는 0~50)
-                // range가 있으면 사용, 없으면 기본값 사용
                 const range = main.range || (main.isPercentage ? [0, 50] : [0, 100]);
-                newValues['main'] = generateRollingValue(range[0], range[1], main.isPercentage);
+                newValues.main = generateRollingValue(range[0], range[1], main.isPercentage);
             }
-            
-            // 부옵션 롤링
+
             if (itemAfter.options?.combatSubs) {
                 itemAfter.options.combatSubs.forEach((sub, index) => {
-                    // range가 있으면 사용, 없으면 기본값 사용
                     const range = sub.range || (sub.isPercentage ? [0, 50] : [0, 100]);
                     newValues[`sub_${index}`] = generateRollingValue(range[0], range[1], sub.isPercentage);
                 });
             }
-            
+
             setRollingValues(newValues);
-        }, 50); // 50ms마다 업데이트
-        
+        }, 50);
+
         return () => clearInterval(interval);
     }, [isRolling, itemAfter]);
-    
+
     const changedSubOption = useMemo(() => {
         if (!success || !itemBefore.options || !itemAfter.options) return null;
-        
+
         if (itemAfter.options.combatSubs.length > itemBefore.options.combatSubs.length) {
-            const newSub = itemAfter.options.combatSubs.find(afterSub => 
-                !itemBefore.options!.combatSubs.some(beforeSub => beforeSub.type === afterSub.type && beforeSub.isPercentage === afterSub.isPercentage)
+            const newSub = itemAfter.options.combatSubs.find(
+                (afterSub) =>
+                    !itemBefore.options!.combatSubs.some(
+                        (beforeSub) => beforeSub.type === afterSub.type && beforeSub.isPercentage === afterSub.isPercentage
+                    )
             );
-            return newSub ? { type: 'new', option: newSub } : null;
+            return newSub ? { type: 'new' as const, option: newSub } : null;
         }
 
         for (const afterSub of itemAfter.options.combatSubs) {
-            const beforeSub = itemBefore.options.combatSubs.find(s => s.type === afterSub.type && s.isPercentage === afterSub.isPercentage);
+            const beforeSub = itemBefore.options.combatSubs.find(
+                (s) => s.type === afterSub.type && s.isPercentage === afterSub.isPercentage
+            );
             if (!beforeSub || beforeSub.value !== afterSub.value) {
-                return { type: 'upgraded', before: beforeSub, after: afterSub };
+                return { type: 'upgraded' as const, before: beforeSub, after: afterSub };
             }
         }
         return null;
@@ -113,127 +133,218 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
     const starInfoBefore = getStarDisplayInfo(itemBefore.stars);
     const starInfoAfter = getStarDisplayInfo(itemAfter.stars);
 
-    const title = isRolling ? '제련 진행 중...' : (success ? '강화 성공!' : '강화 실패!');
-    const titleColor = isRolling ? 'text-yellow-400' : (success ? 'text-green-400' : 'text-red-400');
+    const title = isRolling ? '제련 진행 중' : success ? '강화 성공' : '강화 실패';
+
+    const mood = isRolling ? 'rolling' : success ? 'success' : 'fail';
+    const backdropClass =
+        mood === 'success'
+            ? 'from-emerald-950/50 via-stone-900/95 to-stone-950'
+            : mood === 'fail'
+              ? 'from-rose-950/40 via-stone-900/95 to-stone-950'
+              : 'from-amber-950/45 via-stone-900/95 to-stone-950';
+
+    const heroRingClass =
+        mood === 'success'
+            ? 'border-emerald-400/45 shadow-[0_0_40px_-8px_rgba(52,211,153,0.45)] bg-gradient-to-br from-emerald-600/25 via-teal-900/20 to-stone-950/80'
+            : mood === 'fail'
+              ? 'border-rose-500/40 shadow-[0_0_36px_-10px_rgba(244,63,94,0.4)] bg-gradient-to-br from-rose-900/30 via-stone-900/40 to-stone-950/80'
+              : 'border-amber-400/50 shadow-[0_0_40px_-8px_rgba(251,191,36,0.35)] bg-gradient-to-br from-amber-700/25 via-stone-900/35 to-stone-950/80';
+
+    const headlineClass =
+        mood === 'success'
+            ? 'bg-gradient-to-r from-emerald-200 via-teal-200 to-cyan-200 bg-clip-text text-transparent'
+            : mood === 'fail'
+              ? 'bg-gradient-to-r from-rose-200 via-orange-100 to-amber-200 bg-clip-text text-transparent'
+              : 'bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 bg-clip-text text-transparent';
 
     return (
-        <DraggableWindow title={title} onClose={onClose} windowId="enhancementResult" initialWidth={500} isTopmost={isTopmost}>
-            <div className="p-4 text-center">
-                <div className={`text-6xl mb-4 ${isRolling ? 'animate-spin' : (success ? 'animate-bounce' : '')}`}>
-                    {isRolling ? '⚙️' : (success ? '🎉' : '💥')}
+        <DraggableWindow
+            title={title}
+            onClose={onClose}
+            windowId="enhancementResult"
+            initialWidth={540}
+            initialHeight={780}
+            isTopmost={isTopmost}
+            variant="store"
+            mobileViewportFit
+            bodyNoScroll
+            hideFooter
+            bodyPaddingClassName="p-2 sm:p-4"
+        >
+            <div
+                className={`relative flex h-full min-h-0 flex-col bg-gradient-to-b ${backdropClass} rounded-b-xl px-0.5 pb-1 pt-0 sm:px-2 sm:pb-2 sm:pt-1`}
+            >
+                <div
+                    className="pointer-events-none absolute -left-24 top-0 hidden h-48 w-48 rounded-full bg-gradient-to-br from-white/5 to-transparent blur-2xl sm:block"
+                    aria-hidden
+                />
+                <div
+                    className="pointer-events-none absolute -right-16 bottom-20 hidden h-40 w-40 rounded-full bg-gradient-to-tl from-cyan-500/10 to-transparent blur-3xl sm:block"
+                    aria-hidden
+                />
+
+                {/* 좁은 화면: 큰 히어로/중복 제목 생략 (창 제목으로 충분) */}
+                <div className="relative hidden flex-col items-center sm:mb-4 sm:mt-2 sm:flex">
+                    <div
+                        className={`relative mb-3 flex h-16 w-16 items-center justify-center rounded-full border-2 sm:mb-4 sm:h-[5.5rem] sm:w-[5.5rem] ${heroRingClass} ${isRolling ? 'animate-pulse' : success ? 'animate-[pulse_2s_ease-in-out_infinite]' : ''}`}
+                    >
+                        <span
+                            className={`select-none text-4xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] sm:text-5xl ${isRolling ? 'animate-spin' : ''}`}
+                        >
+                            {isRolling ? '⚙️' : success ? '✦' : '✕'}
+                        </span>
+                        {!isRolling && success && (
+                            <span className="pointer-events-none absolute inset-0 rounded-full border border-emerald-300/20" aria-hidden />
+                        )}
+                    </div>
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-stone-500">
+                        {isRolling ? 'Processing' : success ? 'Enhancement' : 'Result'}
+                    </p>
+                    <h3 className={`text-2xl font-black tracking-tight sm:text-3xl ${headlineClass}`}>
+                        {isRolling ? '제련 진행 중…' : success ? '강화 성공' : '강화 실패'}
+                    </h3>
                 </div>
-                <h3 className={`text-2xl font-bold mb-2 ${titleColor}`}>
-                    {isRolling ? '제련 진행 중...' : (success ? '강화 성공!' : '강화 실패...')}
-                </h3>
-                <p className="text-gray-300 mb-4">{message}</p>
-                <div className="flex justify-around items-center mb-4">
-                    <ItemDisplay item={itemBefore} />
-                    <span className="text-2xl font-bold mx-4">{success ? '→' : 'X'}</span>
-                    <ItemDisplay item={itemAfter} />
+
+                <p className="mx-auto line-clamp-2 max-h-[2.5rem] shrink-0 px-1 text-center text-[10px] leading-snug text-stone-400 sm:mt-2 sm:max-h-none sm:text-xs sm:leading-relaxed md:text-sm">
+                    {message}
+                </p>
+
+                <div className="mt-1.5 flex w-full max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1 sm:mt-4 sm:gap-6">
+                    <div className="rounded-lg border border-stone-600/40 bg-stone-900/50 px-1 py-1 shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-4 sm:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.75)]">
+                        <ItemDisplay item={itemBefore} label="이전" dimmed />
+                    </div>
+                    <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-black sm:h-12 sm:w-12 sm:text-lg ${
+                            success
+                                ? 'border-emerald-500/40 bg-stone-900/90 text-emerald-300 shadow-[0_0_20px_-6px_rgba(52,211,153,0.5)]'
+                                : 'border-rose-500/35 bg-stone-900/90 text-rose-300'
+                        }`}
+                        aria-hidden
+                    >
+                        {success ? '→' : '×'}
+                    </div>
+                    <div className="rounded-lg border border-stone-600/40 bg-stone-900/50 px-1 py-1 shadow-md backdrop-blur-sm ring-0 ring-inset ring-white/5 sm:rounded-2xl sm:p-4 sm:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.75)] sm:ring-1">
+                        <ItemDisplay item={itemAfter} label="결과" />
+                    </div>
                 </div>
+
                 {(success || isRolling) && (
-                    <div className="bg-gray-800/50 p-3 rounded-lg mb-4 text-xs space-y-1 text-left">
-                        <h4 className="font-bold text-center text-yellow-300 mb-2">
-                            {isRolling ? '제련 진행 중...' : '변경 사항'}
+                    <div className="relative mt-1.5 flex shrink-0 flex-col overflow-hidden rounded-xl border border-amber-500/15 bg-gradient-to-br from-stone-900/90 via-stone-950/95 to-black/80 p-2 shadow-inner backdrop-blur-sm sm:mt-3 sm:rounded-2xl sm:p-4">
+                        <div className="pointer-events-none absolute left-0 top-0 hidden h-full w-1 bg-gradient-to-b from-amber-400/80 via-amber-500/40 to-amber-600/30 sm:block" aria-hidden />
+                        <h4 className="relative z-[1] mb-1 border-b border-stone-700/60 pb-1 text-center text-[9px] font-bold uppercase tracking-wider text-amber-200/90 sm:mb-3 sm:pb-2 sm:text-xs sm:tracking-[0.2em]">
+                            {isRolling ? '제련 진행 중…' : '변경 사항'}
                         </h4>
-                        <div className="flex justify-between">
-                            <span>등급:</span> 
-                            <span className="flex items-center gap-2">
-                                <span className={starInfoBefore.colorClass}>{starInfoBefore.text || '(미강화)'}</span>
-                                 → 
-                                <span className={starInfoAfter.colorClass}>{starInfoAfter.text}</span>
-                            </span>
+                        <div className="relative z-[1] space-y-0 text-[9px] text-stone-300 sm:text-xs">
+                            <div className="flex flex-col gap-0.5 border-b border-stone-800/80 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-2.5">
+                                <span className="shrink-0 font-semibold text-stone-500">등급</span>
+                                <span className="flex flex-wrap items-center justify-end gap-x-1 gap-y-0 font-mono text-[9px] tabular-nums sm:justify-end sm:gap-x-2 sm:text-xs">
+                                    <span className={starInfoBefore.colorClass}>{starInfoBefore.text || '(미강화)'}</span>
+                                    <span className="shrink-0 text-stone-600">→</span>
+                                    <span className={starInfoAfter.colorClass}>{starInfoAfter.text}</span>
+                                </span>
+                            </div>
+                            {itemBefore.options && itemAfter.options && (
+                                <div className="flex flex-col gap-0.5 border-b border-stone-800/80 py-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:py-2.5">
+                                    <span className="shrink-0 font-semibold text-stone-500">주옵션</span>
+                                    <span className="min-w-0 max-w-full text-right font-mono text-[8px] leading-tight text-amber-100/90 sm:max-w-[min(100%,18rem)] sm:text-[11px] sm:leading-snug">
+                                        <span className="text-stone-500">{itemBefore.options.main.display}</span>
+                                        <span className="mx-0.5 text-stone-600 sm:mx-1">→</span>
+                                        {isRolling && rollingValues.main !== undefined ? (
+                                            <span className="animate-pulse text-amber-300">
+                                                {itemAfter.options.main.isPercentage
+                                                    ? `${rollingValues.main.toFixed(1)}%`
+                                                    : rollingValues.main}
+                                            </span>
+                                        ) : (
+                                            <span>{itemAfter.options.main.display}</span>
+                                        )}
+                                    </span>
+                                </div>
+                            )}
+                            {changedSubOption?.type === 'new' && changedSubOption.option && (
+                                <div className="flex flex-col gap-0.5 border-b border-stone-800/80 py-1 text-emerald-200/95 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:py-2.5">
+                                    <span className="shrink-0 font-semibold text-emerald-500/80">부옵션 추가</span>
+                                    <span className="min-w-0 max-w-full text-right font-mono text-[8px] leading-tight sm:max-w-[min(100%,18rem)] sm:text-[11px] sm:leading-snug">
+                                        {isRolling && changedSubOption.option
+                                            ? (() => {
+                                                  const subIndex =
+                                                      itemAfter.options?.combatSubs.findIndex(
+                                                          (s) =>
+                                                              s.type === changedSubOption.option?.type &&
+                                                              s.isPercentage === changedSubOption.option?.isPercentage
+                                                      ) ?? -1;
+                                                  const rollingValue = subIndex >= 0 ? rollingValues[`sub_${subIndex}`] : undefined;
+                                                  return rollingValue !== undefined ? (
+                                                      <span className="animate-pulse text-amber-300">
+                                                          {changedSubOption.option.isPercentage
+                                                              ? `${rollingValue.toFixed(1)}%`
+                                                              : rollingValue}
+                                                      </span>
+                                                  ) : (
+                                                      changedSubOption.option.display
+                                                  );
+                                              })()
+                                            : changedSubOption.option.display}
+                                    </span>
+                                </div>
+                            )}
+                            {changedSubOption?.type === 'upgraded' && changedSubOption.before && (
+                                <div className="flex flex-col gap-0.5 py-1 text-sky-200/95 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:py-2.5">
+                                    <span className="shrink-0 font-semibold text-sky-500/80">부옵션 강화</span>
+                                    <span className="min-w-0 max-w-full text-right font-mono text-[8px] leading-tight sm:max-w-[min(100%,18rem)] sm:text-[11px] sm:leading-snug">
+                                        <span className="text-stone-500">{changedSubOption.before.display}</span>
+                                        <span className="mx-0.5 text-stone-600 sm:mx-1">→</span>
+                                        {isRolling && changedSubOption.after
+                                            ? (() => {
+                                                  const subIndex =
+                                                      itemAfter.options?.combatSubs.findIndex(
+                                                          (s) =>
+                                                              s.type === changedSubOption.after?.type &&
+                                                              s.isPercentage === changedSubOption.after?.isPercentage
+                                                      ) ?? -1;
+                                                  const rollingValue = subIndex >= 0 ? rollingValues[`sub_${subIndex}`] : undefined;
+                                                  return rollingValue !== undefined ? (
+                                                      <span className="animate-pulse text-amber-300">
+                                                          {changedSubOption.after.isPercentage
+                                                              ? `${rollingValue.toFixed(1)}%`
+                                                              : rollingValue}
+                                                      </span>
+                                                  ) : (
+                                                      changedSubOption.after.display
+                                                  );
+                                              })()
+                                            : changedSubOption.after?.display || ''}
+                                    </span>
+                                </div>
+                            )}
                         </div>
-                        {itemBefore.options && itemAfter.options && (
-                            <div className="flex justify-between">
-                                <span>주옵션:</span> 
-                                <span className="truncate ml-2">
-                                    {itemBefore.options.main.display} → {
-                                        isRolling && rollingValues['main'] !== undefined ? (
-                                            <span className="animate-pulse text-yellow-400">
-                                                {itemAfter.options.main.isPercentage 
-                                                    ? `${rollingValues['main'].toFixed(1)}%` 
-                                                    : rollingValues['main']}
-                                            </span>
-                                        ) : (
-                                            itemAfter.options.main.display
-                                        )
-                                    }
-                                </span>
-                            </div>
-                        )}
-                        {changedSubOption?.type === 'new' && changedSubOption.option && (
-                            <div className="flex justify-between text-green-300">
-                                <span>부옵션 추가:</span> 
-                                <span className="truncate ml-2">
-                                    {isRolling && changedSubOption.option && (() => {
-                                        const subIndex = itemAfter.options?.combatSubs.findIndex(s => 
-                                            s.type === changedSubOption.option?.type && 
-                                            s.isPercentage === changedSubOption.option?.isPercentage
-                                        ) ?? -1;
-                                        const rollingValue = subIndex >= 0 ? rollingValues[`sub_${subIndex}`] : undefined;
-                                        return rollingValue !== undefined ? (
-                                            <span className="animate-pulse text-yellow-400">
-                                                {changedSubOption.option.isPercentage 
-                                                    ? `${rollingValue.toFixed(1)}%` 
-                                                    : rollingValue}
-                                            </span>
-                                        ) : (
-                                            changedSubOption.option.display
-                                        );
-                                    })()}
-                                    {!isRolling && changedSubOption.option.display}
-                                </span>
-                            </div>
-                        )}
-                        {changedSubOption?.type === 'upgraded' && changedSubOption.before && (
-                            <div className="flex justify-between text-green-300">
-                                <span>부옵션 강화:</span> 
-                                <span className="truncate ml-2">
-                                    {changedSubOption.before.display} → {
-                                        isRolling && changedSubOption.after ? (() => {
-                                            const subIndex = itemAfter.options?.combatSubs.findIndex(s => 
-                                                s.type === changedSubOption.after?.type && 
-                                                s.isPercentage === changedSubOption.after?.isPercentage
-                                            ) ?? -1;
-                                            const rollingValue = subIndex >= 0 ? rollingValues[`sub_${subIndex}`] : undefined;
-                                            return rollingValue !== undefined ? (
-                                                <span className="animate-pulse text-yellow-400">
-                                                    {changedSubOption.after.isPercentage 
-                                                        ? `${rollingValue.toFixed(1)}%` 
-                                                        : rollingValue}
-                                                </span>
-                                            ) : (
-                                                changedSubOption.after.display
-                                            );
-                                        })() : (
-                                            changedSubOption.after?.display || ''
-                                        )
-                                    }
-                                </span>
-                            </div>
-                        )}
                     </div>
                 )}
+
                 {xpGained !== undefined && xpGained > 0 && (
-                    <div className="bg-gray-800/50 p-3 rounded-lg mb-4 text-center">
-                        <div className="flex justify-between items-center">
-                            <span className="flex items-center gap-1">
-                                <img src="/images/equipments/moru.png" alt="대장간 경험치" className="w-5 h-5" />
-                                대장간 경험치:
-                            </span>
-                            <span className="font-bold text-orange-400">+{xpGained.toLocaleString()}</span>
-                        </div>
+                    <div className="relative z-[2] mt-1 flex shrink-0 flex-col gap-0.5 rounded-full border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-stone-900/60 to-stone-950/80 px-2 py-1 shadow-inner sm:mt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-4 sm:py-2.5">
+                        <span className="flex min-w-0 items-center gap-1 text-[9px] font-semibold text-amber-100/90 sm:gap-2 sm:text-xs">
+                            <img src="/images/equipments/moru.png" alt="" className="h-3.5 w-3.5 shrink-0 opacity-90 sm:h-5 sm:w-5" />
+                            대장간 경험치
+                        </span>
+                        <span className="shrink-0 text-right text-[10px] font-bold tabular-nums text-amber-300 sm:text-base">
+                            +{xpGained.toLocaleString()}
+                        </span>
                     </div>
                 )}
+
                 {!isRolling && (
                     <Button
                         onClick={(e) => {
                             e?.stopPropagation();
                             onClose();
                         }}
-                        colorScheme="blue"
-                        className="mt-4 w-full"
+                        colorScheme="none"
+                        className={`mt-1 w-full shrink-0 !border-2 py-2 text-xs font-bold tracking-wide !shadow-lg transition hover:brightness-110 active:scale-[0.99] focus:!ring-offset-stone-900 sm:mt-2 sm:py-3 sm:text-sm ${
+                            success
+                                ? '!border-emerald-400/55 bg-gradient-to-r from-emerald-700/90 via-teal-700/90 to-cyan-800/90 text-white !shadow-emerald-950/50 focus:!ring-emerald-400/40'
+                                : '!border-rose-500/35 bg-gradient-to-r from-stone-700/90 via-stone-800/90 to-stone-900/90 text-stone-100 !shadow-black/50 focus:!ring-rose-400/30'
+                        }`}
                     >
                         확인
                     </Button>

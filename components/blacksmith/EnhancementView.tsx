@@ -210,7 +210,6 @@ interface EnhancementViewProps {
 }
 
 const EnhancementView: React.FC<EnhancementViewProps> = ({ selectedItem, currentUser, onAction, enhancementOutcome, onOutcomeConfirm, onStartEnhancement }) => {
-    const isMobile = false;
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [enhancementProgress, setEnhancementProgress] = useState(0);
     const [previousStars, setPreviousStars] = useState<number | undefined>(undefined);
@@ -430,9 +429,9 @@ useEffect(() => {
     };
 
     return (
-            <div className={`relative ${isMobile ? 'h-auto' : 'h-full'} flex flex-col ${isMobile ? 'gap-2' : ''}`}>
-            <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-4 ${isMobile ? 'h-auto' : 'h-full min-h-0'}`}>
-                <div className={`${isMobile ? 'w-full' : 'w-[55%]'} flex flex-col bg-gray-900/40 ${isMobile ? 'p-1' : 'p-2'} rounded-lg ${isMobile ? 'h-auto' : 'h-full min-h-0'}`}>
+            <div className="relative flex h-full flex-col">
+            <div className="flex h-full min-h-0 flex-row gap-4">
+                <div className="flex h-full min-h-0 w-[55%] min-w-0 flex-col rounded-lg bg-gray-900/40 p-2">
                     <ItemDisplay 
                         item={selectedItem} 
                         previousStars={previousStars}
@@ -440,7 +439,7 @@ useEffect(() => {
                     />
                 </div>
 
-                <div className={`${isMobile ? 'w-full' : 'flex-1'} flex flex-col gap-2 ${isMobile ? 'h-auto' : 'h-full min-h-0'}`}>
+                <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-2">
                     {/* 강화 성공 시 정보 */}
                     <div className="bg-gray-900/50 p-2 rounded-lg flex-shrink-0">
                         <h4 className="font-semibold text-center mb-1.5 text-green-300 text-xs">강화 성공 시</h4>
@@ -464,47 +463,51 @@ useEffect(() => {
                         </div>
                     </div>
                     
-                    {/* 필요 재료 */}
-                    <div className="bg-gray-900/50 p-2 rounded-lg flex-shrink-0">
-                        <h4 className="font-semibold text-center mb-2 text-xs">필요 재료</h4>
-                        <div className="flex flex-wrap gap-3 justify-center items-center">
-                            {/* 골드 비용 표시 */}
-                            <div className="relative flex flex-col items-center px-1" title={`골드: ${(currentUser?.gold || 0).toLocaleString()} / ${goldCost.toLocaleString()}`}>
-                                <div className="relative w-8 h-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
-                                    <img src="/images/icon/Gold.png" alt="골드" className="w-full h-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
-                                    {!hasEnoughGold && <div className="absolute inset-0 bg-red-500/30 rounded-full"></div>}
-                                </div>
-                                <span className={`font-mono mt-0.5 whitespace-nowrap ${hasEnoughGold ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>
-                                    {goldCost.toLocaleString()}
-                                </span>
-                            </div>
-                            {costs?.map(cost => {
-                                const userHas = userMaterials[cost.name] || 0;
-                                const hasEnough = userHas >= cost.amount;
-                                return (
-                                    <div key={cost.name} className="relative flex flex-col items-center px-1" title={`${cost.name}: ${userHas.toLocaleString()} / ${cost.amount.toLocaleString()}`}>
-                                        <div className="relative w-8 h-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
-                                            <img src={MATERIAL_ITEMS[cost.name].image!} alt={cost.name} className="w-full h-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
-                                            {!hasEnough && <div className="absolute inset-0 bg-red-500/30 rounded-full"></div>}
-                                        </div>
-                                        <span className={`font-mono mt-0.5 whitespace-nowrap ${hasEnough ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>
-                                            {cost.amount.toLocaleString()}
-                                        </span>
+                    {/* 필요 재료 | 강화 성공 확률 — 나란히 두 패널 */}
+                    <div className="flex min-w-0 flex-shrink-0 flex-row items-stretch gap-2">
+                        <div className="min-w-0 flex-1 rounded-lg bg-gray-900/50 p-2">
+                            <h4 className="mb-2 text-center text-xs font-semibold">필요 재료</h4>
+                            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                                <div className="relative flex flex-col items-center px-1" title={`골드: ${(currentUser?.gold || 0).toLocaleString()} / ${goldCost.toLocaleString()}`}>
+                                    <div className="relative h-8 w-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
+                                        <img src="/images/icon/Gold.png" alt="골드" className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
+                                        {!hasEnoughGold && <div className="absolute inset-0 rounded-full bg-red-500/30" />}
                                     </div>
-                                );
-                            })}
+                                    <span className={`mt-0.5 font-mono whitespace-nowrap ${hasEnoughGold ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>
+                                        {goldCost.toLocaleString()}
+                                    </span>
+                                </div>
+                                {costs?.map((cost) => {
+                                    const userHas = userMaterials[cost.name] || 0;
+                                    const hasEnough = userHas >= cost.amount;
+                                    return (
+                                        <div key={cost.name} className="relative flex flex-col items-center px-1" title={`${cost.name}: ${userHas.toLocaleString()} / ${cost.amount.toLocaleString()}`}>
+                                            <div className="relative h-8 w-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
+                                                <img src={MATERIAL_ITEMS[cost.name].image!} alt={cost.name} className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
+                                                {!hasEnough && <div className="absolute inset-0 rounded-full bg-red-500/30" />}
+                                            </div>
+                                            <span className={`mt-0.5 font-mono whitespace-nowrap ${hasEnough ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>
+                                                {cost.amount.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
-                    
-                    {/* 확률과 버튼을 세로로 배치 */}
-                    <div className="flex flex-col gap-2 flex-shrink-0">
-                        <div className="bg-gray-900/50 p-2 rounded-lg text-center flex flex-col justify-center">
-                            <h4 className="font-semibold mb-1 text-xs whitespace-nowrap">강화 성공 확률</h4>
-                            <p className="font-bold text-yellow-300 whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 3vw, 1.5rem)' }}>
+                        <div className="flex w-[7.25rem] min-w-[6.5rem] shrink-0 flex-col justify-center rounded-lg bg-gray-900/50 p-2 text-center sm:w-32">
+                            <h4 className="mb-1 text-xs font-semibold leading-tight">강화 성공 확률</h4>
+                            <p className="font-bold leading-tight text-yellow-300" style={{ fontSize: 'clamp(0.95rem, 2.8vw, 1.35rem)' }}>
                                 {baseSuccessRate}%
-                                {failBonus > 0 && <span className="text-green-400 ml-1" style={{ fontSize: 'clamp(0.875rem, 2vw, 1.125rem)' }}>(+{failBonus.toFixed(1).replace(/\.0$/, '')}%)</span>}
+                                {failBonus > 0 && (
+                                    <span className="block text-[10px] font-semibold text-green-400 sm:inline sm:ml-1 sm:text-[11px]">
+                                        (+{failBonus.toFixed(1).replace(/\.0$/, '')}%)
+                                    </span>
+                                )}
                             </p>
                         </div>
+                    </div>
+
+                    <div className="flex flex-shrink-0 flex-col gap-2">
                         <div className="flex items-center">
                             <ResourceActionButton
                                 onClick={handleEnhanceClick}

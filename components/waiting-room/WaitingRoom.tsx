@@ -11,7 +11,7 @@ import GameList from './GameList.js';
 import ChatWindow from './ChatWindow.js';
 import TierInfoModal from '../TierInfoModal.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, aiUserId } from '../../constants';
-import QuickAccessSidebar from '../QuickAccessSidebar.js';
+import QuickAccessSidebar, { NATIVE_QUICK_RAIL_WIDTH_CLASS } from '../QuickAccessSidebar.js';
 import Button from '../Button.js';
 import AiChallengeModal from './AiChallengeModal.js';
 import RankedMatchPanel from './RankedMatchPanel.js';
@@ -430,8 +430,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     </div>
                   </div>
                 </div>
-                <div className="flex min-h-0 w-[6rem] shrink-0 flex-col gap-1 self-stretch">
-                  <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-color bg-panel">
+                <div className={`flex min-h-0 shrink-0 flex-col gap-1 self-stretch ${NATIVE_QUICK_RAIL_WIDTH_CLASS}`}>
+                  <div className="box-border flex h-fit min-h-0 shrink-0 flex-col justify-start overflow-hidden rounded-lg border border-color bg-panel p-0.5">
                     <QuickAccessSidebar nativeHomeColumn />
                   </div>
                   <button

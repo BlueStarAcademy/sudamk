@@ -9,6 +9,7 @@ import Dice from '../Dice.js';
 import { audioService } from '../../services/audioService.js';
 import ChallengeSelectionModal from '../ChallengeSelectionModal.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { ArenaControlStrip, ArenaFixedColsGrid } from './ArenaControlStrip.js';
 
 interface ImageButtonProps {
     src: string;
@@ -78,9 +79,11 @@ interface LabeledControlButtonProps extends ImageButtonProps {
 const LabeledControlButton: React.FC<LabeledControlButtonProps> = ({ label, caption, compact = false, ...buttonProps }) => {
     const { disabled = false } = buttonProps;
     return (
-        <div className={`flex flex-col items-center gap-0.5 shrink-0 ${compact ? 'min-w-0 max-w-[3.1rem]' : 'min-w-[4.5rem]'}`}>
+        <div className={`flex min-w-0 max-w-full flex-col items-center gap-0.5 ${compact ? '' : 'min-w-[4rem]'}`}>
             <ImageButton {...buttonProps} compact={compact} />
-            <span className={`font-semibold tracking-wide leading-none text-center ${compact ? 'text-[9px]' : 'text-[10px] tracking-wide'} ${disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'}`}>
+            <span
+                className={`text-center font-semibold leading-none tracking-wide whitespace-nowrap ${compact ? 'text-[9px]' : 'text-[10px] tracking-wide'} ${disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'}`}
+            >
                 {label}
             </span>
             {/* caption은 제거하고 count로 대체 */}
@@ -111,6 +114,8 @@ interface GameControlsProps {
     pauseButtonCooldown?: number;
     onPauseToggle?: () => void;
     onOpenGameRecordList?: () => void;
+    /** 경기 종료 후 푸터 「대국」 영역에 나가기/관전종료 표시 */
+    onLeaveOrResign?: () => void;
 }
 
 const formatCooldown = (ms: number) => {
@@ -173,33 +178,34 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
     const hasUsedThisCycle = session.actionButtonUsedThisCycle?.[currentUser.id];
     const isReady = cooldownTime === 'READY';
 
+    const actionNodes =
+        hasButtons && !hasUsedThisCycle
+            ? myActionButtons.map((button) => (
+                  <Button
+                      key={button.name}
+                      onClick={() => onAction({ type: 'USE_ACTION_BUTTON', payload: { gameId, buttonName: button.name } })}
+                      colorScheme={button.type === 'manner' ? 'green' : 'orange'}
+                      className={`min-w-0 max-w-full shrink whitespace-nowrap ${
+                          isMobile
+                              ? 'text-[0.62rem] leading-tight px-1.5 py-0.5'
+                              : 'text-[clamp(0.5rem,1.8vmin,0.75rem)] px-[clamp(0.3rem,1.5vmin,0.5rem)] py-[clamp(0.15rem,1vmin,0.25rem)]'
+                      }`}
+                      title={button.message}
+                      disabled={isSpectator || !isGameActive}
+                  >
+                      {button.name}
+                  </Button>
+              ))
+            : [<span key="wait" className={`shrink-0 text-gray-400 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>다음 액션 대기중...</span>];
+
     return (
-        <div
-            className={`flex items-center gap-1.5 min-w-0 ${
-                isMobile ? 'w-full flex-wrap justify-evenly gap-2 py-0.5' : 'flex-wrap justify-center gap-2'
-            }`}
-        >
-            {hasButtons && !hasUsedThisCycle ? (
-                myActionButtons.map(button => (
-                    <Button
-                        key={button.name}
-                        onClick={() => onAction({ type: 'USE_ACTION_BUTTON', payload: { gameId, buttonName: button.name } })}
-                        colorScheme={button.type === 'manner' ? 'green' : 'orange'}
-                        className={`shrink-0 whitespace-nowrap ${
-                            isMobile
-                                ? 'text-[0.62rem] leading-tight px-1.5 py-0.5 max-w-[32vw]'
-                                : 'text-[clamp(0.5rem,1.8vmin,0.75rem)] px-[clamp(0.3rem,1.5vmin,0.5rem)] py-[clamp(0.15rem,1vmin,0.25rem)]'
-                        }`}
-                        title={button.message}
-                        disabled={isSpectator || !isGameActive}
-                    >
-                        {button.name}
-                    </Button>
-                ))
-            ) : (
-                <span className={`shrink-0 text-gray-400 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>다음 액션 대기중...</span>
-            )}
-            <span className={`shrink-0 font-mono ${isMobile ? 'text-[10px]' : 'text-xs'} ${isReady && !hasUsedThisCycle ? 'text-green-400' : 'text-gray-400'}`}>
+        <div className={`flex min-w-0 items-center gap-2 ${isMobile ? 'w-full py-0.5' : ''}`}>
+            <ArenaControlStrip className="min-w-0 flex-1" gapClass={isMobile ? 'gap-1' : 'gap-2'}>
+                {actionNodes}
+            </ArenaControlStrip>
+            <span
+                className={`shrink-0 font-mono tabular-nums ${isMobile ? 'text-[10px]' : 'text-xs'} ${isReady && !hasUsedThisCycle ? 'text-green-400' : 'text-gray-400'}`}
+            >
                 {cooldownTime}
             </span>
         </div>
@@ -339,10 +345,10 @@ const LabeledDiceGoItem: React.FC<{
     children: React.ReactNode;
     compact?: boolean;
 }> = ({ label, disabled, children, compact = false }) => (
-    <div className={`flex flex-col items-center gap-0.5 shrink-0 ${compact ? 'min-w-0 max-w-[2.85rem]' : 'min-w-[3.5rem] sm:min-w-[4rem]'}`}>
+    <div className={`flex min-w-0 max-w-full flex-col items-center gap-0.5 ${compact ? '' : 'min-w-[3.25rem] sm:min-w-[4rem]'}`}>
         {children}
         <span
-            className={`font-semibold tracking-wide text-center leading-tight ${compact ? 'text-[8px] max-w-[2.85rem]' : 'text-[10px] max-w-[4.5rem]'} ${
+            className={`text-center font-semibold leading-none tracking-wide whitespace-nowrap ${compact ? 'text-[8px]' : 'text-[10px]'} ${
                 disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'
             }`}
         >
@@ -525,12 +531,12 @@ export const DicePanel: React.FC<{
         }
     };
 
-    const itemRowClass = footerCompact
-        ? 'flex w-full min-w-0 flex-row flex-wrap items-end justify-evenly gap-x-1 gap-y-1'
-        : 'flex flex-row flex-wrap items-end justify-center gap-x-3 gap-y-2';
-
     const diceGoItemsRow = showItems ? (
-        <div className={itemRowClass}>
+        <ArenaFixedColsGrid
+            cols={4}
+            gapClass={footerCompact ? 'gap-x-0.5 sm:gap-x-1' : 'gap-x-3 gap-y-2'}
+            className={footerCompact ? 'min-w-0' : ''}
+        >
             <LabeledDiceGoItem label="홀수" disabled={!oddItemUsable} compact={footerCompact}>
                 <DiceGoLuxuryItemCard kind="odd" count={oddCount} usable={oddItemUsable} onUse={() => handleRoll('odd')} compact={footerCompact} />
             </LabeledDiceGoItem>
@@ -543,7 +549,7 @@ export const DicePanel: React.FC<{
             <LabeledDiceGoItem label="높은수" disabled={!highItemUsable} compact={footerCompact}>
                 <DiceGoLuxuryItemCard kind="high" count={highCount} usable={highItemUsable} onUse={() => handleRoll('high')} compact={footerCompact} />
             </LabeledDiceGoItem>
-        </div>
+        </ArenaFixedColsGrid>
     ) : null;
 
     return (
@@ -576,14 +582,18 @@ export const DicePanel: React.FC<{
                 </div>
             )}
             <div
-                className={`flex flex-row items-center border-0 p-0 transition-all ${
-                    footerCompact ? 'w-full min-w-0 flex-wrap justify-evenly gap-2' : 'flex-wrap justify-center gap-3'
-                }`}
+                className={
+                    footerCompact
+                        ? variant === 'all'
+                            ? 'grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 border-0 p-0'
+                            : 'w-full min-w-0 border-0 p-0'
+                        : 'flex flex-row flex-wrap items-center justify-center gap-3 border-0 p-0 transition-all'
+                }
             >
                 {variant === 'all' ? (
                     <>
                         <div
-                            className={`flex flex-col items-center shrink-0 ${canRoll ? 'animate-pulse-border-yellow' : 'border-2 border-transparent p-2 rounded-lg'}`}
+                            className={`flex shrink-0 flex-col items-center ${canRoll ? 'animate-pulse-border-yellow' : 'rounded-lg border-2 border-transparent p-2'}`}
                         >
                             {mainDice}
                         </div>
@@ -621,11 +631,10 @@ const AlkkagiItemPanel: React.FC<{
     const canUse = isMyTurn && gameStatus === 'alkkagi_playing';
 
     const totalRounds = session.settings.alkkagiRounds || 1;
-    const rowClass = compact ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2' : 'flex items-center justify-center gap-3';
 
     if (totalRounds <= 1) {
         return (
-            <div className={rowClass}>
+            <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-2' : 'gap-3'} className={compact ? 'min-w-0' : ''}>
                 <LabeledControlButton
                     src="/images/button/slow.png"
                     alt="슬로우"
@@ -648,7 +657,7 @@ const AlkkagiItemPanel: React.FC<{
                     title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
                     compact={compact}
                 />
-            </div>
+            </ArenaFixedColsGrid>
         );
     }
     
@@ -657,12 +666,20 @@ const AlkkagiItemPanel: React.FC<{
     const myRefillsLeft = maxRefills - myRefillsUsed;
 
     return (
-        <div className={compact ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2' : 'flex items-center justify-center gap-3'}>
-            <div className={`flex flex-col text-center font-semibold text-yellow-300 shrink-0 ${compact ? 'text-[9px]' : 'text-xs'}`}>
-                <span>리필: {myRefillsLeft} / {maxRefills}</span>
+        <div
+            className={
+                compact
+                    ? 'grid w-full min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2'
+                    : 'flex items-center justify-center gap-3'
+            }
+        >
+            <div className={`flex shrink-0 flex-col text-center font-semibold text-yellow-300 ${compact ? 'text-[9px]' : 'text-xs'}`}>
+                <span className="whitespace-nowrap">
+                    리필: {myRefillsLeft} / {maxRefills}
+                </span>
             </div>
-            <div className={`h-8 w-px bg-gray-600 shrink-0 ${compact ? 'mx-1' : 'mx-2'}`}></div>
-            <div className={rowClass}>
+            <div className={`h-8 w-px shrink-0 bg-gray-600 ${compact ? 'mx-0' : 'mx-2'}`} />
+            <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-2' : 'gap-3'} className="min-w-0">
                 <LabeledControlButton
                     src="/images/button/slow.png"
                     alt="슬로우"
@@ -685,7 +702,7 @@ const AlkkagiItemPanel: React.FC<{
                     title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
                     compact={compact}
                 />
-            </div>
+            </ArenaFixedColsGrid>
         </div>
     );
 };
@@ -955,19 +972,15 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
         }
     };
 
-    const thiefItemRowClass = footerCompact
-        ? 'flex w-full min-w-0 flex-row flex-wrap items-end justify-evenly gap-x-1 gap-y-1'
-        : 'flex flex-row flex-wrap items-end justify-center gap-x-3 gap-y-2';
-
     const thiefItemsRow = showItems ? (
-        <div className={thiefItemRowClass}>
+        <ArenaFixedColsGrid cols={2} gapClass={footerCompact ? 'gap-x-0.5 sm:gap-x-1' : 'gap-x-3 gap-y-2'} className={footerCompact ? 'min-w-0' : ''}>
             <LabeledDiceGoItem label="높은수" disabled={!high36Usable} compact={footerCompact}>
                 <ThiefGoLuxuryItemCard kind="high36" count={high36Count} usable={high36Usable} onUse={() => handleRoll('high36')} compact={footerCompact} />
             </LabeledDiceGoItem>
             <LabeledDiceGoItem label="1방지" disabled={!noOneUsable} compact={footerCompact}>
                 <ThiefGoLuxuryItemCard kind="noOne" count={noOneCount} usable={noOneUsable} onUse={() => handleRoll('noOne')} compact={footerCompact} />
             </LabeledDiceGoItem>
-        </div>
+        </ArenaFixedColsGrid>
     ) : null;
 
     return (
@@ -1010,13 +1023,17 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
                 </div>
             )}
             <div
-                className={`flex flex-row items-center border-0 p-0 transition-all ${
-                    footerCompact ? 'w-full min-w-0 flex-wrap justify-evenly gap-2' : 'flex-wrap justify-center gap-3'
-                }`}
+                className={
+                    footerCompact
+                        ? variant === 'all'
+                            ? 'grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 border-0 p-0'
+                            : 'w-full min-w-0 border-0 p-0'
+                        : 'flex flex-row flex-wrap items-center justify-center gap-3 border-0 p-0 transition-all'
+                }
             >
                 {variant === 'all' ? (
                     <>
-                        <div className={`flex flex-col items-center shrink-0 ${canRoll ? 'animate-pulse-border-yellow' : 'rounded-lg border-2 border-transparent p-2'}`}>
+                        <div className={`flex shrink-0 flex-col items-center ${canRoll ? 'animate-pulse-border-yellow' : 'rounded-lg border-2 border-transparent p-2'}`}>
                             {mainDice}
                         </div>
                         {thiefItemsRow}
@@ -1052,9 +1069,8 @@ const CurlingItemPanel: React.FC<{
     const isSlowActive = myActiveItems.includes('slow');
     const isAimActive = myActiveItems.includes('aimingLine');
     const canUse = isMyTurn && gameStatus === 'curling_playing';
-    const rowClass = compact ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2' : 'flex items-center justify-center gap-3';
     return (
-        <div className={rowClass}>
+        <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-2' : 'gap-3'} className={compact ? 'min-w-0' : ''}>
             <LabeledControlButton
                 src="/images/button/slow.png"
                 alt="슬로우"
@@ -1075,13 +1091,13 @@ const CurlingItemPanel: React.FC<{
                 title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
                 compact={compact}
             />
-        </div>
+        </ArenaFixedColsGrid>
     );
 };
 
 
 const GameControls: React.FC<GameControlsProps> = (props) => {
-    const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, onOpenRematchSettings, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, onPauseToggle, onOpenGameRecordList } = props;
+    const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, onOpenRematchSettings, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, onPauseToggle, onOpenGameRecordList, onLeaveOrResign } = props;
     const { negotiations } = useAppContext();
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
     const isMixMode = mode === GameMode.Mix;
@@ -1450,15 +1466,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             return (
                 <>
                 <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full h-[136px]">
-                    <div
-                        className={`bg-gray-900/70 border border-stone-700 rounded-xl py-3 flex items-center gap-2 min-w-0 ${
-                            isMobile
-                                ? 'flex flex-wrap items-center justify-evenly gap-2 px-2 py-3 min-w-0'
-                                : 'flex-wrap justify-center px-4 gap-3'
-                        }`}
-                    >
+                    <div className="min-w-0 rounded-xl border border-stone-700 bg-gray-900/70 px-2 py-3 sm:px-4">
+                        <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-1.5' : 'gap-2'}>
                         <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
                             결과 확인
+                        </Button>
+                        <Button onClick={handleCloseResults} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
+                            나가기
                         </Button>
                         {isPvpRematchEligible && (
                             <Button
@@ -1495,9 +1509,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         <Button onClick={handleRetry} colorScheme="none" className={`justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
                             재도전 {retryActionPointCost > 0 && `(⚡${retryActionPointCost})`}
                         </Button>
-                        <Button onClick={handleCloseResults} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
-                            나가기
-                        </Button>
+                        </ArenaControlStrip>
                     </div>
                 </footer>
                 {isRematchModalOpen && isPvpRematchEligible && rematchTarget && (
@@ -1644,29 +1656,53 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         isMobile && (isHiddenMode || isMissileMode)
                             ? 'flex min-w-0 flex-row items-stretch gap-0 px-2 py-2'
                             : isMobile
-                              ? 'px-2 py-2 flex min-w-0 flex-row flex-wrap items-center justify-evenly gap-2'
-                              : 'px-4 py-3 flex flex-row items-center gap-4'
+                              ? 'px-2 py-2'
+                              : 'flex min-w-0 flex-row items-center gap-4 px-4 py-3'
                     }`}
                 >
                     {isMobile && (isHiddenMode || isMissileMode) ? (
                         <>
-                            <div className="flex min-h-[2.75rem] min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-stone-600/40 bg-black/15 px-1 py-1">
-                                {coreControls}
+                            <div className="flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/40 bg-black/15 px-1 py-1">
+                                <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                                    <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1">
+                                        {coreControls}
+                                    </ArenaControlStrip>
+                                </div>
                             </div>
                             <div className="mx-1 w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
-                            <div className="flex min-h-[2.75rem] min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-evenly gap-2 rounded-lg border border-amber-900/30 bg-amber-950/10 px-1 py-1">
-                                {itemControls}
+                            <div className="flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/30 bg-amber-950/10 px-1 py-1">
+                                <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                                    <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1">
+                                        {itemControls}
+                                    </ArenaControlStrip>
+                                </div>
                             </div>
                         </>
                     ) : isMobile ? (
-                        coreControls
+                        <div className="flex w-full min-w-0 justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-2">
+                                {coreControls}
+                            </ArenaControlStrip>
+                        </div>
                     ) : (
                         <>
-                            {coreControls}
+                            <div
+                                className={`flex min-w-0 items-center justify-center ${isHiddenMode || isMissileMode ? 'flex-1' : 'w-full'}`}
+                            >
+                                <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+                                    {coreControls}
+                                </ArenaControlStrip>
+                            </div>
                             {(isHiddenMode || isMissileMode) && (
-                                <div className={`w-px bg-stone-600/50 shrink-0 self-stretch h-12`} />
+                                <>
+                                    <div className="h-12 w-px shrink-0 self-stretch bg-stone-600/50" />
+                                    <div className="flex min-w-0 flex-1 items-center justify-center">
+                                        <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+                                            {itemControls}
+                                        </ArenaControlStrip>
+                                    </div>
+                                </>
                             )}
-                            {itemControls}
                         </>
                     )}
                 </div>
@@ -1681,6 +1717,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <Button onClick={() => setShowResultModal(true)} colorScheme="none" className={getLuxuryButtonClasses('accent')}>
                         결과 보기
                     </Button>
+                    {onLeaveOrResign && (
+                        <Button onClick={onLeaveOrResign} colorScheme="none" className={getLuxuryButtonClasses('danger')}>
+                            {isSpectator ? '관전종료' : '나가기'}
+                        </Button>
+                    )}
                     {isAiLobbyGame && onOpenRematchSettings && (
                         <Button onClick={onOpenRematchSettings} colorScheme="none" className={getLuxuryButtonClasses('success')}>
                             재대결
@@ -1773,26 +1814,19 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         <PlayfulStonesPanel session={session} currentUser={currentUser} />
     );
 
-    const primaryStripClass = isMobile
-        ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2'
-        : 'flex items-center justify-center gap-3 flex-wrap flex-grow';
-    const specialStripClass = isMobile
-        ? 'flex w-full min-w-0 flex-row flex-wrap items-center justify-evenly gap-2'
-        : 'flex items-center justify-center gap-3 flex-wrap flex-grow';
-
     return (
         <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-1 flex flex-col items-stretch justify-center gap-1 w-full">
             {/* Row 1: Manner Actions - PVP 모드에서만 표시 */}
             {!isSinglePlayer && !session.isAiGame ? (
                 <div
-                    className={`bg-gray-900/50 rounded-md flex flex-row items-center w-full min-w-0 ${
-                        isMobile ? 'flex-wrap justify-evenly gap-2 p-1.5' : 'p-2 gap-4'
+                    className={`flex w-full min-w-0 flex-row items-center rounded-md bg-gray-900/50 ${
+                        isMobile ? 'gap-2 p-1.5' : 'gap-4 p-2'
                     }`}
                 >
-                    <h3 className={`font-bold text-gray-300 whitespace-nowrap shrink-0 ${isMobile ? 'text-[9px]' : 'text-xs'}`}>
+                    <h3 className={`shrink-0 font-bold whitespace-nowrap text-gray-300 ${isMobile ? 'text-[9px]' : 'text-xs'}`}>
                         매너 액션 {usesLeftText}
                     </h3>
-                    <div className={`flex items-center min-w-0 ${isMobile ? 'flex-1 justify-center' : 'flex-grow justify-center'}`}>
+                    <div className="min-w-0 flex-1">
                         <ActionButtonsPanel session={session} isSpectator={isSpectator} onAction={onAction} currentUser={currentUser} isMobile={isMobile} />
                     </div>
                 </div>
@@ -1806,39 +1840,54 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             {isMobile ? (
                 <div className="flex w-full min-w-0 gap-2">
                     <div className="flex min-h-[4.25rem] min-w-0 flex-1 flex-col gap-1 rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">대국</span>
-                        <div className={primaryStripClass}>{primaryControlsInner}</div>
+                        <span className="text-center text-[10px] font-bold uppercase tracking-wide text-gray-400">대국</span>
+                        <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+                                {primaryControlsInner}
+                            </ArenaControlStrip>
+                        </div>
                     </div>
                     <div
                         className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-500/15 via-stone-500/50 to-stone-500/15"
                         aria-hidden
                     />
                     <div className="flex min-h-[4.25rem] min-w-0 flex-1 flex-col gap-1 rounded-lg border border-amber-900/35 bg-gray-900/55 p-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-amber-200/85">{isStrategic ? '특수' : '놀이'}</span>
-                        <div className={specialStripClass}>{specialControlsInner}</div>
+                        <span className="text-center text-[10px] font-bold uppercase tracking-wide text-amber-200/85">
+                            {isStrategic ? '특수' : '놀이'}
+                        </span>
+                        <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+                                {specialControlsInner}
+                            </ArenaControlStrip>
+                        </div>
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-row gap-1 w-full">
-                    <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 flex-1 min-w-0">
-                        <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">대국 기능</h3>
-                        <div className={primaryStripClass}>{primaryControlsInner}</div>
+                <div className="flex w-full min-w-0 flex-row gap-2">
+                    <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-md bg-gray-900/50 p-2">
+                        <h3 className="text-center text-xs font-bold text-gray-300">대국 기능</h3>
+                        <div className="flex min-h-[3.5rem] w-full min-w-0 flex-1 items-center justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-3">
+                                {primaryControlsInner}
+                            </ArenaControlStrip>
+                        </div>
                     </div>
-                    <div className="bg-gray-900/50 rounded-md p-2 flex flex-row items-center gap-4 flex-1 min-w-0">
-                        <h3 className="text-xs font-bold text-gray-300 whitespace-nowrap">{isStrategic ? '특수 기능' : '놀이 기능'}</h3>
-                        <div className={specialStripClass}>{specialControlsInner}</div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-md bg-gray-900/50 p-2">
+                        <h3 className="text-center text-xs font-bold text-gray-300">{isStrategic ? '특수 기능' : '놀이 기능'}</h3>
+                        <div className="flex min-h-[3.5rem] w-full min-w-0 flex-1 items-center justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-3">
+                                {specialControlsInner}
+                            </ArenaControlStrip>
+                        </div>
                     </div>
                 </div>
             )}
              {/* Admin Controls */}
             {isSpectator && currentUser.isAdmin && isGameActive && (
-                <div className="bg-purple-900/50 rounded-md p-2 flex flex-row items-center gap-4 w-full mt-1 min-w-0">
-                    <h3 className="text-xs font-bold text-purple-300 whitespace-nowrap shrink-0">관리자 기능</h3>
-                    <div
-                        className={`flex items-center gap-2 flex-grow min-w-0 ${
-                            isMobile ? 'flex-wrap justify-evenly' : 'flex-wrap justify-center'
-                        }`}
-                    >
+                <div className="mt-1 flex w-full min-w-0 flex-row items-center gap-4 rounded-md bg-purple-900/50 p-2">
+                    <h3 className="shrink-0 whitespace-nowrap text-xs font-bold text-purple-300">관리자 기능</h3>
+                    <div className="flex min-w-0 flex-1 items-center justify-center">
+                        <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-1.5' : 'gap-2'}>
                         <Button
                             onClick={() => {
                                 if (window.confirm(`${player1.nickname}님을 기권승 처리하시겠습니까?`)) {
@@ -1861,6 +1910,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         >
                             {player2.nickname} 기권승
                         </Button>
+                        </ArenaControlStrip>
                     </div>
                 </div>
             )}

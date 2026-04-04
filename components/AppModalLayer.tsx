@@ -1,6 +1,7 @@
 import React, { useMemo, Suspense, lazy } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
 import NegotiationModal from './NegotiationModal.js';
 import ChallengeReceivedModal from './ChallengeReceivedModal.js';
 
@@ -15,6 +16,7 @@ const PastRankingsModal = lazy(() => import('./modals/PastRankingsModal.js'));
 const AdminModerationModal = lazy(() => import('./AdminModerationModal.js'));
 const BlacksmithModal = lazy(() => import('./BlacksmithModal.js'));
 const BlacksmithHelpModal = lazy(() => import('./blacksmith/BlacksmithHelpModal.js'));
+const BlacksmithEffectsModal = lazy(() => import('./blacksmith/BlacksmithEffectsModal.js'));
 const GameRecordListModal = lazy(() => import('./GameRecordListModal.js'));
 const GameRecordViewerModal = lazy(() => import('./GameRecordViewerModal.js'));
 import InfoModal from './InfoModal.js';
@@ -38,6 +40,7 @@ import OpponentInsufficientActionPointsModal from './OpponentInsufficientActionP
 const ModalLoadingFallback = () => null;
 
 const AppModalLayer: React.FC = () => {
+    const { isNativeMobile } = useNativeMobileShell();
     const {
         currentUserWithStatus,
         activeNegotiation,
@@ -72,6 +75,7 @@ const AppModalLayer: React.FC = () => {
         if (modals.viewingItem) ids.push('viewingItem');
         if (modals.enhancingItem) ids.push('enhancingItem');
         if (modals.isBlacksmithModalOpen) ids.push('blacksmith');
+        if (modals.isBlacksmithEffectsModalOpen) ids.push('blacksmithEffects');
         if (modals.isBlacksmithHelpOpen) ids.push('blacksmithHelp');
         if (modals.isGameRecordListOpen) ids.push('gameRecordList');
         if (modals.viewingGameRecord) ids.push('gameRecordViewer');
@@ -231,8 +235,15 @@ const AppModalLayer: React.FC = () => {
             {modals.mutualDisconnectMessage && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">
                     <div
-                        className={`bg-panel border border-color rounded-xl shadow-2xl w-full mx-4 p-6 text-center ${isNativeMobile ? 'max-w-[720px]' : 'max-w-md'}`}
-                        style={isNativeMobile ? { maxWidth: NATIVE_MOBILE_MODAL_MAX_WIDTH_PX } : undefined}
+                        className={`bg-panel border border-color rounded-xl shadow-2xl w-full mx-4 p-6 text-center ${isNativeMobile ? '' : 'max-w-md'}`}
+                        style={
+                            isNativeMobile
+                                ? {
+                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%)`,
+                                      maxHeight: `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%)`,
+                                  }
+                                : undefined
+                        }
                     >
                         <h2 id="mutual-disconnect-title" className="text-lg font-bold text-on-panel mb-3">대국 종료 안내</h2>
                         <p className="text-on-panel/90 mb-6">{modals.mutualDisconnectMessage}</p>
@@ -243,7 +254,15 @@ const AppModalLayer: React.FC = () => {
             {modals.showOtherDeviceLoginModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="other-device-login-title">
                     <div
-                        className={`bg-panel border border-color rounded-xl shadow-2xl w-full mx-4 p-6 text-center ${isNativeMobile ? 'max-w-[min(100%,720px)]' : 'max-w-md'}`}
+                        className={`bg-panel border border-color rounded-xl shadow-2xl w-full mx-4 p-6 text-center ${isNativeMobile ? '' : 'max-w-md'}`}
+                        style={
+                            isNativeMobile
+                                ? {
+                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%)`,
+                                      maxHeight: `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%)`,
+                                  }
+                                : undefined
+                        }
                     >
                         <h2 id="other-device-login-title" className="text-lg font-bold text-on-panel mb-3">로그아웃 안내</h2>
                         <p className="text-on-panel/90 mb-6">다른 곳에서 로그인 되었습니다. 로그아웃 됩니다.</p>
@@ -264,6 +283,15 @@ const AppModalLayer: React.FC = () => {
                 </Suspense>
             )}
             {modals.combinationResult && <CombinationResultModal result={modals.combinationResult} onClose={handlers.closeCombinationResult} isTopmost={topmostModalId === 'combinationResult'} />}
+            {modals.isBlacksmithEffectsModalOpen && currentUserWithStatus && (
+                <Suspense fallback={ModalLoadingFallback()}>
+                    <BlacksmithEffectsModal
+                        onClose={handlers.closeBlacksmithEffectsModal}
+                        isTopmost={topmostModalId === 'blacksmithEffects'}
+                        blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
+                    />
+                </Suspense>
+            )}
             {modals.isBlacksmithHelpOpen && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <BlacksmithHelpModal onClose={handlers.closeBlacksmithHelp} isTopmost={topmostModalId === 'blacksmithHelp'} currentUser={currentUserWithStatus} />

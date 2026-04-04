@@ -1,9 +1,13 @@
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { NATIVE_MOBILE_MODAL_MAX_WIDTH_PX } from '../constants/ads.js';
+import {
+    NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
+    NATIVE_MOBILE_MODAL_MAX_WIDTH_PX,
+    NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
+} from '../constants/ads.js';
 
 interface DraggableWindowProps {
 
@@ -40,6 +44,21 @@ interface DraggableWindowProps {
      */
     mobileViewportFit?: boolean;
 
+    /** 본문 영역 세로 스크롤 (모바일·스케일 캔버스 등에서 긴 모달 내용 잘림 방지) */
+    bodyScrollable?: boolean;
+
+    /**
+     * mobileViewportFit일 때 기본은 본문 스크롤 허용.
+     * true면 스크롤 없이 overflow-hidden (내용을 압축해 한 화면에 맞출 때)
+     */
+    bodyNoScroll?: boolean;
+
+    /** 하단 "창 위치 기억하기" 영역 숨김 (한 화면에 맞출 때) */
+    hideFooter?: boolean;
+
+    /** 본문 패딩 클래스 (지정 시 store/default 패딩 대신 사용) */
+    bodyPaddingClassName?: string;
+
 }
 
 
@@ -69,7 +88,26 @@ function getScaledCanvasDragMetrics(): {
 // 전역 z-index 카운터: 최상위 모달이 항상 가장 높은 z-index를 가지도록 함
 let globalZIndexCounter = 10000;
 
-const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onClose, children, initialWidth = 800, initialHeight, modal = true, closeOnOutsideClick = true, isTopmost = true, headerContent, zIndex, variant = 'default', defaultPosition = { x: 0, y: 0 }, mobileViewportFit = false }) => {
+const DraggableWindow: React.FC<DraggableWindowProps> = ({
+    title,
+    windowId,
+    onClose,
+    children,
+    initialWidth = 800,
+    initialHeight,
+    modal = true,
+    closeOnOutsideClick = true,
+    isTopmost = true,
+    headerContent,
+    zIndex,
+    variant = 'default',
+    defaultPosition = { x: 0, y: 0 },
+    mobileViewportFit = false,
+    bodyScrollable = false,
+    bodyNoScroll = false,
+    hideFooter = false,
+    bodyPaddingClassName,
+}) => {
     // isTopmost가 true일 때는 전역 카운터를 사용하여 항상 최상위에 표시
     const [effectiveZIndex, setEffectiveZIndex] = useState(() => {
         if (isTopmost) {
@@ -225,8 +263,14 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         if (!isNativeMobile) return undefined;
         const base = calculatedWidth ?? initialWidth;
         if (base === undefined) return undefined;
-        return Math.min(base, NATIVE_MOBILE_MODAL_MAX_WIDTH_PX);
-    }, [isNativeMobile, calculatedWidth, initialWidth]);
+        const vwCap = windowWidth * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100);
+        return Math.min(base, vwCap, NATIVE_MOBILE_MODAL_MAX_WIDTH_PX);
+    }, [isNativeMobile, calculatedWidth, initialWidth, windowWidth]);
+
+    const nativeMaxHeightPx = useMemo(() => {
+        if (!isNativeMobile) return undefined;
+        return windowHeight * (NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH / 100);
+    }, [isNativeMobile, windowHeight]);
     
     const calculatedHeight = useMemo(() => {
         if (!initialHeight) return undefined;
@@ -247,6 +291,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
         const adjustedHeight = Math.max(300, Math.min(baseHeight, baseHeight * viewportRatio));
         return adjustedHeight;
     }, [initialHeight, windowHeight, effectiveIsCompactViewport, isInsideScaledCanvas]);
+
+    const nativeCappedHeightPx = useMemo(() => {
+        if (!isNativeMobile || nativeMaxHeightPx === undefined) return undefined;
+        const raw = calculatedHeight ?? initialHeight;
+        if (raw === undefined) return nativeMaxHeightPx;
+        return Math.min(raw, nativeMaxHeightPx);
+    }, [isNativeMobile, nativeMaxHeightPx, calculatedHeight, initialHeight]);
 
     // 모바일에서 PC 모달 구조를 그대로 사용하고 전체적으로 축소하는 스케일 팩터 계산
     const mobileScaleFactor = useMemo(() => {
@@ -280,14 +331,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
     const mobileViewportFitWidthPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
         const iw = initialWidth ?? 800;
-        return Math.max(280, Math.min(iw, windowWidth - 16));
-    }, [useMobileViewportFitLayout, initialWidth, windowWidth]);
+        const capW = isNativeMobile ? windowWidth * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100) : windowWidth - 16;
+        return Math.max(280, Math.min(iw, capW));
+    }, [useMobileViewportFitLayout, initialWidth, windowWidth, isNativeMobile]);
 
     const mobileViewportFitHeightPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
         const ih = initialHeight ?? 600;
-        return Math.max(240, Math.min(ih, windowHeight - 40));
-    }, [useMobileViewportFitLayout, initialHeight, windowHeight]);
+        const capH = isNativeMobile ? windowHeight * (NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH / 100) : windowHeight - 40;
+        return Math.max(240, Math.min(ih, capH));
+    }, [useMobileViewportFitLayout, initialHeight, windowHeight, isNativeMobile]);
 
     useEffect(() => {
 
@@ -377,7 +430,29 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
     }, [handleDragStart, isTopmost]);
 
-    
+    const clampNativeMobileToVisualViewport = useCallback(() => {
+        if (!isNativeMobile || typeof window === 'undefined' || !windowRef.current) return;
+        const el = windowRef.current;
+        const metrics = getScaledCanvasDragMetrics();
+        const r = el.getBoundingClientRect();
+        const vv = window.visualViewport;
+        const offL = vv ? vv.offsetLeft : 0;
+        const offT = vv ? vv.offsetTop : 0;
+        const vw = vv ? vv.width : window.innerWidth;
+        const vh = vv ? vv.height : window.innerHeight;
+        const edge = 8;
+        const headerH = 52;
+        let dcx = 0;
+        let dcy = 0;
+        if (r.top < offT + edge) dcy += offT + edge - r.top;
+        if (r.top + headerH > offT + vh - edge) dcy += offT + vh - edge - (r.top + headerH);
+        if (r.left < offL + edge) dcx += offL + edge - r.left;
+        if (r.right > offL + vw - edge) dcx += offL + vw - edge - r.right;
+        if (dcx === 0 && dcy === 0) return;
+        const rx = metrics ? metrics.ratioX : 1;
+        const ry = metrics ? metrics.ratioY : 1;
+        setPosition((p) => ({ x: p.x + dcx * rx, y: p.y + dcy * ry }));
+    }, [isNativeMobile]);
 
     const handleDragMove = useCallback((clientX: number, clientY: number) => {
 
@@ -554,7 +629,24 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
 
     }, [isDragging, handleMouseMove, handleTouchMove, handleDragEnd]);
 
-    
+    useLayoutEffect(() => {
+        if (!isNativeMobile || !isInitialized || !windowRef.current) return;
+        clampNativeMobileToVisualViewport();
+    }, [position.x, position.y, isNativeMobile, isInitialized, clampNativeMobileToVisualViewport]);
+
+    useEffect(() => {
+        if (!isNativeMobile || !isInitialized) return;
+        const run = () => requestAnimationFrame(() => clampNativeMobileToVisualViewport());
+        window.addEventListener('resize', run);
+        const vv = window.visualViewport;
+        vv?.addEventListener('resize', run);
+        vv?.addEventListener('scroll', run);
+        return () => {
+            window.removeEventListener('resize', run);
+            vv?.removeEventListener('resize', run);
+            vv?.removeEventListener('scroll', run);
+        };
+    }, [isNativeMobile, isInitialized, clampNativeMobileToVisualViewport]);
 
     const handleRememberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
@@ -618,7 +710,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
     const footerVariantClass = isStoreVariant
         ? 'bg-[#111a32] border-t border-cyan-300/30 text-cyan-200'
         : 'bg-secondary border-color text-tertiary';
-    const bodyPaddingClass = isStoreVariant ? 'p-5' : 'p-4';
+    const bodyPaddingClass = bodyPaddingClassName ?? (isStoreVariant ? 'p-5' : 'p-4');
+    const bodyAllowsVerticalScroll =
+        bodyScrollable || (useMobileViewportFitLayout && !bodyNoScroll);
     const closeButtonClass = isStoreVariant
         ? 'w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-rose-500/85 via-rose-500/75 to-rose-600/85 hover:from-rose-400 hover:via-rose-500 hover:to-rose-600 transition-colors shadow-[0_18px_38px_-24px_rgba(244,63,94,0.75)]'
         : 'w-10 h-10 flex items-center justify-center rounded-full bg-tertiary hover:bg-danger transition-colors';
@@ -653,9 +747,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                             ? `${nativeClampedWidthPx}px`
                             : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
                     maxWidth: useMobileViewportFitLayout
-                        ? 'calc(100vw - 16px)'
+                        ? isNativeMobile
+                          ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 16px))`
+                          : 'calc(100vw - 16px)'
                         : isNativeMobile
-                          ? `${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px`
+                          ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%)`
                           : isInsideScaledCanvas
                             ? undefined
                             : (effectiveIsCompactViewport ? undefined : 'calc(100vw - 40px)'),
@@ -663,12 +759,18 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                         ? `${mobileViewportFitHeightPx}px`
                         : effectiveIsCompactViewport
                           ? (initialHeight ? `${initialHeight}px` : '600px')
-                          : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
-                    maxHeight: isInsideScaledCanvas
-                        ? undefined
-                        : useMobileViewportFitLayout
-                          ? 'calc(100dvh - 40px)'
-                          : (effectiveIsCompactViewport ? undefined : '90vh'),
+                          : isNativeMobile && nativeCappedHeightPx !== undefined
+                            ? `${nativeCappedHeightPx}px`
+                            : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
+                    maxHeight: useMobileViewportFitLayout
+                        ? isNativeMobile
+                          ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 40px))`
+                          : 'calc(100dvh - 40px)'
+                        : isNativeMobile
+                          ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%)`
+                          : isInsideScaledCanvas
+                            ? undefined
+                            : (effectiveIsCompactViewport ? undefined : '90vh'),
                     transform: useMobileViewportFitLayout
                         ? 'translate(-50%, -50%)'
                         : effectiveIsCompactViewport
@@ -707,21 +809,27 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, windowId, onCl
                     </div>
                 </div>
                 <div
-                    className={`flex-grow h-full flex flex-col min-h-0 ${useMobileViewportFitLayout ? 'overflow-auto' : 'overflow-hidden'} ${bodyPaddingClass}`}
+                    className={`flex min-h-0 flex-grow flex-col ${
+                        bodyAllowsVerticalScroll
+                            ? 'overflow-y-auto overflow-x-hidden overscroll-y-contain'
+                            : 'overflow-hidden'
+                    } ${bodyPaddingClass}`}
                 >
                     {children}
                 </div>
-                <div className={`flex-shrink-0 p-2 flex justify-end items-center rounded-b-xl ${footerVariantClass}`}>
-                    <label className="flex items-center text-xs gap-2 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={rememberPosition}
-                            onChange={handleRememberChange}
-                            className="w-4 h-4 bg-tertiary border-color rounded focus:ring-accent"
-                        />
-                        창 위치 기억하기
-                    </label>
-                </div>
+                {!hideFooter && (
+                    <div className={`flex flex-shrink-0 items-center justify-end rounded-b-xl p-2 ${footerVariantClass}`}>
+                        <label className="flex cursor-pointer select-none items-center gap-2 text-xs">
+                            <input
+                                type="checkbox"
+                                checked={rememberPosition}
+                                onChange={handleRememberChange}
+                                className="h-4 w-4 rounded border-color bg-tertiary focus:ring-accent"
+                            />
+                            창 위치 기억하기
+                        </label>
+                    </div>
+                )}
             </div>
         </>
     );

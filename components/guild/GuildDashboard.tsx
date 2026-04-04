@@ -15,7 +15,7 @@ import NineSlicePanel from '../ui/NineSlicePanel.js';
 import GuildShopModal from './GuildShopModal.js';
 import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
 import HelpModal from '../HelpModal.js';
-import QuickAccessSidebar from '../QuickAccessSidebar.js';
+import QuickAccessSidebar, { NATIVE_QUICK_RAIL_WIDTH_CLASS } from '../QuickAccessSidebar.js';
 import GuildWarRewardModal from './GuildWarRewardModal.js';
 import GuildWarMatchingModal from './GuildWarMatchingModal.js';
 import GuildWarCancelConfirmModal from './GuildWarCancelConfirmModal.js';
@@ -2465,11 +2465,12 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
         missionNotification: missionTabNotification,
     };
 
-    /** 터치 폰 길드홈: 홈 대기실과 동일 퀵 레일 + 길드 컨텐츠 드로어 */
+    /** 터치 폰 길드홈: 홈 대기실과 동일 퀵 레일 + 길드 컨텐츠 드로어
+     *  nativeHomeColumn 버튼 5개는 열 너비(5.5rem)만큼 정사각이라 세로로 ~27rem — 고정 max-height+overflow-hidden이면 하단이 잘림. Profile 홈과 같이 h-fit 후 레일 전체에서 스크롤. */
     const guildHomeQuickRail = (
-        <div className="flex h-full min-h-0 w-[6rem] shrink-0 flex-col gap-1 self-stretch overflow-y-auto overflow-x-hidden">
-            <div className="flex h-[min(21rem,68dvh)] min-h-[11rem] max-h-[min(21rem,68dvh)] w-full shrink-0 flex-col overflow-hidden rounded-lg border border-color bg-panel">
-                <QuickAccessSidebar nativeHomeColumn fillHeight />
+        <div className={`flex h-full min-h-0 shrink-0 flex-col gap-1 self-stretch overflow-y-auto overflow-x-hidden overscroll-y-contain ${NATIVE_QUICK_RAIL_WIDTH_CLASS}`}>
+            <div className="box-border flex w-full shrink-0 flex-col rounded-lg border border-color bg-panel p-0.5">
+                <QuickAccessSidebar nativeHomeColumn />
             </div>
             <button
                 type="button"
@@ -2731,105 +2732,84 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
             )}
 
             <main className="flex min-h-0 flex-1 flex-col gap-2">
-                <div
-                    className={`flex min-h-0 min-w-0 items-stretch gap-2 ${
-                        activeTab !== 'home' ? 'min-h-[12rem] flex-[2]' : 'flex-1'
-                    }`}
-                >
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 pr-1 sm:pr-2">
-                        <div className="w-full max-w-full flex-shrink-0">
-                            <div className="flex w-full rounded-xl border border-stone-600/40 bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 shadow-md">
-                                {tabs.map(tab => {
-                                    const tabColors = {
-                                        home: { active: 'from-amber-600 to-amber-500', inactive: 'text-amber-300/70 hover:text-amber-300' },
-                                        members: { active: 'from-blue-600 to-blue-500', inactive: 'text-blue-300/70 hover:text-blue-300' },
-                                        management: { active: 'from-purple-600 to-purple-500', inactive: 'text-purple-300/70 hover:text-purple-300' },
-                                    };
-                                    const colors = tabColors[tab.id] || { active: 'from-accent to-accent/80', inactive: 'text-tertiary hover:text-highlight' };
-                                    return (
-                                        <button
-                                            key={tab.id}
-                                            type="button"
-                                            onClick={() => setActiveTab(tab.id)}
-                                            className={`flex-1 font-bold rounded-lg transition-all py-2 text-xs ${
-                                                activeTab === tab.id
-                                                    ? `bg-gradient-to-r ${colors.active} text-white shadow-lg`
-                                                    : `${colors.inactive} hover:bg-stone-700/50`
-                                            }`}
-                                        >
-                                            {tab.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="flex-1 min-h-0 overflow-y-auto">
-                            {activeTab === 'home' && (
-                                <div className="flex h-full min-h-0 flex-col gap-2">
-                                    <div
-                                        className="grid shrink-0 gap-2 grid-cols-[minmax(0,3.35fr)_minmax(0,1.25fr)] min-h-[min(36vh,14rem)] max-h-[42vh]"
-                                    >
-                                        <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden">
-                                            <GuildCheckInPanel guild={currentGuild || guild} />
-                                        </div>
-                                        <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden">
-                                            <GuildDonationPanelPhone
-                                                guild={currentGuild || guild}
-                                                guildDonationAnimation={guildDonationAnimation}
-                                                onDonationComplete={onDonationComplete}
-                                                goldButtonRef={goldButtonRef}
-                                                diamondButtonRef={diamondButtonRef}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-                                        <div className="flex min-h-0 min-w-0 flex-col" data-guild-chat>
-                                            <GuildChat guild={currentGuild || guild} myMemberInfo={myMemberInfo} />
-                                        </div>
-                                        <div className="flex min-h-0 min-w-0 flex-col">
-                                            <GuildAnnouncementPanel guild={currentGuild || guild} />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            {activeTab === 'members' && (
-                                <NineSlicePanel className="h-full">
-                                    <GuildMembersPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} />
-                                </NineSlicePanel>
-                            )}
-                            {activeTab === 'management' && canManage && (
-                                <NineSlicePanel className="h-full">
-                                    <GuildManagementPanel guild={currentGuild || guild} />
-                                </NineSlicePanel>
-                            )}
-                        </div>
+                <div className="w-full max-w-full flex-shrink-0">
+                    <div className="flex w-full rounded-xl border border-stone-600/40 bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 shadow-md">
+                        {tabs.map(tab => {
+                            const tabColors = {
+                                home: { active: 'from-amber-600 to-amber-500', inactive: 'text-amber-300/70 hover:text-amber-300' },
+                                members: { active: 'from-blue-600 to-blue-500', inactive: 'text-blue-300/70 hover:text-blue-300' },
+                                management: { active: 'from-purple-600 to-purple-500', inactive: 'text-purple-300/70 hover:text-purple-300' },
+                            };
+                            const colors = tabColors[tab.id] || { active: 'from-accent to-accent/80', inactive: 'text-tertiary hover:text-highlight' };
+                            return (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex-1 font-bold rounded-lg transition-all py-2 text-xs ${
+                                        activeTab === tab.id
+                                            ? `bg-gradient-to-r ${colors.active} text-white shadow-lg`
+                                            : `${colors.inactive} hover:bg-stone-700/50`
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
                     </div>
-
-                    {guildHomeQuickRail}
                 </div>
 
-                {activeTab !== 'home' && (
-                    <div className="flex min-h-0 min-w-0 flex-1 gap-1">
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1">
-                            <GuildDonationPanelPhone
-                                guild={currentGuild || guild}
-                                guildDonationAnimation={guildDonationAnimation}
-                                onDonationComplete={onDonationComplete}
-                                goldButtonRef={goldButtonRef}
-                                diamondButtonRef={diamondButtonRef}
-                            />
-                            <ActivityPanel
-                                onOpenMissions={() => setIsMissionsOpen(true)}
-                                onOpenResearch={() => setIsResearchOpen(true)}
-                                onOpenShop={() => setIsShopOpen(true)}
-                                missionNotification={missionTabNotification}
-                                onOpenBossGuide={() => setIsBossGuideOpen(true)}
-                            />
+                {activeTab === 'home' && (
+                    <div className="flex min-h-0 min-w-0 flex-1 items-stretch gap-1 sm:gap-2">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 pr-0 sm:pr-2">
+                            <div className="flex h-full min-h-0 flex-col gap-2">
+                                <div className="grid shrink-0 grid-cols-[minmax(0,3.35fr)_minmax(0,1.25fr)] gap-2 min-h-[min(36vh,14rem)] max-h-[42vh]">
+                                    <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden">
+                                        <GuildCheckInPanel guild={currentGuild || guild} />
+                                    </div>
+                                    <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden">
+                                        <GuildDonationPanelPhone
+                                            guild={currentGuild || guild}
+                                            guildDonationAnimation={guildDonationAnimation}
+                                            onDonationComplete={onDonationComplete}
+                                            goldButtonRef={goldButtonRef}
+                                            diamondButtonRef={diamondButtonRef}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 overflow-y-auto min-[500px]:grid-cols-[minmax(0,1.62fr)_minmax(0,0.86fr)] min-[500px]:gap-x-1.5">
+                                    <div className="flex min-h-0 min-w-0 flex-col" data-guild-chat>
+                                        <GuildChat guild={currentGuild || guild} myMemberInfo={myMemberInfo} />
+                                    </div>
+                                    <div className="flex min-h-0 min-w-0 flex-col">
+                                        <GuildAnnouncementPanel guild={currentGuild || guild} compact />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div className="min-h-0 min-w-0 flex-[1.35] overflow-hidden">
-                            <WarPanel guild={currentGuild || guild} className="h-full w-full" />
+                        {guildHomeQuickRail}
+                    </div>
+                )}
+
+                {activeTab === 'members' && (
+                    <div className="flex min-h-0 min-w-0 flex-1 items-stretch gap-1 sm:gap-2">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pr-0 sm:pr-2">
+                            <NineSlicePanel className="h-full min-h-0">
+                                <GuildMembersPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} compact />
+                            </NineSlicePanel>
                         </div>
+                        {guildHomeQuickRail}
+                    </div>
+                )}
+
+                {activeTab === 'management' && canManage && (
+                    <div className="flex min-h-0 min-w-0 flex-1 items-stretch gap-1 sm:gap-2">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pr-0 sm:pr-2">
+                            <NineSlicePanel className="h-full min-h-0">
+                                <GuildManagementPanel guild={currentGuild || guild} compact />
+                            </NineSlicePanel>
+                        </div>
+                        {guildHomeQuickRail}
                     </div>
                 )}
             </main>

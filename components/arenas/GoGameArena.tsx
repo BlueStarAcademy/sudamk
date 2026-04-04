@@ -42,15 +42,24 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
 
-    const displayLastMove = useMemo(() => {
-        if (!hiddenMoves || typeof hiddenMoves !== 'object' || !moveHistory?.length) return lastMove;
+    /** 좌표가 같으면 객체 참조를 유지해 GoBoard 따낸 점수 effect 등이 매 렌더 불필요하게 돌지 않게 함 */
+    const displayLastMoveKey = useMemo(() => {
+        if (!hiddenMoves || typeof hiddenMoves !== 'object' || !moveHistory?.length) {
+            return lastMove != null ? `${lastMove.x},${lastMove.y}` : '';
+        }
         for (let i = moveHistory.length - 1; i >= 0; i--) {
             const m = moveHistory[i];
             if (m.x === -1 && m.y === -1) continue;
-            if (!hiddenMoves[i]) return { x: m.x, y: m.y };
+            if (!hiddenMoves[i]) return `${m.x},${m.y}`;
         }
-        return lastMove;
+        return lastMove != null ? `${lastMove.x},${lastMove.y}` : '';
     }, [lastMove, moveHistory, hiddenMoves]);
+
+    const displayLastMove = useMemo((): Point | null => {
+        if (!displayLastMoveKey) return null;
+        const [x, y] = displayLastMoveKey.split(',').map(Number);
+        return { x, y };
+    }, [displayLastMoveKey]);
 
     const players = [player1, player2];
     const blackPlayer = players.find(p => p.id === blackPlayerId) || null;
@@ -196,6 +205,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 allRevealedStones={allRevealedStones}
                 newlyRevealed={session.newlyRevealed}
                 justCaptured={session.justCaptured}
+                captures={session.captures}
                 permanentlyRevealedStones={session.permanentlyRevealedStones}
                 isSpectator={props.isSpectator}
                 analysisResult={session.analysisResult?.[props.currentUser.id] ?? ((gameStatus === 'ended' || (gameStatus === 'scoring' && session.analysisResult?.['system'])) ? session.analysisResult?.['system'] : null)}

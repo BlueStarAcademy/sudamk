@@ -47,17 +47,32 @@ interface InventoryGridProps {
     disabledItemIds?: string[];
     selectedItemIdsForDisassembly?: Set<string>; // New prop for disassembly selection
     onToggleDisassemblySelection?: (itemId: string) => void; // New prop for toggling disassembly selection
+    /** 그리드 열 수 (기본 10). 모바일 대장간 등에서 8 권장 */
+    columnCount?: number;
+    gapPx?: number;
 }
 
-const InventoryGrid: React.FC<InventoryGridProps> = ({ inventory, inventorySlots, onSelectItem, selectedItemId, disabledItemIds = [], selectedItemIdsForDisassembly, onToggleDisassemblySelection }) => {
+const InventoryGrid: React.FC<InventoryGridProps> = ({
+    inventory,
+    inventorySlots,
+    onSelectItem,
+    selectedItemId,
+    disabledItemIds = [],
+    selectedItemIdsForDisassembly,
+    onToggleDisassemblySelection,
+    columnCount = 10,
+    gapPx = 4,
+}) => {
     const inventoryDisplaySlots = Array.from({ length: inventorySlots }, (_, index) => inventory[index] || null);
+    const cols = Math.max(4, Math.min(12, columnCount));
+    const iconBoxPct = cols <= 8 ? '88%' : '80%';
 
     return (
         <div 
             className="grid flex-grow pr-2 bg-tertiary/30 p-2 rounded-md" 
             style={{ 
-                gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
-                gap: '4px',
+                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                gap: `${gapPx}px`,
                 width: '100%',
                 minWidth: 0
             }}
@@ -82,7 +97,22 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({ inventory, inventorySlots
                             <>
                                 <div className={`absolute inset-0 rounded-md border-2 ${selectedItemId === item.id ? 'border-accent ring-2 ring-accent' : 'border-black/20'} ${selectedItemIdsForDisassembly?.has(item.id) ? 'bg-gray-700/70' : ''}`} />
                                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 z-0 object-cover rounded-sm" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />
-                                {item.image && <img src={item.image} alt={item.name} className="absolute z-[1] object-contain p-1" style={{ width: '80%', height: '80%', maxWidth: '80%', maxHeight: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                                {item.image && (
+                                    <img
+                                        src={item.image}
+                                        alt={item.name}
+                                        className="absolute z-[1] object-contain p-0.5"
+                                        style={{
+                                            width: iconBoxPct,
+                                            height: iconBoxPct,
+                                            maxWidth: iconBoxPct,
+                                            maxHeight: iconBoxPct,
+                                            left: '50%',
+                                            top: '50%',
+                                            transform: 'translate(-50%, -50%)',
+                                        }}
+                                    />
+                                )}
                                 {item.grade === ItemGrade.Transcendent && (
                                     <div className="transcendent-inventory-slot-overlay pointer-events-none absolute inset-0 z-[2] rounded-md" aria-hidden />
                                 )}

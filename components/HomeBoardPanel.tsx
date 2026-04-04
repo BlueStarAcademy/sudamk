@@ -51,7 +51,17 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, fitViewport = fa
     const listPad = fitViewport
         ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-1 pb-1 pt-0'
         : 'flex min-h-0 flex-1 flex-col px-2 pb-2 pt-0 sm:px-3';
-    const displayPostsFit = fitViewport ? sortedPosts.slice(0, 6) : sortedPosts;
+    const displayPosts = sortedPosts;
+
+    const formatDateCompact = (timestamp: number) => {
+        const date = new Date(timestamp);
+        const y = String(date.getFullYear()).slice(2);
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const h = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        return `${y}-${m}-${day} ${h}:${min}`;
+    };
 
     return (
         <>
@@ -79,35 +89,35 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, fitViewport = fa
                             공지사항이 없습니다.
                         </div>
                     ) : fitViewport ? (
-                        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden" role="list">
-                            {displayPostsFit.map((post) => (
-                                <button
-                                    key={post.id}
-                                    type="button"
-                                    role="listitem"
-                                    className={`group relative flex min-h-[2.35rem] min-w-0 flex-1 basis-0 cursor-pointer flex-col justify-start overflow-hidden rounded-md border-2 px-1.5 py-1 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_10px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-px hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_14px_rgba(0,0,0,0.32)] active:scale-[0.99] ${
-                                        post.isPinned
-                                            ? 'border-amber-400/90 bg-gradient-to-b from-amber-900/35 via-amber-950/15 to-secondary/70'
-                                            : 'border-slate-500/70 bg-gradient-to-b from-slate-700/35 via-slate-800/25 to-secondary/55'
-                                    }`}
-                                    onClick={() => handlePostClick(post)}
-                                >
-                                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/20" />
-                                    <div className="flex min-w-0 items-start gap-1">
-                                        {post.isPinned && (
-                                            <span className="flex-shrink-0 text-[10px] text-amber-300 drop-shadow" aria-hidden>
-                                                📌
-                                            </span>
-                                        )}
-                                        <span className="line-clamp-2 min-w-0 flex-1 text-[9px] font-semibold leading-snug text-primary sm:text-[10px]">
+                        <div
+                            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-md border border-color/50 bg-secondary/25"
+                            role="list"
+                        >
+                            <div className="flex min-w-0 flex-col">
+                                {displayPosts.map((post) => (
+                                    <button
+                                        key={post.id}
+                                        type="button"
+                                        role="listitem"
+                                        className={`flex h-9 min-h-9 w-full min-w-0 items-center gap-1 border-b border-color/40 px-1.5 py-0 text-left transition-colors last:border-b-0 active:bg-secondary/70 ${
+                                            post.isPinned
+                                                ? 'bg-gradient-to-r from-amber-900/20 via-amber-950/10 to-transparent'
+                                                : 'bg-transparent hover:bg-secondary/45'
+                                        }`}
+                                        onClick={() => handlePostClick(post)}
+                                    >
+                                        <span className="w-4 flex-shrink-0 text-center text-[11px] leading-none" aria-hidden>
+                                            {post.isPinned ? <span className="text-amber-300">📌</span> : <span className="text-tertiary/35">·</span>}
+                                        </span>
+                                        <span className="min-w-0 flex-1 truncate text-[10px] font-semibold leading-tight text-primary sm:text-[11px]">
                                             {post.title}
                                         </span>
-                                    </div>
-                                    <div className="mt-0.5 truncate border-t border-white/10 pt-0.5 text-[8px] leading-none text-slate-300 sm:text-[9px]">
-                                        {formatDateTime(post.createdAt).slice(2, 16)}
-                                    </div>
-                                </button>
-                            ))}
+                                        <span className="flex-shrink-0 pl-0.5 text-[9px] tabular-nums leading-none text-tertiary sm:text-[10px]">
+                                            {formatDateCompact(post.createdAt)}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     ) : (
                         <div className="min-h-0 max-h-[min(100%,calc(2.75rem*10+0.25rem))] flex-1 overflow-x-hidden overflow-y-auto rounded-md border border-color/60 bg-secondary/20">
@@ -148,7 +158,49 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, fitViewport = fa
                 </div>
             </div>
 
-            {selectedPost && (
+            {selectedPost && fitViewport && (
+                <div
+                    className="fixed inset-0 z-[280] flex items-center justify-center bg-black/55 p-3 backdrop-blur-[2px]"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="home-board-modal-title"
+                    onClick={() => setSelectedPost(null)}
+                >
+                    <div
+                        className="flex max-h-[min(85dvh,28rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-color bg-panel shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex shrink-0 items-start justify-between gap-2 border-b border-color bg-secondary/40 px-3 py-2.5">
+                            <div className="min-w-0 flex-1">
+                                <h2 id="home-board-modal-title" className="text-sm font-bold leading-snug text-primary sm:text-base">
+                                    {selectedPost.isPinned && <span className="mr-1 text-amber-400">📌</span>}
+                                    {selectedPost.title}
+                                </h2>
+                                <p className="mt-1 text-[11px] text-tertiary sm:text-xs">
+                                    {formatDateTime(selectedPost.createdAt)}
+                                    {selectedPost.updatedAt !== selectedPost.createdAt && (
+                                        <span className="ml-1.5 block sm:inline">
+                                            (수정: {formatDateTime(selectedPost.updatedAt)})
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="shrink-0 rounded-lg border border-color/60 bg-secondary/80 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-secondary"
+                                onClick={() => setSelectedPost(null)}
+                            >
+                                닫기
+                            </button>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 text-sm leading-relaxed text-primary whitespace-pre-wrap sm:text-[15px]">
+                            {selectedPost.content}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedPost && !fitViewport && (
                 <DraggableWindow
                     title={selectedPost.title}
                     onClose={() => setSelectedPost(null)}

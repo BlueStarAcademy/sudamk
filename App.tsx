@@ -17,7 +17,11 @@ import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
 import NativeMobileDock from './components/mobile/NativeMobileDock.js';
 import NativeMobileScaledContent from './components/mobile/NativeMobileScaledContent.js';
-import { NATIVE_MOBILE_SHELL_MAX_WIDTH, NATIVE_MOBILE_MODAL_MAX_WIDTH_PX } from './constants/ads.js';
+import {
+    NATIVE_MOBILE_SHELL_MAX_WIDTH,
+    NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
+    NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
+} from './constants/ads.js';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T | undefined>(undefined);
@@ -267,7 +271,9 @@ const AppContent: React.FC = () => {
                 <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative">
                     <style>{`
                         #sudamr-modal-root [data-draggable-window] {
-                            max-width: ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px !important;
+                            max-width: ${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw !important;
+                            max-width: min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%) !important;
+                            max-height: ${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh !important;
                             box-sizing: border-box;
                         }
                     `}</style>
@@ -299,43 +305,43 @@ const AppContent: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-start gap-4 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-transparent px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
-                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/82 via-black/65 to-black/78" />
-                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_14%,rgba(180,140,80,0.14),transparent_48%)]" />
-                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_50%_at_50%_92%,rgba(30,58,95,0.18),transparent_52%)]" />
-                            <header
-                                className="relative z-10 flex w-full max-w-lg shrink-0 flex-col items-center gap-0.5 px-2 text-center sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2"
-                                style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-                            >
-                                <p className="text-[8px] font-semibold uppercase tracking-[0.38em] text-amber-400/80 sm:text-[10px] sm:tracking-[0.42em] lg:text-xs lg:tracking-[0.48em]">
-                                    Online Strategy
-                                </p>
-                                <h1 className="bg-gradient-to-br from-stone-50 via-amber-100 to-amber-800 bg-clip-text text-2xl font-black uppercase tracking-[0.16em] text-transparent drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)] sm:text-4xl sm:tracking-[0.18em] lg:text-6xl lg:tracking-[0.14em] xl:text-7xl">
-                                    SUDAM
-                                </h1>
-                                <p className="text-[9px] font-light tracking-[0.22em] text-stone-400 sm:text-xs sm:tracking-[0.26em] lg:text-base lg:tracking-[0.24em]">
-                                    The Ascending Masters
-                                </p>
-                                <div
-                                    className="mt-3 hidden h-px w-32 max-w-[80%] bg-gradient-to-r from-transparent via-amber-500/45 to-transparent sm:block lg:mt-5 lg:w-48"
-                                    aria-hidden
-                                />
-                                <p className="mt-2 hidden max-w-xl px-2 text-center text-[11px] leading-relaxed text-stone-400 sm:mt-3 sm:block sm:text-xs lg:mt-4 lg:max-w-2xl lg:text-sm">
-                                    Supreme Universe of Dueling Ascending Masters (S.U.D.A.M)
-                                    <br />
-                                    <span className="mt-1 inline-block text-[10px] text-stone-500 lg:text-xs">
-                                        격돌하는 초인들이 승천하는 최고의 세계
-                                    </span>
-                                </p>
-                            </header>
-                            <main
-                                className="relative z-10 flex w-full min-h-0 min-w-0 flex-1 flex-col items-stretch justify-start overflow-x-hidden overflow-y-auto overscroll-y-contain pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
-                                style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
-                            >
-                                <NativeMobileScaledContent>
+                        <div className="relative flex flex-1 w-full min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain bg-transparent">
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/52 to-black/66" />
+                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_14%,rgba(180,140,80,0.18),transparent_50%)]" />
+                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_50%_at_50%_92%,rgba(30,58,95,0.14),transparent_54%)]" />
+                            <div className="relative z-10 flex min-h-full w-full flex-1 flex-col items-center justify-center gap-5 px-3 py-6 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
+                                <header
+                                    className="flex w-full max-w-lg shrink-0 flex-col items-center gap-1 px-2 text-center subpixel-antialiased sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2 [text-rendering:optimizeLegibility]"
+                                    style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+                                >
+                                    <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-300/95 sm:text-sm sm:tracking-[0.38em] lg:text-sm lg:tracking-[0.42em]">
+                                        Online Strategy
+                                    </p>
+                                    <h1 className="bg-gradient-to-br from-stone-50 via-amber-100 to-amber-800 bg-clip-text text-6xl font-black uppercase leading-[0.95] tracking-[0.12em] text-transparent drop-shadow-[0_2px_16px_rgba(0,0,0,0.42)] sm:text-7xl sm:tracking-[0.14em] sm:drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)] lg:text-8xl lg:tracking-[0.12em] xl:text-8xl">
+                                        SUDAM
+                                    </h1>
+                                    <p className="text-sm font-medium tracking-[0.18em] text-stone-300 sm:text-base sm:tracking-[0.22em] lg:text-lg lg:tracking-[0.24em]">
+                                        The Ascending Masters
+                                    </p>
+                                    <div
+                                        className="mt-3 hidden h-px w-32 max-w-[80%] bg-gradient-to-r from-transparent via-amber-500/45 to-transparent sm:block lg:mt-5 lg:w-48"
+                                        aria-hidden
+                                    />
+                                    <p className="mt-2 hidden max-w-xl px-2 text-center text-[11px] leading-relaxed text-stone-400 sm:mt-3 sm:block sm:text-xs lg:mt-4 lg:max-w-2xl lg:text-sm">
+                                        Supreme Universe of Dueling Ascending Masters (S.U.D.A.M)
+                                        <br />
+                                        <span className="mt-1 inline-block text-[10px] text-stone-500 lg:text-xs">
+                                            격돌하는 초인들이 승천하는 최고의 세계
+                                        </span>
+                                    </p>
+                                </header>
+                                <main
+                                    className="flex w-full min-w-0 shrink-0 flex-col items-center justify-center overflow-x-hidden"
+                                    style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
+                                >
                                     <Router />
-                                </NativeMobileScaledContent>
-                            </main>
+                                </main>
+                            </div>
                         </div>
                     )}
                     <AppModalLayer />

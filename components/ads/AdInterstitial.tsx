@@ -32,8 +32,10 @@ const AdInterstitial: React.FC = () => {
     <div
       className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
       onClick={(e) => {
-        // 배경 클릭 시 스킵 가능하면 닫기
+        // 배경 클릭 시 스킵 가능하면 닫기 (이벤트가 아래 경기장 UI로 새지 않도록 차단)
         if (interstitial.canSkip && e.target === e.currentTarget) {
+          e.preventDefault();
+          e.stopPropagation();
           closeInterstitial();
         }
       }}
@@ -62,7 +64,12 @@ const AdInterstitial: React.FC = () => {
 
         {/* 스킵/닫기 버튼 */}
         <button
-          onClick={closeInterstitial}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            closeInterstitial();
+          }}
           disabled={!interstitial.canSkip}
           className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all min-w-[120px] min-h-[44px] ${
             interstitial.canSkip

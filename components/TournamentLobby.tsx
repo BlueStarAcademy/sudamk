@@ -13,7 +13,9 @@ import { calculateUserEffects } from '../services/effectService.js';
 import ChampionshipHelpModal from './ChampionshipHelpModal.js';
 import ChampionshipPointsModal from './ChampionshipPointsModal.js';
 import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
+import ChampionshipVenueEntryModal from './ChampionshipVenueEntryModal.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
 
 const stringToSeed = (str: string): number => {
     let hash = 0;
@@ -32,45 +34,6 @@ const seededRandom = (seed: number): number => {
 };
 
 // WeeklyCompetitorsPanel 제거됨 - 던전 시스템으로 변경
-/** 해당 단계 클리어 여부: 1~3위 달성 시에만 true. stageResults.cleared만 신뢰(순위 무관 보정 제거). */
-function isStageCleared(
-    stageResults: Record<number, { cleared?: boolean }> | undefined,
-    stage: number,
-    _currentStage?: number,
-    _maxUnlockedStage?: number
-): boolean {
-    if (!stageResults) return false;
-    const entry = stageResults[stage] ?? (stageResults as Record<string, { cleared?: boolean }>)[String(stage)];
-    return !!entry?.cleared;
-}
-
-/** API/저장소에서 온 dungeonProgress 정규화. unlockedStages는 서버 값만 사용(1~3위 시에만 다음 단계 추가되므로 보정 없음). */
-function normalizeDungeonProgress(
-    raw: { currentStage?: number; unlockedStages?: number[]; stageResults?: Record<number | string, { cleared?: boolean }>; dailyStageAttempts?: Record<number, number> } | null | undefined
-): { currentStage: number; unlockedStages: number[]; stageResults: Record<number, { cleared?: boolean }>; dailyStageAttempts: Record<number, number> } {
-    const empty = { currentStage: 0, unlockedStages: [1], stageResults: {} as Record<number, { cleared?: boolean }>, dailyStageAttempts: {} as Record<number, number> };
-    if (!raw) return empty;
-    const currentStageNum = Number(raw.currentStage);
-    const fromNumber = !Number.isNaN(currentStageNum) && currentStageNum >= 0 ? currentStageNum : 0;
-    let derivedCurrent = fromNumber;
-    const sr = raw.stageResults;
-    if (sr && typeof sr === 'object') {
-        for (let s = 1; s <= 10; s++) {
-            const entry = sr[s] ?? (sr as Record<string, { cleared?: boolean }>)[String(s)];
-            if (entry?.cleared) derivedCurrent = Math.max(derivedCurrent, s);
-        }
-    }
-    const currentStage = Math.min(10, Math.max(0, derivedCurrent));
-    const list = Array.isArray(raw.unlockedStages) ? raw.unlockedStages.map(Number).filter(n => !Number.isNaN(n) && n >= 1 && n <= 10) : [1];
-    const unlockedStages = list.length > 0 ? [...new Set(list)].sort((a, b) => a - b) : [1];
-    return {
-        currentStage,
-        unlockedStages,
-        stageResults: (raw.stageResults as Record<number, { cleared?: boolean }>) ?? {},
-        dailyStageAttempts: (raw.dailyStageAttempts as Record<number, number>) ?? {},
-    };
-}
-
 const DungeonStageSelector: React.FC<{ dungeonType: TournamentType; currentUser: UserWithStatus; onSelectStage: (stage: number) => void }> = ({ dungeonType, currentUser, onSelectStage }) => {
     const raw = currentUser?.dungeonProgress?.[dungeonType];
     const dungeonProgress = normalizeDungeonProgress(raw || { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} });
@@ -378,12 +341,8 @@ const TournamentCard: React.FC<{
     compact?: boolean;
 }> = ({ type, onClick, onContinue, inProgress, currentUser, compact }) => {
     const definition = TOURNAMENT_DEFINITIONS[type];
-    const isSimulationInProgress = inProgress && inProgress.status === 'round_in_progress';
     const hasResultToView = inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated');
-    // 경기가 완료된 경우에는 계속하기 버튼을 표시하지 않음
-    const isReadyToContinue = inProgress && !hasResultToView && (inProgress.status === 'bracket_ready' || inProgress.status === 'round_complete');
 
-    // 입장 가능 횟수 계산 (남은 횟수)
     const now = Date.now();
     let playedDateKey: keyof UserWithStatus;
     let rewardClaimedKey: keyof UserWithStatus;
@@ -406,190 +365,84 @@ const TournamentCard: React.FC<{
     // 하루 1회 참여: 표시용 (N/1) = 오늘 참여 횟수/1
     const playedCountToday = hasPlayedToday ? 1 : 0;
     // 오늘 경기 완료 여부 (경기를 시작했고 완료/탈락 상태인 경우)
-    const isCompletedToday = hasPlayedToday && hasResultToView;
+    const isCompletedToday = Boolean(hasPlayedToday && hasResultToView);
 
-    // 보상 미수령 여부 확인 (토너먼트가 완료되었지만 보상을 받지 않은 경우)
     const rewardClaimed = currentUser[rewardClaimedKey as keyof UserWithStatus] as boolean | undefined;
-    const hasUnclaimedReward = hasResultToView && !rewardClaimed;
+    const hasUnclaimedReward = Boolean(hasResultToView && !rewardClaimed);
 
-    // 던전 진행 상태 확인 (정규화: 이전에 깬 단계 클리어 표시, currentStage 기준 언락 보정)
     const dungeonProgress = normalizeDungeonProgress(currentUser?.dungeonProgress?.[type] || {
         currentStage: 0,
         unlockedStages: [1],
         stageResults: {},
         dailyStageAttempts: {},
     });
-    
-    // 도전 가능한 최고 단계 계산 (언락된 단계 중 가장 높은 단계)
-    const maxUnlockedStage = useMemo(() => {
-        return dungeonProgress.unlockedStages.length > 0 
-            ? Math.max(...dungeonProgress.unlockedStages) 
-            : 1;
-    }, [dungeonProgress.unlockedStages]);
-    
-    const [selectedStage, setSelectedStage] = useState(maxUnlockedStage);
-    
-    // maxUnlockedStage가 변경되면 selectedStage도 업데이트
-    useEffect(() => {
-        setSelectedStage(maxUnlockedStage);
-    }, [maxUnlockedStage]);
-    
-    // 던전 타입에 따른 입장 텍스트
-    const getEntryText = () => {
-        switch (type) {
-            case 'neighborhood':
-                return '리그 입장';
-            case 'national':
-                return '대회 입장';
-            case 'world':
-                return '대회 입장';
-            default:
-                return '입장';
-        }
-    };
-    
-    // 경기를 실제로 시작한 경우에만 이어보기/결과 보기 표시 (bracket_ready는 입장만 한 상태)
-    const hasStartedMatch = inProgress && (inProgress.status === 'round_in_progress' || inProgress.status === 'complete' || inProgress.status === 'eliminated');
-    const isDungeonMode = hasStartedMatch && inProgress.currentStageAttempt !== undefined && inProgress.currentStageAttempt !== null;
-    
-    // 버튼 문구: 오늘 이용 완료 시 "결과보기", 던전 진행 중이면 "이어서 보기", 그 외 "입장"
-    let buttonText = getEntryText();
-    if (isCompletedToday) {
-        buttonText = '결과보기';
-    } else if (isDungeonMode && inProgress) {
-        if (inProgress.status === 'complete' || inProgress.status === 'eliminated') {
-            buttonText = '결과보기';
-        } else {
-            buttonText = '이어서 보기';
-        }
-    }
-    
-    // 버튼 클릭 시: 오늘 완료 또는 던전 진행 중이면 onContinue(경기장 진입), 아니면 단계 선택 입장
-    const handleMainButtonClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (isCompletedToday || (isDungeonMode && inProgress)) {
-            onContinue();
-        } else {
-            onClick(Number(selectedStage));
-        }
-    };
-    
-    // 경기 진행 중(일시정지 가능) 상태 표시용
-    const isPausedInProgress = inProgress && inProgress.status === 'round_in_progress';
-    
-    return (
-        <div
-            className={`group relative flex flex-col rounded-lg bg-gray-800 text-center shadow-lg transition-all hover:shadow-purple-500/30 ${compact ? 'flex h-full min-h-0 flex-col p-1.5' : 'h-full transform p-2 hover:-translate-y-1 sm:p-3'}`}
-        >
-            {/* 보상 미수령 표시: 붉은 점 */}
-            {hasUnclaimedReward && (
-                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full z-10 border-2 border-gray-800"></div>
-            )}
-            <div className={`flex flex-shrink-0 items-center justify-between ${compact ? 'mb-1' : 'mb-1.5 sm:mb-2'}`}>
-                <div className="flex min-w-0 items-center gap-0.5">
-                    <h2 className={`truncate font-bold ${compact ? 'text-[11px] leading-tight sm:text-xs' : 'text-xs sm:text-sm lg:text-lg'}`}>
-                        {definition.name}
-                    </h2>
-                    {isCompletedToday ? (
-                        <span className={`text-green-400 font-semibold ${compact ? 'text-[9px]' : 'flex items-center gap-0.5 text-[10px] sm:text-xs'}`}>
-                            {compact ? '✓' : (<><span>✓</span><span>완료</span></>)}
-                        </span>
-                    ) : isPausedInProgress ? (
-                        <span className={`text-amber-400 font-semibold ${compact ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>{compact ? '..' : '진행중..'}</span>
-                    ) : (
-                        <span className={`text-gray-300 font-semibold ${compact ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>({playedCountToday}/1)</span>
-                    )}
-                </div>
-                {dungeonProgress.currentStage > 0 && (
-                    <span className={`flex-shrink-0 text-yellow-400 ${compact ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>{compact ? `${dungeonProgress.currentStage}단` : `최고 ${dungeonProgress.currentStage}단계`}</span>
-                )}
-            </div>
-            {compact ? (
-                <div className="mt-1 flex min-h-0 flex-1 flex-row items-stretch gap-1.5">
-                    <div className="relative min-h-0 min-w-0 flex-[8] overflow-hidden rounded-md bg-gray-700">
-                        <img
-                            src={definition.image}
-                            alt={definition.name}
-                            className="h-full w-full object-cover object-center"
-                        />
-                    </div>
-                    <div className="flex min-h-0 min-w-0 flex-[2] flex-col justify-center gap-1.5">
-                        <select
-                            value={selectedStage}
-                            onChange={(e) => setSelectedStage(Number(e.target.value))}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full rounded border border-gray-600 bg-gray-700 px-1.5 py-1 text-[9px] text-white focus:border-purple-500 focus:outline-none sm:text-[10px]"
-                            title="진행 가능 단계 선택"
-                        >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
-                                const isUnlocked = dungeonProgress.unlockedStages.includes(stage);
-                                const maxUnlocked = dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1;
-                                const isCleared = isStageCleared(dungeonProgress.stageResults, stage, dungeonProgress.currentStage, maxUnlocked);
-                                return (
-                                    <option
-                                        key={stage}
-                                        value={stage}
-                                        disabled={!isUnlocked}
-                                        className={!isUnlocked ? 'text-gray-500' : isCleared ? 'text-green-400' : ''}
-                                    >
-                                        {stage}단계{isCleared ? ' ✓ 클리어' : ''}{!isUnlocked ? ' (잠김)' : ''}
-                                    </option>
-                                );
-                            })}
-                        </select>
-                        <button
-                            type="button"
-                            onClick={handleMainButtonClick}
-                            className="w-full rounded bg-purple-600 px-2 py-1.5 text-[9px] font-bold leading-tight text-white transition-colors hover:bg-purple-700 sm:text-[10px]"
-                        >
-                            <span className="break-words">{buttonText}</span>
-                        </button>
-                    </div>
-                </div>
-            ) : (
-                <>
-                    <div className="relative aspect-video w-full flex-grow overflow-hidden rounded-md bg-gray-700">
-                        <img src={definition.image} alt={definition.name} className="h-full w-full object-cover" />
-                    </div>
 
-                    <div className="relative mt-1.5 sm:mt-2">
-                        <div className="flex flex-row items-center gap-1">
-                            <select
-                                value={selectedStage}
-                                onChange={(e) => setSelectedStage(Number(e.target.value))}
-                                onClick={(e) => e.stopPropagation()}
-                                className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-1 text-[10px] text-white focus:border-purple-500 focus:outline-none sm:text-xs"
-                                title="진행 가능 단계 선택"
+    const isPausedInProgress = inProgress && inProgress.status === 'round_in_progress';
+
+    const [entryModalOpen, setEntryModalOpen] = useState(false);
+
+    const imageButtonClass = compact
+        ? 'relative flex min-h-0 w-full flex-1 overflow-hidden rounded-lg bg-gray-700 ring-0 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 active:scale-[0.98]'
+        : 'relative flex aspect-video w-full flex-grow overflow-hidden rounded-lg bg-gray-700 ring-0 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 active:scale-[0.99] group-hover:brightness-105';
+
+    return (
+        <>
+            <div
+                className={`group relative flex flex-col rounded-lg bg-gray-800 text-center shadow-lg transition-all hover:shadow-purple-500/30 ${compact ? 'flex h-full min-h-0 flex-col p-1' : 'h-full transform p-2 hover:-translate-y-1 sm:p-3'}`}
+            >
+                {hasUnclaimedReward && (
+                    <div
+                        className="pointer-events-none absolute right-1 top-1 z-20 h-2.5 w-2.5 rounded-full border-2 border-gray-800 bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-3 sm:w-3"
+                        aria-hidden
+                    />
+                )}
+                <button
+                    type="button"
+                    onClick={() => setEntryModalOpen(true)}
+                    className={imageButtonClass}
+                    aria-label={`${definition.name} 입장 및 보상 안내`}
+                >
+                    <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/75" aria-hidden />
+                    <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/85 to-transparent px-1.5 pb-3 pt-1 sm:px-2 sm:pt-1.5">
+                        <div className="flex items-start justify-between gap-1">
+                            <span
+                                className={`min-w-0 truncate text-left font-bold leading-tight text-white drop-shadow-md ${compact ? 'text-[10px] sm:text-[11px]' : 'text-xs sm:text-sm lg:text-base'}`}
                             >
-                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
-                                    const isUnlocked = dungeonProgress.unlockedStages.includes(stage);
-                                    const maxUnlocked = dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1;
-                                    const isCleared = isStageCleared(dungeonProgress.stageResults, stage, dungeonProgress.currentStage, maxUnlocked);
-                                    return (
-                                        <option
-                                            key={stage}
-                                            value={stage}
-                                            disabled={!isUnlocked}
-                                            className={!isUnlocked ? 'text-gray-500' : isCleared ? 'text-green-400' : ''}
-                                        >
-                                            {stage}단계{isCleared ? ' ✓ 클리어' : ''}{!isUnlocked ? ' (잠김)' : ''}
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                            <button
-                                type="button"
-                                onClick={handleMainButtonClick}
-                                className="flex-shrink-0 rounded bg-purple-600 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-purple-700 sm:text-xs lg:text-sm"
+                                {definition.name}
+                            </span>
+                            <div
+                                className={`flex flex-shrink-0 flex-col items-end font-semibold leading-tight ${compact ? 'text-[8px] sm:text-[9px]' : 'text-[9px] sm:text-[10px]'}`}
                             >
-                                <span className="break-words leading-tight">{buttonText}</span>
-                                <span className="hidden sm:inline"> &rarr;</span>
-                            </button>
+                                {isCompletedToday ? (
+                                    <span className="text-green-300">{compact ? '✓' : '✓ 완료'}</span>
+                                ) : isPausedInProgress ? (
+                                    <span className="text-amber-300">{compact ? '..' : '진행중'}</span>
+                                ) : (
+                                    <span className="text-white/95">({playedCountToday}/1)</span>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </>
-            )}
-        </div>
+                    {dungeonProgress.currentStage > 0 && (
+                        <div
+                            className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-1.5 pb-1 pt-3 font-semibold text-yellow-200 drop-shadow ${compact ? 'text-[8px] sm:text-[9px]' : 'text-[9px] sm:text-[10px]'}`}
+                        >
+                            최고 {dungeonProgress.currentStage}단계
+                        </div>
+                    )}
+                </button>
+            </div>
+            <ChampionshipVenueEntryModal
+                isOpen={entryModalOpen}
+                onClose={() => setEntryModalOpen(false)}
+                type={type}
+                currentUser={currentUser}
+                inProgress={inProgress}
+                onEnter={stage => onClick(stage)}
+                onContinue={onContinue}
+            />
+        </>
     );
 };
 
@@ -644,7 +497,8 @@ const coreStatAbbreviations: Record<CoreStat, string> = {
 
 const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: boolean; tight?: boolean }> = ({ currentUser, isMobile = false, tight = false }) => {
     const { coreStatBonuses } = useMemo(() => calculateUserEffects(currentUser), [currentUser]);
-    const gapClass = tight && isMobile ? 'gap-0.5' : 'gap-1 sm:gap-1.5 lg:gap-2';
+    const gapClass = tight && isMobile ? 'gap-1' : 'gap-1 sm:gap-1.5 lg:gap-2';
+    const mobileChampTight = isMobile && tight;
 
     return (
         <div className={`grid grid-cols-2 ${gapClass}`}>
@@ -660,6 +514,9 @@ const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: bool
                 
                 // 4자리 이상이면 텍스트 크기를 줄임
                 const getValueTextSize = () => {
+                    if (mobileChampTight) {
+                        return valueDigits >= 4 ? 'text-xs' : 'text-sm';
+                    }
                     if (isMobile) {
                         return valueDigits >= 4 ? 'text-[10px]' : 'text-xs';
                     }
@@ -670,6 +527,9 @@ const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: bool
                 };
                 
                 const getBonusTextSize = () => {
+                    if (mobileChampTight) {
+                        return totalDigits >= 8 ? 'text-[10px]' : 'text-xs';
+                    }
                     if (isMobile) {
                         return totalDigits >= 7 ? 'text-[9px]' : 'text-[10px]';
                     }
@@ -679,10 +539,12 @@ const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: bool
                     return 'text-[9px] sm:text-xs';
                 };
                 
-                const padClass = tight && isMobile ? 'px-1 py-0.5' : isMobile ? 'p-1.5' : 'p-1.5 sm:p-2';
+                const padClass = mobileChampTight ? 'px-1.5 py-1' : isMobile ? 'p-1.5' : 'p-1.5 sm:p-2';
+                const rowTextClass = mobileChampTight ? 'text-sm' : isMobile ? 'text-xs' : 'text-[10px] sm:text-xs';
+                const abbrevClass = mobileChampTight ? 'text-xs' : isMobile ? 'text-xs' : '';
                 return (
-                    <div key={stat} className={`bg-gray-700/50 ${padClass} rounded-md flex items-center justify-between ${isMobile ? 'text-xs' : 'text-[10px] sm:text-xs'}`}>
-                        <span className={`font-semibold text-gray-300 whitespace-nowrap ${isMobile ? (tight ? 'text-[11px]' : 'text-xs') : ''}`}>{coreStatAbbreviations[stat]}</span>
+                    <div key={stat} className={`bg-gray-700/50 ${padClass} rounded-md flex items-center justify-between ${rowTextClass}`}>
+                        <span className={`font-semibold text-gray-300 whitespace-nowrap ${abbrevClass}`}>{coreStatAbbreviations[stat]}</span>
                         <span className={`font-mono font-bold whitespace-nowrap ${getValueTextSize()}`} title={`기본: ${baseValue}, 장비: ${bonus}`}>
                             {finalValue}
                             {bonus > 0 && <span className={`text-green-400 ${getBonusTextSize()} ml-0.5`}>(+{bonus})</span>}
@@ -757,11 +619,10 @@ const TournamentLobby: React.FC = () => {
         const update = () => {
             const inner = outer.querySelector<HTMLElement>('[data-quick-access-sidebar-root]');
             if (!inner) return;
-            const st = getComputedStyle(outer);
-            const padY = parseFloat(st.paddingTop) + parseFloat(st.paddingBottom);
-            const borderY = parseFloat(st.borderTopWidth) + parseFloat(st.borderBottomWidth);
-            const h = inner.getBoundingClientRect().height + padY + borderY;
-            if (h > 0) setNativeTopRowHeightPx(Math.round(h));
+            const boxH = Math.ceil(
+                Math.max(outer.getBoundingClientRect().height, outer.scrollHeight, outer.offsetHeight)
+            );
+            if (boxH > 0) setNativeTopRowHeightPx(boxH);
         };
         update();
         const ro = new ResizeObserver(update);
@@ -906,11 +767,12 @@ const TournamentLobby: React.FC = () => {
                 <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
                     {/* 상단: 경기장 입장(세로) · 장착 장비 · 퀵메뉴 — 일일 점수는 헤더「획득 점수」모달 */}
                     <div
-                        className="grid min-h-0 shrink-0 grid-cols-[minmax(0,1.2fr)_minmax(0,0.75fr)_5.5rem] gap-0.5 overflow-hidden"
-                        style={{
-                            height: nativeTopRowHeightPx != null ? `${nativeTopRowHeightPx}px` : undefined,
-                            maxHeight: 'min(44dvh, 90vh)',
-                        }}
+                        className="grid min-h-0 shrink-0 grid-cols-[minmax(0,0.96fr)_minmax(0,1.04fr)_5.5rem] items-stretch gap-0.5 overflow-hidden"
+                        style={
+                            nativeTopRowHeightPx != null
+                                ? { height: `${nativeTopRowHeightPx}px`, minHeight: 0 }
+                                : { minHeight: 0, maxHeight: 'min(44dvh, 90vh)' }
+                        }
                     >
                         <div className="flex h-full min-h-0 min-w-0 flex-col gap-1 overflow-hidden rounded-md border border-color/40 bg-gray-800/40 p-0.5">
                             <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
@@ -948,7 +810,7 @@ const TournamentLobby: React.FC = () => {
                         </div>
                         <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel text-on-panel">
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-1 py-1">
-                                <h3 className="flex-shrink-0 text-center text-xs font-semibold leading-tight text-secondary sm:text-sm">장착 장비</h3>
+                                <h3 className="flex-shrink-0 text-center text-sm font-semibold leading-tight text-secondary">장착 장비</h3>
                                 <div className="grid shrink-0 grid-cols-3 grid-rows-2 gap-x-0.5 gap-y-px px-0.5">
                                     {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                         const item = getItemForSlot(slot);
@@ -968,7 +830,7 @@ const TournamentLobby: React.FC = () => {
                                     <select
                                         value={selectedPreset}
                                         onChange={handlePresetChange}
-                                        className="min-w-0 flex-1 rounded border border-color bg-secondary px-1.5 py-0.5 text-xs font-semibold leading-tight sm:text-[13px]"
+                                        className="min-w-0 flex-1 rounded border border-color bg-secondary px-1.5 py-0.5 text-sm font-semibold leading-tight"
                                     >
                                         {presets && presets.map((preset, index) => (
                                             <option key={index} value={index}>{preset.name}</option>
@@ -977,7 +839,7 @@ const TournamentLobby: React.FC = () => {
                                     <Button
                                         onClick={handlers.openEquipmentEffectsModal}
                                         colorScheme="none"
-                                        className="!px-2 !py-0.5 !text-[10px] flex-shrink-0 justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white sm:!text-xs"
+                                        className="!px-2 !py-0.5 !text-xs flex-shrink-0 justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
                                     >
                                         효과
                                     </Button>
@@ -991,7 +853,7 @@ const TournamentLobby: React.FC = () => {
                             ref={nativeQuickMenuMeasureRef}
                             className="box-border flex h-fit min-h-0 min-w-0 flex-col self-start overflow-hidden rounded-md border border-color/50 bg-panel/95 p-0.5"
                         >
-                            <QuickAccessSidebar nativeHomeColumn fillHeight={false} />
+                            <QuickAccessSidebar nativeHomeColumn />
                         </div>
                     </div>
 
