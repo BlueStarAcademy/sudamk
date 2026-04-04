@@ -7,20 +7,17 @@ import { preloadImages, ALL_IMAGE_URLS } from './services/assetService.js';
 import { audioService } from './services/audioService.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import AppModalLayer from './components/AppModalLayer.js';
-import { useIsHandheldDevice, VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './hooks/useIsMobileLayout.js';
+import {
+    useIsHandheldDevice,
+    VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT,
+    computeTouchLayoutProfile,
+} from './hooks/useIsMobileLayout.js';
 import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
 import NativeMobileDock from './components/mobile/NativeMobileDock.js';
 import NativeMobileScaledContent from './components/mobile/NativeMobileScaledContent.js';
 import { NATIVE_MOBILE_SHELL_MAX_WIDTH, NATIVE_MOBILE_MODAL_MAX_WIDTH_PX } from './constants/ads.js';
-
-/**
- * 세로 뷰포트에서 전체 UI를 CSS로 90° 돌려 가로 캔버스처럼 보이게 하면( index.css 의 sudamr-handheld-* )
- * 브라우저/OS는 여전히 세로 기준으로 키보드·포커스를 잡아 입력이 어긋납니다.
- * 모바일은 세로 모드가 기본이므로 이 래퍼는 끈다. 예전 동작이 필요하면 아래를 true로 바꾸면 됨.
- */
-const USE_HANDHELD_CSS_ORIENTATION_WRAPPER = false;
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T | undefined>(undefined);
@@ -67,6 +64,7 @@ const AppContent: React.FC = () => {
         settings,
         isNativeMobile,
         isLargeTouchTablet,
+        isPhoneHandheldTouch,
     } = useAppContext();
     
     // 에셋 프리로딩은 UX를 위해 백그라운드로 돌리고, 화면을 막지 않도록 함
@@ -267,9 +265,13 @@ const AppContent: React.FC = () => {
                         >
                             {!isGameView && <Header />}
                             <main className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-                                <NativeMobileScaledContent>
+                                {isPhoneHandheldTouch ? (
                                     <Router />
-                                </NativeMobileScaledContent>
+                                ) : (
+                                    <NativeMobileScaledContent>
+                                        <Router />
+                                    </NativeMobileScaledContent>
+                                )}
                             </main>
                             {!isGameView && (
                                 <>
@@ -314,9 +316,13 @@ const AppContent: React.FC = () => {
                                 className="relative z-10 flex w-full min-h-0 min-w-0 flex-1 flex-col items-stretch justify-center"
                                 style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
                             >
-                                <NativeMobileScaledContent>
+                                {isPhoneHandheldTouch ? (
                                     <Router />
-                                </NativeMobileScaledContent>
+                                ) : (
+                                    <NativeMobileScaledContent>
+                                        <Router />
+                                    </NativeMobileScaledContent>
+                                )}
                             </main>
                         </div>
                     )}
@@ -453,8 +459,6 @@ const AppContent: React.FC = () => {
     );
 };
 
-const HANDHELD_MAX_W = 1024;
-
 function readScreenOrientation(): { type: string; angle: number | null } {
     const so = typeof screen !== 'undefined' ? (screen as Screen & { orientation?: { type?: string; angle?: number } }).orientation : undefined;
     const type = typeof so?.type === 'string' ? so.type : '';
@@ -518,7 +522,10 @@ function computeHandheldLandscapeFlip180(w: number, h: number, type: string, ang
     return false;
 }
 
-/** 좁은 화면 + 세로 뷰포트일 때 .app-container를 회전시켜 PC와 같은 가로 캔버스가 곧바로 보이게 함 */
+/**
+ * 터치 폰에서 세로 뷰포트일 때 html.sudamr-handheld-portrait-lock 으로 .app-container를 -90° 돌려
+ * 가로(720 등)로 짠 UI가 화면 긴 변에 맞게 보이게 함(index.css).
+ */
 const App: React.FC = () => {
     useEffect(() => {
         const clearClasses = () => {
@@ -532,19 +539,19 @@ const App: React.FC = () => {
         };
 
         const sync = () => {
-            if (!USE_HANDHELD_CSS_ORIENTATION_WRAPPER) {
+            const { isPhoneHandheldTouch } = computeTouchLayoutProfile();
+            if (!isPhoneHandheldTouch) {
                 clearClasses();
                 return;
             }
             const w = window.innerWidth;
             const h = window.innerHeight;
-            const handheld = w <= HANDHELD_MAX_W;
             const portrait = w <= h;
             const { type, angle } = readScreenOrientation();
 
-            const portraitLock = handheld && portrait;
+            const portraitLock = portrait;
             const portraitSecondary = portraitLock && isPortraitSecondaryLayout(w, h, type, angle);
-            const realLandscape = handheld && !portrait;
+            const realLandscape = !portrait;
 
             const el = document.documentElement;
             el.classList.toggle('sudamr-handheld-portrait-lock', portraitLock);
@@ -566,6 +573,11 @@ const App: React.FC = () => {
             [16, 50, 120, 280].forEach((ms) => window.setTimeout(sync, ms));
         };
 
+        const mqCoarse = window.matchMedia?.('(pointer: coarse)');
+        const mqHover = window.matchMedia?.('(hover: none)');
+        mqCoarse?.addEventListener('change', syncSoon);
+        mqHover?.addEventListener('change', syncSoon);
+
         sync();
         window.addEventListener('resize', sync);
         window.addEventListener('orientationchange', syncSoon);
@@ -576,6 +588,8 @@ const App: React.FC = () => {
         const vv = window.visualViewport;
         vv?.addEventListener('resize', sync);
         return () => {
+            mqCoarse?.removeEventListener('change', syncSoon);
+            mqHover?.removeEventListener('change', syncSoon);
             window.removeEventListener('resize', sync);
             window.removeEventListener('orientationchange', syncSoon);
             mq?.removeEventListener('change', syncSoon);

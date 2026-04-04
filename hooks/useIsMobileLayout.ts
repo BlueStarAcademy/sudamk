@@ -13,7 +13,7 @@ export type TouchLayoutProfile = {
     isLargeTouchTablet: boolean;
 };
 
-function computeTouchLayoutProfile(): TouchLayoutProfile {
+export function computeTouchLayoutProfile(): TouchLayoutProfile {
     if (typeof window === 'undefined') {
         return { isPhoneHandheldTouch: false, isLargeTouchTablet: false };
     }

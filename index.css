@@ -224,9 +224,8 @@ html, body {
 }
 
 /*
-  좁은 화면 + 물리 세로: 루트를 회전시켜 1920×1080 가로 캔버스가 PC처럼 보이게 함.
-  기본은 App.tsx 에서 비활성화(USE_HANDHELD_CSS_ORIENTATION_WRAPPER) — 키보드/OS 좌표가 뒤틀림.
-  필요 시 App.tsx 해당 상수를 true로 바꿔 켬.
+  터치 폰 + 세로 뷰포트: .app-container 를 -90° 돌려 가로(720 등)로 짠 UI가 긴 변에 맞게 보이게 함.
+  App.tsx 가 computeTouchLayoutProfile().isPhoneHandheldTouch 일 때만 클래스를 붙인다.
 */
 html.sudamr-handheld-portrait-lock,
 html.sudamr-handheld-portrait-lock body {
