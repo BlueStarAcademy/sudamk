@@ -11,10 +11,10 @@ const isHandheldWidth = (width: number, breakpoint: number) => width < breakpoin
 const isPortraitViewport = (width: number, height: number) => width <= height;
 
 /**
- * 모바일에서 가로 모드만 사용하므로, "모바일 레이아웃"은 세로일 때만 적용.
- * 가로 모드(landscape)에서는 항상 PC와 동일한 UI를 사용.
+ * 좁은 화면에서 세로(portrait) 뷰포트일 때만 모바일 전용 레이아웃을 쓴다.
+ * 같은 폭이라도 가로(landscape)로 돌리면 뷰가 넓어지므로 PC와 동일한 레이아웃으로 본다.
  * @param breakpoint - 이 너비 미만일 때만 모바일 레이아웃 후보 (세로일 때만 실제 적용)
- * @returns true = 모바일 레이아웃 사용 (좁은 화면 + 세로), false = PC와 동일한 레이아웃
+ * @returns true = 모바일 레이아웃 (좁은 화면 + 세로), false = PC와 동일한 레이아웃
  */
 export function useIsMobileLayout(breakpoint: number = 1024): boolean {
     const [isMobile, setIsMobile] = useState(() => {
@@ -94,7 +94,7 @@ export function useViewportHeightBelow(maxHeightExclusive: number): boolean {
 }
 
 /**
- * 현재 화면이 세로(portrait)인지. 모바일에서 가로 모드만 허용할 때 세로면 "돌려주세요" 오버레이 표시용.
+ * 현재 화면이 세로(portrait)인지.
  */
 export function useIsPortrait(): boolean {
     const [isPortrait, setIsPortrait] = useState(() => {

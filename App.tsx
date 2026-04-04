@@ -15,13 +15,11 @@ import NativeMobileDock from './components/mobile/NativeMobileDock.js';
 import { NATIVE_MOBILE_SHELL_MAX_WIDTH, NATIVE_MOBILE_MODAL_MAX_WIDTH_PX } from './constants/ads.js';
 
 /**
- * 세로로 든 폰에서 전체 UI를 CSS로 90° 돌리면( index.css 의 sudamr-handheld-* )
- * 브라우저/OS는 여전히 세로 뷰포트로 키보드·포커스를 잡아 입력이 뒤집히거나 엇나갑니다.
- * 기본은 끔 — 실제 가로로 기기를 돌리거나 세로 레이아웃을 씁니다.
- * 예전 동작이 필요하면 빌드 시 VITE_HANDHELD_CSS_ROTATE=true 로 켤 수 있음.
+ * 세로 뷰포트에서 전체 UI를 CSS로 90° 돌려 가로 캔버스처럼 보이게 하면( index.css 의 sudamr-handheld-* )
+ * 브라우저/OS는 여전히 세로 기준으로 키보드·포커스를 잡아 입력이 어긋납니다.
+ * 모바일은 세로 모드가 기본이므로 이 래퍼는 끈다. 예전 동작이 필요하면 아래를 true로 바꾸면 됨.
  */
-const USE_HANDHELD_CSS_ORIENTATION_WRAPPER =
-    import.meta.env.VITE_HANDHELD_CSS_ROTATE === 'true';
+const USE_HANDHELD_CSS_ORIENTATION_WRAPPER = false;
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T | undefined>(undefined);
@@ -200,6 +198,10 @@ const AppContent: React.FC = () => {
         };
 
         tryLockPortrait();
+        if (document.readyState !== 'complete') {
+            window.addEventListener('load', tryLockPortrait, { once: true });
+        }
+        window.addEventListener('focus', tryLockPortrait);
         window.addEventListener('orientationchange', tryLockPortrait);
         document.addEventListener('visibilitychange', onVisibilityChange);
         orient.addEventListener?.('change', tryLockPortrait);
@@ -207,6 +209,7 @@ const AppContent: React.FC = () => {
         document.addEventListener('touchstart', onGesture, { passive: true, capture: true });
         document.addEventListener('click', onGesture, { capture: true });
         return () => {
+            window.removeEventListener('focus', tryLockPortrait);
             window.removeEventListener('orientationchange', tryLockPortrait);
             document.removeEventListener('visibilitychange', onVisibilityChange);
             orient.removeEventListener?.('change', tryLockPortrait);
