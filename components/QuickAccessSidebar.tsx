@@ -8,6 +8,8 @@ interface QuickAccessSidebarProps {
     dense?: boolean;
     /** 네이티브 홈 우측: PC 기본 퀵메뉴(폭 6rem)와 동일한 버튼·아이콘 비율 */
     nativeHomeColumn?: boolean;
+    /** 네이티브 홈 한 화면용: 아이콘·패딩·간격 축소(fillHeight 꺼진 조합 권장) */
+    nativeDense?: boolean;
     showOnlyWhenQuestCompleted?: boolean;
     fillHeight?: boolean;
 }
@@ -17,6 +19,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     compact = false,
     dense = false,
     nativeHomeColumn = false,
+    nativeDense = false,
     showOnlyWhenQuestCompleted = false,
     fillHeight = true,
 }) => {
@@ -37,8 +40,14 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     ];
     
     const containerClass = nativeHomeColumn
-        ? `bg-panel rounded-lg p-1 flex w-full min-h-0 flex-col overflow-hidden ${
-              fillHeight ? 'h-full justify-around gap-0.5' : 'shrink-0 justify-start gap-1'
+        ? `bg-panel rounded-lg flex w-full flex-col overflow-hidden ${
+              nativeDense ? 'p-0.5' : 'p-1'
+          } ${
+              fillHeight
+                  ? 'min-h-0 h-full justify-around gap-0.5'
+                  : nativeDense
+                    ? 'h-auto shrink-0 justify-start gap-0.5'
+                    : 'h-auto shrink-0 justify-start gap-1'
           }`
         : mobile && dense
         ? "flex flex-wrap justify-center items-center gap-1"
@@ -49,7 +58,9 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         : `bg-panel rounded-lg p-1 flex flex-col justify-around gap-0.5 ${fillHeight ? 'h-full' : ''}`;
 
     const buttonClass = nativeHomeColumn
-        ? 'flex flex-col items-center justify-center p-1 rounded-lg w-full bg-gradient-to-br from-gray-700/90 via-gray-600/80 to-gray-700/90 hover:from-gray-600/95 hover:via-gray-500/85 hover:to-gray-600/95 border-2 border-gray-500/60 hover:border-gray-400/80 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95'
+        ? nativeDense
+            ? 'flex w-full flex-col items-center justify-center rounded-md border border-gray-500/55 bg-gradient-to-br from-gray-700/90 via-gray-600/80 to-gray-700/90 px-0.5 py-0.5 shadow-sm transition-transform active:scale-95'
+            : 'flex flex-col items-center justify-center p-1 rounded-lg w-full bg-gradient-to-br from-gray-700/90 via-gray-600/80 to-gray-700/90 hover:from-gray-600/95 hover:via-gray-500/85 hover:to-gray-600/95 border-2 border-gray-500/60 hover:border-gray-400/80 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95'
         : mobile && dense
         ? "flex flex-col items-center justify-center p-0.5 rounded-lg w-[2.35rem] h-[2.35rem] sm:w-11 sm:h-11 bg-gradient-to-br from-gray-700/80 via-gray-600/70 to-gray-700/80 border border-gray-500/50 shadow-md transition-transform active:scale-95"
         : mobile
@@ -59,7 +70,9 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         : `flex flex-col items-center justify-center p-1 rounded-lg w-full bg-gradient-to-br from-gray-700/90 via-gray-600/80 to-gray-700/90 hover:from-gray-600/95 hover:via-gray-500/85 hover:to-gray-600/95 border-2 border-gray-500/60 hover:border-gray-400/80 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`;
 
     const iconSize = nativeHomeColumn
-        ? 'w-10 h-10 object-contain drop-shadow-md'
+        ? nativeDense
+            ? 'h-6 w-6 object-contain drop-shadow-sm'
+            : 'w-10 h-10 object-contain drop-shadow-md'
         : mobile && dense
           ? "w-4 h-4 object-contain drop-shadow-sm"
           : mobile
@@ -68,7 +81,9 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
               ? "w-12 h-12 object-contain drop-shadow-md"
               : "w-10 h-10 object-contain drop-shadow-md";
     const labelSize = nativeHomeColumn
-        ? 'text-[10px] mt-0.5 font-semibold text-gray-200'
+        ? nativeDense
+            ? 'mt-px text-[7px] font-semibold leading-none text-gray-200'
+            : 'text-[10px] mt-0.5 font-semibold text-gray-200'
         : mobile && dense
           ? "text-[7px] mt-0.5 font-semibold text-gray-200 leading-none"
           : mobile

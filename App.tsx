@@ -279,12 +279,14 @@ const AppContent: React.FC = () => {
                     />
                     {currentUser ? (
                         <div
-                            className="mx-auto flex min-h-0 w-full flex-1 flex-col"
-                            style={{ maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH }}
+                            className="mx-auto flex h-full min-h-0 w-full max-h-full min-w-0 flex-1 flex-col overflow-hidden"
+                            style={{ maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH, maxHeight: '100dvh' }}
                         >
                             {!isGameView && <Header />}
                             <main
-                                className={`flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden ${isGameView ? 'overflow-hidden' : 'overflow-y-auto overscroll-y-contain'}`}
+                                className={`flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden ${
+                                    isGameView || isPhoneHandheldTouch ? 'overflow-hidden' : 'overflow-y-auto overscroll-y-contain'
+                                }`}
                             >
                                 {isPhoneHandheldTouch ? (
                                     <Router />

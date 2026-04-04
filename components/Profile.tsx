@@ -1113,25 +1113,25 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
             </header>
             <main
-                className={`flex min-h-0 flex-1 flex-col ${isNativeMobile ? 'overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'overflow-hidden'}`}
+                className="flex min-h-0 flex-1 flex-col overflow-hidden"
             >
                 {isNativeMobile ? (
                     <>
                         {profileTab === 'home' && (
-                            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5">
-                                {/* 상단 1줄: 프로필 + 장비 + 퀵메뉴(PC처럼 비율) */}
-                                <div className="grid min-h-0 flex-[0.68] grid-cols-[minmax(0,1fr)_minmax(0,280px)_6rem] gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
-                                    <div className="min-h-0 flex flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-md border border-color bg-panel p-1.5 text-[clamp(8px,2.5vw,11px)] leading-snug [&_button]:max-w-full">
+                            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-hidden px-0.5 pb-0.5">
+                                {/* 상단: 뷰포트 대비 고정 상한(스크롤·독 침범 방지). 장비 그리드는 content-start로 행 간 빈 공간 제거 */}
+                                <div className="flex w-full min-h-0 min-w-0 shrink-0 gap-0.5 overflow-hidden h-[min(13.75rem,30svh)]">
+                                    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-md border border-color bg-panel p-1 text-[clamp(7px,2.2vw,10px)] leading-tight [&_button]:max-w-full">
                                         {ProfilePanelContent}
                                     </div>
 
-                                    <div className="flex min-h-0 min-w-0 flex-col items-center justify-center gap-1.5 overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-md border border-color bg-panel px-3 py-2.5">
-                                        <h3 className="w-full shrink-0 text-center text-[11px] font-semibold text-secondary sm:text-xs">장비</h3>
-                                        <div className="mx-auto grid min-h-0 w-full flex-1 grid-cols-3 grid-rows-2 gap-1.5">
+                                    <div className="flex h-full min-h-0 min-w-0 max-w-[240px] flex-[1_1_240px] flex-col gap-0.5 overflow-hidden rounded-md border border-color bg-panel px-1 py-1">
+                                        <h3 className="w-full shrink-0 text-center text-[9px] font-semibold text-secondary leading-none">장비</h3>
+                                        <div className="mx-auto grid w-full shrink-0 grid-cols-3 grid-rows-2 gap-0.5 content-start justify-items-center">
                                             {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                                 const item = getItemForSlot(slot);
                                                 return (
-                                                    <div key={slot} className="w-full aspect-square">
+                                                    <div key={slot} className="aspect-square w-[min(100%,2.35rem)] max-w-[2.35rem]">
                                                         <EquipmentSlotDisplay
                                                             slot={slot}
                                                             item={item}
@@ -1141,11 +1141,11 @@ const Profile: React.FC<ProfileProps> = () => {
                                                 );
                                             })}
                                         </div>
-                                        <div className="mt-0 flex w-full max-w-[14rem] shrink-0 items-center justify-center gap-1 pt-px">
+                                        <div className="mt-0 flex w-full max-w-[13rem] shrink-0 items-center justify-center gap-0.5 pt-px">
                                             <select
                                                 value={selectedPreset}
                                                 onChange={handlePresetChange}
-                                                className="min-w-0 flex-1 rounded border border-color bg-secondary px-1.5 py-1 text-[9px] focus:border-accent focus:ring-accent sm:text-[10px]"
+                                                className="min-w-0 flex-1 rounded border border-color bg-secondary px-1 py-0.5 text-[8px] focus:border-accent focus:ring-accent"
                                             >
                                                 {presets && presets.map((preset, index) => (
                                                     <option key={index} value={index}>{preset.name}</option>
@@ -1161,16 +1161,15 @@ const Profile: React.FC<ProfileProps> = () => {
                                         </div>
                                     </div>
 
-                                    <div className="min-h-0 h-full w-full overflow-x-hidden overflow-y-auto overscroll-y-contain">
-                                        {/* PC의 우측 퀵메뉴 폭(w-24)과 맞추기 위해 6rem 컬럼 */}
-                                        <QuickAccessSidebar nativeHomeColumn />
+                                    <div className="flex h-full min-h-0 w-[4.25rem] shrink-0 flex-col justify-start overflow-hidden">
+                                        <QuickAccessSidebar nativeHomeColumn nativeDense fillHeight={false} />
                                     </div>
                                 </div>
 
-                                {/* 아랫줄: 채팅 패널 + 공지사항 */}
-                                <div className="grid min-h-0 flex-[0.72] grid-cols-2 gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
-                                    <div className="min-h-0 h-full min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-md border border-color bg-panel">
-                                        <div className="min-h-0 h-full min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+                                {/* 아랫줄: 남는 높이 */}
+                                <div className="grid min-h-0 min-w-0 flex-1 basis-0 grid-cols-2 gap-0.5 overflow-hidden">
+                                    <div className="min-h-0 min-w-0 overflow-hidden rounded-md border border-color bg-panel">
+                                        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto overscroll-y-contain">
                                             <ChatWindow
                                                 messages={globalChat}
                                                 mode="global"
@@ -1180,13 +1179,15 @@ const Profile: React.FC<ProfileProps> = () => {
                                             />
                                         </div>
                                     </div>
-                                    <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+                                    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
                                         <HomeBoardPanel
                                             posts={homeBoardPosts || []}
                                             isAdmin={currentUserWithStatus.isAdmin}
                                             onAction={handlers.handleAction}
                                             fitViewport
                                         />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
