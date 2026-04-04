@@ -1,7 +1,11 @@
 import React, { useMemo, Suspense, lazy } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
+import {
+    NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
+    NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
+    NATIVE_MOBILE_MODAL_MAX_WIDTH_PX,
+} from '../constants/ads.js';
 import NegotiationModal from './NegotiationModal.js';
 import ChallengeReceivedModal from './ChallengeReceivedModal.js';
 
@@ -235,12 +239,12 @@ const AppModalLayer: React.FC = () => {
             {modals.mutualDisconnectMessage && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">
                     <div
-                        className={`bg-panel border border-color rounded-xl shadow-2xl w-full mx-4 p-6 text-center ${isNativeMobile ? '' : 'max-w-md'}`}
+                        className={`bg-panel border border-color rounded-xl p-6 text-center shadow-2xl ${isNativeMobile ? 'mx-auto w-max max-w-[calc(100vw-24px)]' : 'mx-4 w-full max-w-md'}`}
                         style={
                             isNativeMobile
                                 ? {
-                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%)`,
-                                      maxHeight: `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%)`,
+                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px)`,
+                                      maxHeight: `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px))`,
                                   }
                                 : undefined
                         }
@@ -254,12 +258,12 @@ const AppModalLayer: React.FC = () => {
             {modals.showOtherDeviceLoginModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="other-device-login-title">
                     <div
-                        className={`bg-panel border border-color rounded-xl shadow-2xl w-full mx-4 p-6 text-center ${isNativeMobile ? '' : 'max-w-md'}`}
+                        className={`bg-panel border border-color rounded-xl p-6 text-center shadow-2xl ${isNativeMobile ? 'mx-auto w-max max-w-[calc(100vw-24px)]' : 'mx-4 w-full max-w-md'}`}
                         style={
                             isNativeMobile
                                 ? {
-                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%)`,
-                                      maxHeight: `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%)`,
+                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px)`,
+                                      maxHeight: `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px))`,
                                   }
                                 : undefined
                         }

@@ -567,7 +567,7 @@ const LocalItemDetailDisplay: React.FC<{
                                 {/* display에 이미 범위값이 포함되어 있으면 추가하지 않음 */}
                                 {item.options.main.range && !item.options.main.display.includes('[') && ` [${item.options.main.range[0]}~${item.options.main.range[1]}]`}
                             </span>
-                            {comparisonItem && item.options.main.type && (
+                            {item.options.main.type && (
                                 (() => {
                                     const comparisonValue = getOptionValue(comparisonItem, item.options.main.type);
                                     const difference = item.options.main.value - comparisonValue;
@@ -621,17 +621,19 @@ const LocalItemDetailDisplay: React.FC<{
                             </p>
                         );
                     } else if (current && !comparison) {
-                        // Stat is new
-                        let colorClass = 'text-green-400';
+                        // 장착 측에 동일 타입 옵션이 없음 → 비교값 0과의 차이 (빈 슬롯·해당 부옵션 없음)
+                        const difference = current.value;
+                        const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
+                        const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
+                        let colorClass = 'text-blue-300';
                         if (Object.values(SpecialStat).includes(current.type as SpecialStat)) colorClass = 'text-green-300';
                         if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
-                        // display에 이미 범위값이 포함되어 있으면 추가하지 않음
                         const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
-                        const isMythicNew = Object.values(MythicStat).includes(current.type as MythicStat);
+                        const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
                         return (
                             <p key={type} className={`${colorClass} flex justify-between items-center`}>
                                 <span>
-                                    {isMythicNew ? (
+                                    {isMythicOpt ? (
                                         <>
                                             <MythicOptionAbbrev option={current} textClassName={colorClass} />
                                             {rangeText}
@@ -641,7 +643,10 @@ const LocalItemDetailDisplay: React.FC<{
                                             {current.display}{rangeText}
                                         </>
                                     )}
-                                </span> <span className="font-bold text-right">(New)</span>
+                                </span>
+                                {difference !== 0 && (
+                                    <span className={`font-bold ${differenceColorClass} text-right`}>{differenceText}</span>
+                                )}
                             </p>
                         );
                     } else if (!current && comparison) {
@@ -1217,7 +1222,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         </div>
                                     </div>
                                 </div>
-                                {/* 모바일: 좁은 열 — 선택 아이템 (장비 비교 없음) */}
+                                {/* 모바일: 좁은 열 — 선택 아이템 (같은 슬롯 장착 장비와 옵션 수치 비교) */}
                                 <div className="flex min-h-[180px] min-w-0 flex-1 flex-col">
                                     {selectedItem && selectedItem.type === 'equipment' ? (
                                         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-panel-secondary p-1.5">
@@ -1244,7 +1249,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 <LocalItemDetailDisplay
                                                     item={selectedItem}
                                                     title="선택된 아이템 없음"
-                                                    comparisonItem={undefined}
+                                                    comparisonItem={correspondingEquippedItem ?? undefined}
                                                     scaleFactor={scaleFactor}
                                                     mobileTextScale={mobileTextScale}
                                                     userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}

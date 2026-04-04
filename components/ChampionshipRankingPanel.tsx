@@ -16,7 +16,8 @@ const CompactRankRow: React.FC<{
     isCurrentUser: boolean;
     onViewUser?: (userId: string) => void;
     dense?: boolean;
-}> = ({ entry, isCurrentUser, onViewUser, dense }) => {
+    lobbyNativeMobile?: boolean;
+}> = ({ entry, isCurrentUser, onViewUser, dense, lobbyNativeMobile = false }) => {
     const avatarUrl = AVATAR_POOL.find(a => a.id === entry.avatarId)?.url;
     const borderUrl = BORDER_POOL.find(b => b.id === entry.borderId)?.url;
     return (
@@ -25,10 +26,22 @@ const CompactRankRow: React.FC<{
             onClick={!isCurrentUser && onViewUser ? () => onViewUser(entry.id) : undefined}
             title={!isCurrentUser ? `${entry.nickname} 프로필 보기` : ''}
         >
-            <span className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : 'w-8 text-xs'}`}>{entry.rank === 0 ? '-' : entry.rank}</span>
-            <Avatar userId={entry.id} userName={entry.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} />
-            <span className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}>{entry.nickname}</span>
-            <span className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : 'w-16 text-xs'}`}>{entry.score.toLocaleString()}</span>
+            <span
+                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : lobbyNativeMobile ? 'w-8 text-[11px]' : 'w-8 text-xs'}`}
+            >
+                {entry.rank === 0 ? '-' : entry.rank}
+            </span>
+            <Avatar userId={entry.id} userName={entry.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : lobbyNativeMobile ? 30 : 28} />
+            <span
+                className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : lobbyNativeMobile ? 'ml-1 text-[11px]' : 'ml-1.5 text-xs'}`}
+            >
+                {entry.nickname}
+            </span>
+            <span
+                className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : lobbyNativeMobile ? 'w-[3.25rem] text-[11px]' : 'w-16 text-xs'}`}
+            >
+                {entry.score.toLocaleString()}
+            </span>
         </div>
     );
 };
@@ -70,9 +83,15 @@ interface ChampionshipRankingPanelProps {
     compact?: boolean;
     /** compact 모드에서 더 작게 (3열 랭킹 등) */
     dense?: boolean;
+    /** 네이티브 챔피언십 3열 레이아웃: 글자를 하단 독 수준 이상으로 키움 */
+    lobbyNativeMobile?: boolean;
 }
 
-const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ compact = false, dense = false }) => {
+const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
+    compact = false,
+    dense = false,
+    lobbyNativeMobile = false,
+}) => {
     const { currentUserWithStatus, handlers } = useAppContext();
     const { rankings, loading, error } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
 
@@ -146,13 +165,17 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
             <div
                 className={`bg-panel text-on-panel flex h-full min-h-0 flex-col rounded-lg border border-color ${dense ? 'gap-0.5 p-0.5' : 'gap-1.5 p-2'}`}
             >
-                <h3 className={`text-center font-semibold text-secondary flex-shrink-0 ${dense ? 'text-[8px] leading-tight' : 'text-sm'}`}>챔피언십 랭킹</h3>
+                <h3
+                    className={`flex-shrink-0 text-center font-semibold text-secondary ${dense ? 'text-[8px] leading-tight' : lobbyNativeMobile ? 'text-base' : 'text-sm'}`}
+                >
+                    챔피언십 랭킹
+                </h3>
                 <div className={`flex min-h-0 flex-grow flex-col overflow-y-auto pr-0.5 ${dense ? 'gap-0.5 text-[8px]' : 'gap-1 pr-1'}`}
                 >
                     {loading && rankings.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-gray-400 text-xs">데이터 로딩 중...</div>
+                        <div className={`flex h-full items-center justify-center text-gray-400 ${lobbyNativeMobile ? 'text-[11px]' : 'text-xs'}`}>데이터 로딩 중...</div>
                     ) : error ? (
-                        <div className="flex items-center justify-center h-full text-red-400 text-xs">랭킹을 불러오는데 실패했습니다.</div>
+                        <div className={`flex h-full items-center justify-center text-red-400 ${lobbyNativeMobile ? 'text-[11px]' : 'text-xs'}`}>랭킹을 불러오는데 실패했습니다.</div>
                     ) : (
                         <>
                             {currentUserEntry && (
@@ -162,11 +185,12 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                                         isCurrentUser={true}
                                         onViewUser={handlers.openViewingUser}
                                         dense={dense}
+                                        lobbyNativeMobile={lobbyNativeMobile}
                                     />
                                 </div>
                             )}
                             {visibleRankings.length === 0 ? (
-                                <div className="flex flex-1 items-center justify-center py-3 text-center text-gray-400 text-xs">
+                                <div className={`flex flex-1 items-center justify-center py-3 text-center text-gray-400 ${lobbyNativeMobile ? 'text-[11px]' : 'text-xs'}`}>
                                     랭킹에 표시할 점수가 있는 유저가 없습니다.
                                 </div>
                             ) : (
@@ -178,10 +202,11 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({ com
                                             isCurrentUser={entry.id === currentUserWithStatus.id}
                                             onViewUser={handlers.openViewingUser}
                                             dense={dense}
+                                            lobbyNativeMobile={lobbyNativeMobile}
                                         />
                                     ))}
                                     {displayCount < visibleRankings.length && (
-                                        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="py-2 text-center text-xs text-gray-400">로딩 중...</div>
+                                        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className={`py-2 text-center text-gray-400 ${lobbyNativeMobile ? 'text-[11px]' : 'text-xs'}`}>로딩 중...</div>
                                     )}
                                 </div>
                             )}

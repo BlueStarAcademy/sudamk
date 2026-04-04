@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const storageKeyFor = (layoutMode: 'mobile' | 'desktop') =>
     layoutMode === 'mobile' ? 'sudamr-moveConfirmPanel-m' : 'sudamr-moveConfirmPanel-d';
@@ -45,8 +45,11 @@ export const DraggableMoveConfirmPanel: React.FC<{
     const wrapRef = useRef<HTMLDivElement>(null);
     const storageKey = storageKeyFor(layoutMode);
     const [savedPos, setSavedPos] = useState<Pos | null>(null);
+    /** 드래그 중에는 여기만 렌더에 반영 — 부모(Game) 리렌더가 effectivePos로 style을 덮어쓰면 위치가 튀는 버그 방지 */
+    const [dragPos, setDragPos] = useState<Pos | null>(null);
     const draggingRef = useRef(false);
     const dragOriginRef = useRef<{ startClientX: number; startClientY: number; startLeft: number; startTop: number } | null>(null);
+    const liveDragPosRef = useRef<Pos | null>(null);
 
     const defaultPos = useCallback((): Pos => {
         const { vl, vt, vw, vh } = getVisualViewportBox();
@@ -122,6 +125,9 @@ export const DraggableMoveConfirmPanel: React.FC<{
         if (!el) return;
         const rect = el.getBoundingClientRect();
         draggingRef.current = true;
+        const start = { left: rect.left, top: rect.top };
+        liveDragPosRef.current = start;
+        setDragPos(start);
         dragOriginRef.current = {
             startClientX: e.clientX,
             startClientY: e.clientY,
@@ -141,41 +147,44 @@ export const DraggableMoveConfirmPanel: React.FC<{
         const w = el.offsetWidth;
         const h = el.offsetHeight;
         const next = clampPanelPosition(origin.startLeft + dx, origin.startTop + dy, w, h);
-        el.style.left = `${next.left}px`;
-        el.style.top = `${next.top}px`;
+        liveDragPosRef.current = next;
+        setDragPos(next);
     }, []);
+
+    const finishDrag = useCallback(() => {
+        if (!draggingRef.current) return;
+        draggingRef.current = false;
+        dragOriginRef.current = null;
+        const p = liveDragPosRef.current;
+        liveDragPosRef.current = null;
+        setDragPos(null);
+        if (p) persistPos(p);
+    }, [persistPos]);
 
     const endDrag = useCallback(
         (e: React.PointerEvent) => {
             if (!draggingRef.current) return;
-            draggingRef.current = false;
-            dragOriginRef.current = null;
             try {
                 e.currentTarget.releasePointerCapture(e.pointerId);
             } catch {
                 /* already released */
             }
-            const el = wrapRef.current;
-            if (el) {
-                const rect = el.getBoundingClientRect();
-                persistPos({ left: rect.left, top: rect.top });
-            }
+            finishDrag();
         },
-        [persistPos]
+        [finishDrag]
     );
 
-    useLayoutEffect(() => {
-        const el = wrapRef.current;
-        if (!el || draggingRef.current) return;
-        el.style.left = `${effectivePos.left}px`;
-        el.style.top = `${effectivePos.top}px`;
-    }, [effectivePos.left, effectivePos.top]);
+    const onLostPointerCapture = useCallback(() => {
+        finishDrag();
+    }, [finishDrag]);
+
+    const displayPos = dragPos ?? effectivePos;
 
     return (
         <div
             ref={wrapRef}
             className="pointer-events-auto fixed z-[60] flex flex-col overflow-hidden rounded-xl border border-gray-700/80 shadow-2xl"
-            style={{ left: effectivePos.left, top: effectivePos.top }}
+            style={{ left: displayPos.left, top: displayPos.top }}
         >
             <div
                 role="button"
@@ -187,6 +196,7 @@ export const DraggableMoveConfirmPanel: React.FC<{
                 onPointerMove={onPointerMove}
                 onPointerUp={endDrag}
                 onPointerCancel={endDrag}
+                onLostPointerCapture={onLostPointerCapture}
             >
                 <span aria-hidden className="select-none text-base leading-none tracking-tight text-gray-500">
                     ⋮⋮

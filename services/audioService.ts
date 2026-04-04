@@ -6,7 +6,8 @@ import { defaultSettings } from '../hooks/useAppSettings.js';
 
 class AudioService {
     private audioContext: AudioContext | null = null;
-    private isInitializing = false;
+    /** 동시 initialize() 호출을 하나로 묶어, 진행 중인 초기화가 끝날 때까지 대기 */
+    private initMutex: Promise<void> | null = null;
     private scanBgmSourceNode: AudioBufferSourceNode | null = null;
     private timerWarningSourceNode: AudioBufferSourceNode | null = null;
     private audioBuffers = new Map<string, AudioBuffer>();
@@ -18,29 +19,57 @@ class AudioService {
         return !!this.audioContext && this.audioContext.state === 'running';
     }
 
-    public async initialize() {
-        if (this.isReady() || this.isInitializing) return;
-        this.isInitializing = true;
+    private needsResume(ctx: AudioContext): boolean {
+        const s = ctx.state as string;
+        return s === 'suspended' || s === 'interrupted';
+    }
+
+    private async resumeContextIfNeeded(ctx: AudioContext): Promise<void> {
+        if (ctx.state === 'closed') return;
+        if (!this.needsResume(ctx)) return;
         try {
-            if (!this.audioContext) {
-                this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            await ctx.resume();
+        } catch (e) {
+            console.warn('[AudioService] resume():', e);
+        }
+    }
+
+    public async initialize(): Promise<void> {
+        if (this.isReady()) return;
+        if (this.initMutex) {
+            await this.initMutex;
+            return;
+        }
+        this.initMutex = (async () => {
+            try {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                }
+                await this.resumeContextIfNeeded(this.audioContext);
+            } catch (error) {
+                console.error('Audio context initialization failed:', error);
             }
-            if (this.audioContext.state === 'suspended') {
-                await this.audioContext.resume();
-            }
-        } catch (error) {
-            console.error("Audio context initialization failed:", error);
+        })();
+        try {
+            await this.initMutex;
         } finally {
-            this.isInitializing = false;
+            this.initMutex = null;
         }
     }
 
     public updateSettings(newSettings: SoundSettings) {
-        this.settings = newSettings;
+        this.settings = {
+            ...defaultSettings.sound,
+            ...newSettings,
+            categoryMuted: {
+                ...defaultSettings.sound.categoryMuted,
+                ...(newSettings.categoryMuted ?? {}),
+            },
+        };
     }
 
     private async loadSound(url: string): Promise<AudioBuffer | null> {
-        if (!this.audioContext) await this.initialize();
+        await this.initialize();
         if (!this.audioContext) return null;
         if (this.audioBuffers.has(url)) {
             return this.audioBuffers.get(url)!;
@@ -61,22 +90,19 @@ class AudioService {
     }
 
     private async playSound(buffer: AudioBuffer, volume = 1, loop = false): Promise<AudioBufferSourceNode | null> {
-        if (!this.audioContext) {
-            await this.initialize();
-            if (!this.audioContext) return null;
+        await this.initialize();
+        if (!this.audioContext || this.audioContext.state === 'closed') return null;
+
+        await this.resumeContextIfNeeded(this.audioContext);
+        if (this.needsResume(this.audioContext)) {
+            await new Promise((r) => setTimeout(r, 0));
+            await this.resumeContextIfNeeded(this.audioContext);
         }
-        
-        // 모바일 환경에서 AudioContext가 suspended 상태일 수 있으므로 resume 시도
-        if (this.audioContext.state === 'suspended') {
-            try {
-                await this.audioContext.resume();
-            } catch (error) {
-                console.error("Failed to resume audio context:", error);
-                return null;
-            }
+
+        if (this.audioContext.state !== 'running') {
+            console.warn('[AudioService] context not running, skip playback:', this.audioContext.state);
+            return null;
         }
-        
-        if (this.audioContext.state !== 'running') return null;
         
         const source = this.audioContext.createBufferSource();
         source.buffer = buffer;

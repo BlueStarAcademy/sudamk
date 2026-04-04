@@ -305,6 +305,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         if (isInsideScaledCanvas) return 1.0;
         if (mobileViewportFit) return 1.0;
 
+        // 네이티브 모바일: 컨텐츠 맞춤 레이아웃에서 전체 scale 축소 사용 안 함
+        if (isNativeMobile) return 1.0;
+
         // PC 모달 크기를 그대로 사용
         const baseWidth = initialWidth || 800;
         const baseHeight = initialHeight || 600;
@@ -322,11 +325,15 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         // 최소/최대 스케일 제한 (너무 작거나 크지 않도록)
         return Math.max(0.25, Math.min(0.95, scale));
-    }, [effectiveIsCompactViewport, isInsideScaledCanvas, mobileViewportFit, windowWidth, windowHeight, initialWidth, initialHeight]);
+    }, [effectiveIsCompactViewport, isInsideScaledCanvas, mobileViewportFit, isNativeMobile, windowWidth, windowHeight, initialWidth, initialHeight]);
 
     /** 모바일에서 축소 없이 뷰포트에 맞춘 프레임 (내부 가로/세로 스크롤) */
     const useMobileViewportFitLayout =
         mobileViewportFit && effectiveIsCompactViewport && !isInsideScaledCanvas;
+
+    /** 네이티브 모바일: 가로·세로를 컨텐츠에 맞추고, 상한만 뷰포트로 제한 (하단 여백 최소화) */
+    const useNativeMobileContentFit =
+        isNativeMobile && !useMobileViewportFitLayout && !isInsideScaledCanvas;
 
     const mobileViewportFitWidthPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
@@ -712,7 +719,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         : 'bg-secondary border-color text-tertiary';
     const bodyPaddingClass = bodyPaddingClassName ?? (isStoreVariant ? 'p-5' : 'p-4');
     const bodyAllowsVerticalScroll =
-        bodyScrollable || (useMobileViewportFitLayout && !bodyNoScroll);
+        bodyScrollable ||
+        (useMobileViewportFitLayout && !bodyNoScroll) ||
+        useNativeMobileContentFit;
     const closeButtonClass = isStoreVariant
         ? 'w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-rose-500/85 via-rose-500/75 to-rose-600/85 hover:from-rose-400 hover:via-rose-500 hover:to-rose-600 transition-colors shadow-[0_18px_38px_-24px_rgba(244,63,94,0.75)]'
         : 'w-10 h-10 flex items-center justify-center rounded-full bg-tertiary hover:bg-danger transition-colors';
@@ -730,48 +739,58 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             <div
                 ref={windowRef}
                 data-draggable-window={windowId}
-                className={`${containerBaseClass} ${containerVariantClass}`}
+                className={`${containerBaseClass} ${containerVariantClass}${useNativeMobileContentFit ? ' min-h-0' : ''}`}
                 style={{
                     width: useMobileViewportFitLayout
                         ? `${mobileViewportFitWidthPx}px`
-                        : effectiveIsCompactViewport
-                          ? (initialWidth ? `${initialWidth}px` : '800px')
-                          : isNativeMobile && nativeClampedWidthPx !== undefined
-                            ? `${nativeClampedWidthPx}px`
-                            : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
+                        : useNativeMobileContentFit
+                          ? 'max-content'
+                          : effectiveIsCompactViewport
+                            ? (initialWidth ? `${initialWidth}px` : '800px')
+                            : isNativeMobile && nativeClampedWidthPx !== undefined
+                              ? `${nativeClampedWidthPx}px`
+                              : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
                     minWidth: useMobileViewportFitLayout
                         ? `${mobileViewportFitWidthPx}px`
-                        : effectiveIsCompactViewport
-                          ? (initialWidth ? `${initialWidth}px` : '800px')
-                          : isNativeMobile && nativeClampedWidthPx !== undefined
-                            ? `${nativeClampedWidthPx}px`
-                            : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
+                        : useNativeMobileContentFit
+                          ? 0
+                          : effectiveIsCompactViewport
+                            ? (initialWidth ? `${initialWidth}px` : '800px')
+                            : isNativeMobile && nativeClampedWidthPx !== undefined
+                              ? `${nativeClampedWidthPx}px`
+                              : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
                     maxWidth: useMobileViewportFitLayout
                         ? isNativeMobile
                           ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 16px))`
                           : 'calc(100vw - 16px)'
-                        : isNativeMobile
-                          ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%)`
-                          : isInsideScaledCanvas
-                            ? undefined
-                            : (effectiveIsCompactViewport ? undefined : 'calc(100vw - 40px)'),
+                        : useNativeMobileContentFit
+                          ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px)`
+                          : isNativeMobile
+                            ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%)`
+                            : isInsideScaledCanvas
+                              ? undefined
+                              : (effectiveIsCompactViewport ? undefined : 'calc(100vw - 40px)'),
                     height: useMobileViewportFitLayout
                         ? `${mobileViewportFitHeightPx}px`
-                        : effectiveIsCompactViewport
-                          ? (initialHeight ? `${initialHeight}px` : '600px')
-                          : isNativeMobile && nativeCappedHeightPx !== undefined
-                            ? `${nativeCappedHeightPx}px`
-                            : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
+                        : useNativeMobileContentFit
+                          ? 'auto'
+                          : effectiveIsCompactViewport
+                            ? (initialHeight ? `${initialHeight}px` : '600px')
+                            : isNativeMobile && nativeCappedHeightPx !== undefined
+                              ? `${nativeCappedHeightPx}px`
+                              : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
                     maxHeight: useMobileViewportFitLayout
                         ? isNativeMobile
                           ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 40px))`
                           : 'calc(100dvh - 40px)'
-                        : isNativeMobile
-                          ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%)`
-                          : isInsideScaledCanvas
-                            ? undefined
-                            : (effectiveIsCompactViewport ? undefined : '90vh'),
-                    transform: useMobileViewportFitLayout
+                        : useNativeMobileContentFit
+                          ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px))`
+                          : isNativeMobile
+                            ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%)`
+                            : isInsideScaledCanvas
+                              ? undefined
+                              : (effectiveIsCompactViewport ? undefined : '90vh'),
+                    transform: useMobileViewportFitLayout || useNativeMobileContentFit
                         ? 'translate(-50%, -50%)'
                         : effectiveIsCompactViewport
                           ? `translate(-50%, -50%) scale(${mobileScaleFactor})`

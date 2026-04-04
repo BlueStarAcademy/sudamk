@@ -558,6 +558,10 @@ const PlayerProfilePanel: React.FC<{
     if (!playerId || !playerNickname) {
         return <div className="p-2 text-center text-gray-500 flex items-center justify-center h-full bg-gray-900/50 rounded-lg">선수 정보를 불러올 수 없습니다.</div>;
     }
+
+    /** Avatar.tsx 이미지 테두리 최대 배율(링 1.5)과 동일 — 슬롯을 맞춰 양쪽 패널 능력치 행이 수평으로 정렬되게 함 */
+    const avatarSizePx = isMobile ? 40 : 32;
+    const avatarSlotRem = (avatarSizePx / 16) * 1.5;
     
     return (
         <div className={`bg-gray-900/50 p-2 rounded-lg flex flex-col gap-1 h-full min-h-0 ${isClickable ? 'cursor-pointer hover:bg-gray-700/50' : ''}`} onClick={isClickable ? () => onViewUser(playerId) : undefined} title={isClickable ? `${playerNickname} 프로필 보기` : ''} style={{ maxHeight: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
@@ -567,11 +571,21 @@ const PlayerProfilePanel: React.FC<{
                         key={`league-${playerId}-${leagueInfo.tier}`}
                         src={leagueInfo.icon}
                         alt={leagueInfo.name}
-                        className="w-9 h-9 object-contain drop-shadow-lg"
+                        className="w-9 h-9 object-contain drop-shadow-lg flex-shrink-0"
                         loading="lazy"
                     />
                 )}
-                 <Avatar key={`avatar-${playerId}`} userId={playerId} userName={playerNickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={isMobile ? 40 : 32} className={`${isMobile ? 'w-10 h-10' : 'w-10 h-10'} flex-shrink-0`} />
+                <div
+                    className="flex flex-shrink-0 items-center justify-center"
+                    style={{
+                        width: `${avatarSlotRem}rem`,
+                        height: `${avatarSlotRem}rem`,
+                        minWidth: `${avatarSlotRem}rem`,
+                        minHeight: `${avatarSlotRem}rem`,
+                    }}
+                >
+                    <Avatar key={`avatar-${playerId}`} userId={playerId} userName={playerNickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={avatarSizePx} />
+                </div>
                  <div className="min-w-0 flex-1">
                     <div className={`flex flex-row items-center ${isMobile ? 'gap-1 flex-wrap' : 'gap-1.5'}`}>
                         <h4 className={`font-bold ${isMobile ? 'text-sm' : 'text-base'} truncate`}>{playerNickname}</h4>
@@ -620,7 +634,11 @@ const PlayerProfilePanel: React.FC<{
                     </button>
                 )}
             </div>
-            <div className={`w-full grid grid-cols-4 gap-x-3 gap-y-0.5 ${isMobile ? 'text-[10px]' : 'text-xs'} mt-0 border-t border-gray-600 pt-0.5 flex-shrink-0 overflow-hidden`}>
+            <div
+                className={`w-full mt-0 border-t border-gray-600 pt-0.5 flex-shrink-0 overflow-hidden grid grid-cols-4 items-baseline font-mono tabular-nums ${
+                    isMobile ? 'gap-x-1 gap-y-0.5 text-[10px]' : 'gap-x-3 gap-y-0.5 text-xs'
+                }`}
+            >
                 {Object.values(CoreStat).map(stat => {
                     try {
                         // 초기값: initialPlayer가 있으면 그것을 사용, 없으면 initialStats 사용
@@ -631,42 +649,96 @@ const PlayerProfilePanel: React.FC<{
                         const currentValue = displayStats?.[stat] ?? 0;
                         const change = tournamentStatus === 'round_in_progress' ? (currentValue - initialValue) : 0;
 
-                    return (
-                        <React.Fragment key={stat}>
-                            <span className={`text-gray-400 truncate whitespace-nowrap ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''}`}>{stat}</span>
-                            <div className="flex justify-end items-baseline relative min-w-0">
-                                <span className={`font-mono text-white ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''} ${isMobile ? 'min-w-[22px] text-[10px]' : 'min-w-[40px] text-right text-xs'} whitespace-nowrap`}>{currentValue}</span>
-                                {/* [N]: 항상 보이는 누적된 변화값 (초기값 대비 현재까지 누적된 변화) */}
-                                <span className={`ml-1 font-bold ${isMobile ? 'text-[9px] min-w-[24px]' : 'text-xs min-w-[45px]'} text-right whitespace-nowrap`}>
-                                    {tournamentStatus === 'round_in_progress' && change !== 0 ? (
-                                        <span className={`${change > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            [{change > 0 ? '+' : ''}{change}]
+                        const labelEl = (
+                            <span
+                                className={`text-gray-400 truncate min-w-0 font-sans ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''}`}
+                            >
+                                {stat}
+                            </span>
+                        );
+
+                        const currentEl = (
+                            <span
+                                className={`text-right text-white whitespace-nowrap ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''} ${
+                                    isMobile ? 'min-w-[1.25rem]' : 'min-w-[40px] text-xs'
+                                }`}
+                            >
+                                {currentValue}
+                            </span>
+                        );
+
+                        const bracketEl = (
+                            <span
+                                className={`text-right font-bold whitespace-nowrap ${
+                                    isMobile ? 'min-w-[1.75rem]' : 'ml-1 text-xs min-w-[45px]'
+                                }`}
+                            >
+                                {tournamentStatus === 'round_in_progress' && change !== 0 ? (
+                                    <span className={change > 0 ? 'text-green-400' : 'text-red-400'}>
+                                        [{change > 0 ? '+' : ''}
+                                        {change}]
+                                    </span>
+                                ) : isMobile ? (
+                                    <span className="invisible" aria-hidden>
+                                        [+0]
+                                    </span>
+                                ) : null}
+                            </span>
+                        );
+
+                        const popEl = (
+                            <span
+                                className={`text-right font-bold relative ${isMobile ? 'h-[1.15em] min-w-[2rem]' : 'ml-1 min-w-[50px] text-sm'}`}
+                            >
+                                <span
+                                    className="absolute right-0 top-0 whitespace-nowrap"
+                                    style={{
+                                        animation:
+                                            statChanges[stat] !== undefined &&
+                                            statChanges[stat] !== 0 &&
+                                            tournamentStatus === 'round_in_progress'
+                                                ? 'statChangeFade 2s ease-out forwards'
+                                                : 'none',
+                                        opacity:
+                                            statChanges[stat] !== undefined &&
+                                            statChanges[stat] !== 0 &&
+                                            tournamentStatus === 'round_in_progress'
+                                                ? 1
+                                                : 0,
+                                        pointerEvents: 'none',
+                                    }}
+                                >
+                                    {statChanges[stat] !== undefined &&
+                                    statChanges[stat] !== 0 &&
+                                    tournamentStatus === 'round_in_progress' ? (
+                                        <span
+                                            className={`${isMobile ? 'text-[10px]' : 'text-sm'} ${statChanges[stat] > 0 ? 'text-green-300' : 'text-red-300'}`}
+                                        >
+                                            ({statChanges[stat] > 0 ? '+' : ''}
+                                            {statChanges[stat]})
                                         </span>
                                     ) : null}
                                 </span>
-                                {/* (N): 1초마다 발생한 즉각적인 변화값을 잠시 보여주는 용도 (애니메이션으로 사라짐) */}
-                                {/* 애니메이션이 레이아웃에 영향을 주지 않도록 absolute positioning 사용 및 고정 공간 확보 */}
-                                <span className="ml-1 font-bold text-sm min-w-[50px] text-right relative">
-                                    <span 
-                                        className="absolute right-0 top-0 whitespace-nowrap"
-                                        style={{ 
-                                            animation: statChanges[stat] !== undefined && statChanges[stat] !== 0 && tournamentStatus === 'round_in_progress' ? 'statChangeFade 2s ease-out forwards' : 'none',
-                                            opacity: statChanges[stat] !== undefined && statChanges[stat] !== 0 && tournamentStatus === 'round_in_progress' ? 1 : 0,
-                                            pointerEvents: 'none' // 클릭 이벤트 방지
-                                        }}
-                                    >
-                                        {statChanges[stat] !== undefined && statChanges[stat] !== 0 && tournamentStatus === 'round_in_progress' ? (
-                                            <span className={`text-sm ${statChanges[stat] > 0 ? 'text-green-300' : 'text-red-300'}`}>
-                                                ({statChanges[stat] > 0 ? '+' : ''}{statChanges[stat]})
-                                            </span>
-                                        ) : null}
-                                    </span>
-                                    {/* 공간 확보를 위한 투명한 플레이스홀더 */}
-                                    <span className="invisible whitespace-nowrap text-sm">
-                                        (+99)
-                                    </span>
+                                <span className={`invisible whitespace-nowrap ${isMobile ? 'text-[10px]' : 'text-sm'}`} aria-hidden>
+                                    (+99)
                                 </span>
-                                </div>
+                            </span>
+                        );
+
+                        const numbersEl = (
+                            <div
+                                className={`flex min-w-0 justify-end items-baseline ${isMobile ? 'gap-0.5' : ''}`}
+                            >
+                                {currentEl}
+                                {bracketEl}
+                                {popEl}
+                            </div>
+                        );
+
+                        return (
+                            <React.Fragment key={stat}>
+                                {labelEl}
+                                {numbersEl}
                             </React.Fragment>
                         );
                     } catch (error) {
@@ -675,8 +747,8 @@ const PlayerProfilePanel: React.FC<{
                         }
                         return (
                             <React.Fragment key={stat}>
-                                <span className="text-gray-400 truncate whitespace-nowrap">{stat}</span>
-                                <div className="flex justify-end items-baseline relative min-w-0">
+                                <span className="text-gray-400 truncate min-w-0">{stat}</span>
+                                <div className="flex min-w-0 justify-end items-baseline">
                                     <span className="font-mono text-white">-</span>
                                 </div>
                             </React.Fragment>

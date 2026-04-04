@@ -7,9 +7,21 @@ import TrainingQuestLevelUpModal from './TrainingQuestLevelUpModal.js';
 import ClaimAllTrainingQuestRewardsModal from './ClaimAllTrainingQuestRewardsModal.js';
 import { audioService } from '../../services/audioService.js';
 
+/** 싱글플레이 수련과제: 메탈릭 그라데이션 + 글로우 (PC·모바일 공통, sm:에서 살짝 키움) */
+const PREMIUM_QUEST_BTN = {
+    claim:
+        'flex-1 flex items-center justify-center !rounded-lg !border !border-emerald-300/55 !bg-gradient-to-b !from-teal-400/95 !via-emerald-700 !to-emerald-950 !px-1.5 !py-1 !text-[11px] !font-bold !leading-tight !text-white !shadow-[0_2px_14px_rgba(16,185,129,0.45),inset_0_1px_0_rgba(255,255,255,0.22)] hover:!brightness-110 active:!scale-[0.98] disabled:!cursor-not-allowed disabled:!opacity-45 disabled:!grayscale disabled:hover:!brightness-100 transition-all duration-200 sm:!px-2 sm:!py-1.5 sm:!text-xs',
+    upgrade:
+        'flex-1 flex items-center justify-center !whitespace-nowrap !rounded-lg !border !border-violet-300/50 !bg-gradient-to-b !from-violet-500/95 !via-purple-800 !to-indigo-950 !px-1.5 !py-1 !text-[11px] !font-bold !leading-tight !text-violet-50 !shadow-[0_2px_14px_rgba(139,92,246,0.45),inset_0_1px_0_rgba(255,255,255,0.18)] hover:!brightness-110 active:!scale-[0.98] disabled:!cursor-not-allowed disabled:!opacity-45 disabled:!grayscale disabled:hover:!brightness-100 transition-all duration-200 sm:!px-2 sm:!py-1.5 sm:!text-xs',
+    start:
+        'w-full !rounded-lg !border !border-sky-300/50 !bg-gradient-to-b !from-sky-500/95 !via-blue-700 !to-slate-950 !px-1.5 !py-1 !text-[11px] !font-bold !text-sky-50 !shadow-[0_2px_14px_rgba(56,189,248,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:!brightness-110 active:!scale-[0.98] transition-all duration-200 sm:!px-2 sm:!py-1.5 sm:!text-xs',
+    claimAll:
+        'whitespace-nowrap !rounded-lg !border !border-emerald-300/55 !bg-gradient-to-b !from-teal-500/90 !via-emerald-800 !to-emerald-950 !px-2 !py-1 !text-[11px] !font-bold !text-white !shadow-[0_2px_12px_rgba(16,185,129,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] hover:!brightness-110 active:!scale-[0.98] disabled:!opacity-50 transition-all duration-200 sm:!px-2.5 sm:!py-1.5 sm:!text-xs',
+} as const;
+
 interface TrainingQuestPanelProps {
     currentUser: UserWithStatus;
-    /** 네이티브 싱글플레이 상단 우측: 높이 제한 시 목록만 스크롤 */
+    /** 네이티브 싱글플레이 상단 우측: 2×3 그리드로 6과제를 스크롤 없이 채움 */
     compactTopSlot?: boolean;
 }
 
@@ -275,17 +287,17 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
     return (
         <>
             <div
-                className={`bg-panel flex flex-col overflow-hidden rounded-lg shadow-lg ${compactTopSlot ? 'h-full min-h-0 p-1' : 'h-full p-1.5 sm:p-2'}`}
+                className={`bg-panel flex flex-col overflow-hidden rounded-lg shadow-lg ${compactTopSlot ? 'h-full min-h-0 p-1.5' : 'h-full p-1.5 sm:p-2'}`}
             >
                 <div
                     className={`flex flex-shrink-0 items-center justify-between border-b border-color ${compactTopSlot ? 'mb-0.5 pb-0.5' : 'mb-1 pb-0.5 sm:mb-1.5 sm:pb-1'}`}
                 >
-                    <h2 className={`font-bold text-on-panel ${compactTopSlot ? 'text-xs' : 'text-base sm:text-lg'}`}>수련 과제</h2>
+                    <h2 className={`font-bold text-on-panel ${compactTopSlot ? 'text-sm' : 'text-base sm:text-lg'}`}>수련 과제</h2>
                     {claimableQuestsCount > 0 && (
                         <Button
                             onClick={handleClaimAllRewards}
-                            colorScheme="green"
-                            className={`whitespace-nowrap ${compactTopSlot ? '!px-1 !py-0.5 !text-[9px]' : '!text-[10px] !py-0.5 !px-1.5 sm:!text-xs sm:!py-1 sm:!px-2'}`}
+                            colorScheme="none"
+                            className={PREMIUM_QUEST_BTN.claimAll}
                             disabled={isClaimingAll}
                         >
                             {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
@@ -294,8 +306,8 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                 </div>
                 
                 {/* 2x3 그리드 */}
-                <div className={`min-h-0 flex-1 ${compactTopSlot ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}>
-                    <div className={`grid grid-cols-2 gap-1 sm:gap-1.5 ${compactTopSlot ? '' : 'h-full'}`}>
+                <div className={`min-h-0 flex-1 ${compactTopSlot ? 'min-h-0 overflow-hidden' : 'overflow-hidden'}`}>
+                    <div className={`grid grid-cols-2 ${compactTopSlot ? 'h-full min-h-0 grid-rows-3 gap-1.5' : 'h-full gap-1 sm:gap-1.5'}`}>
                         {trainingQuests.map((quest) => {
                             const { reward, progress, timeUntilNext, isMax } = calculateRewardAndProgress(quest);
                             const isMaxLevel = quest.currentLevel >= 10;
@@ -306,7 +318,8 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                 <div
                                     key={quest.id}
                                     className={`
-                                        relative bg-tertiary rounded-lg p-1 sm:p-1.5 border-2 flex flex-col min-h-0 overflow-hidden
+                                        relative bg-tertiary rounded-lg border-2 flex flex-col min-h-0 overflow-hidden
+                                        ${compactTopSlot ? 'h-full min-h-0 p-1.5' : 'p-1 sm:p-1.5'}
                                         ${quest.isUnlocked ? 'border-primary' : 'border-gray-600'}
                                     `}
                                 >
@@ -319,7 +332,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                                 <div className="flex flex-col items-end gap-0.5">
                                                     <div className="text-lg sm:text-xl filter drop-shadow-lg">🔒</div>
                                                     <div className="bg-black/80 rounded px-1.5 py-0.5 sm:px-2 sm:py-1 border border-gray-600">
-                                                        <span className="text-white font-bold text-[8px] sm:text-[9px] text-center block whitespace-nowrap">
+                                                        <span className={`text-white font-bold text-center block whitespace-nowrap ${compactTopSlot ? 'text-[10px]' : 'text-[8px] sm:text-[9px]'}`}>
                                                             {quest.unlockStageId} 필요
                                                         </span>
                                                     </div>
@@ -329,7 +342,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                     )}
 
                                     {/* 이미지 */}
-                                    <div className={`w-full aspect-square max-w-[50px] sm:max-w-[60px] mx-auto rounded-lg overflow-hidden bg-gray-700 mb-0.5 sm:mb-1 flex-shrink-0 ${!quest.isUnlocked ? 'opacity-50' : ''}`}>
+                                    <div className={`w-full aspect-square mx-auto rounded-lg overflow-hidden bg-gray-700 flex-shrink-0 ${!quest.isUnlocked ? 'opacity-50' : ''} ${compactTopSlot ? 'max-w-[58px] mb-1' : 'max-w-[50px] sm:max-w-[60px] mb-0.5 sm:mb-1'}`}>
                                         <img 
                                             src={quest.image} 
                                             alt={quest.name}
@@ -344,10 +357,10 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                     {/* 제목 및 레벨 */}
                                     <div className="mb-0.5 sm:mb-1 flex-shrink-0">
                                         <div className="flex items-center justify-between mb-0.5">
-                                            <h3 className={`font-bold text-[10px] sm:text-xs truncate ${quest.isUnlocked ? 'text-on-panel' : 'text-gray-400'}`}>
+                                            <h3 className={`font-bold truncate ${quest.isUnlocked ? 'text-on-panel' : 'text-gray-400'} ${compactTopSlot ? 'text-xs' : 'text-[10px] sm:text-xs'}`}>
                                                 {quest.name}
                                             </h3>
-                                            <span className={`text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 whitespace-nowrap ${quest.isUnlocked ? 'text-tertiary' : 'text-gray-500'}`}>
+                                            <span className={`ml-0.5 sm:ml-1 whitespace-nowrap ${quest.isUnlocked ? 'text-tertiary' : 'text-gray-500'} ${compactTopSlot ? 'text-[10px]' : 'text-[8px] sm:text-[9px]'}`}>
                                                 Lv.{quest.currentLevel || 0}/10
                                             </span>
                                         </div>
@@ -359,7 +372,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                             <>
                                                 {/* 막대그래프 */}
                                                 <div className="relative">
-                                                    <div className="w-full bg-gray-700 rounded-full h-3 sm:h-3.5 overflow-hidden">
+                                                    <div className={`w-full bg-gray-700 rounded-full overflow-hidden ${compactTopSlot ? 'h-3.5' : 'h-3 sm:h-3.5'}`}>
                                                         {quest.isUnlocked && quest.isStarted ? (
                                                             <div 
                                                                 className={`h-full transition-all duration-300 ${
@@ -375,9 +388,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                                         )}
                                                     </div>
                                                     <div className="absolute inset-0 flex items-center justify-center">
-                                                        <span className={`text-[8px] sm:text-[9px] font-bold drop-shadow-md ${
-                                                            !quest.isUnlocked ? 'text-gray-500' : 'text-white'
-                                                        }`}>
+                                                        <span className={`font-bold drop-shadow-md ${!quest.isUnlocked ? 'text-gray-500' : 'text-white'} ${compactTopSlot ? 'text-[10px]' : 'text-[8px] sm:text-[9px]'}`}>
                                                             {quest.isUnlocked && quest.isStarted 
                                                                 ? `${reward.toLocaleString()} / ${quest.levelInfo.maxCapacity.toLocaleString()}`
                                                                 : `0 / ${quest.levelInfo.maxCapacity.toLocaleString()}`
@@ -387,7 +398,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                                 </div>
 
                                                 {/* 생산 정보 */}
-                                                <div className="flex items-center justify-between text-[8px] sm:text-[9px] leading-tight">
+                                                <div className={`flex items-center justify-between leading-tight ${compactTopSlot ? 'text-[10px]' : 'text-[8px] sm:text-[9px]'}`}>
                                                     <span className={`flex items-center gap-0.5 ${quest.isUnlocked ? 'text-tertiary' : 'text-gray-500'}`}>
                                                         <span>{quest.levelInfo.productionRateMinutes}분/</span>
                                                         <span className="flex items-center gap-0.5">
@@ -395,7 +406,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                                             <img 
                                                                 src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} 
                                                                 alt={quest.rewardType === 'gold' ? '골드' : '다이아'} 
-                                                                className="w-2.5 h-2.5 sm:w-3 sm:h-3 object-contain"
+                                                                className={`object-contain ${compactTopSlot ? 'w-3 h-3' : 'w-2.5 h-2.5 sm:w-3 sm:h-3'}`}
                                                             />
                                                         </span>
                                                     </span>
@@ -420,18 +431,16 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                             /* 레벨 0일 때 기본 표시 */
                                             <div className="space-y-0.5 sm:space-y-1">
                                                 <div className="relative">
-                                                    <div className="w-full bg-gray-700 rounded-full h-3 sm:h-3.5 overflow-hidden">
+                                                    <div className={`w-full bg-gray-700 rounded-full overflow-hidden ${compactTopSlot ? 'h-3.5' : 'h-3 sm:h-3.5'}`}>
                                                         <div className="h-full bg-gray-600" style={{ width: '0%' }} />
                                                     </div>
                                                     <div className="absolute inset-0 flex items-center justify-center">
-                                                        <span className={`text-[8px] sm:text-[9px] font-bold drop-shadow-md ${
-                                                            !quest.isUnlocked ? 'text-gray-500' : 'text-white'
-                                                        }`}>
+                                                        <span className={`font-bold drop-shadow-md ${!quest.isUnlocked ? 'text-gray-500' : 'text-white'} ${compactTopSlot ? 'text-[10px]' : 'text-[8px] sm:text-[9px]'}`}>
                                                             0 / -
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center justify-between text-[8px] sm:text-[9px]">
+                                                <div className={`flex items-center justify-between ${compactTopSlot ? 'text-[10px]' : 'text-[8px] sm:text-[9px]'}`}>
                                                     <span className={`flex items-center gap-0.5 ${quest.isUnlocked ? 'text-tertiary' : 'text-gray-500'}`}>
                                                         <span>시작 후 표시</span>
                                                     </span>
@@ -449,10 +458,10 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                     {levelUpInfo && !isMaxLevel && quest.isStarted && (
                                         <div className={`mb-0.5 sm:mb-1 flex-shrink-0 ${!quest.isUnlocked ? 'opacity-50' : ''}`}>
                                             <div className="flex items-center justify-between mb-0.5">
-                                                <span className="text-[8px] sm:text-[9px] text-amber-200/90">경험치</span>
-                                                <span className="text-[8px] sm:text-[9px] font-bold text-amber-200/90">{Math.floor(levelUpInfo.progress)}%</span>
+                                                <span className={`text-amber-200/90 ${compactTopSlot ? 'text-[10px]' : 'text-[8px] sm:text-[9px]'}`}>경험치</span>
+                                                <span className={`font-bold text-amber-200/90 ${compactTopSlot ? 'text-[10px]' : 'text-[8px] sm:text-[9px]'}`}>{Math.floor(levelUpInfo.progress)}%</span>
                                             </div>
-                                            <div className="w-full h-2 sm:h-2.5 bg-gray-700/70 rounded-full overflow-hidden">
+                                            <div className={`w-full bg-gray-700/70 rounded-full overflow-hidden ${compactTopSlot ? 'h-2.5' : 'h-2 sm:h-2.5'}`}>
                                                 <div
                                                     className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-300"
                                                     style={{ width: `${levelUpInfo.progress}%` }}
@@ -468,8 +477,8 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                                 {/* 잠김 상태: 수령 및 강화 버튼 표시 (비활성화) */}
                                                 <Button
                                                     disabled
-                                                    colorScheme="green"
-                                                    className="flex-1 !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 opacity-50 flex items-center justify-center"
+                                                    colorScheme="none"
+                                                    className={`${PREMIUM_QUEST_BTN.claim} opacity-50`}
                                                 >
                                                     <span className="flex items-center gap-1">
                                                         <span>수령</span>
@@ -483,8 +492,8 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                                 </Button>
                                                 <Button
                                                     disabled
-                                                    colorScheme="accent"
-                                                    className="flex-1 !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 opacity-50 flex items-center justify-center !whitespace-nowrap"
+                                                    colorScheme="none"
+                                                    className={`${PREMIUM_QUEST_BTN.upgrade} opacity-50`}
                                                 >
                                                     강화
                                                 </Button>
@@ -492,8 +501,8 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                         ) : !quest.isStarted ? (
                                             <Button
                                                 onClick={() => handleStartMission(quest.id)}
-                                                colorScheme="blue"
-                                                className="w-full !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5"
+                                                colorScheme="none"
+                                                className={PREMIUM_QUEST_BTN.start}
                                             >
                                                 시작
                                             </Button>
@@ -501,8 +510,8 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                             <>
                                                 <Button
                                                     onClick={() => handleCollectReward(quest.id)}
-                                                    colorScheme="green"
-                                                    className="flex-1 !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 flex items-center justify-center"
+                                                    colorScheme="none"
+                                                    className={PREMIUM_QUEST_BTN.claim}
                                                     disabled={!canCollect}
                                                 >
                                                     <span className="flex items-center gap-1">
@@ -517,8 +526,8 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                                 </Button>
                                                 <Button
                                                     onClick={() => handleLevelUpClick(quest.id)}
-                                                    colorScheme="accent"
-                                                    className="flex-1 !text-[9px] sm:!text-[10px] !py-0.5 sm:!py-0.5 flex items-center justify-center !whitespace-nowrap"
+                                                    colorScheme="none"
+                                                    className={PREMIUM_QUEST_BTN.upgrade}
                                                     disabled={isMaxLevel}
                                                 >
                                                     강화

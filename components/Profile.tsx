@@ -1125,21 +1125,21 @@ const Profile: React.FC<ProfileProps> = () => {
         <div
             className={`bg-primary text-primary flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root h-full max-h-full min-h-0' : 'h-full p-2 sm:p-4 lg:p-2'}`}
         >
-            <header className={`flex min-w-0 flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0 gap-1 px-0.5 py-0.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
-                <h1 className={`min-w-0 truncate font-bold text-primary ${isNativeMobile ? 'text-xs' : 'text-base lg:text-2xl'}`}>
+            <header className={`flex min-w-0 flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0 gap-1.5 px-1 py-1.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
+                <h1 className={`min-w-0 truncate font-bold text-primary ${isNativeMobile ? 'text-sm sm:text-base' : 'text-base lg:text-2xl'}`}>
                     {isNativeMobile ? (profileTab === 'ranking' ? '랭킹' : profileTab === 'arena' ? '경기장' : '홈') : '홈'}
                 </h1>
-                <div className={`flex shrink-0 items-center ${isNativeMobile ? 'gap-0.5' : 'gap-1 lg:gap-2'}`}>
+                <div className={`flex shrink-0 items-center ${isNativeMobile ? 'gap-1' : 'gap-1 lg:gap-2'}`}>
                     <button
                         onClick={handlers.openEncyclopedia}
-                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-6 w-6' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
+                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
                         title="도감"
                     >
                         <img src="/images/button/itembook.png" alt="도감" className="h-full w-full object-contain" />
                     </button>
                     <button
                         onClick={handlers.openInfoModal}
-                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-6 w-6' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
+                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
                         title="도움말"
                     >
                         <img src="/images/button/help.webp" alt="도움말" className="h-full w-full object-contain" />

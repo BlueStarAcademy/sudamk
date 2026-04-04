@@ -63,7 +63,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         : `flex flex-col items-center justify-center p-1 rounded-lg w-full bg-gradient-to-br from-gray-700/90 via-gray-600/80 to-gray-700/90 hover:from-gray-600/95 hover:via-gray-500/85 hover:to-gray-600/95 border-2 border-gray-500/60 hover:border-gray-400/80 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`;
 
     const iconSize = nativeHomeColumn
-        ? 'h-8 w-8 max-h-[48%] max-w-[72%] object-contain drop-shadow-md'
+        ? 'h-9 w-9 max-h-[52%] max-w-[76%] object-contain drop-shadow-md'
         : mobile && dense
           ? "w-4 h-4 object-contain drop-shadow-sm"
           : mobile
@@ -72,7 +72,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
               ? "w-12 h-12 object-contain drop-shadow-md"
               : "w-10 h-10 object-contain drop-shadow-md";
     const labelSize = nativeHomeColumn
-        ? 'w-full truncate px-0.5 text-center text-[9px] font-semibold leading-none text-gray-200'
+        ? 'w-full truncate px-0.5 text-center text-[10px] font-semibold leading-none text-gray-200'
         : mobile && dense
           ? "text-[7px] mt-0.5 font-semibold text-gray-200 leading-none"
           : mobile

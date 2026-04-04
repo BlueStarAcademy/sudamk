@@ -26,11 +26,11 @@ const SPECIAL_RESOURCES_POPOVER_Z = 200_000;
 const ResourceDisplay = memo<{ icon: ResourceIconKey; value: number; className?: string; dense?: boolean }>(({ icon, value, className, dense }) => {
     const formattedValue = useMemo(() => value.toLocaleString(), [value]);
     return (
-        <div className={`flex items-center bg-tertiary/50 rounded-full shadow-inner flex-shrink-0 ${dense ? 'gap-px py-px pl-px pr-1' : 'gap-1 sm:gap-2 py-1 pl-1 pr-2 sm:pr-3'} ${className ?? ''}`}>
-            <div className={`bg-primary flex items-center justify-center rounded-full flex-shrink-0 ${dense ? 'h-4 w-4' : 'w-7 h-7 text-lg'}`}>
-                <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className={`object-contain ${dense ? 'h-3 w-3' : 'w-5 h-5'}`} loading="lazy" decoding="async" />
+        <div className={`flex items-center bg-tertiary/50 rounded-full shadow-inner flex-shrink-0 ${dense ? 'gap-0.5 py-0.5 pl-0.5 pr-1.5' : 'gap-1 sm:gap-2 py-1 pl-1 pr-2 sm:pr-3'} ${className ?? ''}`}>
+            <div className={`bg-primary flex items-center justify-center rounded-full flex-shrink-0 ${dense ? 'h-6 w-6' : 'w-7 h-7 text-lg'}`}>
+                <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className={`object-contain ${dense ? 'h-4 w-4' : 'w-5 h-5'}`} loading="lazy" decoding="async" />
             </div>
-            <span className={`font-bold text-primary whitespace-nowrap ${dense ? 'max-w-[3.5rem] truncate text-[7px]' : 'text-[9px] sm:text-sm'}`}>{formattedValue}</span>
+            <span className={`font-bold text-primary whitespace-nowrap ${dense ? 'max-w-[5.25rem] truncate text-[11px] tabular-nums' : 'text-[9px] sm:text-sm'}`}>{formattedValue}</span>
         </div>
     );
 });
@@ -70,7 +70,7 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus }> = ({ user }) =
 
     if (!timeLeft) return null;
 
-    return <span className="text-[7px] text-tertiary sm:text-xs font-mono text-center whitespace-nowrap">({timeLeft})</span>;
+    return <span className="text-[10px] text-tertiary sm:text-xs font-mono text-center whitespace-nowrap">({timeLeft})</span>;
 };
 
 
@@ -152,20 +152,24 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
 
     return (
         <>
-        <header className="relative z-50 w-full min-w-0 flex-shrink-0 overflow-x-hidden bg-primary/80 shadow-lg backdrop-blur-sm">
+        <header
+            className={`relative z-50 w-full min-w-0 flex-shrink-0 overflow-x-hidden bg-primary/80 shadow-lg backdrop-blur-sm ${isMobile ? 'pt-[max(6px,env(safe-area-inset-top,0px))]' : ''}`}
+        >
             <div
                 className={`flex min-w-0 items-center gap-1 sm:gap-2 sm:items-center sm:gap-3 ${
-                    dense ? 'min-h-0 flex-nowrap gap-x-1 gap-y-0 px-1 py-0.5 sm:min-h-[48px] sm:gap-2 sm:px-2 sm:py-1.5' : 'min-h-[70px] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:min-h-[75px] sm:p-3'
+                    dense
+                        ? 'min-h-[58px] flex-nowrap items-center gap-x-2 gap-y-0 px-2 py-2 sm:min-h-[58px] sm:gap-2 sm:px-2 sm:py-2'
+                        : 'min-h-[70px] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:min-h-[75px] sm:p-3'
                 }`}
             >
                 <div
-                    className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-1 sm:gap-3 ${dense ? 'max-w-[min(38%,9.5rem)]' : ''} relative`}
+                    className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-1.5 sm:gap-3 ${dense ? 'max-w-[min(40%,10.5rem)]' : ''} relative`}
                     onClick={openProfileEditModal}
                 >
-                     <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 24 : compact ? 32 : 40} />
+                     <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 36 : compact ? 32 : 40} />
                      <div className="min-w-0 flex-1">
-                        <h1 className={`font-bold text-primary truncate ${dense ? 'max-w-full text-[10px] leading-tight sm:text-sm' : ''}`}>{currentUserWithStatus.nickname}</h1>
-                        <p className={`truncate text-tertiary ${dense ? 'text-[8px] leading-tight sm:text-xs' : 'text-xs'}`}>
+                        <h1 className={`font-bold text-primary truncate ${dense ? 'max-w-full text-sm leading-tight sm:text-base' : ''}`}>{currentUserWithStatus.nickname}</h1>
+                        <p className={`truncate text-tertiary ${dense ? 'text-xs leading-tight sm:text-sm' : 'text-xs'}`}>
                             Lv.{combinedUserLevel}
                         </p>
                      </div>
@@ -177,27 +181,27 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     <div className={`flex min-w-0 flex-1 items-center justify-end gap-0.5 sm:w-auto sm:gap-2 ${dense ? 'flex-nowrap overflow-hidden' : 'flex-wrap sm:flex-nowrap'}`}>
                     <div
                         className={`flex flex-shrink-0 items-center gap-0.5 rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner sm:gap-1 ${
-                            dense ? 'py-px pl-0.5 pr-px' : 'pl-2 pr-1 py-1'
+                            dense ? 'py-1 pl-1.5 pr-1' : 'pl-2 pr-1 py-1'
                         }`}
                     >
                         <span
-                            className={`flex items-center gap-px font-bold whitespace-nowrap text-primary sm:gap-1 ${dense ? 'text-[7px]' : 'text-[9px] sm:text-xs'}`}
+                            className={`flex items-center gap-0.5 font-bold whitespace-nowrap text-primary sm:gap-1 ${dense ? 'text-[11px]' : 'text-[9px] sm:text-xs'}`}
                         >
-                            <span className={`leading-none ${dense ? 'text-xs' : 'text-base'}`}>⚡</span>
+                            <span className="text-base leading-none">⚡</span>
                             {`${safeActionPoints.current}/${safeActionPoints.max}`}
                         </span>
                         <ActionPointTimer user={currentUserWithStatus} />
                         <button
                             onClick={handlers.openActionPointModal}
                             className={`flex flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary ${
-                                dense ? 'h-5 w-5' : 'h-7 w-7 sm:h-8 sm:w-8'
+                                dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
                             }`}
                             title="행동력 충전 (상점)"
                         >
                             <img
                                 src={resourceIcons.actionPlus}
                                 alt="행동력 충전"
-                                className={`object-contain ${dense ? 'h-2.5 w-2.5' : 'h-4 w-4 sm:h-5 sm:w-5'}`}
+                                className={`object-contain ${dense ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-5 sm:w-5'}`}
                                 loading="lazy"
                                 decoding="async"
                             />
@@ -210,12 +214,12 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             <button
                                 onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
                                 className={`flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 ${
-                                    dense ? 'h-4 w-4' : 'h-6 w-6 sm:h-7 sm:w-7'
+                                    dense ? 'h-6 w-6' : 'h-6 w-6 sm:h-7 sm:w-7'
                                 } ${isSpecialResourcesOpen ? 'bg-tertiary/80' : ''}`}
                                 title="특수 재화"
                             >
                                 <span
-                                    className={`text-primary transition-transform ${dense ? 'text-[7px]' : 'text-[10px] sm:text-xs'} ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}
+                                    className={`text-primary transition-transform ${dense ? 'text-[10px]' : 'text-[10px] sm:text-xs'} ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}
                                 >
                                     ▼
                                 </span>
@@ -228,7 +232,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         )}
                     </div>
                     
-                    <div className={`w-px flex-shrink-0 bg-border-color ${dense ? 'mx-0.5 h-5 self-center' : 'mx-1 h-9 sm:mx-2'}`} />
+                    <div className={`w-px flex-shrink-0 bg-border-color ${dense ? 'mx-0.5 h-7 self-center' : 'mx-1 h-9 sm:mx-2'}`} />
                     
                     {/* 공통 버튼들 (모바일에서도 항상 노출) */}
                     <div className="flex flex-shrink-0 items-center gap-0.5 sm:gap-2">
@@ -238,10 +242,10 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             colorScheme="none"
                             className={`${
                                 dense
-                                    ? '!h-5 !min-h-5 !max-h-5 !px-1 !py-0 !text-[7px] !leading-none rounded-full border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
+                                    ? '!h-7 !min-h-7 !max-h-7 !px-2 !py-0 !text-[10px] !leading-none rounded-full border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
                                     : '!px-3 !py-1.5 text-[9px] sm:text-xs rounded-lg border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
                             } flex-shrink-0 whitespace-nowrap`}
-                            style={{ letterSpacing: dense ? '0.04em' : '0.08em', ...(dense ? { fontSize: '7px' } : {}) }}
+                            style={{ letterSpacing: dense ? '0.04em' : '0.08em', ...(dense ? { fontSize: '10px' } : {}) }}
                         >
                             관리자
                         </Button>
@@ -250,7 +254,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         onClick={openMailbox}
                         className={
                             dense
-                                ? 'relative flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
+                                ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
                                 : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
                         }
                         title="우편함"
@@ -258,7 +262,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         <img
                             src="/images/icon/mail.png"
                             alt="우편함"
-                            className={`object-contain ${dense ? 'h-2.5 w-2.5' : 'h-6 w-6'}`}
+                            className={`object-contain ${dense ? 'h-4 w-4' : 'h-6 w-6'}`}
                             loading="lazy"
                             decoding="async"
                         />
@@ -272,7 +276,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         onClick={openSettingsModal}
                         className={
                             dense
-                                ? 'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-xs leading-none transition-colors hover:bg-primary'
+                                ? 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-base leading-none transition-colors hover:bg-primary'
                                 : 'rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
                         }
                         title="설정"
@@ -284,14 +288,14 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         onClick={() => setShowLogoutConfirm(true)}
                         className={
                             dense
-                                ? 'box-border flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 border-red-500/65 bg-red-950/30 leading-none transition-colors hover:bg-red-950/50'
+                                ? 'box-border flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 border-red-500/65 bg-red-950/30 leading-none transition-colors hover:bg-red-950/50'
                                 : 'box-border rounded-lg border-2 border-red-500/55 p-2 leading-none transition-colors hover:bg-secondary hover:border-red-500/70'
                         }
                         title="로그아웃"
                         aria-label="로그아웃"
                     >
                         <span
-                            className={`select-none font-normal leading-none text-red-500 [font-variant-emoji:text] ${dense ? 'text-sm' : 'text-2xl'}`}
+                            className={`select-none font-normal leading-none text-red-500 [font-variant-emoji:text] ${dense ? 'text-lg' : 'text-2xl'}`}
                             aria-hidden
                         >
                             ⏻

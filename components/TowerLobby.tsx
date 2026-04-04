@@ -180,13 +180,17 @@ const TowerLobby: React.FC = () => {
     // 스테이지(층) 데이터 (1층부터 100층까지, 역순으로 표시하여 아래에서 위로 스크롤)
     const stages = Array.from({ length: 100 }, (_, i) => i + 1).reverse();
 
-    // 스크롤을 아래쪽(1층)부터 시작하도록 설정
-    useEffect(() => {
-        if (stageScrollRef.current) {
-            // 스크롤을 맨 아래(1층)로 설정
-            stageScrollRef.current.scrollTop = stageScrollRef.current.scrollHeight;
+    // 입장·진행 갱신 시: 가장 최근 클리어한 최고 층(bestFloorAllTime)이 보이도록 스크롤 (미클리어 시 1층 영역 = 맨 아래)
+    useLayoutEffect(() => {
+        const el = stageScrollRef.current;
+        if (!el) return;
+        if (bestFloorAllTime <= 0) {
+            el.scrollTop = el.scrollHeight;
+            return;
         }
-    }, []);
+        const row = el.querySelector<HTMLElement>(`[data-tower-floor="${bestFloorAllTime}"]`);
+        row?.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }, [bestFloorAllTime, isNativeMobile]);
 
     const rankingColClass = isNativeMobile
         ? 'flex max-h-[32dvh] min-h-0 w-full flex-none flex-col gap-1 overflow-hidden pb-0.5'
@@ -305,6 +309,7 @@ const TowerLobby: React.FC = () => {
                             return (
                                 <div
                                     key={floor}
+                                    data-tower-floor={floor}
                                     className={`rounded-lg p-2.5 sm:p-3 border flex items-center justify-between gap-2 relative ${
                                         isLocked
                                             ? 'bg-gray-900/50 border-gray-700/50 opacity-60'
@@ -915,10 +920,10 @@ const TowerLobby: React.FC = () => {
             )}
             {/* 헤더: (모바일은 뒤로가기 없음) 타이틀, 도움말 */}
             <header
-                className={`flex flex-shrink-0 items-center justify-between border-b border-amber-600/40 bg-gradient-to-b from-black/60 via-amber-900/20 to-transparent shadow-[0_4px_20px_rgba(217,119,6,0.3)] backdrop-blur-sm ${isNativeMobile ? 'px-1 py-1.5' : 'px-2 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5'}`}
+                className={`flex flex-shrink-0 items-center justify-between border-b border-amber-600/40 bg-gradient-to-b from-black/60 via-amber-900/20 to-transparent shadow-[0_4px_20px_rgba(217,119,6,0.3)] backdrop-blur-sm ${isNativeMobile ? 'px-1.5 py-2' : 'px-2 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5'}`}
             >
                 {isNativeMobile ? (
-                    <div className="h-8 w-8 flex-shrink-0" aria-hidden />
+                    <div className="h-9 w-9 flex-shrink-0" aria-hidden />
                 ) : (
                     <button
                         onClick={onBackToProfile}
@@ -929,13 +934,13 @@ const TowerLobby: React.FC = () => {
                     </button>
                 )}
                 <h1
-                    className={`truncate font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-200 drop-shadow-[0_0_12px_rgba(217,119,6,0.9)] ${isNativeMobile ? 'max-w-[55%] text-center text-base' : 'text-2xl sm:text-3xl lg:text-4xl'}`}
+                    className={`truncate font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-200 drop-shadow-[0_0_12px_rgba(217,119,6,0.9)] ${isNativeMobile ? 'max-w-[58%] text-center text-lg' : 'text-2xl sm:text-3xl lg:text-4xl'}`}
                 >
                     도전의 탑
                 </h1>
                 <button
                     onClick={() => setIsHelpOpen(!isHelpOpen)}
-                    className={`flex items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-10 sm:w-10'}`}
+                    className={`flex items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-8 w-8' : 'h-8 w-8 sm:h-10 sm:w-10'}`}
                     aria-label="도움말"
                     title="도움말"
                 >

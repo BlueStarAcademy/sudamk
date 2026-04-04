@@ -336,7 +336,16 @@ export const useApp = () => {
                     ...defaultSettings,
                     ...parsed,
                     graphics: { ...defaultSettings.graphics, ...(parsed.graphics || {}) },
-                    sound: { ...defaultSettings.sound, ...(parsed.sound || {}) },
+                    sound: {
+                        ...defaultSettings.sound,
+                        ...(parsed.sound || {}),
+                        categoryMuted: {
+                            ...defaultSettings.sound.categoryMuted,
+                            ...(parsed.sound?.categoryMuted && typeof parsed.sound.categoryMuted === 'object'
+                                ? parsed.sound.categoryMuted
+                                : {}),
+                        },
+                    },
                     features: { ...defaultSettings.features, ...(parsed.features || {}) },
                 };
             }

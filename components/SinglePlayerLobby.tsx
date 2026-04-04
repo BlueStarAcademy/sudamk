@@ -43,7 +43,7 @@ const SinglePlayerLobby: React.FC = () => {
         >
             {/* Header */}
             <header
-                className={`flex flex-shrink-0 items-center ${isNativeMobile ? 'mb-0.5 justify-center px-0.5' : 'mb-3 justify-between px-2 sm:mb-4 sm:px-0 lg:mb-6'}`}
+                className={`flex flex-shrink-0 items-center ${isNativeMobile ? 'mb-0.5 justify-center px-1 py-1' : 'mb-3 justify-between px-2 sm:mb-4 sm:px-0 lg:mb-6'}`}
             >
                 {!isNativeMobile && (
                     <button
@@ -54,14 +54,14 @@ const SinglePlayerLobby: React.FC = () => {
                         <img src="/images/button/back.png" alt="Back" className="h-full w-full" />
                     </button>
                 )}
-                <h1 className={`font-bold text-gray-100 ${isNativeMobile ? 'text-sm' : 'text-xl sm:text-2xl lg:text-3xl xl:text-4xl'}`}>싱글플레이</h1>
+                <h1 className={`font-bold text-gray-100 ${isNativeMobile ? 'text-lg' : 'text-xl sm:text-2xl lg:text-3xl xl:text-4xl'}`}>싱글플레이</h1>
                 {!isNativeMobile && <div className="w-10" />}
             </header>
 
             {isNativeMobile ? (
                 <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-0.5">
                     {/* 상단: 좌 단계 선택 · 우 수련 과제 */}
-                    <div className="grid min-h-0 max-h-[min(42dvh,380px)] shrink-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+                    <div className="grid min-h-0 min-h-[min(52dvh,540px)] max-h-[min(66dvh,660px)] shrink-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-1.5 overflow-x-hidden overflow-y-auto overscroll-y-contain">
                         <div className="flex min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                             <ClassNavigationPanel selectedClass={selectedClass} onClassSelect={setOverrideClass} compact />
                         </div>

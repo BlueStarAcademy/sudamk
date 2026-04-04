@@ -21,6 +21,7 @@ import {
     NATIVE_MOBILE_SHELL_MAX_WIDTH,
     NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
     NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
+    NATIVE_MOBILE_MODAL_MAX_WIDTH_PX,
 } from './constants/ads.js';
 
 function usePrevious<T>(value: T): T | undefined {
@@ -271,9 +272,8 @@ const AppContent: React.FC = () => {
                 <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative">
                     <style>{`
                         #sudamr-modal-root [data-draggable-window] {
-                            max-width: ${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw !important;
-                            max-width: min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%) !important;
-                            max-height: ${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh !important;
+                            max-width: min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px) !important;
+                            max-height: min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px)) !important;
                             box-sizing: border-box;
                         }
                     `}</style>

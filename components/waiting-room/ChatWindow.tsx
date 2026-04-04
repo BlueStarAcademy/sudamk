@@ -14,9 +14,19 @@ interface ChatWindowProps {
     locationPrefix?: string;
     /** 홈 하단 패널 등: 강제 min-height 제거, 메시지 없을 때 세로 스크롤 영역 숨김 */
     compactHome?: boolean;
+    /** 네이티브 챔피언십: 하단 독과 비슷한 글자 크기 + 본문은 스크롤 유지 (compactHome과 달리 overflow-y-auto) */
+    compactTournamentMobile?: boolean;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onAction, mode, onViewUser, locationPrefix, compactHome = false }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({
+    messages,
+    onAction,
+    mode,
+    onViewUser,
+    locationPrefix,
+    compactHome = false,
+    compactTournamentMobile = false,
+}) => {
     const chatBodyRef = useRef<HTMLDivElement>(null);
     const quickChatRef = useRef<HTMLDivElement>(null);
     const [chatInput, setChatInput] = useState('');
@@ -136,37 +146,40 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onAction, mode, onVie
 
     const hasGuild = !!currentUserWithStatus?.guildId;
     const activeMessages = activeTab === 'guild' ? guildMessages : messages;
-    const compactMsg = compactHome ? 'text-[11px] leading-snug' : 'text-xs';
-    const compactEmpty = compactHome ? 'text-[11px] leading-snug' : 'text-sm';
+    const compactUi = compactHome || compactTournamentMobile;
+    const compactMsg = compactUi ? 'text-[11px] leading-snug' : 'text-xs';
+    const compactEmpty = compactUi ? 'text-[11px] leading-snug' : 'text-sm';
 
     return (
         <div
-            className={`flex h-full flex-col text-on-panel ${compactHome ? 'min-h-0 p-1' : 'min-h-[220px] p-4 sm:min-h-0'}`}
+            className={`flex h-full flex-col text-on-panel ${compactHome || compactTournamentMobile ? 'min-h-0 p-1' : 'min-h-[220px] p-4 sm:min-h-0'}`}
         >
             {hasGuild ? (
-                <div className={`flex flex-shrink-0 rounded-lg bg-gray-900/70 ${compactHome ? 'mb-1 p-0.5' : 'mb-2 p-1'}`}>
+                <div className={`flex flex-shrink-0 rounded-lg bg-gray-900/70 ${compactUi ? 'mb-1 p-0.5' : 'mb-2 p-1'}`}>
                     <button 
                         onClick={() => setActiveTab('global')} 
-                        className={`flex-1 rounded-md font-semibold ${compactHome ? 'py-1 text-[12px]' : 'py-1.5 text-sm'} ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
+                        className={`flex-1 rounded-md font-semibold ${compactUi ? 'py-1 text-[12px]' : 'py-1.5 text-sm'} ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
                     >
                         전체채팅
                     </button>
                     <button 
                         onClick={() => setActiveTab('guild')} 
-                        className={`flex-1 rounded-md font-semibold ${compactHome ? 'py-1 text-[12px]' : 'py-1.5 text-sm'} ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
+                        className={`flex-1 rounded-md font-semibold ${compactUi ? 'py-1 text-[12px]' : 'py-1.5 text-sm'} ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
                     >
                         길드채팅
                     </button>
                 </div>
             ) : (
-                <h2 className={`flex-shrink-0 border-b border-color font-semibold ${compactHome ? 'pb-0.5 text-sm' : 'pb-1 text-lg'}`}>전체채팅</h2>
+                <h2 className={`flex-shrink-0 border-b border-color font-semibold ${compactUi ? 'pb-0.5 text-sm' : 'pb-1 text-lg'}`}>전체채팅</h2>
             )}
             {activeTab === 'global' && (
-                <p className={`text-center text-yellow-400 bg-tertiary/50 ${compactHome ? 'mb-0.5 rounded-sm p-0.5 text-[10px] leading-tight' : 'rounded-sm p-0.5 text-[10px]'}`}>AI 보안관봇이 부적절한 언어 사용을 감지하고 있습니다. 🚓</p>
+                <p className={`text-center text-yellow-400 bg-tertiary/50 ${compactUi ? 'mb-0.5 rounded-sm p-0.5 text-[11px] leading-tight' : 'rounded-sm p-0.5 text-[10px]'}`}>AI 보안관봇이 부적절한 언어 사용을 감지하고 있습니다. 🚓</p>
             )}
             <div
                 ref={chatBodyRef}
-                className={`flex-1 space-y-0.5 rounded-md bg-tertiary/40 p-1 pr-1 min-h-0 ${compactHome ? 'overflow-hidden' : 'min-h-[160px] flex-grow overflow-y-auto sm:min-h-0'}`}
+                className={`min-h-0 flex-1 space-y-0.5 rounded-md bg-tertiary/40 p-1 pr-1 ${
+                    compactHome ? 'overflow-hidden' : compactTournamentMobile ? 'overflow-y-auto' : 'min-h-[160px] flex-grow overflow-y-auto sm:min-h-0'
+                }`}
             >
                 {activeTab === 'guild' ? (
                     // 길드 채팅 메시지 표시
@@ -325,7 +338,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onAction, mode, onVie
                        value={chatInput}
                        onChange={e => setChatInput(e.target.value)}
                        placeholder={placeholderText}
-                       className={`flex-grow bg-tertiary border border-color rounded-md p-1 focus:ring-accent focus:border-accent disabled:bg-secondary disabled:text-tertiary ${compactHome ? 'text-[11px]' : 'text-xs'}`}
+                       className={`flex-grow bg-tertiary border border-color rounded-md p-1 focus:ring-accent focus:border-accent disabled:bg-secondary disabled:text-tertiary ${compactUi ? 'text-[11px]' : 'text-xs'}`}
                        maxLength={30}
                        disabled={isInputDisabled}
                    />

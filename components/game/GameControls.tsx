@@ -23,14 +23,17 @@ interface ImageButtonProps {
     compact?: boolean;
 }
 
+/** 모바일에서 아이콘을 가리지 않도록 버튼 밖 모서리(우하단)에 배치 */
 const ItemCountBadge: React.FC<{ count: number; disabled?: boolean }> = ({ count, disabled = false }) => (
-    <span className={`absolute bottom-1 right-1 min-w-5 h-5 px-1.5 bg-black/75 text-white text-[11px] font-bold rounded-full flex items-center justify-center leading-none shadow-md ${disabled ? 'opacity-60' : ''}`}>
-        {count}
+    <span
+        className={`pointer-events-none absolute -bottom-1 -right-1 z-[3] flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-md border border-gray-900/90 bg-gray-950/95 px-1 text-[10px] font-bold leading-none text-white shadow-md tabular-nums ${disabled ? 'opacity-60' : ''}`}
+    >
+        {count > 99 ? '99+' : count}
     </span>
 );
 
 const CountOverlay: React.FC<{ count: number; disabled?: boolean; children: React.ReactNode }> = ({ count, disabled = false, children }) => (
-    <div className="relative inline-flex">
+    <div className="relative inline-flex shrink-0">
         {children}
         <ItemCountBadge count={count} disabled={disabled} />
     </div>
@@ -41,7 +44,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
         ? 'border-red-400 shadow-red-500/40 focus:ring-red-400'
         : 'border-amber-400 shadow-amber-500/30 focus:ring-amber-300';
     const sizeClass = compact
-        ? 'w-11 h-11 sm:w-12 sm:h-12 md:w-20 md:h-20 rounded-lg md:rounded-xl'
+        ? 'h-14 w-14 sm:h-[3.75rem] sm:w-[3.75rem] md:w-20 md:h-20 rounded-xl md:rounded-xl'
         : 'w-16 h-16 md:w-20 md:h-20 rounded-xl';
 
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -56,18 +59,18 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
     };
 
     return (
-        <button
-            type="button"
-            onClick={handleClick}
-            disabled={disabled}
-            title={title}
-            className={`relative ${sizeClass} border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 shrink-0 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700 shadow-none' : 'hover:scale-105 active:scale-95 shadow-lg cursor-pointer'}`}
-        >
-            <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
-            {count !== undefined && (
-                <ItemCountBadge count={count} disabled={disabled} />
-            )}
-        </button>
+        <div className="relative shrink-0">
+            <button
+                type="button"
+                onClick={handleClick}
+                disabled={disabled}
+                title={title}
+                className={`relative block ${sizeClass} shrink-0 overflow-hidden border-2 transition-transform duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${variantClasses} ${disabled ? 'cursor-not-allowed border-gray-700 opacity-40 shadow-none' : 'cursor-pointer shadow-lg hover:scale-105 active:scale-95'}`}
+            >
+                <img src={src} alt={alt} className="pointer-events-none h-full w-full object-contain" />
+            </button>
+            {count !== undefined && <ItemCountBadge count={count} disabled={disabled} />}
+        </div>
     );
 };
 
@@ -298,8 +301,8 @@ const DiceGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
-    const effectiveDiceSize = compact ? 34 : diceSize;
-    const outerSizeClass = compact ? 'h-12 w-12 rounded-lg' : 'h-16 w-16 rounded-xl md:h-20 md:w-20';
+    const effectiveDiceSize = compact ? 40 : diceSize;
+    const outerSizeClass = compact ? 'h-[3.5rem] w-[3.5rem] rounded-xl' : 'h-16 w-16 rounded-xl md:h-20 md:w-20';
 
     return (
         <div
@@ -398,8 +401,11 @@ export const DicePanel: React.FC<{
         }
         clientDiceRollEndRef.current = Date.now() + (diceAnimation.duration || DICE_ROLL_ANIMATION_MS);
     }, [diceAnimation?.startTime, diceAnimation?.duration]);
+    /** animation 필드가 턴 전환 후에도 잠깐 남으면 내 차례(dice_rolling)에서 '혼자 굴러가는' 것처럼 보이는 버그 방지 */
     const isRollingByServerAnim =
-        !!diceAnimation && Date.now() < Math.max(serverAnimEnd, clientDiceRollEndRef.current);
+        gameStatus === 'dice_rolling_animating' &&
+        !!diceAnimation &&
+        Date.now() < Math.max(serverAnimEnd, clientDiceRollEndRef.current);
     React.useEffect(() => {
         if (!diceAnimation) return;
         const end = Math.max(serverAnimEnd, clientDiceRollEndRef.current);
@@ -409,7 +415,11 @@ export const DicePanel: React.FC<{
     }, [diceAnimation?.startTime, diceAnimation?.duration, serverAnimEnd]);
 
     // 응답 전 짧은 구간만 로컬 타이머(서버 animation 아직 없을 때)
-    const isRollingByLocal = localRollEndTime > 0 && Date.now() < localRollEndTime && !diceAnimation;
+    const isRollingByLocal =
+        gameStatus === 'dice_rolling' &&
+        localRollEndTime > 0 &&
+        Date.now() < localRollEndTime &&
+        !diceAnimation;
     const isRolling = isRollingByServerAnim || isRollingByLocal;
     const [lastStableDiceValue, setLastStableDiceValue] = React.useState<number | null>(session.dice?.dice1 ?? null);
 
@@ -433,12 +443,21 @@ export const DicePanel: React.FC<{
         }
     }, [diceAnimation?.dice?.dice1, session.dice?.dice1]);
 
+    const lastDiceRollRequestRef = useRef(0);
+    React.useEffect(() => {
+        lastDiceRollRequestRef.current = 0;
+    }, [gameId]);
+
     const handleRoll = (itemType?: DiceGoPanelItemKind) => {
         if (!(isMyTurn && gameStatus === 'dice_rolling')) return;
+        if (isRolling) return;
+        const t = Date.now();
+        if (t - lastDiceRollRequestRef.current < 700) return;
         if (itemType === 'odd' || itemType === 'even' || itemType === 'low' || itemType === 'high') {
             setItemConfirm(itemType);
             return;
         }
+        lastDiceRollRequestRef.current = t;
         audioService.rollDice(1);
         const endTime = Date.now() + DICE_ROLL_ANIMATION_MS;
         setLocalRollEndTime(endTime);
@@ -451,6 +470,10 @@ export const DicePanel: React.FC<{
             setItemConfirm(null);
             return;
         }
+        if (isRolling) return;
+        const t = Date.now();
+        if (t - lastDiceRollRequestRef.current < 700) return;
+        lastDiceRollRequestRef.current = t;
         audioService.rollDice(1);
         const endTime = Date.now() + DICE_ROLL_ANIMATION_MS;
         setLocalRollEndTime(endTime);
@@ -768,8 +791,8 @@ const ThiefGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
-    const effectiveDiceSize = compact ? 34 : diceSize;
-    const outerSizeClass = compact ? 'h-12 w-12 rounded-lg' : 'h-16 w-16 rounded-xl md:h-20 md:w-20';
+    const effectiveDiceSize = compact ? 40 : diceSize;
+    const outerSizeClass = compact ? 'h-[3.5rem] w-[3.5rem] rounded-xl' : 'h-16 w-16 rounded-xl md:h-20 md:w-20';
 
     return (
         <div
@@ -845,7 +868,9 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
         clientThiefRollEndRef.current = Date.now() + (diceAnimation.duration || DICE_ROLL_ANIMATION_MS);
     }, [diceAnimation?.startTime, diceAnimation?.duration]);
     const isRollingByServerAnim =
-        !!diceAnimation && Date.now() < Math.max(serverAnimEnd, clientThiefRollEndRef.current);
+        gameStatus === 'thief_rolling_animating' &&
+        !!diceAnimation &&
+        Date.now() < Math.max(serverAnimEnd, clientThiefRollEndRef.current);
     React.useEffect(() => {
         if (!diceAnimation) return;
         const end = Math.max(serverAnimEnd, clientThiefRollEndRef.current);
@@ -854,7 +879,11 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
         return () => clearInterval(id);
     }, [diceAnimation?.startTime, diceAnimation?.duration, serverAnimEnd]);
 
-    const isRollingByLocal = localRollEndTime > 0 && Date.now() < localRollEndTime && !diceAnimation;
+    const isRollingByLocal =
+        gameStatus === 'thief_rolling' &&
+        localRollEndTime > 0 &&
+        Date.now() < localRollEndTime &&
+        !diceAnimation;
     const isRolling = isRollingByServerAnim || isRollingByLocal;
 
     const currentPlayerId = currentPlayer === Player.Black ? blackPlayerId : whitePlayerId;
@@ -894,12 +923,21 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
     const high36Usable = canRoll && high36Count > 0 && !isRolling;
     const noOneUsable = canRoll && noOneCount > 0 && !isRolling;
 
+    const lastThiefRollRequestRef = useRef(0);
+    React.useEffect(() => {
+        lastThiefRollRequestRef.current = 0;
+    }, [gameId]);
+
     const handleRoll = (itemType?: ThiefGoPanelItemKind) => {
         if (!canRoll) return;
+        if (isRolling) return;
+        const nowTs = Date.now();
+        if (nowTs - lastThiefRollRequestRef.current < 700) return;
         if (itemType === 'high36' || itemType === 'noOne') {
             setItemConfirm(itemType);
             return;
         }
+        lastThiefRollRequestRef.current = nowTs;
         audioService.rollDice(diceCount);
         const endTime = Date.now() + DICE_ROLL_ANIMATION_MS;
         setLocalRollEndTime(endTime);
@@ -912,6 +950,10 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
             setItemConfirm(null);
             return;
         }
+        if (isRolling) return;
+        const nowTs = Date.now();
+        if (nowTs - lastThiefRollRequestRef.current < 700) return;
+        lastThiefRollRequestRef.current = nowTs;
         audioService.rollDice(diceCount);
         const endTime = Date.now() + DICE_ROLL_ANIMATION_MS;
         setLocalRollEndTime(endTime);
@@ -1839,10 +1881,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             {/* Row 2: Game and Special/Playful Functions */}
             {isMobile ? (
                 <div className="flex w-full min-w-0 gap-2">
-                    <div className="flex min-h-[4.25rem] min-w-0 flex-1 flex-col gap-1 rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
-                        <span className="text-center text-[10px] font-bold uppercase tracking-wide text-gray-400">대국</span>
+                    <div className="flex min-h-[4.75rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
                         <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2">
                                 {primaryControlsInner}
                             </ArenaControlStrip>
                         </div>
@@ -1851,12 +1892,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-500/15 via-stone-500/50 to-stone-500/15"
                         aria-hidden
                     />
-                    <div className="flex min-h-[4.25rem] min-w-0 flex-1 flex-col gap-1 rounded-lg border border-amber-900/35 bg-gray-900/55 p-2">
-                        <span className="text-center text-[10px] font-bold uppercase tracking-wide text-amber-200/85">
-                            {isStrategic ? '특수' : '놀이'}
-                        </span>
+                    <div className="flex min-h-[4.75rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-gray-900/55 p-2">
                         <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2">
                                 {specialControlsInner}
                             </ArenaControlStrip>
                         </div>

@@ -363,6 +363,11 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
     const now = Date.now();
     const aiPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
     const { getGoLogic, processMove } = await import('./goLogic.js');
+
+    // 굴림 애니 중 중복 makeAiMove 호출로 이중 굴림·턴 꼬임 방지
+    if (game.gameStatus === 'dice_rolling_animating' || game.gameStatus === 'dice_turn_rolling_animating') {
+        return;
+    }
     
     if (game.gameStatus === 'dice_rolling') {
         // 주사위 굴리기

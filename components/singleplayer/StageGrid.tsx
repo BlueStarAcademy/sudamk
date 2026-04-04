@@ -6,6 +6,10 @@ import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
 
+/** 싱글플레이 스테이지 입장: 앰버 메탈 + 글로우 (PC·모바일 공통) */
+const PREMIUM_STAGE_ENTER_CLASS =
+    'w-full mt-auto !rounded-xl !border !border-amber-300/55 !bg-gradient-to-b !from-amber-400/95 !via-amber-800 !to-amber-950 !py-2 !text-xs !font-bold !tracking-wide !text-amber-50 !shadow-[0_4px_22px_rgba(245,158,11,0.42),inset_0_1px_0_rgba(255,255,255,0.24)] hover:!brightness-110 active:!scale-[0.98] disabled:!cursor-not-allowed disabled:!opacity-45 disabled:!grayscale disabled:hover:!brightness-100 transition-all duration-200 sm:!py-2.5 sm:!text-sm';
+
 interface StageGridProps {
     selectedClass: SinglePlayerLevel;
     currentUser: UserWithStatus;
@@ -117,19 +121,19 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                   : '유단자';
 
     return (
-        <div className={`bg-panel rounded-lg shadow-lg ${isMobile ? 'p-2' : 'p-4'} flex flex-col min-h-0 h-full overflow-hidden relative`}>
+        <div className={`bg-panel rounded-lg shadow-lg ${isMobile ? 'p-2.5' : 'p-4'} flex flex-col min-h-0 h-full overflow-hidden relative`}>
             <div
                 className={`flex flex-shrink-0 items-start justify-between gap-2 border-b border-color ${isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
             >
                 <h2
-                    className={`${isMobile ? 'text-base' : 'text-xl'} font-bold text-on-panel min-w-0 flex-1 leading-tight`}
+                    className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-on-panel min-w-0 flex-1 leading-tight`}
                 >
                     {classLabel} 스테이지
                 </h2>
                 <button
                     type="button"
                     onClick={() => setRewardsModalOpen(true)}
-                    className="flex-shrink-0 rounded-md border border-amber-600/50 bg-amber-900/30 px-2 py-1 text-[11px] sm:text-xs font-semibold text-amber-200 hover:bg-amber-800/40 hover:border-amber-500/60 active:scale-[0.98] transition-colors"
+                    className={`flex-shrink-0 rounded-lg border border-amber-400/45 bg-gradient-to-b from-amber-500/25 via-amber-900/35 to-amber-950/50 px-2 py-1 font-bold text-amber-100 shadow-[0_2px_12px_rgba(245,158,11,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 active:scale-[0.98] transition-all sm:px-2.5 sm:py-1.5 ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}
                     aria-label="스테이지 클리어 보상표 열기"
                 >
                     보상표
@@ -185,21 +189,21 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                 )}
 
                                 <div className="text-center w-full mb-1">
-                                    <div className="text-xl font-black text-primary drop-shadow">
+                                    <div className={`font-black text-primary drop-shadow [text-shadow:0_1px_2px_rgba(0,0,0,0.5)] ${isMobile ? 'text-2xl' : 'text-2xl sm:text-3xl'}`}>
                                         {stageNumber}
                                     </div>
                                 </div>
 
                                 <div className="w-full mb-1.5">
-                                    <div className="bg-gray-700/60 rounded-md px-2 py-1 border border-gray-600/50">
-                                        <div className="text-[11px] font-semibold text-center text-yellow-300 truncate">
+                                    <div className="rounded-md border border-amber-500/35 bg-gradient-to-b from-gray-700/85 to-gray-800/90 px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                        <div className={`font-semibold text-center text-amber-200/95 truncate ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>
                                             {gameModeName}
                                         </div>
                                     </div>
                                 </div>
 
                                 {isCleared && (
-                                    <div className="text-green-400 text-[10px] font-semibold mb-1">
+                                    <div className={`text-green-400 font-semibold mb-1 ${isMobile ? 'text-xs' : 'text-[10px]'}`}>
                                         클리어 완료
                                     </div>
                                 )}
@@ -231,7 +235,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                         </div>
                                     ) : (
                                         // 최초 클리어 보상
-                                        <div className="text-[9px] text-yellow-300 space-y-0.5">
+                                        <div className={`space-y-0.5 font-semibold text-amber-200/90 ${isMobile ? 'text-[11px]' : 'text-[10px] sm:text-xs'}`}>
                                             {stage.rewards.firstClear.gold > 0 && (
                                                 <div className="flex items-center justify-center gap-1">
                                                     <img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3" />
@@ -261,14 +265,14 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                             e?.stopPropagation();
                                             handleStageEnter(stage.id);
                                         }}
-                                        colorScheme="blue"
-                                        className="w-full mt-auto !text-[10px] !py-1.5"
+                                        colorScheme="none"
+                                        className={PREMIUM_STAGE_ENTER_CLASS}
                                         disabled={!hasEnoughAP}
                                     >
                                         입장 (⚡{stage.actionPointCost})
                                     </Button>
                                 ) : (
-                                    <div className="mt-auto text-[10px] text-gray-400 text-center">
+                                    <div className={`mt-auto text-gray-400 text-center ${isMobile ? 'text-xs' : 'text-[10px]'}`}>
                                         이전 스테이지 클리어 필요
                                     </div>
                                 )}
