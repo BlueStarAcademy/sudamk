@@ -8,11 +8,18 @@ interface AdBannerProps {
   className?: string;
 }
 
-/** 현재 뷰포트에 맞는 배너 크기 반환 (하단도 좁은 화면에서는 모바일 규격) */
+/**
+ * 배너 표시 크기. 하단(bottom)은 720px 셸·리더보드(728×90)에 맞추기 위해
+ * 태블릿 중간폭(468×60)을 쓰지 않고 모바일(320) / 리더보드(pc)만 구분한다.
+ */
 function getBannerSize(position: AdBannerPosition, viewportWidth: number): AdBannerSize {
   if (position === 'sidebar') return SIDEBAR_AD_SIZE;
   if (position === 'left' || position === 'right') return SKYSCRAPER_AD_SIZE;
   const w = viewportWidth;
+  if (position === 'bottom') {
+    if (w < 768) return BANNER_SIZES.mobile;
+    return BANNER_SIZES.pc;
+  }
   if (w < 768) return BANNER_SIZES.mobile;
   if (w < 1025) return BANNER_SIZES.tablet;
   return BANNER_SIZES.pc;
@@ -92,8 +99,8 @@ const AdBanner: React.FC<AdBannerProps> = ({ position, className = '' }) => {
       style={{ minHeight: size.height }}
     >
       <div
-        className="bg-gray-800/50 border border-dashed border-gray-600 rounded flex items-center justify-center text-gray-500 text-xs"
-        style={{ width: size.width, height: size.height, maxWidth: '100%' }}
+        className="bg-gray-800/50 border border-dashed border-gray-600 rounded flex w-full max-w-full items-center justify-center text-gray-500 text-xs"
+        style={{ height: size.height, minHeight: size.height }}
       >
         광고 영역 ({size.width}×{size.height})
       </div>

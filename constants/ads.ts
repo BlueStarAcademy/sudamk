@@ -17,6 +17,12 @@ export const NATIVE_MOBILE_SHELL_MAX_WIDTH = 720;
 /** 네이티브 모바일 모달 본문 가로 상한(셸과 동일, 패딩은 컴포넌트에서 처리) */
 export const NATIVE_MOBILE_MODAL_MAX_WIDTH_PX = 720;
 
+/** 네이티브 메인 컨텐츠 논리 설계 폭 — 이 폭 기준으로 뷰포트에 맞춰 축소(scale) */
+export const NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX = 720;
+
+/** 세로 기준 논리 높이(약 9:16). 실제 UI는 이 프레임 안에서 세로 스크롤 */
+export const NATIVE_MOBILE_CONTENT_BASE_HEIGHT_PX = 1280;
+
 /** 디바이스별 배너 크기 */
 export const BANNER_SIZES: Record<'pc' | 'tablet' | 'mobile', AdBannerSize> = {
   pc: { width: 728, height: 90 },

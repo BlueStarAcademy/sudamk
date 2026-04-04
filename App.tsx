@@ -12,6 +12,7 @@ import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
 import NativeMobileDock from './components/mobile/NativeMobileDock.js';
+import NativeMobileScaledContent from './components/mobile/NativeMobileScaledContent.js';
 import { NATIVE_MOBILE_SHELL_MAX_WIDTH, NATIVE_MOBILE_MODAL_MAX_WIDTH_PX } from './constants/ads.js';
 
 /**
@@ -265,13 +266,10 @@ const AppContent: React.FC = () => {
                             style={{ maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH }}
                         >
                             {!isGameView && <Header />}
-                            <main
-                                className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden w-full min-w-0"
-                                style={{
-                                    WebkitOverflowScrolling: 'touch',
-                                }}
-                            >
-                                <Router />
+                            <main className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+                                <NativeMobileScaledContent>
+                                    <Router />
+                                </NativeMobileScaledContent>
                             </main>
                             {!isGameView && (
                                 <>
@@ -283,7 +281,7 @@ const AppContent: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden bg-transparent px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
+                        <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-start gap-4 overflow-hidden bg-transparent px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
                             <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/82 via-black/65 to-black/78" />
                             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_14%,rgba(180,140,80,0.14),transparent_48%)]" />
                             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_50%_at_50%_92%,rgba(30,58,95,0.18),transparent_52%)]" />
@@ -313,10 +311,12 @@ const AppContent: React.FC = () => {
                                 </p>
                             </header>
                             <main
-                                className="relative z-10 flex w-full min-w-0 flex-col items-center justify-center"
+                                className="relative z-10 flex w-full min-h-0 min-w-0 flex-1 flex-col items-stretch justify-center"
                                 style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
                             >
-                                <Router />
+                                <NativeMobileScaledContent>
+                                    <Router />
+                                </NativeMobileScaledContent>
                             </main>
                         </div>
                     )}
