@@ -81,7 +81,17 @@ export const createWebSocketServer = (server: Server) => {
                 const set = userIdToClients.get(userId);
                 if (set) {
                     set.delete(ws);
-                    if (set.size === 0) userIdToClients.delete(userId);
+                    if (set.size === 0) {
+                        userIdToClients.delete(userId);
+                        // PVP: 탭 닫기·네트워크 끊김 등 로그아웃 API 없이 WS만 끊긴 경우에도 상대에게 즉시 접속 끊김 표시
+                        void import('./actions/socialActions.js')
+                            .then(({ applyPvpInGameDisconnect }) =>
+                                applyPvpInGameDisconnect(volatileState, userId).then((touched) => {
+                                    if (touched) delete volatileState.userConnections[userId];
+                                }),
+                            )
+                            .catch(() => {});
+                    }
                 }
             }
             isClosed = true;

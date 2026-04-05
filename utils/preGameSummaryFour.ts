@@ -18,6 +18,9 @@ export type PreGameSummaryFour = {
 
 const NONE = '없음';
 
+/** 바둑판 문양돌과 동일 스프라이트(`GoBoard` 흑 문양) — 게임 설명 모달 하이라이트 */
+const PATTERN_STONE_HIGHLIGHT_IMG = '/images/single/BlackDouble.png';
+
 function defaultBaseStoneCount(settings: GameSettings): number {
   return settings.baseStones ?? 4;
 }
@@ -140,7 +143,7 @@ function mixSpecialHighlights(settings: GameSettings, mix: GameMode[]): PreGameS
   const h: PreGameSpecialHighlight[] = [];
   const bs = defaultBaseStoneCount(settings);
   if (hasMix(mix, GameMode.Capture)) {
-    h.push({ img: '/images/simbols/simbol2.png', text: '문양돌 따내기 2점' });
+    h.push({ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' });
   }
   if (hasMix(mix, GameMode.Base)) {
     h.push({
@@ -181,7 +184,7 @@ function singlePlayerStageHighlights(session: LiveGameSession, stage: SinglePlay
   const bs = defaultBaseStoneCount(session.settings);
 
   if ((stage.placements.blackPattern > 0 || stage.placements.whitePattern > 0) && isCaptureMode) {
-    h.push({ img: '/images/simbols/simbol2.png', text: '문양돌 따내기 2점' });
+    h.push({ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' });
   }
   if (session.mode === GameMode.Base) {
     h.push({
@@ -242,7 +245,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
       winGoal: auto ? `상대 돌 ${t}점 먼저 따내기 · ${auto}` : `상대 돌 ${t}점 먼저 따내기`,
       scoreFactors: '따내기 점수(집 계산 없음)',
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: [{ img: '/images/simbols/simbol2.png', text: '문양돌 따내기 2점' }],
+      specialHighlights: [{ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' }],
       items: NONE,
     };
   }

@@ -18,7 +18,7 @@ import {
     getGuildWarStarScoreTier3MinDiff,
 } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
-import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { arenaPostGameButtonClass, arenaPostGameButtonGridClass } from './game/arenaPostGameButtonStyles.js';
 
 interface GameSummaryModalProps {
     session: LiveGameSession;
@@ -592,7 +592,8 @@ const MatchPlayersRoster: React.FC<{
 const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUser, onConfirm, onAction, onOpenGameRecordList, isSpectator = false }) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
     const soundPlayed = useRef(false);
-    const isMobile = useIsHandheldDevice(1025);
+    /** 모바일에서도 PC와 동일 레이아웃 — DraggableWindow `uniformPcScale`로만 축소 */
+    const isMobile = false;
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
@@ -624,8 +625,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const borderUrl = useMemo(() => BORDER_POOL.find((b: BorderInfo) => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     
     // 모바일 텍스트 크기 조정
-    const mobileTextScale = isMobile ? 1.15 : 1;
-    const mobileImageScale = isMobile ? 0.7 : 1;
+    const mobileTextScale = 1;
+    const mobileImageScale = 1;
 
     useEffect(() => {
         if (soundPlayed.current) return;
@@ -877,14 +878,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const initialMannerRank = mySummary ? getMannerRank(mySummary.manner.initial) : '';
     const finalMannerRank = mySummary ? getMannerRank(mySummary.manner.final) : '';
 
-    const recordBtnBase =
-        'relative min-h-[2.75rem] overflow-hidden rounded-xl text-base font-bold tracking-wide transition-all duration-200 border focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0f14] disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed';
-    const recordSaveClass =
-        `${recordBtnBase} px-5 py-2.5 border-amber-400/45 bg-gradient-to-br from-amber-950/90 via-slate-900 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_10px_32px_-12px_rgba(251,191,36,0.35)] hover:border-amber-300/55 hover:shadow-[0_14px_40px_-14px_rgba(251,191,36,0.42)] active:translate-y-px focus-visible:ring-amber-400/50`;
-    const recordManageClass =
-        `${recordBtnBase} px-5 py-2.5 border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-slate-950 to-[#06080d] text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_28px_-10px_rgba(34,211,238,0.22)] hover:border-cyan-300/50 hover:shadow-[0_12px_36px_-12px_rgba(34,211,238,0.28)] active:translate-y-px focus-visible:ring-cyan-400/45`;
-    const confirmBtnClass =
-        `${recordBtnBase} min-w-[9.5rem] px-8 py-3 border-violet-400/40 bg-gradient-to-br from-violet-700/95 via-indigo-800 to-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_40px_-14px_rgba(139,92,246,0.45)] hover:border-violet-300/55 hover:shadow-[0_16px_44px_-16px_rgba(139,92,246,0.5)] active:translate-y-px focus-visible:ring-violet-400/50`;
     const statCardClass =
         'rounded-xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-[#13141c] to-[#0a0a0f] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.04]';
     const statLabelClass = 'text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-400';
@@ -893,15 +886,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         <DraggableWindow
             title={isGuildWar ? '길드 전쟁 결과' : '대국 결과'}
             onClose={onConfirm}
-            initialWidth={isMobile ? 680 : 1000}
-            initialHeight={isMobile ? 580 : 820}
+            initialWidth={1000}
+            initialHeight={900}
             uniformPcScale
-            bodyScrollable
-            bodyPaddingClassName={isMobile ? 'p-3' : undefined}
+            bodyScrollable={false}
             windowId="game-summary"
         >
             <div
-                className={`flex flex-col text-white antialiased ${isMobile ? 'text-xs' : 'text-[clamp(1rem,2.75vw,1.1875rem)]'}`}
+                className="flex min-h-0 flex-1 flex-col text-[clamp(1rem,2.75vw,1.1875rem)] text-white antialiased"
             >
                 <h1
                     className={`${isMobile ? 'text-lg mb-1.5' : 'text-3xl mb-2'} flex-shrink-0 text-center font-black tracking-widest sm:mb-3 ${color}`}
@@ -934,10 +926,10 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     </div>
                 )}
                 
-                <div className={`flex flex-row gap-2 sm:gap-3${isMobile ? ' items-start' : ''}`}>
+                <div className="flex min-h-0 flex-1 flex-row gap-2 sm:gap-3">
                     {/* Left Panel: Game Content */}
                     <div
-                        className={`flex w-1/2 flex-col rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5 ${isMobile ? 'p-2' : ''}`}
+                        className="flex min-h-0 w-1/2 min-w-0 flex-col rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5"
                     >
                         <h2
                             className={`mb-2 flex-shrink-0 border-b border-amber-500/20 pb-2 text-center text-[0.7rem] font-bold uppercase tracking-[0.18em] text-amber-200/75 sm:text-xs ${isMobile ? 'text-xs' : ''}`}
@@ -953,16 +945,16 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                             mobileTextScale={mobileTextScale}
                             mobileImageScale={mobileImageScale}
                         />
-                        <div className={isMobile ? 'min-h-0' : 'min-h-0 flex-1'}>
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                             {renderGameContent()}
                             {renderGuildWarStarConditions()}
                         </div>
                     </div>
                     
                     {/* Right: 대국 결과(내 기록) & 획득 보상 */}
-                    <div className="flex w-1/2 flex-col gap-2.5 sm:gap-3">
+                    <div className="flex min-h-0 w-1/2 min-w-0 flex-1 flex-col gap-2.5 overflow-hidden sm:gap-3">
                         <div
-                            className={`flex flex-col gap-2.5 rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5 ${isMobile ? 'p-2' : ''}`}
+                            className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5"
                         >
                             <h2
                                 className="mb-0.5 border-b border-violet-500/25 pb-2 text-center text-[0.7rem] font-bold uppercase tracking-[0.18em] text-violet-200/85 sm:text-xs"
@@ -1190,11 +1182,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     </div>
                 </div>
                  
-                <div className={`${isMobile ? 'mt-3' : 'mt-4'} flex w-full flex-shrink-0 flex-row flex-wrap items-center justify-center gap-2 sm:gap-3`}>
+                <div className={`${isMobile ? 'mt-3' : 'mt-4'} ${arenaPostGameButtonGridClass} flex-shrink-0`}>
                     {canUseGameRecordUi && onAction && (
                         <button
                             type="button"
-                            className={`${recordSaveClass} ${isMobile ? '!text-xs !py-2 !px-3' : '!py-3'}`}
+                            className={arenaPostGameButtonClass('retry', isMobile, 'modal')}
                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             disabled={savingRecord || recordAlreadySaved}
                             onClick={async () => {
@@ -1224,7 +1216,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     {canUseGameRecordUi && onOpenGameRecordList && (
                         <button
                             type="button"
-                            className={`${recordManageClass} ${isMobile ? '!text-xs !py-2 !px-3' : '!py-3'}`}
+                            className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             onClick={() => onOpenGameRecordList()}
                         >
@@ -1233,7 +1225,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     )}
                     <button
                         type="button"
-                        className={`${confirmBtnClass} shrink-0 ${isMobile ? '!min-w-[6.5rem] !px-4 !py-2 !text-xs' : ''}`}
+                        className={arenaPostGameButtonClass('result', isMobile, 'modal')}
                         style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                         onClick={onConfirm}
                     >

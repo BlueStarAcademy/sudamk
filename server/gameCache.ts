@@ -6,6 +6,24 @@ const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'p
 const CACHE_TTL_MS = isRailway ? 300 * 1000 : 30 * 1000;
 const USER_CACHE_TTL_MS = isRailway ? 1800 * 1000 : 600 * 1000;
 
+/** 싱글/탑 PVE는 오랫동안 터치가 없어도 캐시에 유지 (모달 대기·모바일 백그라운드·WS 끊김). 초과 시에만 정리 */
+const PVE_CACHE_ABSOLUTE_MAX_AGE_MS = 72 * 60 * 60 * 1000;
+
+function isActivePveCachedGame(gameId: string, game: LiveGameSession | null | undefined): boolean {
+    if (!game) return false;
+    const isPveId = gameId.startsWith('sp-game-') || gameId.startsWith('tower-game-');
+    const isPveCategory =
+        game.isSinglePlayer === true || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
+    const isActive = game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest';
+    return (isPveId || isPveCategory) && isActive;
+}
+
+function isProtectedPveFromEviction(gameId: string, cached: { game: LiveGameSession; lastUpdated: number }, now: number): boolean {
+    if (!isActivePveCachedGame(gameId, cached.game)) return false;
+    if (now - cached.lastUpdated > PVE_CACHE_ABSOLUTE_MAX_AGE_MS) return false;
+    return true;
+}
+
 // 1000명 규모: 접속자 수 기반 캐시 상한 (메모리 폭증 방지)
 function getMaxUserCacheSize(): number {
     const connCount = Object.keys(volatileState.userConnections ?? {}).length;
@@ -164,30 +182,10 @@ export function cleanupExpiredCache(): void {
 
     const gameCache = volatileState.gameCache;
     if (gameCache) {
-        const hasActiveViewer = (gameId: string): boolean => {
-            // userStatuses 형태는 여러 가지지만, gameId/spectatingGameId 필드는 공통적으로 사용됨
-            for (const status of Object.values(volatileState.userStatuses ?? {})) {
-                const s: any = status as any;
-                if (s?.gameId === gameId || s?.spectatingGameId === gameId) return true;
-            }
-            return false;
-        };
-
-        const isProtectedPveGame = (gameId: string, cached: { game: any; lastUpdated: number }): boolean => {
-            const game = cached?.game;
-            if (!game) return false;
-            const isPveId = gameId.startsWith('sp-game-') || gameId.startsWith('tower-');
-            const isPveCategory = game?.isSinglePlayer === true || game?.gameCategory === 'tower' || game?.gameCategory === 'singleplayer';
-            const isActive = game?.gameStatus !== 'ended' && game?.gameStatus !== 'no_contest';
-            if (!(isPveId || isPveCategory) || !isActive) return false;
-            return hasActiveViewer(gameId);
-        };
-
         for (const [gameId, cached] of gameCache.entries()) {
             if (now - cached.lastUpdated > CACHE_TTL_MS * 2) {
-                // 싱글플레이/타워는 DB에 저장되지 않는 구간이 길 수 있어, 진행 중인 게임은 캐시에서 제거하지 않음.
-                // (제거되면 auto scoring 트리거 시 서버가 게임을 못 찾아 400이 발생할 수 있음)
-                if (isProtectedPveGame(gameId, cached)) {
+                // 싱글/탑 등 PVE는 WS·userStatuses와 무관하게 보호 (제거 시 DB 없으면 CONFIRM 등 400)
+                if (isProtectedPveFromEviction(gameId, cached, now)) {
                     gameCache.set(gameId, { game: cached.game, lastUpdated: now });
                     continue;
                 }
@@ -200,20 +198,22 @@ export function cleanupExpiredCache(): void {
             let over = gameCache.size - maxGameCacheSize;
             for (const [gameId, cached] of sorted) {
                 if (over <= 0) break;
-                if (isProtectedPveGame(gameId, cached)) {
+                if (isProtectedPveFromEviction(gameId, cached, now)) {
                     continue;
                 }
                 gameCache.delete(gameId);
                 gamesCleaned++;
                 over--;
             }
-            // 보호된 게임만 남아 상한을 넘는 경우에도 서버 안정성을 위해 최소한의 정리는 필요
             if (gameCache.size > maxGameCacheSize) {
                 const stillSorted = Array.from(gameCache.entries()).sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
-                const forceRemove = stillSorted.slice(0, gameCache.size - maxGameCacheSize);
-                for (const [gameId] of forceRemove) {
+                let over2 = gameCache.size - maxGameCacheSize;
+                for (const [gameId, cached] of stillSorted) {
+                    if (over2 <= 0) break;
+                    if (isProtectedPveFromEviction(gameId, cached, now)) continue;
                     gameCache.delete(gameId);
                     gamesCleaned++;
+                    over2--;
                 }
             }
         }
@@ -276,16 +276,17 @@ export function aggressiveCacheCleanup(): void {
     let gamesCleaned = 0;
     let usersCleaned = 0;
     
-    // 게임 캐시를 절반으로 줄임
     const gameCache = volatileState.gameCache;
     if (gameCache && gameCache.size > 0) {
         const targetSize = Math.floor(gameCache.size / 2);
-        const sorted = Array.from(gameCache.entries())
-            .sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
-        const toRemove = sorted.slice(0, gameCache.size - targetSize);
-        for (const [gameId] of toRemove) {
+        const sorted = Array.from(gameCache.entries()).sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
+        let needRemove = gameCache.size - targetSize;
+        for (const [gameId, cached] of sorted) {
+            if (needRemove <= 0) break;
+            if (isProtectedPveFromEviction(gameId, cached, now)) continue;
             gameCache.delete(gameId);
             gamesCleaned++;
+            needRemove--;
         }
     }
     

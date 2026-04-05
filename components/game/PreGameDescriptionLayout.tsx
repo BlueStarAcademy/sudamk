@@ -23,9 +23,17 @@ export const PRE_GAME_MODAL_PRIMARY_BTN_CLASS =
 export const PRE_GAME_MODAL_SECONDARY_BTN_CLASS =
   'min-h-[3.25rem] !rounded-xl !border-2 !border-zinc-500/50 !bg-gradient-to-b !from-zinc-600 !to-zinc-900 !text-white !shadow-[0_10px_28px_-14px_rgba(0,0,0,0.75)] hover:!from-zinc-500 hover:!to-zinc-800 focus:!ring-zinc-400/35 focus:!ring-offset-2 focus:!ring-offset-zinc-950';
 
-/** 앰버 CTA — 싱글 시작하기 */
+/** 앰버 CTA — 싱글 시작하기 · 수정 제안 */
 export const PRE_GAME_MODAL_ACCENT_BTN_CLASS =
   'min-h-[3.25rem] !rounded-xl !border-2 !border-amber-300/60 !bg-gradient-to-r !from-amber-500 !via-amber-400 !to-yellow-500 !text-zinc-950 !shadow-[0_14px_40px_-12px_rgba(245,158,11,0.42)] hover:!from-amber-400 hover:!via-amber-300 hover:!to-yellow-400 focus:!ring-amber-400/50 focus:!ring-offset-2 focus:!ring-offset-zinc-950';
+
+/** 수락·긍정 확정 */
+export const PRE_GAME_MODAL_SUCCESS_BTN_CLASS =
+  'min-h-[3.25rem] !rounded-xl !border-2 !border-emerald-400/50 !bg-gradient-to-r !from-emerald-600 !via-teal-600 !to-emerald-800 !text-white !shadow-[0_14px_40px_-12px_rgba(52,211,153,0.42)] hover:!from-emerald-500 hover:!via-teal-500 hover:!to-emerald-700 focus:!ring-emerald-400/45 focus:!ring-offset-2 focus:!ring-offset-zinc-950';
+
+/** 거절·신청 취소 */
+export const PRE_GAME_MODAL_DANGER_BTN_CLASS =
+  'min-h-[3.25rem] !rounded-xl !border-2 !border-red-400/55 !bg-gradient-to-r !from-red-600 !via-rose-600 !to-red-800 !text-white !shadow-[0_14px_40px_-12px_rgba(239,68,68,0.42)] hover:!from-red-500 hover:!via-rose-500 hover:!to-red-700 focus:!ring-red-400/45 focus:!ring-offset-2 focus:!ring-offset-zinc-950';
 
 function modeMetaImage(mode: GameMode): string | undefined {
   const meta = SPECIAL_GAME_MODES.find((m) => m.mode === mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === mode);

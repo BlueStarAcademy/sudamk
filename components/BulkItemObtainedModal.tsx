@@ -62,7 +62,17 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
     const hasItems = items && items.length > 0;
 
     return (
-        <DraggableWindow title="보상 수령" onClose={onClose} windowId="bulk-item-obtained" initialWidth={620} closeOnOutsideClick={false} isTopmost={isTopmost} zIndex={70}>
+        <DraggableWindow
+            title="보상 수령"
+            onClose={onClose}
+            windowId="bulk-item-obtained"
+            initialWidth={620}
+            closeOnOutsideClick={false}
+            isTopmost={isTopmost}
+            zIndex={70}
+            skipSavedPosition
+            hideFooter
+        >
             <div className="flex flex-col p-1">
                 {hasItems && (
                     <h2 className="text-xl font-bold text-center text-white mb-4 pb-2 border-b border-slate-600/50">아이템을 획득했습니다</h2>

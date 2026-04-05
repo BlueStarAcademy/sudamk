@@ -227,11 +227,11 @@ export async function searchUsersForAdmin(
         return await run();
       } catch (e2) {
         console.warn("[userService] searchUsersForAdmin retry failed:", (e2 as { message?: string })?.message ?? e2);
-        return { users: [], total: 0 };
+        throw e2;
       }
     }
     console.warn("[userService] searchUsersForAdmin error:", msg);
-    return { users: [], total: 0 };
+    throw error;
   }
 }
 

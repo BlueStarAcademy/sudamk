@@ -106,6 +106,8 @@ export interface VolatileState {
 export interface UserStatusInfo {
     status: UserStatus;
     mode?: GameMode;
+    /** 집계 대기실(전략/놀이) 구분 — mode와 별도로 서버가 설정 */
+    waitingLobby?: 'strategic' | 'playful';
     gameId?: string;
     spectatingGameId?: string;
     gameCategory?: GameCategory;

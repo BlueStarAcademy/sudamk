@@ -57,6 +57,12 @@ interface DraggableWindowProps {
     /** 하단 "창 위치 기억하기" 영역 숨김 (한 화면에 맞출 때) */
     hideFooter?: boolean;
 
+    /**
+     * localStorage에 창 위치를 읽지/쓰지 않고 항상 defaultPosition(기본 0,0)으로 연다.
+     * 보상·획득 모달 등 짧은 오버레이가 스케일 캔버스 밖으로 밀려 잘리는 것을 방지한다.
+     */
+    skipSavedPosition?: boolean;
+
     /** 본문 패딩 클래스 (지정 시 store/default 패딩 대신 사용) */
     bodyPaddingClassName?: string;
 
@@ -98,6 +104,75 @@ function getScaledCanvasDragMetrics(): {
     };
 }
 
+/** 스크린 픽셀 기준으로 모달이 들어가야 할 영역 (#sudamr-modal-root ∩ visualViewport) */
+function getModalClampScreenRect(modalRoot: HTMLElement | null): DOMRect | null {
+    if (typeof window === 'undefined') return null;
+    const margin = 8;
+    const vv = window.visualViewport;
+
+    if (modalRoot) {
+        const rr = modalRoot.getBoundingClientRect();
+        if (rr.width <= 0 || rr.height <= 0) return null;
+        if (vv) {
+            const left = Math.max(rr.left, vv.offsetLeft) + margin;
+            const top = Math.max(rr.top, vv.offsetTop) + margin;
+            const right = Math.min(rr.right, vv.offsetLeft + vv.width) - margin;
+            const bottom = Math.min(rr.bottom, vv.offsetTop + vv.height) - margin;
+            const w = right - left;
+            const h = bottom - top;
+            if (w <= 4 || h <= 4) return null;
+            return new DOMRect(left, top, w, h);
+        }
+        return new DOMRect(rr.left + margin, rr.top + margin, rr.width - 2 * margin, rr.height - 2 * margin);
+    }
+
+    if (vv) {
+        return new DOMRect(
+            vv.offsetLeft + margin,
+            vv.offsetTop + margin,
+            Math.max(0, vv.width - 2 * margin),
+            Math.max(0, vv.height - 2 * margin),
+        );
+    }
+    return new DOMRect(
+        margin,
+        margin,
+        Math.max(0, window.innerWidth - 2 * margin),
+        Math.max(0, window.innerHeight - 2 * margin),
+    );
+}
+
+/** 실제 렌더링 박스(er)가 clamp 안으로 들어오도록 필요한 화면 좌표 이동량 */
+function computeModalScreenCorrection(er: DOMRectReadOnly, clamp: DOMRectReadOnly): { dcx: number; dcy: number } {
+    let dcx = 0;
+    let dcy = 0;
+    const headerH = 52;
+
+    if (er.width <= clamp.width) {
+        if (er.left < clamp.left) dcx = clamp.left - er.left;
+        else if (er.right > clamp.right) dcx = clamp.right - er.right;
+    } else {
+        dcx = clamp.left - er.left;
+    }
+
+    if (er.height <= clamp.height) {
+        if (er.top < clamp.top) dcy = clamp.top - er.top;
+        else if (er.bottom > clamp.bottom) dcy = clamp.bottom - er.bottom;
+    } else {
+        if (er.top < clamp.top) dcy = clamp.top - er.top;
+        if (er.top + headerH > clamp.bottom) dcy += clamp.bottom - (er.top + headerH);
+    }
+
+    return { dcx, dcy };
+}
+
+function screenDeltaToPositionDelta(dScreenX: number, dScreenY: number): { dx: number; dy: number } {
+    const metrics = getScaledCanvasDragMetrics();
+    const rx = metrics?.ratioX ?? 1;
+    const ry = metrics?.ratioY ?? 1;
+    return { dx: dScreenX * rx, dy: dScreenY * ry };
+}
+
 // 전역 z-index 카운터: 최상위 모달이 항상 가장 높은 z-index를 가지도록 함
 let globalZIndexCounter = 10000;
 
@@ -119,6 +194,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     bodyScrollable = false,
     bodyNoScroll = false,
     hideFooter = false,
+    skipSavedPosition = false,
     bodyPaddingClassName,
     uniformPcScale = false,
     containerExtraClassName,
@@ -391,9 +467,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
             setRememberPosition(shouldRemember);
 
-
-
-            if (shouldRemember && !effectiveIsCompactViewport) {
+            if (skipSavedPosition) {
+                setPosition({ ...defaultPosition });
+                try {
+                    const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
+                    delete savedPositions[windowId];
+                    localStorage.setItem('draggableWindowPositions', JSON.stringify(savedPositions));
+                } catch (clearErr) {
+                    console.error('Failed to clear saved position for window', windowId, clearErr);
+                }
+            } else if (shouldRemember && !effectiveIsCompactViewport) {
 
                 const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
 
@@ -423,7 +506,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         setIsInitialized(true);
 
-    }, [windowId, effectiveIsCompactViewport, defaultPosition.x, defaultPosition.y]);
+    }, [windowId, effectiveIsCompactViewport, defaultPosition.x, defaultPosition.y, skipSavedPosition]);
 
 
 
@@ -461,29 +544,21 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     }, [handleDragStart, isTopmost]);
 
-    const clampNativeMobileToVisualViewport = useCallback(() => {
-        if (!isNativeMobile || typeof window === 'undefined' || !windowRef.current) return;
-        const el = windowRef.current;
-        const metrics = getScaledCanvasDragMetrics();
-        const r = el.getBoundingClientRect();
-        const vv = window.visualViewport;
-        const offL = vv ? vv.offsetLeft : 0;
-        const offT = vv ? vv.offsetTop : 0;
-        const vw = vv ? vv.width : window.innerWidth;
-        const vh = vv ? vv.height : window.innerHeight;
-        const edge = 8;
-        const headerH = 52;
-        let dcx = 0;
-        let dcy = 0;
-        if (r.top < offT + edge) dcy += offT + edge - r.top;
-        if (r.top + headerH > offT + vh - edge) dcy += offT + vh - edge - (r.top + headerH);
-        if (r.left < offL + edge) dcx += offL + edge - r.left;
-        if (r.right > offL + vw - edge) dcx += offL + vw - edge - r.right;
-        if (dcx === 0 && dcy === 0) return;
-        const rx = metrics ? metrics.ratioX : 1;
-        const ry = metrics ? metrics.ratioY : 1;
-        setPosition((p) => ({ x: p.x + dcx * rx, y: p.y + dcy * ry }));
-    }, [isNativeMobile]);
+    const applyBoundsClamp = useCallback(() => {
+        setPosition((prev) => {
+            const el = windowRef.current;
+            if (!el) return prev;
+            const er = el.getBoundingClientRect();
+            if (er.width < 2 && er.height < 2) return prev;
+            const modalRoot = document.getElementById('sudamr-modal-root');
+            const clamp = getModalClampScreenRect(modalRoot);
+            if (!clamp || clamp.width < 4 || clamp.height < 4) return prev;
+            const { dcx, dcy } = computeModalScreenCorrection(er, clamp);
+            if (Math.abs(dcx) < 0.25 && Math.abs(dcy) < 0.25) return prev;
+            const { dx, dy } = screenDeltaToPositionDelta(dcx, dcy);
+            return { x: prev.x + dx, y: prev.y + dy };
+        });
+    }, []);
 
     const handleDragMove = useCallback((clientX: number, clientY: number) => {
 
@@ -501,76 +576,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             dy *= metrics.ratioY;
         }
 
-        let newX = initialWindowPos.current.x + dx;
+        const newX = initialWindowPos.current.x + dx;
 
-        let newY = initialWindowPos.current.y + dy;
-
-        
-
-        const { offsetWidth, offsetHeight } = windowRef.current;
-
-        let innerWidth = window.innerWidth;
-
-        let innerHeight = window.innerHeight;
-
-        if (metrics) {
-            innerWidth = metrics.boundsW;
-            innerHeight = metrics.boundsH;
-        }
-
-
-
-        const halfW = offsetWidth / 2;
-
-        const halfH = offsetHeight / 2;
-
-        
-
-        // Horizontal constraints (keep window fully inside)
-
-        const minX = -(innerWidth / 2) + halfW;
-
-        const maxX = (innerWidth / 2) - halfW;
-
-        
-
-        // Vertical constraints (keep header visible)
-
-        const headerHeight = 50; // Approximate header height for safety margin
-
-        let minY, maxY;
-
-
-
-        if (offsetHeight <= innerHeight) {
-
-            // Window is shorter than or same height as viewport
-
-            // Keep it fully inside the viewport
-
-            minY = -(innerHeight / 2) + halfH;
-
-            maxY = (innerHeight / 2) - halfH;
-
-        } else {
-
-            // Window is taller than viewport
-
-            // Allow vertical scrolling, but always keep the header visible
-
-            minY = -(innerHeight / 2) - halfH + headerHeight; // Allow top to go off-screen, but keep header visible
-
-            maxY = (innerHeight / 2) + halfH - headerHeight; // Allow bottom to go off-screen, but keep header visible
-
-        }
-
-
-
-        newX = Math.max(minX, Math.min(newX, maxX));
-
-        newY = Math.max(minY, Math.min(newY, maxY));
-
-
+        const newY = initialWindowPos.current.y + dy;
 
         setPosition({ x: newX, y: newY });
 
@@ -608,7 +616,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
             setIsDragging(false);
 
-            if (rememberPosition && !effectiveIsCompactViewport) {
+            if (rememberPosition && !effectiveIsCompactViewport && !skipSavedPosition) {
 
                 try {
 
@@ -628,46 +636,49 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         }
 
-    }, [isDragging, windowId, rememberPosition, effectiveIsCompactViewport]);
+    }, [isDragging, windowId, rememberPosition, effectiveIsCompactViewport, skipSavedPosition]);
 
 
 
     useEffect(() => {
+        if (!isDragging) return;
 
-        if (isDragging) {
-
-            window.addEventListener('mousemove', handleMouseMove);
-
-            window.addEventListener('mouseup', handleDragEnd);
-
-            window.addEventListener('touchmove', handleTouchMove);
-
-            window.addEventListener('touchend', handleDragEnd);
-
-        }
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleDragEnd);
+        const touchMoveNonPassive = (e: TouchEvent) => {
+            e.preventDefault();
+            handleTouchMove(e);
+        };
+        const touchMoveOpts: AddEventListenerOptions = { passive: false };
+        window.addEventListener('touchmove', touchMoveNonPassive, touchMoveOpts);
+        window.addEventListener('touchend', handleDragEnd);
 
         return () => {
-
             window.removeEventListener('mousemove', handleMouseMove);
-
             window.removeEventListener('mouseup', handleDragEnd);
-
-            window.removeEventListener('touchmove', handleTouchMove);
-
+            window.removeEventListener('touchmove', touchMoveNonPassive, touchMoveOpts);
             window.removeEventListener('touchend', handleDragEnd);
-
         };
-
     }, [isDragging, handleMouseMove, handleTouchMove, handleDragEnd]);
 
+    /** 실제 화면 박스 기준으로 영역 밖이면 보정 (transform scale·max-width·스케일 캔버스 모두 반영) */
     useLayoutEffect(() => {
-        if (!isNativeMobile || !isInitialized || !windowRef.current) return;
-        clampNativeMobileToVisualViewport();
-    }, [position.x, position.y, isNativeMobile, isInitialized, clampNativeMobileToVisualViewport]);
+        if (!isInitialized) return;
+        applyBoundsClamp();
+    }, [isInitialized, position.x, position.y, windowWidth, windowHeight, applyBoundsClamp]);
+
+    useLayoutEffect(() => {
+        if (!isInitialized || typeof ResizeObserver === 'undefined') return;
+        const el = windowRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(() => applyBoundsClamp());
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [isInitialized, applyBoundsClamp]);
 
     useEffect(() => {
-        if (!isNativeMobile || !isInitialized) return;
-        const run = () => requestAnimationFrame(() => clampNativeMobileToVisualViewport());
+        if (!isInitialized) return;
+        const run = () => requestAnimationFrame(() => applyBoundsClamp());
         window.addEventListener('resize', run);
         const vv = window.visualViewport;
         vv?.addEventListener('resize', run);
@@ -677,7 +688,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             vv?.removeEventListener('resize', run);
             vv?.removeEventListener('scroll', run);
         };
-    }, [isNativeMobile, isInitialized, clampNativeMobileToVisualViewport]);
+    }, [isInitialized, applyBoundsClamp]);
 
     const handleRememberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
@@ -719,7 +730,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
 
 
-    const transformStyle = `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`;
+    /** 항상 center 기준 + 드래그 오프셋 (모바일 네이티브·viewportFit에서도 동일하게 적용) */
+    const positionTranslate = `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`;
+    const transformStyle = positionTranslate;
 
 
 
@@ -733,18 +746,20 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const headerTopRounded = useLargeCorners ? 'rounded-t-2xl' : 'rounded-t-xl';
     const footerBottomRounded = useLargeCorners ? 'rounded-b-2xl' : 'rounded-b-xl';
     const overlayCornerRounded = useLargeCorners ? 'rounded-2xl' : 'rounded-xl';
+    // `relative`를 두면 Tailwind에서 `absolute`/`fixed`보다 우선해 포털 형제 모달이 세로로 쌓이고,
+    // 위치 기억 해제 시 (0,0)만으로는 하단으로 밀려 보일 수 있음. 내부 오버레이는 absolute 부모(이 루트)에 붙는다.
     const containerBaseClass = isInsideScaledCanvas
-        ? 'absolute top-1/2 left-1/2 flex flex-col rounded-xl transition-shadow duration-200 relative overflow-hidden'
-        : 'fixed top-1/2 left-1/2 flex flex-col rounded-xl transition-shadow duration-200 relative overflow-hidden';
+        ? 'absolute top-1/2 left-1/2 flex flex-col overflow-hidden rounded-xl transition-shadow duration-200'
+        : 'fixed top-1/2 left-1/2 flex flex-col overflow-hidden rounded-xl transition-shadow duration-200';
     const containerVariantClass = isStoreVariant
         ? 'text-slate-100 bg-gradient-to-br from-[#1f2239] via-[#101a34] to-[#060b12] border border-cyan-300/40 shadow-[0_40px_100px_-45px_rgba(34,211,238,0.65)]'
         : 'sudamr-floating-modal-surface ring-1 ring-inset ring-white/[0.07]';
     const headerVariantClass = isStoreVariant
         ? 'bg-gradient-to-r from-[#1b2645] via-[#15203b] to-[#1b2645] border-b border-cyan-300/30 text-cyan-100'
-        : 'border-b border-white/10 bg-gradient-to-r from-secondary/95 via-secondary/80 to-tertiary/50 text-primary';
+        : 'border-b border-white/[0.09] bg-gradient-to-r from-secondary/95 via-secondary/75 to-tertiary/55 text-primary shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]';
     const footerVariantClass = isStoreVariant
         ? 'bg-[#111a32] border-t border-cyan-300/30 text-cyan-200'
-        : 'border-t border-white/10 bg-gradient-to-t from-tertiary/35 to-secondary/40 text-tertiary';
+        : 'border-t border-white/[0.09] bg-gradient-to-t from-tertiary/40 via-secondary/35 to-secondary/45 text-tertiary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
     const bodyPaddingClass =
         bodyPaddingClassName ?? (isStoreVariant ? 'p-5' : uniformLayout ? 'p-5' : 'p-4');
     const bodyAllowsVerticalScroll =
@@ -753,7 +768,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         useNativeMobileContentFit;
     const closeButtonClass = isStoreVariant
         ? 'w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-rose-500/85 via-rose-500/75 to-rose-600/85 hover:from-rose-400 hover:via-rose-500 hover:to-rose-600 transition-colors shadow-[0_18px_38px_-24px_rgba(244,63,94,0.75)]'
-        : 'w-10 h-10 flex items-center justify-center rounded-full border border-white/12 bg-tertiary/85 text-on-panel shadow-[0_10px_28px_-12px_rgba(0,0,0,0.55)] transition-all duration-200 hover:border-danger/40 hover:bg-danger/90 hover:text-white';
+        : 'w-10 h-10 flex items-center justify-center rounded-full border border-white/14 bg-gradient-to-b from-white/[0.08] to-transparent bg-tertiary/90 text-on-panel shadow-[0_12px_32px_-14px_rgba(0,0,0,0.6)] transition-all duration-200 hover:border-danger/45 hover:bg-danger/90 hover:text-white';
 
     const modalContent = (
         <>
@@ -766,6 +781,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             <div
                 ref={windowRef}
                 data-draggable-window={windowId}
+                data-uniform-pc-scale={uniformPcScale ? '1' : undefined}
                 className={`${containerBaseClass} ${containerVariantClass}${useNativeMobileContentFit ? ' min-h-0' : ''}${
                     containerExtraClassName ? ` ${containerExtraClassName}` : ''
                 }`}
@@ -832,11 +848,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                   ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 24px))`
                                   : '90vh',
                     transform: uniformLayout
-                        ? `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px)) scale(${pcUniformScale})`
+                        ? `${positionTranslate} scale(${pcUniformScale})`
                         : useMobileViewportFitLayout || useNativeMobileContentFit
-                          ? 'translate(-50%, -50%)'
+                          ? positionTranslate
                           : effectiveIsCompactViewport
-                            ? `translate(-50%, -50%) scale(${mobileScaleFactor})`
+                            ? `${positionTranslate} scale(${mobileScaleFactor})`
                             : transformStyle,
                     transformOrigin: 'center',
                     boxShadow: !isStoreVariant && isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : undefined,

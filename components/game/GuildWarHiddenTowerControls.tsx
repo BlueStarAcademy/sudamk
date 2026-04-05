@@ -8,6 +8,11 @@ import Button from '../Button.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
+import {
+    arenaPostGameButtonClass,
+    arenaPostGameButtonGridClass,
+    arenaPostGamePanelShellClass,
+} from './arenaPostGameButtonStyles.js';
 
 interface GuildWarHiddenTowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     setShowResultModal?: (show: boolean) => void;
@@ -139,26 +144,27 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
             replaceAppHash('#/guildwar');
         };
 
-        const endBtn = isMobile ? '!py-1 !px-2 !text-[0.65rem] shrink-0' : '!py-1.5 !px-4 !text-sm';
         return (
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[164px]">
-                <div className="min-w-0 rounded-xl border border-stone-700 bg-gray-900/70 px-2 py-3 sm:px-4">
-                    <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-2.5' : 'gap-3'}>
+                <div className={arenaPostGamePanelShellClass}>
+                    <div className={arenaPostGameButtonGridClass}>
                     <Button
+                        bare
                         onClick={handleShowResults}
                         colorScheme="none"
-                        className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap ${endBtn}`}
+                        className={arenaPostGameButtonClass('result', !!isMobile, 'strip')}
                     >
                         결과 보기
                     </Button>
                     <Button
+                        bare
                         onClick={handleExit}
                         colorScheme="none"
-                        className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap ${endBtn}`}
+                        className={arenaPostGameButtonClass('danger', !!isMobile, 'strip')}
                     >
                         나가기
                     </Button>
-                    </ArenaControlStrip>
+                    </div>
                 </div>
             </footer>
         );

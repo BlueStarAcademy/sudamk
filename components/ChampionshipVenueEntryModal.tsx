@@ -1,17 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
-import { TournamentType, UserWithStatus, TournamentState, QuestReward } from '../types.js';
+import { TournamentType, UserWithStatus, TournamentState } from '../types.js';
 import { CoreStat, ItemGrade } from '../types/enums.js';
 import {
     TOURNAMENT_DEFINITIONS,
-    DUNGEON_RANK_REWARDS,
     DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT,
-    DUNGEON_STAGE_BASE_REWARDS_GOLD,
     DUNGEON_STAGE_BASE_REWARDS_MATERIAL,
     DUNGEON_STAGE_BOT_STATS,
     gradeBackgrounds,
 } from '../constants';
+import {
+    DUNGEON_STAGE_EQUIPMENT_DROP,
+    getDungeonBasicRewardRangeGold,
+    getDungeonRankKeysForDisplay,
+    getDungeonRankRewardRangeForDisplay,
+    type DungeonRankRewardRangeItem,
+    type EquipmentGradeKey,
+} from '../shared/constants/tournaments.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import {
@@ -26,6 +32,16 @@ type RewardPiece = {
     imageUrl: string;
     grade?: ItemGrade;
     frame?: 'gold' | 'diamond';
+    /** 월드 경기 보상: 실제는 등급 랜덤 장비 — 상자 이미지를 어둡게 + 물음표 */
+    mysteryEquip?: boolean;
+    /** 동네 기본 보상: 골드 아이콘 어둡게 + 물음표 (승·패 범위는 captionBesideThumb) */
+    mysteryNeighborhoodGold?: boolean;
+    /** 썸 우하단 수량 배지 숨김 */
+    hideThumbQuantityBadge?: boolean;
+    /** 수량·이름은 썸 배지에만 표시하고 옆 텍스트 줄 생략 */
+    quantityOnThumbOnly?: boolean;
+    /** 썸 옆에만 보조 문구 (동네 기본: 승/패 골드 범위, 월드: 랜덤 안내) */
+    captionBesideThumb?: string[];
 };
 
 const CORE_STAT_SHORT: Record<CoreStat, string> = {
@@ -57,56 +73,35 @@ function fallbackIconByName(name: string): string {
     return '';
 }
 
-/** 동일 보상 판별용 (순위 묶음) */
-function questRewardSignature(reward: QuestReward | undefined): string {
-    if (!reward) return '∅';
-    const gold = reward.gold ?? 0;
-    const diamonds = reward.diamonds ?? 0;
-    const actionPoints = reward.actionPoints ?? 0;
-    const xp = reward.xp
-        ? { t: reward.xp.type, a: reward.xp.amount }
-        : null;
-    const rawItems = reward.items ?? [];
-    const items = rawItems.map(it => {
-        if (it && typeof it === 'object' && 'itemId' in it && (it as { itemId: string }).itemId) {
-            const row = it as { itemId: string; quantity?: number };
-            return { k: 'id' as const, id: row.itemId, q: row.quantity ?? 1 };
-        }
-        if (it && typeof it === 'object' && 'name' in it) {
-            const row = it as { name: string; quantity?: number };
-            return { k: 'nm' as const, id: row.name, q: row.quantity ?? 1 };
-        }
-        return { k: '?' as const, id: '', q: 0 };
-    });
-    items.sort((a, b) => `${a.k}:${a.id}:${a.q}`.localeCompare(`${b.k}:${b.id}:${b.q}`));
-    return JSON.stringify({ gold, diamonds, actionPoints, xp, items });
-}
+const WORLD_EQUIP_GRADE_LABEL: Record<string, string> = {
+    normal: '일반',
+    uncommon: '희귀',
+    rare: '레어',
+    epic: '에픽',
+    legendary: '전설',
+    mythic: '신화',
+};
 
-/** 연속된 순위 중 보상이 같은 구간을 한 덩어리로 묶음 */
-function groupConsecutiveRanksWithSameReward(map: Record<number, QuestReward>): { ranks: number[]; pieces: RewardPiece[] }[] {
-    const ranks = Object.keys(map)
-        .map(Number)
-        .filter(n => !Number.isNaN(n))
-        .sort((a, b) => a - b);
-    const groups: { ranks: number[]; pieces: RewardPiece[] }[] = [];
-    let cur: { ranks: number[]; sig: string; pieces: RewardPiece[] } | null = null;
-    for (const rank of ranks) {
-        const reward = map[rank];
-        const sig = questRewardSignature(reward);
-        const pieces = parseQuestRewardToPieces(reward);
-        if (cur && cur.sig === sig && rank === cur.ranks[cur.ranks.length - 1] + 1) {
-            cur.ranks.push(rank);
-        } else {
-            if (cur) {
-                groups.push({ ranks: cur.ranks, pieces: cur.pieces });
-            }
-            cur = { ranks: [rank], sig, pieces };
-        }
+const WORLD_EQUIP_GRADE_ORDER: EquipmentGradeKey[] = ['normal', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+
+function formatWorldEquipmentDropCaptionLines(stage: number): string[] {
+    const config = DUNGEON_STAGE_EQUIPMENT_DROP[stage] || DUNGEON_STAGE_EQUIPMENT_DROP[1];
+    const grades = [...config.win.map(e => e.grade), ...config.loss.map(e => e.grade)];
+    if (grades.length === 0) return ['1개/경기 (랜덤)'];
+    let lo = grades[0];
+    let hi = grades[0];
+    for (const g of grades) {
+        if (WORLD_EQUIP_GRADE_ORDER.indexOf(g) < WORLD_EQUIP_GRADE_ORDER.indexOf(lo)) lo = g;
+        if (WORLD_EQUIP_GRADE_ORDER.indexOf(g) > WORLD_EQUIP_GRADE_ORDER.indexOf(hi)) hi = g;
     }
-    if (cur) {
-        groups.push({ ranks: cur.ranks, pieces: cur.pieces });
-    }
-    return groups;
+    const loL = WORLD_EQUIP_GRADE_LABEL[lo] ?? lo;
+    const hiL = WORLD_EQUIP_GRADE_LABEL[hi] ?? hi;
+    const rangeLine = lo === hi ? `등급: ${loL}` : `등급 범위: ${loL}~${hiL}`;
+
+    const fmt = (entries: { grade: EquipmentGradeKey; chance: number }[]) =>
+        entries.map(e => `${WORLD_EQUIP_GRADE_LABEL[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
+
+    return [rangeLine, '1개/경기 (랜덤)', `승리: ${fmt(config.win)}`, `패배: ${fmt(config.loss)}`];
 }
 
 function formatRankGroupLabel(ranks: number[]): string {
@@ -117,70 +112,127 @@ function formatRankGroupLabel(ranks: number[]): string {
     return `${lo}~${hi}위`;
 }
 
-function parseQuestRewardToPieces(reward: QuestReward | undefined): RewardPiece[] {
-    if (!reward) return [];
+function formatRangeQuantity(min: number, max: number): string {
+    if (min === max) return min.toLocaleString();
+    return `${min.toLocaleString()}~${max.toLocaleString()}`;
+}
+
+function parseDungeonRankRangeToPieces(items: DungeonRankRewardRangeItem[]): RewardPiece[] {
     const out: RewardPiece[] = [];
-    let idx = 0;
-    if (reward.gold != null && reward.gold > 0) {
-        out.push({
-            key: `g-${idx++}`,
-            label: '골드',
-            quantity: reward.gold.toLocaleString(),
-            imageUrl: '/images/icon/Gold.png',
-            frame: 'gold',
+    items.forEach((it, idx) => {
+        const qty = formatRangeQuantity(it.min, it.max);
+        if (it.itemId === '골드') {
+            out.push({
+                key: `rank-g-${idx}`,
+                label: '골드',
+                quantity: qty,
+                imageUrl: '/images/icon/Gold.png',
+                frame: 'gold',
+                quantityOnThumbOnly: true,
+            });
+        } else if (it.itemId === '다이아') {
+            out.push({
+                key: `rank-d-${idx}`,
+                label: '다이아',
+                quantity: qty,
+                imageUrl: '/images/icon/Zem.png',
+                frame: 'diamond',
+                quantityOnThumbOnly: true,
+            });
+        } else {
+            const name = it.itemId;
+            const matQty = it.min === it.max ? `×${it.min.toLocaleString()}` : formatRangeQuantity(it.min, it.max);
+            out.push({
+                key: `rank-m-${idx}-${name}`,
+                label: name,
+                quantity: matQty,
+                imageUrl: getChampionshipRewardItemImageUrl(name) || fallbackIconByName(name),
+                grade: getChampionshipRewardItemGrade(name),
+                quantityOnThumbOnly: true,
+            });
+        }
+    });
+    return out;
+}
+
+function rangeItemsSignature(items: DungeonRankRewardRangeItem[]): string {
+    return JSON.stringify([...items].sort((a, b) => a.itemId.localeCompare(b.itemId)));
+}
+
+type RankColumnGroup = { ranks: number[]; headRank: number; rankLabel: string; pieces: RewardPiece[] };
+
+/** 실제 지급과 동일한 순위 보상 표시(동네=골드, 전국=강화석, 월드=다이아 구간). 레거시 DUNGEON_RANK_REWARDS 대신 사용 */
+function buildDungeonRankRewardGroupsForEntryModal(type: TournamentType, stage: number): RankColumnGroup[] {
+    const keys = getDungeonRankKeysForDisplay(type);
+    type Row = { rankNum: number; displayLabel: string; sig: string; pieces: RewardPiece[] };
+    const expanded: Row[] = [];
+
+    for (const rankKey of keys) {
+        const r = getDungeonRankRewardRangeForDisplay(type, stage, rankKey);
+        const displayLabel =
+            type === 'world' && rankKey === 9 ? '9~16위' : type === 'world' && rankKey === 4 ? '4~8위' : `${rankKey}위`;
+
+        if (type === 'world' && rankKey === 9) {
+            const pieces = r?.items?.length ? parseDungeonRankRangeToPieces(r.items) : [];
+            expanded.push({
+                rankNum: 9,
+                displayLabel,
+                sig: pieces.length ? rangeItemsSignature(r!.items) : '__world_916_none__',
+                pieces,
+            });
+            continue;
+        }
+
+        if (!r?.items?.length) continue;
+        expanded.push({
+            rankNum: rankKey,
+            displayLabel,
+            sig: rangeItemsSignature(r.items),
+            pieces: parseDungeonRankRangeToPieces(r.items),
         });
     }
-    if (reward.diamonds != null && reward.diamonds > 0) {
-        out.push({
-            key: `d-${idx++}`,
-            label: '다이아',
-            quantity: reward.diamonds.toLocaleString(),
-            imageUrl: '/images/icon/Zem.png',
-            frame: 'diamond',
-        });
-    }
-    if (reward.items?.length) {
-        for (const it of reward.items) {
-            if (it && typeof it === 'object' && 'itemId' in it && (it as { itemId: string }).itemId) {
-                const row = it as { itemId: string; quantity?: number };
-                const name = row.itemId;
-                const qty = row.quantity ?? 1;
-                const imageUrl = getChampionshipRewardItemImageUrl(name) || fallbackIconByName(name);
-                out.push({
-                    key: `i-${idx++}-${name}`,
-                    label: name,
-                    quantity: `×${qty}`,
-                    imageUrl,
-                    grade: getChampionshipRewardItemGrade(name),
-                });
-            } else if (it && typeof it === 'object' && 'name' in it) {
-                const row = it as { name: string; quantity?: number };
-                const name = row.name;
-                const qty = row.quantity ?? 1;
-                out.push({
-                    key: `i-${idx++}-${name}`,
-                    label: name,
-                    quantity: `×${qty}`,
-                    imageUrl: getChampionshipRewardItemImageUrl(name) || fallbackIconByName(name),
-                    grade: getChampionshipRewardItemGrade(name),
-                });
-            }
+
+    const groups: RankColumnGroup[] = [];
+    let cur: { rankNums: number[]; sig: string; pieces: RewardPiece[]; firstLabel: string } | null = null;
+
+    const flush = () => {
+        if (!cur) return;
+        const headRank = cur.rankNums[0];
+        const rankLabel = cur.rankNums.length === 1 ? cur.firstLabel : formatRankGroupLabel(cur.rankNums);
+        groups.push({ ranks: cur.rankNums, headRank, rankLabel, pieces: cur.pieces });
+        cur = null;
+    };
+
+    for (const row of expanded) {
+        const last = cur?.rankNums[cur.rankNums.length - 1];
+        const extend = cur && cur.sig === row.sig && row.rankNum === last! + 1;
+        if (extend) {
+            cur!.rankNums.push(row.rankNum);
+        } else {
+            flush();
+            cur = { rankNums: [row.rankNum], sig: row.sig, pieces: row.pieces, firstLabel: row.displayLabel };
         }
     }
-    return out;
+    flush();
+    return groups;
 }
 
 function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[] {
     if (type === 'neighborhood') {
-        const g = DUNGEON_STAGE_BASE_REWARDS_GOLD[stage];
-        if (g == null) return [];
+        const range = getDungeonBasicRewardRangeGold(stage);
         return [
             {
-                key: 'base-gold',
-                label: '클리어 골드',
-                quantity: g.toLocaleString(),
+                key: 'base-gold-mystery',
+                label: '경기당 골드',
+                quantity: '',
                 imageUrl: '/images/icon/Gold.png',
                 frame: 'gold',
+                mysteryNeighborhoodGold: true,
+                hideThumbQuantityBadge: true,
+                captionBesideThumb: [
+                    `승리: ${range.win.min.toLocaleString()}~${range.win.max.toLocaleString()} 골드`,
+                    `패배: ${range.loss.min.toLocaleString()}~${range.loss.max.toLocaleString()} 골드`,
+                ],
             },
         ];
     }
@@ -194,28 +246,32 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
                 quantity: `×${m.quantity}`,
                 imageUrl: getChampionshipRewardItemImageUrl(m.materialName) || '/images/materials/materials1.png',
                 grade: getChampionshipRewardItemGrade(m.materialName),
+                quantityOnThumbOnly: true,
             },
         ];
     }
     if (type === 'world') {
         const e = DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage];
         if (!e) return [];
-        const list: RewardPiece[] = [];
-        e.boxes.forEach((b, bi) => {
-            list.push({
-                key: `box-${bi}`,
-                label: b.boxName,
-                quantity: `×${b.quantity}`,
-                imageUrl: getChampionshipRewardItemImageUrl(b.boxName) || '/images/Box/EquipmentBox1.png',
-                grade: getChampionshipRewardItemGrade(b.boxName),
-            });
-        });
+        const boxImg = getChampionshipRewardItemImageUrl('장비 상자 I') || '/images/Box/EquipmentBox1.png';
+        const list: RewardPiece[] = [
+            {
+                key: 'base-equip-random',
+                label: '등급별 장비',
+                quantity: '',
+                imageUrl: boxImg,
+                mysteryEquip: true,
+                hideThumbQuantityBadge: true,
+                captionBesideThumb: formatWorldEquipmentDropCaptionLines(stage),
+            },
+        ];
         if (e.changeTickets > 0) {
             list.push({
                 key: 'tickets',
                 label: '장비 변경권',
                 quantity: `×${e.changeTickets}`,
                 imageUrl: '/images/use/change1.png',
+                quantityOnThumbOnly: true,
             });
         }
         return list;
@@ -237,14 +293,51 @@ const RewardThumb: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
     const box = 'h-10 w-10 min-h-[2.5rem] min-w-[2.5rem] sm:h-11 sm:w-11 sm:min-h-[2.75rem] sm:min-w-[2.75rem]';
     const qtyClass = 'px-0.5 py-px text-[8px] sm:text-[9px]';
     const padImg = 'p-0.5 sm:p-1';
-    const tierBg = piece.grade !== undefined ? gradeBackgrounds[piece.grade] : undefined;
+    const tierBg =
+        piece.grade !== undefined && !piece.mysteryEquip && !piece.mysteryNeighborhoodGold ? gradeBackgrounds[piece.grade] : undefined;
     const ring = rewardThumbRing(piece);
+    const titleText =
+        piece.captionBesideThumb?.length ? [piece.label, ...piece.captionBesideThumb].join(' · ') : `${piece.label} ${piece.quantity}`.trim();
     return (
         <div
             className={`group/thumb relative shrink-0 overflow-hidden rounded-lg ${box} bg-gradient-to-b from-zinc-800/90 to-black/80 ring-1 ${ring}`}
-            title={`${piece.label} ${piece.quantity}`}
+            title={titleText}
         >
-            {tierBg ? (
+            {piece.mysteryNeighborhoodGold && piece.imageUrl ? (
+                <>
+                    <img
+                        src={piece.imageUrl}
+                        alt=""
+                        className={`relative z-[1] h-full w-full object-contain ${padImg} opacity-[0.42] brightness-[0.5] contrast-[0.95]`}
+                        loading="lazy"
+                        decoding="async"
+                    />
+                    <span
+                        className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center text-lg font-black leading-none text-white"
+                        style={{ textShadow: '0 0 10px rgba(0,0,0,0.95), 0 2px 4px rgba(0,0,0,0.9)' }}
+                        aria-hidden
+                    >
+                        ?
+                    </span>
+                </>
+            ) : piece.mysteryEquip && piece.imageUrl ? (
+                <>
+                    <img
+                        src={piece.imageUrl}
+                        alt=""
+                        className={`relative z-[1] h-full w-full object-contain ${padImg} opacity-[0.38] brightness-[0.45] contrast-[0.95]`}
+                        loading="lazy"
+                        decoding="async"
+                    />
+                    <span
+                        className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center text-lg font-black leading-none text-white"
+                        style={{ textShadow: '0 0 10px rgba(0,0,0,0.95), 0 2px 4px rgba(0,0,0,0.9)' }}
+                        aria-hidden
+                    >
+                        ?
+                    </span>
+                </>
+            ) : tierBg ? (
                 <>
                     <img src={tierBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.88]" aria-hidden />
                     {piece.imageUrl ? (
@@ -268,22 +361,35 @@ const RewardThumb: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
                     />
                 )
             )}
-            <span
-                className={`absolute bottom-0 right-0 z-[2] max-w-[100%] truncate rounded-tl bg-black/90 font-bold leading-tight text-amber-100/95 tabular-nums ${qtyClass}`}
-            >
-                {piece.quantity}
-            </span>
+            {piece.quantity && !piece.hideThumbQuantityBadge ? (
+                <span
+                    className={`absolute bottom-0 right-0 z-[2] max-w-[100%] truncate rounded-tl bg-black/90 font-bold leading-tight text-amber-100/95 tabular-nums ${qtyClass}`}
+                >
+                    {piece.quantity}
+                </span>
+            ) : null}
         </div>
     );
 };
 
 const RewardStripRow: React.FC<{ piece: RewardPiece }> = ({ piece }) => (
-    <div className="flex min-w-0 max-w-[13.5rem] shrink-0 items-center gap-2 sm:max-w-[15rem]">
+    <div className="flex min-w-0 max-w-[16rem] shrink-0 items-start gap-2 sm:max-w-[18rem]">
         <RewardThumb piece={piece} />
-        <span className="min-w-0 truncate whitespace-nowrap text-xs font-medium text-zinc-200 sm:text-sm" title={`${piece.label} ${piece.quantity}`}>
-            {piece.label}
-            <span className="ml-1 tabular-nums font-semibold text-amber-200/90">{piece.quantity}</span>
-        </span>
+        {piece.captionBesideThumb && piece.captionBesideThumb.length > 0 ? (
+            <div className="min-w-0 flex flex-col justify-center gap-0.5 pt-0.5 text-[10px] leading-snug text-zinc-300 sm:text-[11px]">
+                {piece.captionBesideThumb.map((line, i) => (
+                    <div key={i}>{line}</div>
+                ))}
+            </div>
+        ) : !piece.quantityOnThumbOnly ? (
+            <span
+                className="min-w-0 truncate whitespace-nowrap pt-1 text-xs font-medium text-zinc-200 sm:text-sm"
+                title={`${piece.label} ${piece.quantity}`}
+            >
+                {piece.label}
+                <span className="ml-1 tabular-nums font-semibold text-amber-200/90">{piece.quantity}</span>
+            </span>
+        ) : null}
     </div>
 );
 
@@ -388,11 +494,10 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
 
     const basePieces = useMemo(() => getBaseRewardPieces(type, selectedStage), [type, selectedStage]);
 
-    const rankRewardGroups = useMemo(() => {
-        const map = DUNGEON_RANK_REWARDS[type]?.[selectedStage] as Record<number, QuestReward> | undefined;
-        if (!map) return [];
-        return groupConsecutiveRanksWithSameReward(map);
-    }, [type, selectedStage]);
+    const rankRewardGroups = useMemo(
+        () => buildDungeonRankRewardGroupsForEntryModal(type, selectedStage),
+        [type, selectedStage]
+    );
 
     const botStatRange = useMemo(() => getDungeonBotStatRangeForStage(selectedStage), [selectedStage]);
     const botAvgStat = useMemo(
@@ -548,10 +653,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                         순위 보상 없음
                                     </div>
                                 ) : (
-                                    rankRewardGroups.map(({ ranks, pieces }) => {
-                                        const headRank = ranks[0];
-                                        const label = formatRankGroupLabel(ranks);
-                                        return (
+                                    rankRewardGroups.map(({ ranks, headRank, rankLabel, pieces }) => (
                                             <div
                                                 key={ranks.join('-')}
                                                 className="flex shrink-0 flex-col gap-2.5 border-l border-white/15 pl-4"
@@ -567,18 +669,17 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                                                 : 'text-zinc-300'
                                                     }`}
                                                 >
-                                                    {label}
+                                                    {rankLabel}
                                                 </span>
                                                 <div className="flex flex-col gap-2">
                                                     {pieces.length === 0 ? (
-                                                        <span className="text-base text-zinc-500">—</span>
+                                                        <span className="text-sm text-zinc-500">순위 보상 없음</span>
                                                     ) : (
                                                         pieces.map(p => <RewardStripRow key={p.key} piece={p} />)
                                                     )}
                                                 </div>
                                             </div>
-                                        );
-                                    })
+                                        ))
                                 )}
                             </div>
                         </div>

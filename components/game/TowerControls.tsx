@@ -15,6 +15,12 @@ import {
 } from '../../utils/towerLobbyInventory.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
+import {
+    arenaPostGameButtonClass,
+    arenaPostGameButtonGridClass,
+    arenaPostGamePanelShellClass,
+    formatTowerNextFooterLabel,
+} from './arenaPostGameButtonStyles.js';
 
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     showResultModal?: boolean;
@@ -179,24 +185,23 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             replaceAppHash('#/tower');
         };
 
-        const endBtn = isMobile ? '!py-1 !px-2 !text-[0.65rem] shrink-0' : '!py-1.5 !px-4 !text-sm';
         return (
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[164px]">
-                <div className="min-w-0 rounded-xl border border-stone-700 bg-gray-900/70 px-2 py-3 sm:px-4">
-                    <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-2.5' : 'gap-3'}>
-                    <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap ${endBtn}`}>
+                <div className={arenaPostGamePanelShellClass}>
+                    <div className={arenaPostGameButtonGridClass}>
+                    <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('result', !!isMobile, 'strip')}>
                         결과 보기
                     </Button>
-                    <Button onClick={handleExitToLobby} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap ${endBtn}`}>
-                        나가기
+                    <Button bare onClick={handleNextFloor} colorScheme="none" className={`${arenaPostGameButtonClass('primary', !!isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNext}>
+                        {formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorApCost)}
                     </Button>
-                    <Button onClick={handleRetry} colorScheme="none" className={`justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap ${endBtn}`}>
+                    <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('retry', !!isMobile, 'strip')}>
                         재도전 {effectiveRetryApCost > 0 && `(⚡${effectiveRetryApCost})`}
                     </Button>
-                    <Button onClick={handleNextFloor} colorScheme="none" className={`justify-center rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap max-w-[46vw] truncate ${endBtn}`} disabled={!canTryNext}>
-                        다음 층{canTryNext && nextFloor ? `: ${nextFloor}층` : ''}{effectiveNextFloorApCost > 0 && ` (⚡${effectiveNextFloorApCost})`}
+                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={arenaPostGameButtonClass('danger', !!isMobile, 'strip')}>
+                        나가기
                     </Button>
-                    </ArenaControlStrip>
+                    </div>
                 </div>
             </footer>
         );

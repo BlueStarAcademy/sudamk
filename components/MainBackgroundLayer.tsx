@@ -13,17 +13,20 @@ const MainBackgroundLayer: React.FC<MainBackgroundLayerProps> = ({ variant = 'ap
             ? 'from-black/78 via-black/58 to-black/82'
             : 'from-black/62 via-black/42 to-black/72';
 
-    const bg = getMainBackgroundUrl();
+    /** 로그인·회원가입 등: 루트 `.bg-login-background`(loginbg)만 쓰고 mainbg.webp는 겹치지 않음 */
+    const showMainBgImage = variant !== 'auth';
 
     return (
         <div className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`} aria-hidden>
-            <img
-                src={bg}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
-                decoding="async"
-                fetchPriority="low"
-            />
+            {showMainBgImage && (
+                <img
+                    src={getMainBackgroundUrl()}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    decoding="async"
+                    fetchPriority="low"
+                />
+            )}
             <div className={`absolute inset-0 bg-gradient-to-b ${dim}`} />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_0%,rgba(251,191,36,0.12),transparent_55%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_55%_at_100%_60%,rgba(99,102,241,0.08),transparent_50%)]" />

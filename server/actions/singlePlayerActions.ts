@@ -257,7 +257,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 initializeSinglePlayerMissile(game);
             }
 
-            await db.saveGame(game);
+            // pending은 기본 save가 스킵되므로 force — 모달 장시간·캐시 정리 후에도 DB에서 복구
+            await db.saveGame(game, true);
             const { updateGameCache } = await import('../gameCache.js');
             updateGameCache(game);
 
@@ -348,7 +349,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             game.blackByoyomiPeriodsLeft = 0;
             game.whiteByoyomiPeriodsLeft = 0;
 
-            await db.saveGame(game);
+            // playing 전환 직후 한 번 강제 저장 — 이후 수순은 기존처럼 메모리 위주
+            await db.saveGame(game, true);
             updateGameCache(game);
             const { broadcastToGameParticipants } = await import('../socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);

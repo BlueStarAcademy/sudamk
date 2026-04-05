@@ -46,25 +46,25 @@ export const HIDDEN_STONE_COUNTS = [1, 2, 3];
 export const SCAN_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 export const MISSILE_COUNTS = Array.from({ length: 15 }, (_, i) => i + 1);
 export const TIME_LIMITS = [ // in minutes
-  { value: 0, label: '??' },
-  { value: 5, label: '5?' },
-  { value: 10, label: '10?' },
-  { value: 15, label: '15?' },
-  { value: 20, label: '20?' },
-  { value: 30, label: '30?' },
-  { value: 40, label: '40?' },
-  { value: 50, label: '50?' },
-  { value: 60, label: '1??' },
-  { value: 120, label: '2??' },
-  { value: 180, label: '3??' },
+  { value: 0, label: '없음' },
+  { value: 5, label: '5분' },
+  { value: 10, label: '10분' },
+  { value: 15, label: '15분' },
+  { value: 20, label: '20분' },
+  { value: 30, label: '30분' },
+  { value: 40, label: '40분' },
+  { value: 50, label: '50분' },
+  { value: 60, label: '1시간' },
+  { value: 120, label: '2시간' },
+  { value: 180, label: '3시간' },
 ];
 export const SPEED_TIME_LIMITS = [ // in minutes
-  { value: 1, label: '1?' },
-  { value: 3, label: '3?' },
-  { value: 5, label: '5?' },
-  { value: 10, label: '10?' },
-  { value: 20, label: '20?' },
-  { value: 30, label: '30?' },
+  { value: 1, label: '1분' },
+  { value: 3, label: '3분' },
+  { value: 5, label: '5분' },
+  { value: 10, label: '10분' },
+  { value: 20, label: '20분' },
+  { value: 30, label: '30분' },
 ];
 export const BYOYOMI_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 export const BYOYOMI_TIMES = [10, 20, 30, 40, 50, 60]; // in seconds
@@ -129,7 +129,7 @@ export const DICE_GO_TURN_CHOICE_TIME = 30;
 export const DICE_GO_MAIN_ROLL_TIME = 30;
 export const DICE_GO_MAIN_PLACE_TIME = 30;
 export const DICE_GO_VARIANT_NAMES = {
-  [DiceGoVariant.Basic]: '?? ??????',
+  [DiceGoVariant.Basic]: '기본 규칙',
 };
 
 // --- Alkkagi Settings ---

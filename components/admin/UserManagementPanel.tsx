@@ -777,6 +777,10 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
 
     const fetchAdminUsersPage = useCallback(
         async (trimmedQuery: string, pageOffset: number, pageLimit: number): Promise<{ users: User[]; total: number }> => {
+            const adminId = String(currentUser?.id ?? '').trim();
+            if (!adminId) {
+                throw new Error('로그인 사용자 ID가 없어 목록을 불러올 수 없습니다.');
+            }
             const candidates = [getApiUrl('/api/admin/users'), getApiUrl('/admin/users')];
             let lastError: Error | null = null;
             const limit = Math.max(BATCH_MIN, Math.min(BATCH_MAX, Math.floor(pageLimit) || 30));
@@ -785,7 +789,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
             for (const url of candidates) {
                 try {
                     const response = await fetch(
-                        `${url}?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=${limit}&offset=${offset}`,
+                        `${url}?userId=${encodeURIComponent(adminId)}&query=${encodeURIComponent(trimmedQuery)}&limit=${limit}&offset=${offset}`,
                         { credentials: 'include' }
                     );
                     const raw = await response.text();
@@ -806,7 +810,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
 
             throw lastError ?? new Error('사용자 검색에 실패했습니다.');
         },
-        [currentUser.id]
+        [currentUser?.id]
     );
 
     const fetchAdminUserDetail = useCallback(async (targetUserId: string) => {
@@ -815,7 +819,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
 
         for (const url of candidates) {
             try {
-                const res = await fetch(`${url}?userId=${encodeURIComponent(currentUser.id)}`, { credentials: 'include' });
+                const res = await fetch(`${url}?userId=${encodeURIComponent(String(currentUser?.id ?? '').trim())}`, { credentials: 'include' });
                 const raw = await res.text();
                 if (raw.trim().startsWith('<!DOCTYPE') || raw.trim().startsWith('<html')) {
                     throw new Error('API 대신 HTML 응답이 반환되었습니다.');
@@ -828,7 +832,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
             }
         }
         throw lastError ?? new Error('유저 정보를 불러오지 못했습니다.');
-    }, [currentUser.id]);
+    }, [currentUser?.id]);
 
     const loadFirstPage = useCallback(async (trimmedQuery: string) => {
         const gen = ++fetchGenRef.current;
@@ -868,6 +872,13 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
     }, []);
 
     useEffect(() => {
+        if (!String(currentUser?.id ?? '').trim()) {
+            setIsLoadingUsers(false);
+            setLocalUsers([]);
+            setTotalMatching(0);
+            setSearchError('로그인 사용자 정보가 없어 목록을 불러올 수 없습니다.');
+            return;
+        }
         const trimmed = searchQuery.trim();
         if (trimmed.length >= 1) {
             const timer = setTimeout(() => {
@@ -876,7 +887,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
             return () => clearTimeout(timer);
         }
         void loadFirstPage('');
-    }, [searchQuery, loadFirstPage]);
+    }, [searchQuery, loadFirstPage, currentUser?.id]);
 
     const loadMore = useCallback(async () => {
         if (loadingMoreRef.current || isLoadingUsers) return;
@@ -1010,14 +1021,14 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                         <div className="mb-3 text-sm text-red-400 shrink-0">{searchError}</div>
                     )}
                     <div ref={listScrollRef} className="flex-1 min-h-0 overflow-y-auto rounded-md border border-color/60">
-                        <table className="w-full text-sm text-left text-secondary">
-                            <thead className="text-xs text-secondary uppercase bg-secondary sticky top-0 z-[1] shadow-sm">
+                        <table className="w-full text-base sm:text-[1.05rem] text-left text-secondary">
+                            <thead className="text-sm sm:text-[0.95rem] text-secondary uppercase bg-secondary sticky top-0 z-[1] shadow-sm">
                                 <tr>
-                                    <th scope="col" className="px-4 sm:px-6 py-3">닉네임</th>
-                                    <th scope="col" className="px-4 sm:px-6 py-3">아이디</th>
-                                    <th scope="col" className="px-4 sm:px-6 py-3">레벨 (전략/놀이)</th>
-                                    <th scope="col" className="px-4 sm:px-6 py-3">접속 상태</th>
-                                    <th scope="col" className="px-4 sm:px-6 py-3">액션</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3.5">닉네임</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3.5">아이디</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3.5">레벨 (전략/놀이)</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3.5">접속 상태</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3.5">액션</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1025,16 +1036,16 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                     <tr key={user.id} className="bg-primary border-b border-color hover:bg-secondary/50">
                                         <th 
                                             scope="row" 
-                                            className="px-4 sm:px-6 py-4 font-medium text-primary whitespace-nowrap cursor-pointer hover:text-accent"
+                                            className="px-4 sm:px-6 py-4 sm:py-5 font-medium text-primary whitespace-nowrap cursor-pointer hover:text-accent"
                                             onClick={() => handlers.openViewingUser(user.id)}
                                             title={`${user.nickname} 프로필 보기`}
                                         > 
-                                            {user.nickname} {user.isAdmin && <span className="text-xs text-purple-400 ml-2">[관리자]</span>} 
+                                            {user.nickname} {user.isAdmin && <span className="text-sm text-purple-400 ml-2">[관리자]</span>} 
                                         </th>
-                                        <td className="px-4 sm:px-6 py-4">{user.username}</td>
-                                        <td className="px-4 sm:px-6 py-4">S.{user.strategyLevel} / P.{user.playfulLevel}</td>
-                                        <td className="px-4 sm:px-6 py-4">{renderOnlineLabel(user)}</td>
-                                        <td className="px-4 sm:px-6 py-4">
+                                        <td className="px-4 sm:px-6 py-4 sm:py-5">{user.username}</td>
+                                        <td className="px-4 sm:px-6 py-4 sm:py-5">S.{user.strategyLevel} / P.{user.playfulLevel}</td>
+                                        <td className="px-4 sm:px-6 py-4 sm:py-5">{renderOnlineLabel(user)}</td>
+                                        <td className="px-4 sm:px-6 py-4 sm:py-5">
                                             <div className="flex items-center gap-3">
                                                 <button
                                                     type="button"

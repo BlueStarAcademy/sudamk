@@ -4194,6 +4194,10 @@ export const useApp = () => {
                                     existingForThrottle?.gameStatus &&
                                     ['capture_bidding', 'capture_reveal', 'capture_tiebreaker'].includes(existingForThrottle.gameStatus) &&
                                     game.gameStatus === 'playing';
+                                // PVP 접속 끊김: 수순·상태 변화 없이 disconnectionState만 오는 업데이트가 쓰로틀에 걸리면 모달이 안 뜸
+                                const disconnectStateChanged =
+                                    stableStringify(existingForThrottle?.disconnectionState ?? null) !==
+                                    stableStringify(game.disconnectionState ?? null);
                                 if (
                                     !hasNewMoves &&
                                     !isPlayfulBoardUpdate &&
@@ -4206,6 +4210,7 @@ export const useApp = () => {
                                     !isDiceThiefAnimExitToRolling &&
                                     !isDiceThiefTurnOwnerChanged &&
                                     !isScanAnimExitToPlaying &&
+                                    !disconnectStateChanged &&
                                     now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS
                                 ) {
                                     return;
@@ -5478,6 +5483,69 @@ export const useApp = () => {
         }
     }, [currentUser, activeGame, currentUserWithStatus, liveGames, singlePlayerGames, towerGames, rejoinFailedForGameId]);
 
+    /**
+     * 서버 userStatuses는 in-game인데 INITIAL_STATE의 liveGames 등에 해당 방이 없을 때(목록 상한·타이밍 등).
+     * 대기실(#/waiting/...)에 머물러 있어도 rejoin으로 스토어를 채우면 activeGame·라우팅 이펙트가 경기장으로 보냄.
+     * (관전은 rejoin이 참가자만 허용하므로 제외)
+     *
+     * 의존성은 userId·gameId만 둠: onlineUsers·타 유저 게임 갱신으로 타이머가 계속 리셋되는 것을 막기 위함.
+     * 스토어에 이미 들어왔는지는 타이머 시점에 ref로 확인.
+     */
+    const inGameRecoveryGameId =
+        currentUser && currentUserWithStatus?.status === 'in-game' && currentUserWithStatus.gameId
+            ? currentUserWithStatus.gameId
+            : '';
+
+    useEffect(() => {
+        if (!inGameRecoveryGameId) return;
+
+        const gid = inGameRecoveryGameId;
+        if (rejoinRequestedRef.current.has(gid)) return;
+        rejoinRequestedRef.current.add(gid);
+
+        const t = setTimeout(async () => {
+            try {
+                const uid = currentUserRef.current?.id;
+                if (!uid) return;
+
+                const inStore =
+                    liveGamesRef.current[gid] ||
+                    singlePlayerGamesRef.current[gid] ||
+                    towerGamesRef.current[gid];
+                if (inStore) return;
+
+                const res = await fetch(getApiUrl('/api/game/rejoin'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: uid, gameId: gid }),
+                    credentials: 'omit',
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.game) {
+                    const g = data.game as LiveGameSession;
+                    const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+                    if (category === 'singleplayer') {
+                        setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
+                    } else if (category === 'tower') {
+                        setTowerGames(prev => ({ ...prev, [g.id]: g }));
+                    } else {
+                        setLiveGames(prev => ({ ...prev, [g.id]: g }));
+                    }
+                    setRejoinFailedForGameId(prev => (prev === gid ? null : prev));
+                }
+            } catch {
+                /* 게임 URL 재입장 effect가 이어서 시도 */
+            } finally {
+                rejoinRequestedRef.current.delete(gid);
+            }
+        }, 400);
+
+        return () => {
+            clearTimeout(t);
+            rejoinRequestedRef.current.delete(gid);
+        };
+    }, [inGameRecoveryGameId]);
+
     // 새로고침(F5) 후 게임 페이지에서 재입장 API 호출 - AI/PVP 공통 (INITIAL_STATE 대기 후)
     useEffect(() => {
         const view = currentRoute?.view;
@@ -5651,8 +5719,10 @@ export const useApp = () => {
             } else {
                 setLiveGames(prev => ({ ...prev, [g.id]: g }));
             }
+            replaceAppHash(`#/game/${g.id}`);
+        } else {
+            replaceAppHash('#/profile');
         }
-        replaceAppHash('#/profile');
     }, [applyUserUpdate]);
     
     const openEnhancingItem = useCallback((item: InventoryItem) => {

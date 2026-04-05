@@ -115,6 +115,22 @@ export default defineConfig({
           });
         },
       },
+      // 관리자 패널 등에서 /admin/users 폴백 요청이 Vite가 아닌 백엔드로 가도록 (SPA index.html 방지)
+      '/admin': {
+        target: process.env.VITE_API_TARGET || 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err: any) => {
+            const isStartupRace =
+              err.code === 'ECONNREFUSED' ||
+              err.code === 'ECONNABORTED' ||
+              err.code === 'ETIMEDOUT';
+            if (isStartupRace) return;
+            console.error('[Vite Proxy] /admin proxy error:', err);
+          });
+        },
+      },
       '/sounds': {
         target: process.env.VITE_API_TARGET || 'http://localhost:4000',
         changeOrigin: true,

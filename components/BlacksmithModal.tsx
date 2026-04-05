@@ -6,7 +6,6 @@ import DisassemblyView from './blacksmith/DisassemblyView.js';
 import ConversionView from './blacksmith/ConversionView.js';
 import RefinementView from './blacksmith/RefinementView.js';
 import InventoryGrid from './blacksmith/InventoryGrid.js';
-import DisassemblyResultModal from './DisassemblyResultModal.js'; // New import
 import RefinementResultModal from './blacksmith/RefinementResultModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -532,12 +531,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     )}
                 </div>
             </DraggableWindow>
-
-            <DisassemblyResultModal
-                isOpen={!!modals.disassemblyResult}
-                onClose={handlers.closeDisassemblyResult}
-                result={modals.disassemblyResult}
-            />
 
             <RefinementResultModal
                 result={modals.refinementResult}

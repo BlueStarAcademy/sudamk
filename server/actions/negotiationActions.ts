@@ -11,6 +11,28 @@ type HandleActionResult = {
     error?: string;
 };
 
+/** 협상 종료 후 대기실 복귀: 전략/놀이 집계 로비는 waitingLobby로 복원 */
+function restoreUserToWaitingLobby(
+    volatileState: VolatileState,
+    userId: string,
+    gameMode: GameMode
+) {
+    const st = volatileState.userStatuses[userId];
+    if (!st) return;
+    st.status = UserStatus.Waiting;
+    st.gameId = undefined;
+    if (SPECIAL_GAME_MODES.some((m) => m.mode === gameMode)) {
+        st.waitingLobby = 'strategic';
+        delete st.mode;
+    } else if (PLAYFUL_GAME_MODES.some((m) => m.mode === gameMode)) {
+        st.waitingLobby = 'playful';
+        delete st.mode;
+    } else {
+        st.mode = gameMode;
+        delete st.waitingLobby;
+    }
+}
+
 const getActionPointCost = (mode: GameMode): number => {
     if (SPECIAL_GAME_MODES.some(m => m.mode === mode)) {
         return STRATEGIC_ACTION_POINT_COST;
@@ -33,17 +55,51 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             if (!opponent) return { error: 'Opponent not found.' };
             if (user.id === opponent.id) return { error: 'You cannot challenge yourself.' };
 
-            // Clean up any of my own previous abandoned drafts
-            const existingDraftId = Object.keys(volatileState.negotiations).find(id => {
-                const neg = volatileState.negotiations[id];
-                return neg.challenger.id === user.id && neg.status === 'draft';
-            });
-            if (existingDraftId) {
-                delete volatileState.negotiations[existingDraftId];
-            }
-            
             // For real players, perform status checks
             if (opponentId !== aiUserId) {
+                const pairInvolving = Object.values(volatileState.negotiations).filter(
+                    (neg) =>
+                        (neg.challenger.id === user.id && neg.opponent.id === opponent.id) ||
+                        (neg.challenger.id === opponent.id && neg.opponent.id === user.id)
+                );
+
+                // 먼저 신청(초안/전송)한 쪽 우선: 늦게 CHALLENGE_USER 한 사람은 새 초안을 만들지 않고 작성 창만 닫음
+                const theirDraftToMe = pairInvolving.find(
+                    (neg) => neg.status === 'draft' && neg.challenger.id === opponent.id && neg.opponent.id === user.id
+                );
+                if (theirDraftToMe) {
+                    return { clientResponse: { challengeComposerSuperseded: true, supersedeReason: 'opponent_composing_first' } };
+                }
+
+                const pendingFromThem = pairInvolving.find(
+                    (neg) => neg.status === 'pending' && neg.challenger.id === opponent.id && neg.opponent.id === user.id
+                );
+                if (pendingFromThem) {
+                    return { clientResponse: { challengeComposerSuperseded: true, supersedeReason: 'incoming_challenge' } };
+                }
+
+                const myDraftToThem = pairInvolving.find(
+                    (neg) => neg.status === 'draft' && neg.challenger.id === user.id && neg.opponent.id === opponent.id
+                );
+                if (myDraftToThem) {
+                    return { clientResponse: { negotiationId: myDraftToThem.id } };
+                }
+
+                const pendingFromMe = pairInvolving.find(
+                    (neg) => neg.status === 'pending' && neg.challenger.id === user.id && neg.opponent.id === opponent.id
+                );
+                if (pendingFromMe) {
+                    return { clientResponse: { challengeComposerSuperseded: true, supersedeReason: 'already_sent_challenge' } };
+                }
+
+                // 다른 상대를 향한 내 초안만 제거 (동일 상대 초안은 위에서 처리)
+                for (const id of Object.keys(volatileState.negotiations)) {
+                    const neg = volatileState.negotiations[id];
+                    if (neg.challenger.id === user.id && neg.status === 'draft' && neg.opponent.id !== opponent.id) {
+                        delete volatileState.negotiations[id];
+                    }
+                }
+
                 let myStatus = volatileState.userStatuses[user.id];
                 const opponentStatus = volatileState.userStatuses[opponent.id];
 
@@ -54,8 +110,13 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 // myStatus가 없거나 waiting/resting이 아니면 대기 상태로 설정
                 // (대기실에 입장했지만 상태가 아직 업데이트되지 않은 경우)
                 if (!myStatus || (myStatus.status !== UserStatus.Waiting && myStatus.status !== 'resting')) {
-                    // 대기 상태로 설정 (mode는 선택한 게임 모드로 설정)
-                    volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode };
+                    if (SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
+                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: 'strategic' };
+                    } else if (PLAYFUL_GAME_MODES.some((m) => m.mode === mode)) {
+                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: 'playful' };
+                    } else {
+                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode };
+                    }
                     myStatus = volatileState.userStatuses[user.id];
                     broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
                 }
@@ -76,11 +137,17 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     return { error: `상대방이 ${mode} 게임 신청을 거부했습니다.` };
                 }
 
-                // FIX: Only block if the opponent is in a *pending* negotiation (one they have to respond to).
-                const isOpponentInPendingNegotiation = Object.values(volatileState.negotiations).some(
-                    neg => (neg.opponent.id === opponent.id || neg.challenger.id === opponent.id) && neg.status === 'pending'
-                );
-                if (isOpponentInPendingNegotiation) {
+                // 이 유저와의 쌍이 아닌, 다른 상대와 진행 중인 pending만 막음 (서로에게 신청한 경우는 위에서 처리)
+                const opponentInOtherPending = Object.values(volatileState.negotiations).some((neg) => {
+                    if (neg.status !== 'pending') return false;
+                    const touchesOpponent = neg.challenger.id === opponent.id || neg.opponent.id === opponent.id;
+                    if (!touchesOpponent) return false;
+                    const samePair =
+                        (neg.challenger.id === user.id && neg.opponent.id === opponent.id) ||
+                        (neg.challenger.id === opponent.id && neg.opponent.id === user.id);
+                    return !samePair;
+                });
+                if (opponentInOtherPending) {
                     return { error: '상대방이 대국 협상중입니다.' };
                 }
 
@@ -139,7 +206,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
 
             if (isOpponentAlreadyInNegotiation) {
                 delete volatileState.negotiations[negotiationId];
-                volatileState.userStatuses[user.id].status = UserStatus.Waiting;
+                restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
                 return { error: '상대방이 대국 협상중입니다.' };
             }
 
@@ -147,13 +214,13 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 const freshOpponent = await db.getUser(opponent.id);
                 if (!freshOpponent) {
                     delete volatileState.negotiations[negotiationId];
-                    volatileState.userStatuses[user.id].status = UserStatus.Waiting;
+                    restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
                     broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
                     return { error: 'Opponent not found.' };
                 }
                 if (freshOpponent.actionPoints.current < cost && !freshOpponent.isAdmin) {
                     delete volatileState.negotiations[negotiationId];
-                    volatileState.userStatuses[user.id].status = UserStatus.Waiting;
+                    restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
                     broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
                     return { error: OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE };
                 }
@@ -193,8 +260,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             negotiation.deadline = now + 60000;
 
             if (negotiation.turnCount >= 10) {
-                volatileState.userStatuses[negotiation.challenger.id].status = UserStatus.Waiting;
-                volatileState.userStatuses[negotiation.opponent.id].status = UserStatus.Waiting;
+                restoreUserToWaitingLobby(volatileState, negotiation.challenger.id, negotiation.mode);
+                restoreUserToWaitingLobby(volatileState, negotiation.opponent.id, negotiation.mode);
                 delete volatileState.negotiations[negotiationId];
                 broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
                 return { error: 'Negotiation failed after too many turns.' };
@@ -215,7 +282,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             if (!challengerStatus || (challengerStatus.status !== UserStatus.Negotiating && challengerStatus.status !== UserStatus.Waiting)) {
                 // challenger가 이미 나간 경우 negotiation 삭제 및 opponent 상태 복구
                 if (volatileState.userStatuses[negotiation.opponent.id]?.status === UserStatus.Negotiating) {
-                    volatileState.userStatuses[negotiation.opponent.id].status = UserStatus.Waiting;
+                    restoreUserToWaitingLobby(volatileState, negotiation.opponent.id, negotiation.mode);
                 }
                 delete volatileState.negotiations[negotiationId];
                 broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
@@ -228,7 +295,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
 
             const cost = getActionPointCost(negotiation.mode);
             if ((challenger.actionPoints.current < cost && !challenger.isAdmin) || (opponent.actionPoints.current < cost && !opponent.isAdmin)) {
-                volatileState.userStatuses[challenger.id].status = UserStatus.Waiting;
+                restoreUserToWaitingLobby(volatileState, challenger.id, negotiation.mode);
+                restoreUserToWaitingLobby(volatileState, opponent.id, negotiation.mode);
                 delete volatileState.negotiations[negotiationId];
                 return { error: 'One of the players does not have enough action points.' };
             }
@@ -276,7 +344,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 if (negToCancel.id !== negotiationId && (playerIdsInGame.has(negToCancel.challenger.id) || playerIdsInGame.has(negToCancel.opponent.id))) {
                     const challengerId = negToCancel.challenger.id;
                     if (volatileState.userStatuses[challengerId]?.status === UserStatus.Negotiating) {
-                        volatileState.userStatuses[challengerId].status = UserStatus.Waiting;
+                        restoreUserToWaitingLobby(volatileState, challengerId, negToCancel.mode);
                     }
                     delete volatileState.negotiations[negToCancel.id];
                 }
@@ -323,12 +391,13 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     }
                 });
             } else {
-                const challengerStatus = volatileState.userStatuses[challenger.id];
-                if (challengerStatus?.status === UserStatus.Negotiating) {
-                    challengerStatus.status = UserStatus.Waiting;
-                    challengerStatus.mode = mode;
-                    challengerStatus.gameId = undefined;
-                }
+                const restoreNegotiatorToWaiting = (userId: string) => {
+                    const st = volatileState.userStatuses[userId];
+                    if (st?.status !== UserStatus.Negotiating) return;
+                    restoreUserToWaitingLobby(volatileState, userId, mode);
+                };
+                restoreNegotiatorToWaiting(challenger.id);
+                restoreNegotiatorToWaiting(opponent.id);
             }
         
             // 거절한 사람이 opponent인 경우 challenger에게 거절 메시지 전달

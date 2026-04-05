@@ -90,4 +90,30 @@ describe('negotiation flow', () => {
         expect(volatileState.userStatuses['challenger']?.status).toBe(UserStatus.InGame);
         expect(volatileState.userStatuses['opponent']?.status).toBe(UserStatus.InGame);
     });
+
+    it('second CHALLENGE_USER same pair returns superseded when challenger already has draft', async () => {
+        const { handleNegotiationAction } = await import('../../actions/negotiationActions.js');
+
+        const r1 = await handleNegotiationAction(
+            volatileState,
+            { type: 'CHALLENGE_USER', payload: { opponentId: 'opponent', mode: GameMode.Standard }, userId: 'challenger' },
+            challenger
+        );
+        const negId = r1.clientResponse!.negotiationId!;
+
+        const r2 = await handleNegotiationAction(
+            volatileState,
+            { type: 'CHALLENGE_USER', payload: { opponentId: 'challenger', mode: GameMode.Standard }, userId: 'opponent' },
+            opponent
+        );
+        expect(r2.clientResponse?.challengeComposerSuperseded).toBe(true);
+        expect(Object.keys(volatileState.negotiations)).toEqual([negId]);
+
+        const r3 = await handleNegotiationAction(
+            volatileState,
+            { type: 'CHALLENGE_USER', payload: { opponentId: 'opponent', mode: GameMode.Standard }, userId: 'challenger' },
+            challenger
+        );
+        expect(r3.clientResponse?.negotiationId).toBe(negId);
+    });
 });

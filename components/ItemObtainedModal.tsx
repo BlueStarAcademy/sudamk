@@ -117,7 +117,16 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     }, [item.grade]);
 
     return (
-        <DraggableWindow title="아이템 획득" onClose={onClose} windowId="item-obtained" initialWidth={420} isTopmost={isTopmost} zIndex={70}>
+        <DraggableWindow
+            title="아이템 획득"
+            onClose={onClose}
+            windowId="item-obtained"
+            initialWidth={420}
+            isTopmost={isTopmost}
+            zIndex={70}
+            skipSavedPosition
+            hideFooter
+        >
             <div className="flex flex-col p-1">
                 <div className="rounded-xl bg-gradient-to-br from-slate-800/95 via-slate-900/98 to-slate-800/95 border border-slate-600/50 shadow-xl overflow-hidden">
                     <div className="p-6">
@@ -143,6 +152,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                             )}
                         </div>
                     </div>
+                    </div>
                     <p className={`font-bold text-base ${styles.text} ${textGlowClass}`}>[{styles.name}]</p>
                     <div className="flex items-baseline justify-center gap-2 mt-1">
                         <h2 className={`text-2xl font-bold ${starInfo.colorClass} ${textGlowClass}`}>{item.name}</h2>
@@ -162,7 +172,6 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                 >
                     확인
                 </button>
-            </div>
             </div>
         </DraggableWindow>
     );

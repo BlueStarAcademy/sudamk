@@ -14,6 +14,8 @@ interface ButtonProps {
   title?: string;
   style?: React.CSSProperties;
   cooldownMs?: number;
+  /** true면 기본 테두리·배경·기본 fontSize·텍스트 자동 축소를 쓰지 않고 className만 적용 (경기장 종료 패널 등) */
+  bare?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -25,7 +27,8 @@ const Button: React.FC<ButtonProps> = ({
   type = 'button',
   title,
   style,
-  cooldownMs = 1000
+  cooldownMs = 1000,
+  bare = false,
 }) => {
   const baseClasses = "px-4 py-2 font-bold rounded-lg transition-all duration-150 ease-in-out border-2 border-amber-400/60 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3),0_2px_4px_-1px_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.1)] active:translate-y-0.5 active:shadow-[0_2px_4px_-1px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-primary disabled:bg-secondary disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap overflow-hidden";
 
@@ -45,6 +48,8 @@ const Button: React.FC<ButtonProps> = ({
 
   // 버튼 텍스트 크기 자동 조정 (단순 텍스트일 때만)
   useEffect(() => {
+    if (bare) return;
+
     // children이 단순한 문자열이나 숫자인지 확인
     // React 요소(JSX)나 배열이 포함된 경우는 폰트 크기 조정하지 않음
     const isSimpleText = (typeof children === 'string' || typeof children === 'number') && 
@@ -102,7 +107,7 @@ const Button: React.FC<ButtonProps> = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [children, style]);
+  }, [bare, children, style]);
 
   const handleClick = useMemo(() => {
     if (!onClick) return undefined;
@@ -136,16 +141,22 @@ const Button: React.FC<ButtonProps> = ({
   };
 
   // 기본 폰트 크기 스타일 (반응형으로 조정, 고급스러운 크기)
-  const defaultStyle: React.CSSProperties = {
-    fontSize: 'clamp(0.875rem, 2.5vw, 1.125rem)',
-    fontWeight: 600,
-    letterSpacing: '0.025em',
-    ...style
-  };
+  const defaultStyle: React.CSSProperties = bare
+    ? { ...style }
+    : {
+        fontSize: 'clamp(0.875rem, 2.5vw, 1.125rem)',
+        fontWeight: 600,
+        letterSpacing: '0.025em',
+        ...style,
+      };
 
   // children이 복잡한 JSX 구조인지 확인
   const hasComplexChildren = Array.isArray(children) || isValidElement(children) || 
     (typeof children === 'object' && children !== null && !(typeof children === 'string' || typeof children === 'number'));
+
+  const mergedClassName = bare
+    ? className
+    : `${baseClasses} ${colorClasses[colorScheme]} ${className}`;
 
   return (
     <button
@@ -153,11 +164,11 @@ const Button: React.FC<ButtonProps> = ({
       type={type}
       onClick={handleClick}
       disabled={disabled || isCoolingDown}
-      className={`${baseClasses} ${colorClasses[colorScheme]} ${className}`}
+      className={mergedClassName}
       title={title}
-      style={defaultStyle}
+      style={Object.keys(defaultStyle).length ? defaultStyle : undefined}
     >
-      {hasComplexChildren ? (
+      {bare || hasComplexChildren ? (
         children
       ) : (
         <span ref={textRef} className="inline-block">

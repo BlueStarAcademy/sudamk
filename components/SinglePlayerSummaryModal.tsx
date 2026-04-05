@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameMode } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -6,7 +6,7 @@ import Avatar from './Avatar.js';
 import { SINGLE_PLAYER_STAGES, AVATAR_POOL, BORDER_POOL } from '../constants';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { replaceAppHash } from '../utils/appUtils.js';
-import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { formatSinglePlayerNextFooterLabel } from './game/arenaPostGameButtonStyles.js';
 import {
     PRE_GAME_MODAL_FOOTER_CLASS,
     PRE_GAME_MODAL_LAYER_CLASS,
@@ -123,20 +123,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 };
 
 const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
-    const [viewportWidth, setViewportWidth] = useState<number | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
-    const isHandheld = useIsHandheldDevice(1025);
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const handleResize = () => setViewportWidth(window.innerWidth);
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    const effectiveViewportWidth = viewportWidth ?? 1024;
-    const isMobileView = effectiveViewportWidth <= 768;
     const isInsideScaledCanvas = typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
@@ -413,29 +400,27 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             ? (isWinner ? "미션 클리어" : "미션 실패")
             : "게임 결과";
 
-    // 스케일 캔버스 안에서도 실제 단말이 좁으면 컴팩트 레이아웃(불필요한 세로 여백 감소)
-    const isMobile = isInsideScaledCanvas ? isHandheld : isMobileView;
-    const mobileTextScale = isMobile ? 1.2 : 1.15;
-    const summaryInitialWidth = isMobile
-        ? Math.max(Math.min(effectiveViewportWidth - 24, 560), 300)
-        : 736;
+    /** PC 레이아웃 고정 — 모바일은 DraggableWindow uniformPcScale로 축소 */
+    const isMobile = false;
+    const mobileTextScale = 1;
 
     return (
         <DraggableWindow 
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="sp-summary-redesigned"
-            initialWidth={summaryInitialWidth}
-            initialHeight={undefined}
+            initialWidth={736}
+            initialHeight={820}
+            uniformPcScale
             modal={!isInsideScaledCanvas}
             closeOnOutsideClick={!isInsideScaledCanvas}
             defaultPosition={isInsideScaledCanvas ? { x: 400, y: 0 } : { x: 0, y: 0 }}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
-            bodyPaddingClassName={isMobile ? 'p-3 pb-0' : 'p-4 pb-0'}
-            bodyScrollable
+            bodyPaddingClassName="p-4 pb-0"
+            bodyScrollable={false}
             footerClassName="border-t border-amber-500/35 bg-gradient-to-t from-[#0c0a10] via-[#14111c] to-[#1c1828] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] text-zinc-200/90"
         >
-            <div className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} ${isMobile ? 'text-sm' : 'text-[clamp(0.875rem,2.5vw,1.125rem)]'} flex min-h-0 flex-col`}>
+            <div className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex min-h-0 flex-1 flex-col overflow-hidden text-[clamp(0.875rem,2.5vw,1.125rem)]`}>
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
                     <div className="mb-2 flex-shrink-0 rounded-xl border-2 border-amber-400/45 bg-gradient-to-br from-amber-950/50 via-slate-900/90 to-slate-950/95 p-3 shadow-[0_0_32px_-12px_rgba(251,191,36,0.28)] sm:p-3.5">
@@ -454,13 +439,13 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     </h1>
                 )}
                 
-                <div className={`flex min-h-0 flex-row gap-2 sm:gap-3${isMobile ? ' items-start' : ''}`}>
+                <div className="flex min-h-0 flex-1 flex-row gap-2 sm:gap-3">
                     {/* Left Panel: 경기 결과 */}
-                    <div className={`flex w-1/2 min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${isMobile ? 'p-2' : 'p-2.5'} sp-summary-left-panel`}>
+                    <div className={`flex min-h-0 w-1/2 min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} p-2.5 sp-summary-left-panel`}>
                         <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
                             경기 결과
                         </h2>
-                        <div className="flex flex-col gap-1.5">
+                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
                             {/* 경기 정보 */}
                             {(analysisResult || (isEnded && session.winner !== null)) && (
                                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${isMobile ? 'p-1.5' : 'p-2'}`}>
@@ -508,7 +493,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     </div>
                     
                     {/* Right Panel: 획득 보상 */}
-                    <div className={`flex w-1/2 min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${isMobile ? 'p-2' : 'p-2.5'}`}>
+                    <div className={`flex min-h-0 w-1/2 min-w-0 flex-1 flex-col overflow-hidden ${SP_SUMMARY_PANEL_CLASS} p-2.5`}>
                         <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
                             획득 보상
                         </h2>
@@ -647,7 +632,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         className={`w-full justify-center ${isMobile ? '!min-h-[2.75rem] !py-2 !text-xs' : '!min-h-[3.25rem] !py-2.5 !text-sm'} ${canTryNext && !isProcessing ? PRE_GAME_MODAL_PRIMARY_BTN_CLASS : `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} !cursor-not-allowed !opacity-45`}`}
                         disabled={!canTryNext || isProcessing}
                     >
-                        {nextStage ? `다음 단계 (${nextStage.name.replace('스테이지 ', '')})` : '다음 단계'} {nextStageActionPointCost > 0 && `⚡${nextStageActionPointCost}`}
+                        {formatSinglePlayerNextFooterLabel(nextStage, canTryNext, nextStageActionPointCost)}
                     </Button>
                     <Button
                         onClick={handleRetry}

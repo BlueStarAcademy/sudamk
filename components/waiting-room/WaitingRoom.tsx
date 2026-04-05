@@ -31,6 +31,40 @@ const WAITING_LOBBY_PANEL_GLASS =
 
 const ROW_HEIGHT_REM = 2.5;
 
+const WAITING_LOBBY_SWITCH_COOLDOWN_MS = 3000;
+const WAITING_LOBBY_SWITCH_KEY = 'sudamr_waitingLobbySwitchUntil';
+
+function readLobbySwitchDisabledUntil(): number {
+  try {
+    const s = sessionStorage.getItem(WAITING_LOBBY_SWITCH_KEY);
+    return s ? parseInt(s, 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function armLobbySwitchCooldown(): void {
+  try {
+    sessionStorage.setItem(WAITING_LOBBY_SWITCH_KEY, String(Date.now() + WAITING_LOBBY_SWITCH_COOLDOWN_MS));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 전략/놀이 집계 대기실에 속하는지 (서버 waitingLobby 우선, 구버전 호환으로 mode 카테고리) */
+function userMatchesAggregateWaitingLobby(u: UserWithStatus, strategic: boolean): boolean {
+  if (strategic) {
+    return (
+      u.waitingLobby === 'strategic' ||
+      (!u.waitingLobby && u.mode != null && SPECIAL_GAME_MODES.some((m) => m.mode === u.mode))
+    );
+  }
+  return (
+    u.waitingLobby === 'playful' ||
+    (!u.waitingLobby && u.mode != null && PLAYFUL_GAME_MODES.some((m) => m.mode === u.mode))
+  );
+}
+
 const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }> = ({ mode }) => {
     const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -127,6 +161,25 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const [matchFoundData, setMatchFoundData] = useState<{ gameId: string; player1: any; player2: any } | null>(null);
   const [isNativeAuxDrawerOpen, setIsNativeAuxDrawerOpen] = useState(false);
   const desktopContainerRef = useRef<HTMLDivElement>(null);
+  const [lobbySwitchCooldownTick, setLobbySwitchCooldownTick] = useState(0);
+
+  const lobbySwitchDisabledUntil = readLobbySwitchDisabledUntil();
+  const isLobbySwitchDisabled = Date.now() < lobbySwitchDisabledUntil;
+
+  useEffect(() => {
+    const until = readLobbySwitchDisabledUntil();
+    const rem = until - Date.now();
+    if (rem <= 0) return;
+    const id = window.setTimeout(() => setLobbySwitchCooldownTick((t) => t + 1), rem + 25);
+    return () => clearTimeout(id);
+  }, [mode, lobbySwitchCooldownTick]);
+
+  const navigateToOtherWaitingLobby = useCallback(() => {
+    if (Date.now() < readLobbySwitchDisabledUntil()) return;
+    armLobbySwitchCooldown();
+    const targetMode = mode === 'strategic' ? 'playful' : 'strategic';
+    window.location.hash = `#/waiting/${targetMode}`;
+  }, [mode]);
 
   // 전략바둑과 놀이바둑 대기실은 각각의 채널 사용
   const chatChannel = mode === 'strategic' ? 'strategic' : mode === 'playful' ? 'playful' : 'global';
@@ -248,13 +301,13 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
 
         // 전략/놀이바둑 대기실의 경우: mode가 정확히 일치하는 유저만 포함 (완전 분리)
         // 단일 게임 모드 대기실의 경우: mode가 정확히 일치하는 유저만 포함
-        const all = onlineUsers.filter(u => {
+        const all = onlineUsers.filter((u) => {
             if (isStrategicLobby || isPlayfulLobby) {
-                // 전략/놀이바둑 대기실: mode가 undefined이거나 해당 카테고리의 게임 모드이고 waiting 또는 resting 상태인 유저만 포함
-                return (!u.mode || (isStrategicLobby && SPECIAL_GAME_MODES.some(m => m.mode === u.mode)) || (isPlayfulLobby && PLAYFUL_GAME_MODES.some(m => m.mode === u.mode))) && 
-                       (u.status === UserStatus.Waiting || u.status === UserStatus.Resting);
+                return (
+                    userMatchesAggregateWaitingLobby(u, isStrategicLobby) &&
+                    (u.status === UserStatus.Waiting || u.status === UserStatus.Resting)
+                );
             }
-            // 단일 게임 모드 대기실: mode가 정확히 일치하는 유저만 포함
             return u.mode === mode;
         });
         
@@ -264,11 +317,19 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             // 현재 유저를 대기실 상태로 추가
             // 전략/놀이바둑 대기실의 경우 mode는 strategic/playful로 설정
             // 단일 게임 모드 대기실의 경우 mode를 그대로 사용
-            const currentUserInRoom: UserWithStatus = {
-                ...currentUserWithStatus,
-                status: UserStatus.Waiting,
-                mode: (isStrategicLobby || isPlayfulLobby) ? undefined : (mode as GameMode)
-            };
+            const { waitingLobby: _wlDrop, mode: _modeDrop, ...userBase } = currentUserWithStatus;
+            const currentUserInRoom: UserWithStatus =
+                isStrategicLobby || isPlayfulLobby
+                    ? {
+                          ...userBase,
+                          status: UserStatus.Waiting,
+                          waitingLobby: isStrategicLobby ? 'strategic' : 'playful',
+                      }
+                    : {
+                          ...userBase,
+                          status: UserStatus.Waiting,
+                          mode: mode as GameMode,
+                      };
             return [currentUserInRoom, ...all];
         }
         
@@ -324,12 +385,18 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               <button
                 type="button"
                 aria-label={mode === 'strategic' ? '놀이바둑 대기실로 이동' : '전략바둑 대기실로 이동'}
-                title={mode === 'strategic' ? '놀이바둑 대기실로 이동' : '전략바둑 대기실로 이동'}
-                onClick={() => {
-                  const targetMode = mode === 'strategic' ? 'playful' : 'strategic';
-                  window.location.hash = `#/waiting/${targetMode}`;
-                }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-panel transition-all duration-300 hover:scale-105 active:scale-95"
+                title={
+                  isLobbySwitchDisabled
+                    ? '잠시 후 다시 사용할 수 있습니다'
+                    : mode === 'strategic'
+                      ? '놀이바둑 대기실로 이동'
+                      : '전략바둑 대기실로 이동'
+                }
+                disabled={isLobbySwitchDisabled}
+                onClick={navigateToOtherWaitingLobby}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-panel transition-all duration-300 ${
+                  isLobbySwitchDisabled ? 'cursor-not-allowed opacity-40' : 'hover:scale-105 active:scale-95'
+                }`}
                 style={{
                   background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(139, 92, 246, 0.35) 100%)',
                   border: '1px solid rgba(139, 92, 246, 0.45)',
@@ -373,12 +440,18 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   <button
                     type="button"
                     aria-label={mode === 'strategic' ? '놀이바둑 대기실로 이동' : '전략바둑 대기실로 이동'}
-                    title={mode === 'strategic' ? '놀이바둑 대기실로 이동' : '전략바둑 대기실로 이동'}
-                    onClick={() => {
-                      const targetMode = mode === 'strategic' ? 'playful' : 'strategic';
-                      window.location.hash = `#/waiting/${targetMode}`;
-                    }}
-                    className="pointer-events-auto group relative flex w-8 items-center justify-center overflow-hidden rounded-lg text-on-panel transition-all duration-300 hover:scale-110 active:scale-95 sm:w-10"
+                    title={
+                      isLobbySwitchDisabled
+                        ? '잠시 후 다시 사용할 수 있습니다'
+                        : mode === 'strategic'
+                          ? '놀이바둑 대기실로 이동'
+                          : '전략바둑 대기실로 이동'
+                    }
+                    disabled={isLobbySwitchDisabled}
+                    onClick={navigateToOtherWaitingLobby}
+                    className={`pointer-events-auto group relative flex w-8 items-center justify-center overflow-hidden rounded-lg text-on-panel transition-all duration-300 sm:w-10 ${
+                      isLobbySwitchDisabled ? 'cursor-not-allowed opacity-40' : 'hover:scale-110 active:scale-95'
+                    }`}
                     style={{
                       height: '60%',
                       marginTop: '4px',

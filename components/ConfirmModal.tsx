@@ -45,9 +45,11 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             isTopmost={isTopmost}
             zIndex={isTopmost ? 9999 : 50}
         >
-            <div className="p-5 sm:p-6">
-                <p className="mb-6 whitespace-pre-line text-center text-sm leading-relaxed text-secondary">{message}</p>
-                <div className="flex gap-4">
+            <div className="space-y-5 p-5 sm:p-6">
+                <div className="sudamr-modal-message-panel">
+                    <p className="whitespace-pre-line text-center text-sm leading-relaxed text-secondary">{message}</p>
+                </div>
+                <div className="flex gap-3 sm:gap-4">
                     <Button onClick={onCancel} colorScheme="gray" className="flex-1">
                         {cancelText}
                     </Button>

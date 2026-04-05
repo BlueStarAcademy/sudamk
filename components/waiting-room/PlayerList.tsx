@@ -51,8 +51,12 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
         if (!canRequesterChallenge) {
             return false;
         }
-        // The target user can be either in the waiting room or online (in profile)
-        return targetUser.status === 'waiting' || targetUser.status === 'online';
+        // negotiating: 상대가 나에게 신청 작성 중일 수 있음 — 버튼은 열어두고 서버/수신 모달에서 먼저 신청한 쪽 우선 처리
+        return (
+            targetUser.status === 'waiting' ||
+            targetUser.status === 'online' ||
+            targetUser.status === 'negotiating'
+        );
     };
 
     const renderUserItem = (user: UserWithStatus, isCurrentUser: boolean) => {
@@ -189,7 +193,10 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
             {isChallengeSelectionModalOpen && challengeTargetUser && (
                 <ChallengeSelectionModal
                     opponent={challengeTargetUser}
-                    onClose={() => setIsChallengeSelectionModalOpen(false)}
+                    onClose={() => {
+                        setIsChallengeSelectionModalOpen(false);
+                        setChallengeTargetUser(null);
+                    }}
                     negotiations={negotiations}
                     currentUser={currentUser}
                     onChallenge={async (gameMode, settings) => {
@@ -215,6 +222,11 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
                             });
                             
                             const result = await response.json();
+                            if (result.challengeComposerSuperseded === true) {
+                                setIsChallengeSelectionModalOpen(false);
+                                setChallengeTargetUser(null);
+                                return;
+                            }
                             const serverError =
                                 (typeof result?.error === 'string' && result.error) ||
                                 (typeof result?.message === 'string' && result.message) ||

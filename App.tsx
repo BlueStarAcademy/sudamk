@@ -296,7 +296,8 @@ const AppContent: React.FC = () => {
             {usePortraitFirstShell ? (
                 <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative">
                     <style>{`
-                        #sudamr-modal-root [data-draggable-window] {
+                        /* PC 설계 크기 + transform scale( uniformPcScale ) 창은 상한을 쓰면 본문이 잘리고 버튼이 사라짐 → 제외 */
+                        #sudamr-modal-root [data-draggable-window]:not([data-uniform-pc-scale="1"]) {
                             max-width: min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px) !important;
                             max-height: min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px)) !important;
                             box-sizing: border-box;

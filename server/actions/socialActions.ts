@@ -19,6 +19,46 @@ type HandleActionResult = {
 
 const GREETINGS = ['안녕', '하이', '헬로', 'hi', 'hello', '반가', '잘 부탁', '잘부탁'];
 
+/**
+ * PVP 인게임 유저가 로그아웃하거나 마지막 WebSocket이 끊긴 경우: 즉시 disconnectionState·GAME_UPDATE.
+ * AI/싱글/탑은 false (로그아웃 시 별도 삭제 로직).
+ * @returns 접속 끊김 처리에 들어갔으면 true (호출측에서 userConnections 정리 등에 사용)
+ */
+export async function applyPvpInGameDisconnect(volatileState: VolatileState, disconnectedUserId: string): Promise<boolean> {
+    const userStatus = volatileState.userStatuses[disconnectedUserId];
+    const activeGameId = userStatus?.gameId;
+    if (userStatus?.status !== UserStatus.InGame || !activeGameId) return false;
+
+    const game = await db.getLiveGame(activeGameId);
+    if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
+        return false;
+    }
+
+    const isAiGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame;
+    if (isAiGame) return false;
+
+    if (game.disconnectionState) return false;
+
+    if (!game.disconnectionCounts) game.disconnectionCounts = {};
+    const now = Date.now();
+    game.disconnectionCounts[disconnectedUserId] = (game.disconnectionCounts[disconnectedUserId] || 0) + 1;
+    if (game.disconnectionCounts[disconnectedUserId] >= 3) {
+        const winner = game.blackPlayerId === disconnectedUserId ? types.Player.White : types.Player.Black;
+        await summaryService.endGame(game, winner, 'disconnect');
+    } else {
+        game.disconnectionState = { disconnectedPlayerId: disconnectedUserId, timerStartedAt: now };
+        if ((game.moveHistory?.length ?? 0) < 20) {
+            const otherPlayerId = game.player1.id === disconnectedUserId ? game.player2.id : game.player1.id;
+            if (!game.canRequestNoContest) game.canRequestNoContest = {};
+            game.canRequestNoContest[otherPlayerId] = true;
+        }
+        await db.saveGame(game);
+        const { broadcastToGameParticipants } = await import('../socket.js');
+        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+    }
+    return true;
+}
+
 export const handleSocialAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
     const { type, payload } = action;
     const now = Date.now();
@@ -63,30 +103,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 const game = await db.getLiveGame(activeGameId);
                 // scoring 상태의 게임은 연결 끊김으로 처리하지 않음 (자동계가 진행 중)
                 if (game && game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest' && game.gameStatus !== 'scoring') {
-                    // 도전의 탑, 싱글플레이, AI 게임에서는 로그아웃 시 게임 삭제
                     const isAiGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame;
                     if (!game.disconnectionState) {
                         if (!isAiGame) {
-                            // 일반 게임에서만 접속 끊김 카운트 및 패널티 적용
-                            game.disconnectionCounts[user.id] = (game.disconnectionCounts[user.id] || 0) + 1;
-                            if (game.disconnectionCounts[user.id] >= 3) {
-                                // 3번째 접속이 끊어지면 바로 "접속장애패" 처리
-                                const winner = game.blackPlayerId === user.id ? types.Player.White : types.Player.Black;
-                                await summaryService.endGame(game, winner, 'disconnect');
-                            } else {
-                                game.disconnectionState = { disconnectedPlayerId: user.id, timerStartedAt: now };
-                                // 20수 이내 접속 끊김 시 무효처리 요청 가능
-                                if (game.moveHistory.length < 20) {
-                                    const otherPlayerId = game.player1.id === user.id ? game.player2.id : game.player1.id;
-                                    if (!game.canRequestNoContest) game.canRequestNoContest = {};
-                                    game.canRequestNoContest[otherPlayerId] = true;
-                                }
-                                await db.saveGame(game);
-                                
-                                // 접속 끊김 상태 브로드캐스트
-                                const { broadcastToGameParticipants } = await import('../socket.js');
-                                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                            }
+                            await applyPvpInGameDisconnect(volatileState, user.id);
                         } else {
                             // 도전의 탑, 싱글플레이, AI 게임에서는 로그아웃 시 게임 삭제
                             console.log(`[Logout] Deleting AI game ${activeGameId} for user ${user.nickname}`);
@@ -237,20 +257,17 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (currentStatus && 
                 (currentStatus.status === UserStatus.Waiting || currentStatus.status === UserStatus.Resting)) {
                 if (mode === 'strategic' || mode === 'playful') {
-                    // strategic/playful 모드는 mode가 없거나 해당 모드 그룹에 속하면 중복
-                    if (!currentStatus.mode || 
-                        (mode === 'strategic' && SPECIAL_GAME_MODES.some(m => m.mode === currentStatus.mode)) ||
-                        (mode === 'playful' && PLAYFUL_GAME_MODES.some(m => m.mode === currentStatus.mode))) {
-                        return {}; // 이미 올바른 대기실에 있음
+                    if (currentStatus.waitingLobby === mode) {
+                        return {};
                     }
                 } else if (currentStatus.mode === mode) {
                     return {}; // 이미 같은 모드 대기실에 있음
                 }
             }
             
-            // strategic/playful은 GameMode가 아니므로 mode를 undefined로 설정
+            // strategic/playful: GameMode 대신 waitingLobby로 로비 구분 (클라이언트 목록 분리)
             if (mode === 'strategic' || mode === 'playful') {
-                volatileState.userStatuses[user.id] = { status: UserStatus.Waiting };
+                volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: mode };
             } else {
                 volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: mode as GameMode };
             }
@@ -262,6 +279,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (userStatus && (userStatus.status === UserStatus.Waiting || userStatus.status === UserStatus.Resting)) {
                 userStatus.status = UserStatus.Online;
                 delete userStatus.mode; // 대기실 모드 정보 제거
+                delete userStatus.waitingLobby;
             }
             
             // 사용자가 보낸 negotiation 정리
@@ -319,9 +337,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     delete volatileState.userStatuses[user.id].mode;
                     delete volatileState.userStatuses[user.id].gameId;
                 } else {
-                    // strategic/playful은 GameMode가 아니므로 mode를 undefined로 설정
                     if (lobbyMode === 'strategic' || lobbyMode === 'playful') {
-                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting };
+                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: lobbyMode };
                     } else {
                         volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: lobbyMode as GameMode };
                     }
@@ -427,9 +444,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     delete volatileState.userStatuses[user.id].mode;
                     delete volatileState.userStatuses[user.id].gameId;
                 } else {
-                    // strategic/playful은 GameMode가 아니므로 mode를 undefined로 설정
                     if (lobbyMode === 'strategic' || lobbyMode === 'playful') {
-                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting };
+                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: lobbyMode };
                     } else {
                         volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: lobbyMode as GameMode };
                     }

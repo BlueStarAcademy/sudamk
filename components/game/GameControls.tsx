@@ -10,6 +10,12 @@ import { audioService } from '../../services/audioService.js';
 import ChallengeSelectionModal from '../ChallengeSelectionModal.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { ArenaControlStrip, ArenaFixedColsGrid } from './ArenaControlStrip.js';
+import {
+    arenaPostGameButtonClass,
+    arenaPostGameButtonGridClass,
+    arenaPostGamePanelShellClass,
+    formatSinglePlayerNextFooterLabel,
+} from './arenaPostGameButtonStyles.js';
 
 interface ImageButtonProps {
     src: string;
@@ -1275,19 +1281,15 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         });
     }, [session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, opponentPlayerEnum]);
     
-    const luxuryButtonBase = isMobile
-        ? 'relative overflow-hidden whitespace-nowrap break-keep text-[0.62rem] leading-tight px-1.5 py-1 rounded-lg backdrop-blur-sm font-semibold tracking-tight transition-all duration-200 flex items-center justify-center gap-0.5 min-h-0 min-w-0 shrink'
-        : 'relative overflow-hidden whitespace-normal break-keep text-[clamp(0.6rem,2vmin,0.85rem)] px-[clamp(0.45rem,1.6vmin,0.85rem)] py-[clamp(0.32rem,1.1vmin,0.6rem)] rounded-xl backdrop-blur-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-1';
-
     const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral' | 'accent' | 'success' = 'primary') => {
-        const variants: Record<typeof variant, string> = {
-            primary: `${luxuryButtonBase} border border-cyan-200/40 bg-gradient-to-br from-cyan-500/85 via-sky-500/80 to-indigo-500/80 text-white shadow-[0_18px_34px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_24px_40px_-18px_rgba(96,165,250,0.6)]`,
-            danger: `${luxuryButtonBase} border border-rose-300/45 bg-gradient-to-br from-rose-600/90 via-red-500/85 to-amber-400/80 text-white shadow-[0_18px_36px_-16px_rgba(248,113,113,0.55)] hover:-translate-y-0.5 hover:shadow-[0_24px_42px_-18px_rgba(248,113,113,0.65)]`,
-            neutral: `${luxuryButtonBase} border border-slate-400/35 bg-gradient-to-br from-slate-800/85 via-slate-900/80 to-black/70 text-slate-100 shadow-[0_16px_32px_-20px_rgba(148,163,184,0.5)] hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-18px_rgba(203,213,225,0.55)]`,
-            accent: `${luxuryButtonBase} border border-amber-300/55 bg-gradient-to-br from-amber-400/85 via-yellow-400/75 to-orange-400/80 text-slate-900 shadow-[0_18px_36px_-18px_rgba(251,191,36,0.5)] hover:-translate-y-0.5 hover:shadow-[0_24px_44px_-18px_rgba(251,191,36,0.6)]`,
-            success: `${luxuryButtonBase} border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 shadow-[0_18px_34px_-18px_rgba(74,222,128,0.45)] hover:-translate-y-0.5 hover:shadow-[0_24px_44px_-18px_rgba(74,222,128,0.6)]`,
-        };
-        return variants[variant];
+        const map = {
+            primary: 'primary',
+            danger: 'danger',
+            neutral: 'neutral',
+            accent: 'result',
+            success: 'success',
+        } as const;
+        return arenaPostGameButtonClass(map[variant], isMobile, 'strip');
     };
 
     // 아이템 설정값 (함수 외부에서 선언하여 재사용)
@@ -1508,16 +1510,20 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             return (
                 <>
                 <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[152px]">
-                    <div className="min-w-0 rounded-xl border border-stone-700 bg-gray-900/70 px-2 py-3 sm:px-4">
-                        <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-2.5' : 'gap-3'}>
-                        <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
-                            결과 확인
+                    <div className={arenaPostGamePanelShellClass}>
+                        <div className={arenaPostGameButtonGridClass}>
+                        <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('result', isMobile, 'strip')}>
+                            결과 보기
                         </Button>
-                        <Button onClick={handleCloseResults} colorScheme="none" className={`justify-center rounded-xl border border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
-                            나가기
+                        <Button bare onClick={handleNextStage} colorScheme="none" className={`${arenaPostGameButtonClass('primary', isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNextStage}>
+                            {formatSinglePlayerNextFooterLabel(nextStage, canTryNextStage, nextStageActionPointCost)}
+                        </Button>
+                        <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('retry', isMobile, 'strip')}>
+                            재도전 {retryActionPointCost > 0 && `(⚡${retryActionPointCost})`}
                         </Button>
                         {isPvpRematchEligible && (
                             <Button
+                                bare
                                 onClick={() => {
                                     setIsRematchModalOpen(true);
                                     if (!rematchRequested) {
@@ -1531,27 +1537,25 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 }}
                                 disabled={rematchRequested}
                                 colorScheme="none"
-                                className={`justify-center rounded-xl border border-emerald-400/50 bg-gradient-to-r from-emerald-500/90 via-lime-400/85 to-green-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(74,222,128,0.75)] hover:from-emerald-300 hover:to-green-500 whitespace-nowrap disabled:opacity-60 shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}
+                                className={arenaPostGameButtonClass('success', isMobile, 'strip')}
                             >
                                 {rematchRequested ? '신청중' : '재대결'}
                             </Button>
                         )}
                         {isAiLobbyGame && onOpenRematchSettings && (
                             <Button
+                                bare
                                 onClick={onOpenRematchSettings}
                                 colorScheme="none"
-                                className={`justify-center rounded-xl border border-emerald-400/50 bg-gradient-to-r from-emerald-500/90 via-lime-400/85 to-green-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(74,222,128,0.75)] hover:from-emerald-300 hover:to-green-500 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}
+                                className={arenaPostGameButtonClass('success', isMobile, 'strip')}
                             >
                                 재대결
                             </Button>
                         )}
-                        <Button onClick={handleNextStage} colorScheme="none" className={`justify-center rounded-xl border border-cyan-400/50 bg-gradient-to-r from-cyan-500/90 via-sky-500/90 to-blue-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-cyan-300 hover:to-blue-500 whitespace-nowrap shrink-0 max-w-[46vw] truncate ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`} disabled={!canTryNextStage}>
-                            다음 단계{canTryNextStage && nextStage ? `: ${nextStage.name}` : ''}{nextStageActionPointCost > 0 && ` (⚡${nextStageActionPointCost})`}
+                        <Button bare onClick={handleCloseResults} colorScheme="none" className={arenaPostGameButtonClass('danger', isMobile, 'strip')}>
+                            나가기
                         </Button>
-                        <Button onClick={handleRetry} colorScheme="none" className={`justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
-                            재도전 {retryActionPointCost > 0 && `(⚡${retryActionPointCost})`}
-                        </Button>
-                        </ArenaControlStrip>
+                        </div>
                     </div>
                 </footer>
                 {isRematchModalOpen && isPvpRematchEligible && rematchTarget && (
@@ -1756,16 +1760,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         <>
             {isGameEnded ? (
                 <>
-                    <Button onClick={() => setShowResultModal(true)} colorScheme="none" className={getLuxuryButtonClasses('accent')}>
+                    <Button bare onClick={() => setShowResultModal(true)} colorScheme="none" className={getLuxuryButtonClasses('accent')}>
                         결과 보기
                     </Button>
                     {onLeaveOrResign && (
-                        <Button onClick={onLeaveOrResign} colorScheme="none" className={getLuxuryButtonClasses('danger')}>
+                        <Button bare onClick={onLeaveOrResign} colorScheme="none" className={getLuxuryButtonClasses('danger')}>
                             {isSpectator ? '관전종료' : '나가기'}
                         </Button>
                     )}
                     {isAiLobbyGame && onOpenRematchSettings && (
-                        <Button onClick={onOpenRematchSettings} colorScheme="none" className={getLuxuryButtonClasses('success')}>
+                        <Button bare onClick={onOpenRematchSettings} colorScheme="none" className={getLuxuryButtonClasses('success')}>
                             재대결
                         </Button>
                     )}
@@ -1773,6 +1777,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         <>
                             {onAction && (
                                 <Button
+                                    bare
                                     onClick={async () => {
                                         if (savingGameRecord || recordAlreadySaved) return;
                                         if (savedRecordCount >= 10) {
@@ -1798,7 +1803,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 </Button>
                             )}
                             {onOpenGameRecordList && (
-                                <Button onClick={() => onOpenGameRecordList()} colorScheme="none" className={getLuxuryButtonClasses('neutral')}>
+                                <Button bare onClick={() => onOpenGameRecordList()} colorScheme="none" className={getLuxuryButtonClasses('neutral')}>
                                     기보 관리
                                 </Button>
                             )}
@@ -1883,9 +1888,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 <div className="flex w-full min-w-0 gap-3">
                     <div className="flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
                         <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-4">
-                                {primaryControlsInner}
-                            </ArenaControlStrip>
+                            {isGameEnded ? (
+                                <div className={`${arenaPostGameButtonGridClass} max-w-full`}>{primaryControlsInner}</div>
+                            ) : (
+                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-4">
+                                    {primaryControlsInner}
+                                </ArenaControlStrip>
+                            )}
                         </div>
                     </div>
                     <div
@@ -1905,9 +1914,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-md bg-gray-900/50 p-2">
                         <h3 className="text-center text-xs font-bold text-gray-300">대국 기능</h3>
                         <div className="flex min-h-[4rem] w-full min-w-0 flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-5">
-                                {primaryControlsInner}
-                            </ArenaControlStrip>
+                            {isGameEnded ? (
+                                <div className={`${arenaPostGameButtonGridClass} max-w-full`}>{primaryControlsInner}</div>
+                            ) : (
+                                <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-5">
+                                    {primaryControlsInner}
+                                </ArenaControlStrip>
+                            )}
                         </div>
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-md bg-gray-900/50 p-2">
@@ -1927,6 +1940,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <div className="flex min-w-0 flex-1 items-center justify-center">
                         <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-2' : 'gap-2.5'}>
                         <Button
+                            bare
                             onClick={() => {
                                 if (window.confirm(`${player1.nickname}님을 기권승 처리하시겠습니까?`)) {
                                     onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId, winnerId: player1.id } })
@@ -1938,6 +1952,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             {player1.nickname} 기권승
                         </Button>
                         <Button
+                            bare
                             onClick={() => {
                                  if (window.confirm(`${player2.nickname}님을 기권승 처리하시겠습니까?`)) {
                                     onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId, winnerId: player2.id } })

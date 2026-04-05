@@ -10,7 +10,7 @@ import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { replaceAppHash } from '../utils/appUtils.js';
-import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { formatTowerNextFooterLabel } from './game/arenaPostGameButtonStyles.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -113,25 +113,13 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 };
 
 const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
-    const [viewportWidth, setViewportWidth] = useState<number | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
-    const isHandheld = useIsHandheldDevice(1025);
     // 게이지 애니메이션: 처음엔 이전 퍼센트로 고정 후, 다음 프레임에 최종 퍼센트로 전환해 CSS transition으로 차오르게 함
     const [xpGaugePercent, setXpGaugePercent] = useState<number | null>(null);
 
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const handleResize = () => setViewportWidth(window.innerWidth);
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    const effectiveViewportWidth = viewportWidth ?? 1024;
-    const isMobileView = effectiveViewportWidth <= 768;
     const isInsideScaledCanvas = typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
-    const isMobile = isInsideScaledCanvas ? isHandheld : isMobileView;
-    const initialWidth = isMobile ? Math.max(Math.min(effectiveViewportWidth - 32, 480), 320) : 900;
+    /** PC 레이아웃 고정 — 모바일은 uniformPcScale로 축소 */
+    const isMobile = false;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];
@@ -351,25 +339,26 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             ? (isWinner ? "층 클리어" : "층 실패")
             : "게임 결과";
 
-    // isMobile은 위에서 scaled-canvas 여부를 반영해 결정합니다.
-    const mobileTextScale = isMobile ? 1.2 : 1.15;
+    const mobileTextScale = 1;
 
     // 좌/우 패널 균등 분할, 오른쪽 불필요한 여백 제거
-    const panelSizing = isMobile ? 'min-w-0 flex-1' : 'min-w-0 flex-1 basis-0';
+    const panelSizing = 'min-w-0 flex-1 basis-0';
 
     return (
         <DraggableWindow 
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="tower-summary-redesigned"
-            initialWidth={initialWidth}
-            initialHeight={isMobile ? 560 : undefined}
-            bodyPaddingClassName={isMobile ? 'p-3' : undefined}
+            initialWidth={900}
+            initialHeight={760}
+            uniformPcScale
+            bodyScrollable={false}
+            bodyPaddingClassName="p-4"
             modal={!isInsideScaledCanvas}
             closeOnOutsideClick={!isInsideScaledCanvas}
             defaultPosition={isInsideScaledCanvas ? { x: 400, y: 0 } : { x: 0, y: 0 }}
         >
-            <div className={`text-white ${isMobile ? 'text-sm' : 'text-[clamp(0.875rem,2.5vw,1.125rem)]'} flex flex-col ${isMobile ? 'max-h-[85vh]' : 'h-full'} overflow-y-auto w-full`}>
+            <div className="flex h-full min-h-0 w-full flex-col overflow-hidden text-[clamp(0.875rem,2.5vw,1.125rem)] text-white">
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
                     <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
@@ -382,13 +371,11 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </h1>
                 )}
                 
-                <div
-                    className={`flex flex-row gap-1.5 sm:gap-2 overflow-hidden min-w-0 ${isMobile ? 'min-h-0 items-start' : 'min-h-[300px] flex-1'}`}
-                >
+                <div className="flex min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden sm:gap-2">
                     {/* Left Panel: 경기 결과 */}
-                    <div className={`${panelSizing} bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg overflow-y-auto flex flex-col sp-summary-left-panel`}>
+                    <div className={`${panelSizing} flex min-h-0 flex-col overflow-hidden rounded-lg bg-gray-900/50 p-2 sp-summary-left-panel`}>
                         <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-1 sm:mb-2 border-b border-gray-700 pb-0.5 sm:pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>경기 결과</h2>
-                        <div className={isMobile ? 'flex flex-col gap-1.5' : 'flex-1 min-h-0 flex flex-col gap-1.5'}>
+                        <div className="flex min-h-0 flex-1 flex-col gap-1.5">
                             {/* 경기 정보 */}
                             {(analysisResult || (isEnded && session.winner !== null)) && (
                                 <div className={`${isMobile ? 'p-1' : 'p-1.5'} bg-gray-800/50 rounded-lg space-y-0.5 flex-shrink-0`}>
@@ -428,7 +415,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </div>
                     
                     {/* Right Panel: 획득 보상 */}
-                    <div className={`${panelSizing} bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg overflow-y-auto flex flex-col min-w-0`}>
+                    <div className={`${panelSizing} flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg bg-gray-900/50 p-2`}>
                         <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-1 sm:mb-2 border-b border-gray-700 pb-0.5 sm:pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>획득 보상</h2>
                         <div className="flex-1 min-h-0 min-w-0 flex flex-col gap-1.5">
                             {/* 유저 프로필 */}
@@ -572,7 +559,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${canTryNext && !isProcessing ? 'border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
                         disabled={!canTryNext || isProcessing}
                     >
-                        {nextFloor ? `${nextFloor}층 도전` : '다음 층'} {effectiveNextFloorActionPointCost > 0 && `⚡${effectiveNextFloorActionPointCost}`}
+                        {formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorActionPointCost)}
                     </Button>
                     <Button
                         onClick={handleRetry}

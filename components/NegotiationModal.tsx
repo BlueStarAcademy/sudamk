@@ -15,7 +15,15 @@ import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import Avatar from './Avatar.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import {
+    PRE_GAME_MODAL_ACCENT_BTN_CLASS,
+    PRE_GAME_MODAL_DANGER_BTN_CLASS,
+    PRE_GAME_MODAL_PRIMARY_BTN_CLASS,
+    PRE_GAME_MODAL_SECONDARY_BTN_CLASS,
+    PRE_GAME_MODAL_SUCCESS_BTN_CLASS,
+} from './game/PreGameDescriptionLayout.js';
 import { projectActionPointsCurrent } from '../services/effectService.js';
+import { getStrategicBoardSizesByMode } from '../constants/gameSettings.js';
 
 interface NegotiationModalProps {
   negotiation: Negotiation;
@@ -138,6 +146,9 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     if (negotiation.mode === GameMode.Base) {
         newSettings.komi = 0.5;
     }
+    if (negotiation.mode === GameMode.Mix && newSettings.mixedModes?.includes(GameMode.Base)) {
+        newSettings.komi = 0.5;
+    }
     if (isAiGame && !newSettings.player1Color) {
         newSettings.player1Color = Player.Black;
     }
@@ -209,7 +220,17 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
 
   const settingsHaveChanged = useMemo(() => JSON.stringify(settings) !== JSON.stringify(negotiation.settings), [settings, negotiation.settings]);
   const handleSettingChange = useCallback(<K extends keyof GameSettings>(key: K, value: GameSettings[K]) => setSettings(prev => ({ ...prev, [key]: value })), []);
-  const handleMixedModeChange = (mode: GameMode, checked: boolean) => setSettings(prev => ({ ...prev, mixedModes: checked ? [...(prev.mixedModes || []), mode] : (prev.mixedModes || []).filter(m => m !== mode) }));
+  const handleMixedModeChange = (mode: GameMode, checked: boolean) =>
+    setSettings((prev) => {
+      const mixedModes = checked
+        ? [...(prev.mixedModes || []), mode]
+        : (prev.mixedModes || []).filter((m) => m !== mode);
+      const next: GameSettings = { ...prev, mixedModes };
+      if (mode === GameMode.Base && checked) {
+        next.komi = 0.5;
+      }
+      return next;
+    });
 
   const saveSettingsAndAct = useCallback((action: ServerAction) => {
      try {
@@ -270,13 +291,17 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const showApInfoFooter = isCasual && (isAiGame || isCreatingDraft || isMyTurnToRespond);
 
   const renderButtons = () => {
-    const baseButtonClasses = 'flex-1 min-h-[2.75rem] py-2.5 text-base font-semibold';
-    
+    const rowPair = 'flex flex-wrap items-center justify-end gap-3 sm:gap-4';
+    const rowTriple = 'flex flex-wrap items-stretch justify-between gap-2 sm:gap-3';
+    const flexThird = 'min-w-0 flex-1 sm:min-w-[6.5rem]';
+
     if (isAiGame) {
         return (
-             <div className="flex justify-end gap-4">
-                <Button onClick={onDecline} colorScheme="red" className={baseButtonClasses}>취소</Button>
-                <Button onClick={tryStartAiGame} colorScheme="green" className={baseButtonClasses}>
+             <div className={rowPair}>
+                <Button onClick={onDecline} colorScheme="none" className={`${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide`}>
+                    취소
+                </Button>
+                <Button onClick={tryStartAiGame} colorScheme="none" className={`${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide`}>
                     시작하기 (⚡{actionPointCost})
                 </Button>
             </div>
@@ -286,9 +311,16 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     if (isCreatingDraft) {
       const isMixModeInvalid = negotiation.mode === GameMode.Mix && (!settings.mixedModes || settings.mixedModes.length < 2);
       return (
-        <div className="flex justify-between items-center gap-4">
-          <Button onClick={onDecline} colorScheme="red" className={baseButtonClasses}>취소</Button>
-          <Button onClick={onSendChallenge} disabled={isMixModeInvalid} colorScheme="green" className={baseButtonClasses}>
+        <div className={rowPair}>
+          <Button onClick={onDecline} colorScheme="none" className={`${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide`}>
+            취소
+          </Button>
+          <Button
+            onClick={onSendChallenge}
+            disabled={isMixModeInvalid}
+            colorScheme="none"
+            className={`${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide ${isMixModeInvalid ? '!cursor-not-allowed !opacity-45' : ''}`}
+          >
             대국 신청 (⚡{actionPointCost})
           </Button>
         </div>
@@ -297,10 +329,32 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
 
     if (isMyTurnToRespond) {
       return (
-        <div className="flex justify-between items-center gap-4">
-            <Button onClick={onDecline} colorScheme="red" className={baseButtonClasses}>거절</Button>
-            <Button onClick={onPropose} disabled={!settingsHaveChanged} colorScheme="yellow" className={baseButtonClasses}>수정 제안</Button>
-            <Button onClick={tryAccept} disabled={settingsHaveChanged} colorScheme="green" className={baseButtonClasses}>
+        <div className={rowTriple}>
+            <Button onClick={onDecline} colorScheme="none" className={`${PRE_GAME_MODAL_DANGER_BTN_CLASS} ${flexThird} !font-semibold !tracking-wide`}>
+                거절
+            </Button>
+            <Button
+              onClick={onPropose}
+              disabled={!settingsHaveChanged}
+              colorScheme="none"
+              className={
+                !settingsHaveChanged
+                  ? `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} ${flexThird} !cursor-not-allowed !font-semibold !tracking-wide !opacity-45`
+                  : `${PRE_GAME_MODAL_ACCENT_BTN_CLASS} ${flexThird} !font-semibold !tracking-wide`
+              }
+            >
+                수정 제안
+            </Button>
+            <Button
+              onClick={tryAccept}
+              disabled={settingsHaveChanged}
+              colorScheme="none"
+              className={
+                settingsHaveChanged
+                  ? `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} ${flexThird} !cursor-not-allowed !font-semibold !tracking-wide !opacity-45`
+                  : `${PRE_GAME_MODAL_SUCCESS_BTN_CLASS} ${flexThird} !font-semibold !tracking-wide`
+              }
+            >
                 수락 (⚡{actionPointCost})
             </Button>
         </div>
@@ -334,7 +388,9 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     const { mode } = negotiation;
     
     const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(mode);
-    const showKomi = ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base].includes(mode);
+    const showKomi =
+        ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base].includes(mode) &&
+        !(mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
     const showTimeControls = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(mode);
     
     const showFischer = mode === GameMode.Speed || (mode === GameMode.Mix && !!settings.mixedModes?.includes(GameMode.Speed));
@@ -400,10 +456,95 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             </div>
 
             <div className="space-y-3 max-h-[calc(60vh - 12rem)] overflow-y-auto pr-2">
+                {showMixModeSelection && (() => {
+                    const isBaseSelected = settings.mixedModes?.includes(GameMode.Base);
+                    const isCaptureSelected = settings.mixedModes?.includes(GameMode.Capture);
+                    return (
+                        <div className="col-span-2 pb-2 border-b border-gray-700">
+                            <h3 className="mb-1 text-base font-semibold text-gray-300">믹스룰 조합 (2개 이상 선택)</h3>
+                            <p className="mb-2 text-sm leading-snug text-gray-500">
+                                함께 적용할 규칙을 고릅니다. (클래식 바둑은 기본으로 포함됩니다.)
+                            </p>
+                            <div className="grid grid-cols-2 gap-2 text-base">
+                                {SPECIAL_GAME_MODES.filter(m => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map(m => {
+                                    const isDisabledByConflict = 
+                                        (m.mode === GameMode.Base && isCaptureSelected) ||
+                                        (m.mode === GameMode.Capture && isBaseSelected);
+                                    
+                                    return (
+                                        <label key={m.mode} className={`flex items-center gap-2 p-2 bg-gray-700/50 rounded-md ${isReadOnly || isDisabledByConflict ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={settings.mixedModes?.includes(m.mode)} 
+                                                onChange={e => handleMixedModeChange(m.mode, e.target.checked)} 
+                                                disabled={isReadOnly || isDisabledByConflict} 
+                                                className="w-4 h-4"
+                                            />
+                                            <span className="leading-tight">{m.name}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            {settings.mixedModes?.includes(GameMode.Base) && (
+                                <SettingRow label="베이스돌 개수" className="mt-4">
+                                    <Select value={settings.baseStones} onChange={v => handleSettingChange('baseStones', parseInt(v))} disabled={isReadOnly}>
+                                        {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                    </Select>
+                                </SettingRow>
+                            )}
+                            {settings.mixedModes?.includes(GameMode.Hidden) && (
+                                <>
+                                    <SettingRow label="히든돌 개수" className="mt-2">
+                                        <Select value={settings.hiddenStoneCount} onChange={v => handleSettingChange('hiddenStoneCount', parseInt(v))} disabled={isReadOnly}>
+                                            {HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                        </Select>
+                                    </SettingRow>
+                                    <SettingRow label="스캔 개수" className="mt-2">
+                                        <Select value={settings.scanCount} onChange={v => handleSettingChange('scanCount', parseInt(v))} disabled={isReadOnly}>
+                                        {SCAN_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                        </Select>
+                                    </SettingRow>
+                                </>
+                            )}
+                            {settings.mixedModes?.includes(GameMode.Missile) && (
+                                <SettingRow label="미사일 개수" className="mt-2">
+                                    <Select value={settings.missileCount} onChange={v => handleSettingChange('missileCount', parseInt(v))} disabled={isReadOnly}>
+                                    {MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                    </Select>
+                                </SettingRow>
+                            )}
+                            {settings.mixedModes?.includes(GameMode.Capture) && (
+                                <SettingRow label="따내기 목표" className="mt-2">
+                                    <Select value={settings.captureTarget} onChange={v => handleSettingChange('captureTarget', parseInt(v))} disabled={isReadOnly}>
+                                        {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
+                                    </Select>
+                                </SettingRow>
+                            )}
+                        </div>
+                    );
+                })()}
+
                 {showBoardSize && (
                     <SettingRow label="판 크기">
                         <Select value={settings.boardSize} onChange={v => handleSettingChange('boardSize', parseInt(v, 10) as GameSettings['boardSize'])} disabled={isReadOnly}>
-                            {(negotiation.mode === GameMode.Omok || negotiation.mode === GameMode.Ttamok ? OMOK_BOARD_SIZES : negotiation.mode === GameMode.Capture ? CAPTURE_BOARD_SIZES : negotiation.mode === GameMode.Speed ? SPEED_BOARD_SIZES : negotiation.mode === GameMode.Hidden ? HIDDEN_BOARD_SIZES : negotiation.mode === GameMode.Thief ? THIEF_BOARD_SIZES : negotiation.mode === GameMode.Missile ? MISSILE_BOARD_SIZES : BOARD_SIZES).map(size => <option key={size} value={size}>{size}줄</option>)}
+                            {(negotiation.mode === GameMode.Omok || negotiation.mode === GameMode.Ttamok
+                                ? OMOK_BOARD_SIZES
+                                : negotiation.mode === GameMode.Capture
+                                  ? CAPTURE_BOARD_SIZES
+                                  : negotiation.mode === GameMode.Speed
+                                    ? SPEED_BOARD_SIZES
+                                    : negotiation.mode === GameMode.Hidden
+                                      ? HIDDEN_BOARD_SIZES
+                                      : negotiation.mode === GameMode.Thief
+                                        ? THIEF_BOARD_SIZES
+                                        : negotiation.mode === GameMode.Missile
+                                          ? MISSILE_BOARD_SIZES
+                                          : getStrategicBoardSizesByMode(negotiation.mode)
+                            ).map((size) => (
+                                <option key={size} value={size}>
+                                    {size}줄
+                                </option>
+                            ))}
                         </Select>
                     </SettingRow>
                 )}
@@ -571,74 +712,6 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                     </SettingRow>
                 )}
 
-                {showMixModeSelection && (() => {
-                    const isBaseSelected = settings.mixedModes?.includes(GameMode.Base);
-                    const isCaptureSelected = settings.mixedModes?.includes(GameMode.Capture);
-                    return (
-                        <div className="col-span-2 pt-2 border-t border-gray-700">
-                            <h3 className="mb-1 text-base font-semibold text-gray-300">믹스룰 조합 (2개 이상 선택)</h3>
-                            <p className="mb-2 text-sm leading-snug text-gray-500">
-                                함께 적용할 규칙을 고릅니다. (클래식 바둑은 기본으로 포함됩니다.)
-                            </p>
-                            <div className="grid grid-cols-2 gap-2 text-base">
-                                {SPECIAL_GAME_MODES.filter(m => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map(m => {
-                                    const isDisabledByConflict = 
-                                        (m.mode === GameMode.Base && isCaptureSelected) ||
-                                        (m.mode === GameMode.Capture && isBaseSelected);
-                                    
-                                    return (
-                                        <label key={m.mode} className={`flex items-center gap-2 p-2 bg-gray-700/50 rounded-md ${isReadOnly || isDisabledByConflict ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={settings.mixedModes?.includes(m.mode)} 
-                                                onChange={e => handleMixedModeChange(m.mode, e.target.checked)} 
-                                                disabled={isReadOnly || isDisabledByConflict} 
-                                                className="w-4 h-4"
-                                            />
-                                            <span className="leading-tight">{m.name}</span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                            {settings.mixedModes?.includes(GameMode.Base) && (
-                                <SettingRow label="베이스돌 개수" className="mt-4">
-                                    <Select value={settings.baseStones} onChange={v => handleSettingChange('baseStones', parseInt(v))} disabled={isReadOnly}>
-                                        {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                                    </Select>
-                                </SettingRow>
-                            )}
-                            {settings.mixedModes?.includes(GameMode.Hidden) && (
-                                <>
-                                    <SettingRow label="히든돌 개수" className="mt-2">
-                                        <Select value={settings.hiddenStoneCount} onChange={v => handleSettingChange('hiddenStoneCount', parseInt(v))} disabled={isReadOnly}>
-                                            {HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                                        </Select>
-                                    </SettingRow>
-                                    <SettingRow label="스캔 개수" className="mt-2">
-                                        <Select value={settings.scanCount} onChange={v => handleSettingChange('scanCount', parseInt(v))} disabled={isReadOnly}>
-                                        {SCAN_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                                        </Select>
-                                    </SettingRow>
-                                </>
-                            )}
-                            {settings.mixedModes?.includes(GameMode.Missile) && (
-                                <SettingRow label="미사일 개수" className="mt-2">
-                                    <Select value={settings.missileCount} onChange={v => handleSettingChange('missileCount', parseInt(v))} disabled={isReadOnly}>
-                                    {MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                                    </Select>
-                                </SettingRow>
-                            )}
-                            {settings.mixedModes?.includes(GameMode.Capture) && (
-                                <SettingRow label="따내기 목표" className="mt-2">
-                                    <Select value={settings.captureTarget} onChange={v => handleSettingChange('captureTarget', parseInt(v))} disabled={isReadOnly}>
-                                        {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
-                                    </Select>
-                                </SettingRow>
-                            )}
-                        </div>
-                    );
-                })()}
-
                 {showAlkkagiSettings && (
                     <>
                         <SettingRow label="라운드">
@@ -711,7 +784,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             </div>
         </div>
         
-        <div className="mt-6 border-t border-gray-700 pt-6">
+        <div className="mt-6 border-t border-amber-500/25 bg-gradient-to-t from-black/20 to-transparent pt-6">
              {renderButtons()}
         </div>
       </div>
