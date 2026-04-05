@@ -2,9 +2,8 @@ import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { LiveGameSession, User, Player, WinReason, StatChange, AnalysisResult, GameMode, GameSummary, InventoryItem, AvatarInfo, BorderInfo, AlkkagiStone, ServerAction, AlkkagiRoundHistoryEntry } from '../types.js';
 import Avatar from './Avatar.js';
 import { audioService } from '../services/audioService.js';
-import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
-import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, SPECIAL_GAME_MODES } from '../constants';
+import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
 import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
@@ -19,6 +18,7 @@ import {
     getGuildWarStarScoreTier3MinDiff,
 } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 
 interface GameSummaryModalProps {
     session: LiveGameSession;
@@ -83,8 +83,8 @@ const XpBar: React.FC<{ initial: number; final: number; max: number; levelUp: bo
 
     return (
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
-             <span className={`${isMobile ? 'text-xs w-12' : 'text-sm w-16'} font-bold text-right`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>Lv.{finalLevel}</span>
-            <div className={`w-full bg-gray-700/50 rounded-full ${isMobile ? 'h-3' : 'h-4'} relative border border-gray-900/50 overflow-hidden`}>
+             <span className={`${isMobile ? 'text-xs w-12' : 'text-base w-16'} font-bold text-right`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>Lv.{finalLevel}</span>
+            <div className={`w-full bg-gray-700/50 rounded-full ${isMobile ? 'h-3' : 'h-[18px]'} relative border border-gray-900/50 overflow-hidden`}>
                 <div 
                     className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full transition-all duration-1000 ease-out"
                     style={{ width: `${barWidth}%` }}
@@ -99,18 +99,18 @@ const XpBar: React.FC<{ initial: number; final: number; max: number; levelUp: bo
                     }}
                 ></div>
 
-                <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[9px]' : 'text-xs'} font-bold text-black/80 drop-shadow-sm`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
+                <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[9px]' : 'text-sm'} font-bold text-black/80 drop-shadow-sm`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
                    {initial} +{xpGain} / {max} XP
                 </span>
 
                 {levelUp && (
-                    <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[9px]' : 'text-xs'} font-bold text-white animate-pulse`} style={{textShadow: '0 0 5px black', fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined}}>
+                    <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[9px]' : 'text-sm'} font-bold text-white animate-pulse`} style={{textShadow: '0 0 5px black', fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined}}>
                         LEVEL UP!
                     </span>
                 )}
             </div>
              {showGainText && xpGain > 0 && (
-                <span key={gainTextKey} className={`${isMobile ? 'text-xs w-14' : 'text-sm w-20'} font-bold text-green-400 whitespace-nowrap animate-fade-in-xp`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
+                <span key={gainTextKey} className={`${isMobile ? 'text-xs w-14' : 'text-base w-20'} font-bold text-green-400 whitespace-nowrap animate-fade-in-xp`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
                     +{xpGain} XP
                 </span>
              )}
@@ -138,7 +138,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
 
     return (
-        <div className={`space-y-2 sm:space-y-3 ${isMobile ? 'text-[10px]' : 'text-xs md:text-sm'}`}>
+        <div className={`space-y-2 sm:space-y-3 ${isMobile ? 'text-[10px]' : 'text-sm md:text-base'}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <div className={`space-y-0.5 sm:space-y-1 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-md`}>
                     <h3 className={`font-bold text-center mb-0.5 sm:mb-1 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>흑</h3>
@@ -192,7 +192,7 @@ const PlayfulScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
     }
     
     return (
-        <div className={`space-y-2 sm:space-y-3 ${isMobile ? 'text-[10px]' : 'text-xs md:text-sm'}`}>
+        <div className={`space-y-2 sm:space-y-3 ${isMobile ? 'text-[10px]' : 'text-sm md:text-base'}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <div className={`space-y-0.5 sm:space-y-1 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-md`}>
                     <h3 className={`font-bold text-center mb-0.5 sm:mb-1 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{player1.nickname}</h3>
@@ -352,7 +352,7 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
             <div className="flex items-center justify-center gap-2 sm:gap-4">
                 <div className={`flex flex-col items-center gap-1 sm:gap-2 ${isMobile ? 'w-20' : 'w-32'} flex-shrink-0`}>
                     <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={isMobile ? Math.round(40 * mobileImageScale) : 64} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
-                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : 'text-sm'}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{blackPlayer.nickname} (흑)</span>
+                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : 'text-base'}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{blackPlayer.nickname} (흑)</span>
                 </div>
                 <div className={`flex-shrink-0 ${isMobile ? 'text-2xl' : 'text-4xl'} font-mono font-bold whitespace-nowrap`} style={{ fontSize: isMobile ? `${24 * mobileTextScale}px` : `${36 * mobileTextScale}px` }}>
                     <span className="text-white">{blackScore}</span>
@@ -361,7 +361,7 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                 </div>
                 <div className={`flex flex-col items-center gap-1 sm:gap-2 ${isMobile ? 'w-20' : 'w-32'} flex-shrink-0`}>
                     <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={isMobile ? Math.round(40 * mobileImageScale) : 64} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl}/>
-                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : 'text-sm'}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{whitePlayer.nickname} (백)</span>
+                    <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : 'text-base'}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{whitePlayer.nickname} (백)</span>
                 </div>
             </div>
             
@@ -504,12 +504,95 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
     );
 };
 
+/** 경기 내용 상단: 흑·백 대국자 프로필, 닉네임, 모드별 레벨 */
+const MatchPlayersRoster: React.FC<{
+    blackPlayer: User;
+    whitePlayer: User;
+    isPlayful: boolean;
+    isMobile: boolean;
+    mobileTextScale: number;
+    mobileImageScale: number;
+}> = ({ blackPlayer, whitePlayer, isPlayful, isMobile, mobileTextScale, mobileImageScale }) => {
+    const blackAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === blackPlayer.avatarId)?.url;
+    const blackBorderUrl = BORDER_POOL.find((b: BorderInfo) => b.id === blackPlayer.borderId)?.url;
+    const whiteAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === whitePlayer.avatarId)?.url;
+    const whiteBorderUrl = BORDER_POOL.find((b: BorderInfo) => b.id === whitePlayer.borderId)?.url;
+    const blackLv = isPlayful ? blackPlayer.playfulLevel : blackPlayer.strategyLevel;
+    const whiteLv = isPlayful ? whitePlayer.playfulLevel : whitePlayer.strategyLevel;
+    const modeTag = isPlayful ? '놀이' : '전략';
+    const avatarPx = isMobile ? Math.round(44 * mobileImageScale) : 56;
+
+    return (
+        <div className="mb-3 grid grid-cols-2 gap-2.5 sm:gap-3">
+            <div className="relative overflow-hidden rounded-xl border border-stone-600/35 bg-gradient-to-br from-zinc-950 via-[#141016] to-black p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_44px_-22px_rgba(0,0,0,0.85)] ring-1 ring-stone-500/15">
+                <div className="pointer-events-none absolute -right-8 -top-10 h-20 w-20 rounded-full bg-stone-400/[0.06] blur-2xl" aria-hidden />
+                <div className="relative flex items-center gap-2.5">
+                    <Avatar
+                        userId={blackPlayer.id}
+                        userName={blackPlayer.nickname}
+                        size={avatarPx}
+                        avatarUrl={blackAvatarUrl}
+                        borderUrl={blackBorderUrl}
+                    />
+                    <div className="min-w-0 flex-1">
+                        <span className="inline-flex rounded-md border border-stone-500/45 bg-black/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] text-stone-200/90">
+                            흑
+                        </span>
+                        <p
+                            className={`mt-1 truncate font-bold text-white ${!isMobile ? 'text-base' : ''}`}
+                            style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}
+                            title={blackPlayer.nickname}
+                        >
+                            {blackPlayer.nickname}
+                        </p>
+                        <p
+                            className="text-[0.7rem] font-medium text-stone-400 sm:text-xs"
+                            style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
+                        >
+                            {modeTag} Lv.{blackLv}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div className="relative overflow-hidden rounded-xl border border-slate-400/25 bg-gradient-to-br from-slate-900/98 via-[#17161f] to-[#0b0a10] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_14px_44px_-22px_rgba(148,163,184,0.12)] ring-1 ring-slate-400/18">
+                <div className="pointer-events-none absolute -left-6 -bottom-8 h-20 w-20 rounded-full bg-slate-300/[0.07] blur-2xl" aria-hidden />
+                <div className="relative flex items-center gap-2.5">
+                    <Avatar
+                        userId={whitePlayer.id}
+                        userName={whitePlayer.nickname}
+                        size={avatarPx}
+                        avatarUrl={whiteAvatarUrl}
+                        borderUrl={whiteBorderUrl}
+                    />
+                    <div className="min-w-0 flex-1">
+                        <span className="inline-flex rounded-md border border-slate-400/40 bg-white/[0.06] px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-100/95">
+                            백
+                        </span>
+                        <p
+                            className={`mt-1 truncate font-bold text-white ${!isMobile ? 'text-base' : ''}`}
+                            style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}
+                            title={whitePlayer.nickname}
+                        >
+                            {whitePlayer.nickname}
+                        </p>
+                        <p
+                            className="text-[0.7rem] font-medium text-slate-300/90 sm:text-xs"
+                            style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
+                        >
+                            {modeTag} Lv.{whiteLv}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUser, onConfirm, onAction, onOpenGameRecordList, isSpectator = false }) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
     const soundPlayed = useRef(false);
-    // PC 레이아웃을 기준으로 렌더링합니다.
-    const isMobile = false;
+    const isMobile = useIsHandheldDevice(1025);
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
@@ -530,7 +613,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         blackMoves >= blackTurnLimit &&
         winner === Player.White;
     const isPlayful = PLAYFUL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
-    const isStrategic = SPECIAL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
+    const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
+    const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
     const canUseGameRecordUi = canSaveStrategicPvpGameRecord(session) && !isSpectator;
     const { recordAlreadySaved, setSavedOptimistic } = useGameRecordSaveLock(session.id, currentUser.savedGameRecords);
     const recordCount = currentUser.savedGameRecords?.length ?? 0;
@@ -615,9 +699,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         const formattedElapsed = gameDurationRef.current!;
         const isAiOrPve = !!session.isAiGame || !!session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer';
         const timeLabel = isAiOrPve ? '소요 시간' : '경기 시간';
-        const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
-        const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
-
         if (isPlayful && winReason === 'resign') {
             const message = isWinner ? "상대방의 기권으로 승리했습니다." : "기권 패배했습니다.";
             return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'}`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>{message}</p>;
@@ -778,10 +859,10 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
 
         return (
             <div className="mt-2 rounded-md border border-amber-500/35 bg-amber-900/10 p-2">
-                <p className="text-[11px] text-amber-200/90 font-semibold mb-1">별 달성 조건</p>
+                <p className="mb-1 text-sm font-semibold text-amber-200/90">별 달성 조건</p>
                 <div className="space-y-1">
                     {rows.map((row) => (
-                        <div key={row.label} className="flex items-center justify-between text-xs">
+                        <div key={row.label} className="flex items-center justify-between text-sm">
                             <span className="text-gray-200">{row.label}</span>
                             <span className={row.ok ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
                                 {row.ok ? '성공' : '실패'}
@@ -797,20 +878,41 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const finalMannerRank = mySummary ? getMannerRank(mySummary.manner.final) : '';
 
     const recordBtnBase =
-        'relative overflow-hidden rounded-xl text-sm font-semibold tracking-wide transition-all duration-200 border focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0f14] disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed';
+        'relative min-h-[2.75rem] overflow-hidden rounded-xl text-base font-bold tracking-wide transition-all duration-200 border focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0f14] disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed';
     const recordSaveClass =
-        `${recordBtnBase} px-4 py-2.5 border-amber-500/40 bg-gradient-to-br from-slate-800 via-slate-900 to-zinc-950 text-amber-50/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_8px_28px_-10px_rgba(251,191,36,0.2)] hover:border-amber-400/55 hover:shadow-[0_12px_32px_-12px_rgba(251,191,36,0.28)] active:translate-y-px focus-visible:ring-amber-400/45`;
+        `${recordBtnBase} px-5 py-2.5 border-amber-400/45 bg-gradient-to-br from-amber-950/90 via-slate-900 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_10px_32px_-12px_rgba(251,191,36,0.35)] hover:border-amber-300/55 hover:shadow-[0_14px_40px_-14px_rgba(251,191,36,0.42)] active:translate-y-px focus-visible:ring-amber-400/50`;
     const recordManageClass =
-        `${recordBtnBase} px-4 py-2.5 border-cyan-500/35 bg-gradient-to-br from-slate-900/95 via-slate-950 to-[#06080d] text-cyan-50/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_22px_-8px_rgba(34,211,238,0.12)] hover:border-cyan-400/45 hover:shadow-[0_10px_28px_-10px_rgba(34,211,238,0.18)] active:translate-y-px focus-visible:ring-cyan-400/40`;
+        `${recordBtnBase} px-5 py-2.5 border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-slate-950 to-[#06080d] text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_28px_-10px_rgba(34,211,238,0.22)] hover:border-cyan-300/50 hover:shadow-[0_12px_36px_-12px_rgba(34,211,238,0.28)] active:translate-y-px focus-visible:ring-cyan-400/45`;
+    const confirmBtnClass =
+        `${recordBtnBase} min-w-[9.5rem] px-8 py-3 border-violet-400/40 bg-gradient-to-br from-violet-700/95 via-indigo-800 to-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_40px_-14px_rgba(139,92,246,0.45)] hover:border-violet-300/55 hover:shadow-[0_16px_44px_-16px_rgba(139,92,246,0.5)] active:translate-y-px focus-visible:ring-violet-400/50`;
+    const statCardClass =
+        'rounded-xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-[#13141c] to-[#0a0a0f] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.04]';
+    const statLabelClass = 'text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-400';
 
     return (
-        <DraggableWindow title={isGuildWar ? '길드 전쟁 결과' : '대국 결과'} onClose={onConfirm} initialWidth={isMobile ? 600 : 1000} windowId="game-summary">
-            <div className={`text-white ${isMobile ? 'text-xs' : 'text-[clamp(0.75rem,2.5vw,1rem)]'} flex flex-col`}>
-                <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-black text-center mb-2 sm:mb-3 tracking-widest ${color} flex-shrink-0`} style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}>{title}</h1>
+        <DraggableWindow
+            title={isGuildWar ? '길드 전쟁 결과' : '대국 결과'}
+            onClose={onConfirm}
+            initialWidth={isMobile ? 680 : 1000}
+            initialHeight={isMobile ? 580 : 820}
+            uniformPcScale
+            bodyScrollable
+            bodyPaddingClassName={isMobile ? 'p-3' : undefined}
+            windowId="game-summary"
+        >
+            <div
+                className={`flex flex-col text-white antialiased ${isMobile ? 'text-xs' : 'text-[clamp(1rem,2.75vw,1.1875rem)]'}`}
+            >
+                <h1
+                    className={`${isMobile ? 'text-lg mb-1.5' : 'text-3xl mb-2'} flex-shrink-0 text-center font-black tracking-widest sm:mb-3 ${color}`}
+                    style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}
+                >
+                    {title}
+                </h1>
                 {isGuildWar && (
                     <div className="flex flex-col items-center gap-1.5 mb-3 flex-shrink-0">
                         <div className="flex justify-center items-center gap-1.5" aria-label={`획득 별 ${guildWarStars}개`}>
-                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mr-1">획득 별</span>
+                            <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-400">획득 별</span>
                             {[0, 1, 2].map((i) => (
                                 <img
                                     key={i}
@@ -819,11 +921,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     className="w-9 h-9 sm:w-10 sm:h-10 object-contain drop-shadow"
                                 />
                             ))}
-                            <span className="text-sm font-bold text-amber-100/95 tabular-nums ml-1">{guildWarStars}/3</span>
+                            <span className="ml-1 text-base font-bold tabular-nums text-amber-100/95">{guildWarStars}/3</span>
                         </div>
                         {guildWarHouseScore !== undefined && (
-                            <div className="flex items-baseline justify-center gap-1.5 text-sm">
-                                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">획득 집점수</span>
+                            <div className="flex items-baseline justify-center gap-1.5 text-base">
+                                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">획득 집점수</span>
                                 <span className="font-bold text-cyan-200/95 tabular-nums">
                                     {Number.isInteger(guildWarHouseScore) ? guildWarHouseScore : guildWarHouseScore.toFixed(1)}집
                                 </span>
@@ -832,154 +934,267 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     </div>
                 )}
                 
-                <div className={`flex flex-row gap-2 sm:gap-3`}>
+                <div className={`flex flex-row gap-2 sm:gap-3${isMobile ? ' items-start' : ''}`}>
                     {/* Left Panel: Game Content */}
-                    <div className={`w-1/2 bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg flex flex-col`}>
-                        <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-2 border-b border-gray-700 pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>경기 내용</h2>
-                        <div>
+                    <div
+                        className={`flex w-1/2 flex-col rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5 ${isMobile ? 'p-2' : ''}`}
+                    >
+                        <h2
+                            className={`mb-2 flex-shrink-0 border-b border-amber-500/20 pb-2 text-center text-[0.7rem] font-bold uppercase tracking-[0.18em] text-amber-200/75 sm:text-xs ${isMobile ? 'text-xs' : ''}`}
+                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                        >
+                            경기 내용
+                        </h2>
+                        <MatchPlayersRoster
+                            blackPlayer={blackPlayer}
+                            whitePlayer={whitePlayer}
+                            isPlayful={isPlayful}
+                            isMobile={isMobile}
+                            mobileTextScale={mobileTextScale}
+                            mobileImageScale={mobileImageScale}
+                        />
+                        <div className={isMobile ? 'min-h-0' : 'min-h-0 flex-1'}>
                             {renderGameContent()}
                             {renderGuildWarStarConditions()}
                         </div>
                     </div>
                     
-                    {/* Right Panel: 내 대국 결과 & 보상 (전략/놀이바둑 공통 항상 표시, 보상 없을 때도 동일 UI) */}
-                    <div className={`w-1/2 flex flex-col gap-2 sm:gap-3`}>
-                            <div className={`bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg flex flex-col gap-1`}>
-                                <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-2 border-b border-gray-700 pb-1`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{isGuildWar ? '보상·기록' : '내 대국 결과'}</h2>
-                                <div className="flex items-center gap-1.5 sm:gap-2">
-                                    <Avatar userId={currentUser.id} userName={currentUser.nickname} size={isMobile ? Math.round(24 * mobileImageScale) : 48} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                                    <div>
-                                        <p className={`font-bold`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{currentUser.nickname}</p>
-                                        <p className={`text-gray-400`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
-                                            {isPlayful ? '놀이' : '전략'} Lv.{mySummary?.level ? mySummary.level.final : (isPlayful ? currentUser.playfulLevel : currentUser.strategyLevel)}
+                    {/* Right: 대국 결과(내 기록) & 획득 보상 */}
+                    <div className="flex w-1/2 flex-col gap-2.5 sm:gap-3">
+                        <div
+                            className={`flex flex-col gap-2.5 rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5 ${isMobile ? 'p-2' : ''}`}
+                        >
+                            <h2
+                                className="mb-0.5 border-b border-violet-500/25 pb-2 text-center text-[0.7rem] font-bold uppercase tracking-[0.18em] text-violet-200/85 sm:text-xs"
+                                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                            >
+                                {isGuildWar ? '보상·기록' : '대국 결과'}
+                            </h2>
+                            <div className="rounded-xl border border-white/[0.07] bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-2.5 ring-1 ring-inset ring-white/[0.04]">
+                                <div className="flex items-center gap-2.5 sm:gap-3">
+                                    <Avatar
+                                        userId={currentUser.id}
+                                        userName={currentUser.nickname}
+                                        size={isMobile ? Math.round(28 * mobileImageScale) : 56}
+                                        avatarUrl={avatarUrl}
+                                        borderUrl={borderUrl}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                        <p
+                                            className={`truncate font-bold text-white ${!isMobile ? 'text-lg' : ''}`}
+                                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                                        >
+                                            {currentUser.nickname}
+                                        </p>
+                                        <p
+                                            className="text-[0.7rem] font-medium text-slate-400 sm:text-sm"
+                                            style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}
+                                        >
+                                            {isPlayful ? '놀이' : '전략'} Lv.
+                                            {mySummary?.level ? mySummary.level.final : isPlayful ? currentUser.playfulLevel : currentUser.strategyLevel}
                                         </p>
                                     </div>
                                 </div>
-                                {mySummary?.level ? (
-                                    <div className="flex-shrink-0">
-                                        <XpBar
-                                            initial={mySummary.level.progress.initial}
-                                            final={mySummary.level.progress.final}
-                                            max={mySummary.level.progress.max}
-                                            levelUp={mySummary.level.initial < mySummary.level.final}
-                                            xpGain={mySummary.xp?.change ?? 0}
-                                            finalLevel={mySummary.level.final}
-                                            isMobile={isMobile}
-                                            mobileTextScale={mobileTextScale}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="flex-shrink-0">
-                                        <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
-                                            <span className={`${isMobile ? 'text-xs w-12' : 'text-sm w-16'} font-bold text-right`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>경험치</span>
-                                            <div className={`w-full bg-gray-700/50 rounded-full ${isMobile ? 'h-3' : 'h-4'} relative border border-gray-900/50 overflow-hidden flex items-center justify-center`}>
-                                                <span className={`${isMobile ? 'text-[9px]' : 'text-xs'} font-bold text-gray-400`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
-                                                    0 XP
-                                                </span>
-                                            </div>
-                                            <span className={`${isMobile ? 'text-xs w-14' : 'text-sm w-20'} font-bold text-gray-400 whitespace-nowrap`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
-                                                +0 XP
+                            </div>
+                            {mySummary?.level ? (
+                                <div className="flex-shrink-0">
+                                    <XpBar
+                                        initial={mySummary.level.progress.initial}
+                                        final={mySummary.level.progress.final}
+                                        max={mySummary.level.progress.max}
+                                        levelUp={mySummary.level.initial < mySummary.level.final}
+                                        xpGain={mySummary.xp?.change ?? 0}
+                                        finalLevel={mySummary.level.final}
+                                        isMobile={isMobile}
+                                        mobileTextScale={mobileTextScale}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="flex-shrink-0">
+                                    <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
+                                        <span
+                                            className={`${isMobile ? 'w-12 text-xs' : 'w-16 text-sm'} font-bold text-right text-slate-400`}
+                                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                                        >
+                                            경험치
+                                        </span>
+                                        <div
+                                            className={`relative flex w-full items-center justify-center overflow-hidden rounded-full border border-white/10 bg-slate-950/80 ${isMobile ? 'h-3' : 'h-4'}`}
+                                        >
+                                            <span
+                                                className={`${isMobile ? 'text-[9px]' : 'text-xs'} font-bold text-slate-500`}
+                                                style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}
+                                            >
+                                                0 XP
                                             </span>
                                         </div>
+                                        <span
+                                            className={`${isMobile ? 'w-14 text-xs' : 'w-20 text-sm'} whitespace-nowrap font-bold text-slate-500`}
+                                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                                        >
+                                            +0 XP
+                                        </span>
                                     </div>
-                                )}
-                                {isGuildWar ? (
-                                    <p className="text-center text-[11px] text-slate-400 leading-snug px-1">
-                                        길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
-                                    </p>
-                                ) : mySummary ? (
-                                    <div className={`grid grid-cols-2 gap-1 text-center`}>
-                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>랭킹 점수</p>
-                                            <p className={`font-semibold text-white`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
-                                                {mySummary.rating.final}{' '}
-                                                <span className={mySummary.rating.change >= 0 ? 'text-green-400' : 'text-red-400'}>
-                                                    ({mySummary.rating.change > 0 ? '+' : ''}{mySummary.rating.change})
-                                                </span>
-                                            </p>
-                                        </div>
-                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>매너 점수 변동</p>
-                                            <p className={`font-semibold ${mySummary.manner.change === 0 ? 'text-white' : mySummary.manner.change > 0 ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
-                                                {mySummary.manner.change > 0 ? '+' : ''}{mySummary.manner.change}
-                                            </p>
-                                        </div>
-                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>통산 전적</p>
-                                            <p className={`font-semibold text-white`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>{mySummary.overallRecord?.wins}승 {mySummary.overallRecord?.losses}패</p>
-                                        </div>
-                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>매너 등급</p>
-                                            <p className={`font-semibold text-white`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>{initialMannerRank} &rarr; {finalMannerRank}</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className={`grid grid-cols-2 gap-1 text-center opacity-70`}>
-                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>랭킹 점수</p>
-                                            <p className={`font-semibold text-gray-500`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>-</p>
-                                        </div>
-                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight`}>
-                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>매너 점수</p>
-                                            <p className={`font-semibold text-gray-500`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>-</p>
-                                        </div>
-                                        <div className={`bg-gray-800 ${isMobile ? 'p-1' : 'p-2'} rounded-md flex flex-col gap-0.5 leading-tight col-span-2`}>
-                                            <p className="text-gray-400" style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>통산 전적</p>
-                                            <p className={`font-semibold text-gray-500`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>-</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <div className={`bg-gray-900/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg space-y-2 flex-shrink-0`}>
-                                <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 border-b border-gray-700 pb-1 mb-2`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{isGuildWar ? '길드 전쟁 보상' : '획득 보상'}</h2>
-                                <div className={`flex gap-1.5 sm:gap-3 justify-center items-stretch`}>
-                                    <div className={`${isMobile ? 'w-16 h-16' : 'w-32 h-32'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
-                                        <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-5 h-5' : 'w-12 h-12'} mb-0.5`} />
-                                        <p className={`font-bold text-yellow-300 text-center`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>
-                                            {(mySummary?.gold ?? 0).toLocaleString()}
+                                </div>
+                            )}
+                            {isGuildWar ? (
+                                <p className="px-1 text-center text-xs leading-snug text-slate-400 sm:text-sm">
+                                    길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
+                                </p>
+                            ) : mySummary ? (
+                                <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+                                    <div className={`${statCardClass} text-center`}>
+                                        <p className={statLabelClass}>랭킹 점수</p>
+                                        <p className="mt-2 flex flex-col items-center gap-1.5">
+                                            <span className="text-2xl font-black tabular-nums tracking-tight text-white sm:text-[1.65rem]">
+                                                {mySummary.rating.final}
+                                            </span>
+                                            <span
+                                                className={`rounded-full border px-2.5 py-0.5 text-xs font-bold tabular-nums ${
+                                                    mySummary.rating.change >= 0
+                                                        ? 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
+                                                        : 'border-rose-400/35 bg-rose-500/15 text-rose-200'
+                                                }`}
+                                            >
+                                                {mySummary.rating.change > 0 ? '+' : ''}
+                                                {mySummary.rating.change}
+                                            </span>
                                         </p>
                                     </div>
-                                    {mySummary?.items && mySummary.items.length > 0 ? (
-                                        <div className={`flex flex-wrap gap-1 ${isMobile ? 'w-16' : 'w-32'} justify-center`}>
-                                            {mySummary.items.slice(0, 3).map((item: InventoryItem, idx: number) => {
-                                                const itemTemplate = CONSUMABLE_ITEMS.find((ci: { name: string; }) => ci.name === item.name);
-                                                return (
-                                                    <div key={idx} className={`${isMobile ? 'w-14 h-14' : 'w-28 h-28'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
-                                                        {itemTemplate?.image && (
-                                                            <img src={itemTemplate.image} alt={item.name} className={`${isMobile ? 'w-6 h-6' : 'w-12 h-12'} mb-0.5 object-contain`} />
-                                                        )}
-                                                        <p className={`font-semibold text-purple-300 text-center leading-tight`} style={{ fontSize: isMobile ? `${5 * mobileTextScale}px` : undefined }}>{item.name}</p>
-                                                    </div>
-                                                );
-                                            })}
-                                            {mySummary.items.length > 3 && (
-                                                <div className={`${isMobile ? 'w-14 h-14' : 'w-28 h-28'} bg-gray-800/50 border-2 border-gray-700/50 rounded-lg flex items-center justify-center ${isMobile ? 'p-1' : 'p-2'}`}>
-                                                    <p className={`text-gray-400 text-center`} style={{ fontSize: isMobile ? `${5 * mobileTextScale}px` : undefined }}>+{mySummary.items.length - 3}</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : isGuildWar && (mySummary?.gold ?? 0) > 0 ? null : (
-                                        <div className={`${isMobile ? 'w-16 h-16' : 'w-32 h-32'} bg-gray-800/50 border-2 border-gray-700/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg gap-1`}>
-                                            <p className={`text-gray-500 text-center font-semibold ${isMobile ? 'text-[8px]' : 'text-xs'}`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>보상 없음</p>
-                                            <p className={`text-gray-500 text-center ${isMobile ? 'text-[6px]' : 'text-[10px]'}`} style={{ fontSize: isMobile ? `${6 * mobileTextScale}px` : undefined }}>
-                                                {isGuildWar
-                                                    ? '별을 획득하지 못해 골드가 지급되지 않았습니다.'
-                                                    : (session.isAiGame || !session.gameCategory)
-                                                      ? 'AI 대국·친선전은 보상이 지급되지 않습니다.'
-                                                      : '이 경기에서는 보상이 없습니다.'}
+                                    <div className={`${statCardClass} text-center`}>
+                                        <p className={statLabelClass}>매너 점수</p>
+                                        <p className="mt-2 text-xl font-black tabular-nums text-slate-100 sm:text-2xl">{mySummary.manner.final}</p>
+                                        <p
+                                            className={`mt-1 text-sm font-bold tabular-nums ${
+                                                mySummary.manner.change === 0
+                                                    ? 'text-slate-400'
+                                                    : mySummary.manner.change > 0
+                                                      ? 'text-emerald-300'
+                                                      : 'text-rose-300'
+                                            }`}
+                                        >
+                                            {mySummary.manner.change > 0 ? '+' : ''}
+                                            {mySummary.manner.change}
+                                        </p>
+                                        <p className="mt-1 text-[0.65rem] tabular-nums text-slate-500">
+                                            {mySummary.manner.initial} → {mySummary.manner.final}
+                                        </p>
+                                    </div>
+                                    <div className={`${statCardClass} text-center`}>
+                                        <p className={statLabelClass}>통산 전적</p>
+                                        {mySummary.overallRecord != null ? (
+                                            <p className="mt-2 flex items-baseline justify-center gap-1 text-xl font-black tabular-nums text-white sm:text-2xl">
+                                                <span className="text-amber-200">{mySummary.overallRecord.wins}</span>
+                                                <span className="text-sm font-bold text-slate-500">승</span>
+                                                <span className="text-slate-200">{mySummary.overallRecord.losses}</span>
+                                                <span className="text-sm font-bold text-slate-500">패</span>
                                             </p>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <p className="mt-3 text-lg font-bold text-slate-500">-</p>
+                                        )}
+                                    </div>
+                                    <div className={`${statCardClass} text-center`}>
+                                        <p className={statLabelClass}>매너 등급</p>
+                                        <p className="mt-3 flex items-center justify-center gap-1.5 text-sm font-bold text-violet-200/95 sm:text-base">
+                                            <span className="rounded-md border border-violet-400/25 bg-violet-950/40 px-2 py-1">{initialMannerRank}</span>
+                                            <span className="text-slate-500">→</span>
+                                            <span className="rounded-md border border-violet-400/35 bg-violet-900/35 px-2 py-1">{finalMannerRank}</span>
+                                        </p>
+                                    </div>
                                 </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2 sm:gap-2.5 opacity-80">
+                                    <div className={`${statCardClass} text-center`}>
+                                        <p className={statLabelClass}>랭킹 점수</p>
+                                        <p className="mt-3 text-lg font-bold text-slate-500">-</p>
+                                    </div>
+                                    <div className={`${statCardClass} text-center`}>
+                                        <p className={statLabelClass}>매너 점수</p>
+                                        <p className="mt-3 text-lg font-bold text-slate-500">-</p>
+                                    </div>
+                                    <div className={`${statCardClass} col-span-2 text-center`}>
+                                        <p className={statLabelClass}>통산 전적</p>
+                                        <p className="mt-3 text-lg font-bold text-slate-500">-</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div
+                            className={`flex-shrink-0 space-y-2 rounded-xl border border-amber-500/20 bg-gradient-to-b from-[#1a1510]/95 via-[#12100c] to-[#0a0908] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/10 sm:p-3.5 ${isMobile ? 'p-2' : ''}`}
+                        >
+                            <h2
+                                className="mb-1 border-b border-amber-500/25 pb-2 text-center text-[0.7rem] font-bold uppercase tracking-[0.16em] text-amber-200/85 sm:text-xs"
+                                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                            >
+                                {isGuildWar ? '길드 전쟁 보상' : '획득 보상'}
+                            </h2>
+                            <div className="flex items-stretch justify-center gap-2 sm:gap-3">
+                                <div
+                                    className={`flex ${isMobile ? 'h-24 w-24' : 'h-32 w-32'} flex-col items-center justify-center rounded-xl border border-amber-400/45 bg-gradient-to-br from-amber-950/95 via-yellow-900/55 to-amber-950/90 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_36px_-16px_rgba(245,158,11,0.35)]`}
+                                >
+                                    <img
+                                        src="/images/icon/Gold.png"
+                                        alt="골드"
+                                        className={`${isMobile ? 'mb-1 h-9 w-9' : 'mb-1.5 h-12 w-12'} object-contain drop-shadow-md`}
+                                    />
+                                    <p
+                                        className={`text-center font-black tabular-nums text-amber-100 ${!isMobile ? 'text-lg' : 'text-base'}`}
+                                        style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}
+                                    >
+                                        {(mySummary?.gold ?? 0).toLocaleString()}
+                                    </p>
+                                    <p className="text-[0.6rem] font-bold uppercase tracking-wider text-amber-200/60">골드</p>
+                                </div>
+                                {mySummary?.items && mySummary.items.length > 0 ? (
+                                    <div className="flex max-w-[13rem] flex-wrap content-center justify-center gap-2">
+                                        {mySummary.items.slice(0, 3).map((item: InventoryItem, idx: number) => {
+                                            const itemTemplate = CONSUMABLE_ITEMS.find((ci: { name: string }) => ci.name === item.name);
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    className={`flex ${isMobile ? 'h-24 w-[5.75rem]' : 'h-32 w-28'} flex-col items-center justify-center rounded-xl border border-violet-400/40 bg-gradient-to-br from-violet-950/90 via-purple-950/70 to-[#0c0614] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_32px_-14px_rgba(139,92,246,0.35)]`}
+                                                >
+                                                    {itemTemplate?.image && (
+                                                        <img
+                                                            src={itemTemplate.image}
+                                                            alt={item.name}
+                                                            className={`${isMobile ? 'mb-1 h-8 w-8' : 'mb-1.5 h-11 w-11'} object-contain drop-shadow`}
+                                                        />
+                                                    )}
+                                                    <p
+                                                        className="line-clamp-2 text-center text-[0.65rem] font-bold leading-tight text-violet-100 sm:text-xs"
+                                                        style={{ fontSize: isMobile ? `${5 * mobileTextScale}px` : undefined }}
+                                                    >
+                                                        {item.name}
+                                                    </p>
+                                                </div>
+                                            );
+                                        })}
+                                        {mySummary.items.length > 3 && (
+                                            <div
+                                                className={`flex ${isMobile ? 'h-24 w-[5.75rem]' : 'h-32 w-28'} items-center justify-center rounded-xl border border-white/15 bg-slate-950/60 p-2`}
+                                            >
+                                                <p className="text-center text-sm font-bold text-slate-400">+{mySummary.items.length - 3}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div
+                                        className={`flex ${isMobile ? 'h-24 w-24' : 'h-32 w-32'} items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-slate-950/90 to-zinc-950 ring-1 ring-inset ring-white/[0.04]`}
+                                    >
+                                        <span className="text-sm font-semibold text-slate-500 sm:text-base">보상 없음</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
+                    </div>
                 </div>
                  
-                <div className="mt-4 flex w-full flex-shrink-0 flex-row flex-wrap items-center justify-center gap-2 sm:gap-3">
+                <div className={`${isMobile ? 'mt-3' : 'mt-4'} flex w-full flex-shrink-0 flex-row flex-wrap items-center justify-center gap-2 sm:gap-3`}>
                     {canUseGameRecordUi && onAction && (
                         <button
                             type="button"
-                            className={`${recordSaveClass} ${isMobile ? '!text-xs !py-2 !px-3' : ''}`}
+                            className={`${recordSaveClass} ${isMobile ? '!text-xs !py-2 !px-3' : '!py-3'}`}
                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             disabled={savingRecord || recordAlreadySaved}
                             onClick={async () => {
@@ -1009,20 +1224,21 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     {canUseGameRecordUi && onOpenGameRecordList && (
                         <button
                             type="button"
-                            className={`${recordManageClass} ${isMobile ? '!text-xs !py-2 !px-3' : ''}`}
+                            className={`${recordManageClass} ${isMobile ? '!text-xs !py-2 !px-3' : '!py-3'}`}
                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             onClick={() => onOpenGameRecordList()}
                         >
                             기보 관리
                         </button>
                     )}
-                    <Button
-                        onClick={onConfirm}
-                        className={`shrink-0 rounded-xl font-bold shadow-[0_6px_20px_-6px_rgba(251,191,36,0.35)] ${isMobile ? 'min-w-[6.5rem] py-2 text-xs' : 'min-w-[8.5rem] py-2.5 text-sm'}`}
+                    <button
+                        type="button"
+                        className={`${confirmBtnClass} shrink-0 ${isMobile ? '!min-w-[6.5rem] !px-4 !py-2 !text-xs' : ''}`}
                         style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                        onClick={onConfirm}
                     >
                         확인
-                    </Button>
+                    </button>
                 </div>
             </div>
         </DraggableWindow>

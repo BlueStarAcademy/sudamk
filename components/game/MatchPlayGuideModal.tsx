@@ -16,16 +16,18 @@ const MatchPlayGuideModal: React.FC<MatchPlayGuideModalProps> = ({ session, onCl
             title="경기방법"
             windowId="match-play-guide"
             onClose={onClose}
-            initialWidth={520}
-            initialHeight={480}
+            initialWidth={560}
+            initialHeight={560}
+            uniformPcScale
+            bodyScrollable
             closeOnOutsideClick
         >
-            <div className="flex flex-col gap-3 p-3 text-sm text-gray-200 max-h-[min(70vh,520px)] overflow-y-auto">
-                <p className="text-amber-200/95 font-bold text-base border-b border-gray-600 pb-2">{guide.title}</p>
+            <div className="flex flex-col gap-4 text-base leading-relaxed text-gray-200 antialiased">
+                <p className="border-b border-gray-600 pb-2 text-lg font-bold text-amber-200/95">{guide.title}</p>
                 {guide.sections.map((section) => (
                     <section key={section.subtitle}>
-                        <h4 className="font-semibold text-sky-300 mb-1.5">{section.subtitle}</h4>
-                        <ul className="list-disc pl-4 space-y-1.5 text-gray-300 leading-relaxed">
+                        <h4 className="mb-2 text-base font-semibold text-sky-300">{section.subtitle}</h4>
+                        <ul className="list-disc space-y-2 pl-5 text-gray-200 leading-relaxed">
                             {section.items.map((line, i) => (
                                 <li key={i}>{line}</li>
                             ))}

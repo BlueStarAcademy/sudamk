@@ -84,12 +84,16 @@ const Router: React.FC = () => {
     
     // 닉네임이 없거나 임시 닉네임인 경우 닉네임 설정 화면으로 이동
     if (currentUser && (!currentUser.nickname || currentUser.nickname.startsWith('user_'))) {
+        const setNicknameShell = (
+            <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+                <SetNickname />
+            </div>
+        );
         if (currentRoute.view === 'set-nickname') {
-            return <SetNickname />;
+            return setNicknameShell;
         }
-        // 다른 페이지 접근 시 닉네임 설정 화면으로 리다이렉트
         window.location.hash = '#/set-nickname';
-        return <SetNickname />;
+        return setNicknameShell;
     }
     
     // If user is logged in, but their game is still active, force them into the game view
@@ -121,7 +125,11 @@ const Router: React.FC = () => {
 
     switch (currentRoute.view) {
         case 'set-nickname':
-            return <SetNickname />;
+            return (
+                <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+                    <SetNickname />
+                </div>
+            );
         case 'profile':
             return (
                 <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">

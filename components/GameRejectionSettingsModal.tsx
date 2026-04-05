@@ -59,14 +59,14 @@ const GameRejectionSettingsModal: React.FC<GameRejectionSettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-panel rounded-xl shadow-2xl w-full max-w-md p-6 border border-gray-700 flex flex-col">
-        <h2 className="text-xl font-bold mb-4 text-white">대국 거부 설정</h2>
-        <p className="text-gray-300 mb-4">선택한 게임 모드의 대국 신청을 자동으로 거부합니다.</p>
+    <div className="sudamr-modal-overlay z-50">
+      <div className="sudamr-modal-panel flex max-w-md flex-col p-6">
+        <h2 className="mb-4 text-xl font-bold tracking-tight text-primary">대국 거부 설정</h2>
+        <p className="mb-4 text-sm text-secondary">선택한 게임 모드의 대국 신청을 자동으로 거부합니다.</p>
         <div className="flex flex-col gap-2 mb-6">
           {gameOptions.length > 0 ? (
             gameOptions.map((option, index) => (
-              <label key={`${option.mode}-${index}`} className="flex items-center text-white cursor-pointer">
+              <label key={`${option.mode}-${index}`} className="flex cursor-pointer items-center text-primary">
                 <input
                   type="checkbox"
                   checked={rejectedGameModes.includes(option.mode)}

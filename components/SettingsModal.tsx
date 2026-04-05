@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { Theme, SoundCategory, PanelEdgeStyle } from '../types.js';
+import { SoundCategory, PanelEdgeStyle } from '../types.js';
 import ToggleSwitch from './ui/ToggleSwitch.js';
 import Slider from './ui/Slider.js';
 import ColorSwatch from './ui/ColorSwatch.js';
@@ -17,14 +17,6 @@ interface SettingsModalProps {
 }
 
 type SettingsTab = 'graphics' | 'sound' | 'features' | 'account';
-
-const THEMES: { id: Theme; name: string; colors: string[] }[] = [
-    { id: 'black', name: '슬레이트', colors: ['#0f172a', '#1e293b', '#e2e8f0', '#eab308'] },
-    { id: 'white', name: '서리빛 노르딕', colors: ['#edf1f6', '#cbd5e1', '#1f2937', '#d4b373'] },
-    { id: 'sky', name: '안개 낀 새벽', colors: ['#1f2a37', '#3a465e', '#4ea8d1', '#f6c453'] },
-    { id: 'blue', name: '노을 빛 라벤더', colors: ['#1e1f2e', '#4c4b69', '#a887ff', '#f6d8a6'] },
-    { id: 'green', name: '깊은 숲의 숨', colors: ['#17251d', '#2c4632', '#7abf8b', '#e3c970'] },
-];
 
 const SettingsSection: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({
     title,
@@ -48,7 +40,6 @@ const SettingsSection: React.FC<{ title: string; children: React.ReactNode; clas
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => {
     const {
         settings,
-        updateTheme,
         updateSoundSetting,
         updateFeatureSetting,
         updatePanelColor,
@@ -254,38 +245,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                 </div>
                             </SettingsSection>
                         )}
-                        <SettingsSection title="UI 테마">
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                                {THEMES.map(theme => (
-                                    <label
-                                        key={theme.id}
-                                        className="flex cursor-pointer items-center gap-3 rounded-xl border border-color/40 bg-secondary/20 p-3.5 transition-all duration-200 has-[:checked]:border-accent has-[:checked]:bg-accent/8 has-[:checked]:shadow-md has-[:checked]:shadow-accent/10 has-[:checked]:ring-1 has-[:checked]:ring-accent/35"
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="theme"
-                                            value={theme.id}
-                                            checked={settings.graphics.theme === theme.id}
-                                            onChange={() => updateTheme(theme.id)}
-                                            className="h-5 w-5 shrink-0 border-color bg-secondary text-accent focus:ring-accent"
-                                        />
-                                        <span className="whitespace-nowrap text-sm font-medium text-text-primary sm:text-base">
-                                            {theme.name}
-                                        </span>
-                                        <div className="ml-auto flex -space-x-1.5">
-                                            {theme.colors.map((color, i) => (
-                                                <div
-                                                    key={i}
-                                                    style={{ backgroundColor: color }}
-                                                    className="h-7 w-7 rounded-full border-2 border-color/80 shadow-sm"
-                                                />
-                                            ))}
-                                        </div>
-                                    </label>
-                                ))}
-                            </div>
-                        </SettingsSection>
                         <SettingsSection title="패널 엣지 스타일">
+                            <p className="mb-1 text-xs leading-relaxed text-text-secondary">
+                                대기실·프로필·모든 모달 창 등 UI 전역에 동일하게 적용됩니다. 기본값은 클래식 엣지입니다.
+                            </p>
                             <div className="space-y-4">
                                 <div className="flex items-center justify-center rounded-xl border border-color/50 bg-panel/80 p-8 shadow-inner">
                                     {renderEdgePreview(settings.graphics.panelEdgeStyle ?? 'default')}

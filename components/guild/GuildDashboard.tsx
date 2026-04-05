@@ -217,10 +217,9 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
 
             {/* 기부 횟수 선택 모달 - createPortal로 document.body에 렌더링 */}
             {donationModal && createPortal(
-                <div className="fixed inset-0 flex items-center justify-center z-[99999] pointer-events-auto" style={{ isolation: 'isolate' }}>
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-0 pointer-events-auto" onClick={() => setDonationModal(null)} />
+                <div className="sudamr-modal-overlay z-[99999] pointer-events-auto" style={{ isolation: 'isolate' }} onClick={() => setDonationModal(null)}>
                     <div 
-                        className={`relative z-10 rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden border-2 pointer-events-auto ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
+                        className={`sudamr-panel-edge-host relative z-10 mx-4 max-w-sm w-full overflow-hidden rounded-2xl border-2 shadow-2xl pointer-events-auto ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
                         onClick={e => e.stopPropagation()}
                     >
                         {/* 헤더 - 그라데이션 */}
@@ -487,10 +486,9 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
 
             {/* 기부 횟수 선택 모달 */}
             {donationModal && createPortal(
-                <div className="fixed inset-0 flex items-center justify-center z-[99999] pointer-events-auto" style={{ isolation: 'isolate' }}>
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-0 pointer-events-auto" onClick={() => setDonationModal(null)} />
+                <div className="sudamr-modal-overlay z-[99999] pointer-events-auto" style={{ isolation: 'isolate' }} onClick={() => setDonationModal(null)}>
                     <div 
-                        className={`relative z-10 rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden border-2 pointer-events-auto ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
+                        className={`sudamr-panel-edge-host relative z-10 mx-4 max-w-sm w-full overflow-hidden rounded-2xl border-2 shadow-2xl pointer-events-auto ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
                         onClick={e => e.stopPropagation()}
                     >
                         {/* 헤더 - 그라데이션 */}
@@ -574,16 +572,13 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
             {donationLogModalOpen &&
                 createPortal(
                     <div
-                        className="pointer-events-auto fixed inset-0 z-[99999] flex items-center justify-center p-4"
+                        className="sudamr-modal-overlay z-[99999] pointer-events-auto"
                         style={{ isolation: 'isolate' }}
+                        onClick={() => setDonationLogModalOpen(false)}
+                        role="presentation"
                     >
                         <div
-                            className="absolute inset-0 z-0 bg-black/70 backdrop-blur-sm"
-                            onClick={() => setDonationLogModalOpen(false)}
-                            aria-hidden
-                        />
-                        <div
-                            className="relative z-10 flex max-h-[min(90vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 shadow-2xl"
+                            className="sudamr-panel-edge-host relative z-10 flex max-h-[min(90vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 shadow-2xl"
                             onClick={(e) => e.stopPropagation()}
                             role="dialog"
                             aria-modal="true"
@@ -1032,11 +1027,11 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                     {/* 클릭 시 상세 정보 모달 (스킬용) */}
                     {clickedSkill && (
                         <div 
-                            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                            className="sudamr-modal-overlay z-[100]"
                             onClick={() => setClickedSkill(null)}
                         >
                             <div 
-                                className="bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 border-2 border-stone-600/60 rounded-xl shadow-2xl p-5 max-w-md w-full mx-4"
+                                className="sudamr-modal-panel mx-4 max-w-md border-stone-600/50 p-5 ring-1 ring-white/[0.05]"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <div className="flex items-center gap-3 mb-3">
@@ -1060,11 +1055,11 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                     )}
                     {showBossParticipantsModal && (
                         <div
-                            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                            className="sudamr-modal-overlay z-[110]"
                             onClick={() => setShowBossParticipantsModal(false)}
                         >
                             <div
-                                className="bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 border-2 border-stone-600/60 rounded-xl shadow-2xl p-4 w-[min(92vw,28rem)] max-h-[70vh] flex flex-col"
+                                className="sudamr-modal-panel flex w-[min(92vw,28rem)] max-h-[70vh] flex-col border-stone-600/50 p-4 ring-1 ring-white/[0.05]"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-3">
@@ -2005,14 +2000,14 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
         )}
         {showWarParticipantPicker && isGuildRoute && createPortal(
             <div
-                className="fixed inset-0 z-[12000] flex items-center justify-center bg-black/70 p-4 pointer-events-auto"
+                className="sudamr-modal-overlay z-[12000] pointer-events-auto"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="war-participant-picker-title"
                 onClick={() => !isStarting && setShowWarParticipantPicker(false)}
             >
                 <div
-                    className="w-full max-w-md rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-4 max-h-[85vh] flex flex-col pointer-events-auto"
+                    className="sudamr-modal-panel flex max-h-[85vh] w-full max-w-md flex-col p-4 pointer-events-auto ring-1 ring-white/[0.06]"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <h2 id="war-participant-picker-title" className="text-lg font-bold text-amber-200 text-center mb-1">

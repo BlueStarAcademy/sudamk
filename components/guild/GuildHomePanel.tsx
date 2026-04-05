@@ -173,14 +173,14 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
         </div>
         {guildCoinRewardModal && (
             <div
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+                className="sudamr-modal-overlay z-[100]"
                 onClick={() => setGuildCoinRewardModal(null)}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="guild-checkin-coin-title"
             >
                 <div
-                    className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl border-2 border-amber-500/55 shadow-2xl max-w-sm w-full p-5 sm:p-6 relative"
+                    className="sudamr-modal-panel relative max-w-sm border border-amber-400/35 p-5 shadow-[0_0_48px_-16px_rgba(245,158,11,0.2)] ring-1 ring-amber-500/20 sm:p-6"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <button

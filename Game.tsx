@@ -179,13 +179,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // isSpectator를 먼저 선언 (isBoardRotated 초기화에서 사용)
     const isSpectator = useMemo(() => currentUserWithStatus?.status === 'spectating', [currentUserWithStatus]);
     
-    // 바둑판 회전 상태 (백 유저/AI봇은 기본적으로 회전)
+    // 바둑판 회전: 백 진영만 기본 회전(AI 대국도 흑/백 좌석으로만 결정). 새로고침 시 currentPlayer에 따른 분기는 180° 뒤집힘을 유발하므로 제외.
     const [isBoardRotated, setIsBoardRotated] = useState(() => {
-        // 백 유저 또는 AI봇인 경우 기본적으로 회전
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                const storedState = sessionStorage.getItem(`gameState_${gameId}`);
+                if (storedState) {
+                    const parsed = JSON.parse(storedState);
+                    if (parsed.gameId === gameId && typeof parsed.isBoardRotated === 'boolean') {
+                        return parsed.isBoardRotated;
+                    }
+                }
+            }
+        } catch {
+            /* ignore */
+        }
         if (isSpectator) return false;
-        const isWhitePlayer = whitePlayerId === currentUser.id;
-        const isAiGame = session.isAiGame && (session.whitePlayerId === 'ai-player-01' || session.blackPlayerId === 'ai-player-01');
-        return isWhitePlayer || (isAiGame && session.currentPlayer === Player.White);
+        return whitePlayerId === currentUser.id;
     });
     
     const prevGameStatus = usePrevious(gameStatus);
@@ -246,7 +256,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             (mode === GameMode.Mix && !!session.settings?.mixedModes?.includes?.(GameMode.Hidden)) ||
             ((session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ?? 0) > 0);
     // 전략바둑 AI/PVP 수순 제한: 새로고침 후 totalTurns·moveHistory 복원/저장에 포함
-    const hasStrategicTurnLimit = (session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0;
+    const hasStrategicTurnLimit =
+        mode !== GameMode.Capture &&
+        ((session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0);
     
     // 클라이언트에서 게임 상태 저장/복원 (새로고침 시 바둑판 복원)
     const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
@@ -388,6 +400,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
                 const gameStateToSave = {
                     gameId,
+                    isBoardRotated,
                     boardState: restoredBoardState,
                     moveHistory: session.moveHistory || [],
                     captures: session.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
@@ -424,7 +437,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 console.error(`[Game] Failed to save game state to sessionStorage:`, e);
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {

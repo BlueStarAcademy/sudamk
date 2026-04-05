@@ -234,7 +234,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
                     autoScoringTurns = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns;
                 } else {
-                    autoScoringTurns = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
+                    autoScoringTurns =
+                        game.mode === types.GameMode.Capture
+                            ? undefined
+                            : (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
                 }
                 const remainingTurns = autoScoringTurns != null ? Math.max(0, autoScoringTurns - totalTurns) : 0;
                 
@@ -297,7 +300,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
                     autoScoringTurnsSync = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns;
                 } else {
-                    autoScoringTurnsSync = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
+                    autoScoringTurnsSync =
+                        game.mode === types.GameMode.Capture
+                            ? undefined
+                            : (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
                 }
                 const remainingTurnsSync = autoScoringTurnsSync != null ? Math.max(0, autoScoringTurnsSync - totalTurns) : 0;
                 if (autoScoringTurnsSync != null && remainingTurnsSync <= 0) {
@@ -365,7 +371,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
                     // 전략바둑: AI 수 적용 후 정해진 수순(scoringTurnLimit) 도달 시 계가 진행
                     const scoringTurnLimitAfterAi = game.settings.scoringTurnLimit;
-                    if (scoringTurnLimitAfterAi != null && scoringTurnLimitAfterAi > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                    if (
+                        scoringTurnLimitAfterAi != null &&
+                        scoringTurnLimitAfterAi > 0 &&
+                        game.mode !== types.GameMode.Capture &&
+                        !game.isSinglePlayer &&
+                        game.gameCategory !== 'tower'
+                    ) {
                         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
                         const turnsAfter = (game.moveHistory || []).length;
                         if (turnsAfter >= scoringTurnLimitAfterAi) {
@@ -403,7 +415,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
             // 전략바둑 로비 턴 제한: 이미 제한 수순에 도달했으면 착수 거부 후 계가 진행 (수순 초과 방지)
             const scoringTurnLimit = game.settings.scoringTurnLimit;
-            if (scoringTurnLimit != null && scoringTurnLimit > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+            if (
+                scoringTurnLimit != null &&
+                scoringTurnLimit > 0 &&
+                game.mode !== types.GameMode.Capture &&
+                !game.isSinglePlayer &&
+                game.gameCategory !== 'tower'
+            ) {
                 // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
                 const totalTurnsSoFar = (game.moveHistory || []).length;
                 if (totalTurnsSoFar >= scoringTurnLimit) {
@@ -940,7 +958,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 전략바둑 로비/AI 대국: 계가까지 턴 제한(scoringTurnLimit)이 있으면 해당 턴 수 도달 시 자동 계가
             // (이미 위에서 scoringTurnLimit을 읽었으므로 여기서는 재선언하지 않음)
             const scoringTurnLimitAfterMove = scoringTurnLimit;
-            if (scoringTurnLimitAfterMove != null && scoringTurnLimitAfterMove > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+            if (
+                scoringTurnLimitAfterMove != null &&
+                scoringTurnLimitAfterMove > 0 &&
+                game.mode !== types.GameMode.Capture &&
+                !game.isSinglePlayer &&
+                game.gameCategory !== 'tower'
+            ) {
                 // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
                 const newTotalTurns = (game.moveHistory || []).length;
                 game.totalTurns = newTotalTurns;

@@ -29,7 +29,7 @@ const PREFERRED_SETTINGS_KEY_PREFIX = 'preferredGameSettings';
 
 const SettingRow: React.FC<{ label: string, children: React.ReactNode, className?: string }> = ({ label, children, className }) => (
     <div className={`grid grid-cols-2 gap-4 items-center ${className}`}>
-        <label className="font-semibold text-gray-300">{label}</label>
+        <label className="text-base font-semibold text-gray-300">{label}</label>
         {children}
     </div>
 );
@@ -50,7 +50,7 @@ const CountdownDisplay: React.FC<{ deadline: number }> = ({ deadline }) => {
         return () => clearInterval(timer);
     }, [deadline]);
 
-    return <span>({countdown}초)</span>;
+    return <span className="text-lg font-bold tabular-nums">({countdown}초)</span>;
 };
 
 
@@ -270,7 +270,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const showApInfoFooter = isCasual && (isAiGame || isCreatingDraft || isMyTurnToRespond);
 
   const renderButtons = () => {
-    const baseButtonClasses = "flex-1";
+    const baseButtonClasses = 'flex-1 min-h-[2.75rem] py-2.5 text-base font-semibold';
     
     if (isAiGame) {
         return (
@@ -324,7 +324,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         value={value} 
         onChange={e => onChange(e.target.value)} 
         disabled={disabled}
-        className="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5"
+        className="w-full rounded-lg border border-gray-600 bg-gray-700 p-2.5 text-base text-white focus:border-blue-500 focus:ring-blue-500"
       >
           {children}
       </select>
@@ -353,18 +353,28 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     const showAiPlayerColor = isAiGame;
 
   return (
-    <DraggableWindow title={title} windowId="negotiation" onClose={onDecline} initialWidth={600} closeOnOutsideClick={false} isTopmost={isTopmost}>
-      <div onMouseDown={(e) => e.stopPropagation()} className="text-sm">
+    <DraggableWindow
+      title={title}
+      windowId="negotiation"
+      onClose={onDecline}
+      initialWidth={600}
+      initialHeight={760}
+      uniformPcScale
+      bodyScrollable
+      closeOnOutsideClick={false}
+      isTopmost={isTopmost}
+    >
+      <div onMouseDown={(e) => e.stopPropagation()} className="text-base antialiased">
         {isCasual && (
           <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
-            <div className="text-sm font-semibold text-blue-300 mb-1">친선전</div>
-            <div className="text-xs text-blue-200">이 대국은 친선전입니다. 랭킹 점수 변동이 없습니다.</div>
+            <div className="mb-1 text-base font-semibold text-blue-300">친선전</div>
+            <div className="text-sm leading-snug text-blue-200">이 대국은 친선전입니다. 랭킹 점수 변동이 없습니다.</div>
           </div>
         )}
-        <p className="text-center text-yellow-300 mb-4">{getStatusText()} <CountdownDisplay deadline={negotiation.deadline} /></p>
+        <p className="mb-4 text-center text-lg font-medium text-yellow-300">{getStatusText()} <CountdownDisplay deadline={negotiation.deadline} /></p>
 
         {showApInfoFooter && (
-          <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-600/50 text-center text-sm text-slate-200 mb-4">
+          <div className="mb-4 rounded-lg border border-slate-600/50 bg-slate-800/50 p-3 text-center text-base text-slate-200">
             <p>
               대국 확정 시 양측에서 행동력 <span className="text-amber-300 font-semibold">⚡{actionPointCost}</span>가 소모됩니다.
               수락·AI 시작 시 부족하면 행동력 관리 창이 열립니다.
@@ -375,14 +385,14 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         <div className="flex flex-col gap-6">
             <div className="bg-gray-900/50 p-2 md:p-4 rounded-lg border border-gray-700">
                 <div className="flex items-center gap-2 md:gap-4">
-                    <Avatar userId={opponent.id} userName={opponent.nickname} avatarUrl={opponentAvatarUrl} borderUrl={opponentBorderUrl} size={48} />
+                    <Avatar userId={opponent.id} userName={opponent.nickname} avatarUrl={opponentAvatarUrl} borderUrl={opponentBorderUrl} size={54} />
                     <div className="flex-grow">
-                        <h3 className="text-xl font-bold">{opponent.nickname}</h3>
-                        <p className="text-sm text-gray-400">
+                        <h3 className="text-2xl font-bold">{opponent.nickname}</h3>
+                        <p className="text-base text-gray-400">
                             {opponentStats.levelLabel} Lv.{opponentStats.level}
                         </p>
                     </div>
-                    <div className="text-right text-sm">
+                    <div className="text-right text-base">
                         <p className="font-semibold">{opponentStats.wins}승 {opponentStats.losses}패 ({opponentStats.winRate}%)</p>
                         <p className="text-gray-300">매너: {opponentStats.mannerScore}점</p>
                     </div>
@@ -407,9 +417,9 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 value={Math.floor(settings.komi)} 
                                 onChange={e => handleSettingChange('komi', parseInt(e.target.value, 10) + 0.5)} 
                                 disabled={isReadOnly} 
-                                className="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5" 
+                                className="w-full rounded-lg border border-gray-600 bg-gray-700 p-2.5 text-base text-white focus:border-blue-500 focus:ring-blue-500" 
                             />
-                            <span className="font-bold text-lg text-gray-300 whitespace-nowrap">.5 집</span>
+                            <span className="whitespace-nowrap text-xl font-bold text-gray-300">.5 집</span>
                         </div>
                     </SettingRow>
                 )}
@@ -440,7 +450,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 {SPEED_TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </Select>
                             </SettingRow>
-                            <SettingRow label="초읽기 시간"> <p className="text-sm text-gray-300">{FISCHER_INCREMENT_SECONDS}초 (피셔 방식)</p> </SettingRow>
+                            <SettingRow label="초읽기 시간"> <p className="text-base text-gray-300">{FISCHER_INCREMENT_SECONDS}초 (피셔 방식)</p> </SettingRow>
                         </>
                     ) : (
                         <>
@@ -566,11 +576,11 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                     const isCaptureSelected = settings.mixedModes?.includes(GameMode.Capture);
                     return (
                         <div className="col-span-2 pt-2 border-t border-gray-700">
-                            <h3 className="font-semibold text-gray-300 mb-1">믹스룰 조합 (2개 이상 선택)</h3>
-                            <p className="text-gray-500 text-xs mb-2 leading-snug">
+                            <h3 className="mb-1 text-base font-semibold text-gray-300">믹스룰 조합 (2개 이상 선택)</h3>
+                            <p className="mb-2 text-sm leading-snug text-gray-500">
                                 함께 적용할 규칙을 고릅니다. (클래식 바둑은 기본으로 포함됩니다.)
                             </p>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="grid grid-cols-2 gap-2 text-base">
                                 {SPECIAL_GAME_MODES.filter(m => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map(m => {
                                     const isDisabledByConflict = 
                                         (m.mode === GameMode.Base && isCaptureSelected) ||

@@ -123,7 +123,7 @@ const EquipmentSlotDisplay: React.FC<{
     compact?: boolean;
 }> = ({ slot, item, onClick, compact = false, scaleFactor = 1 }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
-    const itemImgPct = Math.min(96, (compact ? 72 : 80) * scaleFactor);
+    const itemImgPct = Math.min(96, (compact ? 78 : 86) * scaleFactor);
     
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
@@ -246,7 +246,7 @@ const LobbyCard: React.FC<{
     return (
         <div
             onClick={onEnter}
-            className={`bg-panel border border-color rounded-lg flex flex-col text-center transition-all transform shadow-lg ${shadowColor} cursor-pointer text-on-panel ${compactMode ? 'min-h-0 p-0.5' : 'h-full p-1 hover:-translate-y-1 lg:p-2'}`}
+            className={`bg-panel border border-color rounded-lg flex flex-col text-center transition-all transform shadow-lg ${shadowColor} cursor-pointer text-on-panel ${compactMode ? 'min-h-0 p-0.5' : 'h-full p-1.5 hover:-translate-y-1 lg:p-2.5'}`}
         >
              <h2 className={`font-bold flex items-center justify-center gap-0.5 ${compactMode ? 'mb-0 text-[8px] leading-tight' : 'mb-0.5 h-4 text-xs lg:mb-1 lg:h-6 lg:gap-1 lg:text-base'}`}>
                 {title}
@@ -254,7 +254,7 @@ const LobbyCard: React.FC<{
                 <span className={`text-highlight font-normal ${compactMode ? 'text-[8px]' : 'text-[10px] lg:text-sm'}`}>Lv.{level}</span>
             </h2>
             <div
-                className={`w-full overflow-hidden rounded-md bg-tertiary ${compactMode ? 'h-[3.25rem] flex-none' : 'min-h-0 flex-1'}`}
+                className={`w-full overflow-hidden rounded-md bg-tertiary ${compactMode ? 'h-[3.5rem] flex-none' : 'min-h-0 flex-1'}`}
             >
                 <img src={imageUrl} alt={title} className="h-full w-full object-cover object-center" />
             </div>
@@ -328,7 +328,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
     return (
         <div
             onClick={onClick}
-            className={`${isComingSoon ? 'bg-panel border border-color opacity-60 grayscale' : 'bg-panel border border-color'} relative flex flex-col overflow-hidden rounded-lg text-center shadow-lg text-on-panel ${compactMode ? 'min-h-0 p-0.5' : 'h-full p-1 transform transition-all lg:p-2'} ${isComingSoon ? 'cursor-not-allowed' : onClick ? `cursor-pointer ${compactMode ? '' : `hover:-translate-y-1 ${shadowColor}`}` : 'cursor-not-allowed'} group`}
+            className={`${isComingSoon ? 'bg-panel border border-color opacity-60 grayscale' : 'bg-panel border border-color'} relative flex flex-col overflow-hidden rounded-lg text-center shadow-lg text-on-panel ${compactMode ? 'min-h-0 p-0.5' : 'h-full p-1.5 transform transition-all lg:p-2.5'} ${isComingSoon ? 'cursor-not-allowed' : onClick ? `cursor-pointer ${compactMode ? '' : `hover:-translate-y-1 ${shadowColor}`}` : 'cursor-not-allowed'} group`}
         >
             {isComingSoon && (
                 <div className={`absolute z-10 -right-6 rotate-45 bg-purple-600 font-bold text-white ${compactMode ? 'top-0 px-6 py-px text-[6px]' : 'top-1 px-8 py-0.5 text-[8px] lg:top-2 lg:-right-10 lg:px-10 lg:text-[10px]'}`}>
@@ -337,7 +337,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
             )}
             <h2 className={`font-bold ${compactMode ? 'mb-0 mt-0 text-[8px]' : 'mb-0.5 mt-0.5 h-4 text-xs lg:mb-1 lg:mt-1 lg:h-6 lg:text-base'} ${isComingSoon ? 'text-gray-400' : ''}`}>{title}</h2>
             <div
-                className={`w-full overflow-hidden rounded-md bg-tertiary ${compactMode ? 'h-[3rem] flex-none' : 'min-h-0 flex-1'} flex items-center justify-center text-tertiary transition-transform duration-300 ${!isComingSoon && !compactMode && 'group-hover:scale-105'}`}
+                className={`w-full overflow-hidden rounded-md bg-tertiary ${compactMode ? 'h-[3.35rem] flex-none' : 'min-h-0 flex-1'} flex items-center justify-center text-tertiary transition-transform duration-300 ${!isComingSoon && !compactMode && 'group-hover:scale-105'}`}
             >
                 <img src={imageUrl} alt={title} className="h-full w-full object-cover object-center" />
             </div>
@@ -1058,7 +1058,7 @@ const Profile: React.FC<ProfileProps> = () => {
     }, [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds, guildCheckDone, guildLoadingFailed, combinedLevel, nickname, avatarUrl, borderUrl, isNativeMobile]);
     
     const LobbyCards = (
-        <div className="grid grid-cols-12 grid-rows-2 gap-2 lg:gap-4 h-full">
+        <div className="grid grid-cols-12 grid-rows-2 gap-3 lg:gap-5 h-full">
             <div className="col-span-4 row-span-1">
                 <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} />
             </div>
@@ -1077,7 +1077,7 @@ const Profile: React.FC<ProfileProps> = () => {
             </div>
 
             <div className="col-span-4 row-span-1">
-                <div onClick={onSelectTournamentLobby} className="bg-panel border border-color rounded-lg p-1 lg:p-2 flex flex-col text-center transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-purple-500/30 cursor-pointer h-full text-on-panel">
+                <div onClick={onSelectTournamentLobby} className="bg-panel border border-color rounded-lg p-1.5 lg:p-2.5 flex flex-col text-center transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-purple-500/30 cursor-pointer h-full text-on-panel">
                     <h2 className="text-xs lg:text-base font-bold flex items-center justify-center gap-0.5 lg:gap-1 h-4 lg:h-6 mb-0.5 lg:mb-1">챔피언십</h2>
                     <div className="w-full flex-1 bg-tertiary rounded-md flex items-center justify-center text-tertiary overflow-hidden min-h-0">
                         <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="w-full h-full object-cover object-center" />
@@ -1090,7 +1090,7 @@ const Profile: React.FC<ProfileProps> = () => {
             </div>
 
             <div className="col-span-4 row-span-1">
-                <div onClick={onSelectSinglePlayerLobby} className="bg-panel border border-color rounded-lg p-1 lg:p-2 flex flex-col text-center transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-green-500/30 cursor-pointer h-full text-on-panel relative">
+                <div onClick={onSelectSinglePlayerLobby} className="bg-panel border border-color rounded-lg p-1.5 lg:p-2.5 flex flex-col text-center transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-green-500/30 cursor-pointer h-full text-on-panel relative">
                     {hasFullTrainingQuestReward && (
                         <div className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full z-10 border-2 border-gray-900"></div>
                     )}
@@ -1123,7 +1123,7 @@ const Profile: React.FC<ProfileProps> = () => {
         );
     return (
         <div
-            className={`bg-primary text-primary flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root h-full max-h-full min-h-0' : 'h-full p-2 sm:p-4 lg:p-2'}`}
+            className={`bg-transparent text-primary flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root h-full max-h-full min-h-0' : 'h-full p-2 sm:p-4 lg:p-2'}`}
         >
             <header className={`flex min-w-0 flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0 gap-1.5 px-1 py-1.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
                 <h1 className={`min-w-0 truncate font-bold text-primary ${isNativeMobile ? 'text-sm sm:text-base' : 'text-base lg:text-2xl'}`}>
@@ -1176,7 +1176,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         </h3>
                                         <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden px-0.5 py-0.5">
                                             <div className="flex w-full min-w-0 shrink-0 flex-col">
-                                                <div className="grid w-full min-w-0 shrink-0 grid-cols-3 grid-rows-2 gap-0.5 [&>*]:min-w-0">
+                                                <div className="grid w-full min-w-0 shrink-0 grid-cols-3 grid-rows-2 gap-1 [&>*]:min-w-0">
                                                     {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                                         const item = getItemForSlot(slot);
                                                         return (
@@ -1185,7 +1185,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                                                     slot={slot}
                                                                     item={item}
                                                                     onClick={() => item && handlers.openViewingItem(item, true)}
-                                                                    scaleFactor={0.9}
+                                                                    scaleFactor={0.97}
                                                                 />
                                                             </div>
                                                         );
@@ -1259,8 +1259,8 @@ const Profile: React.FC<ProfileProps> = () => {
                             </div>
                         )}
                         {profileTab === 'arena' && (
-                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 pb-1">
-                                <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2">
+                            <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 pb-1">
+                                <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2.5">
                                     <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <LobbyCard
                                             type="strategic"
@@ -1286,7 +1286,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         />
                                     </div>
                                 </div>
-                                <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2">
+                                <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2.5">
                                     <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <LobbyCard
                                             type="playful"
@@ -1312,7 +1312,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         />
                                     </div>
                                 </div>
-                                <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2">
+                                <div className="flex min-h-0 min-w-0 flex-1 basis-0 items-stretch gap-2.5">
                                     <div className="flex min-h-0 min-w-0 flex-[1.05] basis-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
                                         <PveCard
                                             title="능력 PVP"
@@ -1341,7 +1341,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 </h3>
                                 <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden px-0.5 py-0.5">
                                     <div className="flex w-full min-w-0 shrink-0 flex-col">
-                                        <div className="grid w-full min-w-0 shrink-0 grid-cols-3 grid-rows-2 gap-0.5 [&>*]:min-w-0">
+                                        <div className="grid w-full min-w-0 shrink-0 grid-cols-3 grid-rows-2 gap-1 [&>*]:min-w-0">
                                             {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                                 const item = getItemForSlot(slot);
                                                 return (
@@ -1350,7 +1350,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                                             slot={slot}
                                                             item={item}
                                                             onClick={() => item && handlers.openViewingItem(item, true)}
-                                                            scaleFactor={0.9}
+                                                            scaleFactor={0.97}
                                                         />
                                                     </div>
                                                 );
@@ -1394,7 +1394,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="flex-1 grid grid-cols-12 gap-2 min-h-0 overflow-hidden">
+                    <div className="flex-1 grid grid-cols-12 gap-3 min-h-0 overflow-hidden">
                         <div className="col-span-3 min-w-0 bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col overflow-hidden">
                             <ChatWindow messages={globalChat} mode="global" onAction={handlers.handleAction} onViewUser={handlers.openViewingUser} locationPrefix="[홈]" />
                         </div>

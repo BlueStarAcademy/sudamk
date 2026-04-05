@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 // FIX: The main types barrel file now exports settings types. Use it for consistency.
-import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiation, ChatMessage, UserStatus, UserStatusInfo, AdminLog, Announcement, OverrideAnnouncement, InventoryItem, AppState, InventoryItemType, AppRoute, QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, Theme, SoundSettings, FeatureSettings, AppSettings, PanelEdgeStyle, CoreStat, SpecialStat, MythicStat, EquipmentSlot, EquipmentPreset, Player, HomeBoardPost, GameRecord, Guild } from '../types.js';
+import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiation, ChatMessage, UserStatus, UserStatusInfo, AdminLog, Announcement, OverrideAnnouncement, InventoryItem, AppState, InventoryItemType, AppRoute, QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, SoundSettings, FeatureSettings, AppSettings, PanelEdgeStyle, CoreStat, SpecialStat, MythicStat, EquipmentSlot, EquipmentPreset, Player, HomeBoardPost, GameRecord, Guild } from '../types.js';
 import { HandleActionResult } from '../types/api.js';
 import { Point } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
@@ -335,7 +335,13 @@ export const useApp = () => {
                 return {
                     ...defaultSettings,
                     ...parsed,
-                    graphics: { ...defaultSettings.graphics, ...(parsed.graphics || {}) },
+                    graphics: {
+                        ...defaultSettings.graphics,
+                        ...(parsed.graphics || {}),
+                        theme: 'black',
+                        panelEdgeStyle:
+                            parsed.graphics?.panelEdgeStyle ?? defaultSettings.graphics.panelEdgeStyle,
+                    },
                     sound: {
                         ...defaultSettings.sound,
                         ...(parsed.sound || {}),
@@ -520,18 +526,6 @@ export const useApp = () => {
     useEffect(() => {
         audioService.updateSettings(settings.sound);
     }, [settings.sound]);
-
-    const updateTheme = useCallback((theme: Theme) => {
-        setSettings(s => ({ 
-            ...s, 
-            graphics: { 
-                ...s.graphics, 
-                theme,
-                panelColor: undefined, 
-                textColor: undefined,
-            } 
-        }));
-    }, []);
 
     const updatePanelColor = useCallback((color: string) => {
         setSettings(s => ({ ...s, graphics: { ...s.graphics, panelColor: color }}));
@@ -1600,6 +1594,10 @@ export const useApp = () => {
                 const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating', 'hidden_reveal_animating'].includes(updateResult.updatedGame.gameStatus);
                 
                 if (!isItemMode) {
+                    const skipLobbyCaptureTurnScoring =
+                        updateResult.updatedGame.mode === GameMode.Capture &&
+                        !updateResult.updatedGame.isSinglePlayer &&
+                        (updateResult.updatedGame as any).gameCategory !== 'tower';
                     let autoScoringTurns: number | undefined =
                         gameType === 'singleplayer' && game.stageId
                             ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === game.stageId)?.autoScoringTurns
@@ -1610,7 +1608,7 @@ export const useApp = () => {
                             : (game.towerFloor != null && Number(game.towerFloor) >= 1 ? TOWER_STAGES[Number(game.towerFloor) - 1] : undefined);
                         autoScoringTurns = stage?.autoScoringTurns;
                     }
-                    if (autoScoringTurns !== undefined || (gameType === 'singleplayer' && game.stageId)) {
+                    if (!skipLobbyCaptureTurnScoring && (autoScoringTurns !== undefined || (gameType === 'singleplayer' && game.stageId))) {
                     // totalTurns는 항상 유효 수 개수로 확정 (0/N 표시와 트리거 일치)
                     const validMoves = (updateResult.updatedGame.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1);
                     const totalTurns = Math.max(
@@ -1998,7 +1996,8 @@ export const useApp = () => {
 
         let dicePlaceGameId: string | undefined;
         try {
-            audioService.initialize();
+            audioService.unlockFromUserGesture();
+            void audioService.initialize();
 
             dicePlaceGameId =
                 action.type === 'DICE_PLACE_STONE'
@@ -4407,7 +4406,15 @@ export const useApp = () => {
                                                     totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
                                                     captures: preservedCaptures ?? game.captures ?? existingGame.captures,
                                                 };
-                                            } else if (game.gameStatus === 'playing' && (game.stageId || (game.settings as any)?.autoScoringTurns)) {
+                                            } else if (
+                                                game.gameStatus === 'playing' &&
+                                                !(
+                                                    game.mode === GameMode.Capture &&
+                                                    !game.isSinglePlayer &&
+                                                    game.gameCategory !== 'tower'
+                                                ) &&
+                                                (game.stageId || (game.settings as any)?.autoScoringTurns)
+                                            ) {
                                                 // GAME_UPDATE를 받았을 때 자동계가 체크 (AI 수를 둔 경우 등)
                                                 try {
                                                     const autoScoringTurns = game.isSinglePlayer && game.stageId
@@ -5963,7 +5970,6 @@ export const useApp = () => {
         isPhoneHandheldTouch,
         isLargeTouchTablet,
         showPcLikeMobileLayoutSetting,
-        updateTheme,
         updateSoundSetting,
         updateFeatureSetting,
         updatePanelColor,

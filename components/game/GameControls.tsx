@@ -26,7 +26,7 @@ interface ImageButtonProps {
 /** 모바일에서 아이콘을 가리지 않도록 버튼 밖 모서리(우하단)에 배치 */
 const ItemCountBadge: React.FC<{ count: number; disabled?: boolean }> = ({ count, disabled = false }) => (
     <span
-        className={`pointer-events-none absolute -bottom-1 -right-1 z-[3] flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-md border border-gray-900/90 bg-gray-950/95 px-1 text-[10px] font-bold leading-none text-white shadow-md tabular-nums ${disabled ? 'opacity-60' : ''}`}
+        className={`pointer-events-none absolute -bottom-1 -right-1 z-[3] flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-md border border-gray-900/90 bg-gray-950/95 px-1 text-[11px] font-bold leading-none text-white shadow-md tabular-nums ${disabled ? 'opacity-60' : ''}`}
     >
         {count > 99 ? '99+' : count}
     </span>
@@ -44,8 +44,8 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
         ? 'border-red-400 shadow-red-500/40 focus:ring-red-400'
         : 'border-amber-400 shadow-amber-500/30 focus:ring-amber-300';
     const sizeClass = compact
-        ? 'h-14 w-14 sm:h-[3.75rem] sm:w-[3.75rem] md:w-20 md:h-20 rounded-xl md:rounded-xl'
-        : 'w-16 h-16 md:w-20 md:h-20 rounded-xl';
+        ? 'h-16 w-16 sm:h-[4.25rem] sm:w-[4.25rem] md:h-[4.5rem] md:w-[4.5rem] rounded-xl md:rounded-xl'
+        : 'h-[4.25rem] w-[4.25rem] md:h-24 md:w-24 rounded-xl';
 
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
@@ -82,10 +82,10 @@ interface LabeledControlButtonProps extends ImageButtonProps {
 const LabeledControlButton: React.FC<LabeledControlButtonProps> = ({ label, caption, compact = false, ...buttonProps }) => {
     const { disabled = false } = buttonProps;
     return (
-        <div className={`flex min-w-0 max-w-full flex-col items-center gap-0.5 ${compact ? '' : 'min-w-[4rem]'}`}>
+        <div className={`flex min-w-0 max-w-full flex-col items-center gap-1 ${compact ? '' : 'min-w-[4rem]'}`}>
             <ImageButton {...buttonProps} compact={compact} />
             <span
-                className={`text-center font-semibold leading-none tracking-wide whitespace-nowrap ${compact ? 'text-[9px]' : 'text-[10px] tracking-wide'} ${disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'}`}
+                className={`text-center font-semibold leading-none tracking-wide whitespace-nowrap ${compact ? 'text-[10px]' : 'text-[11px] tracking-wide'} ${disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'}`}
             >
                 {label}
             </span>
@@ -203,7 +203,7 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
 
     return (
         <div className={`flex min-w-0 items-center gap-2 ${isMobile ? 'w-full py-0.5' : ''}`}>
-            <ArenaControlStrip className="min-w-0 flex-1" gapClass={isMobile ? 'gap-1' : 'gap-2'}>
+            <ArenaControlStrip className="min-w-0 flex-1" gapClass={isMobile ? 'gap-2' : 'gap-3'}>
                 {actionNodes}
             </ArenaControlStrip>
             <span
@@ -229,11 +229,11 @@ const DiceGoLuxuryItemCard: React.FC<{
     onUse: () => void;
     compact?: boolean;
 }> = ({ kind, count, usable, onUse, compact = false }) => {
-    const [diceSize, setDiceSize] = React.useState(48);
+    const [diceSize, setDiceSize] = React.useState(54);
     React.useEffect(() => {
         if (compact) return;
         const q = window.matchMedia('(min-width: 768px)');
-        const sync = () => setDiceSize(q.matches ? 62 : 48);
+        const sync = () => setDiceSize(q.matches ? 70 : 54);
         sync();
         q.addEventListener('change', sync);
         return () => q.removeEventListener('change', sync);
@@ -301,8 +301,8 @@ const DiceGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
-    const effectiveDiceSize = compact ? 40 : diceSize;
-    const outerSizeClass = compact ? 'h-[3.5rem] w-[3.5rem] rounded-xl' : 'h-16 w-16 rounded-xl md:h-20 md:w-20';
+    const effectiveDiceSize = compact ? 46 : diceSize;
+    const outerSizeClass = compact ? 'h-16 w-16 rounded-xl' : 'h-[4.25rem] w-[4.25rem] rounded-xl md:h-24 md:w-24';
 
     return (
         <div
@@ -348,10 +348,10 @@ const LabeledDiceGoItem: React.FC<{
     children: React.ReactNode;
     compact?: boolean;
 }> = ({ label, disabled, children, compact = false }) => (
-    <div className={`flex min-w-0 max-w-full flex-col items-center gap-0.5 ${compact ? '' : 'min-w-[3.25rem] sm:min-w-[4rem]'}`}>
+    <div className={`flex min-w-0 max-w-full flex-col items-center gap-1 ${compact ? '' : 'min-w-[3.25rem] sm:min-w-[4rem]'}`}>
         {children}
         <span
-            className={`text-center font-semibold leading-none tracking-wide whitespace-nowrap ${compact ? 'text-[8px]' : 'text-[10px]'} ${
+            className={`text-center font-semibold leading-none tracking-wide whitespace-nowrap ${compact ? 'text-[9px]' : 'text-[11px]'} ${
                 disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'
             }`}
         >
@@ -557,7 +557,7 @@ export const DicePanel: React.FC<{
     const diceGoItemsRow = showItems ? (
         <ArenaFixedColsGrid
             cols={4}
-            gapClass={footerCompact ? 'gap-x-0.5 sm:gap-x-1' : 'gap-x-3 gap-y-2'}
+            gapClass={footerCompact ? 'gap-x-1.5 sm:gap-x-2' : 'gap-x-5 gap-y-2.5'}
             className={footerCompact ? 'min-w-0' : ''}
         >
             <LabeledDiceGoItem label="홀수" disabled={!oddItemUsable} compact={footerCompact}>
@@ -579,20 +579,20 @@ export const DicePanel: React.FC<{
         <>
             {showItemModal && itemConfirm && (
                 <div
-                    className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+                    className="sudamr-modal-overlay z-[200]"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="dice-item-confirm-title"
                     onClick={() => setItemConfirm(null)}
                 >
                     <div
-                        className="bg-gray-900 border border-amber-500/40 rounded-xl shadow-2xl max-w-sm w-full p-5 space-y-4"
+                        className="sudamr-modal-panel max-w-sm space-y-4 border border-amber-400/35 p-5 shadow-[0_0_40px_-12px_rgba(245,158,11,0.25)] ring-1 ring-amber-500/15"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h2 id="dice-item-confirm-title" className="text-lg font-bold text-amber-100">
+                        <h2 id="dice-item-confirm-title" className="text-lg font-bold tracking-tight text-highlight">
                             {diceGoConfirmCopy(itemConfirm).title}
                         </h2>
-                        <p className="text-sm text-gray-300 leading-relaxed">{diceGoConfirmCopy(itemConfirm).body}</p>
+                        <p className="text-sm leading-relaxed text-secondary">{diceGoConfirmCopy(itemConfirm).body}</p>
                         <div className="flex gap-2 justify-end">
                             <Button type="button" colorScheme="none" className="!px-4 !py-2 rounded-lg border border-gray-600 text-gray-200" onClick={() => setItemConfirm(null)}>
                                 취소
@@ -657,7 +657,7 @@ const AlkkagiItemPanel: React.FC<{
 
     if (totalRounds <= 1) {
         return (
-            <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-2' : 'gap-3'} className={compact ? 'min-w-0' : ''}>
+            <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-3' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
                 <LabeledControlButton
                     src="/images/button/slow.png"
                     alt="슬로우"
@@ -692,8 +692,8 @@ const AlkkagiItemPanel: React.FC<{
         <div
             className={
                 compact
-                    ? 'grid w-full min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2'
-                    : 'flex items-center justify-center gap-3'
+                    ? 'grid w-full min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2.5'
+                    : 'flex items-center justify-center gap-4'
             }
         >
             <div className={`flex shrink-0 flex-col text-center font-semibold text-yellow-300 ${compact ? 'text-[9px]' : 'text-xs'}`}>
@@ -702,7 +702,7 @@ const AlkkagiItemPanel: React.FC<{
                 </span>
             </div>
             <div className={`h-8 w-px shrink-0 bg-gray-600 ${compact ? 'mx-0' : 'mx-2'}`} />
-            <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-2' : 'gap-3'} className="min-w-0">
+            <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-3' : 'gap-5'} className="min-w-0">
                 <LabeledControlButton
                     src="/images/button/slow.png"
                     alt="슬로우"
@@ -747,11 +747,11 @@ const ThiefGoLuxuryItemCard: React.FC<{
     onUse: () => void;
     compact?: boolean;
 }> = ({ kind, count, usable, onUse, compact = false }) => {
-    const [diceSize, setDiceSize] = React.useState(48);
+    const [diceSize, setDiceSize] = React.useState(54);
     React.useEffect(() => {
         if (compact) return;
         const q = window.matchMedia('(min-width: 768px)');
-        const sync = () => setDiceSize(q.matches ? 62 : 48);
+        const sync = () => setDiceSize(q.matches ? 70 : 54);
         sync();
         q.addEventListener('change', sync);
         return () => q.removeEventListener('change', sync);
@@ -791,8 +791,8 @@ const ThiefGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
-    const effectiveDiceSize = compact ? 40 : diceSize;
-    const outerSizeClass = compact ? 'h-[3.5rem] w-[3.5rem] rounded-xl' : 'h-16 w-16 rounded-xl md:h-20 md:w-20';
+    const effectiveDiceSize = compact ? 46 : diceSize;
+    const outerSizeClass = compact ? 'h-16 w-16 rounded-xl' : 'h-[4.25rem] w-[4.25rem] rounded-xl md:h-24 md:w-24';
 
     return (
         <div
@@ -1015,7 +1015,7 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
     };
 
     const thiefItemsRow = showItems ? (
-        <ArenaFixedColsGrid cols={2} gapClass={footerCompact ? 'gap-x-0.5 sm:gap-x-1' : 'gap-x-3 gap-y-2'} className={footerCompact ? 'min-w-0' : ''}>
+        <ArenaFixedColsGrid cols={2} gapClass={footerCompact ? 'gap-x-1.5 sm:gap-x-2' : 'gap-x-5 gap-y-2.5'} className={footerCompact ? 'min-w-0' : ''}>
             <LabeledDiceGoItem label="높은수" disabled={!high36Usable} compact={footerCompact}>
                 <ThiefGoLuxuryItemCard kind="high36" count={high36Count} usable={high36Usable} onUse={() => handleRoll('high36')} compact={footerCompact} />
             </LabeledDiceGoItem>
@@ -1029,20 +1029,20 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
         <>
             {showItems && itemConfirm && (
                 <div
-                    className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+                    className="sudamr-modal-overlay z-[200]"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="thief-item-confirm-title"
                     onClick={() => setItemConfirm(null)}
                 >
                     <div
-                        className="w-full max-w-sm space-y-4 rounded-xl border border-amber-500/40 bg-gray-900 p-5 shadow-2xl"
+                        className="sudamr-modal-panel max-w-sm space-y-4 border border-amber-400/35 p-5 shadow-[0_0_40px_-12px_rgba(245,158,11,0.25)] ring-1 ring-amber-500/15"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h2 id="thief-item-confirm-title" className="text-lg font-bold text-amber-100">
+                        <h2 id="thief-item-confirm-title" className="text-lg font-bold tracking-tight text-highlight">
                             {thiefConfirmCopy(itemConfirm).title}
                         </h2>
-                        <p className="text-sm leading-relaxed text-gray-300">{thiefConfirmCopy(itemConfirm).body}</p>
+                        <p className="text-sm leading-relaxed text-secondary">{thiefConfirmCopy(itemConfirm).body}</p>
                         <div className="flex justify-end gap-2">
                             <Button
                                 type="button"
@@ -1112,7 +1112,7 @@ const CurlingItemPanel: React.FC<{
     const isAimActive = myActiveItems.includes('aimingLine');
     const canUse = isMyTurn && gameStatus === 'curling_playing';
     return (
-        <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-2' : 'gap-3'} className={compact ? 'min-w-0' : ''}>
+        <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-3' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
             <LabeledControlButton
                 src="/images/button/slow.png"
                 alt="슬로우"
@@ -1507,9 +1507,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
             return (
                 <>
-                <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full h-[136px]">
+                <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[152px]">
                     <div className="min-w-0 rounded-xl border border-stone-700 bg-gray-900/70 px-2 py-3 sm:px-4">
-                        <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-1.5' : 'gap-2'}>
+                        <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-2.5' : 'gap-3'}>
                         <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap shrink-0 ${isMobile ? '!py-1 !px-2 !text-[0.65rem]' : '!py-1.5 !px-4 !text-sm'}`}>
                             결과 확인
                         </Button>
@@ -1603,8 +1603,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const myScansLeft = currentUser.id === p1Id ? (session.scans_p1 ?? scanCountSetting) : (session.scans_p2 ?? scanCountSetting);
         const myMissilesLeft = currentUser.id === p1Id ? (session.missiles_p1 ?? missileCountSetting) : (session.missiles_p2 ?? missileCountSetting);
 
-        const itemColClass = isMobile ? 'flex flex-col items-center gap-0.5 shrink-0' : 'flex flex-col items-center gap-2';
-        const labelClass = isMobile ? 'text-[9px] text-amber-200 font-semibold tracking-wide' : 'text-[10px] text-amber-200 font-semibold tracking-wide';
+        const itemColClass = isMobile ? 'flex flex-col items-center gap-1 shrink-0' : 'flex flex-col items-center gap-2';
+        const labelClass = isMobile ? 'text-[10px] text-amber-200 font-semibold tracking-wide' : 'text-[11px] text-amber-200 font-semibold tracking-wide';
 
         const coreControls = (
             <>
@@ -1618,7 +1618,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         variant="danger"
                         compact={isMobile}
                     />
-                    <span className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} text-red-300 font-semibold tracking-wide`}>기권</span>
+                    <span className={`${isMobile ? 'text-[10px]' : 'text-[11px]'} text-red-300 font-semibold tracking-wide`}>기권</span>
                 </div>
                 <div className={itemColClass}>
                     <ImageButton
@@ -1692,21 +1692,21 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         );
 
         return (
-            <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[136px]">
+            <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[152px]">
                 <div
                     className={`bg-gray-900/60 border border-stone-700 rounded-xl w-full ${
                         isMobile && (isHiddenMode || isMissileMode)
-                            ? 'flex min-w-0 flex-row items-stretch gap-0 px-2 py-2'
+                            ? 'flex min-w-0 flex-row items-stretch gap-1.5 px-2 py-2'
                             : isMobile
                               ? 'px-2 py-2'
-                              : 'flex min-w-0 flex-row items-center gap-4 px-4 py-3'
+                              : 'flex min-w-0 flex-row items-center gap-6 px-4 py-3'
                     }`}
                 >
                     {isMobile && (isHiddenMode || isMissileMode) ? (
                         <>
                             <div className="flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/40 bg-black/15 px-1 py-1">
                                 <div className="flex min-h-0 w-full flex-1 items-center justify-center">
-                                    <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1">
+                                    <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2.5">
                                         {coreControls}
                                     </ArenaControlStrip>
                                 </div>
@@ -1714,7 +1714,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             <div className="mx-1 w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
                             <div className="flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/30 bg-amber-950/10 px-1 py-1">
                                 <div className="flex min-h-0 w-full flex-1 items-center justify-center">
-                                    <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1">
+                                    <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2.5">
                                         {itemControls}
                                     </ArenaControlStrip>
                                 </div>
@@ -1722,7 +1722,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         </>
                     ) : isMobile ? (
                         <div className="flex w-full min-w-0 justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-2">
+                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
                                 {coreControls}
                             </ArenaControlStrip>
                         </div>
@@ -1731,7 +1731,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             <div
                                 className={`flex min-w-0 items-center justify-center ${isHiddenMode || isMissileMode ? 'flex-1' : 'w-full'}`}
                             >
-                                <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+                                <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-6">
                                     {coreControls}
                                 </ArenaControlStrip>
                             </div>
@@ -1739,7 +1739,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 <>
                                     <div className="h-12 w-px shrink-0 self-stretch bg-stone-600/50" />
                                     <div className="flex min-w-0 flex-1 items-center justify-center">
-                                        <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+                                        <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-6">
                                             {itemControls}
                                         </ArenaControlStrip>
                                     </div>
@@ -1857,7 +1857,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     );
 
     return (
-        <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-1 flex flex-col items-stretch justify-center gap-1 w-full">
+        <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-1.5 flex flex-col items-stretch justify-center gap-1.5 w-full">
             {/* Row 1: Manner Actions - PVP 모드에서만 표시 */}
             {!isSinglePlayer && !session.isAiGame ? (
                 <div
@@ -1880,10 +1880,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
             {/* Row 2: Game and Special/Playful Functions */}
             {isMobile ? (
-                <div className="flex w-full min-w-0 gap-2">
-                    <div className="flex min-h-[4.75rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
+                <div className="flex w-full min-w-0 gap-3">
+                    <div className="flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
                         <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-4">
                                 {primaryControlsInner}
                             </ArenaControlStrip>
                         </div>
@@ -1892,28 +1892,28 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-500/15 via-stone-500/50 to-stone-500/15"
                         aria-hidden
                     />
-                    <div className="flex min-h-[4.75rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-gray-900/55 p-2">
+                    <div className="flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-gray-900/55 p-2">
                         <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-4">
                                 {specialControlsInner}
                             </ArenaControlStrip>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="flex w-full min-w-0 flex-row gap-2">
+                <div className="flex w-full min-w-0 flex-row gap-3">
                     <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-md bg-gray-900/50 p-2">
                         <h3 className="text-center text-xs font-bold text-gray-300">대국 기능</h3>
-                        <div className="flex min-h-[3.5rem] w-full min-w-0 flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-3">
+                        <div className="flex min-h-[4rem] w-full min-w-0 flex-1 items-center justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-5">
                                 {primaryControlsInner}
                             </ArenaControlStrip>
                         </div>
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-md bg-gray-900/50 p-2">
                         <h3 className="text-center text-xs font-bold text-gray-300">{isStrategic ? '특수 기능' : '놀이 기능'}</h3>
-                        <div className="flex min-h-[3.5rem] w-full min-w-0 flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-3">
+                        <div className="flex min-h-[4rem] w-full min-w-0 flex-1 items-center justify-center">
+                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-5">
                                 {specialControlsInner}
                             </ArenaControlStrip>
                         </div>
@@ -1925,7 +1925,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 <div className="mt-1 flex w-full min-w-0 flex-row items-center gap-4 rounded-md bg-purple-900/50 p-2">
                     <h3 className="shrink-0 whitespace-nowrap text-xs font-bold text-purple-300">관리자 기능</h3>
                     <div className="flex min-w-0 flex-1 items-center justify-center">
-                        <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-1.5' : 'gap-2'}>
+                        <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-2' : 'gap-2.5'}>
                         <Button
                             onClick={() => {
                                 if (window.confirm(`${player1.nickname}님을 기권승 처리하시겠습니까?`)) {

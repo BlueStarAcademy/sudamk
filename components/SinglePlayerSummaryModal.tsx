@@ -6,6 +6,21 @@ import Avatar from './Avatar.js';
 import { SINGLE_PLAYER_STAGES, AVATAR_POOL, BORDER_POOL } from '../constants';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { replaceAppHash } from '../utils/appUtils.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import {
+    PRE_GAME_MODAL_FOOTER_CLASS,
+    PRE_GAME_MODAL_LAYER_CLASS,
+    PRE_GAME_MODAL_PRIMARY_BTN_CLASS,
+    PRE_GAME_MODAL_SECONDARY_BTN_CLASS,
+    PRE_GAME_MODAL_ACCENT_BTN_CLASS,
+} from './game/PreGameDescriptionLayout.js';
+
+/** 게임 설명 모달과 동일한 패널 박스 */
+const SP_SUMMARY_PANEL_CLASS =
+    'relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12';
+const SP_SUMMARY_INSET_CLASS =
+    'rounded-lg border border-amber-500/15 bg-black/35 ring-1 ring-inset ring-white/[0.05]';
+const SP_SUMMARY_SECTION_LABEL = 'text-[0.65rem] font-bold uppercase tracking-[0.12em] text-amber-200/85';
 
 interface SinglePlayerSummaryModalProps {
     session: LiveGameSession;
@@ -21,7 +36,7 @@ const handleClose = (session: LiveGameSession, onClose: () => void) => {
 
 const RewardItemDisplay: React.FC<{ item: any; isMobile: boolean }> = ({ item, isMobile }) => (
     <div
-        className="flex flex-col items-center justify-center text-center p-1 bg-gray-900/50 rounded-md"
+        className={`flex flex-col items-center justify-center text-center p-1 ${SP_SUMMARY_INSET_CLASS}`}
         title={item.name}
     >
         <img
@@ -29,7 +44,7 @@ const RewardItemDisplay: React.FC<{ item: any; isMobile: boolean }> = ({ item, i
             alt={item.name}
             className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} object-contain`}
         />
-        <span className="text-xs mt-1 text-gray-300 truncate w-full">
+        <span className="mt-1 truncate w-full text-xs text-zinc-400">
             {item.name}
             {item.quantity > 1 ? ` x${item.quantity}` : ''}
         </span>
@@ -72,16 +87,16 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     const { scoreDetails } = analysis;
     const { mode, settings } = session;
 
-    if (!scoreDetails) return <p className={`text-center text-gray-400 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+    if (!scoreDetails) return <p className={`text-center text-zinc-500 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
     
     const isSpeedMode = mode === GameMode.Speed || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed));
     const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
 
     return (
-        <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50 rounded-lg`}>
+        <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} ${SP_SUMMARY_INSET_CLASS}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
-                <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1' : 'p-1.5'} rounded-md`}>
+                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
                     <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '13px' }}>흑</h3>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>영토:</span> <span>{scoreDetails.black.territory.toFixed(0)}</span></div>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>따낸 돌:</span> <span>{scoreDetails.black.liveCaptures ?? 0}</span></div>
@@ -89,9 +104,9 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
                     {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>베이스 보너스:</span> <span>{scoreDetails.black.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>히든 보너스:</span> <span>{scoreDetails.black.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>시간 보너스:</span> <span>{scoreDetails.black.timeBonus.toFixed(1)}</span></div>}
-                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}><span>총점:</span> <span className="text-yellow-300">{scoreDetails.black.total.toFixed(1)}</span></div>
+                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}><span>총점:</span> <span className="text-amber-200">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
-                <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1' : 'p-1.5'} rounded-md`}>
+                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
                     <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '13px' }}>백</h3>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>영토:</span> <span>{scoreDetails.white.territory.toFixed(0)}</span></div>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>따낸 돌:</span> <span>{scoreDetails.white.liveCaptures ?? 0}</span></div>
@@ -100,7 +115,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
                     {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>베이스 보너스:</span> <span>{scoreDetails.white.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>히든 보너스:</span> <span>{scoreDetails.white.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>시간 보너스:</span> <span>{scoreDetails.white.timeBonus.toFixed(1)}</span></div>}
-                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}><span>총점:</span> <span className="text-yellow-300">{scoreDetails.white.total.toFixed(1)}</span></div>
+                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}><span>총점:</span> <span className="text-amber-200">{scoreDetails.white.total.toFixed(1)}</span></div>
                 </div>
             </div>
         </div>
@@ -110,6 +125,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
     const [viewportWidth, setViewportWidth] = useState<number | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const isHandheld = useIsHandheldDevice(1025);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -122,7 +138,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const effectiveViewportWidth = viewportWidth ?? 1024;
     const isMobileView = effectiveViewportWidth <= 768;
     const isInsideScaledCanvas = typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
-    const initialWidth = 500;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];
@@ -398,57 +413,72 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             ? (isWinner ? "미션 클리어" : "미션 실패")
             : "게임 결과";
 
-    // App.tsx의 transform 스케일 캔버스 내부에서는 PC 비율로 렌더링합니다.
-    const isMobile = isInsideScaledCanvas ? false : isMobileView;
+    // 스케일 캔버스 안에서도 실제 단말이 좁으면 컴팩트 레이아웃(불필요한 세로 여백 감소)
+    const isMobile = isInsideScaledCanvas ? isHandheld : isMobileView;
     const mobileTextScale = isMobile ? 1.2 : 1.15;
+    const summaryInitialWidth = isMobile
+        ? Math.max(Math.min(effectiveViewportWidth - 24, 560), 300)
+        : 736;
 
     return (
         <DraggableWindow 
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="sp-summary-redesigned"
-            initialWidth={isMobile ? 600 : 900}
+            initialWidth={summaryInitialWidth}
             initialHeight={undefined}
             modal={!isInsideScaledCanvas}
             closeOnOutsideClick={!isInsideScaledCanvas}
             defaultPosition={isInsideScaledCanvas ? { x: 400, y: 0 } : { x: 0, y: 0 }}
+            containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
+            bodyPaddingClassName={isMobile ? 'p-3 pb-0' : 'p-4 pb-0'}
+            bodyScrollable
+            footerClassName="border-t border-amber-500/35 bg-gradient-to-t from-[#0c0a10] via-[#14111c] to-[#1c1828] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] text-zinc-200/90"
         >
-            <div className={`text-white ${isMobile ? 'text-sm' : 'text-[clamp(0.875rem,2.5vw,1.125rem)]'} flex flex-col`}>
+            <div className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} ${isMobile ? 'text-sm' : 'text-[clamp(0.875rem,2.5vw,1.125rem)]'} flex min-h-0 flex-col`}>
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
-                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
-                        {isWinner ? '미션 성공' : '미션 실패'}
-                    </h1>
+                    <div className="mb-2 flex-shrink-0 rounded-xl border-2 border-amber-400/45 bg-gradient-to-br from-amber-950/50 via-slate-900/90 to-slate-950/95 p-3 shadow-[0_0_32px_-12px_rgba(251,191,36,0.28)] sm:p-3.5">
+                        <div className={`${SP_SUMMARY_SECTION_LABEL} text-center`}>결과</div>
+                        <h1
+                            className={`mt-1 text-center font-black tracking-widest ${isMobile ? 'text-lg' : 'text-2xl'} ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300' : 'text-red-400'}`}
+                            style={{ fontSize: isMobile ? `${15 * mobileTextScale}px` : undefined }}
+                        >
+                            {isWinner ? '미션 성공' : '미션 실패'}
+                        </h1>
+                    </div>
                 )}
                 {!isScoring && !isEnded && !analysisResult && session.winner === null && (
-                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-gray-300`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
+                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-amber-100/90`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
                         게임 결과
                     </h1>
                 )}
                 
-                <div className={`flex flex-row gap-1.5 sm:gap-2`}>
+                <div className={`flex min-h-0 flex-row gap-2 sm:gap-3${isMobile ? ' items-start' : ''}`}>
                     {/* Left Panel: 경기 결과 */}
-                    <div className={`w-1/2 bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg flex flex-col sp-summary-left-panel`}>
-                        <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-1 sm:mb-2 border-b border-gray-700 pb-0.5 sm:pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>경기 결과</h2>
+                    <div className={`flex w-1/2 min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${isMobile ? 'p-2' : 'p-2.5'} sp-summary-left-panel`}>
+                        <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
+                            경기 결과
+                        </h2>
                         <div className="flex flex-col gap-1.5">
                             {/* 경기 정보 */}
                             {(analysisResult || (isEnded && session.winner !== null)) && (
-                                <div className={`${isMobile ? 'p-1' : 'p-1.5'} bg-gray-800/50 rounded-lg space-y-0.5 flex-shrink-0`}>
+                                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${isMobile ? 'p-1.5' : 'p-2'}`}>
                                     <div className="flex justify-between items-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
-                                        <span className="text-gray-400">총 걸린 시간:</span>
-                                        <span className="text-gray-200 font-semibold">{gameDuration}</span>
+                                        <span className="text-amber-200/65">총 걸린 시간:</span>
+                                        <span className="font-semibold text-zinc-100">{gameDuration}</span>
                                     </div>
                                     {(winReasonText || failureReason) && (
                                         <div className="flex flex-col gap-0.5" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
-                                            <span className="text-gray-400">{isWinner ? '승리 이유:' : '패배 이유:'}</span>
-                                            <span className={`font-semibold ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
+                                            <span className="text-amber-200/65">{isWinner ? '승리 이유:' : '패배 이유:'}</span>
+                                            <span className={`font-semibold ${isWinner ? 'text-emerald-300' : 'text-red-400'}`}>
                                                 {winReasonText || failureReason}
                                             </span>
                                         </div>
                                     )}
                                     {survivalModeInfo && (
-                                        <div className="flex justify-between items-center pt-0.5 border-t border-gray-700 mt-0.5" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
-                                            <span className="text-gray-400">백 목표/획득 점수:</span>
+                                        <div className="flex justify-between items-center pt-0.5 border-t border-amber-500/15 mt-0.5" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
+                                            <span className="text-amber-200/65">백 목표/획득 점수:</span>
                                             <span className={`font-semibold ${survivalModeInfo.captured < survivalModeInfo.target ? 'text-green-400' : 'text-red-400'}`}>
                                                 {survivalModeInfo.captured}/{survivalModeInfo.target}
                                             </span>
@@ -458,7 +488,9 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             )}
                             {/* 계가 결과 — 전략바둑과 동일한 22초 진행 연출 (최소 높이로 진행 막대·카운트 항상 표시) */}
                             {isScoring && !analysisResult && (
-                                <div className="flex-1 flex flex-col items-center justify-center min-h-[200px]">
+                                <div
+                                    className={`flex flex-col items-center justify-center ${isMobile ? 'min-h-[132px]' : 'min-h-[200px] flex-1'}`}
+                                >
                                     <ScoringOverlay variant="inline" />
                                 </div>
                             )}
@@ -470,17 +502,19 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                     mobileTextScale={mobileTextScale}
                                 />
                             ) : !isScoring && !isEnded ? (
-                                <p className="text-center text-gray-400">계가 결과가 없습니다.</p>
+                                <p className="text-center text-zinc-500">계가 결과가 없습니다.</p>
                             ) : null}
                         </div>
                     </div>
                     
                     {/* Right Panel: 획득 보상 */}
-                    <div className={`w-1/2 bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg flex flex-col`}>
-                        <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-1 sm:mb-2 border-b border-gray-700 pb-0.5 sm:pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>획득 보상</h2>
+                    <div className={`flex w-1/2 min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${isMobile ? 'p-2' : 'p-2.5'}`}>
+                        <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
+                            획득 보상
+                        </h2>
                         <div className="flex flex-col gap-1.5">
                             {/* 유저 프로필 */}
-                            <div className={`${isMobile ? 'p-1' : 'p-1.5'} bg-gray-800/50 rounded-lg flex items-center gap-1.5 flex-shrink-0`}>
+                            <div className={`flex flex-shrink-0 items-center gap-1.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1.5' : 'p-2'}`}>
                                 <Avatar
                                     userId={currentUser.id}
                                     userName={currentUser.nickname}
@@ -489,8 +523,8 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                     size={isMobile ? 24 : 32}
                                 />
                                 <div>
-                                    <p className="font-bold" style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}>{currentUser.nickname}</p>
-                                    <p className="text-gray-400" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
+                                    <p className="font-bold text-zinc-100" style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}>{currentUser.nickname}</p>
+                                    <p className="text-amber-200/60" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
                                         전략 Lv.{currentUser.strategyLevel}
                                     </p>
                                 </div>
@@ -498,8 +532,8 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             
                             {/* 경험치 표시 */}
                             {displaySummary?.xp && (
-                                <div className={`${isMobile ? 'p-1' : 'p-1.5'} bg-gray-800/50 rounded-lg space-y-0.5 flex-shrink-0`}>
-                                    <div className="w-full bg-gray-800/70 border border-gray-700/70 rounded-full h-2.5 overflow-hidden relative">
+                                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${isMobile ? 'p-1.5' : 'p-2'}`}>
+                                    <div className="relative h-2.5 w-full overflow-hidden rounded-full border border-amber-500/20 bg-black/40">
                                         {/* 이전 경험치 */}
                                         <div
                                             className="h-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-all duration-700 ease-out absolute left-0 top-0"
@@ -517,7 +551,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         )}
                                     </div>
                                     <div className="flex items-center justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
-                                        <span className="font-mono text-gray-300">
+                                        <span className="font-mono text-zinc-300/95">
                                             {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
                                         </span>
                                         {xpChange > 0 && (
@@ -536,25 +570,25 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         <div className="flex gap-1.5 justify-center items-stretch flex-wrap">
                                             {/* Gold Reward */}
                                             {(displaySummary.gold ?? 0) > 0 && (
-                                                <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
+                                                <div className={`${isMobile ? 'h-16 w-16' : 'h-24 w-24'} flex flex-col items-center justify-center rounded-xl border-2 border-amber-400/40 bg-gradient-to-br from-amber-950/55 via-yellow-900/25 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/15 ${isMobile ? 'p-1' : 'p-2'}`}>
                                                     <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-6 h-6' : 'w-10 h-10'} mb-0.5`} />
-                                                    <p className="font-bold text-yellow-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
+                                                    <p className="text-center font-bold text-amber-200" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
                                                         {(displaySummary.gold ?? 0).toLocaleString()}
                                                     </p>
                                                 </div>
                                             )}
                                             {/* XP Reward (박스 형태) */}
                                             {displaySummary.xp && displaySummary.xp.change > 0 && (
-                                                <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-green-600/30 to-green-800/30 border-2 border-green-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
-                                                    <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold text-green-300 mb-0.5`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>전략</p>
-                                                    <p className="font-bold text-green-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
+                                                <div className={`${isMobile ? 'h-16 w-16' : 'h-24 w-24'} flex flex-col items-center justify-center rounded-xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-950/50 via-green-900/20 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-emerald-400/12 ${isMobile ? 'p-1' : 'p-2'}`}>
+                                                    <p className={`${isMobile ? 'text-xs' : 'text-sm'} mb-0.5 font-bold text-emerald-200`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>전략</p>
+                                                    <p className="text-center font-bold text-emerald-200" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
                                                         +{displaySummary.xp.change} XP
                                                     </p>
                                                 </div>
                                             )}
                                             {/* Item Rewards */}
                                             {displaySummary.items && displaySummary.items.length > 0 && displaySummary.items.slice(0, 2).map((item, idx) => (
-                                                <div key={item.id || idx} className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg`}>
+                                                <div key={item.id || idx} className={`${isMobile ? 'h-16 w-16' : 'h-24 w-24'} flex flex-col items-center justify-center rounded-xl border-2 border-violet-500/40 bg-gradient-to-br from-violet-950/50 via-purple-900/25 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-violet-400/12 ${isMobile ? 'p-1' : 'p-2'}`}>
                                                     {item.image && (
                                                         <img 
                                                             src={item.image} 
@@ -562,7 +596,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                                             className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} mb-0.5 object-contain`}
                                                         />
                                                     )}
-                                                    <p className="font-semibold text-purple-300 text-center leading-tight" style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : '10px' }}>
+                                                    <p className="text-center font-semibold leading-tight text-violet-200" style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : '10px' }}>
                                                         {item.name}
                                                     </p>
                                                 </div>
@@ -570,20 +604,20 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-center py-4">
-                                            <p className="text-gray-400 text-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
+                                            <p className="text-center text-zinc-500" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
                                                 보상이 없습니다.
                                             </p>
                                         </div>
                                     )}
                                     {displaySummary.items && displaySummary.items.length > 2 && (
-                                        <p className="text-center text-gray-400" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
+                                        <p className="text-center text-zinc-500" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
                                             외 {displaySummary.items.length - 2}개 아이템
                                         </p>
                                     )}
                                 </>
                             ) : (
                                 <div className="flex items-center justify-center py-4">
-                                    <p className="text-gray-400 text-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
+                                    <p className="text-center text-zinc-500" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
                                         {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
                                     </p>
                                 </div>
@@ -591,9 +625,11 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         </div>
                     </div>
                 </div>
-                 
-                {/* Buttons */}
-                <div className={`mt-1.5 sm:mt-2 flex-shrink-0 grid ${isMobile ? 'grid-cols-2 gap-1.5' : 'grid-cols-4 gap-1.5'}`}>
+
+                <div
+                    className={`${PRE_GAME_MODAL_FOOTER_CLASS} !mt-3 !flex-col !gap-2 !p-3 sm:!gap-3 sm:!p-4 ${isMobile ? '-mx-3 -mb-3' : '-mx-4 -mb-4'} rounded-b-2xl`}
+                >
+                    <div className={`grid w-full flex-shrink-0 ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-4 gap-2'}`}>
                     <Button
                         onClick={() => {
                             if (isScoring) return;
@@ -601,14 +637,14 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         }}
                         colorScheme="none"
                         disabled={isScoring}
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${isScoring ? 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed' : 'border-blue-400/50 bg-gradient-to-r from-blue-500/90 via-cyan-500/90 to-teal-500/90 text-white shadow-[0_12px_32px_-18px_rgba(59,130,246,0.85)] hover:from-blue-400 hover:to-teal-400'}`}
+                        className={`w-full justify-center ${isMobile ? '!min-h-[2.75rem] !py-2 !text-xs' : '!min-h-[3.25rem] !py-2.5 !text-sm'} ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
                     >
                         확인
                     </Button>
                     <Button
                         onClick={handleNextStage}
                         colorScheme="none"
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${canTryNext && !isProcessing ? 'border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
+                        className={`w-full justify-center ${isMobile ? '!min-h-[2.75rem] !py-2 !text-xs' : '!min-h-[3.25rem] !py-2.5 !text-sm'} ${canTryNext && !isProcessing ? PRE_GAME_MODAL_PRIMARY_BTN_CLASS : `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} !cursor-not-allowed !opacity-45`}`}
                         disabled={!canTryNext || isProcessing}
                     >
                         {nextStage ? `다음 단계 (${nextStage.name.replace('스테이지 ', '')})` : '다음 단계'} {nextStageActionPointCost > 0 && `⚡${nextStageActionPointCost}`}
@@ -616,7 +652,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     <Button
                         onClick={handleRetry}
                         colorScheme="none"
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${!isProcessing ? 'border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-orange-500/90 to-red-500/90 text-white shadow-[0_12px_32px_-18px_rgba(245,158,11,0.85)] hover:from-amber-400 hover:to-red-400' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
+                        className={`w-full justify-center ${isMobile ? '!min-h-[2.75rem] !py-2 !text-xs' : '!min-h-[3.25rem] !py-2.5 !text-sm'} ${!isProcessing ? PRE_GAME_MODAL_ACCENT_BTN_CLASS : `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} !cursor-not-allowed !opacity-45`}`}
                         disabled={isProcessing}
                     >
                         재도전 {retryActionPointCost > 0 && `⚡${retryActionPointCost}`}
@@ -624,11 +660,12 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     <Button
                         onClick={handleExitToLobby}
                         colorScheme="none"
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${!isProcessing ? 'border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
+                        className={`w-full justify-center ${isMobile ? '!min-h-[2.75rem] !py-2 !text-xs' : '!min-h-[3.25rem] !py-2.5 !text-sm'} ${!isProcessing ? '!min-h-[3.25rem] !rounded-xl !border-2 !border-red-400/55 !bg-gradient-to-r !from-red-600 !via-rose-600 !to-red-800 !text-white !shadow-[0_14px_40px_-12px_rgba(239,68,68,0.45)] hover:!from-red-500 hover:!via-rose-500' : `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} !cursor-not-allowed !opacity-45`}`}
                         disabled={isProcessing}
                     >
                         나가기
                     </Button>
+                    </div>
                 </div>
             </div>
         </DraggableWindow>

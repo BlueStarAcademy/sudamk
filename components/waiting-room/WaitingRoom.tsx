@@ -25,6 +25,9 @@ interface WaitingRoomComponentProps {
 
 const PLAYFUL_AI_MODES: GameMode[] = [GameMode.Dice, GameMode.Omok, GameMode.Ttamok, GameMode.Thief, GameMode.Alkkagi, GameMode.Curling];
 
+/** 전략·놀이 대기실: 패널 뒤 경기장 배경 블러(프로스트 글래스) */
+const WAITING_LOBBY_PANEL_GLASS =
+  'backdrop-blur-xl backdrop-saturate-150 will-change-[backdrop-filter] [transform:translateZ(0)]';
 
 const ROW_HEIGHT_REM = 2.5;
 
@@ -47,6 +50,9 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
         return () => clearInterval(timer);
     }, [announcementIds, announcements.length, announcementInterval]);
 
+    const isLobbyGlass = mode === 'strategic' || mode === 'playful';
+    const glassCls = isLobbyGlass ? WAITING_LOBBY_PANEL_GLASS : '';
+
     const relevantOverride = globalOverrideAnnouncement && (
         globalOverrideAnnouncement.modes === 'all' ||
         (Array.isArray(globalOverrideAnnouncement.modes) && globalOverrideAnnouncement.modes.some(m => {
@@ -58,7 +64,11 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
 
     if (relevantOverride) {
         return (
-            <div className="bg-yellow-800/50 border border-yellow-600 rounded-lg shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10">
+            <div
+                className={`rounded-lg border border-yellow-600 shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10 ${
+                    isLobbyGlass ? 'bg-yellow-900/60 backdrop-blur-xl backdrop-saturate-150' : 'bg-yellow-800/50'
+                }`}
+            >
                 <span className="font-bold text-yellow-300 animate-pulse text-center">{globalOverrideAnnouncement.message}</span>
             </div>
         );
@@ -66,7 +76,7 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
     
     if (!announcements || announcements.length === 0) {
         return (
-            <div className="bg-panel rounded-lg shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel border border-color">
+            <div className={`bg-panel rounded-lg shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel border border-color ${glassCls}`}>
                 <span className="font-bold text-tertiary text-center">[현재 등록된 공지사항이 없습니다.]</span>
             </div>
         );
@@ -74,7 +84,7 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
 
     return (
         <div
-            className="bg-panel rounded-lg shadow-lg px-4 relative overflow-hidden flex-shrink-0 border border-color text-on-panel"
+            className={`bg-panel rounded-lg shadow-lg px-4 relative overflow-hidden flex-shrink-0 border border-color text-on-panel ${glassCls}`}
             style={{ height: `${ROW_HEIGHT_REM}rem` }}
         >
             <div
@@ -277,11 +287,28 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   }
     
   const isStrategicPlayfulLobby = mode === 'strategic' || mode === 'playful';
+  const waitingShellBgClass =
+    mode === 'strategic'
+      ? 'bg-lobby-shell-strategic'
+      : mode === 'playful'
+        ? 'bg-lobby-shell-playful'
+        : 'bg-primary';
+  /** 그라데이션 위 패널 대비: 반투명 + backdrop-blur */
+  const waitingLobbyPanelOpaqueStyle = isStrategicPlayfulLobby
+    ? ({ ['--custom-panel-bg' as string]: 'rgb(var(--bg-secondary) / 0.82)' } as React.CSSProperties)
+    : undefined;
+  const waitingLobbyGlass = isStrategicPlayfulLobby ? WAITING_LOBBY_PANEL_GLASS : '';
+  const waitingLobbyHeaderChrome = isStrategicPlayfulLobby
+    ? 'rounded-b-2xl border-b border-color/60 bg-secondary/92 shadow-[0_10px_36px_rgba(0,0,0,0.42)] backdrop-blur-[4px] pb-2'
+    : '';
 
   return (
-    <div className="bg-primary text-primary flex flex-col h-full max-w-full">
+    <div
+      className={`${waitingShellBgClass} text-primary flex flex-col h-full max-w-full`}
+      style={waitingLobbyPanelOpaqueStyle}
+    >
       <header
-        className={`relative mb-2 flex flex-shrink-0 items-center justify-between sm:mb-4 ${
+        className={`relative mb-2 flex flex-shrink-0 items-center justify-between sm:mb-4 ${waitingLobbyHeaderChrome} ${
           isNativeMobile && isStrategicPlayfulLobby
             ? 'px-2 pt-2'
             : 'px-2 pt-2 sm:px-4 sm:pt-4 lg:px-6 lg:pt-6'
@@ -393,11 +420,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               {/* 상단 flex-[0.68]: 좌(전광판+랭킹전|유저) · 우 6rem(퀵 flex-1 + 사이드 버튼) */}
               <div className="flex min-h-0 flex-[0.68] gap-1 overflow-hidden">
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1 overflow-hidden">
-                  <div className="shrink-0 overflow-hidden rounded-lg border border-color bg-panel">
+                  <div className="shrink-0 overflow-hidden rounded-lg">
                     <AnnouncementBoard mode={mode} />
                   </div>
                   <div className="flex min-h-0 flex-1 gap-1 overflow-hidden">
-                    <div className="flex w-[min(13rem,44%)] min-w-[10.25rem] max-w-[14rem] shrink-0 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg">
+                    <div className={`flex w-[min(13rem,44%)] min-w-[10.25rem] max-w-[14rem] shrink-0 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}>
                       <RankedMatchPanel
                         variant="nativeNarrow"
                         lobbyType={isStrategic ? 'strategic' : 'playful'}
@@ -415,7 +442,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         }}
                       />
                     </div>
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg">
+                    <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}>
                       <PlayerList
                         users={usersInThisRoom}
                         mode={mode}
@@ -431,8 +458,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   </div>
                 </div>
                 <div className={`flex min-h-0 shrink-0 flex-col gap-1 self-stretch ${NATIVE_QUICK_RAIL_WIDTH_CLASS}`}>
-                  <div className="box-border flex h-fit min-h-0 shrink-0 flex-col justify-start overflow-hidden rounded-lg border border-color bg-panel p-0.5">
-                    <QuickAccessSidebar nativeHomeColumn />
+                  <div className="box-border flex h-fit min-h-0 shrink-0 flex-col justify-start overflow-hidden rounded-lg border border-color p-0.5">
+                    <QuickAccessSidebar nativeHomeColumn className={waitingLobbyGlass} />
                   </div>
                   <button
                     type="button"
@@ -448,7 +475,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
 
               {/* 홈과 동일 flex-[0.72]: 채팅 50% · 랭킹 정보 50% */}
               <div className="grid min-h-0 flex-[0.72] grid-cols-2 gap-1 overflow-hidden">
-                <div className="min-h-0 min-w-0 overflow-hidden rounded-lg border border-color bg-panel shadow-lg">
+                <div className={`min-h-0 min-w-0 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}>
                   <ChatWindow
                     messages={chatMessages}
                     mode={chatChannel}
@@ -457,7 +484,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     onViewUser={handlers.openViewingUser}
                   />
                 </div>
-                <div className="min-h-0 min-w-0 overflow-hidden rounded-lg border border-color bg-panel shadow-lg">
+                <div className={`min-h-0 min-w-0 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}>
                   <RankingList
                     currentUser={currentUserWithStatus}
                     mode={mode}
@@ -495,7 +522,12 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     </div>
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden overscroll-contain px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
                       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
+                        <GameList
+                          games={ongoingGames}
+                          onAction={handlers.handleAction}
+                          currentUser={currentUserWithStatus}
+                          panelExtraClassName={waitingLobbyGlass}
+                        />
                       </div>
                     </div>
                   </aside>
@@ -512,15 +544,20 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       
                       {/* 진행중인 대국: 남은 세로 공간을 채워 화면 하단까지 활용 */}
                       <div className="flex min-h-0 flex-[1.25] flex-col overflow-hidden">
-                          <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
+                          <GameList
+                            games={ongoingGames}
+                            onAction={handlers.handleAction}
+                            currentUser={currentUserWithStatus}
+                            panelExtraClassName={waitingLobbyGlass}
+                          />
                       </div>
                       
                       {/* 채팅창과 랭킹전 패널 — 채팅은 좁게, 랭킹전은 넓게(비율 + 최소 폭) */}
                       <div className="flex min-h-0 flex-1 flex-row gap-3 overflow-hidden">
-                          <div className="min-w-0 flex-[0.42] lg:flex-[0.38] flex flex-col bg-panel border border-color rounded-lg shadow-lg min-h-0 overflow-hidden">
+                          <div className={`min-w-0 flex-[0.42] lg:flex-[0.38] flex flex-col bg-panel border border-color rounded-lg shadow-lg min-h-0 overflow-hidden ${waitingLobbyGlass}`}>
                               <ChatWindow messages={chatMessages} mode={chatChannel} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
                           </div>
-                          <div className="min-w-0 flex-[0.58] lg:flex-[0.62] sm:min-w-[25rem] lg:min-w-[30rem] bg-panel border border-color rounded-lg shadow-lg min-h-0 flex flex-col overflow-hidden">
+                          <div className={`min-w-0 flex-[0.58] lg:flex-[0.62] sm:min-w-[25rem] lg:min-w-[30rem] bg-panel border border-color rounded-lg shadow-lg min-h-0 flex flex-col overflow-hidden ${waitingLobbyGlass}`}>
                               <RankedMatchPanel 
                                 lobbyType={isStrategic ? 'strategic' : 'playful'}
                                 currentUser={currentUserWithStatus}
@@ -543,7 +580,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               {/* Right Sidebar Column */}
               <div className="col-span-2 flex flex-col gap-4 min-h-0 overflow-hidden">
                 <div className="flex-1 flex flex-row gap-4 items-stretch min-h-0 overflow-hidden">
-                  <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0 min-h-0 overflow-hidden">
+                  <div className={`flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0 min-h-0 overflow-hidden ${waitingLobbyGlass}`}>
                     <PlayerList 
                       users={usersInThisRoom} 
                       mode={mode} 
@@ -557,11 +594,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     />
                   </div>
                   <div className="w-24 flex-shrink-0">
-                    <QuickAccessSidebar />
+                    <QuickAccessSidebar className={waitingLobbyGlass} />
                   </div>
                 </div>
 
-                <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-h-0 overflow-hidden">
+                <div className={`flex-1 bg-panel border border-color rounded-lg shadow-lg min-h-0 overflow-hidden ${waitingLobbyGlass}`}>
                   <RankingList currentUser={currentUserWithStatus} mode={mode} onViewUser={handlers.openViewingUser} onShowTierInfo={() => setIsTierInfoModalOpen(true)} onShowPastRankings={handlers.openPastRankings} lobbyType={isStrategic ? 'strategic' : 'playful'} />
                 </div>
               </div>

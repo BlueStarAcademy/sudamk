@@ -8,6 +8,7 @@ class AudioService {
     private audioContext: AudioContext | null = null;
     /** 동시 initialize() 호출을 하나로 묶어, 진행 중인 초기화가 끝날 때까지 대기 */
     private initMutex: Promise<void> | null = null;
+    private visibilityResumeHooked = false;
     private scanBgmSourceNode: AudioBufferSourceNode | null = null;
     private timerWarningSourceNode: AudioBufferSourceNode | null = null;
     private audioBuffers = new Map<string, AudioBuffer>();
@@ -34,6 +35,50 @@ class AudioService {
         }
     }
 
+    private hookVisibilityResume(): void {
+        if (this.visibilityResumeHooked || typeof document === 'undefined') return;
+        this.visibilityResumeHooked = true;
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            const ctx = this.audioContext;
+            if (!ctx || ctx.state === 'closed') return;
+            void ctx.resume();
+        });
+    }
+
+    /**
+     * iOS Safari·모바일 WebView: `AudioContext.resume()`은 사용자 제스처의 **동기** 호출 스택에서
+     * 실행되어야 합니다. `async initialize()` 안에서 `await` 뒤에 resume 하면 제스처가 끝난 것으로
+     * 간주되어 컨텍스트가 계속 `suspended`인 경우가 많습니다.
+     * 버튼/보드 입력 등 UI 핸들러 맨 앞에서도 호출하세요.
+     */
+    public unlockFromUserGesture(): void {
+        if (typeof window === 'undefined') return;
+        this.hookVisibilityResume();
+        try {
+            const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+            if (!AC) return;
+            if (!this.audioContext) {
+                this.audioContext = new AC();
+            }
+            const ctx = this.audioContext;
+            if (ctx.state === 'closed') return;
+            void ctx.resume();
+            // 일부 WebKit: 무음 1프레임으로 디코더·출력 경로까지 열어 줌
+            const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(ctx.destination);
+            try {
+                src.start(0);
+            } catch {
+                /* suspended 등 */
+            }
+        } catch (e) {
+            console.warn('[AudioService] unlockFromUserGesture:', e);
+        }
+    }
+
     public async initialize(): Promise<void> {
         if (this.isReady()) return;
         if (this.initMutex) {
@@ -42,6 +87,7 @@ class AudioService {
         }
         this.initMutex = (async () => {
             try {
+                this.hookVisibilityResume();
                 if (!this.audioContext) {
                     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
                 }

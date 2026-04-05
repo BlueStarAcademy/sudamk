@@ -39,7 +39,7 @@ const SinglePlayerLobby: React.FC = () => {
 
     return (
         <div
-            className={`relative mx-auto flex w-full flex-col bg-gray-900 text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5' : 'h-full min-h-0 p-2 sm:p-4 lg:p-8'}`}
+            className={`relative mx-auto flex w-full flex-col bg-lobby-shell-singleplayer text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5' : 'h-full min-h-0 p-2 sm:p-4 lg:p-8'}`}
         >
             {/* Header */}
             <header

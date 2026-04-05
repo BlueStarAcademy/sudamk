@@ -15,6 +15,7 @@ import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 import { generateKataServerMove, isKataServerAvailable } from './kataServerService.js';
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import { isPatternIntersectionPermanentlyConsumed } from '../shared/utils/patternStoneConsume.js';
+import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../shared/utils/strategicAiDifficulty.js';
 
 function clearStrategicAiKataSpFallback(game: types.LiveGameSession) {
     delete (game as any).strategicAiKataSpFallbackActive;
@@ -940,7 +941,13 @@ export async function makeGoAiBotMove(
 
     // 전략바둑 로비 턴 제한: 이미 제한 수순에 도달했으면 수를 두지 않고 즉시 계가 진행 (그누고/계속 진행 방지)
     const scoringTurnLimit = (game.settings as any)?.scoringTurnLimit;
-    if (scoringTurnLimit != null && scoringTurnLimit > 0 && !game.isSinglePlayer && (game as any).gameCategory !== 'tower') {
+    if (
+        scoringTurnLimit != null &&
+        scoringTurnLimit > 0 &&
+        game.mode !== types.GameMode.Capture &&
+        !game.isSinglePlayer &&
+        (game as any).gameCategory !== 'tower'
+    ) {
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const totalTurnsSoFar = (game.moveHistory || []).length;
         if (totalTurnsSoFar >= scoringTurnLimit) {
@@ -965,18 +972,9 @@ export async function makeGoAiBotMove(
     let selectedMove: Point | null = null;
     let scoredMoves: Array<{ move: Point; score: number }> = [];
 
-    // Kata API 레벨(음수 등)과 goAiBot 프로필 단계(1~10)는 별도. 호출부가 1~10만 넘기면 여기서 Kata 레벨로 변환.
-    const DIFFICULTY_TO_KATA_LEVEL: Record<number, number> = {
-        1: -31, 2: -25, 3: -21, 4: -15, 5: -12,
-        6: -8, 7: -3, 8: -1, 9: 3, 10: 5,
-    };
-    const kataToProfileLevel = Object.entries(DIFFICULTY_TO_KATA_LEVEL).find(([, v]) => v === aiLevel);
-    const goAiProfileLevel =
-        aiLevel >= 1 && aiLevel <= 10
-            ? aiLevel
-            : kataToProfileLevel
-                ? Math.max(1, Math.min(10, parseInt(kataToProfileLevel[0], 10)))
-                : 3;
+    // 호출부(aiPlayer 등)는 항상 프로필 단계 1~10을 넘긴다. Kata API 값(3, 5 등)과 혼동하지 않는다.
+    const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
+    const DIFFICULTY_TO_KATA_LEVEL = KATA_SERVER_LEVEL_BY_PROFILE_STEP;
 
     // 0) KataServer 레벨봇: 길드전 제외. 싱글/탑 **따내기**는 목표가 따내기 점수이므로 Kata(정석 바둑) 대신 휴리스틱만 사용.
     const isGuildWarAiGame = (game as any).gameCategory === 'guildwar';
@@ -987,9 +985,7 @@ export async function makeGoAiBotMove(
     const skipKataForStrategicSpFallback = !!game.strategicAiKataSpFallbackActive;
     if (wantKataServer && !selectedMove && !skipKataForStrategicSpFallback) {
         try {
-            const kataLevel =
-                game.settings.kataServerLevel ??
-                (aiLevel >= 1 && aiLevel <= 10 ? DIFFICULTY_TO_KATA_LEVEL[aiLevel] : aiLevel);
+            const kataLevel = DIFFICULTY_TO_KATA_LEVEL[goAiProfileLevel] ?? -12;
             // 히든바둑: 유저 미공개 히든 수는 통과(-1,-1)로 마스킹
             const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
             const moveHistory = useHiddenMask
@@ -1703,11 +1699,13 @@ export async function makeGoAiBotMove(
     
     if (!isItemMode) {
         const scoringLimit = (game.settings as any)?.scoringTurnLimit;
+        const useScoringLimitAsAuto =
+            game.mode !== types.GameMode.Capture && scoringLimit != null && scoringLimit > 0;
         const autoScoringTurns = game.isSinglePlayer && game.stageId
             ? (await import('../constants/singlePlayerConstants.js')).SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns
             : (game as any).gameCategory === 'tower'
                 ? (game.settings as any)?.autoScoringTurns
-                : (scoringLimit != null && scoringLimit > 0 ? scoringLimit : undefined);
+                : (useScoringLimitAsAuto ? scoringLimit : undefined);
         
         if (autoScoringTurns !== undefined || (game.isSinglePlayer && game.stageId)) {
             // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.

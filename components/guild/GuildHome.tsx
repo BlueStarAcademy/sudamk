@@ -120,9 +120,9 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     
     if (!currentUserWithStatus?.guildId) {
         return (
-            <div className="flex flex-col items-center justify-center h-full gap-4">
+            <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 text-primary">
                 <BackButton onClick={() => window.location.hash = '#/profile'} />
-                <p className="text-gray-400">로그인 정보를 확인하는 중...</p>
+                <p className="text-secondary">로그인 정보를 확인하는 중...</p>
             </div>
         );
     }
@@ -130,8 +130,8 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     // 로딩 중이면 로딩 표시
     if (isLoading && !myGuild) {
         return (
-            <div className="flex items-center justify-center h-full">
-                <p className="text-gray-400">길드 정보를 불러오는 중...</p>
+            <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full items-center justify-center text-primary">
+                <p className="text-secondary">길드 정보를 불러오는 중...</p>
             </div>
         );
     }
@@ -148,15 +148,25 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     // 길드가 없으면 로딩 또는 리다이렉트 중 표시
     if (!myGuild) {
         return (
-            <div className="flex flex-col items-center justify-center h-full gap-4">
+            <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 text-primary">
                 <BackButton onClick={() => window.location.hash = '#/profile'} />
-                <p className="text-gray-400">길드 정보를 불러오는 중...</p>
+                <p className="text-secondary">길드 정보를 불러오는 중...</p>
             </div>
         );
     }
 
     // 길드가 있으면 대시보드 표시
-    return <GuildDashboard guild={myGuild} guildDonationAnimation={guildDonationAnimation} onDonationComplete={(coins: number, research: number, type: 'gold' | 'diamond') => setGuildDonationAnimation({ coins, research, type })} />;
+    return (
+        <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full flex-col text-primary">
+            <GuildDashboard
+                guild={myGuild}
+                guildDonationAnimation={guildDonationAnimation}
+                onDonationComplete={(coins: number, research: number, type: 'gold' | 'diamond') =>
+                    setGuildDonationAnimation({ coins, research, type })
+                }
+            />
+        </div>
+    );
 };
 
 export default GuildHome;

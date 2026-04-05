@@ -17,6 +17,7 @@ import {
 } from './aiSessionManager.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
+import { profileStepFromKataServerLevel } from '../shared/utils/strategicAiDifficulty.js';
 
 
 export const aiUserId = 'ai-player-01';
@@ -338,11 +339,7 @@ const makeStrategicAiMove = async (game: types.LiveGameSession) => {
     // 이 함수는 하위 호환성을 위해 유지하되, 실제로는 호출되지 않아야 합니다.
     console.warn('[AI] makeStrategicAiMove is deprecated. Use makeGoAiBotMove instead.');
     
-    // 던전(월드챔피언십 등) 봇이면 봇 ID에서 단계 파싱 → kataServerLevel 매핑
-    const DIFFICULTY_TO_KATA_LEVEL: Record<number, number> = {
-        1: -31, 2: -25, 3: -21, 4: -15, 5: -12,
-        6: -8, 7: -3, 8: -1, 9: 3, 10: 5,
-    };
+    // 던전(월드챔피언십 등) 봇이면 봇 ID에서 단계 파싱
     let difficulty = 10;
     if (aiPlayerId && String(aiPlayerId).startsWith('dungeon-bot-')) {
         const parts = String(aiPlayerId).split('-');
@@ -351,9 +348,7 @@ const makeStrategicAiMove = async (game: types.LiveGameSession) => {
             difficulty = stageNum;
         }
     }
-    const aiLevel = DIFFICULTY_TO_KATA_LEVEL[difficulty] ?? 5;
-    const { makeGoAiBotMove } = await import('./goAiBot.js');
-    await makeGoAiBotMove(game, aiLevel);
+    await makeGoAiBotMove(game, Math.max(1, Math.min(10, difficulty)));
     return;
     // 아래 코드는 도달 불가능 (deprecated 함수) - 제거됨
 };
@@ -1465,39 +1460,34 @@ export const makeAiMove = async (game: LiveGameSession) => {
             ];
 
             if (useGoAiBot && goModes.includes(game.mode)) {
-                // kataServerLevel이 설정되어 있으면 그대로 사용 (5단계 UI에서 직접 전달)
-                // 없으면 던전봇/싱글플레이/탑의 난이도(1~10)를 kataServerLevel로 매핑
-                const DIFFICULTY_TO_KATA_LEVEL: Record<number, number> = {
-                    1: -31, 2: -25, 3: -21, 4: -15, 5: -12,
-                    6: -8, 7: -3, 8: -1, 9: 3, 10: 5,
-                };
-                let aiLevel = (game.settings as any)?.kataServerLevel;
                 let difficulty = 1;
-                if (aiLevel == null) {
-                    if (isDungeonBot && currentPlayerId) {
-                        const parts = String(currentPlayerId).split('-');
-                        const stageNum = parseInt(parts[3], 10);
-                        difficulty = !Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10 ? stageNum : 1;
-                    } else if ((game as any).gameCategory === 'guildwar') {
-                        // 길드전은 모든 경기장을 전략바둑 AI 3단계로 고정
-                        difficulty = 3;
-                    } else if (game.isSinglePlayer || isTower) {
-                        difficulty = (game.settings.aiDifficulty || 1);
-                    } else if ((game.settings as any)?.goAiBotLevel !== undefined) {
-                        difficulty = (game.settings as any).goAiBotLevel;
-                    } else {
-                        difficulty = (game.settings.aiDifficulty || 1);
-                    }
-                    aiLevel = DIFFICULTY_TO_KATA_LEVEL[difficulty] ?? -12;
-                } else if (aiLevel >= 1 && aiLevel <= 10) {
-                    difficulty = aiLevel;
+                if (isDungeonBot && currentPlayerId) {
+                    const parts = String(currentPlayerId).split('-');
+                    const stageNum = parseInt(parts[3], 10);
+                    difficulty = !Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10 ? stageNum : 1;
+                } else if ((game as any).gameCategory === 'guildwar') {
+                    difficulty = 3;
+                } else if (game.isSinglePlayer || isTower) {
+                    difficulty = game.settings.aiDifficulty || 1;
                 } else {
-                    const rev = Object.entries(DIFFICULTY_TO_KATA_LEVEL).find(([, v]) => v === aiLevel);
-                    difficulty = rev
-                        ? Math.max(1, Math.min(10, parseInt(rev[0], 10)))
-                        : 3;
+                    const ks = (game.settings as any)?.kataServerLevel;
+                    if (typeof ks === 'number' && Number.isFinite(ks)) {
+                        const fromKata = profileStepFromKataServerLevel(ks);
+                        if (fromKata != null) {
+                            difficulty = fromKata;
+                        } else if (ks >= 1 && ks <= 10) {
+                            difficulty = ks;
+                        } else if ((game.settings as any)?.goAiBotLevel != null) {
+                            difficulty = Number((game.settings as any).goAiBotLevel) || 1;
+                        } else {
+                            difficulty = game.settings.aiDifficulty || 1;
+                        }
+                    } else if ((game.settings as any)?.goAiBotLevel !== undefined) {
+                        difficulty = Number((game.settings as any).goAiBotLevel) || 1;
+                    } else {
+                        difficulty = game.settings.aiDifficulty || 1;
+                    }
                 }
-                // makeGoAiBotMove: 프로필·휴리스틱은 1~10 단계 (Kata 레벨은 makeGoAiBotMove 내부에서 매핑)
                 await makeGoAiBotMove(game, Math.max(1, Math.min(10, difficulty)));
                 moveExecuted = true;
             } else if (!game.isSinglePlayer) {

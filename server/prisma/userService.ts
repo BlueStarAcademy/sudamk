@@ -160,11 +160,15 @@ export async function getUsersBrief(ids: string[]): Promise<Array<{ id: string; 
   }
 }
 
-/** 관리자 UI: 닉네임·아이디 부분 검색 (equipment/inventory 제외) */
-export async function searchUsersForAdmin(query: string, limit: number): Promise<User[]> {
+/** 관리자 UI: 전체 목록(빈 query) 또는 닉네임·아이디 부분 검색 — equipment/inventory 제외, 페이지네이션 */
+export async function searchUsersForAdmin(
+  query: string,
+  limit: number,
+  offset: number = 0
+): Promise<{ users: User[]; total: number }> {
   const q = query.trim();
-  if (!q) return [];
   const take = Math.max(1, Math.min(Math.floor(limit) || 50, 100));
+  const skip = Math.max(0, Math.floor(offset) || 0);
   const select = {
     id: true,
     nickname: true,
@@ -189,44 +193,45 @@ export async function searchUsersForAdmin(query: string, limit: number): Promise
       strategyLevel: row.strategyLevel,
       playfulLevel: row.playfulLevel,
     } as User);
-  try {
-    await ensurePrismaEngineReady();
-    const rows = await prisma.user.findMany({
-      where: {
+
+  const where = q
+    ? {
         OR: [
           { nickname: { contains: q, mode: "insensitive" } },
           { username: { contains: q, mode: "insensitive" } },
         ],
-      },
-      select,
-      take,
-      orderBy: { nickname: "asc" },
-    });
-    return rows.map(toAdminSearchUser);
+      }
+    : {};
+
+  const run = async (): Promise<{ users: User[]; total: number }> => {
+    await ensurePrismaEngineReady();
+    const [rows, total] = await prisma.$transaction([
+      prisma.user.findMany({
+        where,
+        select,
+        orderBy: { nickname: "asc" },
+        skip,
+        take,
+      }),
+      prisma.user.count({ where }),
+    ]);
+    return { users: rows.map(toAdminSearchUser), total };
+  };
+
+  try {
+    return await run();
   } catch (error: any) {
     const msg = error?.message ?? "";
     if (msg.includes("Engine is not yet connected") || prismaErrorImpliesEngineNotConnected(error)) {
       try {
-        await ensurePrismaEngineReady();
-        const rows = await prisma.user.findMany({
-          where: {
-            OR: [
-              { nickname: { contains: q, mode: "insensitive" } },
-              { username: { contains: q, mode: "insensitive" } },
-            ],
-          },
-          select,
-          take,
-          orderBy: { nickname: "asc" },
-        });
-        return rows.map(toAdminSearchUser);
+        return await run();
       } catch (e2) {
         console.warn("[userService] searchUsersForAdmin retry failed:", (e2 as { message?: string })?.message ?? e2);
-        return [];
+        return { users: [], total: 0 };
       }
     }
     console.warn("[userService] searchUsersForAdmin error:", msg);
-    return [];
+    return { users: [], total: 0 };
   }
 }
 

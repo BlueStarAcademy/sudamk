@@ -48,6 +48,7 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
   const sectionTitle = isStrategic ? '전략 게임' : '놀이 게임';
   const sectionBorderColor = isStrategic ? 'border-blue-400' : 'border-yellow-400';
   const hoverColorClass = isStrategic ? 'hover:shadow-blue-500/20' : 'hover:shadow-yellow-500/20';
+  const lobbyShellClass = isStrategic ? 'bg-lobby-shell-strategic' : 'bg-lobby-shell-playful';
 
   const onBackToProfile = () => window.location.hash = '#/profile';
 
@@ -76,7 +77,7 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
       >
         {sectionTitle}
       </h2>
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${isNativeMobile ? 'gap-2' : 'gap-4 sm:gap-6'}`}
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${isNativeMobile ? 'gap-2.5' : 'gap-5 sm:gap-7'}`}
       >
         {modes.map(game => (
           <GameCard key={game.mode} {...game} available={gameModeAvailability[game.mode] ?? game.available} onSelect={() => handlers.handleEnterWaitingRoom(game.mode)} hoverColorClass={hoverColorClass} />
@@ -87,7 +88,7 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
 
   if (isNativeMobile) {
     return (
-      <div className="sudamr-native-route-root flex w-full flex-col bg-primary p-1 text-primary">
+      <div className={`sudamr-native-route-root flex w-full flex-col p-1 text-primary ${lobbyShellClass}`}>
         <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
           <div className="shrink-0 px-0.5">{lobbyHeader}</div>
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5 pb-1 [&_.grid]:grid-cols-1 [&_h2]:!text-sm [&_h3]:!text-xs [&_p]:!text-[11px]">
@@ -99,7 +100,7 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
   }
 
   return (
-    <div className="bg-primary text-primary p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className={`${lobbyShellClass} text-primary p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto`}>
       {lobbyHeader}
       <main>{modeGrid}</main>
     </div>

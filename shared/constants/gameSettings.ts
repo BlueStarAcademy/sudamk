@@ -116,6 +116,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   player1Color: Player.Black,
   aiDifficulty: 1,
   goAiBotLevel: 5,
+  kataServerLevel: -12,
 };
 
 // --- Dice Go Settings ---

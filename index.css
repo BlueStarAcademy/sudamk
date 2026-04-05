@@ -118,6 +118,47 @@ html[data-theme="green"] {
 
 
 @layer components {
+  /* Full-viewport modal shell (fixed overlays; complements DraggableWindow) */
+  .sudamr-modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* 고정·드래그 모달 공통: 블러 없이 테마 변수로 은은한 액센트 광택 */
+  .sudamr-modal-panel,
+  .sudamr-floating-modal-surface {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: linear-gradient(
+      165deg,
+      rgb(var(--bg-secondary) / 0.98) 0%,
+      rgb(var(--bg-primary) / 0.99) 42%,
+      rgb(var(--bg-tertiary) / 1) 100%
+    );
+    box-shadow:
+      0 32px 100px -28px rgba(0, 0, 0, 0.82),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+      0 0 56px -36px rgb(var(--accent) / 0.14);
+    color: var(--text-on-panel);
+  }
+
+  .sudamr-modal-panel {
+    position: relative;
+    width: 100%;
+    border-radius: 1rem;
+  }
+
+  .sudamr-floating-modal-surface {
+    /* DraggableWindow 루트: 너비는 인라인/유틸로 유지 */
+    border-radius: inherit;
+  }
+
   .panel-surface,
   .bg-panel,
   .bg-panel-secondary,
@@ -133,11 +174,23 @@ html[data-theme="green"] {
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.4);
   }
   
+  /*
+   * 패널 엣지(코너 장식 + 금색 테두리)는 설정의 패널 엣지 스타일만 따릅니다.
+   * 모달·드래그 창은 bg-panel이 아니므로 동일 규칙을 아래 셀렉터에도 적용합니다.
+   */
+  .sudamr-panel-edge-host {
+    position: relative;
+  }
+
   /* 엣지 이미지를 별도의 pseudo-element로 분리하여 z-index를 높임 */
   .panel-surface::before,
   .bg-panel::before,
   .bg-panel-secondary::before,
-  .bg-panel-tertiary::before {
+  .bg-panel-tertiary::before,
+  .sudamr-modal-panel::before,
+  .sudamr-floating-modal-surface::before,
+  .sudamr-panel-edge-host::before,
+  [data-draggable-window]::before {
     content: '';
     position: absolute;
     top: 0;
@@ -158,7 +211,11 @@ html[data-theme="green"] {
   html:not([data-edge-style="none"]) .panel-surface,
   html:not([data-edge-style="none"]) .bg-panel,
   html:not([data-edge-style="none"]) .bg-panel-secondary,
-  html:not([data-edge-style="none"]) .bg-panel-tertiary {
+  html:not([data-edge-style="none"]) .bg-panel-tertiary,
+  html:not([data-edge-style="none"]) .sudamr-modal-panel,
+  html:not([data-edge-style="none"]) .sudamr-floating-modal-surface,
+  html:not([data-edge-style="none"]) .sudamr-panel-edge-host,
+  html:not([data-edge-style="none"]) [data-draggable-window] {
     border: 2px solid rgba(250, 204, 21, 0.8) !important; /* amber-400 with opacity */
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(250, 204, 21, 0.6), 0 0 8px rgba(250, 204, 21, 0.3) !important;
   }
@@ -166,7 +223,11 @@ html[data-theme="green"] {
   .panel-surface::after,
   .bg-panel::after,
   .bg-panel-secondary::after,
-  .bg-panel-tertiary::after {
+  .bg-panel-tertiary::after,
+  .sudamr-modal-panel::after,
+  .sudamr-floating-modal-surface::after,
+  .sudamr-panel-edge-host::after,
+  [data-draggable-window]::after {
     content: '';
     position: absolute;
     inset: 1px;
@@ -1302,6 +1363,67 @@ input[type="range"]::-moz-range-thumb {
     background-size: cover;
     background-position: center;
     background-color: rgb(var(--bg-tertiary));
+}
+
+/* 로비 셸 — 대기실·챔피언십 등(이미지 없이 모드별 그라데이션) */
+.bg-lobby-shell-strategic {
+    background-color: #0b1020;
+    background-image:
+        radial-gradient(ellipse 100% 60% at 50% -15%, rgba(99, 102, 241, 0.28), transparent 52%),
+        radial-gradient(ellipse 70% 50% at 100% 100%, rgba(56, 189, 248, 0.12), transparent 50%),
+        linear-gradient(168deg, #080c18 0%, #111a32 38%, #172554 62%, #0a0f1c 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%, 100% 100%, 100% 100%;
+}
+
+.bg-lobby-shell-playful {
+    background-color: #1a120e;
+    background-image:
+        radial-gradient(ellipse 90% 55% at 50% -10%, rgba(251, 191, 36, 0.22), transparent 55%),
+        radial-gradient(ellipse 60% 45% at 0% 100%, rgba(234, 88, 12, 0.14), transparent 48%),
+        linear-gradient(165deg, #120c0a 0%, #241810 35%, #3d2512 58%, #140e0a 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%, 100% 100%, 100% 100%;
+}
+
+.bg-lobby-shell-championship {
+    background-color: #100818;
+    background-image:
+        radial-gradient(ellipse 95% 58% at 50% -12%, rgba(168, 85, 247, 0.3), transparent 54%),
+        radial-gradient(ellipse 55% 42% at 100% 80%, rgba(236, 72, 153, 0.1), transparent 50%),
+        linear-gradient(160deg, #0a0612 0%, #1c0f36 42%, #2d1a52 72%, #0c0718 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%, 100% 100%, 100% 100%;
+}
+
+.bg-lobby-shell-singleplayer {
+    background-color: #061510;
+    background-image:
+        radial-gradient(ellipse 92% 52% at 50% -8%, rgba(52, 211, 153, 0.2), transparent 52%),
+        radial-gradient(ellipse 50% 38% at 0% 90%, rgba(16, 185, 129, 0.12), transparent 48%),
+        linear-gradient(165deg, #041210 0%, #0c2820 40%, #134a3a 68%, #051410 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%, 100% 100%, 100% 100%;
+}
+
+.bg-lobby-shell-tower {
+    background-color: #110d0a;
+    background-image:
+        radial-gradient(ellipse 88% 50% at 50% -10%, rgba(245, 158, 11, 0.24), transparent 52%),
+        radial-gradient(ellipse 65% 48% at 85% 95%, rgba(180, 83, 9, 0.16), transparent 50%),
+        linear-gradient(158deg, #0a0806 0%, #1f160c 38%, #352314 62%, #0c0906 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%, 100% 100%, 100% 100%;
+}
+
+.bg-lobby-shell-guild {
+    background-color: #0c0f14;
+    background-image:
+        radial-gradient(ellipse 92% 54% at 30% -8%, rgba(100, 116, 139, 0.22), transparent 52%),
+        radial-gradient(ellipse 55% 42% at 95% 85%, rgba(59, 130, 246, 0.14), transparent 50%),
+        linear-gradient(168deg, #080a0e 0%, #121a26 40%, #1c2838 65%, #090b10 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%, 100% 100%, 100% 100%;
 }
 
 /* 바둑판 패널의 배경 이미지 제거 */

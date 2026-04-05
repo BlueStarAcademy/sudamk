@@ -118,6 +118,8 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   player1Color: Player.Black,
   aiDifficulty: 1,
   goAiBotLevel: 5, // Gnugo ??? 1~10 (????? AI)
+  /** 전략바둑 AI 난이도 UI 기본(5단계) — 미설정 시 셀렉트와 동일하게 -12 */
+  kataServerLevel: -12,
 };
 
 // --- Dice Go Settings ---

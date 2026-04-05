@@ -85,12 +85,15 @@ interface ChampionshipRankingPanelProps {
     dense?: boolean;
     /** 네이티브 챔피언십 3열 레이아웃: 글자를 하단 독 수준 이상으로 키움 */
     lobbyNativeMobile?: boolean;
+    /** 챔피언십 로비 배경 위: 패널 뒤 블러 */
+    lobbyGlass?: boolean;
 }
 
 const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
     compact = false,
     dense = false,
     lobbyNativeMobile = false,
+    lobbyGlass = false,
 }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
     const { rankings, loading, error } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
@@ -139,7 +142,13 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
 
     if (!currentUserWithStatus) {
         return (
-            <div className={compact ? 'bg-panel border border-color rounded-lg p-1.5 h-full flex items-center justify-center text-gray-500 text-xs' : 'bg-gray-800 rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0 items-center justify-center text-gray-500'}>
+            <div
+                className={
+                    compact
+                        ? `border border-color rounded-lg p-1.5 h-full flex items-center justify-center text-gray-500 text-xs bg-panel ${lobbyGlass ? 'backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]' : ''}`
+                        : `rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0 items-center justify-center text-gray-500 ${lobbyGlass ? 'border border-color/50 bg-gray-900/45 backdrop-blur-xl backdrop-saturate-150' : 'bg-gray-800'}`
+                }
+            >
                 랭킹 정보를 불러오는 중...
             </div>
         );
@@ -163,7 +172,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
 
         return (
             <div
-                className={`bg-panel text-on-panel flex h-full min-h-0 flex-col rounded-lg border border-color ${dense ? 'gap-0.5 p-0.5' : 'gap-1.5 p-2'}`}
+                className={`bg-panel text-on-panel flex h-full min-h-0 flex-col rounded-lg border border-color ${dense ? 'gap-0.5 p-0.5' : 'gap-1.5 p-2'} ${lobbyGlass ? 'backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]' : ''}`}
             >
                 <h3
                     className={`flex-shrink-0 text-center font-semibold text-secondary ${dense ? 'text-[8px] leading-tight' : lobbyNativeMobile ? 'text-base' : 'text-sm'}`}
@@ -219,7 +228,13 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
 
     // 챔피언십 대기실용: 기존 디자인
     return (
-        <div className="bg-gray-800 rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0">
+        <div
+            className={`rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0 ${
+                lobbyGlass
+                    ? 'border border-color/50 bg-gray-900/45 backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
+                    : 'bg-gray-800'
+            }`}
+        >
             <div className="flex justify-between items-center mb-3 border-b border-gray-700 pb-2 flex-shrink-0">
                 <h2 className="text-xl font-bold">챔피언십 랭킹</h2>
                 <span className="text-xs text-gray-400">동네+전국+월드 합산 · Top {CHAMPIONSHIP_TOP}</span>

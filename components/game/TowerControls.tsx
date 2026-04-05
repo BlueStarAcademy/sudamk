@@ -39,7 +39,9 @@ interface ImageButtonProps {
 }
 
 const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, maxCount, compact = false }) => {
-    const sizeClass = compact ? 'w-11 h-11 shrink-0 rounded-lg md:rounded-xl' : 'w-16 h-16 md:w-20 md:h-20 rounded-xl';
+    const sizeClass = compact
+        ? 'h-16 w-16 shrink-0 rounded-xl sm:h-[4.25rem] sm:w-[4.25rem] md:h-[4.5rem] md:w-[4.5rem]'
+        : 'h-[4.25rem] w-[4.25rem] md:h-24 md:w-24 rounded-xl';
     return (
         <button
             type="button"
@@ -179,9 +181,9 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
         const endBtn = isMobile ? '!py-1 !px-2 !text-[0.65rem] shrink-0' : '!py-1.5 !px-4 !text-sm';
         return (
-            <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[148px]">
+            <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[164px]">
                 <div className="min-w-0 rounded-xl border border-stone-700 bg-gray-900/70 px-2 py-3 sm:px-4">
-                    <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-1.5' : 'gap-2'}>
+                    <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-2.5' : 'gap-3'}>
                     <Button onClick={handleShowResults} colorScheme="none" className={`justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 whitespace-nowrap ${endBtn}`}>
                         결과 보기
                     </Button>
@@ -340,8 +342,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const canUseRefresh = session.moveHistory && session.moveHistory.length === 0 && session.gameStatus === 'playing' && session.currentPlayer === Player.Black;
     const refreshDisabled = refreshCount <= 0 || !canUseRefresh;
 
-	const colClass = isMobile ? 'flex flex-col items-center gap-0.5 shrink-0' : 'flex flex-col items-center gap-1';
-	const lbl = isMobile ? 'text-[9px]' : 'text-[11px]';
+	const colClass = isMobile ? 'flex flex-col items-center gap-1 shrink-0' : 'flex flex-col items-center gap-1.5';
+	const lbl = isMobile ? 'text-[10px]' : 'text-[12px]';
 
 	const coreZone = (
 		<>
@@ -451,15 +453,15 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 	return (
 		<>
 		<footer
-			className={`responsive-controls flex-shrink-0 bg-stone-800/70 backdrop-blur-sm rounded-xl w-full min-h-[148px] border border-stone-700/50 ${
-				isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-2 p-2' : 'flex flex-row items-stretch gap-3 p-3'
+			className={`responsive-controls flex-shrink-0 bg-stone-800/70 backdrop-blur-sm rounded-xl w-full min-h-[164px] border border-stone-700/50 ${
+				isMobile ? 'flex w-full min-w-0 flex-row items-stretch gap-3 p-2' : 'flex flex-row items-stretch gap-5 p-3'
 			}`}
 		>
 			{isMobile ? (
 				<>
 					<div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/40 bg-black/20 px-1 py-2">
 						<div className="flex min-h-0 w-full flex-1 items-center justify-center">
-							<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+							<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
 								{coreZone}
 							</ArenaControlStrip>
 						</div>
@@ -469,7 +471,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 							<div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
 							<div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
 								<div className="flex min-h-0 w-full flex-1 items-center justify-center">
-									<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+									<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
 										{itemZone}
 									</ArenaControlStrip>
 								</div>
@@ -480,20 +482,20 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 			) : (showTurnAdd || showMissileAndHiddenForHook) ? (
 				<>
 					<div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-stone-600/40 bg-black/10 px-2 py-2">
-						<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+						<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-6">
 							{coreZone}
 						</ArenaControlStrip>
 					</div>
 					<div className="w-px shrink-0 self-stretch bg-stone-600/50" />
 					<div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-amber-900/35 bg-amber-950/10 px-2 py-2">
-						<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+						<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-6">
 							{itemZone}
 						</ArenaControlStrip>
 					</div>
 				</>
 			) : (
 				<div className="flex w-full min-w-0 items-center justify-center px-2 py-2">
-					<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4">
+					<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-6">
 						{coreZone}
 					</ArenaControlStrip>
 				</div>

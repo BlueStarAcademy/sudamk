@@ -10,6 +10,7 @@ import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { replaceAppHash } from '../utils/appUtils.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -114,6 +115,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
     const [viewportWidth, setViewportWidth] = useState<number | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const isHandheld = useIsHandheldDevice(1025);
     // 게이지 애니메이션: 처음엔 이전 퍼센트로 고정 후, 다음 프레임에 최종 퍼센트로 전환해 CSS transition으로 차오르게 함
     const [xpGaugePercent, setXpGaugePercent] = useState<number | null>(null);
 
@@ -126,10 +128,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     }, []);
 
     const effectiveViewportWidth = viewportWidth ?? 1024;
-    const isMobileView = false;
+    const isMobileView = effectiveViewportWidth <= 768;
     const isInsideScaledCanvas = typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
-    const isMobile = isInsideScaledCanvas ? false : isMobileView;
-    const initialWidth = isMobile ? Math.max(Math.min(effectiveViewportWidth - 32, 420), 320) : 500;
+    const isMobile = isInsideScaledCanvas ? isHandheld : isMobileView;
+    const initialWidth = isMobile ? Math.max(Math.min(effectiveViewportWidth - 32, 480), 320) : 900;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];
@@ -360,7 +362,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="tower-summary-redesigned"
-            initialWidth={900}
+            initialWidth={initialWidth}
+            initialHeight={isMobile ? 560 : undefined}
+            bodyPaddingClassName={isMobile ? 'p-3' : undefined}
             modal={!isInsideScaledCanvas}
             closeOnOutsideClick={!isInsideScaledCanvas}
             defaultPosition={isInsideScaledCanvas ? { x: 400, y: 0 } : { x: 0, y: 0 }}
@@ -378,11 +382,13 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </h1>
                 )}
                 
-                <div className={`flex flex-row gap-1.5 sm:gap-2 overflow-hidden flex-1 min-w-0 min-h-[300px]`}>
+                <div
+                    className={`flex flex-row gap-1.5 sm:gap-2 overflow-hidden min-w-0 ${isMobile ? 'min-h-0 items-start' : 'min-h-[300px] flex-1'}`}
+                >
                     {/* Left Panel: 경기 결과 */}
                     <div className={`${panelSizing} bg-gray-900/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg overflow-y-auto flex flex-col sp-summary-left-panel`}>
                         <h2 className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-center text-gray-200 mb-1 sm:mb-2 border-b border-gray-700 pb-0.5 sm:pb-1 flex-shrink-0`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>경기 결과</h2>
-                        <div className="flex-1 min-h-0 flex flex-col gap-1.5">
+                        <div className={isMobile ? 'flex flex-col gap-1.5' : 'flex-1 min-h-0 flex flex-col gap-1.5'}>
                             {/* 경기 정보 */}
                             {(analysisResult || (isEnded && session.winner !== null)) && (
                                 <div className={`${isMobile ? 'p-1' : 'p-1.5'} bg-gray-800/50 rounded-lg space-y-0.5 flex-shrink-0`}>
@@ -402,7 +408,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             )}
                             {/* 계가 결과 — 전략바둑과 동일한 22초 진행 연출 */}
                             {isScoring && !analysisResult && (
-                                <div className="flex-1 flex flex-col items-center justify-center min-h-[200px]">
+                                <div
+                                    className={`flex flex-col items-center justify-center ${isMobile ? 'min-h-[132px]' : 'min-h-[200px] flex-1'}`}
+                                >
                                     <ScoringOverlay variant="inline" />
                                 </div>
                             )}

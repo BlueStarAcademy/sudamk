@@ -807,6 +807,12 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
             (settings as any).scoringTurnLimit = options[0] ?? 1;
         }
     }
+
+    // 따내기 바둑: 목표 점수 달성으로만 승패 — 계가까지 턴/자동 계가 수 설정은 무시(이전 모드 설정 잔존 방지)
+    if (mode === types.GameMode.Capture) {
+        (settings as any).scoringTurnLimit = 0;
+        delete (settings as any).autoScoringTurns;
+    }
     
     const descriptions = RANDOM_DESCRIPTIONS[mode] || [`${mode} 한 판!`];
     const randomDescription = descriptions[Math.floor(Math.random() * descriptions.length)];

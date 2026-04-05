@@ -25,8 +25,8 @@ const AlertModal: React.FC<AlertModalProps> = ({ title = '알림', message, onCl
             isTopmost={isTopmost}
             zIndex={isTopmost ? 9999 : 50}
         >
-            <div className="p-4">
-                <p className="text-center text-gray-300 mb-6 whitespace-pre-line">{message}</p>
+            <div className="p-5 sm:p-6">
+                <p className="mb-6 whitespace-pre-line text-center text-sm leading-relaxed text-secondary">{message}</p>
                 <div className="flex justify-center">
                     <Button onClick={onClose} colorScheme="blue" className="w-full max-w-xs">
                         {confirmText}

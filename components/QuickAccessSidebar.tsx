@@ -13,6 +13,8 @@ interface QuickAccessSidebarProps {
     showOnlyWhenQuestCompleted?: boolean;
     /** 네이티브 홈 열 외 레이아웃용(대기실 등). 홈 화면은 정사각 고정 버튼이라 무시됨 */
     fillHeight?: boolean;
+    /** 루트 컨테이너에 추가(예: 대기실 backdrop-blur) */
+    className?: string;
 }
 
 /** 네이티브 퀵 레일 가로 — TournamentLobby·홈·대기실 등 통일 */
@@ -25,6 +27,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     nativeHomeColumn = false,
     showOnlyWhenQuestCompleted = false,
     fillHeight = true,
+    className = '',
 }) => {
     const { handlers, unreadMailCount, hasClaimableQuest, currentUserWithStatus } = useAppContext();
     
@@ -123,7 +126,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     );
 
     return (
-        <div className={containerClass} data-quick-access-sidebar-root>
+        <div className={[containerClass, className].filter(Boolean).join(' ')} data-quick-access-sidebar-root>
             {allButtons.map(renderButton)}
         </div>
     );

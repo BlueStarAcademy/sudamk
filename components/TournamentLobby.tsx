@@ -16,6 +16,10 @@ import ChampionshipVenueEntryModal from './ChampionshipVenueEntryModal.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
 
+/** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
+const CHAMPIONSHIP_PANEL_GLASS =
+    'backdrop-blur-xl backdrop-saturate-150 will-change-[backdrop-filter] [transform:translateZ(0)]';
+
 const stringToSeed = (str: string): number => {
     let hash = 0;
     if (str.length === 0) return hash;
@@ -418,7 +422,7 @@ const TournamentCard: React.FC<{
             <div
                 className={`group relative flex flex-col text-center transition-all ${
                     compactInline
-                        ? `h-full min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg bg-gray-900/90 p-0.5 ${compactInlineAccent} hover:brightness-[1.03]`
+                        ? `h-full min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg bg-gray-900/90 p-1 ${compactInlineAccent} hover:brightness-[1.03]`
                         : compact
                           ? 'flex h-full min-h-0 flex-col rounded-lg bg-gray-800 p-1 shadow-lg hover:shadow-purple-500/30'
                           : 'h-full transform rounded-lg bg-gray-800 p-2 shadow-lg hover:-translate-y-1 hover:shadow-purple-500/30 sm:p-3'
@@ -595,8 +599,8 @@ const EquipmentSlotDisplay: React.FC<{
     className?: string;
 }> = ({ slot, item, onClick, compact = false, medium = false, className = '' }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
-    const starFontPx = compact ? 10 : medium ? 12 : 14;
-    const itemPadClass = medium ? 'p-1' : 'p-1.5';
+    const starFontPx = compact ? 11 : medium ? 13 : 15;
+    const itemPadClass = medium ? 'p-0.5' : 'p-1';
 
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
@@ -620,7 +624,7 @@ const EquipmentSlotDisplay: React.FC<{
                         src={item.image}
                         alt={item.name}
                         className={`absolute object-contain ${itemPadClass}`}
-                        style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                        style={{ width: '86%', height: '86%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                     />
                 )}
             </div>
@@ -635,6 +639,16 @@ const EquipmentSlotDisplay: React.FC<{
 const TournamentLobby: React.FC = () => {
     const { currentUserWithStatus, allUsers, handlers, waitingRoomChats, presets } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
+
+    const venueLobbyPanelStyle = useMemo(
+        () =>
+            ({
+                ['--custom-panel-bg' as string]: 'rgb(var(--bg-secondary) / 0.82)',
+            }) as React.CSSProperties,
+        []
+    );
+    const venueHeaderChrome =
+        'rounded-b-2xl border-b border-color/60 bg-secondary/92 shadow-[0_10px_36px_rgba(0,0,0,0.42)] backdrop-blur-[4px] pb-2';
 
     /** 네이티브 상단 행(입장카드·장비·퀵메뉴) 높이: 퀵메뉴 고유 높이에 맞춤 — 퀵메뉴 버튼이 세로로 늘어나지 않도록 */
     const nativeQuickMenuMeasureRef = useRef<HTMLDivElement>(null);
@@ -668,8 +682,11 @@ const TournamentLobby: React.FC = () => {
 
     if (!currentUserWithStatus) {
         return (
-            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-2xl mx-auto flex flex-col h-full relative text-gray-500 items-center justify-center min-h-0">
-                로비 정보를 불러오는 중...
+            <div
+                className="bg-lobby-shell-championship text-primary relative mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col items-center justify-center p-4 sm:p-6 lg:p-8"
+                style={venueLobbyPanelStyle}
+            >
+                <span className="text-secondary">로비 정보를 불러오는 중...</span>
             </div>
         );
     }
@@ -742,10 +759,11 @@ const TournamentLobby: React.FC = () => {
 
     return (
         <div
-            className={`relative flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5' : 'h-full min-h-0 overflow-hidden p-4 sm:p-6 lg:p-8'}`}
+            className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5' : 'h-full min-h-0 overflow-hidden p-4 sm:p-6 lg:p-8'}`}
+            style={venueLobbyPanelStyle}
         >
             {isNativeMobile ? (
-                <header className="relative mb-0.5 flex min-h-11 shrink-0 items-center justify-center px-1 py-1">
+                <header className={`relative mb-0.5 flex min-h-11 shrink-0 items-center justify-center px-1 py-1 ${venueHeaderChrome}`}>
                     <h1 className="pointer-events-none select-none px-12 text-center text-lg font-bold">챔피언십</h1>
                     <div className="absolute right-0.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
                         <button
@@ -759,7 +777,7 @@ const TournamentLobby: React.FC = () => {
                     </div>
                 </header>
             ) : (
-                <header className="mb-4 flex flex-shrink-0 items-center justify-between sm:mb-6">
+                <header className={`mb-4 flex flex-shrink-0 items-center justify-between sm:mb-6 ${venueHeaderChrome}`}>
                     <button
                         onClick={() => window.location.hash = '#/profile'}
                         className="transition-transform active:scale-90 filter hover:drop-shadow-lg"
@@ -793,13 +811,17 @@ const TournamentLobby: React.FC = () => {
                                 : { minHeight: 0, maxHeight: 'min(44dvh, 90vh)' }
                         }
                     >
-                        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color/40 bg-gray-800/40 p-0.5">
-                            <PointsInfoPanel variant="nativeEmbedded" />
+                        <div
+                            className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color/40 p-0.5 ${CHAMPIONSHIP_PANEL_GLASS} bg-gray-900/35`}
+                        >
+                            <PointsInfoPanel variant="nativeEmbedded" lobbyGlass />
                         </div>
-                        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel text-on-panel">
+                        <div
+                            className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel text-on-panel ${CHAMPIONSHIP_PANEL_GLASS}`}
+                        >
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-1 py-1">
                                 <h3 className="flex-shrink-0 text-center text-base font-semibold leading-tight text-secondary">장착 장비</h3>
-                                <div className="grid shrink-0 grid-cols-3 grid-rows-2 gap-x-0.5 gap-y-px px-0.5">
+                                <div className="grid shrink-0 grid-cols-3 grid-rows-2 gap-x-1 gap-y-0.5 px-0.5">
                                     {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                         const item = getItemForSlot(slot);
                                         return (
@@ -839,14 +861,16 @@ const TournamentLobby: React.FC = () => {
                         </div>
                         <div
                             ref={nativeQuickMenuMeasureRef}
-                            className="box-border flex h-fit min-h-0 min-w-0 flex-col self-start overflow-hidden rounded-md border border-color/50 bg-panel/95 p-0.5"
+                            className="box-border flex h-fit min-h-0 min-w-0 flex-col self-start overflow-hidden rounded-md border border-color/50 p-0.5"
                         >
-                            <QuickAccessSidebar nativeHomeColumn />
+                            <QuickAccessSidebar nativeHomeColumn className={CHAMPIONSHIP_PANEL_GLASS} />
                         </div>
                     </div>
 
                     {/* 입장 카드 3개 — 가로 와이드 이미지, 카드별 색 구분 */}
-                    <div className="grid w-full shrink-0 grid-cols-3 gap-1.5 overflow-hidden rounded-lg border border-stone-600/40 bg-stone-950/60 p-1.5 shadow-inner">
+                    <div
+                        className={`grid w-full shrink-0 grid-cols-3 gap-2 overflow-hidden rounded-lg border border-stone-600/40 p-1.5 shadow-inner ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
+                    >
                         <TournamentCard
                             compactInline
                             type="neighborhood"
@@ -875,7 +899,9 @@ const TournamentLobby: React.FC = () => {
 
                     {/* 채팅 · 챔피언십 랭킹 */}
                     <div className="grid min-h-0 flex-1 grid-cols-2 gap-0.5 overflow-hidden">
-                        <div className="min-h-0 min-w-0 overflow-hidden rounded-md bg-gray-800/50">
+                        <div
+                            className={`min-h-0 min-w-0 overflow-hidden rounded-md border border-color/35 bg-gray-900/40 ${CHAMPIONSHIP_PANEL_GLASS}`}
+                        >
                             <ChatWindow
                                 messages={waitingRoomChats.global || []}
                                 mode="global"
@@ -885,25 +911,27 @@ const TournamentLobby: React.FC = () => {
                                 compactTournamentMobile
                             />
                         </div>
-                        <div className="min-h-0 min-w-0 overflow-hidden rounded-md border border-color/40 bg-panel/90 p-0.5">
-                            <ChampionshipRankingPanel compact lobbyNativeMobile />
+                        <div className="min-h-0 min-w-0 overflow-hidden rounded-md border border-color/40 p-0.5">
+                            <ChampionshipRankingPanel compact lobbyNativeMobile lobbyGlass />
                         </div>
                     </div>
                 </div>
             ) : (
             <div className="flex-1 flex flex-row gap-6 min-h-0 overflow-hidden">
                 <main className="flex-grow flex flex-col gap-6 min-h-0 overflow-hidden">
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 flex-shrink-0">
+                    <div className="grid grid-cols-3 gap-3 sm:gap-4 lg:gap-5 flex-shrink-0">
                         <TournamentCard type="neighborhood" onClick={(stage) => handleEnterArena('neighborhood', stage)} onContinue={() => handleContinueTournament('neighborhood')} inProgress={neighborhoodState || null} currentUser={currentUserWithStatus} />
                         <TournamentCard type="national" onClick={(stage) => handleEnterArena('national', stage)} onContinue={() => handleContinueTournament('national')} inProgress={nationalState || null} currentUser={currentUserWithStatus} />
                         <TournamentCard type="world" onClick={(stage) => handleEnterArena('world', stage)} onContinue={() => handleContinueTournament('world')} inProgress={worldState || null} currentUser={currentUserWithStatus} />
                     </div>
                     
                     <div className="flex-1 flex flex-row gap-3 sm:gap-4 lg:gap-6 min-h-0 overflow-hidden">
-                        <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden">
-                            <PointsInfoPanel />
+                        <div className={`w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden rounded-lg border border-color/35 ${CHAMPIONSHIP_PANEL_GLASS} bg-gray-900/35 p-0.5`}>
+                            <PointsInfoPanel lobbyGlass />
                         </div>
-                        <div className="flex-1 bg-gray-800/50 rounded-lg shadow-lg min-h-0 flex flex-col overflow-hidden">
+                        <div
+                            className={`flex-1 min-h-0 flex flex-col overflow-hidden rounded-lg border border-color/35 bg-gray-900/40 shadow-lg ${CHAMPIONSHIP_PANEL_GLASS}`}
+                        >
                             <ChatWindow
                                 messages={waitingRoomChats.global || []}
                                 mode="global"
@@ -916,10 +944,12 @@ const TournamentLobby: React.FC = () => {
                 </main>
                  <aside className="flex flex-col w-[380px] xl:w-[460px] flex-shrink-0 gap-3 min-h-0 overflow-hidden">
                     <div className="flex-shrink-0 flex flex-row gap-2 items-stretch">
-                        <div className="flex-1 bg-panel border border-color text-on-panel rounded-lg flex flex-col overflow-hidden min-w-0">
+                        <div
+                            className={`flex-1 bg-panel border border-color text-on-panel rounded-lg flex flex-col overflow-hidden min-w-0 ${CHAMPIONSHIP_PANEL_GLASS}`}
+                        >
                             <div className="w-[280px] max-w-full mx-auto flex flex-col flex-1 p-1.5">
                                 <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0 mb-1">장착 장비</h3>
-                                <div className="grid grid-cols-3 gap-1.5">
+                                <div className="grid grid-cols-3 gap-2">
                                     {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                         const item = getItemForSlot(slot);
                                         return (
@@ -958,13 +988,13 @@ const TournamentLobby: React.FC = () => {
                             </div>
                         </div>
                         <div className="w-24 min-w-[96px] flex-shrink-0 ml-auto overflow-hidden">
-                            <QuickAccessSidebar fillHeight={true} compact={true} />
+                            <QuickAccessSidebar fillHeight={true} compact={true} className={CHAMPIONSHIP_PANEL_GLASS} />
                         </div>
                     </div>
                     
                     {/* 챔피언십 랭킹 - 더 위로 끌어올려져 세로 공간 확보 */}
                     <div className="flex-1 min-h-0 overflow-hidden">
-                        <ChampionshipRankingPanel />
+                        <ChampionshipRankingPanel lobbyGlass />
                     </div>
                 </aside>
             </div>

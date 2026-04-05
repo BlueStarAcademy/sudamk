@@ -1,12 +1,20 @@
-import React from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { LiveGameSession, SinglePlayerStageInfo } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
-import { GameMode, Player } from '../types/enums.js';
+import { GameMode } from '../types/enums.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import { formatSinglePlayerRewardCell } from '../utils/singlePlayerRewardDisplay.js';
+import { getPreGameSummaryFour } from '../utils/preGameSummaryFour.js';
+import {
+  PreGameSummaryGrid,
+  PRE_GAME_MODAL_LAYER_CLASS,
+  PRE_GAME_MODAL_FOOTER_CLASS,
+  PRE_GAME_MODAL_SECONDARY_BTN_CLASS,
+  PRE_GAME_MODAL_ACCENT_BTN_CLASS,
+} from './game/PreGameDescriptionLayout.js';
 
 interface SinglePlayerGameDescriptionModalProps {
     session: LiveGameSession;
@@ -14,376 +22,119 @@ interface SinglePlayerGameDescriptionModalProps {
     onClose?: () => void;
 }
 
+const getGameModeName = (mode: GameMode): string => {
+    const specialMode = SPECIAL_GAME_MODES.find((m) => m.mode === mode);
+    if (specialMode) return specialMode.name;
+    const playfulMode = PLAYFUL_GAME_MODES.find((m) => m.mode === mode);
+    if (playfulMode) return playfulMode.name;
+    return mode;
+};
+
+const DRAG_FRAME_CHROME_PX = 96;
+const DRAG_FRAME_H_MIN = 560;
+const DRAG_FRAME_H_MAX = 1200;
+
 const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModalProps> = ({ session, onStart, onClose }) => {
-    // 싱글플레이어 게임이면 SINGLE_PLAYER_STAGES에서, 도전의 탑 게임이면 TOWER_STAGES에서 스테이지 찾기
     const isTower = session.gameCategory === 'tower';
-    const stage = isTower 
-        ? TOWER_STAGES.find(s => s.id === session.stageId)
-        : SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
-    
+    const stage: SinglePlayerStageInfo | undefined = isTower
+        ? TOWER_STAGES.find((s) => s.id === session.stageId)
+        : SINGLE_PLAYER_STAGES.find((s) => s.id === session.stageId);
+
+    const summaryFour = useMemo(() => getPreGameSummaryFour(session, stage), [session, stage]);
+    const contentMeasureRef = useRef<HTMLDivElement>(null);
+    const [frameHeight, setFrameHeight] = useState(780);
+
+    useLayoutEffect(() => {
+        const el = contentMeasureRef.current;
+        if (!el) return;
+        const update = () => {
+            const raw = Math.max(el.offsetHeight, el.scrollHeight);
+            if (raw < 8) return;
+            const next = Math.min(DRAG_FRAME_H_MAX, Math.max(DRAG_FRAME_H_MIN, Math.ceil(raw + DRAG_FRAME_CHROME_PX)));
+            setFrameHeight((prev) => (prev === next ? prev : next));
+        };
+        update();
+        const ro = new ResizeObserver(() => requestAnimationFrame(update));
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [session, stage, summaryFour]);
+
     if (!stage) {
         return null;
     }
 
-    // 게임 모드 이름 찾기
-    const getGameModeName = (mode: GameMode): string => {
-        const specialMode = SPECIAL_GAME_MODES.find(m => m.mode === mode);
-        if (specialMode) return specialMode.name;
-        
-        const playfulMode = PLAYFUL_GAME_MODES.find(m => m.mode === mode);
-        if (playfulMode) return playfulMode.name;
-        
-        return mode;
-    };
-
     const gameModeName = getGameModeName(session.mode);
-    const isCaptureMode = stage.blackTurnLimit !== undefined || session.mode === GameMode.Capture;
-    const isSpeedMode = !isCaptureMode && stage.timeControl.type === 'fischer';
-    
-    // 문양돌 개수 확인
-    const blackPatternCount = stage.placements.blackPattern || 0;
-    const whitePatternCount = stage.placements.whitePattern || 0;
-    const hasPatternStones = blackPatternCount > 0 || whitePatternCount > 0;
-    
-    // 승리 목표 설명
-    const getWinCondition = (): string => {
-        const effectiveTargets = session.effectiveCaptureTargets;
-        const blackTarget = effectiveTargets?.[Player.Black];
-        const whiteTarget = effectiveTargets?.[Player.White];
-
-        // 살리기 바둑 모드
-        if (stage.survivalTurns) {
-            // 살리기 바둑: 백의 목표점수는 black 값 사용
-            const whiteTarget = stage.targetScore.black;
-            return `백(AI)이 ${stage.survivalTurns}턴 이내에 목표점수(${whiteTarget}개)를 달성하지 못하면 유저(흑) 승리. 백이 목표점수를 달성하면 유저 패배`;
-        }
-        
-        // 따내기 바둑
-        if (isCaptureMode) {
-            if (stage.blackTurnLimit && typeof blackTarget === 'number' && blackTarget !== 999) {
-                if (typeof whiteTarget === 'number' && whiteTarget !== 999) {
-                    return `${stage.blackTurnLimit}턴 이내에 흑 ${blackTarget}점 이상 달성 (백은 ${whiteTarget}점 달성 시 승리)`;
-                }
-                return `${stage.blackTurnLimit}턴 이내에 흑이 ${blackTarget}점 이상 획득하면 승리`;
-            }
-
-            if (typeof blackTarget === 'number' && blackTarget !== 999 && typeof whiteTarget === 'number' && whiteTarget !== 999) {
-                return `흑 ${blackTarget}점 / 백 ${whiteTarget}점 달성 경쟁`;
-            }
-            if (typeof blackTarget === 'number' && blackTarget !== 999) {
-                return `흑이 ${blackTarget}개 이상의 돌을 따내면 승리`;
-            }
-            if (typeof whiteTarget === 'number' && whiteTarget !== 999) {
-                return `백이 ${whiteTarget}개 이상의 돌을 따내면 승리`;
-            }
-            if (typeof session.settings.captureTarget === 'number') {
-                return `흑이 ${session.settings.captureTarget}개 이상의 돌을 따내면 승리`;
-            }
-        }
-        
-        // 스피드 바둑 (피셔 타이머) — AI 대국: 기본 20점, 사용한 누적 시간 5초당 1점 차감
-        if (isSpeedMode) {
-            return '계가 시 최종 점수가 더 높은 플레이어가 승리합니다. 시간 보너스는 기본 20점에서, 사용한 누적 시간 5초당 1점이 차감됩니다.';
-        }
-        
-        // 따내기 바둑: 턴 제한과 목표 점수가 모두 있는 경우
-        if (stage.blackTurnLimit && stage.targetScore.black > 0) {
-            return `${stage.blackTurnLimit}턴 이내에 ${stage.targetScore.black}점 이상 획득하기`;
-        }
-        
-        // 일반 계가 승리 조건
-        if (stage.targetScore.black > 0 && stage.targetScore.white > 0) {
-            return `계가 시 흑 ${stage.targetScore.black}집, 백 ${stage.targetScore.white}집 이상 확보`;
-        }
-        
-        return '계가 시 더 많은 집을 확보한 플레이어 승리';
-    };
+    const modeMeta =
+        SPECIAL_GAME_MODES.find((m) => m.mode === session.mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === session.mode);
 
     return (
         <DraggableWindow
             title={`${stage.name} - 게임 설명`}
             windowId="game-description-modal"
             onClose={onClose}
-            initialWidth={672}
-            initialHeight={560}
+            initialWidth={736}
+            initialHeight={frameHeight}
             modal={true}
             closeOnOutsideClick={!!onClose}
+            uniformPcScale
+            bodyScrollable={false}
+            hideFooter
+            containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
         >
-            <div className="flex flex-col h-full min-h-0">
-                <div className="flex-1 overflow-y-auto min-h-0 space-y-4 text-white">
-                        {/* 승리 목표 - 이미지와 함께 */}
-                        <div>
-                            <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
-                                <span>🎯</span>
-                                <span>승리 목표</span>
-                            </h3>
-                            <div className="bg-gray-700/50 rounded-lg p-3">
-                                <p className="text-gray-200 font-medium">{getWinCondition()}</p>
+            <div ref={contentMeasureRef} className="flex flex-col text-white">
+                <div className={`space-y-5 pr-0.5 ${PRE_GAME_MODAL_LAYER_CLASS}`}>
+                        {/* 모드 이미지 + 스테이지 헤더 */}
+                        <div className="flex gap-4 rounded-xl border border-amber-500/28 bg-gradient-to-r from-amber-950/50 via-zinc-900/85 to-zinc-950/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07]">
+                            <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-amber-500/20 sm:h-28 sm:w-28">
+                                {modeMeta?.image ? (
+                                    <img src={modeMeta.image} alt="" className="h-full w-full object-contain p-2 drop-shadow-md" />
+                                ) : (
+                                    <div className="flex h-full items-center justify-center text-sm font-bold text-amber-200/45">{session.mode}</div>
+                                )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-amber-200/75 sm:text-xs">
+                                    {isTower ? '도전의 탑' : '싱글 스테이지'}
+                                </p>
+                                <h3 className="mt-1 text-xl font-black tracking-tight text-white drop-shadow-sm sm:text-2xl">{stage.name}</h3>
+                                <p className="mt-1.5 text-sm text-sky-200/88 sm:text-base">
+                                    모드: <span className="font-semibold text-sky-100/95">{gameModeName}</span>
+                                </p>
                             </div>
                         </div>
 
-                        {/* 문양돌 설명 */}
-                        {hasPatternStones && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-yellow-400 mb-2">문양돌</h3>
-                                <div className="bg-gray-700/50 rounded-lg p-3 space-y-3">
-                                    {/* 문양돌 이미지 및 설명 */}
-                                    <div className="flex items-start gap-3">
-                                        {/* 흑 문양돌 이미지 */}
-                                        {blackPatternCount > 0 && (
-                                            <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                                                <div className="relative w-16 h-16">
-                                                    <div className="w-16 h-16 rounded-full bg-black border-2 border-gray-400 flex items-center justify-center">
-                                                        <img 
-                                                            src="/images/single/BlackDouble.png" 
-                                                            alt="흑 문양돌"
-                                                            className="w-12 h-12 object-contain"
-                                                            onError={(e) => {
-                                                                const target = e.target as HTMLImageElement;
-                                                                target.style.display = 'none';
-                                                                const parent = target.parentElement;
-                                                                if (parent) {
-                                                                    parent.innerHTML = '<span class="text-white text-xl">⭐</span>';
-                                                                }
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <span className="text-xs text-gray-300">흑 {blackPatternCount}개</span>
-                                            </div>
-                                        )}
-                                        {/* 백 문양돌 이미지 */}
-                                        {whitePatternCount > 0 && (
-                                            <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                                                <div className="relative w-16 h-16">
-                                                    <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-400 flex items-center justify-center">
-                                                        <img 
-                                                            src="/images/single/WhiteDouble.png" 
-                                                            alt="백 문양돌"
-                                                            className="w-12 h-12 object-contain"
-                                                            onError={(e) => {
-                                                                const target = e.target as HTMLImageElement;
-                                                                target.style.display = 'none';
-                                                                const parent = target.parentElement;
-                                                                if (parent) {
-                                                                    parent.innerHTML = '<span class="text-black text-xl">⭐</span>';
-                                                                }
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <span className="text-xs text-gray-300">백 {whitePatternCount}개</span>
-                                            </div>
-                                        )}
-                                        <div className="flex-1">
-                                            <p className="text-gray-200 text-sm mb-2">
-                                                문양돌을 따내면 <span className="text-green-400 font-bold">2점</span>을 획득합니다.
-                                            </p>
-                                            <p className="text-gray-300 text-xs">
-                                                문양돌을 빼앗기면 상대방이 <span className="text-red-400 font-bold">2점</span>을 획득합니다.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 살리기 바둑 모드 */}
-                        {stage.survivalTurns && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
-                                    <span>⚔️</span>
-                                    <span>특수 규칙</span>
-                                </h3>
-                                <div className="bg-gray-700/50 rounded-lg p-3">
-                                    <p className="text-gray-200">
-                                        백(AI)이 <span className="text-red-400 font-bold">{stage.survivalTurns}턴</span> 동안 유저(흑)의 돌을 잡으러 옵니다.
-                                        <br />
-                                        <span className="text-blue-400">백이 한 수를 둘 때마다 백 남은 턴이 감소합니다.</span>
-                                        <br />
-                                        <span className="text-green-400">백의 따낸 돌에는 목표점수가 표시되지만, 유저의 따낸 돌에는 목표점수가 표시되지 않습니다.</span>
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 스피드 바둑 특수 규칙 */}
-                        {isSpeedMode && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
-                                    <img src="/images/icon/timer.png" alt="타이머" className="w-4 h-4 object-contain" />
-                                    <span>특수 규칙</span>
-                                </h3>
-                                <div className="bg-gray-700/50 rounded-lg p-3 space-y-2">
-                                    <p className="text-gray-200">
-                                        수를 둘 때마다 <span className="text-blue-300 font-semibold">피셔 타이머</span>가 적용되어 일정 시간이 추가됩니다.
-                                    </p>
-                                    <p className="text-gray-200">
-                                        <span className="text-green-300 font-semibold">시간 보너스</span>: 기본 20점에서, 사용한 누적 시간 <span className="text-yellow-300 font-semibold">5초당 1점</span>이 차감됩니다. 빠르게 두면 더 많은 보너스를 받습니다.
-                                    </p>
-                                    <p className="text-gray-300 text-sm">
-                                        최종 점수가 더 높은 쪽이 승리합니다.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 턴 제한 */}
-                        {stage.blackTurnLimit && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
-                                    <img src="/images/icon/timer.png" alt="타이머" className="w-4 h-4 object-contain" />
-                                    <span>턴 제한</span>
-                                </h3>
-                                <div className="bg-gray-700/50 rounded-lg p-3">
-                                    <p className="text-gray-200">
-                                        흑(유저)은 <span className="text-red-400 font-bold">{stage.blackTurnLimit}턴</span> 이내에 승리해야 합니다.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 자동 계가: 남은 턴 카운트다운, 0이 되면 계가 */}
-                        {stage.autoScoringTurns && stage.autoScoringTurns > 0 && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
-                                    <img src="/images/icon/timer.png" alt="타이머" className="w-4 h-4 object-contain" />
-                                    <span>자동 계가</span>
-                                </h3>
-                                <div className="bg-gray-700/50 rounded-lg p-3">
-                                    <p className="text-gray-200">
-                                        <span className="text-blue-400 font-bold">남은 턴</span>이 0이 되면 자동으로 계가가 진행됩니다. ({stage.autoScoringTurns}수)
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 특수 아이템: 도전의 탑은 대기실(가방) 보유 개수만 사용, 기본 개수 없음 */}
-                        {(stage.missileCount || stage.hiddenCount || stage.scanCount) && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
-                                    <span>🎁</span>
-                                    <span>특수 아이템</span>
-                                </h3>
-                                <div className="bg-gray-700/50 rounded-lg p-3 space-y-3">
-                                    {isTower && (stage.missileCount || stage.hiddenCount || stage.scanCount) ? (
-                                        <>
-                                            <p className="text-amber-200/90 text-sm mb-3">
-                                                각종 아이템을 이용하여 공략해보세요.
-                                            </p>
-                                            <div className="space-y-2">
-                                                {stage.missileCount > 0 && (
-                                                    <div className="flex items-start gap-2 border-l-4 border-amber-400 pl-3 py-1">
-                                                        <img src="/images/button/missile.png" alt="미사일" className="w-6 h-6 object-contain flex-shrink-0" />
-                                                        <div>
-                                                            <span className="font-semibold text-amber-300">미사일</span>
-                                                            <p className="text-gray-300 text-xs mt-0.5">놓여진 내 돌을 직선으로 이동하는 아이템</p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {stage.hiddenCount > 0 && (
-                                                    <div className="flex items-start gap-2 border-l-4 border-purple-400 pl-3 py-1">
-                                                        <img src="/images/button/hidden.png" alt="히든" className="w-6 h-6 object-contain flex-shrink-0" />
-                                                        <div>
-                                                            <span className="font-semibold text-purple-300">히든</span>
-                                                            <p className="text-gray-300 text-xs mt-0.5">상대방에게 보이지 않는 비밀의 한 수를 두는 아이템</p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {/* 21층+는 미사일/히든 있으면 스캔도 사용 가능(대기실 보유분) */}
-                                                {(stage.scanCount || (session.settings as any)?.scanCount || (stage.missileCount || stage.hiddenCount)) && (
-                                                    <div className="flex items-start gap-2 border-l-4 border-blue-400 pl-3 py-1">
-                                                        <img src="/images/button/scan.png" alt="스캔" className="w-6 h-6 object-contain flex-shrink-0" />
-                                                        <div>
-                                                            <span className="font-semibold text-blue-300">스캔</span>
-                                                            <p className="text-gray-300 text-xs mt-0.5">상대방의 히든 돌을 탐색해보는 아이템</p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <p className="text-gray-300 text-xs mt-2">
-                                                • 아이템 사용 시 30초의 제한시간이 부여됩니다.
-                                            </p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            {stage.missileCount > 0 && (
-                                                <div className="border-l-4 border-amber-400 pl-3">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <img src="/images/button/missile.png" alt="미사일" className="w-6 h-6 object-contain" />
-                                                        <span className="font-semibold text-amber-300">미사일 ({stage.missileCount}개)</span>
-                                                    </div>
-                                                    <p className="text-gray-200 text-sm">
-                                                        발사할 바둑돌을 선택한 후 방향을 선택하면 해당 방향으로 날아갑니다.
-                                                        <br />
-                                                        <span className="text-gray-300 text-xs">• 아이템 사용 시 30초의 제한시간이 부여됩니다.</span>
-                                                    </p>
-                                                </div>
-                                            )}
-                                            {stage.hiddenCount > 0 && (
-                                                <div className="border-l-4 border-purple-400 pl-3">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <img src="/images/button/hidden.png" alt="히든" className="w-6 h-6 object-contain" />
-                                                        <span className="font-semibold text-purple-300">히든 스톤 ({stage.hiddenCount}개)</span>
-                                                    </div>
-                                                    <p className="text-gray-200 text-sm">
-                                                        상대방에게 보이지 않는 돌을 배치할 수 있습니다.
-                                                        <br />
-                                                        <span className="text-gray-300 text-xs">• 아이템 사용 시 30초의 제한시간이 부여됩니다.</span>
-                                                    </p>
-                                                </div>
-                                            )}
-                                            {stage.scanCount > 0 && (
-                                                <div className="border-l-4 border-blue-400 pl-3">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <img src="/images/button/scan.png" alt="스캔" className="w-6 h-6 object-contain" />
-                                                        <span className="font-semibold text-blue-300">스캔 ({stage.scanCount}개)</span>
-                                                    </div>
-                                                    <p className="text-gray-200 text-sm">
-                                                        상대방의 히든 스톤을 탐지할 수 있습니다.
-                                                        <br />
-                                                        <span className="text-gray-300 text-xs">• 아이템 사용 시 30초의 제한시간이 부여됩니다.</span>
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                        <PreGameSummaryGrid session={session} summary={summaryFour} />
 
                         {/* 클리어 보상 (현재 스테이지) */}
                         {stage.rewards && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
-                                    <span>🎁</span>
-                                    <span>클리어 보상</span>
+                            <div className="rounded-xl border border-amber-500/22 bg-zinc-950/45 p-3.5 ring-1 ring-inset ring-white/[0.05]">
+                                <h3 className="mb-3 flex items-center gap-2 border-b border-amber-500/18 pb-2.5 text-base font-bold text-amber-100/95">
+                                    <img src="/images/icon/Gold.png" alt="" className="h-6 w-6 object-contain opacity-95 drop-shadow" />
+                                    클리어 보상
                                 </h3>
-                                <div className="rounded-lg border border-gray-600 overflow-hidden bg-gray-800/60">
+                                <div className="overflow-hidden rounded-lg border border-amber-500/15 bg-black/30">
                                     <table className="w-full text-left text-xs sm:text-sm">
                                         <thead>
-                                            <tr className="bg-gray-700/80 text-amber-200/95 border-b border-gray-600">
-                                                <th className="px-3 py-2 font-semibold border-r border-gray-600">구분</th>
+                                            <tr className="border-b border-amber-500/15 bg-zinc-900/70 text-amber-200/95">
+                                                <th className="border-r border-amber-500/12 px-3 py-2 font-semibold">구분</th>
                                                 <th className="px-3 py-2 font-semibold">내용</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="text-gray-200">
-                                            <tr className="border-b border-gray-700/80">
-                                                <td className="px-3 py-2 align-top text-emerald-300/95 font-medium whitespace-nowrap border-r border-gray-700/80">
+                                        <tbody className="text-zinc-200">
+                                            <tr className="border-b border-amber-500/10 bg-zinc-900/35">
+                                                <td className="whitespace-nowrap border-r border-amber-500/10 px-3 py-2.5 align-top font-medium text-emerald-300/95">
                                                     최초 클리어
                                                 </td>
-                                                <td className="px-3 py-2 align-top leading-snug">
+                                                <td className="px-3 py-2.5 align-top leading-snug">
                                                     {formatSinglePlayerRewardCell(stage.rewards.firstClear)}
                                                 </td>
                                             </tr>
-                                            <tr>
-                                                <td className="px-3 py-2 align-top text-sky-300/95 font-medium whitespace-nowrap border-r border-gray-700/80">
+                                            <tr className="bg-zinc-900/25">
+                                                <td className="whitespace-nowrap border-r border-amber-500/10 px-3 py-2.5 align-top font-medium text-sky-300/95">
                                                     재도전 클리어
                                                 </td>
-                                                <td className="px-3 py-2 align-top leading-snug">
+                                                <td className="px-3 py-2.5 align-top leading-snug">
                                                     {isTower
-                                                        // 도전의 탑: 이미 클리어한 층 재도전은 행동력 소모 없이 가능하지만,
-                                                        // 재도전 클리어 보상은 지급되지 않음(서버에서도 동일하게 no-reward 처리).
                                                         ? '보상 없음'
                                                         : formatSinglePlayerRewardCell(stage.rewards.repeatClear)}
                                                 </td>
@@ -395,21 +146,20 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                         )}
                 </div>
 
-                {/* 버튼 */}
-                <div className="flex-shrink-0 flex gap-3 pt-4 mt-4 border-t border-gray-600">
+                <div className={`${PRE_GAME_MODAL_FOOTER_CLASS} -mx-5 -mb-5 mt-6 rounded-b-2xl`}>
                     {onClose && (
-                        <Button 
-                            onClick={onClose} 
-                            colorScheme="gray" 
-                            className="flex-1"
+                        <Button
+                            onClick={onClose}
+                            colorScheme="gray"
+                            className={`flex-1 py-3 text-base font-bold tracking-wide ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS}`}
                         >
                             취소
                         </Button>
                     )}
-                    <Button 
-                        onClick={onStart} 
-                        colorScheme="accent" 
-                        className="flex-1"
+                    <Button
+                        onClick={onStart}
+                        colorScheme="accent"
+                        className={`!w-auto shrink-0 px-8 py-3 text-base font-bold tracking-wide ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`}
                     >
                         시작하기
                     </Button>

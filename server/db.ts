@@ -414,8 +414,12 @@ export const getUsersBrief = async (ids: string[]): Promise<Array<{ id: string; 
 export const getUserByNickname = async (nickname: string): Promise<User | null> => {
     return prismaGetUserByNickname(nickname);
 };
-export const searchUsersForAdmin = async (query: string, limit: number): Promise<User[]> => {
-    return prismaSearchUsersForAdmin(query, limit);
+export const searchUsersForAdmin = async (
+    query: string,
+    limit: number,
+    offset?: number
+): Promise<{ users: User[]; total: number }> => {
+    return prismaSearchUsersForAdmin(query, limit, offset ?? 0);
 };
 export const getUserByEmail = async (email: string): Promise<User | null> => {
     return prismaGetUserByEmail(email);

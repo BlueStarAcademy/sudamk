@@ -16,6 +16,11 @@ import { aiUserId, getAiUser } from './aiPlayer.js';
 import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics, getGuildWarMatchGoldReward } from '../shared/utils/guildWarAttemptMetrics.js';
 import { isGuildWarLiveSession } from '../shared/constants/guildConstants.js';
+import {
+  aiLobbyRewardMultiplierFromProfileStep,
+  isWaitingRoomAiGame,
+  resolveAiLobbyProfileStepFromSettings,
+} from '../shared/utils/strategicAiDifficulty.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
 import * as guildService from './guildService.js';
 
@@ -891,6 +896,12 @@ const processPlayerSummary = async (
     if (isGuildWarMatch && guildWarStars === 0) {
         xpGain = 0;
     }
+    // 대기실 AI 대국: 난이도 단계별 보상 (1단=기준, 2단=1.2배 … 10단=2배)
+    if (!isNoContest && isWaitingRoomAiGame(game)) {
+        const step = resolveAiLobbyProfileStepFromSettings(game.settings as any);
+        const tierMul = aiLobbyRewardMultiplierFromProfileStep(step);
+        xpGain = Math.round(xpGain * tierMul);
+    }
     // --- END NEW LOGIC ---
 
     let currentXp = initialXp + xpGain;
@@ -1050,6 +1061,12 @@ const processPlayerSummary = async (
             gold: demo ? 0 : getGuildWarMatchGoldReward(game.mode, stars),
             items: [],
         };
+    }
+
+    if (!isNoContest && isWaitingRoomAiGame(game) && !isGuildWarMatch) {
+        const step = resolveAiLobbyProfileStepFromSettings(game.settings as any);
+        const tierMul = aiLobbyRewardMultiplierFromProfileStep(step);
+        rewards.gold = Math.round(rewards.gold * tierMul);
     }
 
     // 랭킹전 매칭이 아닌 PVP(전략바둑·놀이바둑 친선전)에서는 보상을 25%로 감소. 랭킹전만 100% 보상.

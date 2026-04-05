@@ -1,13 +1,18 @@
-import React, { useMemo } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Button from './Button.js';
+import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
 import { LiveGameSession, GameMode, Player, ServerAction } from '../types.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_KOMI, ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS } from '../constants.js';
+import { getPreGameSummaryFour } from '../utils/preGameSummaryFour.js';
 import {
-  SPECIAL_GAME_MODES,
-  PLAYFUL_GAME_MODES,
-  DEFAULT_KOMI,
-  ALKKAGI_GAUGE_SPEEDS,
-  CURLING_GAUGE_SPEEDS,
-} from '../constants.js';
+  PreGameSummaryGrid,
+  PRE_GAME_MODAL_SHELL_CLASS,
+  PRE_GAME_MODAL_LAYER_CLASS,
+  PRE_GAME_MODAL_FOOTER_CLASS,
+  PRE_GAME_MODAL_PRIMARY_BTN_CLASS,
+  PRE_GAME_MODAL_SECONDARY_BTN_CLASS,
+} from './game/PreGameDescriptionLayout.js';
 
 interface Props {
   session: LiveGameSession;
@@ -15,63 +20,8 @@ interface Props {
   onClose?: () => void;
 }
 
-const Icon = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-tertiary/60 border border-color text-primary flex-shrink-0">
-    {children}
-  </span>
-);
-
-const Svg = ({ d }: { d: string }) => (
-  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d={d} strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const getModeMeta = (mode: GameMode) => {
-  return (
-    SPECIAL_GAME_MODES.find(m => m.mode === mode) ??
-    PLAYFUL_GAME_MODES.find(m => m.mode === mode)
-  );
-};
-
-const getWinConditions = (session: LiveGameSession): string[] => {
-  const s = session.settings;
-  switch (session.mode) {
-    case GameMode.Capture:
-      return [`상대 돌을 먼저 ${(s.captureTarget ?? 20)}점 따내면 승리합니다.`, '기권/시간패로도 승패가 결정됩니다.'];
-    case GameMode.Omok:
-      return ['가로/세로/대각선으로 5목을 먼저 만들면 승리합니다.'];
-    case GameMode.Ttamok:
-      return [
-        '5목을 먼저 만들거나, 상대 돌을 먼저 따내면 승리합니다.',
-        `따내기 목표: ${(s.captureTarget ?? 5)}점`,
-      ];
-    case GameMode.Dice:
-      return ['서로 주사위를 굴린 숫자만큼 흑돌을 이용할 수 있으며 더 많은 백돌을 따낸쪽이 승리합니다.'];
-    case GameMode.Thief:
-      return ['라운드별 점수를 합산해 총점이 높은 쪽이 승리합니다.'];
-    case GameMode.Alkkagi:
-      return ['상대의 돌을 판 밖으로 밀어내며 라운드 승패를 겨룹니다.'];
-    case GameMode.Curling:
-      return ['하우스(목표)에 더 가깝게 보내 점수를 얻고, 누적 점수가 높은 쪽이 승리합니다.'];
-    case GameMode.Base:
-      return ['베이스돌 배치 → (공개 후) 덤/색 입찰 → 집(점수)으로 승패를 결정합니다.'];
-    case GameMode.Hidden:
-      return ['히든돌/스캔 아이템이 포함된 바둑입니다. 집(점수)으로 승패를 결정합니다.'];
-    case GameMode.Missile:
-      return ['미사일 아이템으로 돌을 이동할 수 있습니다. 집(점수)으로 승패를 결정합니다.'];
-    case GameMode.Speed:
-      return [
-        '피셔(시간 추가) 방식입니다. 집(점수)으로 승패를 결정합니다.',
-        '시간 보너스: 기본 20점에서, 사용한 누적 시간 5초당 1점이 차감됩니다. (빠르게 두면 더 많은 보너스를 받습니다.)',
-      ];
-    case GameMode.Mix:
-      return ['여러 규칙이 섞인 바둑입니다. 집(점수)으로 승패를 결정합니다.'];
-    case GameMode.Standard:
-    default:
-      return ['집(점수)으로 승패를 결정합니다.'];
-  }
-};
+const getModeMeta = (mode: GameMode) =>
+  SPECIAL_GAME_MODES.find((m) => m.mode === mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === mode);
 
 const formatColor = (color?: Player.Black | Player.White) => {
   if (color === Player.Black) return '흑(선공)';
@@ -79,7 +29,11 @@ const formatColor = (color?: Player.Black | Player.White) => {
   return '랜덤';
 };
 
-/** 모드별로 대기실에서 설정한 내용과 동일한 설정 항목을 표시 */
+const AI_GAME_DESC_DESIGN_W = 736;
+const AI_GAME_DESC_DESIGN_H_FALLBACK = 820;
+const AI_GAME_DESC_DESIGN_H_MIN = 520;
+const AI_GAME_DESC_DESIGN_H_MAX = 1200;
+
 const getSettingsRows = (session: LiveGameSession): { label: string; value: React.ReactNode }[] => {
   const { mode, settings } = session;
   const modesWithKomi = [GameMode.Standard, GameMode.Speed, GameMode.Base, GameMode.Hidden, GameMode.Missile, GameMode.Mix];
@@ -97,11 +51,11 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
     if (settings.timeLimit && settings.timeLimit > 0) {
       rows.push({
         label: '시간',
-        value: mode === GameMode.Speed
-          ? `${settings.timeLimit}분 · ${settings.timeIncrement ?? 0}초 피셔`
-          : `${settings.timeLimit}분 · 초읽기 ${settings.byoyomiTime ?? 30}초 × ${settings.byoyomiCount ?? 3}회`,
+        value:
+          mode === GameMode.Speed
+            ? `${settings.timeLimit}분 · ${settings.timeIncrement ?? 0}초 피셔`
+            : `${settings.timeLimit}분 · 초읽기 ${settings.byoyomiTime ?? 30}초 × ${settings.byoyomiCount ?? 3}회`,
       });
-      // 초읽기 정보를 "N초 / N회" 형식으로 별도 표시 (제한시간 있는 비-스피드 모드)
       if (mode !== GameMode.Speed && !(mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed))) {
         const byoyomiTime = settings.byoyomiTime ?? 30;
         const byoyomiCount = settings.byoyomiCount ?? 3;
@@ -113,7 +67,6 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
       rows.push({ label: '시간', value: '없음' });
     }
   }
-  // 전략 바둑(클래식 등) AI 대전: 계가까지 턴 설정 표시 (대국실에 전달된 설정과 동일하게 표시)
   const strategicModesWithScoringTurn = [GameMode.Standard, GameMode.Speed, GameMode.Base, GameMode.Hidden, GameMode.Missile, GameMode.Mix];
   if (strategicModesWithScoringTurn.includes(mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
     rows.push({ label: '계가까지 턴', value: `${settings.scoringTurnLimit}턴` });
@@ -122,7 +75,6 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
     rows.push({ label: '내 색', value: formatColor(settings.player1Color) });
   }
 
-  // 모드별 전용 설정
   if (mode === GameMode.Omok || mode === GameMode.Ttamok) {
     rows.push({ label: '쌍삼 금지', value: settings.has33Forbidden ? '금지' : '가능' });
     rows.push({ label: '장목 금지', value: settings.hasOverlineForbidden ? '금지' : '가능' });
@@ -154,7 +106,7 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
     rows.push({ label: '높은 수 아이템 (4~6)', value: `${settings.highDiceCount ?? 0}개` });
   }
   if (mode === GameMode.Alkkagi) {
-    const speedLabel = ALKKAGI_GAUGE_SPEEDS.find(s => s.value === settings.alkkagiGaugeSpeed)?.label || '보통';
+    const speedLabel = ALKKAGI_GAUGE_SPEEDS.find((x) => x.value === settings.alkkagiGaugeSpeed)?.label || '보통';
     rows.push({ label: '라운드', value: `${settings.alkkagiRounds}R` });
     rows.push({ label: '돌 개수', value: `${settings.alkkagiStoneCount}개` });
     rows.push({ label: '배치 방식', value: String(settings.alkkagiPlacementType ?? '-') });
@@ -164,7 +116,7 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
     rows.push({ label: '조준선 아이템', value: `${settings.alkkagiAimingLineItemCount}개` });
   }
   if (mode === GameMode.Curling) {
-    const speedLabel = CURLING_GAUGE_SPEEDS.find(s => s.value === settings.curlingGaugeSpeed)?.label || '보통';
+    const speedLabel = CURLING_GAUGE_SPEEDS.find((x) => x.value === settings.curlingGaugeSpeed)?.label || '보통';
     rows.push({ label: '스톤 개수', value: `${settings.curlingStoneCount}개` });
     rows.push({ label: '라운드', value: `${settings.curlingRounds}R` });
     rows.push({ label: '게이지 속도', value: speedLabel });
@@ -177,9 +129,27 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
 
 const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
   const meta = useMemo(() => getModeMeta(session.mode), [session.mode]);
-  const winConditions = useMemo(() => getWinConditions(session), [session]);
+  const summaryFour = useMemo(() => getPreGameSummaryFour(session), [session]);
   const settingsRows = useMemo(() => getSettingsRows(session), [session]);
-  const isGuildWarAi = session.gameCategory === 'guildwar';
+  const isGuildWarAi = String(session.gameCategory ?? '') === 'guildwar';
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [designH, setDesignH] = useState(AI_GAME_DESC_DESIGN_H_FALLBACK);
+  const uniformScale = useViewportUniformScale(AI_GAME_DESC_DESIGN_W, designH, true);
+
+  useLayoutEffect(() => {
+    const el = shellRef.current;
+    if (!el) return;
+    const update = () => {
+      const raw = Math.max(el.offsetHeight, el.scrollHeight);
+      if (raw < 8) return;
+      const next = Math.min(AI_GAME_DESC_DESIGN_H_MAX, Math.max(AI_GAME_DESC_DESIGN_H_MIN, Math.ceil(raw)));
+      setDesignH((prev) => (prev === next ? prev : next));
+    };
+    update();
+    const ro = new ResizeObserver(() => requestAnimationFrame(update));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [session, summaryFour]);
 
   const handleStart = () => {
     onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
@@ -189,87 +159,105 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
     onAction({ type: 'LEAVE_AI_GAME', payload: { gameId: session.id } });
   };
 
-  return (
-    // App.tsx의 `transform: scale()` 캔버스 내부 렌더링 시 `fixed`는 스케일이 적용되지 않습니다.
-    // 따라서 `absolute`로 변경해 캔버스 스케일과 동일하게 동작하도록 합니다.
-    <div className="absolute inset-0 z-[9999] bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-gray-900/95 border border-color rounded-xl shadow-2xl text-on-panel overflow-hidden">
-        <div className="p-5 border-b border-color bg-tertiary/20">
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-xl bg-tertiary/60 border border-color flex items-center justify-center overflow-hidden flex-shrink-0">
+  const portalTarget =
+    typeof document !== 'undefined'
+      ? document.getElementById('sudamr-modal-root') ?? document.body
+      : null;
+  if (!portalTarget) return null;
+
+  const inScaledCanvas = portalTarget.id === 'sudamr-modal-root';
+
+  const layer = (
+    <div
+      className={`${
+        inScaledCanvas ? 'absolute inset-0 z-[1]' : 'fixed inset-0 z-[60000]'
+      } flex items-center justify-center bg-transparent p-4 text-base antialiased pointer-events-auto`}
+    >
+      <div
+        ref={shellRef}
+        className={PRE_GAME_MODAL_SHELL_CLASS}
+        style={{
+          width: AI_GAME_DESC_DESIGN_W,
+          maxWidth: '100%',
+          transform: `scale(${uniformScale})`,
+          transformOrigin: 'center center',
+        }}
+      >
+        {/* 헤더: 모드 이미지 + 제목 */}
+        <div
+          className={`${PRE_GAME_MODAL_LAYER_CLASS} flex-shrink-0 border-b border-amber-500/25 bg-gradient-to-r from-amber-950/45 via-zinc-900/88 to-zinc-950/95 p-4 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]`}
+        >
+          <div className="flex gap-4">
+            <div className="relative h-[7.5rem] w-[7.5rem] flex-shrink-0 overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_36px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-500/20">
               {meta?.image ? (
-                <img src={meta.image} alt={meta.name ?? session.mode} className="w-full h-full object-contain p-2" />
+                <img src={meta.image} alt="" className="h-full w-full object-contain p-2 drop-shadow-md" />
               ) : (
-                <span className="text-sm font-bold">{session.mode}</span>
+                <div className="flex h-full items-center justify-center text-lg font-bold text-amber-200/50">{session.mode}</div>
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-black tracking-tight truncate">{meta?.name ?? session.mode}</h2>
-                <span className="text-xs px-2 py-0.5 rounded-full border border-color bg-secondary/60 text-tertiary flex-shrink-0">
-                  AI 대전
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-2xl font-black tracking-tight text-white drop-shadow-sm sm:text-3xl">{meta?.name ?? session.mode}</h2>
+                <span className="rounded-full border border-amber-400/45 bg-gradient-to-r from-amber-950/80 to-zinc-900/90 px-3 py-1 text-xs font-bold tracking-wide text-amber-100/95 shadow-sm ring-1 ring-amber-500/25">
+                  {isGuildWarAi ? '길드 전쟁' : 'AI 대전'}
                 </span>
               </div>
-              {meta?.description && <p className="text-tertiary mt-1 text-sm leading-relaxed">{meta.description}</p>}
-              <p className="text-xs text-tertiary mt-2">
-                시작 전에는 규칙 확인 단계입니다. 준비되면 <span className="text-primary font-semibold">경기 시작</span>을 눌러주세요.
+              <p className="mt-2.5 text-xs leading-relaxed text-zinc-300 sm:text-sm">
+                네 가지 요약을 확인한 뒤{' '}
+                <span className="font-semibold text-violet-300">경기 시작</span>을 눌러주세요.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-color bg-tertiary/10 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Icon><Svg d="M4 7h16M4 12h16M4 17h16" /></Icon>
-              <h3 className="font-bold text-primary">설정</h3>
-            </div>
+        <div className={`${PRE_GAME_MODAL_LAYER_CLASS} flex-shrink-0 px-4 pb-2 pt-4`}>
+          <PreGameSummaryGrid session={session} summary={summaryFour} />
 
-            <div className="overflow-hidden rounded-lg border border-color">
-              <table className="w-full text-sm">
-                <tbody className="[&>tr:nth-child(odd)]:bg-secondary/30">
+          <div className="mb-4 mt-6 rounded-xl border border-amber-500/22 bg-zinc-950/50 p-3.5 shadow-inner ring-1 ring-inset ring-white/[0.05]">
+            <h3 className="mb-3 flex items-center gap-2 border-b border-amber-500/18 pb-2.5 text-base font-bold text-amber-100/95">
+              {meta?.image ? (
+                <img src={meta.image} alt="" className="h-7 w-7 object-contain opacity-95 drop-shadow" />
+              ) : null}
+              이번 대국 설정
+            </h3>
+            <div className="overflow-hidden rounded-lg border border-amber-500/15 bg-black/30">
+              <table className="w-full text-sm sm:text-base">
+                <tbody className="[&>tr:nth-child(odd)]:bg-zinc-900/55">
                   {settingsRows.map((row) => (
-                    <tr key={row.label} className="border-b border-color last:border-b-0">
-                      <td className="px-3 py-2 text-tertiary w-32">{row.label}</td>
-                      <td className="px-3 py-2 font-semibold">{row.value}</td>
+                    <tr key={row.label} className="border-b border-amber-500/10 last:border-b-0">
+                      <td className="w-[40%] px-3 py-2.5 text-amber-200/70">{row.label}</td>
+                      <td className="px-3 py-2.5 font-semibold text-zinc-100">{row.value}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-
-          <div className="rounded-lg border border-color bg-tertiary/10 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Icon><Svg d="M12 2l3 7h7l-5.5 4 2 7-6.5-4.5L5.5 20l2-7L2 9h7l3-7z" /></Icon>
-              <h3 className="font-bold text-primary">승리 조건</h3>
-            </div>
-
-            <div className="space-y-2">
-              {winConditions.map((t, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-                  <p className="text-sm text-tertiary leading-relaxed">{t}</p>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
-        <div className="p-5 border-t border-color bg-tertiary/10 flex gap-3">
+        <div className={PRE_GAME_MODAL_FOOTER_CLASS}>
           {!isGuildWarAi && (
-            <Button onClick={handleLeave} colorScheme="gray" className="w-full">
+            <Button
+              onClick={handleLeave}
+              colorScheme="gray"
+              className={`!w-auto shrink-0 px-8 py-3 text-base font-bold tracking-wide ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS}`}
+            >
               나가기
             </Button>
           )}
-          <Button onClick={handleStart} colorScheme="purple" className="w-full">
+          <Button
+            onClick={handleStart}
+            colorScheme="purple"
+            className={`!w-auto shrink-0 px-8 py-3 text-base font-bold tracking-wide ${PRE_GAME_MODAL_PRIMARY_BTN_CLASS}`}
+          >
             경기 시작
           </Button>
         </div>
       </div>
     </div>
   );
+
+  return createPortal(layer, portalTarget);
 };
 
 export default AiGameDescriptionModal;
-

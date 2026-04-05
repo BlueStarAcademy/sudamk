@@ -6,9 +6,11 @@ interface GameListProps {
     games: LiveGameSession[];
     onAction: (a: ServerAction) => void;
     currentUser: UserWithStatus;
+    /** 전략·놀이 대기실 등: 패널 루트에 추가 클래스(예: backdrop-blur) */
+    panelExtraClassName?: string;
 }
 
-const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser }) => {
+const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panelExtraClassName = '' }) => {
     const [spectateRoomNumber, setSpectateRoomNumber] = useState('');
     const [adminMenuGameId, setAdminMenuGameId] = useState<string | null>(null);
     const [adminSearchQuery, setAdminSearchQuery] = useState('');
@@ -92,7 +94,14 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser }) => 
     };
 
     return (
-      <div className="bg-panel border border-color text-on-panel rounded-lg shadow-lg p-4 flex flex-col min-h-0 h-full">
+      <div
+        className={[
+          'bg-panel border border-color text-on-panel rounded-lg shadow-lg p-4 flex flex-col min-h-0 h-full',
+          panelExtraClassName,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <div className="flex justify-between items-center mb-3 border-b border-color pb-2 flex-shrink-0">
             <h2 className="text-xl font-semibold">진행중인 대국</h2>
             <div className="flex items-center gap-2">

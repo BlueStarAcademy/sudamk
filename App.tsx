@@ -17,6 +17,7 @@ import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
 import NativeMobileDock from './components/mobile/NativeMobileDock.js';
 import NativeMobileScaledContent from './components/mobile/NativeMobileScaledContent.js';
+import MainBackgroundLayer from './components/MainBackgroundLayer.js';
 import {
     NATIVE_MOBILE_SHELL_MAX_WIDTH,
     NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
@@ -95,23 +96,24 @@ const AppContent: React.FC = () => {
 
     useEffect(() => {
         const initAudio = () => {
-            audioService.initialize();
-            // 모든 이벤트 리스너 제거
-            document.removeEventListener('pointerdown', initAudio);
-            document.removeEventListener('touchstart', initAudio);
+            // 모바일(iOS Safari 등): resume은 반드시 제스처 동기 구간에서 — unlock 후 비동기 초기화
+            audioService.unlockFromUserGesture();
+            void audioService.initialize();
+            window.removeEventListener('pointerdown', initAudio, true);
+            window.removeEventListener('touchstart', initAudio, true);
             document.removeEventListener('click', initAudio);
             document.removeEventListener('touchend', initAudio);
         };
-        
-        // 모바일 환경을 위한 여러 이벤트 타입 지원
-        document.addEventListener('pointerdown', initAudio);
-        document.addEventListener('touchstart', initAudio);
+
+        const captureOpts = { capture: true, passive: true } as const;
+        window.addEventListener('pointerdown', initAudio, captureOpts);
+        window.addEventListener('touchstart', initAudio, captureOpts);
         document.addEventListener('click', initAudio);
         document.addEventListener('touchend', initAudio);
 
         return () => {
-            document.removeEventListener('pointerdown', initAudio);
-            document.removeEventListener('touchstart', initAudio);
+            window.removeEventListener('pointerdown', initAudio, true);
+            window.removeEventListener('touchstart', initAudio, true);
             document.removeEventListener('click', initAudio);
             document.removeEventListener('touchend', initAudio);
         };
@@ -208,7 +210,14 @@ const AppContent: React.FC = () => {
     }, [currentUser]);
 
     const isGameView = currentRoute.view === 'game';
-    const backgroundClass = currentUser ? 'bg-primary' : 'bg-login-background';
+    const hideAppHeader = Boolean(currentUser && currentRoute.view === 'set-nickname');
+    const showMainBg =
+        !currentUser ||
+        currentRoute.view === 'profile' ||
+        currentRoute.view === 'set-nickname' ||
+        currentRoute.view === 'register' ||
+        currentRoute.view === 'kakao-callback';
+    const backgroundClass = !currentUser ? 'bg-login-background' : showMainBg ? 'bg-zinc-950' : 'bg-primary';
 
     const isHandheld = useIsHandheldDevice(1025);
     const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout === true;
@@ -221,6 +230,8 @@ const AppContent: React.FC = () => {
         isNativeMobile || (!currentUser && isHandheld && !isLargeTouchTablet);
     /** 스케일 셸 전용: 네이티브 모드에서는 좌우 레일·하단 배너로 대체 */
     const showLobbySideAds = Boolean(currentUser && !isGameView && !isNativeMobile);
+    /** 닉네임 설정: PC main 세로 스크롤로 빈 영역·이중 스크롤 방지 */
+    const lockPcMainScroll = currentUser && currentRoute.view === 'set-nickname';
 
     // 전체 화면을 하나의 그림처럼 동일 비율로 스케일 (고정 캔버스 1920x1080 → 컨테이너에 맞춤)
     const DESIGN_W = 1920;
@@ -263,8 +274,22 @@ const AppContent: React.FC = () => {
                 </div>
             )}
             {showExitToast && (
-                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md z-50 animate-slide-down-fast">
-                    <div className="bg-primary border-2 border-color rounded-lg shadow-2xl p-3 text-primary font-semibold text-center">한번 더 뒤로가기를 하면 로그아웃 됩니다.</div>
+                <div
+                    className="fixed inset-0 z-[200] flex items-center justify-center px-4 py-6 pointer-events-none"
+                    style={{
+                        paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))',
+                        paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
+                        paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+                        paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+                    }}
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div className="pointer-events-auto w-full max-w-md animate-fade-in">
+                        <div className="rounded-xl border-2 border-color bg-primary p-4 text-center text-base font-semibold leading-snug text-primary shadow-2xl">
+                            한번 더 뒤로가기를 하면 로그아웃 됩니다.
+                        </div>
+                    </div>
                 </div>
             )}
             
@@ -277,9 +302,15 @@ const AppContent: React.FC = () => {
                             box-sizing: border-box;
                         }
                     `}</style>
+                    {/* 착수 확정 등 인게임 크롬: 모달(z-30)보다 아래 */}
+                    <div
+                        id="sudamr-game-chrome-root"
+                        className="pointer-events-none fixed inset-0 z-[25]"
+                        style={{ pointerEvents: 'none' }}
+                    />
                     <div
                         id="sudamr-modal-root"
-                        className="fixed inset-0 z-[180] pointer-events-none"
+                        className="pointer-events-none fixed inset-0 z-[30]"
                         style={{ pointerEvents: 'none' }}
                     />
                     {currentUser ? (
@@ -287,15 +318,16 @@ const AppContent: React.FC = () => {
                             className="mx-auto flex h-full min-h-0 w-full max-h-full min-w-0 flex-1 flex-col overflow-hidden"
                             style={{ maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH, maxHeight: '100dvh' }}
                         >
-                            {!isGameView && <Header />}
+                            {!isGameView && !hideAppHeader && <Header />}
                             <main
-                                className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden overflow-hidden overscroll-y-none"
+                                className={`relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden overscroll-y-none ${lockPcMainScroll ? 'overflow-y-hidden' : 'overflow-hidden'} ${showMainBg ? 'bg-transparent' : ''}`}
                             >
-                                <NativeMobileScaledContent>
+                                {showMainBg && <MainBackgroundLayer variant="app" />}
+                                <NativeMobileScaledContent className="relative z-[1] min-h-0 w-full flex-1">
                                     <Router />
                                 </NativeMobileScaledContent>
                             </main>
-                            {!isGameView && (
+                            {!isGameView && !hideAppHeader && (
                                 <>
                                     <NativeMobileDock />
                                     <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
@@ -306,9 +338,7 @@ const AppContent: React.FC = () => {
                         </div>
                     ) : (
                         <div className="relative flex flex-1 w-full min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain bg-transparent">
-                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/52 to-black/66" />
-                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_14%,rgba(180,140,80,0.18),transparent_50%)]" />
-                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_50%_at_50%_92%,rgba(30,58,95,0.14),transparent_54%)]" />
+                            <MainBackgroundLayer variant="auth" />
                             <div className="relative z-10 flex min-h-full w-full flex-1 flex-col items-center justify-center gap-5 px-3 py-6 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
                                 <header
                                     className="flex w-full max-w-lg shrink-0 flex-col items-center gap-1 px-2 text-center subpixel-antialiased sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2 [text-rendering:optimizeLegibility]"
@@ -351,11 +381,19 @@ const AppContent: React.FC = () => {
             ) : (
             /* 전체 앱을 16:9 박스 안에 넣고, 내부는 고정 캔버스(1920x1080)를 scale로 맞춰 “한 장 그림”처럼 동일 비율로 확대/축소 */
             <div
-                className={`flex min-h-0 w-full flex-1 flex-col ${pcShellUsesScrollLayout ? 'overflow-y-auto overscroll-y-contain' : 'overflow-hidden'}`}
+                className={`flex min-h-0 w-full flex-1 flex-col ${
+                    lockPcMainScroll ? 'overflow-hidden' : pcShellUsesScrollLayout ? 'overflow-y-auto overscroll-y-contain' : 'overflow-hidden'
+                }`}
             >
                 <div
                     className="flex min-h-0 w-full flex-1 items-center justify-center"
-                    style={pcShellUsesScrollLayout ? { minHeight: VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } : undefined}
+                    style={
+                        lockPcMainScroll
+                            ? undefined
+                            : pcShellUsesScrollLayout
+                              ? { minHeight: VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT }
+                              : undefined
+                    }
                 >
                 {showLobbySideAds && (
                     <div className="flex flex-shrink-0 items-center justify-center px-0.5 sm:px-1 self-stretch w-40 max-w-[28vw]">
@@ -383,11 +421,24 @@ const AppContent: React.FC = () => {
                             transformOrigin: '0 0',
                         }}
                     >
-                        {currentUser && !isGameView && (
+                        {currentUser && !isGameView && !hideAppHeader && (
                             <>
                                 <Header />
                             </>
                         )}
+                        {/* 인게임 크롬(착수 확정 패널 등): 모달보다 아래 레이어 */}
+                        <div
+                            id="sudamr-game-chrome-root"
+                            style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                width: DESIGN_W,
+                                height: DESIGN_H,
+                                zIndex: 25,
+                                pointerEvents: 'none',
+                            }}
+                        />
                         {/* 
                            Modals/portals that render into document.body will not be scaled.
                            We provide a dedicated portal target inside the scaled canvas.
@@ -400,6 +451,7 @@ const AppContent: React.FC = () => {
                                 top: 0,
                                 width: DESIGN_W,
                                 height: DESIGN_H,
+                                zIndex: 30,
                                 // 비어 있을 때도 전역을 덮어 main(길드전 등) 클릭을 삼키지 않도록. 포털 자식은 기본 pointer-events:auto로 정상 수신.
                                 pointerEvents: 'none',
                             }}
@@ -407,7 +459,7 @@ const AppContent: React.FC = () => {
                         
                         {currentUser ? (
                             <main
-                                className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden"
+                                className={`relative flex-1 flex flex-col min-h-0 overflow-x-hidden ${lockPcMainScroll ? 'overflow-y-hidden' : 'overflow-y-auto'} ${showMainBg ? 'bg-transparent' : ''}`}
                                 style={{
                                     flex: '1 1 0',
                                     minHeight: 0,
@@ -416,16 +468,17 @@ const AppContent: React.FC = () => {
                                     marginBottom: isHandheld ? 'env(safe-area-inset-bottom, 0px)' : '0px',
                                 }}
                             >
-                                <Router />
+                                {showMainBg && <MainBackgroundLayer variant="app" />}
+                                <div className="relative z-[1] min-h-0 flex-1 flex flex-col">
+                                    <Router />
+                                </div>
                             </main>
                         ) : (
                             <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden bg-transparent px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
-                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/82 via-black/65 to-black/78" />
-                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_14%,rgba(180,140,80,0.14),transparent_48%)]" />
-                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_50%_at_50%_92%,rgba(30,58,95,0.18),transparent_52%)]" />
+                                <MainBackgroundLayer variant="auth" />
                                 {/* 상단 중앙 브랜드 — 모바일은 컴팩트, PC는 비율만 키움 */}
                                 <header
-                                    className="relative z-10 flex w-full max-w-lg shrink-0 flex-col items-center gap-0.5 px-2 text-center sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2"
+                                    className="relative z-[2] flex w-full max-w-lg shrink-0 flex-col items-center gap-0.5 px-2 text-center sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2"
                                     style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
                                 >
                                     <p className="text-[8px] font-semibold uppercase tracking-[0.38em] text-amber-400/80 sm:text-[10px] sm:tracking-[0.42em] lg:text-xs lg:tracking-[0.48em]">
@@ -450,7 +503,7 @@ const AppContent: React.FC = () => {
                                     </p>
                                 </header>
                                 <main
-                                    className="relative z-10 flex w-full min-w-0 flex-col items-center justify-center"
+                                    className="relative z-[2] flex w-full min-w-0 flex-col items-center justify-center"
                                     style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
                                 >
                                     <Router />

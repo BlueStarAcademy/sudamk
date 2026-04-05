@@ -237,9 +237,9 @@ const AppModalLayer: React.FC = () => {
             })()}
             {modals.isMbtiInfoModalOpen && <MbtiInfoModal onClose={handlers.closeMbtiInfoModal} isTopmost={topmostModalId === 'mbtiInfo'} />}
             {modals.mutualDisconnectMessage && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">
+                <div className="sudamr-modal-overlay z-[200]" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">
                     <div
-                        className={`bg-panel border border-color rounded-xl p-6 text-center shadow-2xl ${isNativeMobile ? 'mx-auto w-max max-w-[calc(100vw-24px)]' : 'mx-4 w-full max-w-md'}`}
+                        className={`sudamr-modal-panel mx-4 w-full max-w-md p-6 text-center shadow-2xl ${isNativeMobile ? 'mx-auto max-w-[calc(100vw-24px)]' : ''}`}
                         style={
                             isNativeMobile
                                 ? {
@@ -249,16 +249,16 @@ const AppModalLayer: React.FC = () => {
                                 : undefined
                         }
                     >
-                        <h2 id="mutual-disconnect-title" className="text-lg font-bold text-on-panel mb-3">대국 종료 안내</h2>
-                        <p className="text-on-panel/90 mb-6">{modals.mutualDisconnectMessage}</p>
-                        <button type="button" onClick={handlers.closeMutualDisconnectModal} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
+                        <h2 id="mutual-disconnect-title" className="mb-3 text-lg font-bold tracking-tight text-primary">대국 종료 안내</h2>
+                        <p className="mb-6 text-sm leading-relaxed text-secondary">{modals.mutualDisconnectMessage}</p>
+                        <button type="button" onClick={handlers.closeMutualDisconnectModal} className="rounded-xl border border-white/15 bg-gradient-to-b from-secondary/90 to-tertiary px-8 py-2.5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:brightness-110">확인</button>
                     </div>
                 </div>
             )}
             {modals.showOtherDeviceLoginModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="other-device-login-title">
+                <div className="sudamr-modal-overlay z-[200]" role="dialog" aria-modal="true" aria-labelledby="other-device-login-title">
                     <div
-                        className={`bg-panel border border-color rounded-xl p-6 text-center shadow-2xl ${isNativeMobile ? 'mx-auto w-max max-w-[calc(100vw-24px)]' : 'mx-4 w-full max-w-md'}`}
+                        className={`sudamr-modal-panel mx-4 w-full max-w-md p-6 text-center shadow-2xl ${isNativeMobile ? 'mx-auto max-w-[calc(100vw-24px)]' : ''}`}
                         style={
                             isNativeMobile
                                 ? {
@@ -268,9 +268,9 @@ const AppModalLayer: React.FC = () => {
                                 : undefined
                         }
                     >
-                        <h2 id="other-device-login-title" className="text-lg font-bold text-on-panel mb-3">로그아웃 안내</h2>
-                        <p className="text-on-panel/90 mb-6">다른 곳에서 로그인 되었습니다. 로그아웃 됩니다.</p>
-                        <button type="button" onClick={handlers.confirmOtherDeviceLoginAndLogout} className="px-6 py-2 bg-primary text-tertiary rounded-lg hover:opacity-90 font-medium">확인</button>
+                        <h2 id="other-device-login-title" className="mb-3 text-lg font-bold tracking-tight text-primary">로그아웃 안내</h2>
+                        <p className="mb-6 text-sm leading-relaxed text-secondary">다른 곳에서 로그인 되었습니다. 로그아웃 됩니다.</p>
+                        <button type="button" onClick={handlers.confirmOtherDeviceLoginAndLogout} className="rounded-xl border border-white/15 bg-gradient-to-b from-secondary/90 to-tertiary px-8 py-2.5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:brightness-110">확인</button>
                     </div>
                 </div>
             )}

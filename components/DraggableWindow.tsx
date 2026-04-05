@@ -3,6 +3,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
 import {
     NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
     NATIVE_MOBILE_MODAL_MAX_WIDTH_PX,
@@ -59,6 +60,18 @@ interface DraggableWindowProps {
     /** 본문 패딩 클래스 (지정 시 store/default 패딩 대신 사용) */
     bodyPaddingClassName?: string;
 
+    /**
+     * PC 설계 크기(initialWidth/Height) 레이아웃을 유지한 채, 보이는 영역에 맞게 transform scale만 조정합니다.
+     * (모바일·스케일 캔버스 안에서도 동일)
+     */
+    uniformPcScale?: boolean;
+
+    /** 창 루트 div에 추가 클래스 (게임 설명 등 전용 크롬) */
+    containerExtraClassName?: string;
+
+    /** 하단 푸터(창 위치 기억하기) 영역 클래스 — 지정 시 배경·테두리 등을 덮어씁니다 */
+    footerClassName?: string;
+
 }
 
 
@@ -107,6 +120,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     bodyNoScroll = false,
     hideFooter = false,
     bodyPaddingClassName,
+    uniformPcScale = false,
+    containerExtraClassName,
+    footerClassName,
 }) => {
     // isTopmost가 true일 때는 전역 카운터를 사용하여 항상 최상위에 표시
     const [effectiveZIndex, setEffectiveZIndex] = useState(() => {
@@ -295,12 +311,18 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const nativeCappedHeightPx = useMemo(() => {
         if (!isNativeMobile || nativeMaxHeightPx === undefined) return undefined;
         const raw = calculatedHeight ?? initialHeight;
-        if (raw === undefined) return nativeMaxHeightPx;
+        /** 설계 높이가 없으면 콘텐츠 높이에 맞추고, maxHeight만으로 상한을 둡니다 */
+        if (raw === undefined) return undefined;
         return Math.min(raw, nativeMaxHeightPx);
     }, [isNativeMobile, nativeMaxHeightPx, calculatedHeight, initialHeight]);
 
+    const uniformDesignW = initialWidth ?? 800;
+    const uniformDesignH = initialHeight ?? 720;
+    const pcUniformScale = useViewportUniformScale(uniformDesignW, uniformDesignH, uniformPcScale);
+
     // 모바일에서 PC 모달 구조를 그대로 사용하고 전체적으로 축소하는 스케일 팩터 계산
     const mobileScaleFactor = useMemo(() => {
+        if (uniformPcScale) return 1.0;
         if (!effectiveIsCompactViewport) return 1.0;
         if (isInsideScaledCanvas) return 1.0;
         if (mobileViewportFit) return 1.0;
@@ -325,7 +347,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         // 최소/최대 스케일 제한 (너무 작거나 크지 않도록)
         return Math.max(0.25, Math.min(0.95, scale));
-    }, [effectiveIsCompactViewport, isInsideScaledCanvas, mobileViewportFit, isNativeMobile, windowWidth, windowHeight, initialWidth, initialHeight]);
+    }, [uniformPcScale, effectiveIsCompactViewport, isInsideScaledCanvas, mobileViewportFit, isNativeMobile, windowWidth, windowHeight, initialWidth, initialHeight]);
 
     /** 모바일에서 축소 없이 뷰포트에 맞춘 프레임 (내부 가로/세로 스크롤) */
     const useMobileViewportFitLayout =
@@ -333,7 +355,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     /** 네이티브 모바일: 가로·세로를 컨텐츠에 맞추고, 상한만 뷰포트로 제한 (하단 여백 최소화) */
     const useNativeMobileContentFit =
-        isNativeMobile && !useMobileViewportFitLayout && !isInsideScaledCanvas;
+        isNativeMobile && !useMobileViewportFitLayout && !isInsideScaledCanvas && !uniformPcScale;
+
+    const uniformLayout = uniformPcScale === true;
 
     const mobileViewportFitWidthPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
@@ -705,96 +729,115 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const headerCursor = isTopmost ? 'cursor-move' : '';
     const isStoreVariant = variant === 'store';
+    const useLargeCorners = Boolean(containerExtraClassName?.includes('rounded-2xl'));
+    const headerTopRounded = useLargeCorners ? 'rounded-t-2xl' : 'rounded-t-xl';
+    const footerBottomRounded = useLargeCorners ? 'rounded-b-2xl' : 'rounded-b-xl';
+    const overlayCornerRounded = useLargeCorners ? 'rounded-2xl' : 'rounded-xl';
     const containerBaseClass = isInsideScaledCanvas
-        ? 'absolute top-1/2 left-1/2 rounded-xl flex flex-col transition-shadow duration-200'
-        : 'fixed top-1/2 left-1/2 rounded-xl flex flex-col transition-shadow duration-200';
+        ? 'absolute top-1/2 left-1/2 flex flex-col rounded-xl transition-shadow duration-200 relative overflow-hidden'
+        : 'fixed top-1/2 left-1/2 flex flex-col rounded-xl transition-shadow duration-200 relative overflow-hidden';
     const containerVariantClass = isStoreVariant
         ? 'text-slate-100 bg-gradient-to-br from-[#1f2239] via-[#101a34] to-[#060b12] border border-cyan-300/40 shadow-[0_40px_100px_-45px_rgba(34,211,238,0.65)]'
-        : 'text-on-panel bg-primary border border-color shadow-2xl';
+        : 'sudamr-floating-modal-surface ring-1 ring-inset ring-white/[0.07]';
     const headerVariantClass = isStoreVariant
         ? 'bg-gradient-to-r from-[#1b2645] via-[#15203b] to-[#1b2645] border-b border-cyan-300/30 text-cyan-100'
-        : 'bg-secondary text-secondary';
+        : 'border-b border-white/10 bg-gradient-to-r from-secondary/95 via-secondary/80 to-tertiary/50 text-primary';
     const footerVariantClass = isStoreVariant
         ? 'bg-[#111a32] border-t border-cyan-300/30 text-cyan-200'
-        : 'bg-secondary border-color text-tertiary';
-    const bodyPaddingClass = bodyPaddingClassName ?? (isStoreVariant ? 'p-5' : 'p-4');
+        : 'border-t border-white/10 bg-gradient-to-t from-tertiary/35 to-secondary/40 text-tertiary';
+    const bodyPaddingClass =
+        bodyPaddingClassName ?? (isStoreVariant ? 'p-5' : uniformLayout ? 'p-5' : 'p-4');
     const bodyAllowsVerticalScroll =
         bodyScrollable ||
         (useMobileViewportFitLayout && !bodyNoScroll) ||
         useNativeMobileContentFit;
     const closeButtonClass = isStoreVariant
         ? 'w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-rose-500/85 via-rose-500/75 to-rose-600/85 hover:from-rose-400 hover:via-rose-500 hover:to-rose-600 transition-colors shadow-[0_18px_38px_-24px_rgba(244,63,94,0.75)]'
-        : 'w-10 h-10 flex items-center justify-center rounded-full bg-tertiary hover:bg-danger transition-colors';
+        : 'w-10 h-10 flex items-center justify-center rounded-full border border-white/12 bg-tertiary/85 text-on-panel shadow-[0_10px_28px_-12px_rgba(0,0,0,0.55)] transition-all duration-200 hover:border-danger/40 hover:bg-danger/90 hover:text-white';
 
     const modalContent = (
         <>
             {modal && (
                 <div
-                    className={`${
-                        isInsideScaledCanvas ? 'absolute' : 'fixed'
-                    } inset-0 bg-black/50 ${!isTopmost ? 'backdrop-blur-sm' : ''}`}
+                    className={`${isInsideScaledCanvas ? 'absolute' : 'fixed'} inset-0 bg-transparent`}
                     style={{ zIndex: effectiveZIndex - 1, pointerEvents: 'auto' }}
                 />
             )}
             <div
                 ref={windowRef}
                 data-draggable-window={windowId}
-                className={`${containerBaseClass} ${containerVariantClass}${useNativeMobileContentFit ? ' min-h-0' : ''}`}
+                className={`${containerBaseClass} ${containerVariantClass}${useNativeMobileContentFit ? ' min-h-0' : ''}${
+                    containerExtraClassName ? ` ${containerExtraClassName}` : ''
+                }`}
                 style={{
-                    width: useMobileViewportFitLayout
-                        ? `${mobileViewportFitWidthPx}px`
-                        : useNativeMobileContentFit
-                          ? 'max-content'
+                    width: uniformLayout
+                        ? `${uniformDesignW}px`
+                        : useMobileViewportFitLayout
+                          ? `${mobileViewportFitWidthPx}px`
+                          : useNativeMobileContentFit
+                            ? 'max-content'
+                            : effectiveIsCompactViewport
+                              ? (initialWidth ? `${initialWidth}px` : '800px')
+                              : isNativeMobile && nativeClampedWidthPx !== undefined
+                                ? `${nativeClampedWidthPx}px`
+                                : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
+                    minWidth: uniformLayout
+                        ? `${uniformDesignW}px`
+                        : useMobileViewportFitLayout
+                          ? `${mobileViewportFitWidthPx}px`
+                          : useNativeMobileContentFit
+                            ? 0
+                            : effectiveIsCompactViewport
+                              ? (initialWidth ? `${initialWidth}px` : '800px')
+                              : isNativeMobile && nativeClampedWidthPx !== undefined
+                                ? `${nativeClampedWidthPx}px`
+                                : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
+                    maxWidth: uniformLayout
+                        ? `${uniformDesignW}px`
+                        : useMobileViewportFitLayout
+                          ? isNativeMobile
+                            ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 16px))`
+                            : 'calc(100vw - 16px)'
+                          : useNativeMobileContentFit
+                            ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px)`
+                            : isNativeMobile
+                              ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%)`
+                              : isInsideScaledCanvas
+                                ? undefined
+                                : (effectiveIsCompactViewport ? undefined : 'calc(100vw - 40px)'),
+                    height: uniformLayout
+                        ? `${uniformDesignH}px`
+                        : useMobileViewportFitLayout
+                          ? `${mobileViewportFitHeightPx}px`
+                          : useNativeMobileContentFit
+                            ? 'auto'
+                            : effectiveIsCompactViewport
+                              ? (initialHeight ? `${initialHeight}px` : undefined)
+                              : isNativeMobile && nativeCappedHeightPx !== undefined
+                                ? `${nativeCappedHeightPx}px`
+                                : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
+                    maxHeight: uniformLayout
+                        ? `${uniformDesignH}px`
+                        : useMobileViewportFitLayout
+                          ? isNativeMobile
+                            ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 40px))`
+                            : 'calc(100dvh - 40px)'
+                          : useNativeMobileContentFit
+                            ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px))`
+                            : isNativeMobile
+                              ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%)`
+                              : isInsideScaledCanvas
+                                ? undefined
+                                : effectiveIsCompactViewport
+                                  ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 24px))`
+                                  : '90vh',
+                    transform: uniformLayout
+                        ? `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px)) scale(${pcUniformScale})`
+                        : useMobileViewportFitLayout || useNativeMobileContentFit
+                          ? 'translate(-50%, -50%)'
                           : effectiveIsCompactViewport
-                            ? (initialWidth ? `${initialWidth}px` : '800px')
-                            : isNativeMobile && nativeClampedWidthPx !== undefined
-                              ? `${nativeClampedWidthPx}px`
-                              : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
-                    minWidth: useMobileViewportFitLayout
-                        ? `${mobileViewportFitWidthPx}px`
-                        : useNativeMobileContentFit
-                          ? 0
-                          : effectiveIsCompactViewport
-                            ? (initialWidth ? `${initialWidth}px` : '800px')
-                            : isNativeMobile && nativeClampedWidthPx !== undefined
-                              ? `${nativeClampedWidthPx}px`
-                              : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
-                    maxWidth: useMobileViewportFitLayout
-                        ? isNativeMobile
-                          ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 16px))`
-                          : 'calc(100vw - 16px)'
-                        : useNativeMobileContentFit
-                          ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px)`
-                          : isNativeMobile
-                            ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%)`
-                            : isInsideScaledCanvas
-                              ? undefined
-                              : (effectiveIsCompactViewport ? undefined : 'calc(100vw - 40px)'),
-                    height: useMobileViewportFitLayout
-                        ? `${mobileViewportFitHeightPx}px`
-                        : useNativeMobileContentFit
-                          ? 'auto'
-                          : effectiveIsCompactViewport
-                            ? (initialHeight ? `${initialHeight}px` : '600px')
-                            : isNativeMobile && nativeCappedHeightPx !== undefined
-                              ? `${nativeCappedHeightPx}px`
-                              : (calculatedHeight ? `${calculatedHeight}px` : (initialHeight ? `${initialHeight}px` : undefined)),
-                    maxHeight: useMobileViewportFitLayout
-                        ? isNativeMobile
-                          ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 40px))`
-                          : 'calc(100dvh - 40px)'
-                        : useNativeMobileContentFit
-                          ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px))`
-                          : isNativeMobile
-                            ? `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%)`
-                            : isInsideScaledCanvas
-                              ? undefined
-                              : (effectiveIsCompactViewport ? undefined : '90vh'),
-                    transform: useMobileViewportFitLayout || useNativeMobileContentFit
-                        ? 'translate(-50%, -50%)'
-                        : effectiveIsCompactViewport
-                          ? `translate(-50%, -50%) scale(${mobileScaleFactor})`
-                          : transformStyle,
+                            ? `translate(-50%, -50%) scale(${mobileScaleFactor})`
+                            : transformStyle,
                     transformOrigin: 'center',
                     boxShadow: !isStoreVariant && isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : undefined,
                     zIndex: effectiveZIndex,
@@ -802,15 +845,21 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 }}
             >
                 {!isTopmost && (
-                    <div className="absolute inset-0 bg-black/30 z-20 rounded-xl cursor-not-allowed" />
+                    <div className={`absolute inset-0 z-20 cursor-not-allowed bg-black/30 ${overlayCornerRounded}`} />
                 )}
                 <div
-                    className={`${headerVariantClass} p-3 rounded-t-xl flex justify-between items-center ${headerCursor}`}
+                    className={`${headerVariantClass} ${headerTopRounded} flex items-center justify-between p-3 ${headerCursor}`}
                     style={{ touchAction: 'none' }}
                     onMouseDown={handleMouseDown}
                     onTouchStart={handleTouchStart}
                 >
-                    <h2 className="text-lg font-bold select-none">{title}</h2>
+                    <h2
+                        className={`select-none font-bold tracking-tight text-primary ${
+                            uniformLayout ? 'text-xl' : 'text-lg'
+                        }`}
+                    >
+                        {title}
+                    </h2>
                     <div className="flex items-center gap-2">
                         {headerContent}
                         {onClose && (
@@ -822,7 +871,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                 className={`${closeButtonClass} z-30`}
                                 style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                             >
-                                <span className="text-white font-bold text-lg">✕</span>
+                                <span
+                                    className={`font-bold text-white ${uniformLayout ? 'text-xl' : 'text-lg'}`}
+                                >
+                                    ✕
+                                </span>
                             </button>
                         )}
                     </div>
@@ -832,13 +885,23 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         bodyAllowsVerticalScroll
                             ? 'overflow-y-auto overflow-x-hidden overscroll-y-contain'
                             : 'overflow-hidden'
-                    } ${bodyPaddingClass}`}
+                    } ${bodyPaddingClass} ${uniformLayout ? 'antialiased' : ''}`}
                 >
                     {children}
                 </div>
                 {!hideFooter && (
-                    <div className={`flex flex-shrink-0 items-center justify-end rounded-b-xl p-2 ${footerVariantClass}`}>
-                        <label className="flex cursor-pointer select-none items-center gap-2 text-xs">
+                    <div
+                        className={
+                            footerClassName
+                                ? `flex flex-shrink-0 flex-wrap items-center justify-end gap-2 ${footerBottomRounded} ${footerClassName}`
+                                : `flex flex-shrink-0 items-center justify-end p-2 ${footerBottomRounded} ${footerVariantClass}`
+                        }
+                    >
+                        <label
+                            className={`flex cursor-pointer select-none items-center gap-2 ${
+                                uniformLayout ? 'text-sm' : 'text-xs'
+                            }`}
+                        >
                             <input
                                 type="checkbox"
                                 checked={rememberPosition}

@@ -135,10 +135,17 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             }
         }
 
-        // 전략바둑 로비: 수순 제한(scoringTurnLimit) 도달 시
+        // 전략바둑 로비: 수순 제한(scoringTurnLimit) 도달 시 (따내기는 목표 점수만으로 승패)
         const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
         const limit = settings.scoringTurnLimit;
-        if (isStrategicMode && !session.isSinglePlayer && session.gameCategory !== 'tower' && limit != null && limit > 0) {
+        if (
+            isStrategicMode &&
+            mode !== GameMode.Capture &&
+            !session.isSinglePlayer &&
+            session.gameCategory !== 'tower' &&
+            limit != null &&
+            limit > 0
+        ) {
             const current = turnCount > 0 ? turnCount : (session.totalTurns ?? 0);
             if (current >= limit) return true;
         }

@@ -517,7 +517,6 @@ const TowerLobby: React.FC = () => {
         if (isNativeMobile) {
             return (
                 <>
-                    <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-[#0a0a0a] via-[#1a1510] to-[#0a0a0a]" />
                     <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
                         <div
                             className="grid min-h-0 shrink-0 grid-cols-[minmax(0,2.5fr)_minmax(0,6.5fr)_5.5rem] items-stretch gap-1 overflow-hidden"
@@ -661,7 +660,7 @@ const TowerLobby: React.FC = () => {
                                     보유 아이템
                                 </h3>
                                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-                                    <div className="flex flex-row flex-wrap items-center justify-center gap-1 pb-1">
+                                    <div className="flex flex-row flex-wrap items-center justify-center gap-1.5 pb-1">
                                         {(() => {
                                             const inventory = currentUserWithStatus?.inventory || [];
                                             const getItemCount = (namesOrIds: readonly string[]): number =>
@@ -676,10 +675,10 @@ const TowerLobby: React.FC = () => {
                                             return items.map((item, index) => (
                                                 <button
                                                     key={index}
-                                                    className="flex flex-col items-center gap-0.5 bg-gray-800/40 border border-amber-700/30 rounded-lg p-1.5 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors"
+                                                    className="flex flex-col items-center gap-0.5 bg-gray-800/40 border border-amber-700/30 rounded-lg p-2 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors"
                                                     onClick={() => setIsItemShopOpen(true)}
                                                 >
-                                                    <div className="relative w-8 h-8 flex-shrink-0">
+                                                    <div className="relative w-9 h-9 flex-shrink-0">
                                                         <img src={item.icon} alt={item.name} className="w-full h-full object-contain" />
                                                         <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-amber-900 ${item.count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'}`}>
                                                             {item.count}
@@ -825,7 +824,7 @@ const TowerLobby: React.FC = () => {
                                 구매하기
                             </Button>
                         </div>
-                        <div className="flex flex-row gap-1.5 justify-center items-center flex-wrap">
+                        <div className="flex flex-row gap-2 justify-center items-center flex-wrap">
                             {(() => {
                                 const inventory = currentUserWithStatus?.inventory || [];
                                 const getItemCount = (namesOrIds: readonly string[]): number =>
@@ -840,10 +839,10 @@ const TowerLobby: React.FC = () => {
                                 return items.map((item, index) => (
                                     <button
                                         key={index}
-                                        className="flex flex-col items-center gap-0.5 bg-gray-800/40 border border-amber-700/30 rounded-lg p-1.5 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors"
+                                        className="flex flex-col items-center gap-0.5 bg-gray-800/40 border border-amber-700/30 rounded-lg p-2 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors"
                                         onClick={() => setIsItemShopOpen(true)}
                                     >
-                                        <div className="relative w-8 h-8 flex-shrink-0">
+                                        <div className="relative w-9 h-9 flex-shrink-0">
                                             <img src={item.icon} alt={item.name} className="w-full h-full object-contain" />
                                             <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-amber-900 ${item.count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'}`}>
                                                 {item.count}
@@ -897,27 +896,8 @@ const TowerLobby: React.FC = () => {
 
     return (
         <div
-            className={`relative flex w-full flex-col text-white ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'h-full min-h-0 overflow-hidden'}`}
-            style={
-                isNativeMobile
-                    ? { background: '#0a0a0a' }
-                    : {
-                          background:
-                              'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 20%, #2d2419 40%, #3d2e1f 60%, #4a3a2a 80%, #5c4a35 100%)',
-                          backgroundSize: '400% 400%',
-                          animation: 'gradientShift 20s ease infinite',
-                      }
-            }
+            className={`relative flex w-full flex-col bg-lobby-shell-tower text-white ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'h-full min-h-0 overflow-hidden'}`}
         >
-            {!isNativeMobile && (
-                <style>{`
-                @keyframes gradientShift {
-                    0% { background-position: 0% 50%; }
-                    50% { background-position: 100% 50%; }
-                    100% { background-position: 0% 50%; }
-                }
-            `}</style>
-            )}
             {/* 헤더: (모바일은 뒤로가기 없음) 타이틀, 도움말 */}
             <header
                 className={`flex flex-shrink-0 items-center justify-between border-b border-amber-600/40 bg-gradient-to-b from-black/60 via-amber-900/20 to-transparent shadow-[0_4px_20px_rgba(217,119,6,0.3)] backdrop-blur-sm ${isNativeMobile ? 'px-1.5 py-2' : 'px-2 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5'}`}

@@ -13,7 +13,7 @@ export const ArenaControlStrip: React.FC<{
     className?: string;
     gapClass?: string;
     layout?: 'grid' | 'cluster';
-}> = ({ children, className = '', gapClass = 'gap-1 sm:gap-2', layout = 'grid' }) => {
+}> = ({ children, className = '', gapClass = 'gap-2 sm:gap-3', layout = 'grid' }) => {
     const nodes = flattenChildren(children);
     if (nodes.length === 0) return null;
     if (layout === 'cluster') {
@@ -48,7 +48,7 @@ export const ArenaFixedColsGrid: React.FC<{
     children: React.ReactNode;
     className?: string;
     gapClass?: string;
-}> = ({ cols, children, className = '', gapClass = 'gap-1 sm:gap-2' }) => {
+}> = ({ cols, children, className = '', gapClass = 'gap-2 sm:gap-3' }) => {
     const nodes = flattenChildren(children);
     if (nodes.length === 0) return null;
     const c = Math.max(1, cols);

@@ -10,6 +10,10 @@ import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
 const PREMIUM_STAGE_ENTER_CLASS =
     'w-full mt-auto !rounded-xl !border !border-amber-300/55 !bg-gradient-to-b !from-amber-400/95 !via-amber-800 !to-amber-950 !py-2 !text-xs !font-bold !tracking-wide !text-amber-50 !shadow-[0_4px_22px_rgba(245,158,11,0.42),inset_0_1px_0_rgba(255,255,255,0.24)] hover:!brightness-110 active:!scale-[0.98] disabled:!cursor-not-allowed disabled:!opacity-45 disabled:!grayscale disabled:hover:!brightness-100 transition-all duration-200 sm:!py-2.5 sm:!text-sm';
 
+/** 좁은 카드(네이티브 대기실): 짧은 한 줄 라벨 + 잘림 방지 */
+const PREMIUM_STAGE_ENTER_CLASS_COMPACT =
+    `${PREMIUM_STAGE_ENTER_CLASS} !px-1 !py-2 !text-center !tracking-tight !text-[10px] !overflow-visible`;
+
 interface StageGridProps {
     selectedClass: SinglePlayerLevel;
     currentUser: UserWithStatus;
@@ -150,8 +154,8 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                 <div
                     className={`grid ${isMobile ? 'gap-1.5' : 'gap-2'} min-w-0 pb-2`}
                     style={{
-                        gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(100px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
-                        gridAutoRows: isMobile ? 'minmax(150px, auto)' : 'minmax(180px, auto)'
+                        gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(108px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
+                        gridAutoRows: isMobile ? 'minmax(158px, auto)' : 'minmax(180px, auto)'
                     }}
                 >
                     {stages.map((stage, index) => {
@@ -266,10 +270,16 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                             handleStageEnter(stage.id);
                                         }}
                                         colorScheme="none"
-                                        className={PREMIUM_STAGE_ENTER_CLASS}
+                                        className={isMobile ? PREMIUM_STAGE_ENTER_CLASS_COMPACT : PREMIUM_STAGE_ENTER_CLASS}
                                         disabled={!hasEnoughAP}
+                                        title={`입장 · 행동력 ${stage.actionPointCost}`}
+                                        style={
+                                            isMobile
+                                                ? { fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em' }
+                                                : undefined
+                                        }
                                     >
-                                        입장 (⚡{stage.actionPointCost})
+                                        {`입장 ⚡${stage.actionPointCost}`}
                                     </Button>
                                 ) : (
                                     <div className={`mt-auto text-gray-400 text-center ${isMobile ? 'text-xs' : 'text-[10px]'}`}>

@@ -26,7 +26,11 @@ function groupRanksByScore(type: TournamentType, stage: number, maxRank: number)
 }
 
 /** nativeEmbedded: 네이티브 챔피언십 상단 열에 삽입, 하단 탭과 동일 계열 이상의 글자 크기(최소 10~11px) */
-const PointsInfoPanel: React.FC<{ variant?: 'default' | 'nativeEmbedded' }> = ({ variant = 'default' }) => {
+const PointsInfoPanel: React.FC<{
+    variant?: 'default' | 'nativeEmbedded';
+    /** 챔피언십 로비 배경 위: 반투명 + 뒤쪽 블러 */
+    lobbyGlass?: boolean;
+}> = ({ variant = 'default', lobbyGlass = false }) => {
     const [selectedStage, setSelectedStage] = useState<number>(1);
     const tournamentTypes: { type: TournamentType; arena: string; title: string; maxRank: number }[] = [
         { type: 'neighborhood', arena: '동네', title: '동네바둑리그', maxRank: 6 },
@@ -35,9 +39,12 @@ const PointsInfoPanel: React.FC<{ variant?: 'default' | 'nativeEmbedded' }> = ({
     ];
 
     const embedded = variant === 'nativeEmbedded';
+    const surfaceClass = lobbyGlass
+        ? 'border border-color/45 bg-gray-900/42 backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
+        : 'bg-gray-800/50';
 
     return (
-        <div className={`flex h-full min-h-0 flex-col rounded-lg bg-gray-800/50 ${embedded ? 'p-1.5' : 'p-2 sm:p-3'}`}>
+        <div className={`flex h-full min-h-0 flex-col rounded-lg ${surfaceClass} ${embedded ? 'p-1.5' : 'p-2 sm:p-3'}`}>
             <h3 className={`flex-shrink-0 text-center font-bold text-gray-100 ${embedded ? 'mb-1.5 text-sm' : 'mb-3 text-base'}`}>일일 획득 가능 점수</h3>
 
             <div className={`flex-shrink-0 ${embedded ? 'mb-1.5' : 'mb-3'}`}>

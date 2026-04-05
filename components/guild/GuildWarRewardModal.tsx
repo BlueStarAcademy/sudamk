@@ -52,9 +52,9 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
     const isWinner = warResult?.isWinner ?? false;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div 
-                className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl border-2 border-stone-600/60 shadow-2xl max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto"
+        <div className="sudamr-modal-overlay z-50" onClick={onClose}>
+            <div
+                className="sudamr-modal-panel relative max-h-[90vh] max-w-md overflow-y-auto p-6 ring-1 ring-white/[0.06]"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button

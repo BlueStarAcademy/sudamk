@@ -111,6 +111,7 @@ const getGameStatusText = (session: LiveGameSession): string => {
             const isOnlineStrategic =
                 !isSinglePlayer &&
                 session.gameCategory !== 'tower' &&
+                mode !== GameMode.Capture &&
                 typeof limit === 'number' &&
                 limit > 0;
             if (isOnlineStrategic) {

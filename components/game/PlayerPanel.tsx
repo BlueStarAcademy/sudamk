@@ -467,6 +467,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             const remaining = Math.max(0, blackTurnLimit - blackMoves);
             return { type: 'capture_limit' as const, label: '흑 남은 턴', current: remaining, total: blackTurnLimit };
         }
+        if (mode === GameMode.Capture) {
+            return { type: 'moves_only' as const, label: '수순', current };
+        }
         const limit = settings.scoringTurnLimit;
         if (limit != null && limit > 0) {
             return { type: 'scoring_limit' as const, label: '수순', current, total: limit };

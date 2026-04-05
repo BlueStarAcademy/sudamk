@@ -70,8 +70,12 @@ const Admin: React.FC = () => {
         <div
             className={
                 isNativeMobile
-                    ? 'flex min-h-0 flex-1 flex-col overflow-y-auto p-2'
-                    : 'p-4 lg:p-8'
+                    ? adminView === 'userManagement'
+                        ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2'
+                        : 'flex min-h-0 flex-1 flex-col overflow-y-auto p-2'
+                    : adminView === 'userManagement'
+                      ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 lg:p-8'
+                      : 'p-4 lg:p-8'
             }
         >
             {renderView()}

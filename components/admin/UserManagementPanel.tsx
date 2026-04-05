@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 // FIX: Import missing types from the centralized types file.
 import { User, ServerAction, AdminProps, LiveGameSession, GameMode, Quest, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentType, InventoryItem, InventoryItemType, Equipment } from '../../types/index.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -726,6 +726,10 @@ interface UserManagementPanelProps {
     currentUser: User;
 }
 
+const ROW_ESTIMATE_PX = 52;
+const BATCH_MIN = 15;
+const BATCH_MAX = 100;
+
 const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _allUsers, onAction, onBack, currentUser }) => {
     const { handlers } = useAppContext();
     const [searchQuery, setSearchQuery] = useState('');
@@ -735,8 +739,25 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
     const [password, setPassword] = useState('');
     const [nickname, setNickname] = useState('');
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [localUsers, setLocalUsers] = useState<User[]>([]);
+    const [totalMatching, setTotalMatching] = useState(0);
+    const listBatchSizeRef = useRef(30);
+    const listScrollRef = useRef<HTMLDivElement>(null);
+    const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+    const loadingMoreRef = useRef(false);
+    const totalMatchingRef = useRef(0);
+    const localUsersLenRef = useRef(0);
+    const loadMoreRef = useRef<() => void>(() => {});
+    const fetchGenRef = useRef(0);
+
+    useEffect(() => {
+        totalMatchingRef.current = totalMatching;
+    }, [totalMatching]);
+    useEffect(() => {
+        localUsersLenRef.current = localUsers.length;
+    }, [localUsers.length]);
     const renderOnlineLabel = (user: User) => {
         const status = (user as any).status as string | undefined;
         const isConnected = Boolean((user as any).isConnected);
@@ -754,32 +775,39 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         return <span className="text-yellow-300">{map[status] ?? status}</span>;
     };
 
-    const fetchAdminUsers = useCallback(async (trimmedQuery: string) => {
-        const candidates = [getApiUrl('/api/admin/users'), getApiUrl('/admin/users')];
-        let lastError: Error | null = null;
+    const fetchAdminUsersPage = useCallback(
+        async (trimmedQuery: string, pageOffset: number, pageLimit: number): Promise<{ users: User[]; total: number }> => {
+            const candidates = [getApiUrl('/api/admin/users'), getApiUrl('/admin/users')];
+            let lastError: Error | null = null;
+            const limit = Math.max(BATCH_MIN, Math.min(BATCH_MAX, Math.floor(pageLimit) || 30));
+            const offset = Math.max(0, Math.floor(pageOffset) || 0);
 
-        for (const url of candidates) {
-            try {
-                const response = await fetch(
-                    `${url}?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=50`,
-                    { credentials: 'include' }
-                );
-                const raw = await response.text();
-                if (raw.trim().startsWith('<!DOCTYPE') || raw.trim().startsWith('<html')) {
-                    throw new Error('API 대신 HTML 응답이 반환되었습니다.');
+            for (const url of candidates) {
+                try {
+                    const response = await fetch(
+                        `${url}?userId=${encodeURIComponent(currentUser.id)}&query=${encodeURIComponent(trimmedQuery)}&limit=${limit}&offset=${offset}`,
+                        { credentials: 'include' }
+                    );
+                    const raw = await response.text();
+                    if (raw.trim().startsWith('<!DOCTYPE') || raw.trim().startsWith('<html')) {
+                        throw new Error('API 대신 HTML 응답이 반환되었습니다.');
+                    }
+                    const data = raw ? JSON.parse(raw) : {};
+                    if (!response.ok) {
+                        throw new Error(data?.message || data?.error || '사용자 검색에 실패했습니다.');
+                    }
+                    const users = Array.isArray(data.users) ? data.users : [];
+                    const total = typeof data.total === 'number' ? data.total : users.length;
+                    return { users, total };
+                } catch (err: unknown) {
+                    lastError = err instanceof Error ? err : new Error(String(err));
                 }
-                const data = raw ? JSON.parse(raw) : {};
-                if (!response.ok) {
-                    throw new Error(data?.message || data?.error || '사용자 검색에 실패했습니다.');
-                }
-                return Array.isArray(data.users) ? data.users : [];
-            } catch (err: any) {
-                lastError = err instanceof Error ? err : new Error(String(err));
             }
-        }
 
-        throw lastError ?? new Error('사용자 검색에 실패했습니다.');
-    }, [currentUser.id]);
+            throw lastError ?? new Error('사용자 검색에 실패했습니다.');
+        },
+        [currentUser.id]
+    );
 
     const fetchAdminUserDetail = useCallback(async (targetUserId: string) => {
         const candidates = [getApiUrl(`/api/admin/user/${targetUserId}`), getApiUrl(`/admin/user/${targetUserId}`)];
@@ -802,35 +830,108 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         throw lastError ?? new Error('유저 정보를 불러오지 못했습니다.');
     }, [currentUser.id]);
 
-    const fetchUsersByQuery = useCallback(async (query: string) => {
-        const trimmedQuery = query.trim();
-        if (trimmedQuery.length < 1) {
-            setLocalUsers([]);
-            setSearchError(null);
-            return;
-        }
-
+    const loadFirstPage = useCallback(async (trimmedQuery: string) => {
+        const gen = ++fetchGenRef.current;
         setIsLoadingUsers(true);
         setSearchError(null);
+        loadingMoreRef.current = false;
         try {
-            const users = await fetchAdminUsers(trimmedQuery);
+            const batch = Math.max(BATCH_MIN, Math.min(BATCH_MAX, listBatchSizeRef.current));
+            const { users, total } = await fetchAdminUsersPage(trimmedQuery, 0, batch);
+            if (gen !== fetchGenRef.current) return;
             setLocalUsers(users);
-        } catch (err: any) {
-            console.error('[UserManagementPanel] Failed to search users:', err);
+            setTotalMatching(total);
+        } catch (err: unknown) {
+            if (gen !== fetchGenRef.current) return;
+            console.error('[UserManagementPanel] Failed to load users:', err);
             setLocalUsers([]);
-            setSearchError(err?.message || '검색 중 오류가 발생했습니다.');
+            setTotalMatching(0);
+            setSearchError(err instanceof Error ? err.message : '목록을 불러오지 못했습니다.');
         } finally {
-            setIsLoadingUsers(false);
+            if (gen === fetchGenRef.current) setIsLoadingUsers(false);
         }
-    }, [fetchAdminUsers]);
+    }, [fetchAdminUsersPage]);
+
+    useLayoutEffect(() => {
+        const el = listScrollRef.current;
+        if (!el) return;
+        const measure = () => {
+            const h = el.clientHeight;
+            if (h <= 0) return;
+            const n = Math.ceil(h / ROW_ESTIMATE_PX) + 3;
+            listBatchSizeRef.current = Math.max(BATCH_MIN, Math.min(BATCH_MAX, n));
+        };
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchUsersByQuery(searchQuery);
-        }, 250);
+        const trimmed = searchQuery.trim();
+        if (trimmed.length >= 1) {
+            const timer = setTimeout(() => {
+                void loadFirstPage(trimmed);
+            }, 250);
+            return () => clearTimeout(timer);
+        }
+        void loadFirstPage('');
+    }, [searchQuery, loadFirstPage]);
 
-        return () => clearTimeout(timer);
-    }, [searchQuery, fetchUsersByQuery]);
+    const loadMore = useCallback(async () => {
+        if (loadingMoreRef.current || isLoadingUsers) return;
+        const trimmed = searchQuery.trim();
+        const len = localUsersLenRef.current;
+        if (len >= totalMatchingRef.current) return;
+        loadingMoreRef.current = true;
+        setIsLoadingMore(true);
+        setSearchError(null);
+        try {
+            const batch = Math.max(BATCH_MIN, Math.min(BATCH_MAX, listBatchSizeRef.current));
+            const { users, total } = await fetchAdminUsersPage(trimmed, len, batch);
+            setTotalMatching(total);
+            setLocalUsers((prev) => {
+                const seen = new Set(prev.map((u) => u.id));
+                const next = [...prev];
+                for (const u of users) {
+                    if (!seen.has(u.id)) {
+                        seen.add(u.id);
+                        next.push(u);
+                    }
+                }
+                return next;
+            });
+        } catch (err: unknown) {
+            console.error('[UserManagementPanel] loadMore failed:', err);
+            setSearchError(err instanceof Error ? err.message : '추가 목록을 불러오지 못했습니다.');
+        } finally {
+            loadingMoreRef.current = false;
+            setIsLoadingMore(false);
+        }
+    }, [searchQuery, fetchAdminUsersPage, isLoadingUsers]);
+
+    useEffect(() => {
+        loadMoreRef.current = () => {
+            void loadMore();
+        };
+    }, [loadMore]);
+
+    useEffect(() => {
+        const root = listScrollRef.current;
+        const sentinel = loadMoreSentinelRef.current;
+        if (!root || !sentinel) return;
+        const io = new IntersectionObserver(
+            (entries) => {
+                const hit = entries.some((e) => e.isIntersecting);
+                if (!hit) return;
+                if (localUsersLenRef.current >= totalMatchingRef.current) return;
+                void loadMoreRef.current();
+            },
+            { root, rootMargin: '160px', threshold: 0 }
+        );
+        io.observe(sentinel);
+        return () => io.disconnect();
+    }, [localUsers.length, totalMatching, searchQuery, isLoadingUsers]);
 
     const refreshPanelUser = useCallback(async () => {
         if (!panelManagingUser?.id) return;
@@ -863,8 +964,14 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
 
     const searchedUsers = useMemo(() => localUsers, [localUsers]);
 
+    const hasMore = localUsers.length < totalMatching;
+    const summaryLabel =
+        searchQuery.trim().length >= 1
+            ? `검색 일치 ${totalMatching.toLocaleString()}명 · 표시 ${searchedUsers.length.toLocaleString()}명`
+            : `전체 ${totalMatching.toLocaleString()}명 · 표시 ${searchedUsers.length.toLocaleString()}명`;
+
     return (
-        <div className="space-y-8 bg-primary text-primary">
+        <div className="flex h-full max-h-full min-h-0 min-w-0 flex-1 flex-col bg-primary text-primary">
             {panelManagingUser && (
                 <UserManagementModal
                     user={panelManagingUser}
@@ -874,43 +981,43 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                     onRefreshFullUser={refreshPanelUser}
                 />
             )}
-            <header className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold">사용자 관리</h1>
+            <header className="flex shrink-0 justify-between items-center gap-3 pb-4">
+                <h1 className="text-2xl sm:text-3xl font-bold">사용자 관리</h1>
                 <button onClick={onBack} className="p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
                     <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
                 </button>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-panel border border-color text-on-panel p-6 rounded-lg shadow-lg">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold">
-                            검색 결과 ({searchedUsers.length})
-                            {isLoadingUsers && <span className="ml-2 text-sm text-gray-400">(로딩 중...)</span>}
+            <div className="flex flex-col lg:flex-row flex-1 min-h-0 gap-6 lg:gap-8">
+                <div className="flex flex-col flex-1 min-h-0 min-w-0 bg-panel border border-color text-on-panel p-4 sm:p-6 rounded-lg shadow-lg">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-3 shrink-0">
+                        <h2 className="text-lg sm:text-xl font-semibold">
+                            {summaryLabel}
+                            {isLoadingUsers && <span className="ml-2 text-sm text-gray-400">(불러오는 중…)</span>}
                         </h2>
                         <input
                             type="text"
-                            placeholder="닉네임 또는 아이디 검색"
+                            placeholder="닉네임 또는 아이디 검색 (비우면 전체)"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent w-1/3 p-2.5"
+                            className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent w-full sm:w-72 shrink-0 p-2.5"
                         />
                     </div>
-                    <p className="text-sm text-gray-400 mb-3">
-                        전체 목록은 로드하지 않습니다. 검색어를 입력해 사용자를 찾은 뒤 `관리`를 눌러 수정하세요.
+                    <p className="text-sm text-gray-400 mb-3 shrink-0">
+                        처음에는 화면에 보이는 분량만 불러오며, 아래로 스크롤하면 그만큼씩 추가로 불러옵니다.
                     </p>
                     {searchError && (
-                        <div className="mb-3 text-sm text-red-400">{searchError}</div>
+                        <div className="mb-3 text-sm text-red-400 shrink-0">{searchError}</div>
                     )}
-                    <div className="max-h-[60vh] overflow-y-auto">
+                    <div ref={listScrollRef} className="flex-1 min-h-0 overflow-y-auto rounded-md border border-color/60">
                         <table className="w-full text-sm text-left text-secondary">
-                            <thead className="text-xs text-secondary uppercase bg-secondary sticky top-0">
+                            <thead className="text-xs text-secondary uppercase bg-secondary sticky top-0 z-[1] shadow-sm">
                                 <tr>
-                                    <th scope="col" className="px-6 py-3">닉네임</th>
-                                    <th scope="col" className="px-6 py-3">아이디</th>
-                                    <th scope="col" className="px-6 py-3">레벨 (전략/놀이)</th>
-                                    <th scope="col" className="px-6 py-3">접속 상태</th>
-                                    <th scope="col" className="px-6 py-3">액션</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3">닉네임</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3">아이디</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3">레벨 (전략/놀이)</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3">접속 상태</th>
+                                    <th scope="col" className="px-4 sm:px-6 py-3">액션</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -918,16 +1025,16 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                     <tr key={user.id} className="bg-primary border-b border-color hover:bg-secondary/50">
                                         <th 
                                             scope="row" 
-                                            className="px-6 py-4 font-medium text-primary whitespace-nowrap cursor-pointer hover:text-accent"
+                                            className="px-4 sm:px-6 py-4 font-medium text-primary whitespace-nowrap cursor-pointer hover:text-accent"
                                             onClick={() => handlers.openViewingUser(user.id)}
                                             title={`${user.nickname} 프로필 보기`}
                                         > 
                                             {user.nickname} {user.isAdmin && <span className="text-xs text-purple-400 ml-2">[관리자]</span>} 
                                         </th>
-                                        <td className="px-6 py-4">{user.username}</td>
-                                        <td className="px-6 py-4">S.{user.strategyLevel} / P.{user.playfulLevel}</td>
-                                        <td className="px-6 py-4">{renderOnlineLabel(user)}</td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 sm:px-6 py-4">{user.username}</td>
+                                        <td className="px-4 sm:px-6 py-4">S.{user.strategyLevel} / P.{user.playfulLevel}</td>
+                                        <td className="px-4 sm:px-6 py-4">{renderOnlineLabel(user)}</td>
+                                        <td className="px-4 sm:px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <button
                                                     type="button"
@@ -958,25 +1065,24 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                         </td>
                                     </tr>
                                 ))}
-                                {!isLoadingUsers && searchQuery.trim().length < 1 && (
+                                {!isLoadingUsers && searchedUsers.length === 0 && totalMatching === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                                            검색어를 입력하면 결과가 표시됩니다.
-                                        </td>
-                                    </tr>
-                                )}
-                                {!isLoadingUsers && searchQuery.trim().length >= 1 && searchedUsers.length === 0 && (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                                            검색 결과가 없습니다.
+                                        <td colSpan={5} className="px-6 py-10 text-center text-gray-400">
+                                            {searchQuery.trim().length >= 1 ? '검색 결과가 없습니다.' : '등록된 사용자가 없습니다.'}
                                         </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
+                        {searchedUsers.length > 0 && (isLoadingMore || hasMore) && (
+                            <div className="flex justify-center py-3 text-sm text-gray-400 border-t border-color/40">
+                                {isLoadingMore ? '더 불러오는 중…' : '스크롤하면 다음 구간을 불러옵니다.'}
+                            </div>
+                        )}
+                        <div ref={loadMoreSentinelRef} className="h-2 w-full shrink-0" aria-hidden />
                     </div>
                 </div>
-                <div className="bg-panel border border-color text-on-panel p-6 rounded-lg shadow-lg">
+                <div className="shrink-0 lg:w-80 bg-panel border border-color text-on-panel p-4 sm:p-6 rounded-lg shadow-lg lg:overflow-y-auto">
                     <h2 className="text-xl font-semibold mb-4 border-b border-color pb-2">신규 아이디 발급</h2>
                     <form onSubmit={handleCreateUser} className="space-y-4">
                         <input type="text" name="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="아이디" className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5" />

@@ -3812,7 +3812,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     // 닉네임 설정
     app.post('/api/auth/set-nickname', async (req, res) => {
         try {
-            const { nickname, userId } = req.body;
+            const { nickname, userId, avatarId: bodyAvatarId } = req.body;
             
             if (!nickname) {
                 return res.status(400).json({ message: '닉네임을 입력해주세요.' });
@@ -3843,12 +3843,24 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             
             // 닉네임 업데이트
             user.nickname = nickname.trim();
+
+            if (bodyAvatarId != null && String(bodyAvatarId).trim() !== '') {
+                const aid = String(bodyAvatarId).trim();
+                if (!AVATAR_POOL.some((a) => a.id === aid)) {
+                    return res.status(400).json({ message: '잘못된 아바타입니다.' });
+                }
+                user.avatarId = aid;
+            }
+
             await db.updateUser(user);
-            
-            // 모든 클라이언트에 닉네임 변경 브로드캐스트 (대기실·프로필 등에서 즉시 반영)
-            broadcastUserUpdate(user, ['nickname']);
-            
-            res.json({ user });
+
+            // 저장 직후 DB/캐시 기준으로 다시 읽어 응답·브로드캐스트 일치 (클라이언트 홈 이동 조건과 동기화)
+            const updatedUser = (await db.getUser(userId)) ?? user;
+
+            // 모든 클라이언트에 닉네임·아바타 변경 브로드캐스트 (대기실·프로필 등에서 즉시 반영)
+            broadcastUserUpdate(updatedUser, ['nickname', 'avatarId']);
+
+            res.json({ user: updatedUser });
         } catch (e: any) {
             console.error('[/api/auth/set-nickname] Error:', e);
             res.status(500).json({ message: '닉네임 설정 중 오류가 발생했습니다.', error: process.env.NODE_ENV === 'development' ? e?.message : undefined });
@@ -4486,12 +4498,10 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const searchQuery = String(req.query.query || '').trim();
             const limitParam = Number(req.query.limit);
             const limit = Number.isFinite(limitParam) ? Math.max(1, Math.min(limitParam, 100)) : 50;
+            const offsetParam = Number(req.query.offset);
+            const offset = Number.isFinite(offsetParam) ? Math.max(0, Math.floor(offsetParam)) : 0;
 
-            if (!searchQuery) {
-                return res.json({ users: [], count: 0 });
-            }
-
-            const users = await db.searchUsersForAdmin(searchQuery, limit);
+            const { users, total } = await db.searchUsersForAdmin(searchQuery, limit, offset);
             const usersWithStatus = users.map((u) => {
                 const statusInfo = volatileState.userStatuses[u.id];
                 const isConnected = Boolean(volatileState.userConnections[u.id]);
@@ -4508,6 +4518,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             res.json({
                 users: usersWithStatus,
                 count: usersWithStatus.length,
+                total,
             });
         } catch (error: any) {
             console.error('[Admin] Error getting users list:', error);
