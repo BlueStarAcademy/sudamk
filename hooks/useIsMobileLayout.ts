@@ -71,7 +71,10 @@ const getViewportSize = () => {
     return { width: window.innerWidth, height: window.innerHeight };
 };
 
-const isHandheldWidth = (width: number, breakpoint: number) => width < breakpoint;
+/** 모바일 레이아웃은 폰 크기까지만 허용 (8인치급 태블릿은 PC 레이아웃 유지) */
+export const PHONE_LAYOUT_MAX_WIDTH_PX = 768;
+const getEffectivePhoneBreakpoint = (breakpoint: number) => Math.min(breakpoint, PHONE_LAYOUT_MAX_WIDTH_PX);
+const isHandheldWidth = (width: number, breakpoint: number) => width < getEffectivePhoneBreakpoint(breakpoint);
 const isPortraitViewport = (width: number, height: number) => width <= height;
 
 /**

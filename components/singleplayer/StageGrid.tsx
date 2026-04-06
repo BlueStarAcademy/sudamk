@@ -212,52 +212,52 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                     </div>
                                 )}
 
-                                {/* 보상 표시 */}
-                                <div className="w-full mb-1.5 space-y-0.5">
+                                {/* 보상 표시: 가로 한 줄 우선, 공간 부족 시 자동으로 작은 폰트 */}
+                                <div className="w-full mb-1.5 min-w-0">
                                     {isCleared ? (
-                                        // 재도전 보상
-                                        <div className="text-[9px] text-gray-400 space-y-0.5">
+                                        <div className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-[clamp(8px,0.62vw,12px)] text-gray-300">
                                             {stage.rewards.repeatClear.gold > 0 && (
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3" />
-                                                    <span>{stage.rewards.repeatClear.gold}</span>
-                                                </div>
+                                                <span className="flex min-w-0 items-center gap-0.5">
+                                                    <img src="/images/icon/Gold.png" alt="골드" className="w-3.5 h-3.5" />
+                                                    <span className="truncate">+{stage.rewards.repeatClear.gold}</span>
+                                                </span>
                                             )}
                                             {stage.rewards.repeatClear.exp > 0 && (
-                                                <div className="text-center">+{stage.rewards.repeatClear.exp} XP</div>
+                                                <span className="truncate">+{stage.rewards.repeatClear.exp} XP</span>
                                             )}
                                             {stage.rewards.repeatClear.items && stage.rewards.repeatClear.items.length > 0 && (
-                                                <div className="flex items-center justify-center gap-0.5 flex-wrap">
-                                                    {stage.rewards.repeatClear.items.map((item, idx) => {
+                                                <span className="flex min-w-0 items-center gap-0.5">
+                                                    {stage.rewards.repeatClear.items.slice(0, 3).map((item, idx) => {
                                                         const itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === item.itemId);
                                                         return itemTemplate ? (
-                                                            <img key={idx} src={itemTemplate.image} alt={item.itemId} className="w-3 h-3" title={item.itemId} />
+                                                            <img key={idx} src={itemTemplate.image} alt={item.itemId} className="w-3.5 h-3.5" title={item.itemId} />
                                                         ) : null;
                                                     })}
-                                                </div>
+                                                    {stage.rewards.repeatClear.items.length > 3 && <span>…</span>}
+                                                </span>
                                             )}
                                         </div>
                                     ) : (
-                                        // 최초 클리어 보상
-                                        <div className={`space-y-0.5 font-semibold text-amber-200/90 ${isMobile ? 'text-[11px]' : 'text-[10px] sm:text-xs'}`}>
+                                        <div className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden font-semibold text-[clamp(8px,0.65vw,13px)] text-amber-200/95">
                                             {stage.rewards.firstClear.gold > 0 && (
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3" />
-                                                    <span className="font-semibold">{stage.rewards.firstClear.gold}</span>
-                                                </div>
+                                                <span className="flex min-w-0 items-center gap-0.5">
+                                                    <img src="/images/icon/Gold.png" alt="골드" className="w-3.5 h-3.5" />
+                                                    <span className="truncate">+{stage.rewards.firstClear.gold}</span>
+                                                </span>
                                             )}
                                             {stage.rewards.firstClear.exp > 0 && (
-                                                <div className="text-center font-semibold">+{stage.rewards.firstClear.exp} XP</div>
+                                                <span className="truncate">+{stage.rewards.firstClear.exp} XP</span>
                                             )}
                                             {stage.rewards.firstClear.items && stage.rewards.firstClear.items.length > 0 && (
-                                                <div className="flex items-center justify-center gap-0.5 flex-wrap">
-                                                    {stage.rewards.firstClear.items.map((item, idx) => {
+                                                <span className="flex min-w-0 items-center gap-0.5">
+                                                    {stage.rewards.firstClear.items.slice(0, 3).map((item, idx) => {
                                                         const itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === item.itemId);
                                                         return itemTemplate ? (
-                                                            <img key={idx} src={itemTemplate.image} alt={item.itemId} className="w-3 h-3" title={item.itemId} />
+                                                            <img key={idx} src={itemTemplate.image} alt={item.itemId} className="w-3.5 h-3.5" title={item.itemId} />
                                                         ) : null;
                                                     })}
-                                                </div>
+                                                    {stage.rewards.firstClear.items.length > 3 && <span>…</span>}
+                                                </span>
                                             )}
                                         </div>
                                     )}

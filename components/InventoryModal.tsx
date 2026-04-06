@@ -819,6 +819,23 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         if (narrowInventoryLayout && modalLayerUsesDesignPixels) return 1.2;
         return 1.0;
     }, [narrowInventoryLayout, modalLayerUsesDesignPixels]);
+    const mobileSelectedViewerHeightPx = useMemo(
+        () => Math.max(200, Math.min(360, Math.round(windowHeight * 0.4))),
+        [windowHeight]
+    );
+    const luxuryTabButtonBase = 'rounded-lg border font-semibold tracking-wide transition-all duration-200 shadow-[0_12px_24px_-16px_rgba(15,23,42,0.85)] hover:-translate-y-0.5 active:translate-y-0';
+    const getLuxuryTabButtonClass = (isActive: boolean) =>
+        isActive
+            ? `${luxuryTabButtonBase} !border-amber-300/80 !bg-gradient-to-br !from-amber-400/80 !via-yellow-300/75 !to-orange-500/80 !text-slate-900 shadow-[0_16px_28px_-14px_rgba(251,191,36,0.75)]`
+            : `${luxuryTabButtonBase} !border-slate-500/70 !bg-gradient-to-br !from-slate-700/75 !via-slate-800/70 !to-slate-900/80 !text-slate-100 hover:!border-cyan-300/60 hover:!from-slate-600/80 hover:!via-slate-700/75 hover:!to-slate-800/85`;
+    const viewerActionButtonBase = 'rounded-md border font-semibold tracking-wide transition-all duration-150 shadow-[0_10px_20px_-16px_rgba(2,6,23,0.95)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-55 disabled:cursor-not-allowed disabled:hover:translate-y-0';
+    const viewerActionButtonClass = {
+        info: `${viewerActionButtonBase} !border-cyan-400/55 !bg-gradient-to-b !from-slate-700/95 !to-slate-800/95 !text-cyan-100 hover:!border-cyan-300/80 hover:!from-slate-600/95 hover:!to-slate-700/95`,
+        success: `${viewerActionButtonBase} !border-emerald-400/55 !bg-gradient-to-b !from-slate-700/95 !to-slate-800/95 !text-emerald-100 hover:!border-emerald-300/80`,
+        warning: `${viewerActionButtonBase} !border-amber-400/55 !bg-gradient-to-b !from-slate-700/95 !to-slate-800/95 !text-amber-100 hover:!border-amber-300/80`,
+        danger: `${viewerActionButtonBase} !border-rose-400/55 !bg-gradient-to-b !from-slate-700/95 !to-slate-800/95 !text-rose-100 hover:!border-rose-300/80`,
+        accent: `${viewerActionButtonBase} !border-violet-400/55 !bg-gradient-to-b !from-slate-700/95 !to-slate-800/95 !text-violet-100 hover:!border-violet-300/80`,
+    } as const;
 
     const handlePresetChange = (presetIndex: number) => {
         setSelectedPreset(presetIndex);
@@ -1116,6 +1133,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             initialHeight={calculatedHeight}
             variant="store"
             bodyScrollable={false}
+            mobileViewportFit={narrowInventoryLayout}
+            mobileViewportMaxHeightVh={92}
+            hideFooter={narrowInventoryLayout}
+            bodyPaddingClassName={narrowInventoryLayout ? 'p-2 sm:p-3' : undefined}
             pcViewportMaxHeightCss="min(98vh, 1240px)"
         >
             <div 
@@ -1214,16 +1235,23 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     </option>
                                                 ))}
                                             </select>
-                                            <Button onClick={handleOpenRenameModal} colorScheme="blue" className="!shrink-0 !py-1 !px-2" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+                                            <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-1 !px-2 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
                                                 저장
                                             </Button>
                                         </div>
                                     </div>
                                 </div>
                                 {/* 모바일: 좁은 열 — 선택 아이템 (같은 슬롯 장착 장비와 옵션 수치 비교) */}
-                                <div className="flex min-h-[180px] min-w-0 flex-1 flex-col">
+                                <div
+                                    className="flex min-w-0 flex-1 flex-col"
+                                    style={{
+                                        minHeight: `${mobileSelectedViewerHeightPx}px`,
+                                        height: `${mobileSelectedViewerHeightPx}px`,
+                                        maxHeight: `${mobileSelectedViewerHeightPx}px`,
+                                    }}
+                                >
                                     {selectedItem && selectedItem.type === 'equipment' ? (
-                                        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-panel-secondary p-1.5">
+                                        <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-panel-secondary p-1.5">
                                             <div className="mb-1 flex shrink-0 items-center justify-between gap-1">
                                                 <h3
                                                     className="min-w-0 truncate font-bold text-on-panel"
@@ -1236,7 +1264,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         type="button"
                                                         onClick={() => setIsEquipCompareOpen(true)}
                                                         colorScheme="blue"
-                                                        className="!shrink-0 !py-0.5 !px-1.5"
+                                                        className={`!shrink-0 !py-0.5 !px-1.5 ${viewerActionButtonClass.info}`}
                                                         style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}
                                                     >
                                                         장비 비교
@@ -1259,7 +1287,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     <Button
                                                         onClick={() => handleEquipToggle(selectedItem.id)}
                                                         colorScheme="red"
-                                                        className="flex-1 !py-1"
+                                                        className={`flex-1 !py-1 ${viewerActionButtonClass.danger}`}
                                                         style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                     >
                                                         해제
@@ -1268,7 +1296,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     <Button
                                                         onClick={() => handleEquipToggle(selectedItem.id)}
                                                         colorScheme="green"
-                                                        className="flex-1 !py-1"
+                                                        className={`flex-1 !py-1 ${viewerActionButtonClass.success}`}
                                                         disabled={!canEquip}
                                                         style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                     >
@@ -1279,7 +1307,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     onClick={() => onStartEnhance(selectedItem)}
                                                     disabled={selectedItem.stars >= 10}
                                                     colorScheme="yellow"
-                                                    className="flex-1 !py-1"
+                                                    className={`flex-1 !py-1 ${viewerActionButtonClass.warning}`}
                                                     style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                 >
                                                     {selectedItem.stars >= 10 ? '최대' : '강화'}
@@ -1287,7 +1315,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 <Button
                                                     onClick={() => setItemToSell(selectedItem)}
                                                     colorScheme="red"
-                                                    className="flex-1 !py-1"
+                                                    className={`flex-1 !py-1 ${viewerActionButtonClass.danger}`}
                                                     style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                 >
                                                     판매
@@ -1295,7 +1323,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             </div>
                                         </div>
                                     ) : selectedItem && (selectedItem.type === 'consumable' || selectedItem.type === 'material') ? (
-                                        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-panel-secondary p-2">
+                                        <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-panel-secondary p-2">
                                             <h3
                                                 className="mb-2 flex-shrink-0 font-bold text-on-panel"
                                                 style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}
@@ -1407,7 +1435,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                                 void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } });
                                                                             }}
                                                                             colorScheme="blue"
-                                                                            className="w-full !py-1"
+                                                                            className={`w-full !py-1 ${viewerActionButtonClass.info}`}
                                                                             style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                                         >
                                                                             사용
@@ -1419,7 +1447,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                                     setShowUseQuantityModal(true);
                                                                                 }}
                                                                                 colorScheme="purple"
-                                                                                className="w-full !py-1"
+                                                                                className={`w-full !py-1 ${viewerActionButtonClass.accent}`}
                                                                                 style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                                             >
                                                                                 일괄 사용
@@ -1432,7 +1460,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                         <Button
                                                                             onClick={() => setItemToSell(selectedItem)}
                                                                             colorScheme="red"
-                                                                            className="w-full !py-1"
+                                                                            className={`w-full !py-1 ${viewerActionButtonClass.danger}`}
                                                                             style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                                         >
                                                                             판매
@@ -1441,7 +1469,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                             <Button
                                                                                 onClick={() => setItemToSellBulk(selectedItem)}
                                                                                 colorScheme="orange"
-                                                                                className="w-full !py-1"
+                                                                                className={`w-full !py-1 ${viewerActionButtonClass.warning}`}
                                                                                 style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                                             >
                                                                                 일괄 판매
@@ -1457,7 +1485,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         <Button
                                                             onClick={() => setItemToSell(selectedItem)}
                                                             colorScheme="red"
-                                                            className="w-full !py-1"
+                                                            className={`w-full !py-1 ${viewerActionButtonClass.danger}`}
                                                             style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                         >
                                                             판매
@@ -1465,7 +1493,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         <Button
                                                             onClick={() => setItemToSellBulk(selectedItem)}
                                                             colorScheme="orange"
-                                                            className="w-full !py-1"
+                                                            className={`w-full !py-1 ${viewerActionButtonClass.warning}`}
                                                             style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
                                                         >
                                                             일괄 판매
@@ -1476,14 +1504,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         </div>
                                     ) : selectedItem ? (
                                         <div
-                                            className="flex flex-1 items-center justify-center rounded-lg bg-panel-secondary p-2 text-tertiary"
+                                            className="flex h-full flex-1 items-center justify-center rounded-lg bg-panel-secondary p-2 text-tertiary"
                                             style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
                                         >
                                             선택된 아이템 없음
                                         </div>
                                     ) : (
                                         <div
-                                            className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-gray-600/60 p-2 text-center text-tertiary"
+                                            className="flex h-full flex-1 items-center justify-center rounded-lg border border-dashed border-gray-600/60 p-2 text-center text-tertiary"
                                             style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
                                         >
                                             아이템을 선택해주세요
@@ -1553,7 +1581,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     </option>
                                                 ))}
                                             </select>
-                                            <Button onClick={handleOpenRenameModal} colorScheme="blue" className="!py-1" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                            <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!py-1 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                 저장
                                             </Button>
                                         </div>
@@ -1596,7 +1624,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             type="button"
                                             onClick={() => setIsEquipCompareOpen(true)}
                                             colorScheme="blue"
-                                            className="!shrink-0 !py-1 !px-2"
+                                            className={`!shrink-0 !py-1 !px-2 ${viewerActionButtonClass.info}`}
                                             style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                         >
                                             장비 비교
@@ -1611,7 +1639,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         <Button
                                             onClick={() => handleEquipToggle(selectedItem.id)}
                                             colorScheme="red"
-                                            className={`flex-1 !py-1`}
+                                            className={`flex-1 !py-1 ${viewerActionButtonClass.danger}`}
                                             style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                         >
                                             해제
@@ -1620,7 +1648,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         <Button
                                             onClick={() => handleEquipToggle(selectedItem.id)}
                                             colorScheme="green"
-                                            className={`flex-1 !py-1`}
+                                            className={`flex-1 !py-1 ${viewerActionButtonClass.success}`}
                                             disabled={!canEquip}
                                             style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                         >
@@ -1631,12 +1659,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         onClick={() => onStartEnhance(selectedItem)}
                                         disabled={selectedItem.stars >= 10}
                                         colorScheme="yellow"
-                                        className={`flex-1 !py-1`}
+                                        className={`flex-1 !py-1 ${viewerActionButtonClass.warning}`}
                                         style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                     >
                                         {selectedItem.stars >= 10 ? '최대' : '강화'}
                                     </Button>
-                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`flex-1 !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`flex-1 !py-1 ${viewerActionButtonClass.danger}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                         판매
                                     </Button>
                                 </div>
@@ -1707,14 +1735,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     <>
                                                         {isUsable && (
                                                             <>
-                                                                <Button onClick={() => { void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } }); }} colorScheme="blue" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                <Button onClick={() => { void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } }); }} colorScheme="blue" className={`w-full !py-1 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                     사용
                                                                 </Button>
                                                                 {selectedItem.quantity && selectedItem.quantity > 1 && (
                                                                     <Button
                                                                         onClick={() => { setItemToUseBulk(selectedItem); setShowUseQuantityModal(true); }}
                                                                         colorScheme="purple"
-                                                                        className={`w-full !py-1`}
+                                                                        className={`w-full !py-1 ${viewerActionButtonClass.accent}`}
                                                                         style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                                                     >
                                                                         일괄 사용
@@ -1724,11 +1752,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         )}
                                                         {isSellable && (
                                                             <>
-                                                                <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1 ${viewerActionButtonClass.danger}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                     판매
                                                                 </Button>
                                                                 {selectedItem.quantity && selectedItem.quantity > 1 && (
-                                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full !py-1 ${viewerActionButtonClass.warning}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                         일괄 판매
                                                                     </Button>
                                                                 )}
@@ -1739,10 +1767,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             })()}
                                             {selectedItem.type === 'material' && (
                                                 <>
-                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1 ${viewerActionButtonClass.danger}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                         판매
                                                     </Button>
-                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full !py-1 ${viewerActionButtonClass.warning}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                         일괄 판매
                                                     </Button>
                                                 </>
@@ -1752,7 +1780,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 const isSellable = consumableItem?.sellable !== false; // 기본값은 true
                                                 
                                                 return isSellable ? (
-                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1 ${viewerActionButtonClass.danger}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                         판매
                                                     </Button>
                                                 ) : null;
@@ -1787,10 +1815,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     <div className={`flex-shrink-0 bg-gray-900/50 rounded-md mb-2`} style={{ padding: `${Math.max(6, Math.round(8 * scaleFactor))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>
                         <div className={`flex items-center justify-between`}>
                             <div className={`flex items-center space-x-2`}>
-                                <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>전체</Button>
-                                <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>장비</Button>
-                                <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>소모품</Button>
-                                <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
+                                <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'all')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>전체</Button>
+                                <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'equipment')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>장비</Button>
+                                <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'consumable')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>소모품</Button>
+                                <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
                             </div>
                             <div className={`flex items-center space-x-2`}>
                                 <span style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>

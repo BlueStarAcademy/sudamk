@@ -52,6 +52,19 @@ function runGuildKvExclusive<T>(guildId: string, fn: () => Promise<T>): Promise<
     return m.run(fn);
 }
 
+/**
+ * GET_GUILD_INFO는 요청 시작 시점의 guilds 스냅샷으로 멤버만 동기화한 뒤 저장한다.
+ * 그 사이 출석 마일스톤 수령·보스전·체크인 등으로 KV가 갱신되면 오래된 객체로 덮어써
+ * dailyCheckInRewardsClaimed 등이 사라져 보상을 다시 받을 수 있다. 저장 직전 KV를 읽어 병합한다.
+ */
+function mergeLatestGuildKvExceptMembers(guild: Guild, latestGuilds: Record<string, Guild>): void {
+    const latest = latestGuilds[guild.id];
+    if (!latest) return;
+    const syncedMembers = guild.members;
+    Object.assign(guild, latest);
+    guild.members = syncedMembers;
+}
+
 /** 출전 명단 기준 길드원 총 도전권(당일 사용/총량) — 상황판용 */
 function buildGuildWarTicketSummary(
     war: any,
@@ -2543,6 +2556,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     }
                 }
                 
+                const latestGuildsForSave = (await db.getKV<Record<string, Guild>>('guilds')) || {};
+                mergeLatestGuildKvExceptMembers(guild, latestGuildsForSave);
+
                 // 업데이트된 길드 정보를 KV store에 저장
                 await db.setKV('guilds', guilds);
                 

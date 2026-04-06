@@ -45,11 +45,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
         updatePanelColor,
         updateTextColor,
         updatePanelEdgeStyle,
-        updatePcLikeMobileLayout,
         resetGraphicsToDefault,
         handlers,
         currentUserWithStatus,
-        showPcLikeMobileLayoutSetting,
     } = useAppContext();
     const [activeTab, setActiveTab] = useState<SettingsTab>('graphics');
     const [showChangeUsername, setShowChangeUsername] = useState(false);
@@ -232,19 +230,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
             case 'graphics':
                 return (
                     <div className="flex flex-col gap-5">
-                        {showPcLikeMobileLayoutSetting && (
-                            <SettingsSection title="화면">
-                                <div className="flex items-center justify-between gap-4 rounded-xl border border-color/50 bg-secondary/25 px-4 py-3.5">
-                                    <span className="text-sm font-medium text-text-primary sm:text-[15px]">
-                                        PC 화면 보기
-                                    </span>
-                                    <ToggleSwitch
-                                        checked={settings.graphics.pcLikeMobileLayout === true}
-                                        onChange={(checked) => updatePcLikeMobileLayout(checked)}
-                                    />
-                                </div>
-                            </SettingsSection>
-                        )}
                         <SettingsSection title="패널 엣지 스타일">
                             <p className="mb-1 text-xs leading-relaxed text-text-secondary">
                                 대기실·프로필·모든 모달 창 등 UI 전역에 동일하게 적용됩니다. 기본값은 클래식 엣지입니다.
@@ -582,11 +567,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1 pr-3 sm:px-3">
                     {renderContent()}
-                </div>
-                <div className="mt-auto flex shrink-0 justify-end border-t border-color/50 bg-gradient-to-t from-tertiary/20 to-transparent px-2 pb-1 pt-4 sm:px-3">
-                    <Button onClick={onClose} colorScheme="gray" className="min-w-[5.5rem] shadow-sm">
-                        닫기
-                    </Button>
                 </div>
             </div>
         </DraggableWindow>

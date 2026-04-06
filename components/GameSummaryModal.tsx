@@ -896,9 +896,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
             title={isGuildWar ? '길드 전쟁 결과' : '대국 결과'}
             onClose={onConfirm}
             initialWidth={1120}
-            initialHeight={940}
+            initialHeight={isMobile ? 700 : 820}
+            pcViewportMaxHeightCss="min(88vh, 860px)"
             uniformPcScale={false}
             mobileViewportFit
+            mobileViewportMaxHeightVh={78}
             windowId="game-summary"
         >
             <div

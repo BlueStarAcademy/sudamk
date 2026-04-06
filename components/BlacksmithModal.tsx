@@ -311,6 +311,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         }
         return '가방'; // Default or fallback
     }, [activeTab]);
+    const mobileViewerMinHeight = activeTab === 'convert' ? 'min(46dvh, 360px)' : 'min(38dvh, 300px)';
+    const mobileInventoryMinHeightClass = activeTab === 'convert' ? 'min-h-[8.25rem] sm:min-h-[9rem]' : 'min-h-[9.5rem] sm:min-h-[10.5rem]';
+    const mobileInventoryMaxHeightClass = activeTab === 'convert' ? 'max-h-[min(190px,24vh)]' : 'max-h-[min(220px,28vh)]';
 
     return (
         <>
@@ -320,12 +323,12 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 bodyScrollable={!isNativeMobile}
                 bodyNoScroll={isNativeMobile}
                 mobileViewportFit={isNativeMobile}
-                mobileViewportMaxHeightVh={88}
+                mobileViewportMaxHeightVh={83}
                 hideFooter={isNativeMobile}
                 skipSavedPosition={isNativeMobile}
                 bodyPaddingClassName={
                     isNativeMobile
-                        ? '!px-2 !pt-2 !pb-[max(1rem,env(safe-area-inset-bottom,0px))]'
+                        ? '!px-2 !pt-2 !pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]'
                         : undefined
                 }
                 isTopmost={
@@ -356,7 +359,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     </button>
                 }
             >
-                <div className="flex h-full min-h-0 flex-1 flex-col">
+                <div className={`flex h-full min-h-0 ${isNativeMobile ? 'flex-1 flex-col' : ''}`}>
                     {isNativeMobile ? (
                         <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-2">
                             <div className="flex shrink-0 items-stretch gap-2">
@@ -429,12 +432,12 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
 
                             <div
                                 className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2"
-                                style={{ minHeight: 'min(38dvh, 300px)' }}
+                                style={{ minHeight: mobileViewerMinHeight }}
                             >
                                 {renderContent()}
                             </div>
 
-                            <div className="flex min-h-0 shrink-0 flex-col rounded-xl border border-color/40 bg-primary/40 p-2 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+                            <div className="flex min-h-0 shrink-0 flex-col rounded-xl border border-color/40 bg-primary/40 p-2 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
                                 <div className="mb-1.5 flex items-center justify-between gap-2">
                                     <h3 className="text-base font-bold text-on-panel">{bagHeaderText}</h3>
                                     <select
@@ -448,7 +451,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                         <option value="date">최신순</option>
                                     </select>
                                 </div>
-                                <div className="min-h-[10rem] max-h-[min(250px,32vh)] flex-shrink-0 overflow-y-auto overflow-x-hidden pr-1 pb-2 sm:min-h-[11rem]">
+                                <div className={`${mobileInventoryMinHeightClass} ${mobileInventoryMaxHeightClass} flex-shrink-0 overflow-y-auto overflow-x-hidden pr-1 pb-2.5`}>
                                     <InventoryGrid
                                         inventory={filteredInventory}
                                         inventorySlots={inventorySlotsToDisplay}

@@ -146,8 +146,8 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
             closeOnOutsideClick={true}
             onClose={onClose}
             windowId="claim-all-training-quest-rewards"
-            initialWidth={isCompactUi ? 340 : 500}
-            initialHeight={isCompactUi ? 560 : 560}
+            initialWidth={isCompactUi ? 340 : 680}
+            initialHeight={isCompactUi ? 560 : 840}
             isTopmost={isTopmost}
             zIndex={10000}
             mobileViewportFit={isCompactUi}
@@ -174,7 +174,7 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                 <div className="text-center text-on-panel">
                     <h2 className="mb-4 text-xl font-bold">모든 수련 과제 보상을 수령했습니다!</h2>
 
-                    <div className="mb-4 max-h-96 space-y-2 overflow-y-auto rounded-lg bg-gray-900/50 p-4">
+                    <div className="mb-4 space-y-2 rounded-lg bg-gray-900/50 p-4">
                         {rewards.map((reward) => {
                             const missionInfo = SINGLE_PLAYER_MISSIONS.find((m) => m.id === reward.missionId);
                             return (
