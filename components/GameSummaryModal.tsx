@@ -966,20 +966,20 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         </div>
                     </div>
                     
-                    {/* Right: 대국 결과(내 기록) & 획득 보상 */}
-                    <div className="flex min-h-0 w-1/2 min-w-0 flex-1 flex-col gap-2.5 overflow-hidden sm:gap-3">
+                    {/* Right: 대국 결과(내 기록) & 획득 보상 — 통계는 세로 스크롤로 잘림 방지 */}
+                    <div className="flex min-h-0 w-1/2 min-w-0 flex-1 flex-col gap-2.5 sm:gap-3">
                         <div
                             className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5"
                         >
                             <h2
-                                className={`mb-0.5 border-b border-violet-500/25 pb-2 text-center font-bold uppercase tracking-[0.18em] text-violet-200/85 ${
+                                className={`mb-0.5 flex-shrink-0 border-b border-violet-500/25 pb-2 text-center font-bold uppercase tracking-[0.18em] text-violet-200/85 ${
                                     isMobile ? 'text-xs' : 'text-xs sm:text-sm min-[1024px]:text-base'
                                 }`}
                                 style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             >
                                 {isGuildWar ? '보상·기록' : '대국 결과'}
                             </h2>
-                            <div className="rounded-xl border border-white/[0.07] bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-2.5 ring-1 ring-inset ring-white/[0.04]">
+                            <div className="flex-shrink-0 rounded-xl border border-white/[0.07] bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-2.5 ring-1 ring-inset ring-white/[0.04]">
                                 <div className="flex items-center gap-2.5 sm:gap-3">
                                     <Avatar
                                         userId={currentUser.id}
@@ -1051,6 +1051,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
                                 </p>
                             ) : mySummary ? (
+                                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.35)_transparent]">
                                 <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
                                     <div className={`${statCardClass} text-center`}>
                                         <p className={statLabelClass}>랭킹 점수</p>
@@ -1111,7 +1112,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                         </p>
                                     </div>
                                 </div>
+                                </div>
                             ) : (
+                                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin]">
                                 <div className="grid grid-cols-2 gap-2 sm:gap-2.5 opacity-80">
                                     <div className={`${statCardClass} text-center`}>
                                         <p className={statLabelClass}>랭킹 점수</p>
@@ -1126,10 +1129,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                         <p className="mt-3 text-lg font-bold text-slate-500">-</p>
                                     </div>
                                 </div>
+                                </div>
                             )}
                         </div>
                         <div
-                            className={`flex-shrink-0 space-y-2 rounded-xl border border-amber-500/20 bg-gradient-to-b from-[#1a1510]/95 via-[#12100c] to-[#0a0908] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/10 sm:p-3.5 ${isMobile ? 'p-2' : ''}`}
+                            className={`relative z-10 flex-shrink-0 space-y-2 rounded-xl border border-amber-500/20 bg-gradient-to-b from-[#1a1510]/95 via-[#12100c] to-[#0a0908] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/10 sm:p-3.5 ${isMobile ? 'p-2' : ''}`}
                         >
                             <h2
                                 className={`mb-1 border-b border-amber-500/25 pb-2 text-center font-bold uppercase tracking-[0.16em] text-amber-200/85 ${

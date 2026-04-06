@@ -1330,7 +1330,11 @@ const parseCommentary = (commentaryLine: CommentaryLine) => {
     );
 };
 
-const CommentaryPanel: React.FC<{ commentary: CommentaryLine[], isSimulating: boolean }> = ({ commentary, isSimulating }) => {
+const CommentaryPanel: React.FC<{ commentary: CommentaryLine[]; isSimulating: boolean; footerSlot?: React.ReactNode }> = ({
+    commentary,
+    isSimulating,
+    footerSlot,
+}) => {
     const commentaryContainerRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (commentaryContainerRef.current) {
@@ -1339,27 +1343,37 @@ const CommentaryPanel: React.FC<{ commentary: CommentaryLine[], isSimulating: bo
     }, [commentary]);
 
     return (
-        <div className="h-full flex flex-col min-h-0" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h4 className="text-center font-bold text-sm mb-2 text-gray-400 py-1 flex-shrink-0">
+        <div className="flex h-full min-h-0 flex-col" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <h4 className="mb-2 flex-shrink-0 py-1 text-center text-sm font-bold text-gray-400">
                 실시간 중계
-                {isSimulating && <span className="ml-2 text-yellow-400 animate-pulse">경기 진행 중...</span>}
+                {isSimulating && <span className="ml-2 animate-pulse text-yellow-400">경기 진행 중...</span>}
             </h4>
-            <div 
-                ref={commentaryContainerRef} 
-                className="flex-1 min-h-0 space-y-2 overflow-y-auto rounded-md border border-gray-700/45 bg-slate-950/88 p-2 text-sm text-gray-300 backdrop-blur-sm"
-                style={{ 
-                    overflowY: 'auto', 
-                    WebkitOverflowScrolling: 'touch',
-                    flex: '1 1 0',
-                    minHeight: 0,
-                    maxHeight: '100%'
-                }}
-            >
-                {commentary.length > 0 ? (
-                    commentary.map((line, index) => <p key={index} className="animate-fade-in break-words">{parseCommentary(line)}</p>)
-                ) : (
-                    <p className="text-gray-500 text-center h-full flex items-center justify-center">경기 시작 대기 중...</p>
-                )}
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+                <div
+                    ref={commentaryContainerRef}
+                    className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-md border border-gray-700/45 bg-slate-950/88 p-2 text-sm text-gray-300 backdrop-blur-sm"
+                    style={{
+                        overflowY: 'auto',
+                        WebkitOverflowScrolling: 'touch',
+                        flex: '1 1 0',
+                        minHeight: 0,
+                    }}
+                >
+                    {commentary.length > 0 ? (
+                        commentary.map((line, index) => (
+                            <p key={index} className="animate-fade-in break-words">
+                                {parseCommentary(line)}
+                            </p>
+                        ))
+                    ) : (
+                        <p className="flex h-full items-center justify-center text-center text-gray-500">경기 시작 대기 중...</p>
+                    )}
+                </div>
+                {footerSlot ? (
+                    <div className="flex w-full shrink-0 flex-col items-center justify-center gap-2 rounded-md border border-amber-500/20 bg-slate-950/70 px-2 py-2.5 sm:py-2">
+                        {footerSlot}
+                    </div>
+                ) : null}
             </div>
         </div>
     );
@@ -2896,6 +2910,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             materials?: Record<string, number>;
             equipmentBoxes?: Record<string, number>;
             changeTickets?: number;
+            changeTicketGrants?: { name: string; quantity: number }[];
         };
         rankReward?: {
             items?: Array<{ itemId: string; quantity?: number; min?: number; max?: number }>;
@@ -3006,6 +3021,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 materials?: Record<string, number>;
                 equipmentBoxes?: Record<string, number>;
                 changeTickets?: number;
+                changeTicketGrants?: { name: string; quantity: number }[];
             } = {};
             
             if (tournament.accumulatedGold) {
@@ -3136,7 +3152,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 userRank: res.userRank,
                 wins: res.userWins,
                 losses: res.userLosses,
-                baseRewards: (res.baseRewards ?? {}) as { gold?: number; materials?: Record<string, number>; equipmentBoxes?: Record<string, number>; changeTickets?: number },
+                baseRewards: (res.baseRewards ?? {}) as {
+                    gold?: number;
+                    materials?: Record<string, number>;
+                    equipmentBoxes?: Record<string, number>;
+                    changeTickets?: number;
+                    changeTicketGrants?: { name: string; quantity: number }[];
+                },
                 rankReward: res.grantedRankReward ? { items: res.grantedRankReward.items.map(it => ({ itemId: it.itemId, quantity: it.quantity })) } : undefined,
                 grantedEquipmentDrops: res.grantedEquipmentDrops,
                 nextStageUnlocked: !!res.nextStageUnlocked,
@@ -4216,13 +4238,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const sidebarContent = (
         <div className="h-full w-full flex flex-col" style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-            {/* 대진표/라운드 뷰어 - 스크롤 가능 영역 (버튼 패널 공간 확보) */}
+            {/* 대진표/라운드 뷰어 전용 영역 */}
             <div 
                 className="overflow-y-auto" 
                 style={{ 
-                    flex: footerButtons ? '1 1 0' : '1 1 auto', 
+                    flex: '1 1 auto', 
                     minHeight: 0, 
-                    maxHeight: footerButtons ? 'calc(100% - 100px)' : '100%',
+                    maxHeight: '100%',
                     overflowY: 'auto', 
                     overflowX: 'hidden', 
                     width: '100%',
@@ -4242,27 +4264,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 />
             )}
             </div>
-            {/* 버튼 패널 - 대진표 하단에 고정된 작은 패널 */}
-            {(footerButtons || countdownDisplay) && (
-                <div 
-                    className="mt-2 mb-2 flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-gray-600/90 bg-slate-950/95 p-2 shadow-xl backdrop-blur-md sm:p-3" 
-                    style={{ 
-                        flexShrink: 0, 
-                        flexGrow: 0, 
-                        width: '100%', 
-                        minHeight: '60px',
-                        maxHeight: '90px',
-                        position: 'relative',
-                        zIndex: 10,
-                        marginTop: '8px',
-                        marginBottom: '8px'
-                    }}
-                >
-                    <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap h-full w-full">
-                        {countdownDisplay || footerButtons}
-                    </div>
-                </div>
-            )}
         </div>
     );
 
@@ -4431,7 +4432,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 className={`${isMobile ? 'w-3/5' : 'flex-[3] min-w-0'} flex flex-col overflow-hidden rounded-lg border border-gray-600/75 bg-slate-950/92 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-md`}
                                 style={{ display: 'flex', flexDirection: 'column' }}
                             >
-                                <CommentaryPanel commentary={displayTournament.currentMatchCommentary} isSimulating={displayTournament.status === 'round_in_progress'} />
+                                <CommentaryPanel
+                                    commentary={displayTournament.currentMatchCommentary}
+                                    isSimulating={displayTournament.status === 'round_in_progress'}
+                                    footerSlot={footerButtons || countdownDisplay}
+                                />
                             </div>
                             {/* 오른쪽: 획득 보상 (가로폭 확대해 수치 가시성 확보) */}
                             <div
@@ -4490,12 +4495,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             {isMobile ? (
                 <>
                     <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1 pb-2 sm:gap-2 sm:p-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-                        <div className="absolute top-1/2 right-2 z-20 -translate-y-1/2">
+                        <div className="w-full pb-2" style={{ minHeight: 'min-content' }}>
+                            {mainContent}
+                        </div>
+                    </div>
+                    {!isMobileSidebarOpen && (
+                        <div className="fixed right-2 top-1/2 z-30 -translate-y-1/2">
                             <button
                                 type="button"
                                 onClick={() => setIsMobileSidebarOpen(true)}
                                 className="group flex h-[3.375rem] w-[3rem] flex-col items-center justify-center gap-1 rounded-l-2xl border border-r-0 border-amber-400/20 bg-gradient-to-br from-amber-500/12 via-slate-900/88 to-slate-950/95 text-white shadow-[0_10px_36px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.15),inset_0_-1px_0_rgba(0,0,0,0.25)] backdrop-blur-md transition-all duration-300 ease-out hover:scale-[1.03] hover:border-amber-300/40 hover:from-amber-400/22 hover:shadow-[0_14px_44px_rgba(0,0,0,0.55)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:scale-100"
-                                aria-label="메뉴 열기"
+                                aria-label="대진표 열기"
                             >
                                 <div
                                     className="flex flex-col gap-[5px] rounded-lg bg-black/45 px-2 py-1.5 ring-1 ring-inset ring-amber-400/22 transition-[box-shadow] group-hover:ring-amber-300/45 group-hover:shadow-[0_0_16px_-4px_rgba(251,191,36,0.35)]"
@@ -4505,15 +4515,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                     <span className="h-[2px] w-[1.05rem] rounded-full bg-gradient-to-r from-amber-100 to-amber-200/60 shadow-sm" />
                                     <span className="h-[2px] w-[1.05rem] rounded-full bg-gradient-to-r from-amber-100 to-amber-200/60 shadow-sm" />
                                 </div>
-                                <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-amber-100/55 transition-colors group-hover:text-amber-50">
-                                    메뉴
+                                <span className="text-[8px] font-bold leading-tight tracking-tight text-amber-100/55 transition-colors group-hover:text-amber-50">
+                                    대진표
                                 </span>
                             </button>
                         </div>
-                        <div className="w-full pb-2" style={{ minHeight: 'min-content' }}>
-                            {mainContent}
-                        </div>
-                    </div>
+                    )}
                     <div className={`absolute top-0 right-0 z-50 flex h-full w-[320px] flex-col border-l border-gray-600/80 bg-slate-950/98 shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
                         <div className="flex justify-between items-center p-2 border-b border-gray-600 flex-shrink-0">
                             <h3 className="text-lg font-bold">대진표</h3>

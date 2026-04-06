@@ -238,6 +238,7 @@ export type TournamentState = {
             materials?: Record<string, number>;
             equipmentBoxes?: Record<string, number>;
             changeTickets?: number;
+            changeTicketGrants?: { name: string; quantity: number }[];
         };
         rankReward?: {
             items?: Array<{ itemId: string; quantity?: number; min?: number; max?: number }>;

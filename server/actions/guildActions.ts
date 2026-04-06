@@ -2216,6 +2216,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 proposerId: user.id,
                 status: 'pending' as const,
                 deadline: 0,
+                isRanked: false as const,
             };
             
             // 게임 초기화

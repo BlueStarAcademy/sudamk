@@ -309,7 +309,12 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             return {};
         }
         case 'ADMIN_CREATE_USER': {
-            const { username, password, nickname } = payload;
+            const { username, password, nickname, email: emailRaw } = payload as {
+                username: string;
+                password: string;
+                nickname: string;
+                email?: string;
+            };
             if (!username || !password || !nickname) { return { error: '모든 필드를 입력해야 합니다.' }; }
             if (nickname.trim().length < NICKNAME_MIN_LENGTH || nickname.trim().length > NICKNAME_MAX_LENGTH) {
                 return { error: `닉네임은 ${NICKNAME_MIN_LENGTH}-${NICKNAME_MAX_LENGTH}자여야 합니다.` };
@@ -322,8 +327,32 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             if (allUsers.some(u => u.nickname.toLowerCase() === nickname.toLowerCase())) {
                 return { error: '이미 사용 중인 닉네임입니다.' };
             }
-            
+
+            const emailTrimmed = typeof emailRaw === 'string' ? emailRaw.trim() : '';
+            if (emailTrimmed) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(emailTrimmed)) {
+                    return { error: '올바른 이메일 주소를 입력해주세요.' };
+                }
+                const emailNorm = emailTrimmed.toLowerCase();
+                const existingByEmail = await db.getUserByEmail(emailNorm);
+                if (existingByEmail) return { error: '이미 사용 중인 이메일입니다.' };
+                const kvRepository = await import('../repositories/kvRepository.js');
+                const withdrawnEmails = await kvRepository.getKV<Record<string, number>>('withdrawnEmails') || {};
+                const withdrawnEmailExpiry = withdrawnEmails[emailNorm];
+                if (withdrawnEmailExpiry && withdrawnEmailExpiry > Date.now()) {
+                    const daysLeft = Math.ceil((withdrawnEmailExpiry - Date.now()) / (24 * 60 * 60 * 1000));
+                    return { error: `회원탈퇴한 이메일은 ${daysLeft}일 후에 다시 가입할 수 있습니다.` };
+                }
+                if (withdrawnEmailExpiry && withdrawnEmailExpiry <= Date.now()) {
+                    delete withdrawnEmails[emailNorm];
+                    await kvRepository.setKV('withdrawnEmails', withdrawnEmails);
+                }
+            }
+
             const newUser = createDefaultUser(`user-${randomUUID()}`, username, nickname, false);
+            (newUser as { email?: string | null }).email = emailTrimmed ? emailTrimmed.toLowerCase() : null;
+
             await db.createUser(newUser);
             await db.createUserCredentials(username, password, newUser.id);
             return {};

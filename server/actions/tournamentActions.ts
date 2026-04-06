@@ -2015,6 +2015,27 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     console.log(`[COMPLETE_DUNGEON_STAGE] Rank reward diamonds: ${r.diamonds} (stage ${stage}, rank ${userRank})`);
                 }
             }
+
+            /** 월드챔피언십 단계별 변경권: PVP 보상과 동일 비율로 종류 결정 후 인벤토리에 실제 지급 */
+            let worldChangeTicketGrants: { name: string; quantity: number }[] | undefined;
+            if (dungeonType === 'world') {
+                const { DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT } = await import('../../constants/tournaments.js');
+                const ticketCount = DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage]?.changeTickets ?? 0;
+                if (ticketCount > 0) {
+                    const map = new Map<string, number>();
+                    for (let i = 0; i < ticketCount; i++) {
+                        const rnd = Math.random();
+                        const ticketName =
+                            rnd < 0.6 ? '옵션 수치 변경권' : rnd < 0.85 ? '옵션 종류 변경권' : '신화 옵션 변경권';
+                        map.set(ticketName, (map.get(ticketName) || 0) + 1);
+                    }
+                    worldChangeTicketGrants = Array.from(map.entries()).map(([name, quantity]) => ({ name, quantity }));
+                    for (const g of worldChangeTicketGrants) {
+                        itemsToCreate.push({ itemId: g.name, quantity: g.quantity });
+                    }
+                    console.log(`[COMPLETE_DUNGEON_STAGE] World change tickets (stage ${stage}):`, worldChangeTicketGrants);
+                }
+            }
             
             // 모든 보상 아이템 지급 (기본 보상 + 순위 보상 + 월드 장비 드롭)
             const itemInstances = itemsToCreate.length > 0 ? createItemInstancesFromReward(itemsToCreate) : [];
@@ -2070,6 +2091,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 materials?: Record<string, number>;
                 equipmentBoxes?: Record<string, number>;
                 changeTickets?: number;
+                /** 월드: 실제 지급된 변경권 종류·수량(모달 표시용) */
+                changeTicketGrants?: { name: string; quantity: number }[];
             } = {};
             
             if (dungeonState.accumulatedGold) {
@@ -2085,10 +2108,13 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 (baseRewards as any).equipmentDropsCount = dungeonState.accumulatedEquipmentDrops.length;
             }
             
-            // 변경권은 월드챔피언십의 장비상자 보상에 포함되어 있으므로 별도로 처리
+            // 변경권: 월드 단계 테이블 기준 개수 + 실제 뽑힌 종류(위에서 인벤토리 지급됨)
             const { DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT } = await import('../../constants/tournaments.js');
             if (dungeonType === 'world' && DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage]?.changeTickets) {
                 baseRewards.changeTickets = DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage].changeTickets;
+                if (worldChangeTicketGrants?.length) {
+                    baseRewards.changeTicketGrants = worldChangeTicketGrants;
+                }
             }
             
             // 다음 단계 언락 여부 확인 (1·2·3위만 다음 단계 열림)
@@ -2123,7 +2149,16 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             // 대기실 입장 카드와 보상내역 버튼에 최신 상태 반영
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(freshUser, ['dungeonProgress', 'stats', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament']);
+            broadcastUserUpdate(freshUser, [
+                'dungeonProgress',
+                'stats',
+                'inventory',
+                'gold',
+                'diamonds',
+                'lastNeighborhoodTournament',
+                'lastNationalTournament',
+                'lastWorldTournament',
+            ]);
 
             if (volatileState.activeTournaments?.[user.id]) {
                 delete volatileState.activeTournaments[user.id];

@@ -49,7 +49,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
 
     switch (type) {
         case 'CHALLENGE_USER': {
-            const { opponentId, mode, settings, isRanked } = payload;
+            const { opponentId, mode, settings } = payload;
             const opponent = opponentId === aiUserId ? getAiUser(mode) : await db.getUser(opponentId);
         
             if (!opponent) return { error: 'Opponent not found.' };
@@ -172,7 +172,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 status: 'draft',
                 turnCount: 0,
                 deadline: now + 60000,
-                isRanked: isRanked ?? false, // 기본값: 친선전
+                // 랭킹전은 오직 서버 랭크 매칭(socialActions.tryMatchPlayers)에서만 isRanked: true 로 생성됨. 클라이언트 값은 무시.
+                isRanked: false,
             };
         
             volatileState.negotiations[negotiationId] = newNegotiation;
@@ -446,6 +447,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     mode, settings,
                     proposerId: user.id,
                     status: 'pending', deadline: 0,
+                    isRanked: false,
                 };
             
                 const game = await initializeGame(negotiation);
@@ -522,6 +524,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 turnCount: 0,
                 deadline: now + 60000,
                 rematchOfGameId: originalGameId,
+                isRanked: false,
             };
         
             volatileState.negotiations[negotiationId] = newNegotiation;

@@ -62,6 +62,7 @@ const AppContent: React.FC = () => {
         currentUser,
         currentRoute,
         showExitToast,
+        serverReconnectNotice,
         hasClaimableQuest,
         settings,
         isNativeMobile,
@@ -281,6 +282,22 @@ const AppContent: React.FC = () => {
                     <div className="pointer-events-auto w-full max-w-md animate-fade-in">
                         <div className="rounded-xl border-2 border-color bg-primary p-4 text-center text-base font-semibold leading-snug text-primary shadow-2xl">
                             한번 더 뒤로가기를 하면 로그아웃 됩니다.
+                        </div>
+                    </div>
+                </div>
+            )}
+            {serverReconnectNotice && (
+                <div
+                    className="fixed inset-0 z-[199] flex items-start justify-center px-4 py-6 pointer-events-none"
+                    style={{
+                        paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))',
+                    }}
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div className="pointer-events-auto mt-2 w-full max-w-md animate-fade-in">
+                        <div className="rounded-xl border border-amber-500/40 bg-zinc-900/95 p-3 text-center text-sm font-medium leading-snug text-amber-100 shadow-2xl backdrop-blur-sm">
+                            {serverReconnectNotice}
                         </div>
                     </div>
                 </div>

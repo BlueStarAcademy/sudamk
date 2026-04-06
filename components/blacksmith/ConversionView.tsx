@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, ServerAction } from '../../types.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { MATERIAL_ITEMS } from '../../constants';
@@ -175,7 +174,6 @@ interface ConversionViewProps {
 
 const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
     const { currentUserWithStatus } = useAppContext();
-    const { isNativeMobile } = useNativeMobileShell();
     const [craftingDetails, setCraftingDetails] = useState<{ materialName: string, craftType: 'upgrade' | 'downgrade' } | null>(null);
 
     if (!currentUserWithStatus) return null;
@@ -196,13 +194,9 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
     }, [inventory]);
 
     const materialTiers = ['하급 강화석', '중급 강화석', '상급 강화석', '최상급 강화석', '신비의 강화석'];
-    const getMaterialQuantity = (materialName: string): number =>
-        materialCategories[materialName]
-            ? materialCategories[materialName].reduce((sum, item) => sum + (item.quantity || 0), 0)
-            : 0;
 
     return (
-        <div className="h-full flex flex-col min-h-0">
+        <div className="flex h-full min-h-0 w-full flex-col">
             {craftingDetails && (
                 <CraftingDetailModal 
                     details={craftingDetails} 
@@ -213,58 +207,11 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                 />
             )}
 
-            <div className={`flex min-h-0 flex-1 flex-col ${isNativeMobile ? 'overflow-hidden p-1.5' : 'gap-3 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3'}`}>
-                {isNativeMobile ? (
-                    <div className="grid h-full grid-cols-2 gap-1.5">
-                        {materialTiers.map((materialName) => {
-                            const quantity = getMaterialQuantity(materialName);
-                            const materialExists = quantity > 0;
-                            const materialData = MATERIAL_ITEMS[materialName];
-                            const tierIndex = materialTiers.indexOf(materialName);
-                            const canUpgrade = tierIndex < materialTiers.length - 1;
-                            const canDowngrade = tierIndex > 0;
-                            const canUpgradeNow = canUpgrade && materialExists && quantity >= 10;
-                            const downgradeSourceName = canDowngrade ? materialTiers[tierIndex] : null;
-                            const downgradeQuantity = downgradeSourceName ? getMaterialQuantity(downgradeSourceName) : 0;
-                            const canDowngradeNow = canDowngrade && downgradeQuantity >= 1;
-
-                            return (
-                                <div key={materialName} className="bg-panel-secondary flex min-h-0 flex-col rounded-lg border border-color/35 p-1.5">
-                                    <div className="mb-1 flex items-center gap-1.5">
-                                        <img src={materialData.image as string | undefined} alt={materialName} className="h-8 w-8 shrink-0" />
-                                        <div className="min-w-0">
-                                            <h4 className="truncate text-[10px] font-bold text-secondary">{materialName}</h4>
-                                            <p className="text-[9px] text-tertiary">보유 {quantity.toLocaleString()}개</p>
-                                        </div>
-                                    </div>
-                                    <div className="mt-auto grid grid-cols-2 gap-1">
-                                        <ResourceActionButton
-                                            onClick={() => canUpgrade && setCraftingDetails({ materialName, craftType: 'upgrade' })}
-                                            variant="accent"
-                                            className="!w-auto !px-1 !py-1 text-[10px]"
-                                            disabled={!canUpgradeNow}
-                                            title={canUpgrade ? `${materialName} 10개 합성` : '상위 단계 없음'}
-                                        >
-                                            합성
-                                        </ResourceActionButton>
-                                        <ResourceActionButton
-                                            onClick={() => canDowngrade && setCraftingDetails({ materialName, craftType: 'downgrade' })}
-                                            variant="neutral"
-                                            className="!w-auto !px-1 !py-1 text-[10px]"
-                                            disabled={!canDowngradeNow}
-                                            title={canDowngrade ? `${materialName} 1개 분해` : '하위 단계 없음'}
-                                        >
-                                            분해
-                                        </ResourceActionButton>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                <>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3">
+                {/* 가로 스크롤 체인은 뷰포트보다 넓을 때만 스크롤, 좁을 때는 가로·세로 중앙 정렬 */}
                 {/* 첫 번째 행: 하급 강화석 <> 중급 강화석 <> 상급 강화석 */}
-                <div className="flex w-full min-w-0 items-start justify-start gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
+                <div className="flex w-full min-w-0 justify-center overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+                    <div className="inline-flex max-w-none flex-nowrap items-start justify-center gap-2">
                     {['하급 강화석', '중급 강화석', '상급 강화석'].map((materialName, index, row) => {
                         const materialExists = materialCategories[materialName] && materialCategories[materialName].length > 0;
                         const quantity = materialCategories[materialName]
@@ -313,10 +260,12 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                             </React.Fragment>
                         );
                     })}
+                    </div>
                 </div>
 
                 {/* 두 번째 행: 상급 강화석 <> 최상급 강화석 <> 신비의 강화석 */}
-                <div className="flex w-full min-w-0 items-start justify-start gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
+                <div className="flex w-full min-w-0 justify-center overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+                    <div className="inline-flex max-w-none flex-nowrap items-start justify-center gap-2">
                     {['상급 강화석', '최상급 강화석', '신비의 강화석'].map((materialName, index, row) => {
                         const materialExists = materialCategories[materialName] && materialCategories[materialName].length > 0;
                         const quantity = materialCategories[materialName]
@@ -365,9 +314,8 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                             </React.Fragment>
                         );
                     })}
+                    </div>
                 </div>
-                </>
-                )}
             </div>
         </div>
     );

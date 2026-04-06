@@ -652,8 +652,25 @@ const sendBadMannerPenaltyMail = async (
     broadcastUserUpdate(badMannerPlayer, ['mannerScore', 'mail']);
 };
 
+/** 상점/DB 보상 등에서 쓰는 영문 키 → 표시용 한글 이름 */
+const CONSUMABLE_NAME_ALIASES: Record<string, string> = {
+    equipment_box_1: '장비 상자 I',
+    equipment_box_2: '장비 상자 II',
+    equipment_box_3: '장비 상자 III',
+    equipment_box_4: '장비 상자 IV',
+    equipment_box_5: '장비 상자 V',
+    equipment_box_6: '장비 상자 VI',
+    resource_box_1: '재료 상자 I',
+    resource_box_2: '재료 상자 II',
+    resource_box_3: '재료 상자 III',
+    resource_box_4: '재료 상자 IV',
+    resource_box_5: '재료 상자 V',
+    resource_box_6: '재료 상자 VI',
+};
+
 export const createConsumableItemInstance = (name: string): InventoryItem | null => {
-    const template = CONSUMABLE_ITEMS.find(item => item.name === name) ?? MATERIAL_ITEMS[name];
+    const resolvedName = CONSUMABLE_NAME_ALIASES[name] ?? name;
+    const template = CONSUMABLE_ITEMS.find(item => item.name === resolvedName) ?? MATERIAL_ITEMS[resolvedName];
     if (!template) {
         console.error(`[Reward] Consumable item template not found for: ${name}`);
         return null;
@@ -938,9 +955,9 @@ const processPlayerSummary = async (
     if (!updatedPlayer.stats) updatedPlayer.stats = {};
     const gameStats = updatedPlayer.stats[mode] ?? { wins: 0, losses: 0, rankingScore: 1200 };
     
-    const initialRating = gameStats.rankingScore;
+    const initialRating = gameStats.rankingScore ?? 1200;
     const opponentStats = opponent.stats?.[mode] ?? { wins: 0, losses: 0, rankingScore: 1200 };
-    const opponentRating = opponent.id === aiUserId ? (initialRating - 50 + Math.random() * 100) : opponentStats.rankingScore;
+    const opponentRating = opponent.id === aiUserId ? (initialRating - 50 + Math.random() * 100) : (opponentStats.rankingScore ?? 1200);
     
     let ratingChange = 0;
     // 랭킹전이 아니면 랭킹 점수 변동 없음 (친선전)

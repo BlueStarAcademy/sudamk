@@ -4,6 +4,8 @@ const EARLY_GAME_DURATION = 15;
 const MID_GAME_DURATION = 20;
 const END_GAME_DURATION = 15;
 const TOTAL_GAME_DURATION = EARLY_GAME_DURATION + MID_GAME_DURATION + END_GAME_DURATION;
+/** 기본 풀 중계 멘트(early/mid/end) 출력 간격(초) — 서버 tournamentService와 동일 */
+const BASIC_COMMENTARY_INTERVAL_SECONDS = 3;
 
 // 시드 기반 랜덤 생성기
 export class SeededRandom {
@@ -234,7 +236,7 @@ export const runClientSimulationStep = (
         if (finalDiff > 0.5) {
             commentary.push({ text: `[중간 스코어] ${leader} 선수 ${finalDiff.toFixed(1)}집 우세.`, phase, isRandomEvent: false });
         }
-    } else if (time > 1 && time < TOTAL_GAME_DURATION) {
+    } else if (time > 1 && time < TOTAL_GAME_DURATION && time % BASIC_COMMENTARY_INTERVAL_SECONDS === 0) {
         const pool = COMMENTARY_POOLS[phase];
         const recentComments = commentary.slice(-3).map(c => c.text);
         
@@ -478,7 +480,7 @@ export const runClientSimulation = (
             if (finalDiff > 0.5) {
                 commentary.push({ text: `[중간 스코어] ${leader} 선수 ${finalDiff.toFixed(1)}집 우세.`, phase, isRandomEvent: false });
             }
-        } else if (t > 1 && t < TOTAL_GAME_DURATION) {
+        } else if (t > 1 && t < TOTAL_GAME_DURATION && t % BASIC_COMMENTARY_INTERVAL_SECONDS === 0) {
             const pool = COMMENTARY_POOLS[phase];
             const recentComments = commentary.slice(-3).map(c => c.text);
             

@@ -15,6 +15,7 @@ class AudioService {
     /** Express/Vite 정적 경로와 일치: `server.ts`의 `app.use('/sounds', ... public/sounds)` */
     private soundsPath = '/sounds/';
     private settings: SoundSettings = defaultSettings.sound;
+    private html5AudioUnlocked = false;
 
     public isReady(): boolean {
         return !!this.audioContext && this.audioContext.state === 'running';
@@ -74,8 +75,35 @@ class AudioService {
             } catch {
                 /* suspended 등 */
             }
+            // Android WebView/Samsung Internet 대응:
+            // WebAudio 잠금과 별개로 HTML5 Audio autoplay gate를 사용자 제스처에서 함께 해제한다.
+            this.tryUnlockHtml5Audio();
         } catch (e) {
             console.warn('[AudioService] unlockFromUserGesture:', e);
+        }
+    }
+
+    private tryUnlockHtml5Audio(): void {
+        if (this.html5AudioUnlocked || typeof window === 'undefined') return;
+        try {
+            const probe = new Audio();
+            probe.preload = 'auto';
+            probe.muted = true;
+            probe.volume = 0;
+            probe.playsInline = true;
+            probe.setAttribute('playsinline', 'true');
+            probe.setAttribute('webkit-playsinline', 'true');
+            // 매우 짧은 무음 wav (data URI)로 autoplay gate 해제 시도
+            probe.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+            void probe.play().then(() => {
+                probe.pause();
+                try { probe.currentTime = 0; } catch {}
+                this.html5AudioUnlocked = true;
+            }).catch(() => {
+                // 사용자 제스처 타이밍이 아닐 수 있으므로 무시
+            });
+        } catch {
+            // ignore
         }
     }
 
@@ -141,6 +169,10 @@ class AudioService {
         const el = new Audio(`${this.soundsPath}${soundName}.mp3`);
         el.volume = Math.max(0, Math.min(1, effectiveVolume));
         el.loop = loop;
+        el.preload = 'auto';
+        el.playsInline = true;
+        el.setAttribute('playsinline', 'true');
+        el.setAttribute('webkit-playsinline', 'true');
         void el.play().catch((e) => {
             console.warn('[AudioService] HTML5 fallback play failed:', soundName, e);
         });
@@ -174,6 +206,8 @@ class AudioService {
     
     private async play(soundName: string, category: keyof SoundSettings['categoryMuted'], volume: number, loop = false): Promise<AudioBufferSourceNode | null> {
         if (this.settings.masterMuted || this.settings.categoryMuted[category]) return null;
+        // 일부 모바일 브라우저에서 초기 unlock이 누락돼도, 실제 재생 시도 순간에 다시 열어준다.
+        this.unlockFromUserGesture();
         try {
             const buffer = await this.loadSound(`${this.soundsPath}${soundName}.mp3`);
             if (buffer) {

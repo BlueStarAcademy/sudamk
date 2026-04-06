@@ -50,6 +50,12 @@ interface DraggableWindowProps {
     /** mobileViewportFit + 네이티브: 세로 상한 dvh(미지정 시 광고 상수). 결과 모달 등 한 화면 맞춤용 */
     mobileViewportMaxHeightVh?: number;
 
+    /**
+     * mobileViewportFit일 때 max-height의 첫 번째 인자(기본 80dvh).
+     * 긴 본문·가로 스크롤 보상 등에서 세로 상한을 조금 올릴 때 사용.
+     */
+    mobileViewportMaxHeightCss?: string;
+
     /** 본문 영역 세로 스크롤(기본 true). 가방·상점 등 내부에 전용 스크롤이 있으면 false */
     bodyScrollable?: boolean;
 
@@ -200,6 +206,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     defaultPosition = { x: 0, y: 0 },
     mobileViewportFit,
     mobileViewportMaxHeightVh,
+    mobileViewportMaxHeightCss,
     bodyScrollable = true,
     bodyNoScroll = false,
     hideFooter = false,
@@ -860,6 +867,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         bodyPaddingClassName ?? (isStoreVariant ? 'p-5' : uniformLayout ? 'p-5' : 'p-4');
     const viewportMaxWidthCss = '95vw';
     const viewportMaxHeightCss = '80dvh';
+    const mobileViewportFitMaxHeightCss = mobileViewportMaxHeightCss ?? viewportMaxHeightCss;
     /** 균일 scale(모든 화면)·실측 scale: max-height로 레이아웃이 먼저 잘리면 스크롤·하단 버튼 잘림 유발 */
     const relaxOuterMaxHeight = useCompactScaleToFitLayout || uniformLayout;
     /** 실측·uniform 균일 scale 시 본문 스크롤 없음(줄바꿈·비율은 transform으로 유지). 뷰포트 맞춤만 스크롤 허용 */
@@ -948,8 +956,8 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           ? `${uniformDesignH}px`
                           : useMobileViewportFitLayout
                             ? isNativeMobile
-                              ? `min(${viewportMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - 32px)))`
-                              : `min(${viewportMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - 28px)))`
+                              ? `min(${mobileViewportFitMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - 32px)))`
+                              : `min(${mobileViewportFitMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - 28px)))`
                             : isNativeMobile
                               ? `min(${viewportMaxHeightCss}, min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%))`
                               : modalLayerUsesDesignPixels

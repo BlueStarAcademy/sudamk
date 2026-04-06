@@ -473,6 +473,10 @@ export const useApp = () => {
     const [viewingItem, setViewingItem] = useState<{ item: InventoryItem; isOwnedByCurrentUser: boolean; } | null>(null);
     const [showExitToast, setShowExitToast] = useState(false);
     const exitToastTimer = useRef<number | null>(null);
+    /** 서버 재시작·WS 끊김 안내 (전역 토스트) */
+    const [serverReconnectNotice, setServerReconnectNotice] = useState<string | null>(null);
+    const serverReconnectTimerRef = useRef<number | null>(null);
+    const wsReconnectAttemptRef = useRef(0);
     const [isProfileEditModalOpen, setIsProfileEditModalOpen] = useState(false);
     const [moderatingUser, setModeratingUser] = useState<UserWithStatus | null>(null);
     const [isMbtiInfoModalOpen, setIsMbtiInfoModalOpen] = useState(false);
@@ -2607,6 +2611,7 @@ export const useApp = () => {
                  
                  // 변경권 사용 시 대장간 제련 탭으로 이동
                  if (action.type === 'USE_ITEM' && result.clientResponse?.openBlacksmithRefineTab) {
+                     setIsInventoryOpen(false);
                      setIsBlacksmithModalOpen(true);
                      setBlacksmithActiveTab('refine');
                      // 선택된 아이템이 있으면 해당 아이템 선택
@@ -3662,7 +3667,27 @@ export const useApp = () => {
             }
         };
 
-        const connectWebSocket = () => {
+        function scheduleReconnect(reason: string) {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+            if (!shouldReconnect || !currentUser || isIntentionalClose) return;
+            const attempt = wsReconnectAttemptRef.current;
+            const delay = Math.min(30000, Math.round(1500 * Math.pow(1.55, attempt)));
+            wsReconnectAttemptRef.current = attempt + 1;
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`[WebSocket] ${reason}, reconnect in ${delay}ms (attempt ${wsReconnectAttemptRef.current})`);
+            }
+            reconnectTimeout = setTimeout(() => {
+                if (shouldReconnect && currentUser && !isConnecting) {
+                    isIntentionalClose = false;
+                    connectWebSocket();
+                }
+            }, delay);
+        }
+
+        function connectWebSocket() {
             if (!shouldReconnect || !currentUser) return;
             
             // 이미 연결 중이면 중복 연결 방지
@@ -3718,15 +3743,8 @@ export const useApp = () => {
                 } catch (error) {
                     console.error('[WebSocket] Failed to create WebSocket:', error);
                     isConnecting = false;
-                    // 재연결 시도
                     if (!isIntentionalClose && shouldReconnect && currentUser) {
-                        reconnectTimeout = setTimeout(() => {
-                            if (shouldReconnect && currentUser && !isConnecting) {
-                                console.log('[WebSocket] Retrying connection after creation error...');
-                                isIntentionalClose = false;
-                                connectWebSocket();
-                            }
-                        }, 3000);
+                        scheduleReconnect('create failed');
                     }
                     return;
                 }
@@ -3742,6 +3760,7 @@ export const useApp = () => {
 
                 ws.onopen = () => {
                     console.log('[WebSocket] Connected successfully');
+                    wsReconnectAttemptRef.current = 0;
                     isIntentionalClose = false;
                     isConnecting = false; // 연결 완료
                     if (connectionTimeout) {
@@ -3792,7 +3811,7 @@ export const useApp = () => {
                 };
 
                 function handleMessage(message: any, fromBuffer = false) {
-                    const initialStateTypes = ['INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'INITIAL_STATE', 'CONNECTION_ESTABLISHED'];
+                    const initialStateTypes = ['INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'INITIAL_STATE', 'CONNECTION_ESTABLISHED', 'SERVER_RESTARTING'];
 
                     if (!fromBuffer && !isInitialStateReady && !initialStateTypes.includes(message.type)) {
                         pendingMessages.push(message);
@@ -3800,6 +3819,25 @@ export const useApp = () => {
                     }
 
                     switch (message.type) {
+                        case 'SERVER_RESTARTING': {
+                            const msg =
+                                typeof message.payload?.message === 'string'
+                                    ? message.payload.message
+                                    : '서버가 곧 재시작됩니다. 잠시 후 자동으로 다시 연결됩니다.';
+                            const ms =
+                                typeof message.payload?.noticeMs === 'number' && message.payload.noticeMs > 0
+                                    ? message.payload.noticeMs
+                                    : 8000;
+                            setServerReconnectNotice(msg);
+                            if (serverReconnectTimerRef.current !== null) {
+                                window.clearTimeout(serverReconnectTimerRef.current);
+                            }
+                            serverReconnectTimerRef.current = window.setTimeout(() => {
+                                setServerReconnectNotice(null);
+                                serverReconnectTimerRef.current = null;
+                            }, ms);
+                            return;
+                        }
                         case 'CONNECTION_ESTABLISHED':
                             console.log('[WebSocket] Connection established, waiting for initial state...');
                             return;
@@ -5283,21 +5321,7 @@ export const useApp = () => {
                     
                     // 에러 발생 시 재연결 시도 (의도적 종료가 아닌 경우)
                     if (!isIntentionalClose && shouldReconnect && currentUser) {
-                        if (isDevelopment) {
-                            console.debug('[WebSocket] Will attempt to reconnect in 3 seconds...');
-                        }
-                        if (reconnectTimeout) {
-                            clearTimeout(reconnectTimeout);
-                        }
-                        reconnectTimeout = setTimeout(() => {
-                            if (shouldReconnect && currentUser && !isConnecting) {
-                                if (isDevelopment) {
-                                    console.debug('[WebSocket] Attempting to reconnect after error...');
-                                }
-                                isIntentionalClose = false;
-                                connectWebSocket();
-                            }
-                        }, 3000);
+                        scheduleReconnect('error');
                     }
                 };
 
@@ -5324,15 +5348,11 @@ export const useApp = () => {
                     // 1001 (Going Away)는 브라우저가 페이지를 떠날 때 발생할 수 있으므로
                     // 의도적인 종료가 아닌 경우에만 재연결
                     if (!isIntentionalClose && shouldReconnect && currentUser) {
-                        // Reconnect after 3 seconds if not intentional close
-                        console.log('[WebSocket] Will attempt to reconnect in 3 seconds...');
-                        reconnectTimeout = setTimeout(() => {
-                            if (shouldReconnect && currentUser && !isConnecting) {
-                                console.log('[WebSocket] Attempting to reconnect...');
-                                isIntentionalClose = false; // 재연결 시도는 의도적이지 않음
-                                connectWebSocket();
-                            }
-                        }, 3000);
+                        const reason =
+                            event.code === 1012 || event.code === 1013
+                                ? 'server restart (service unavailable)'
+                                : 'disconnected';
+                        scheduleReconnect(reason);
                     } else {
                         console.log('[WebSocket] Not reconnecting:', {
                             isIntentionalClose,
@@ -5346,14 +5366,10 @@ export const useApp = () => {
                 isConnecting = false; // 연결 실패
                 console.error('[WebSocket] Failed to create connection:', error);
                 if (shouldReconnect && currentUser) {
-                    reconnectTimeout = setTimeout(() => {
-                        if (shouldReconnect && currentUser && !isConnecting) {
-                            connectWebSocket();
-                        }
-                    }, 3000);
+                    scheduleReconnect('connection failed');
                 }
             }
-        };
+        }
 
         connectWebSocket();
 
@@ -5368,6 +5384,11 @@ export const useApp = () => {
                 clearTimeout(initialStateTimeout);
                 initialStateTimeout = null;
             }
+            if (serverReconnectTimerRef.current !== null) {
+                window.clearTimeout(serverReconnectTimerRef.current);
+                serverReconnectTimerRef.current = null;
+            }
+            setServerReconnectNotice(null);
             pendingMessages = [];
             isInitialStateReady = true;
             if (ws) {
@@ -6039,6 +6060,7 @@ export const useApp = () => {
         activeGame,
         activeNegotiation,
         showExitToast,
+        serverReconnectNotice,
         enhancementResult,
         enhancementOutcome,
         unreadMailCount,

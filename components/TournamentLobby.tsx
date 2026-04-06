@@ -384,6 +384,10 @@ const TournamentCard: React.FC<{
 
     const isPausedInProgress = inProgress && inProgress.status === 'round_in_progress';
 
+    /** 모바일 입장 카드: 오늘 아직 참여 전이면 (0/1) — 남은 일일 입장이 있을 때 */
+    const hasRemainingDailyEntry =
+        !isCompletedToday && !isPausedInProgress && playedCountToday === 0;
+
     const [entryModalOpen, setEntryModalOpen] = useState(false);
 
     const compactInlineAccent =
@@ -400,34 +404,77 @@ const TournamentCard: React.FC<{
           : 'relative flex aspect-video w-full flex-grow overflow-hidden rounded-lg bg-gray-700 ring-0 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 active:scale-[0.99] group-hover:brightness-105';
 
     const titleText = compactInline
-        ? 'min-w-0 truncate text-left font-bold leading-tight text-white drop-shadow-md text-[10px] sm:text-[11px]'
+        ? 'min-w-0 truncate text-left font-bold leading-tight text-white drop-shadow-md text-[11px] sm:text-[12px]'
         : compact
           ? 'min-w-0 truncate text-left font-bold leading-tight text-white drop-shadow-md text-[10px] sm:text-[11px]'
           : 'min-w-0 truncate text-left font-bold leading-tight text-white drop-shadow-md text-xs sm:text-sm lg:text-base';
 
     const statusText = compactInline
-        ? 'flex flex-shrink-0 flex-col items-end font-semibold leading-tight text-[10px]'
+        ? 'flex flex-shrink-0 flex-col items-end font-semibold leading-tight text-[11px] sm:text-[12px]'
         : compact
           ? 'flex flex-shrink-0 flex-col items-end font-semibold leading-tight text-[8px] sm:text-[9px]'
           : 'flex flex-shrink-0 flex-col items-end font-semibold leading-tight text-[9px] sm:text-[10px]';
 
     const stageFooter = compactInline
-        ? 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/92 to-transparent px-1 pb-0.5 pt-1.5 font-semibold text-yellow-200 drop-shadow text-[9px] leading-tight'
+        ? 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/92 to-transparent px-1 pb-0.5 pt-1.5 font-semibold text-yellow-200 drop-shadow text-[10px] leading-tight sm:text-[11px]'
         : compact
           ? 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-1.5 pb-1 pt-3 font-semibold text-yellow-200 drop-shadow text-[8px] sm:text-[9px]'
           : 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-1.5 pb-1 pt-3 font-semibold text-yellow-200 drop-shadow text-[9px] sm:text-[10px]';
 
+    const cardShellClass = `group relative flex flex-col text-center transition-all ${
+        compactInline
+            ? `h-full min-h-0 min-w-0 flex-1 overflow-hidden rounded-[inherit] bg-gray-900/90 p-1 ${compactInlineAccent} hover:brightness-[1.03]`
+            : compact
+              ? 'flex h-full min-h-0 flex-col rounded-lg bg-gray-800 p-1 shadow-lg hover:shadow-purple-500/30'
+              : 'h-full transform rounded-lg bg-gray-800 p-2 shadow-lg hover:-translate-y-1 hover:shadow-purple-500/30 sm:p-3'
+    }`;
+
     return (
         <>
-            <div
-                className={`group relative flex flex-col text-center transition-all ${
-                    compactInline
-                        ? `h-full min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg bg-gray-900/90 p-1 ${compactInlineAccent} hover:brightness-[1.03]`
-                        : compact
-                          ? 'flex h-full min-h-0 flex-col rounded-lg bg-gray-800 p-1 shadow-lg hover:shadow-purple-500/30'
-                          : 'h-full transform rounded-lg bg-gray-800 p-2 shadow-lg hover:-translate-y-1 hover:shadow-purple-500/30 sm:p-3'
-                }`}
-            >
+            {compactInline && hasRemainingDailyEntry ? (
+                <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg p-[2px] shadow-[0_0_20px_-4px_rgba(251,191,36,0.35)]">
+                    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]" aria-hidden>
+                        <div
+                            className="absolute left-1/2 top-1/2 h-[220%] min-h-[120px] w-[220%] min-w-[120px] -translate-x-1/2 -translate-y-1/2 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,rgba(251,191,36,0.2)_0deg,rgba(251,191,36,0.98)_52deg,rgba(167,139,250,0.98)_118deg,rgba(56,189,248,0.85)_188deg,rgba(251,191,36,0.2)_360deg)] [will-change:transform]"
+                        />
+                    </div>
+                    <div className={`relative z-[1] h-full min-h-0 ${cardShellClass}`}>
+                        {hasUnclaimedReward && (
+                            <div
+                                className="pointer-events-none absolute right-1 top-1 z-20 h-2.5 w-2.5 rounded-full border-2 border-gray-800 bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-3 sm:w-3"
+                                aria-hidden
+                            />
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setEntryModalOpen(true)}
+                            className={imageButtonClass}
+                            aria-label={`${definition.name} 입장 및 보상 안내`}
+                        >
+                            <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/75" aria-hidden />
+                            <div className={`absolute inset-x-0 top-0 bg-gradient-to-b from-black/85 to-transparent ${compactInline ? 'px-1 pb-1.5 pt-0.5' : 'px-1.5 pb-3 pt-1 sm:px-2 sm:pt-1.5'}`}>
+                                <div className="flex items-start justify-between gap-0.5">
+                                    <span className={titleText}>{definition.name}</span>
+                                    <div className={statusText}>
+                                        {isCompletedToday ? (
+                                            <span className="text-green-300">{compact || compactInline ? '✓' : '✓ 완료'}</span>
+                                        ) : isPausedInProgress ? (
+                                            <span className="text-amber-300">{compact || compactInline ? '..' : '진행중'}</span>
+                                        ) : (
+                                            <span className="text-white/95">({playedCountToday}/1)</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            {dungeonProgress.currentStage > 0 && (
+                                <div className={stageFooter}>최고 {dungeonProgress.currentStage}단계</div>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+            <div className={cardShellClass}>
                 {hasUnclaimedReward && (
                     <div
                         className="pointer-events-none absolute right-1 top-1 z-20 h-2.5 w-2.5 rounded-full border-2 border-gray-800 bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-3 sm:w-3"
@@ -465,6 +512,7 @@ const TournamentCard: React.FC<{
                     )}
                 </button>
             </div>
+            )}
             <ChampionshipVenueEntryModal
                 isOpen={entryModalOpen}
                 onClose={() => setEntryModalOpen(false)}

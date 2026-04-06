@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SinglePlayerMissionInfo } from '../../types.js';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
+import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
 
 const ENHANCE_GAUGE_DURATION = 3000; // 3초
 
@@ -311,7 +312,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                         <Button 
                             onClick={handleEnhance} 
                             colorScheme="none"
-                            className={`flex-1 flex items-center justify-center rounded-lg border border-indigo-400/70 bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-400 text-white shadow-[0_18px_40px_-18px_rgba(99,102,241,0.9)] hover:from-indigo-400 hover:to-cyan-400 ${(!canLevelUp || !hasEnoughGold || isEnhancing) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`${PREMIUM_QUEST_BTN.upgrade} ${(!canLevelUp || !hasEnoughGold || isEnhancing) ? 'cursor-not-allowed opacity-50' : ''}`}
                             disabled={!canLevelUp || !hasEnoughGold || isEnhancing}
                         >
                             {isEnhancing ? (

@@ -5,6 +5,9 @@ import { TournamentType, TournamentState } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { TOURNAMENT_DEFINITIONS } from '../constants/tournaments.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, gradeBackgrounds, EQUIPMENT_POOL } from '../constants/items.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 
 export interface DungeonStageSummaryModalProps {
     dungeonType: TournamentType;
@@ -18,6 +21,7 @@ export interface DungeonStageSummaryModalProps {
         materials?: Record<string, number>;
         equipmentBoxes?: Record<string, number>;
         changeTickets?: number;
+        changeTicketGrants?: { name: string; quantity: number }[];
     };
     rankReward?: {
         items?: Array<{ itemId: string; quantity?: number; min?: number; max?: number }>;
@@ -52,7 +56,12 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     onClose,
     isTopmost
 }) => {
+    const isCompactViewport = useIsHandheldDevice(1025);
+    const { isNativeMobile } = useNativeMobileShell();
+    const isMobile = isCompactViewport || isNativeMobile;
+
     const tournamentName = TOURNAMENT_DEFINITIONS[dungeonType].name;
+    const venueHeroImageUrl = resolvePublicUrl(TOURNAMENT_DEFINITIONS[dungeonType].image);
     const nextStage = stage < 10 ? stage + 1 : null;
 
     const rewardItemsMap = new Map<string, { name: string; image: string; quantity: number; grade?: ItemGrade }>();
@@ -177,11 +186,29 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             }
         }
     }
-    if (baseRewards.changeTickets && baseRewards.changeTickets > 0) {
+    if (baseRewards.changeTicketGrants && baseRewards.changeTicketGrants.length > 0) {
+        for (const g of baseRewards.changeTicketGrants) {
+            const mat = (MATERIAL_ITEMS as Record<string, { image?: string }>)[g.name];
+            const img = mat?.image || '/images/use/change2.png';
+            const key = `change_ticket_${g.name}`;
+            const existing = rewardItemsMap.get(key);
+            if (existing) {
+                existing.quantity += g.quantity;
+            } else {
+                rewardItemsMap.set(key, {
+                    name: g.name,
+                    image: img,
+                    quantity: g.quantity,
+                    grade: ItemGrade.Normal,
+                });
+            }
+        }
+    } else if (baseRewards.changeTickets && baseRewards.changeTickets > 0) {
         rewardItemsMap.set('changeTickets', {
             name: `변경권 x${baseRewards.changeTickets}`,
-            image: '/images/icon/ChangeTicket.png',
-            quantity: baseRewards.changeTickets
+            image: '/images/use/change2.png',
+            quantity: baseRewards.changeTickets,
+            grade: ItemGrade.Normal,
         });
     }
     if (rankReward?.items) {
@@ -220,164 +247,211 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     }
     const rewardItems = Array.from(rewardItemsMap.values());
 
+    const panelCardClass =
+        'rounded-xl border border-amber-500/18 bg-gradient-to-br from-slate-950/92 via-slate-900/78 to-violet-950/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-white/[0.06]';
+    const sectionTitleClass =
+        'border-b border-white/[0.08] pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200/65 sm:text-[11px]';
+
     return (
         <DraggableWindow
             title={`${tournamentName} ${stage}단계 결과`}
             onClose={onClose}
             windowId="dungeon-stage-summary"
-            initialWidth={700}
-            initialHeight={620}
+            initialWidth={isMobile ? Math.min(560, typeof window !== 'undefined' ? window.innerWidth - 16 : 560) : 700}
+            initialHeight={isMobile ? 720 : 640}
             closeOnOutsideClick={false}
             isTopmost={isTopmost}
-            zIndex={70}
+            zIndex={isMobile ? 85 : 70}
+            modal
+            mobileViewportFit={isMobile}
+            mobileViewportMaxHeightCss="92dvh"
+            mobileViewportMaxHeightVh={92}
+            bodyNoScroll={isMobile}
+            bodyScrollable={!isMobile}
+            hideFooter={isMobile}
+            skipSavedPosition={isMobile}
+            bodyPaddingClassName={isMobile ? '!p-0' : undefined}
         >
-            <div className="flex flex-col h-full min-h-0">
-                <div className="flex-shrink-0 text-center py-1.5 border-b border-gray-600/70">
-                    <h2 className="text-base font-bold text-amber-200">{tournamentName} {stage}단계</h2>
-                </div>
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#07080c] text-zinc-100">
+                <div
+                    className="pointer-events-none absolute inset-0 opacity-[0.07]"
+                    style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                    }}
+                    aria-hidden
+                />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-amber-900/25 via-violet-900/10 to-transparent" aria-hidden />
+                <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-purple-600/15 blur-3xl" aria-hidden />
+                <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-amber-600/10 blur-3xl" aria-hidden />
 
-                {/* 3개 박스: 1행에 박스1·2, 2행에 박스3. 내부 스크롤 없이 모두 표시 */}
-                <div className="flex-1 flex flex-col gap-3 p-3 min-h-0">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-shrink-0">
-                        {/* 박스 1: 이번 대회 전적 + 순위 + 획득 점수 */}
-                        <div className="rounded-xl bg-gray-800/95 border border-gray-600/60 p-3 flex flex-col gap-2">
-                            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-600/50 pb-1.5">
-                                이번 대회 결과
-                            </h3>
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-gray-500 text-xs">전적</span>
-                                    <span className="text-emerald-400 font-bold tabular-nums">{wins}</span>
-                                    <span className="text-gray-500">승</span>
-                                    <span className="text-gray-600">-</span>
-                                    <span className="text-rose-400 font-bold tabular-nums">{losses}</span>
-                                    <span className="text-gray-500">패</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-gray-500 text-xs">순위</span>
-                                    <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                                        userRank === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-600 text-black' :
-                                        userRank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-gray-800' :
-                                        userRank === 3 ? 'bg-gradient-to-br from-amber-700 to-amber-900 text-amber-100' :
-                                        'bg-gray-600 text-gray-200'
-                                    }`}>
-                                        {userRank}
-                                    </div>
-                                    <span className="text-gray-400 text-xs">위</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500 text-xs">획득 점수</span>
-                                <span className="text-amber-300 font-bold tabular-nums">
-                                    {dailyScore !== undefined ? `+${dailyScore.toLocaleString()}점` : '-'}
-                                </span>
-                            </div>
-                            {nextStage !== null && (
-                                <div className={`rounded-lg px-2 py-1 text-xs flex items-center justify-between ${
-                                    nextStageUnlocked ? 'bg-emerald-900/30 text-emerald-200' : 'bg-gray-700/50 text-gray-500'
-                                }`}>
-                                    <span>{nextStage}단계</span>
-                                    <span>
-                                        {!nextStageUnlocked
-                                            ? '잠김 (3위 이상 시 열림)'
-                                            : nextStageWasAlreadyUnlocked
-                                                ? '다음 단계가 이미 열려있습니다.'
-                                                : '열림'}
-                                    </span>
-                                </div>
-                            )}
+                <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
+                    <div className="relative flex h-[4.25rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[5.25rem]">
+                        <img src={venueHeroImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/55 to-black/25" />
+                        <div className="relative z-[1] flex flex-1 flex-col justify-center px-3.5 py-2">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200/80 sm:text-xs">Championship</span>
+                            <span className="line-clamp-2 text-base font-bold leading-tight text-white drop-shadow-md sm:text-lg">
+                                {tournamentName}
+                            </span>
                         </div>
-
-                        {/* 박스 2: 현재 단계 누적 전적 */}
-                        <div className="rounded-xl bg-gray-800/95 border border-gray-600/60 p-3 flex flex-col justify-center">
-                            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-600/50 pb-1.5 mb-2">
-                                현재 단계 누적 전적
-                            </h3>
-                            <div className="flex items-center justify-center gap-6 py-1">
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-emerald-400 tabular-nums">{wins}</div>
-                                    <div className="text-[10px] text-gray-500">승</div>
-                                </div>
-                                <div className="w-px h-10 bg-gray-600" />
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-rose-400 tabular-nums">{losses}</div>
-                                    <div className="text-[10px] text-gray-500">패</div>
-                                </div>
+                        <div className="relative z-[1] flex items-center pr-3 sm:pr-4">
+                            <div className="rounded-lg bg-black/55 px-3 py-1.5 ring-1 ring-amber-400/30 backdrop-blur-sm">
+                                <span className="block text-center text-[10px] font-semibold uppercase tracking-wider text-amber-200/85 sm:text-xs">단계</span>
+                                <span className="block text-center text-2xl font-black tabular-nums leading-none text-white sm:text-3xl">{stage}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* 박스 3: 보상 내역 */}
-                    <div className="rounded-xl bg-gray-800/95 border border-gray-600/60 p-3 flex flex-col flex-1 min-h-[160px]">
-                        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-600/50 pb-1.5 mb-2 flex-shrink-0">
-                            보상 내역
-                        </h3>
-                        {rewardItems.length > 0 ? (
-                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 content-start">
-                                {rewardItems.map((item, index) => {
-                                    const maybeEquip = item as typeof item & { grade?: ItemGrade };
-                                    const isWorldEquip = dungeonType === 'world' && maybeEquip.grade;
-
-                                    if (isWorldEquip && maybeEquip.grade) {
-                                        const grade = maybeEquip.grade;
-                                        const bg = gradeBackgrounds[grade] || gradeBackgrounds[ItemGrade.Normal];
-
-                                        return (
-                                            <div
-                                                key={index}
-                                                className="flex flex-col items-center justify-center rounded-lg"
-                                                title={item.name}
-                                            >
-                                                <div className="relative aspect-square w-12 sm:w-14 rounded-lg overflow-hidden">
-                                                    <img
-                                                        src={bg}
-                                                        alt={grade}
-                                                        className="absolute inset-0 w-full h-full object-cover rounded-md"
-                                                        aria-hidden
-                                                    />
-                                                    <img
-                                                        src={item.image?.startsWith('/') ? item.image : `/${item.image}`}
-                                                        alt={item.name}
-                                                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[78%] h-[78%] object-contain pointer-events-none"
-                                                        loading="lazy"
-                                                        decoding="async"
-                                                    />
-                                                </div>
-                                                <span className="text-[10px] text-gray-200 text-center truncate w-full mt-1">
-                                                    {item.name}
-                                                </span>
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                        <div
-                                            key={index}
-                                            className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-900/60 border border-gray-700/80"
-                                        >
-                                            <img src={item.image} alt={item.name} className="w-8 h-8 object-contain" />
-                                            <span className="text-[10px] text-gray-300 text-center truncate w-full mt-1">
-                                                {item.name}
-                                            </span>
-                                            {item.quantity > 1 && (
-                                                <span className="text-[10px] font-bold text-amber-200">
-                                                    x{item.quantity}
-                                                </span>
-                                            )}
+                    <div
+                        className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2.5 pb-2 pt-2.5 sm:px-3.5 sm:pb-3 sm:pt-3 [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.35)_transparent] sm:p-3 ${!isMobile ? 'max-h-[min(52vh,420px)]' : ''}`}
+                    >
+                        <div className="flex flex-col gap-2.5 sm:gap-3">
+                            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
+                                <div className={`${panelCardClass} flex flex-col gap-2 p-2.5 sm:p-3`}>
+                                    <h3 className={sectionTitleClass}>이번 대회 결과</h3>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm sm:text-base">
+                                            <span className="text-zinc-500">전적</span>
+                                            <span className="font-bold tabular-nums text-emerald-300">{wins}</span>
+                                            <span className="text-zinc-500">승</span>
+                                            <span className="text-zinc-600">-</span>
+                                            <span className="font-bold tabular-nums text-rose-300">{losses}</span>
+                                            <span className="text-zinc-500">패</span>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <p className="text-gray-500 text-sm py-2">보상 없음</p>
-                        )}
-                    </div>
-                </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-zinc-500 sm:text-sm">순위</span>
+                                            <div
+                                                className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold sm:h-8 sm:w-8 ${
+                                                    userRank === 1
+                                                        ? 'bg-gradient-to-br from-yellow-400 to-amber-600 text-black'
+                                                        : userRank === 2
+                                                          ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-gray-800'
+                                                          : userRank === 3
+                                                            ? 'bg-gradient-to-br from-amber-700 to-amber-900 text-amber-100'
+                                                            : 'bg-zinc-700 text-zinc-200'
+                                                }`}
+                                            >
+                                                {userRank}
+                                            </div>
+                                            <span className="text-xs text-zinc-400 sm:text-sm">위</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm sm:text-base">
+                                        <span className="text-zinc-500">획득 점수</span>
+                                        <span className="font-bold tabular-nums text-amber-200">
+                                            {dailyScore !== undefined ? `+${dailyScore.toLocaleString()}점` : '-'}
+                                        </span>
+                                    </div>
+                                    {nextStage !== null && (
+                                        <div
+                                            className={`flex flex-col gap-1 rounded-lg px-2 py-1.5 text-xs leading-snug sm:flex-row sm:items-center sm:justify-between sm:text-sm ${
+                                                nextStageUnlocked ? 'bg-emerald-950/45 text-emerald-200 ring-1 ring-emerald-500/25' : 'bg-black/35 text-zinc-500 ring-1 ring-white/10'
+                                            }`}
+                                        >
+                                            <span className="font-medium">{nextStage}단계</span>
+                                            <span>
+                                                {!nextStageUnlocked
+                                                    ? '잠김 (3위 이상 시 열림)'
+                                                    : nextStageWasAlreadyUnlocked
+                                                      ? '다음 단계가 이미 열려있습니다.'
+                                                      : '열림'}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
 
-                <div className="flex-shrink-0 p-2 border-t border-gray-600/70">
-                    <Button onClick={onClose} className="w-full py-2 text-sm font-medium">
-                        확인
-                    </Button>
+                                <div className={`${panelCardClass} flex flex-col justify-center p-2.5 sm:p-3`}>
+                                    <h3 className={`${sectionTitleClass} mb-2`}>현재 단계 누적 전적</h3>
+                                    <div className="flex items-center justify-center gap-8 py-1 sm:gap-6">
+                                        <div className="text-center">
+                                            <div className="text-3xl font-bold tabular-nums text-emerald-300 sm:text-2xl">{wins}</div>
+                                            <div className="text-[11px] text-zinc-500 sm:text-[10px]">승</div>
+                                        </div>
+                                        <div className="h-12 w-px bg-white/15 sm:h-10" />
+                                        <div className="text-center">
+                                            <div className="text-3xl font-bold tabular-nums text-rose-300 sm:text-2xl">{losses}</div>
+                                            <div className="text-[11px] text-zinc-500 sm:text-[10px]">패</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className={`${panelCardClass} flex min-h-[140px] flex-col p-2.5 sm:min-h-[160px] sm:p-3`}>
+                                <h3 className={`${sectionTitleClass} mb-2 flex-shrink-0`}>보상 내역</h3>
+                                {rewardItems.length > 0 ? (
+                                    <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 sm:gap-2">
+                                        {rewardItems.map((item, index) => {
+                                            const maybeEquip = item as typeof item & { grade?: ItemGrade };
+                                            const isWorldEquip = dungeonType === 'world' && maybeEquip.grade;
+
+                                            if (isWorldEquip && maybeEquip.grade) {
+                                                const grade = maybeEquip.grade;
+                                                const bg = gradeBackgrounds[grade] || gradeBackgrounds[ItemGrade.Normal];
+                                                const thumbSize = isMobile ? 'w-16 h-16' : 'w-14 h-14';
+
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className="flex min-w-0 flex-col items-center justify-center rounded-lg"
+                                                        title={item.name}
+                                                    >
+                                                        <div className={`relative aspect-square ${thumbSize} overflow-hidden rounded-lg ring-1 ring-amber-400/25`}>
+                                                            <img
+                                                                src={bg}
+                                                                alt={grade}
+                                                                className="absolute inset-0 h-full w-full rounded-md object-cover"
+                                                                aria-hidden
+                                                            />
+                                                            <img
+                                                                src={item.image?.startsWith('/') ? item.image : `/${item.image}`}
+                                                                alt={item.name}
+                                                                className="pointer-events-none absolute left-1/2 top-1/2 w-[78%] max-h-[78%] -translate-x-1/2 -translate-y-1/2 object-contain"
+                                                                loading="lazy"
+                                                                decoding="async"
+                                                            />
+                                                        </div>
+                                                        <span className="mt-1 line-clamp-2 w-full text-center text-[11px] leading-tight text-zinc-200 sm:text-[10px]">
+                                                            {item.name}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            }
+
+                                            const iconSize = isMobile ? 'h-11 w-11' : 'h-8 w-8';
+
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="flex min-w-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-black/35 p-1.5 ring-1 ring-inset ring-white/[0.04] sm:p-2"
+                                                >
+                                                    <img src={item.image} alt="" className={`${iconSize} object-contain`} />
+                                                    <span className="mt-1 line-clamp-2 w-full text-center text-[11px] leading-tight text-zinc-200 sm:text-[10px]">
+                                                        {item.name}
+                                                    </span>
+                                                    {item.quantity > 1 && (
+                                                        <span className="text-[11px] font-bold text-amber-200 sm:text-[10px]">×{item.quantity}</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <p className="py-2 text-sm text-zinc-500">보상 없음</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="relative z-10 flex shrink-0 flex-col border-t border-white/10 bg-[#07080c]/95 px-2.5 py-2.5 backdrop-blur-[2px] sm:px-3 sm:py-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+                        <Button
+                            bare
+                            onClick={onClose}
+                            colorScheme="none"
+                            className="w-full rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 py-3 text-base font-bold text-white shadow-[0_10px_36px_-10px_rgba(109,40,217,0.65),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-violet-200/50 hover:shadow-[0_14px_40px_-8px_rgba(139,92,246,0.55)] active:translate-y-px sm:py-2.5 sm:text-sm"
+                        >
+                            확인
+                        </Button>
+                    </div>
                 </div>
             </div>
         </DraggableWindow>

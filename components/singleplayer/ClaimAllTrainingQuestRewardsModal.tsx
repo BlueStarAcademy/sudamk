@@ -2,6 +2,7 @@ import React from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { SINGLE_PLAYER_MISSIONS } from '../../constants/singlePlayerConstants.js';
+import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 
@@ -146,8 +147,8 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
             closeOnOutsideClick={true}
             onClose={onClose}
             windowId="claim-all-training-quest-rewards"
-            initialWidth={isCompactUi ? 340 : 680}
-            initialHeight={isCompactUi ? 560 : 840}
+            initialWidth={isCompactUi ? 340 : 420}
+            initialHeight={isCompactUi ? 560 : 640}
             isTopmost={isTopmost}
             zIndex={10000}
             mobileViewportFit={isCompactUi}
@@ -171,23 +172,23 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                     />
                 </div>
             ) : (
-                <div className="text-center text-on-panel">
-                    <h2 className="mb-4 text-xl font-bold">모든 수련 과제 보상을 수령했습니다!</h2>
+                <div className="mx-auto max-w-[min(100%,22rem)] text-center text-on-panel">
+                    <h2 className="mb-3 text-lg font-bold leading-snug sm:text-xl">모든 수련 과제 보상을 수령했습니다!</h2>
 
-                    <div className="mb-4 space-y-2 rounded-lg bg-gray-900/50 p-4">
+                    <div className="mb-3 max-h-[min(52vh,420px)] space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-lg bg-gray-900/50 p-3 [scrollbar-gutter:stable]">
                         {rewards.map((reward) => {
                             const missionInfo = SINGLE_PLAYER_MISSIONS.find((m) => m.id === reward.missionId);
                             return (
                                 <div
                                     key={reward.missionId}
-                                    className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3"
+                                    className="flex items-center justify-between gap-2 rounded-lg bg-gray-800/50 p-2.5"
                                 >
-                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                    <div className="flex min-w-0 flex-1 items-center gap-2">
                                         {missionInfo && (
                                             <img
                                                 src={missionInfo.image}
                                                 alt={reward.missionName}
-                                                className="h-10 w-10 flex-shrink-0 rounded-lg object-cover"
+                                                className="h-9 w-9 flex-shrink-0 rounded-lg object-cover"
                                                 onError={(e) => {
                                                     const target = e.target as HTMLImageElement;
                                                     target.style.display = 'none';
@@ -195,21 +196,21 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                                             />
                                         )}
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="truncate text-sm font-bold text-white">{reward.missionName}</h3>
+                                            <h3 className="truncate text-left text-xs font-bold text-white sm:text-sm">{reward.missionName}</h3>
                                         </div>
                                     </div>
-                                    <div className="ml-3 flex flex-shrink-0 items-center gap-2">
+                                    <div className="flex shrink-0 items-center gap-1.5">
                                         {reward.rewardType === 'gold' ? (
                                             <>
-                                                <img src="/images/icon/Gold.png" alt="골드" className="h-5 w-5" />
-                                                <span className="text-sm font-bold text-yellow-300">
+                                                <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                <span className="text-xs font-bold tabular-nums text-yellow-300 sm:text-sm">
                                                     +{reward.rewardAmount.toLocaleString()}
                                                 </span>
                                             </>
                                         ) : (
                                             <>
-                                                <img src="/images/icon/Zem.png" alt="다이아" className="h-5 w-5" />
-                                                <span className="text-sm font-bold text-cyan-300">
+                                                <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                <span className="text-xs font-bold tabular-nums text-cyan-300 sm:text-sm">
                                                     +{reward.rewardAmount.toLocaleString()}
                                                 </span>
                                             </>
@@ -221,34 +222,42 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                     </div>
 
                     {(totalGold > 0 || totalDiamonds > 0) && (
-                        <div className="mb-4 space-y-2 rounded-lg border-2 border-green-500/30 bg-gradient-to-r from-green-900/30 to-blue-900/30 p-4">
-                            <h3 className="mb-2 text-lg font-bold">총 합계</h3>
-                            <div className="space-y-2">
+                        <div className="mb-3 space-y-1.5 rounded-lg border border-green-500/35 bg-gradient-to-r from-green-900/35 to-blue-900/35 p-3">
+                            <h3 className="text-base font-bold">총 합계</h3>
+                            <div className="space-y-1.5">
                                 {totalGold > 0 && (
-                                    <div className="flex items-center justify-between text-lg">
-                                        <span className="flex items-center gap-2">
-                                            <img src="/images/icon/Gold.png" alt="골드" className="h-6 w-6" />
+                                    <div className="flex items-center justify-between gap-2 text-sm sm:text-base">
+                                        <span className="flex min-w-0 items-center gap-1.5">
+                                            <img src="/images/icon/Gold.png" alt="골드" className="h-5 w-5 shrink-0" />
                                             <span className="font-semibold">골드</span>
                                         </span>
-                                        <span className="font-bold text-yellow-300">+{totalGold.toLocaleString()}</span>
+                                        <span className="shrink-0 font-bold tabular-nums text-yellow-300">+{totalGold.toLocaleString()}</span>
                                     </div>
                                 )}
                                 {totalDiamonds > 0 && (
-                                    <div className="flex items-center justify-between text-lg">
-                                        <span className="flex items-center gap-2">
-                                            <img src="/images/icon/Zem.png" alt="다이아" className="h-6 w-6" />
+                                    <div className="flex items-center justify-between gap-2 text-sm sm:text-base">
+                                        <span className="flex min-w-0 items-center gap-1.5">
+                                            <img src="/images/icon/Zem.png" alt="다이아" className="h-5 w-5 shrink-0" />
                                             <span className="font-semibold">다이아</span>
                                         </span>
-                                        <span className="font-bold text-cyan-300">+{totalDiamonds.toLocaleString()}</span>
+                                        <span className="shrink-0 font-bold tabular-nums text-cyan-300">+{totalDiamonds.toLocaleString()}</span>
                                     </div>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    <Button onClick={onClose} colorScheme="accent" className="mt-4 w-full">
-                        확인
-                    </Button>
+                    <div className="flex justify-center pt-1">
+                        <Button
+                            onClick={onClose}
+                            colorScheme="none"
+                            bare
+                            className={PREMIUM_QUEST_BTN.confirmModal}
+                            cooldownMs={0}
+                        >
+                            확인
+                        </Button>
+                    </div>
                 </div>
             )}
         </DraggableWindow>

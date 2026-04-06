@@ -238,6 +238,8 @@ export type TournamentState = {
             materials?: Record<string, number>;
             equipmentBoxes?: Record<string, number>;
             changeTickets?: number;
+            /** 월드챔피언십: 지급된 변경권 종류별 수량(모달·보상내역) */
+            changeTicketGrants?: { name: string; quantity: number }[];
         };
         rankReward?: {
             items?: Array<{ itemId: string; quantity?: number; min?: number; max?: number }>;

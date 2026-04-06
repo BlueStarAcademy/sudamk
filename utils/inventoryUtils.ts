@@ -17,13 +17,38 @@ const CONSUMABLE_TEMPLATE_MAP: Record<string, Omit<InventoryItem, 'id'|'createdA
 
 const MATERIAL_TEMPLATE_MAP: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = { ...MATERIAL_ITEMS };
 
+/** 상점 키·일부 보상 파이프라인의 영문 itemId → CONSUMABLE_ITEMS/MATERIAL_ITEMS 표준 이름 (예: equipment_box_2 → 장비 상자 II) */
+const SHOP_ITEM_ID_TO_DISPLAY_NAME: Record<string, string> = {
+    equipment_box_1: '장비 상자 I',
+    equipment_box_2: '장비 상자 II',
+    equipment_box_3: '장비 상자 III',
+    equipment_box_4: '장비 상자 IV',
+    equipment_box_5: '장비 상자 V',
+    equipment_box_6: '장비 상자 VI',
+    material_box_1: '재료 상자 I',
+    material_box_2: '재료 상자 II',
+    material_box_3: '재료 상자 III',
+    material_box_4: '재료 상자 IV',
+    material_box_5: '재료 상자 V',
+    material_box_6: '재료 상자 VI',
+    resource_box_1: '재료 상자 I',
+    resource_box_2: '재료 상자 II',
+    resource_box_3: '재료 상자 III',
+    resource_box_4: '재료 상자 IV',
+    resource_box_5: '재료 상자 V',
+    resource_box_6: '재료 상자 VI',
+};
+
 // 장비/재료 상자 이름을 CONSUMABLE_ITEMS 표준 형식으로 정규화 (공백·숫자/로마자 통일)
 export const normalizeBoxItemName = (name: string): string => {
     if (!name || typeof name !== 'string') return name;
+    const trimmed = name.replace(/\s+/g, ' ').trim();
+    const fromShopId = SHOP_ITEM_ID_TO_DISPLAY_NAME[trimmed];
+    if (fromShopId) return fromShopId;
     const numToRoman: Record<string, string> = {
         '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
     };
-    let normalized = name.replace(/\s+/g, ' ').trim(); // 모든 공백을 일반 공백 하나로
+    let normalized = trimmed; // 모든 공백을 일반 공백 하나로
     normalized = normalized.replace(/장비상자(\d)/g, (_, num) => `장비 상자 ${numToRoman[num] || num}`);
     normalized = normalized.replace(/재료상자(\d)/g, (_, num) => `재료 상자 ${numToRoman[num] || num}`);
     normalized = normalized.replace(/장비 상자(\d)/g, (_, num) => `장비 상자 ${numToRoman[num] || num}`);
@@ -36,13 +61,15 @@ export const normalizeBoxItemName = (name: string): string => {
 export const getItemTemplateByName = (itemName: string) => {
     const trimmedName = itemName?.trim()?.replace(/\s+/g, ' ').trim();
     if (!trimmedName) return null;
+
+    const lookupKey = SHOP_ITEM_ID_TO_DISPLAY_NAME[trimmedName] ?? trimmedName;
     
     // 먼저 정확한 이름으로 찾기
-    let template = CONSUMABLE_TEMPLATE_MAP[trimmedName] || MATERIAL_TEMPLATE_MAP[trimmedName];
+    let template = CONSUMABLE_TEMPLATE_MAP[lookupKey] || MATERIAL_TEMPLATE_MAP[lookupKey];
     if (template) return template;
     // 장비/재료 상자 이름 정규화 후 재시도 (공백·숫자 변형 대응)
-    const normalizedForBox = normalizeBoxItemName(trimmedName);
-    if (normalizedForBox !== trimmedName) {
+    const normalizedForBox = normalizeBoxItemName(lookupKey);
+    if (normalizedForBox !== lookupKey) {
         template = CONSUMABLE_TEMPLATE_MAP[normalizedForBox] || MATERIAL_TEMPLATE_MAP[normalizedForBox];
         if (template) return template;
     }
@@ -63,8 +90,8 @@ export const getItemTemplateByName = (itemName: string) => {
     ];
     
     for (const { pattern, replacement } of boxNamePatterns) {
-        const converted = trimmedName.replace(pattern, (match, num) => replacement(num));
-        if (converted !== trimmedName) {
+        const converted = lookupKey.replace(pattern, (match, num) => replacement(num));
+        if (converted !== lookupKey) {
             template = CONSUMABLE_TEMPLATE_MAP[converted] || MATERIAL_TEMPLATE_MAP[converted];
             if (template) return template;
         }
@@ -72,28 +99,28 @@ export const getItemTemplateByName = (itemName: string) => {
     
     // 이름 불일치 처리: '골드꾸러미1' <-> '골드 꾸러미1'
     // '골드꾸러미' -> '골드 꾸러미' 변환
-    if (trimmedName.includes('골드꾸러미')) {
-        const withSpace = trimmedName.replace('골드꾸러미', '골드 꾸러미');
+    if (lookupKey.includes('골드꾸러미')) {
+        const withSpace = lookupKey.replace('골드꾸러미', '골드 꾸러미');
         template = CONSUMABLE_TEMPLATE_MAP[withSpace] || MATERIAL_TEMPLATE_MAP[withSpace];
         if (template) return template;
     }
     
     // 반대 방향: '골드 꾸러미1' -> '골드꾸러미1'
-    if (trimmedName.includes('골드 꾸러미')) {
-        const withoutSpace = trimmedName.replace('골드 꾸러미', '골드꾸러미');
+    if (lookupKey.includes('골드 꾸러미')) {
+        const withoutSpace = lookupKey.replace('골드 꾸러미', '골드꾸러미');
         template = CONSUMABLE_TEMPLATE_MAP[withoutSpace] || MATERIAL_TEMPLATE_MAP[withoutSpace];
         if (template) return template;
     }
     
     // 다이아꾸러미 처리
-    if (trimmedName.includes('다이아꾸러미')) {
-        const withSpace = trimmedName.replace('다이아꾸러미', '다이아 꾸러미');
+    if (lookupKey.includes('다이아꾸러미')) {
+        const withSpace = lookupKey.replace('다이아꾸러미', '다이아 꾸러미');
         template = CONSUMABLE_TEMPLATE_MAP[withSpace] || MATERIAL_TEMPLATE_MAP[withSpace];
         if (template) return template;
     }
     
-    if (trimmedName.includes('다이아 꾸러미')) {
-        const withoutSpace = trimmedName.replace('다이아 꾸러미', '다이아꾸러미');
+    if (lookupKey.includes('다이아 꾸러미')) {
+        const withoutSpace = lookupKey.replace('다이아 꾸러미', '다이아꾸러미');
         template = CONSUMABLE_TEMPLATE_MAP[withoutSpace] || MATERIAL_TEMPLATE_MAP[withoutSpace];
         if (template) return template;
     }

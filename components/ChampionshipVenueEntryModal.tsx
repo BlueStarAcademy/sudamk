@@ -36,12 +36,18 @@ type RewardPiece = {
     mysteryEquip?: boolean;
     /** 동네 기본 보상: 골드 아이콘 어둡게 + 물음표 (승·패 범위는 captionBesideThumb) */
     mysteryNeighborhoodGold?: boolean;
+    /** 월드 장비 변경권: 랜덤 지급 안내 — 이미지 어둡게 + 물음표 */
+    mysteryChangeTicket?: boolean;
     /** 썸 우하단 수량 배지 숨김 */
     hideThumbQuantityBadge?: boolean;
     /** 수량·이름은 썸 배지에만 표시하고 옆 텍스트 줄 생략 */
     quantityOnThumbOnly?: boolean;
     /** 썸 옆에만 보조 문구 (동네 기본: 승/패 골드 범위, 월드: 랜덤 안내) */
     captionBesideThumb?: string[];
+    /** true면 captionBesideThumb는 옆에 표시하지 않고, 호버(title)·누름 시 안내만 */
+    captionTooltipOnly?: boolean;
+    /** 썸네일 바로 아래 한 줄 라벨 (예: 월드 기본 보상「장비」「변경권」) */
+    captionBelowThumb?: string;
 };
 
 const CORE_STAT_SHORT: Record<CoreStat, string> = {
@@ -223,15 +229,17 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
         return [
             {
                 key: 'base-gold-mystery',
-                label: '경기당 골드',
+                label: '',
                 quantity: '',
                 imageUrl: '/images/icon/Gold.png',
                 frame: 'gold',
                 mysteryNeighborhoodGold: true,
                 hideThumbQuantityBadge: true,
+                quantityOnThumbOnly: true,
+                captionTooltipOnly: true,
                 captionBesideThumb: [
-                    `승리: ${range.win.min.toLocaleString()}~${range.win.max.toLocaleString()} 골드`,
-                    `패배: ${range.loss.min.toLocaleString()}~${range.loss.max.toLocaleString()} 골드`,
+                    `승리 시 ${range.win.min.toLocaleString()}~${range.win.max.toLocaleString()} 골드`,
+                    `패배 시 ${range.loss.min.toLocaleString()}~${range.loss.max.toLocaleString()} 골드`,
                 ],
             },
         ];
@@ -257,21 +265,32 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
         const list: RewardPiece[] = [
             {
                 key: 'base-equip-random',
-                label: '등급별 장비',
+                label: '',
                 quantity: '',
                 imageUrl: boxImg,
                 mysteryEquip: true,
                 hideThumbQuantityBadge: true,
+                quantityOnThumbOnly: true,
+                captionTooltipOnly: true,
                 captionBesideThumb: formatWorldEquipmentDropCaptionLines(stage),
+                captionBelowThumb: '장비',
             },
         ];
         if (e.changeTickets > 0) {
             list.push({
                 key: 'tickets',
                 label: '장비 변경권',
-                quantity: `×${e.changeTickets}`,
+                quantity: '',
                 imageUrl: '/images/use/change1.png',
+                mysteryChangeTicket: true,
+                hideThumbQuantityBadge: true,
                 quantityOnThumbOnly: true,
+                captionTooltipOnly: true,
+                captionBesideThumb: [
+                    '경기 결과에 따라 지급 여부·수량이 달라질 수 있습니다 (랜덤).',
+                    `단계 기준 최대 ${e.changeTickets}개 범위`,
+                ],
+                captionBelowThumb: '변경권',
             });
         }
         return list;
@@ -289,20 +308,62 @@ const rewardThumbRing = (piece: RewardPiece) => {
     return 'ring-white/[0.12]';
 };
 
-const RewardThumb: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
-    const box = 'h-10 w-10 min-h-[2.5rem] min-w-[2.5rem] sm:h-11 sm:w-11 sm:min-h-[2.75rem] sm:min-w-[2.75rem]';
-    const qtyClass = 'px-0.5 py-px text-[8px] sm:text-[9px]';
-    const padImg = 'p-0.5 sm:p-1';
+const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean }> = ({ piece, fluid = true }) => {
+    const [pressTip, setPressTip] = useState(false);
+    const box = fluid
+        ? 'aspect-square w-full min-h-0 min-w-0'
+        : 'h-9 w-9 min-h-[2.25rem] min-w-[2.25rem] shrink-0 sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10';
+    const qtyClass = fluid
+        ? 'px-0.5 py-px text-[clamp(7px,2.2vw,11px)]'
+        : 'px-0.5 py-px text-[8px] sm:text-[9px]';
+    const padImg = fluid ? 'p-[6%] sm:p-[8%]' : 'p-0.5 sm:p-1';
+    const mysteryMarkClass = fluid ? 'text-[clamp(0.65rem,3.5vw,1.125rem)]' : 'text-lg';
+    /** 월드 등급 상자·변경권: 동일 프레임 + 살짝 더 선명하게 */
+    const worldMysteryImgTone = 'opacity-[0.62] brightness-[0.68] contrast-[0.98]';
     const tierBg =
-        piece.grade !== undefined && !piece.mysteryEquip && !piece.mysteryNeighborhoodGold ? gradeBackgrounds[piece.grade] : undefined;
+        piece.grade !== undefined && !piece.mysteryEquip && !piece.mysteryNeighborhoodGold && !piece.mysteryChangeTicket
+            ? gradeBackgrounds[piece.grade]
+            : undefined;
     const ring = rewardThumbRing(piece);
-    const titleText =
-        piece.captionBesideThumb?.length ? [piece.label, ...piece.captionBesideThumb].join(' · ') : `${piece.label} ${piece.quantity}`.trim();
+    const tooltipLines =
+        piece.captionBesideThumb?.length && piece.captionTooltipOnly
+            ? piece.mysteryNeighborhoodGold
+                ? [...piece.captionBesideThumb]
+                : piece.label
+                  ? [piece.label, ...piece.captionBesideThumb]
+                  : [...piece.captionBesideThumb]
+            : null;
+    const titleText = tooltipLines
+        ? tooltipLines.join('\n')
+        : piece.captionBesideThumb?.length && !piece.captionTooltipOnly
+          ? [piece.label, ...piece.captionBesideThumb].join(' · ')
+          : `${piece.label} ${piece.quantity}`.trim() || '기본 보상';
+    const tipOnly = Boolean(piece.captionTooltipOnly && piece.captionBesideThumb?.length);
+
     return (
         <div
-            className={`group/thumb relative shrink-0 overflow-hidden rounded-lg ${box} bg-gradient-to-b from-zinc-800/90 to-black/80 ring-1 ${ring}`}
-            title={titleText}
+            className={`relative ${fluid ? 'mx-auto w-full min-w-0 max-w-[3rem] sm:max-w-[3.25rem]' : 'shrink-0'} ${tipOnly ? 'touch-manipulation' : ''}`}
+            onPointerDown={tipOnly ? () => setPressTip(true) : undefined}
+            onPointerUp={tipOnly ? () => setPressTip(false) : undefined}
+            onPointerCancel={tipOnly ? () => setPressTip(false) : undefined}
+            onPointerLeave={tipOnly ? () => setPressTip(false) : undefined}
         >
+            {tipOnly && pressTip && tooltipLines && (
+                <div
+                    className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 w-max max-w-[min(17rem,calc(100vw-3rem))] -translate-x-1/2 rounded-lg border border-amber-400/35 bg-slate-950/98 px-2.5 py-2 text-left text-[10px] leading-snug text-zinc-100 shadow-[0_12px_40px_rgba(0,0,0,0.65)] sm:text-[11px]"
+                    role="tooltip"
+                >
+                    {tooltipLines.map((line, i) => (
+                        <div key={i} className={i > 0 ? 'mt-1 border-t border-white/10 pt-1' : ''}>
+                            {line}
+                        </div>
+                    ))}
+                </div>
+            )}
+            <div
+                className={`group/thumb relative overflow-hidden rounded-lg ${fluid ? 'w-full' : 'shrink-0'} ${box} bg-gradient-to-b from-zinc-800/90 to-black/80 ring-1 ${ring} ${tipOnly ? 'cursor-help' : ''}`}
+                title={titleText}
+            >
             {piece.mysteryNeighborhoodGold && piece.imageUrl ? (
                 <>
                     <img
@@ -313,24 +374,26 @@ const RewardThumb: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
                         decoding="async"
                     />
                     <span
-                        className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center text-lg font-black leading-none text-white"
+                        className={`pointer-events-none absolute inset-0 z-[2] flex items-center justify-center font-black leading-none text-white ${mysteryMarkClass}`}
                         style={{ textShadow: '0 0 10px rgba(0,0,0,0.95), 0 2px 4px rgba(0,0,0,0.9)' }}
                         aria-hidden
                     >
                         ?
                     </span>
                 </>
-            ) : piece.mysteryEquip && piece.imageUrl ? (
+            ) : (piece.mysteryEquip || piece.mysteryChangeTicket) && piece.imageUrl ? (
                 <>
-                    <img
-                        src={piece.imageUrl}
-                        alt=""
-                        className={`relative z-[1] h-full w-full object-contain ${padImg} opacity-[0.38] brightness-[0.45] contrast-[0.95]`}
-                        loading="lazy"
-                        decoding="async"
-                    />
+                    <div className="absolute inset-0 z-[1] flex items-center justify-center p-[10%]">
+                        <img
+                            src={piece.imageUrl}
+                            alt=""
+                            className={`max-h-full max-w-full object-contain ${worldMysteryImgTone}`}
+                            loading="lazy"
+                            decoding="async"
+                        />
+                    </div>
                     <span
-                        className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center text-lg font-black leading-none text-white"
+                        className={`pointer-events-none absolute inset-0 z-[2] flex items-center justify-center font-black leading-none text-white ${mysteryMarkClass}`}
                         style={{ textShadow: '0 0 10px rgba(0,0,0,0.95), 0 2px 4px rgba(0,0,0,0.9)' }}
                         aria-hidden
                     >
@@ -368,30 +431,50 @@ const RewardThumb: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
                     {piece.quantity}
                 </span>
             ) : null}
+            </div>
         </div>
     );
 };
 
-const RewardStripRow: React.FC<{ piece: RewardPiece }> = ({ piece }) => (
-    <div className="flex min-w-0 max-w-[16rem] shrink-0 items-start gap-2 sm:max-w-[18rem]">
-        <RewardThumb piece={piece} />
-        {piece.captionBesideThumb && piece.captionBesideThumb.length > 0 ? (
-            <div className="min-w-0 flex flex-col justify-center gap-0.5 pt-0.5 text-[10px] leading-snug text-zinc-300 sm:text-[11px]">
-                {piece.captionBesideThumb.map((line, i) => (
-                    <div key={i}>{line}</div>
-                ))}
-            </div>
-        ) : !piece.quantityOnThumbOnly ? (
-            <span
-                className="min-w-0 truncate whitespace-nowrap pt-1 text-xs font-medium text-zinc-200 sm:text-sm"
-                title={`${piece.label} ${piece.quantity}`}
-            >
-                {piece.label}
-                <span className="ml-1 tabular-nums font-semibold text-amber-200/90">{piece.quantity}</span>
-            </span>
-        ) : null}
-    </div>
-);
+const RewardStripRow: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
+    const hasCaption =
+        piece.captionBesideThumb &&
+        piece.captionBesideThumb.length > 0 &&
+        !piece.captionTooltipOnly;
+    const hasBelow = Boolean(piece.captionBelowThumb);
+    const alignClass = hasCaption ? 'items-start' : 'items-center';
+    const rowJustify = hasCaption ? '' : 'justify-center';
+    const layoutClass = hasCaption
+        ? 'items-start gap-1'
+        : hasBelow
+          ? 'flex-col items-center justify-center gap-0'
+          : `gap-1 ${alignClass} ${rowJustify}`;
+    return (
+        <div className={`flex min-w-0 w-full shrink-0 ${layoutClass}`}>
+            <RewardThumb piece={piece} fluid={!hasCaption} />
+            {hasCaption ? (
+                <div className="min-w-0 flex flex-1 flex-col justify-center gap-0.5 text-[9px] leading-snug text-zinc-300 sm:text-[10px]">
+                    {piece.captionBesideThumb!.map((line, i) => (
+                        <div key={i}>{line}</div>
+                    ))}
+                </div>
+            ) : !piece.quantityOnThumbOnly && !hasBelow ? (
+                <span
+                    className="min-w-0 flex-1 truncate whitespace-nowrap text-[11px] font-medium text-zinc-200 sm:text-xs"
+                    title={`${piece.label} ${piece.quantity}`}
+                >
+                    {piece.label}
+                    <span className="ml-1 tabular-nums font-semibold text-amber-200/90">{piece.quantity}</span>
+                </span>
+            ) : null}
+            {hasBelow ? (
+                <span className="max-w-full text-center text-[10px] font-semibold leading-none text-zinc-400 sm:text-[11px]">
+                    {piece.captionBelowThumb}
+                </span>
+            ) : null}
+        </div>
+    );
+};
 
 const SectionTitle: React.FC<{ children: React.ReactNode; accent: 'cyan' | 'amber' }> = ({ children, accent }) => {
     const line =
@@ -400,7 +483,7 @@ const SectionTitle: React.FC<{ children: React.ReactNode; accent: 'cyan' | 'ambe
             : 'from-amber-400/50 via-amber-300/15 to-transparent';
     const text = accent === 'cyan' ? 'text-cyan-100/95' : 'text-amber-100/95';
     return (
-        <div className="mb-2 flex items-center gap-2">
+        <div className="mb-1.5 flex items-center gap-2">
             <span className={`whitespace-nowrap text-xs font-bold uppercase tracking-[0.12em] sm:text-sm ${text}`}>{children}</span>
             <span className={`h-px min-w-0 flex-1 bg-gradient-to-r ${line}`} aria-hidden />
         </div>
@@ -516,9 +599,12 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
             windowId={`championship-venue-entry-${type}`}
             onClose={onClose}
             initialWidth={760}
+            initialHeight={700}
             modal
             isTopmost={isTopmost}
             mobileViewportFit
+            mobileViewportMaxHeightCss="90dvh"
+            mobileViewportMaxHeightVh={92}
             bodyNoScroll
             hideFooter
             bodyPaddingClassName="!p-0"
@@ -535,8 +621,8 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                 <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-purple-600/15 blur-3xl" aria-hidden />
                 <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-amber-600/10 blur-3xl" aria-hidden />
 
-                <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 p-2.5 sm:gap-3 sm:p-3.5">
-                    <div className="relative flex h-[4.25rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[5.5rem]">
+                <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3">
+                    <div className="relative flex h-[3.75rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[5rem]">
                         <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/55 to-black/25" />
                         <div className="relative z-[1] flex flex-1 flex-col justify-center px-3.5 py-2">
@@ -613,8 +699,8 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                         </div>
                     </div>
 
-                    <div className="shrink-0 rounded-xl border border-violet-500/25 bg-black/35 p-2.5 ring-1 ring-inset ring-violet-500/10 sm:p-3">
-                        <div className="mb-2 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
+                    <div className="shrink-0 rounded-xl border border-violet-500/25 bg-black/35 p-2 ring-1 ring-inset ring-violet-500/10 sm:p-2.5">
+                        <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
                             <span className="text-sm font-bold text-violet-200 sm:text-base">상대 선수 평균 능력치 (참고)</span>
                             <span className="whitespace-nowrap text-[11px] text-zinc-500 sm:text-xs">
                                 능력치별 {botStatRange.minStat}~{botStatRange.maxStat} 랜덤 · 표시 ≈ 평균 {botAvgStat}
@@ -636,30 +722,51 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                     </div>
 
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-600/35 bg-zinc-950/55 ring-1 ring-inset ring-white/[0.06]">
-                        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain p-2.5 [scrollbar-width:thin] [scrollbar-color:rgba(52,211,153,0.35)_transparent] sm:p-3.5">
-                            <div className="flex min-w-max items-stretch gap-0">
-                                <div className="flex shrink-0 flex-col gap-2.5 pr-4">
-                                    <span className="whitespace-nowrap text-sm font-bold text-emerald-400 sm:text-base">기본 보상 (경기 보상)</span>
-                                    <div className="flex flex-col gap-2">
+                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-1.5 [scrollbar-width:thin] [scrollbar-color:rgba(52,211,153,0.35)_transparent] sm:p-2">
+                            <div className="flex w-full min-w-0 flex-nowrap items-stretch gap-0">
+                                <div className="flex min-w-0 flex-1 basis-0 flex-col items-stretch gap-0 pr-px">
+                                    <div className="flex min-h-8 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center">
+                                        <span className="text-xs font-bold leading-tight text-emerald-400 sm:text-sm">
+                                            기본 보상
+                                        </span>
+                                    </div>
+                                    <div
+                                        className={`min-w-0 w-full pt-1 ${
+                                            type === 'world' && basePieces.length > 1
+                                                ? 'grid grid-cols-2 items-end justify-items-center gap-x-2'
+                                                : 'flex flex-col items-stretch gap-1'
+                                        }`}
+                                    >
                                         {basePieces.length === 0 ? (
-                                            <span className="text-base text-zinc-500">—</span>
+                                            <span className="text-sm text-zinc-500">—</span>
+                                        ) : type === 'world' && basePieces.length > 1 ? (
+                                            basePieces.map(p => (
+                                                <div key={p.key} className="flex min-w-0 w-full justify-center">
+                                                    <RewardStripRow piece={p} />
+                                                </div>
+                                            ))
                                         ) : (
                                             basePieces.map(p => <RewardStripRow key={p.key} piece={p} />)
                                         )}
                                     </div>
                                 </div>
                                 {rankRewardGroups.length === 0 ? (
-                                    <div className="flex shrink-0 items-center border-l border-white/15 pl-4 text-base text-zinc-500">
-                                        순위 보상 없음
+                                    <div className="flex min-w-0 flex-1 basis-0 flex-col items-center justify-center border-l border-white/[0.08] pl-px sm:pl-0.5">
+                                        <span className="text-center text-xs leading-tight text-zinc-500 sm:text-sm">없음</span>
                                     </div>
                                 ) : (
-                                    rankRewardGroups.map(({ ranks, headRank, rankLabel, pieces }) => (
-                                            <div
-                                                key={ranks.join('-')}
-                                                className="flex shrink-0 flex-col gap-2.5 border-l border-white/15 pl-4"
-                                            >
+                                    rankRewardGroups.map(({ ranks, headRank, rankLabel, pieces }) => {
+                                        const noReward = pieces.length === 0;
+                                        return (
+                                        <div
+                                            key={ranks.join('-')}
+                                            className="flex min-w-0 flex-1 basis-0 flex-col items-stretch gap-0 border-l border-white/[0.08] pl-px sm:pl-0.5"
+                                        >
+                                            <div className="flex min-h-8 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center">
                                                 <span
-                                                    className={`whitespace-nowrap text-sm font-bold sm:text-base ${
+                                                    className={`max-w-full text-xs font-bold leading-tight sm:text-sm ${
+                                                        noReward ? 'truncate' : 'whitespace-nowrap'
+                                                    } ${
                                                         headRank === 1
                                                             ? 'text-amber-300'
                                                             : headRank === 2
@@ -668,18 +775,21 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                                                 ? 'text-orange-300/95'
                                                                 : 'text-zinc-300'
                                                     }`}
+                                                    title={rankLabel}
                                                 >
                                                     {rankLabel}
                                                 </span>
-                                                <div className="flex flex-col gap-2">
-                                                    {pieces.length === 0 ? (
-                                                        <span className="text-sm text-zinc-500">순위 보상 없음</span>
-                                                    ) : (
-                                                        pieces.map(p => <RewardStripRow key={p.key} piece={p} />)
-                                                    )}
-                                                </div>
                                             </div>
-                                        ))
+                                            <div className="flex w-full min-w-0 flex-col items-stretch gap-1 pt-1">
+                                                {noReward ? (
+                                                    <span className="text-center text-xs leading-tight text-zinc-500 sm:text-sm">없음</span>
+                                                ) : (
+                                                    pieces.map(p => <RewardStripRow key={p.key} piece={p} />)
+                                                )}
+                                            </div>
+                                        </div>
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>

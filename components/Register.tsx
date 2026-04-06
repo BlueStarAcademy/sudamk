@@ -1,4 +1,3 @@
-// 테스트 단계: 아이디/비밀번호만으로 간편 가입. 추후 이메일 인증, 카카오 로그인 예정
 import React, { useState } from 'react';
 import { containsProfanity } from '../profanity.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -12,10 +11,13 @@ const registerPrimaryBtnClass =
 const USERNAME_MIN_LENGTH = 2;
 const USERNAME_MAX_LENGTH = 20;
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const Register: React.FC = () => {
     const { setCurrentUserAndRoute } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [passwordConfirm, setPasswordConfirm] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -28,8 +30,13 @@ const Register: React.FC = () => {
         const trimmedUsername = username.trim();
         const trimmedPassword = password.trim();
 
-        if (!trimmedUsername || !trimmedPassword) {
-            setError("아이디와 비밀번호를 입력해주세요.");
+        const trimmedEmail = email.trim();
+        if (!trimmedUsername || !trimmedPassword || !trimmedEmail) {
+            setError("아이디, 이메일, 비밀번호를 입력해주세요.");
+            return;
+        }
+        if (!EMAIL_REGEX.test(trimmedEmail)) {
+            setError("올바른 이메일 주소를 입력해주세요.");
             return;
         }
         if (trimmedUsername.length < USERNAME_MIN_LENGTH || trimmedUsername.length > USERNAME_MAX_LENGTH) {
@@ -51,7 +58,11 @@ const Register: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const requestBody = { username: trimmedUsername, password: trimmedPassword };
+            const requestBody = {
+                username: trimmedUsername,
+                password: trimmedPassword,
+                email: trimmedEmail,
+            };
             const response = await fetch(getApiUrl('/api/auth/register'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -101,7 +112,6 @@ const Register: React.FC = () => {
                 />
                 <div className="mb-5 border-b border-white/[0.06] pb-5 sm:mb-6 sm:pb-6">
                     <h2 className="text-lg font-semibold tracking-tight text-stone-100 sm:text-xl">회원가입</h2>
-                    <p className="mt-1.5 text-sm leading-relaxed text-zinc-400 sm:mt-2">아이디와 비밀번호만으로 간단히 가입할 수 있습니다.</p>
                 </div>
                 <form className="space-y-4" onSubmit={handleSubmit}>
                     <div className="space-y-4">
@@ -121,6 +131,22 @@ const Register: React.FC = () => {
                                 onChange={e => setUsername(e.target.value)}
                                 minLength={USERNAME_MIN_LENGTH}
                                 maxLength={USERNAME_MAX_LENGTH}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="email-register" className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500">
+                                이메일
+                            </label>
+                            <input
+                                id="email-register"
+                                name="email"
+                                type="email"
+                                required
+                                autoComplete="email"
+                                className={inputClass}
+                                placeholder="example@email.com"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
                             />
                         </div>
                         <div>

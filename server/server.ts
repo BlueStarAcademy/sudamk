@@ -91,6 +91,11 @@ let lastBotScoreUpdateAt = 0;
 let lastStaleUserStatusCleanupAt = 0;
 const STALE_USER_STATUS_CLEANUP_INTERVAL_MS = 60_000; // 1000명 규모: userStatuses 무한 증가 방지
 
+/** 소규모 플랜(기본 512MB)에서 RSS가 이 값을 넘으면 재시작. `MEMORY_EXIT_RSS_MB`로 재정의 가능 */
+const MEMORY_EXIT_RSS_MB_SMALL = parseInt(process.env.MEMORY_EXIT_RSS_MB || '440', 10);
+/** 메모리 한계로 종료 시도 중복 방지 */
+let pendingMemoryCriticalExit = false;
+
 // 고아 게임 정리: 온라인 0명일 때만 실행 (접속자가 없을 때 DB에 남은 AI/오류 대국 삭제)
 let lastOrphanedGameCleanupAt = 0;
 const ORPHANED_GAME_CLEANUP_INTERVAL_MS = 15 * 60 * 1000; // 15분
@@ -1047,7 +1052,14 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     const gracefulShutdown = async (server: http.Server) => {
         console.log('[Server] Initiating graceful shutdown...');
         isServerReady = false;
-        
+        try {
+            const { broadcastServerRestarting } = await import('./socket.js');
+            broadcastServerRestarting('maintenance');
+            await new Promise((r) => setTimeout(r, 1200));
+        } catch {
+            /* ignore */
+        }
+
         // 30초 내에 종료되지 않으면 강제 종료
         const shutdownTimeout = setTimeout(() => {
             console.error('[Server] Graceful shutdown timeout. Forcing exit...');
@@ -1397,7 +1409,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     const MEM_CLEANUP = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.12) : 250;
                     const MEM_AGGRESSIVE = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.15) : 300;
                     const MEM_CLEAR_ALL = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.20) : 350;
-                    const MEM_EXIT = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.25) : 400;
+                    const MEM_EXIT = memLimitMb > 4000 ? Math.floor(memLimitMb * 0.25) : MEMORY_EXIT_RSS_MB_SMALL;
                     if (memUsageMB.rss > MEM_WARN) {
                         console.warn(`[Memory] High memory usage detected: ${memUsageMB.rss}MB RSS`);
                         
@@ -1441,22 +1453,38 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                             }
                         }
                         
-                        // 메모리 사용량이 400MB를 초과하면 프로세스 종료 (Railway가 재시작)
+                        // RSS가 임계치 초과 시: 접속자에게 WS 안내 → 짧은 유예 후 종료 (Railway 재시작)
                         if (memUsageMB.rss > MEM_EXIT) {
-                            console.error(`[Memory] CRITICAL: Memory usage too high (${memUsageMB.rss}MB). Exiting for Railway restart.`);
-                            process.stderr.write(`[CRITICAL] Memory too high (${memUsageMB.rss}MB) - exiting\n`);
-                            // 메모리 정리 시도
-                            try {
-                                if (global.gc) {
-                                    global.gc();
+                            if (pendingMemoryCriticalExit) {
+                                // 이미 종료 예약됨
+                            } else {
+                                pendingMemoryCriticalExit = true;
+                                console.error(`[Memory] CRITICAL: Memory usage too high (${memUsageMB.rss}MB). Scheduling restart after client notice.`);
+                                process.stderr.write(`[CRITICAL] Memory too high (${memUsageMB.rss}MB) - scheduling restart\n`);
+                                try {
+                                    if (global.gc) {
+                                        global.gc();
+                                    }
+                                } catch {
+                                    // ignore
                                 }
-                            } catch (gcError) {
-                                // 무시
+                                void (async () => {
+                                    try {
+                                        const { broadcastServerRestarting } = await import('./socket.js');
+                                        broadcastServerRestarting('memory');
+                                    } catch (e) {
+                                        console.warn('[Memory] broadcastServerRestarting failed:', (e as Error)?.message);
+                                    }
+                                    // 클라이언트가 토스트를 받고 재연결 준비할 시간
+                                    await new Promise((r) => setTimeout(r, 2800));
+                                    try {
+                                        if (global.gc) global.gc();
+                                    } catch {
+                                        /* ignore */
+                                    }
+                                    process.exit(1);
+                                })();
                             }
-                            // Railway가 재시작하도록 프로세스 종료
-                            setTimeout(() => {
-                                process.exit(1);
-                            }, 2000);
                         }
                     }
                 }
@@ -2731,18 +2759,19 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 });
             }
             
-            // 테스트 단계: 이메일 선택 사항 (미입력 가능). 추후 이메일 인증, 카카오 로그인 예정
             const { username, password, email } = req.body ?? {};
             const trimmedUsername = username && typeof username === 'string' ? username.trim() : '';
             const trimmedPassword = password && typeof password === 'string' ? password.trim() : '';
-            const trimmedEmail = (email && typeof email === 'string' ? email.trim() : '') || '';
+            const trimmedEmailRaw = email && typeof email === 'string' ? email.trim() : '';
             
-            // 필수 필드: 아이디, 비밀번호만. 이메일은 선택 사항
             if (!trimmedUsername) {
                 return res.status(400).json({ message: '아이디를 입력해주세요.' });
             }
             if (!trimmedPassword) {
                 return res.status(400).json({ message: '비밀번호를 입력해주세요.' });
+            }
+            if (!trimmedEmailRaw) {
+                return res.status(400).json({ message: '이메일을 입력해주세요.' });
             }
             
             if (trimmedUsername.length < 2 || trimmedPassword.length < 4) {
@@ -2752,13 +2781,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return res.status(400).json({ message: '아이디에 부적절한 단어가 포함되어 있습니다.' });
             }
             
-            // 이메일 입력된 경우에만 형식 검증
-            if (trimmedEmail) {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(trimmedEmail)) {
-                    return res.status(400).json({ message: '올바른 이메일 형식이 아닙니다.' });
-                }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(trimmedEmailRaw)) {
+                return res.status(400).json({ message: '올바른 이메일 주소를 입력해주세요.' });
             }
+            const trimmedEmail = trimmedEmailRaw.toLowerCase();
     
             // UserCredential 테이블에서 username 중복 확인
             const existingByUsername = await db.getUserCredentials(trimmedUsername);
@@ -2780,11 +2807,16 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 console.warn('[/api/auth/register] Failed to check username in User table:', checkError?.message);
             }
     
-            // 이메일이 입력된 경우에만 회원탈퇴 이메일 확인 (1주일 제한)
-            if (trimmedEmail) {
+            const existingByEmail = await db.getUserByEmail(trimmedEmail);
+            if (existingByEmail) {
+                return res.status(409).json({ message: '이미 사용 중인 이메일입니다.' });
+            }
+
+            // 회원탈퇴 이메일 확인 (1주일 제한)
+            {
                 const kvRepository = await import('./repositories/kvRepository.js');
                 const withdrawnEmails = await kvRepository.getKV<Record<string, number>>('withdrawnEmails') || {};
-                const withdrawnEmailExpiry = withdrawnEmails[trimmedEmail.toLowerCase()];
+                const withdrawnEmailExpiry = withdrawnEmails[trimmedEmail];
                 if (withdrawnEmailExpiry && withdrawnEmailExpiry > Date.now()) {
                     const daysLeft = Math.ceil((withdrawnEmailExpiry - Date.now()) / (24 * 60 * 60 * 1000));
                     return res.status(403).json({ 
@@ -2792,26 +2824,16 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     });
                 }
                 if (withdrawnEmailExpiry && withdrawnEmailExpiry <= Date.now()) {
-                    delete withdrawnEmails[trimmedEmail.toLowerCase()];
+                    delete withdrawnEmails[trimmedEmail];
                     await kvRepository.setKV('withdrawnEmails', withdrawnEmails);
                 }
             }
-            
-            // Railway 최적화: equipment/inventory 없이 사용자 목록만 로드
-            const { listUsers } = await import('./prisma/userService.js');
-            const allUsers = await listUsers({ includeEquipment: false, includeInventory: false });
-            
-            // 이메일 중복 확인 (User 타입에 email 속성이 없으므로 주석 처리)
-            // const existingUserByEmail = allUsers.find(u => (u as any).email?.toLowerCase() === trimmedEmail.toLowerCase());
-            // if (existingUserByEmail) {
-            //     return res.status(409).json({ message: '이미 사용 중인 이메일입니다.' });
-            // }
     
             // 임시 닉네임 생성 (나중에 변경 가능)
             const tempNickname = `user_${randomUUID().slice(0, 8)}`;
             console.log('[/api/auth/register] Creating default user...');
             let newUser = createDefaultUser(`user-${randomUUID()}`, trimmedUsername, tempNickname, false);
-            // newUser.email = trimmedEmail; // User 타입에 email 속성이 없으므로 주석 처리
+            (newUser as { email?: string | null }).email = trimmedEmail;
 
             console.log('[/api/auth/register] Resetting and generating quests...');
             newUser = await resetAndGenerateQuests(newUser);
@@ -2870,7 +2892,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 throw createCredsError;
             }
     
-            // 테스트 단계: 이메일 인증 스킵. 추후 서비스 출시 시 이메일 인증 활성화 예정
             res.status(201).json({ user: newUser });
         } catch (e: any) {
             console.error('[/api/auth/register] Registration error:', e);

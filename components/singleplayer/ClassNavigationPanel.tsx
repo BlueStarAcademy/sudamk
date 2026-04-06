@@ -81,19 +81,16 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedCla
                                 }
                             }}
                         />
-                        {/* PC·모바일 공통: 상단 앰버 타이틀 + 하단 진행 표시 */}
+                        {/* PC·모바일 공통: 상단 단계명(반투명 패널) + 하단 진행 표시 */}
                         <div
                             className={`pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/92 via-black/45 to-transparent text-center ${isMobile ? 'px-2 pb-12 pt-2.5' : 'px-4 pb-14 pt-4'}`}
                         >
-                            <div
-                                className={`font-black leading-tight tracking-tight text-amber-100 [text-shadow:0_1px_0_rgba(255,255,255,0.12),0_3px_12px_rgba(0,0,0,0.95),0_0_20px_rgba(251,191,36,0.35)] ${isMobile ? 'text-2xl' : 'text-3xl lg:text-4xl'}`}
-                            >
-                                {currentClass.name}
-                            </div>
-                            <div
-                                className={`mt-1 font-semibold tracking-wider text-amber-200/90 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)] ${isMobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}
-                            >
-                                바둑학원 단계
+                            <div className="mx-auto inline-flex items-center justify-center rounded-lg border border-black/55 bg-black/45 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-[1px]">
+                                <div
+                                    className={`font-black leading-tight tracking-tight text-amber-100 [text-shadow:0_1px_0_rgba(255,255,255,0.12),0_3px_12px_rgba(0,0,0,0.95),0_0_20px_rgba(251,191,36,0.35)] ${isMobile ? 'px-3 py-1 text-2xl' : 'px-4 py-1.5 text-3xl lg:text-4xl'}`}
+                                >
+                                    {currentClass.name}
+                                </div>
                             </div>
                         </div>
                         <div

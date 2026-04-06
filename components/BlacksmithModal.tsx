@@ -431,7 +431,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                             </div>
 
                             <div
-                                className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2"
+                                className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch overflow-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2"
                                 style={{ minHeight: mobileViewerMinHeight }}
                             >
                                 {renderContent()}
@@ -511,7 +511,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                 </button>
                             ))}
                         </div>
-                        <div className={`p-4 bg-tertiary/20 rounded-lg flex-1 min-h-0 overflow-hidden`}>
+                        <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-tertiary/20 p-4`}>
                             {renderContent()}
                         </div>
                         <div className={`mt-4 flex flex-col`}>

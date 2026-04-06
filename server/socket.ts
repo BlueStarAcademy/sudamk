@@ -516,6 +516,23 @@ export const broadcastLiveGameToList = (game: any) => {
     }
 };
 
+/** 서버 재시작·메모리 한계 직전: 클라이언트에 안내 후 연결 종료 대비 */
+export const broadcastServerRestarting = (reason: 'memory' | 'maintenance' = 'memory'): void => {
+    const message =
+        reason === 'memory'
+            ? '서버가 곧 재시작됩니다. 잠시 후 자동으로 다시 연결됩니다.'
+            : '서버 점검으로 곧 재시작됩니다. 잠시 후 자동으로 다시 연결됩니다.';
+    broadcast({
+        type: 'SERVER_RESTARTING',
+        payload: {
+            reason,
+            message,
+            /** 클라이언트 토스트 표시 시간(ms) */
+            noticeMs: 8000,
+        },
+    });
+};
+
 export const broadcast = (message: any) => {
     if (!wss) return;
     // 최적화: 메시지 직렬화를 한 번만 수행 (직렬화 실패 시 크래시 방지)

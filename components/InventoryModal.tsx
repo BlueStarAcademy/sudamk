@@ -1426,6 +1426,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         const consumableItem = findConsumableItem(selectedItem.name);
                                                         const isUsable = consumableItem?.usable !== false;
                                                         const isSellable = consumableItem?.sellable !== false;
+                                                        const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
                                                         return (
                                                             <>
                                                                 {isUsable && (
@@ -1440,7 +1441,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                         >
                                                                             사용
                                                                         </Button>
-                                                                        {selectedItem.quantity && selectedItem.quantity > 1 && (
+                                                                        {!isRefinementTicket && selectedItem.quantity && selectedItem.quantity > 1 && (
                                                                             <Button
                                                                                 onClick={() => {
                                                                                     setItemToUseBulk(selectedItem);
@@ -1730,6 +1731,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 const consumableItem = findConsumableItem(selectedItem.name);
                                                 const isUsable = consumableItem?.usable !== false; // 기본값은 true
                                                 const isSellable = consumableItem?.sellable !== false; // 기본값은 true
+                                                const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
                                                 
                                                 return (
                                                     <>
@@ -1738,7 +1740,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                 <Button onClick={() => { void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } }); }} colorScheme="blue" className={`w-full !py-1 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                     사용
                                                                 </Button>
-                                                                {selectedItem.quantity && selectedItem.quantity > 1 && (
+                                                                {!isRefinementTicket && selectedItem.quantity && selectedItem.quantity > 1 && (
                                                                     <Button
                                                                         onClick={() => { setItemToUseBulk(selectedItem); setShowUseQuantityModal(true); }}
                                                                         colorScheme="purple"

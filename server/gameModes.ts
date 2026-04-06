@@ -821,7 +821,8 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
         id: gameId,
         mode, settings, description: randomDescription, player1: challenger, player2: opponent, isAiGame,
         gameCategory: GameCategory.Normal,  // 일반 게임은 normal 카테고리
-        isRankedGame: neg.isRanked ?? false, // 협상에서 isRanked 플래그 가져오기
+        // 랭킹전은 휴먼 vs 휴만 적용. AI 대국·길드전 등은 협상에 isRanked가 없거나 false.
+        isRankedGame: Boolean(neg.isRanked) && !isAiGame,
         boardState: Array(settings.boardSize).fill(0).map(() => Array(settings.boardSize).fill(types.Player.None)),
         moveHistory: [], captures: { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 },
         baseStoneCaptures: { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 }, 

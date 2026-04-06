@@ -9,6 +9,8 @@ const EARLY_GAME_DURATION = 15;
 const MID_GAME_DURATION = 20;
 const END_GAME_DURATION = 15;
 const TOTAL_GAME_DURATION = EARLY_GAME_DURATION + MID_GAME_DURATION + END_GAME_DURATION;
+/** 기본 풀 중계 멘트(early/mid/end) 출력 간격(초). 단계 시작·중간 스코어·랜덤 이벤트 타이밍은 별도 */
+const BASIC_COMMENTARY_INTERVAL_SECONDS = 3;
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
 
 const STAT_WEIGHTS: Record<'early' | 'mid' | 'end', Partial<Record<CoreStat, number>>> = {
@@ -1247,7 +1249,7 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
     const totalCumulative = p1Cumulative + p2Cumulative;
     const p1ScorePercent = totalCumulative > 0 ? (p1Cumulative / totalCumulative) * 100 : 50;
 
-    // Commentary system: 1 second interval
+    // Commentary: 단계 시작 등은 기존 타이밍, 기본 풀 멘트는 BASIC_COMMENTARY_INTERVAL_SECONDS마다
     if (state.timeElapsed === 1) {
         // 초반전 시작 메시지
         state.currentMatchCommentary.push({ text: `초반전이 시작되었습니다. (필요능력치: 전투력, 사고속도, 집중력)`, phase: 'early', isRandomEvent: false });
@@ -1268,8 +1270,12 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
         if (finalDiff > 0.5) {
             state.currentMatchCommentary.push({ text: `[중간 스코어] ${leader} 선수 ${finalDiff.toFixed(1)}집 우세.`, phase, isRandomEvent: false });
         }
-    } else if (state.timeElapsed > 1 && state.timeElapsed < TOTAL_GAME_DURATION) {
-        // Commentary every second (except at 10s intervals and random events)
+    } else if (
+        state.timeElapsed > 1 &&
+        state.timeElapsed < TOTAL_GAME_DURATION &&
+        state.timeElapsed % BASIC_COMMENTARY_INTERVAL_SECONDS === 0
+    ) {
+        // 기본 풀 멘트 (10초 중간 스코어와 겹치면 위 분기에서 처리됨)
         const pool = COMMENTARY_POOLS[phase];
         
         // Get the text of the last few comments to avoid repetition.

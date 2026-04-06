@@ -248,7 +248,7 @@ export type ServerAction =
     | { type: 'ADMIN_LIFT_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection' } }
     | { type: 'ADMIN_RESET_USER_DATA', payload: { targetUserId: string; resetType: 'stats' | 'full' } }
     | { type: 'ADMIN_DELETE_USER', payload: { targetUserId: string } }
-    | { type: 'ADMIN_CREATE_USER', payload: { username: string, password: string, nickname: string } }
+    | { type: 'ADMIN_CREATE_USER', payload: { username: string, password: string, nickname: string, email?: string } }
     | { type: 'ADMIN_FORCE_LOGOUT', payload: { targetUserId: string } }
     | { type: 'ADMIN_SEND_MAIL', payload: any }
     | { type: 'ADMIN_REORDER_ANNOUNCEMENTS', payload: { announcements: Announcement[] } }

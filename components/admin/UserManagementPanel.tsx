@@ -738,6 +738,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [nickname, setNickname] = useState('');
+    const [createUserEmail, setCreateUserEmail] = useState('');
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
@@ -969,8 +970,11 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
     const handleCreateUser = (e: React.FormEvent) => {
         e.preventDefault();
         if (!username || !password || !nickname) { alert('모든 필드를 입력해주세요.'); return; }
-        onAction({ type: 'ADMIN_CREATE_USER', payload: { username, password, nickname } });
-        setUsername(''); setPassword(''); setNickname('');
+        const payload: { username: string; password: string; nickname: string; email?: string } = { username, password, nickname };
+        const emailTrim = createUserEmail.trim();
+        if (emailTrim) payload.email = emailTrim;
+        onAction({ type: 'ADMIN_CREATE_USER', payload });
+        setUsername(''); setPassword(''); setNickname(''); setCreateUserEmail('');
     };
 
     const searchedUsers = useMemo(() => localUsers, [localUsers]);
@@ -1098,6 +1102,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                     <form onSubmit={handleCreateUser} className="space-y-4">
                         <input type="text" name="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="아이디" className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5" />
                         <input type="password" name="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="비밀번호" className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5" />
+                        <input type="email" name="createUserEmail" value={createUserEmail} onChange={(e) => setCreateUserEmail(e.target.value)} placeholder="이메일 (선택사항)" autoComplete="off" className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5" />
                         <input type="text" name="nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="닉네임" className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5" maxLength={6} />
                         <Button type="submit" className="w-full">생성하기</Button>
                     </form>
