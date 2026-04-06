@@ -7,6 +7,7 @@ import { ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DA
 import { isDifferentWeekKST } from '../utils/timeUtils.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface ShopModalProps {
     currentUser?: UserWithStatus; // Optional: useAppContext에서 가져올 수 있도록
@@ -123,8 +124,9 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
 const ShopItemCard: React.FC<{ 
     item: { itemId: string, name: string, description: string, price: { gold?: number, diamonds?: number }, image: string, dailyLimit?: number, weeklyLimit?: number, type: InventoryItemType, badge?: string, prices?: number[], purchasesToday?: number },
     onBuy: (item: PurchasableItem) => void; 
-    currentUser: UserWithStatus 
-}> = ({ item, onBuy, currentUser }) => {
+    currentUser: UserWithStatus;
+    mobile?: boolean;
+}> = ({ item, onBuy, currentUser, mobile = false }) => {
     const { name, description, price, image, dailyLimit, weeklyLimit, badge } = item;
     const isGold = !!price.gold;
     const priceAmount = price.gold || price.diamonds || 0;
@@ -160,11 +162,11 @@ const ShopItemCard: React.FC<{
     };
 
     return (
-        <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 p-3 border border-indigo-400/35 shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] flex flex-col items-center text-center transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)]">
+        <div className={`group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 border border-indigo-400/35 shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] flex flex-col items-center text-center transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-3.5' : 'p-3'}`}>
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent pointer-events-none" />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)] pointer-events-none" />
             <div 
-                className="relative w-16 h-16 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg mb-2 flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer hover:scale-105 transition-transform"
+                className={`relative bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg mb-2 flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer hover:scale-105 transition-transform ${mobile ? 'w-20 h-20' : 'w-16 h-16'}`}
                 onClick={() => setShowDescription(!showDescription)}
                 onMouseEnter={() => setShowDescription(true)}
                 onMouseLeave={() => setShowDescription(false)}
@@ -172,7 +174,7 @@ const ShopItemCard: React.FC<{
                 {(item.itemId === 'action_point_10' || item.itemId === 'action_point_20' || item.itemId === 'action_point_30') ? (
                     <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" aria-label={name}>⚡</span>
                 ) : (
-                    <img src={image} alt={name} className="w-full h-full object-contain p-1.5 drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" />
+                    <img src={image} alt={name} className={`w-full h-full object-contain drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${mobile ? 'p-1' : 'p-1.5'}`} />
                 )}
                 {badge && (
                     <span className="absolute top-0 right-0 text-[10px] font-bold text-cyan-300 bg-gray-900/90 px-1 rounded-bl leading-tight shadow-md">
@@ -180,12 +182,12 @@ const ShopItemCard: React.FC<{
                     </span>
                 )}
             </div>
-            <h3 className="min-h-[2.5rem] w-full min-w-0 break-keep px-0.5 text-center text-[11px] font-semibold leading-snug tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] sm:min-h-0 sm:text-sm">
+            <h3 className={`w-full min-w-0 break-keep px-0.5 text-center font-semibold leading-snug tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] ${mobile ? 'min-h-[2.8rem] text-[13px]' : 'min-h-[2.5rem] text-[11px] sm:min-h-0 sm:text-sm'}`}>
                 {name}
             </h3>
             {showDescription && (
-                <div className="absolute z-50 top-20 left-1/2 -translate-x-1/2 w-48 bg-gray-900/95 border border-indigo-400/50 rounded-lg p-2 shadow-xl">
-                    <p className="text-[10px] text-slate-200/90 leading-relaxed">
+                <div className={`absolute z-50 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-indigo-400/50 rounded-lg shadow-xl ${mobile ? 'top-24 w-56 p-2.5' : 'top-20 w-48 p-2'}`}>
+                    <p className={`${mobile ? 'text-[11px]' : 'text-[10px]'} text-slate-200/90 leading-relaxed`}>
                         {refinedDescription}
                     </p>
                 </div>
@@ -196,20 +198,20 @@ const ShopItemCard: React.FC<{
                     disabled={remaining === 0}
                     colorScheme="none"
                     bare
-                    className={`flex min-h-[3.5rem] w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-1.5 py-2 text-center font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${
+                    className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-1.5 text-center font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${mobile ? 'min-h-[3.9rem] py-2.5' : 'min-h-[3.5rem] py-2'} ${
                         isGold
                             ? 'border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500'
                             : 'border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-sky-300 hover:to-indigo-500'
                     }`}
                 >
                     <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5">
-                        <div className="flex min-w-0 items-center justify-center gap-1 text-[11px] font-semibold tracking-wide sm:text-xs">
+                        <div className={`flex min-w-0 items-center justify-center gap-1 font-semibold tracking-wide ${mobile ? 'text-[13px]' : 'text-[11px] sm:text-xs'}`}>
                             {PriceIcon}
                             <span className="min-w-0 tabular-nums">{priceAmount.toLocaleString()}</span>
                         </div>
                         {limit > 0 && (
                             <span
-                                className={`max-w-full px-0.5 text-center text-[9px] leading-tight ${isGold ? 'text-slate-800/95' : 'text-white/85'} tracking-wide`}
+                                className={`max-w-full px-0.5 text-center leading-tight ${mobile ? 'text-[10px]' : 'text-[9px]'} ${isGold ? 'text-slate-800/95' : 'text-white/85'} tracking-wide`}
                             >
                                 {limitText} 한도 {remaining}/{limit}
                             </span>
@@ -223,6 +225,8 @@ const ShopItemCard: React.FC<{
 
 const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost, initialTab }) => {
     const { currentUserWithStatus } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
+    const mobileShop = Boolean(isNativeMobile);
     // useAppContext의 currentUserWithStatus를 우선 사용 (최신 상태 보장)
     const currentUser = currentUserWithStatus || propCurrentUser;
     
@@ -293,14 +297,14 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         switch (activeTab) {
             case 'equipment':
                 return (
-                    <div className="grid grid-cols-4 gap-3">
-                        {equipmentItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} />)}
+                    <div className={`${mobileShop ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-4 gap-3'}`}>
+                        {equipmentItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
                     </div>
                 );
             case 'materials':
                  return (
-                    <div className="grid grid-cols-4 gap-3">
-                        {materialItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} />)}
+                    <div className={`${mobileShop ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-4 gap-3'}`}>
+                        {materialItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
                     </div>
                 );
             case 'misc':
@@ -344,8 +348,10 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 });
                 const consumableItems = [...baseConsumableItems, ...actionPointShopItems];
                 return (
-                    <div className="grid grid-cols-4 gap-3">
-                        {consumableItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} />)}
+                    <div className={`${mobileShop ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-4 gap-3'}`}>
+                        {consumableItems.map(item => (
+                            <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />
+                        ))}
                     </div>
                 );
             }
@@ -370,16 +376,22 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 initialHeight={750}
                 isTopmost={isTopmost && !purchasingItem}
                 bodyScrollable={false}
+                mobileViewportFit={mobileShop}
+                mobileViewportMaxHeightVh={90}
+                bodyNoScroll={mobileShop}
+                hideFooter={mobileShop}
+                skipSavedPosition={mobileShop}
+                bodyPaddingClassName={mobileShop ? 'flex min-h-0 min-w-0 flex-1 flex-col !px-2.5 !pt-2.5 !pb-[max(0.8rem,env(safe-area-inset-bottom,0px))]' : undefined}
             >
                 <div className="h-full min-h-0 flex flex-col relative">
-                    <div className="flex bg-gray-900/70 p-1 rounded-lg mb-4 flex-shrink-0">
-                        <button onClick={() => setActiveTab('equipment')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'equipment' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>장비</button>
-                        <button onClick={() => setActiveTab('materials')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'materials' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>재료</button>
-                        <button onClick={() => setActiveTab('consumables')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'consumables' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>소모품</button>
-                        <button onClick={() => setActiveTab('misc')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'misc' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>기타</button>
+                    <div className={`flex bg-gray-900/70 p-1 rounded-lg mb-3 flex-shrink-0 ${mobileShop ? 'gap-1' : ''}`}>
+                        <button onClick={() => setActiveTab('equipment')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'equipment' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>장비</button>
+                        <button onClick={() => setActiveTab('materials')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'materials' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>재료</button>
+                        <button onClick={() => setActiveTab('consumables')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'consumables' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>소모품</button>
+                        <button onClick={() => setActiveTab('misc')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'misc' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>기타</button>
                     </div>
 
-                    <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+                    <div className={`flex-1 min-h-0 overflow-y-auto ${mobileShop ? 'pr-0.5' : 'pr-2'}`}>
                         {renderContent()}
                     </div>
 

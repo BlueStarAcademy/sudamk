@@ -779,20 +779,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return () => window.removeEventListener('resize', handleResize);
     }, []);
     
-    // PC와 동일한 가로/세로 비율 유지 (1100x800 = 1.375:1)
-    // 모바일에서도 PC와 동일한 크기를 사용하고 DraggableWindow의 scale로 축소
-    const calculatedWidth = useMemo(() => {
-        // PC와 동일한 고정 크기 사용
-        return 1100;
-    }, []);
+    // PC 가방: 12열 그리드 기준 최소 3줄 슬롯이 안정적으로 보이도록 설계 높이·상한 확대
+    const calculatedWidth = useMemo(() => 1120, []);
     
     // 화면 비율에 따라 높이를 미세 조정하여 인벤토리 가시 줄 수를 안정적으로 확보
     const calculatedHeight = useMemo(() => {
         const viewportRatio = windowWidth / Math.max(1, windowHeight);
-        // 기준(16:9) 대비 세로가 더 긴 화면일수록 조금 더 높게, 가로가 넓을수록 조금 낮게 조정
         const ratioDelta = (16 / 9) - viewportRatio;
-        const adjusted = 850 + Math.round(ratioDelta * 70);
-        return Math.max(820, Math.min(900, adjusted));
+        const adjusted = 980 + Math.round(ratioDelta * 90);
+        return Math.max(940, Math.min(1080, adjusted));
     }, [windowWidth, windowHeight]);
     
     // 좁은 가로 화면에서는 PC 인벤토리 UI를 축소해서 유지한다.
@@ -804,13 +799,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const narrowInventoryLayout = isCompactViewport;
 
     // 창 크기에 비례한 스케일 팩터 계산 (기준: 950px 너비)
-    // 모바일에서는 PC 레이아웃을 그대로 유지하되, 전체적으로 축소
+    // 캔버스 밖 모바일: DraggableWindow가 뷰포트 맞춤이므로 여기서는 PC와 동일 비율(축소 없음)
     const baseWidth = 950;
     const scaleFactor = useMemo(() => {
-        if (effectiveIsCompactViewport) {
-            // 모바일(캔버스 밖): PC 레이아웃을 그대로 축소 (최소 0.35, 최대 0.5)
+        if (effectiveIsCompactViewport && !modalLayerUsesDesignPixels) {
             const rawScale = calculatedWidth / baseWidth;
-            return Math.max(0.35, Math.min(0.5, rawScale));
+            return Math.max(0.4, Math.min(1.0, rawScale));
         }
         // 스케일 캔버스 안 + 실제 좁은 뷰포트: 전체 캔버스 스케일과 별도로 슬롯·패딩만 약간 축소
         if (modalLayerUsesDesignPixels && narrowInventoryLayout) {
@@ -821,12 +815,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return Math.max(0.4, Math.min(1.0, rawScale));
     }, [calculatedWidth, effectiveIsCompactViewport, modalLayerUsesDesignPixels, narrowInventoryLayout, windowWidth]);
 
-    // 모바일 텍스트 크기 조정 팩터 (모바일에서는 텍스트를 약간 더 크게)
     const mobileTextScale = useMemo(() => {
-        if (effectiveIsCompactViewport) return 1.25;
-        if (narrowInventoryLayout) return 1.2;
+        if (narrowInventoryLayout && modalLayerUsesDesignPixels) return 1.2;
         return 1.0;
-    }, [effectiveIsCompactViewport, narrowInventoryLayout]);
+    }, [narrowInventoryLayout, modalLayerUsesDesignPixels]);
 
     const handlePresetChange = (presetIndex: number) => {
         setSelectedPreset(presetIndex);
@@ -1124,6 +1116,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             initialHeight={calculatedHeight}
             variant="store"
             bodyScrollable={false}
+            pcViewportMaxHeightCss="min(98vh, 1240px)"
         >
             <div 
                 className="flex min-h-0 h-full w-full flex-col overflow-hidden"
@@ -1782,7 +1775,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 <div
                     className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-900"
                     style={{
-                        minHeight: narrowInventoryLayout ? `${Math.max(120, Math.round(140 * scaleFactor))}px` : `${Math.max(320 * scaleFactor, windowHeight * 0.45)}px`,
+                        minHeight: narrowInventoryLayout
+                            ? `${Math.max(120, Math.round(140 * scaleFactor))}px`
+                            : `${Math.max(400, Math.max(320 * scaleFactor, Math.round(windowHeight * 0.34)))}px`,
                         padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         paddingTop: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         paddingBottom: `${Math.max(12, Math.round(16 * scaleFactor))}px`,

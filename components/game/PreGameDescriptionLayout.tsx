@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import { LiveGameSession, GameMode } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants.js';
 import { MatchPlayGuideSection } from '../../utils/matchPlayGuide.js';
@@ -51,6 +51,63 @@ function preGameScoreBoxImage(session: LiveGameSession): string {
   return '/images/simbols/simbol1.png';
 }
 
+/**
+ * 점수 요인·시간 규칙 등: `\n`이 있으면 의도적 여러 줄, 없으면 한 줄 유지(넘치면 글자만 축소).
+ */
+export function PreGameSummaryCellBody({ text }: { text: string }) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const isMultiline = lines.length > 1;
+  const singleLine = (lines.length === 1 ? lines[0] : text.trim()) || text;
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    if (isMultiline) return;
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      const parent = el.parentElement;
+      if (!parent) return;
+      el.style.whiteSpace = 'nowrap';
+      el.style.fontSize = '';
+      let px = parseFloat(window.getComputedStyle(el).fontSize) || 15;
+      const minPx = 9;
+      const maxW = parent.clientWidth;
+      el.style.fontSize = `${px}px`;
+      while (px > minPx && el.scrollWidth > maxW) {
+        px -= 0.5;
+        el.style.fontSize = `${px}px`;
+      }
+    };
+    fit();
+    const parent = el.parentElement;
+    if (!parent) return () => {};
+    const ro = new ResizeObserver(() => fit());
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, [singleLine, isMultiline]);
+
+  const lineClass =
+    'text-[0.95rem] font-semibold leading-snug text-white/95 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]';
+
+  if (isMultiline) {
+    return (
+      <div className="mt-1 space-y-1">
+        {lines.map((line, i) => (
+          <p key={i} className={lineClass}>
+            {line}
+          </p>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <p ref={ref} className={`mt-1 ${lineClass} min-w-0 max-w-full`}>
+      {singleLine}
+    </p>
+  );
+}
+
 function preGameItemsBoxImage(summary: PreGameSummaryFour): string {
   if (summary.items === SUMMARY_NONE) return '/images/simbols/simbol1.png';
   if (summary.items.includes('미사일')) return '/images/button/missile.png';
@@ -61,90 +118,113 @@ function preGameItemsBoxImage(summary: PreGameSummaryFour): string {
   return '/images/icon/Gold.png';
 }
 
-/** 시작 전 모달용 요약: 2×2(승리·점수·시간·아이템) + 특수 규칙 전체 행 */
+/** 시작 전 모달용 요약: 2×2(승리/패배·점수·시간·아이템) + 특수 규칙 전체 행 */
 export function PreGameSummaryGrid({ session, summary }: { session: LiveGameSession; summary: PreGameSummaryFour }) {
-  const topCells: {
-    key: string;
-    title: string;
-    body: string;
-    visual: 'win' | 'img';
-    img?: string;
-  }[] = [
-    { key: 'win', title: '승리 목표', body: summary.winGoal, visual: 'win' },
+  const topCells: (
+    | { key: string; title: string; kind: 'win'; winLine: string; loseLine: string }
+    | { key: string; title: string; kind: 'img'; body: string; img: string }
+  )[] = [
+    { key: 'win', title: '승리/패배 조건', kind: 'win', winLine: summary.winGoal, loseLine: summary.loseGoal },
     {
       key: 'score',
       title: '점수 요인',
+      kind: 'img',
       body: summary.scoreFactors,
-      visual: 'img',
       img: preGameScoreBoxImage(session),
     },
     {
       key: 'time',
       title: '시간 규칙',
+      kind: 'img',
       body: summary.timeRules,
-      visual: 'img',
       img: '/images/icon/timer.png',
     },
     {
       key: 'items',
       title: '아이템',
+      kind: 'img',
       body: summary.items,
-      visual: 'img',
       img: preGameItemsBoxImage(summary),
     },
   ];
 
   return (
     <div className="space-y-3.5">
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+      {/*
+        모바일에서도 PC와 동일하게 2×2(승리·점수 / 시간·아이템). 부모 모달의 균일 scale로 한 화면에 맞춤.
+      */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 lg:gap-4">
         {topCells.map((c) => (
           <div
             key={c.key}
-            className="group relative flex gap-3.5 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-3.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/22"
+            className="group relative flex min-w-0 gap-2 sm:gap-3.5 lg:gap-4 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-2.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/22 sm:p-3.5 lg:p-4"
           >
             <div
               className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
               aria-hidden
             />
-            <div className="flex h-[3.75rem] w-[3.75rem] flex-shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-              {c.visual === 'win' ? (
-                <span
-                  className="select-none text-center text-lg font-black italic leading-none tracking-tight text-amber-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] sm:text-xl"
-                  aria-hidden
-                >
-                  WIN
-                </span>
+            <div
+              className={
+                c.kind === 'win'
+                  ? 'flex h-[3.25rem] w-[3.25rem] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-amber-400/30 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 px-0.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-[4rem] sm:w-[4rem] sm:gap-1 sm:py-1.5 lg:h-[4.5rem] lg:w-[4.5rem]'
+                  : 'flex h-[3.25rem] w-[3.25rem] flex-shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-[3.85rem] sm:w-[3.85rem] sm:p-1.5 lg:h-[4.35rem] lg:w-[4.35rem]'
+              }
+            >
+              {c.kind === 'win' ? (
+                <>
+                  <span
+                    className="select-none text-center text-sm font-black italic leading-none tracking-tight text-amber-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] sm:text-base md:text-lg lg:text-xl"
+                    aria-hidden
+                  >
+                    WIN
+                  </span>
+                  <span
+                    className="select-none text-center text-sm font-black italic leading-none tracking-tight text-rose-200/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] sm:text-base md:text-lg lg:text-xl"
+                    aria-hidden
+                  >
+                    LOSE
+                  </span>
+                </>
               ) : (
                 <img src={c.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" />
               )}
             </div>
             <div className="relative min-w-0 flex-1">
-              <div className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs">{c.title}</div>
-              <p className="mt-1.5 text-sm font-semibold leading-snug text-white/95 sm:text-[0.95rem]">{c.body}</p>
+              <div className="text-[0.72rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 max-[480px]:text-[0.78rem] sm:text-xs sm:tracking-[0.12em] md:text-[0.8rem] lg:text-sm">
+                {c.title}
+              </div>
+              {c.kind === 'win' ? (
+                <div className="mt-1 space-y-1.5 sm:mt-1.5 sm:space-y-1.5 lg:space-y-2">
+                  <p className="text-[0.95rem] font-semibold leading-snug text-white/95 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]">{c.winLine}</p>
+                  <p className="text-[0.95rem] font-semibold leading-snug text-rose-100/88 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]">{c.loseLine}</p>
+                </div>
+              ) : (
+                <PreGameSummaryCellBody text={c.body} />
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="group relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-3.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 sm:col-span-2">
+      <div className="group relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-3.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 sm:col-span-2 lg:p-4">
         <div
           className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-500/[0.07] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
           aria-hidden
         />
-        <div className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs">특수 규칙</div>
+        <div className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs md:text-[0.8rem] lg:text-sm">특수 규칙</div>
         {summary.specialHighlights.length === 0 ? (
-          <p className="mt-2 text-sm font-semibold text-slate-400 sm:text-[0.95rem]">{SUMMARY_NONE}</p>
+          <p className="mt-2 text-sm font-semibold text-slate-400 sm:text-base lg:text-[1.05rem]">{SUMMARY_NONE}</p>
         ) : (
-          <div className="mt-3 flex flex-wrap gap-2.5 sm:gap-3">
+          <div className="mt-3 flex flex-wrap gap-2.5 sm:gap-3 lg:gap-3.5">
             {summary.specialHighlights.map((row, idx) => (
               <div
                 key={`${row.text}-${idx}`}
-                className="flex min-w-0 max-w-full items-center gap-2.5 rounded-lg border border-amber-500/25 bg-black/35 px-2.5 py-2 ring-1 ring-inset ring-white/[0.05] sm:gap-3 sm:px-3 sm:py-2.5"
+                className="flex min-w-0 max-w-full items-center gap-2.5 rounded-lg border border-amber-500/25 bg-black/35 px-2.5 py-2 ring-1 ring-inset ring-white/[0.05] sm:gap-3 sm:px-3 sm:py-2.5 lg:px-3.5 lg:py-3"
               >
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/25 bg-gradient-to-br from-zinc-950/90 to-black/80 p-1 shadow-inner sm:h-12 sm:w-12">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/25 bg-gradient-to-br from-zinc-950/90 to-black/80 p-1 shadow-inner sm:h-12 sm:w-12 lg:h-[3.25rem] lg:w-[3.25rem]">
                   <img src={row.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-md" />
                 </div>
-                <p className="min-w-0 flex-1 text-sm font-semibold leading-snug text-white/95 sm:text-[0.95rem]">{row.text}</p>
+                <p className="min-w-0 flex-1 text-sm font-semibold leading-snug text-white/95 sm:text-base lg:text-[1.05rem]">{row.text}</p>
               </div>
             ))}
           </div>
@@ -154,7 +234,7 @@ export function PreGameSummaryGrid({ session, summary }: { session: LiveGameSess
   );
 }
 
-/** 시작 전 설명 모달 공통: 승리 목표 강조 + 규칙 섹션 + 선택적 특징 아이콘 줄 */
+/** 시작 전 설명 모달 공통: 승리/패배 조건 강조 + 규칙 섹션 + 선택적 특징 아이콘 줄 */
 export function PreGameWinGoalCard({
   primaryText,
   secondaryLines = [],
@@ -172,10 +252,11 @@ export function PreGameWinGoalCard({
   return (
     <div className="flex-shrink-0 rounded-xl border-2 border-amber-400/45 bg-gradient-to-br from-amber-950/50 via-slate-900/90 to-slate-950/95 p-4 shadow-[0_0_40px_-12px_rgba(251,191,36,0.35)]">
       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/90">
-        <span className="flex h-7 min-w-[2.25rem] items-center justify-center rounded-md border border-amber-400/40 bg-black/40 px-1.5 text-[0.7rem] font-black italic leading-none text-amber-100 shadow-inner">
-          WIN
+        <span className="flex h-7 min-w-[2.25rem] flex-col items-center justify-center gap-0.5 rounded-md border border-amber-400/40 bg-black/40 px-1 py-0.5 text-[0.65rem] font-black italic leading-none shadow-inner">
+          <span className="text-amber-100">WIN</span>
+          <span className="text-rose-200/95">LOSE</span>
         </span>
-        승리 목표
+        승리/패배 조건
       </div>
       <p className={primaryClass}>{primaryText}</p>
       {secondaryLines.length > 0 && (

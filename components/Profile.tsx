@@ -427,7 +427,7 @@ const ArenaMobileStatStrip: React.FC<{
     const btn = isStrategic
         ? 'border-sky-500/35 bg-sky-950/50 text-sky-50 shadow-[0_4px_20px_-8px_rgba(56,189,248,0.35)] hover:bg-sky-900/55 hover:border-sky-400/45 active:scale-[0.98]'
         : 'border-amber-500/35 bg-amber-950/45 text-amber-50 shadow-[0_4px_20px_-8px_rgba(251,191,36,0.28)] hover:bg-amber-950/60 hover:border-amber-400/40 active:scale-[0.98]';
-    const divider = 'h-5 w-px shrink-0 bg-gradient-to-b from-transparent via-white/25 to-transparent';
+    const divider = 'h-5 w-px shrink-0 bg-gradient-to-b from-transparent via-white/40 to-transparent';
 
     return (
         <div
@@ -451,32 +451,32 @@ const ArenaMobileStatStrip: React.FC<{
                     )}
                     <span className={divider} aria-hidden />
                     <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-medium text-slate-500">Lv</span>
+                        <span className="text-sm font-semibold text-slate-300">Lv</span>
                         <span className={`font-mono text-lg font-bold tabular-nums tracking-tight sm:text-xl ${lvTone}`}>{level}</span>
                     </div>
                     <span className={divider} aria-hidden />
                     <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-medium tracking-wide text-slate-500">통합</span>
+                        <span className="text-sm font-semibold tracking-wide text-slate-300">통합</span>
                         <span className={`font-mono text-xl font-extrabold tabular-nums tracking-tight sm:text-2xl ${scoreTone}`}>{integratedScore}</span>
-                        <span className="text-sm text-slate-500">점</span>
+                        <span className="text-sm font-medium text-slate-300">점</span>
                     </div>
                 </div>
 
-                <div className="my-3 h-px w-full bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+                <div className="my-3 h-px w-full bg-gradient-to-r from-transparent via-white/28 to-transparent" />
 
                 {/* 중앙: 총 전적 */}
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 py-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 sm:text-sm">총 전적</span>
-                    <p className="text-center font-mono text-[1.75rem] font-extrabold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)] sm:text-[2rem]">
+                    <span className="text-sm font-bold uppercase tracking-[0.2em] text-slate-200 sm:text-base">총 전적</span>
+                    <p className="text-center font-mono text-[1.95rem] font-extrabold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)] sm:text-[2.15rem]">
                         <span>{agg.wins}</span>
-                        <span className="mx-0.5 align-baseline text-[0.55em] font-bold text-slate-500">승</span>
-                        <span className="mx-1 text-slate-600">·</span>
+                        <span className="mx-0.5 align-baseline text-[0.56em] font-bold text-slate-200">승</span>
+                        <span className="mx-1 text-slate-400">·</span>
                         <span>{agg.losses}</span>
-                        <span className="ml-0.5 align-baseline text-[0.55em] font-bold text-slate-500">패</span>
+                        <span className="ml-0.5 align-baseline text-[0.56em] font-bold text-slate-200">패</span>
                     </p>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-base text-slate-200">
                         승률{' '}
-                        <span className={`font-mono text-base font-semibold tabular-nums sm:text-lg ${rateTone}`}>{pct(agg.wins, agg.losses)}%</span>
+                        <span className={`font-mono text-lg font-bold tabular-nums sm:text-xl ${rateTone}`}>{pct(agg.wins, agg.losses)}%</span>
                     </p>
                 </div>
 

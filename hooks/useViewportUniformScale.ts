@@ -1,4 +1,5 @@
 import { useState, useLayoutEffect } from 'react';
+import { getModalScaleFitPaddingPx } from '../utils/modalViewportPadding.js';
 
 /**
  * `#sudamr-modal-root`(스케일 캔버스) 또는 visual viewport 기준으로
@@ -15,23 +16,24 @@ export function useViewportUniformScale(designWidth: number, designHeight: numbe
 
         const read = () => {
             const root = document.getElementById('sudamr-modal-root');
+            const { horizontal, top, bottom } = getModalScaleFitPaddingPx();
             let availW: number;
             let availH: number;
             if (root) {
                 const r = root.getBoundingClientRect();
-                availW = r.width;
-                availH = r.height;
+                availW = r.width - horizontal;
+                availH = r.height - top - bottom;
             } else {
                 const vv = window.visualViewport;
-                availW = vv?.width ?? window.innerWidth;
-                availH = vv?.height ?? window.innerHeight;
+                availW = (vv?.width ?? window.innerWidth) - horizontal;
+                availH = (vv?.height ?? window.innerHeight) - top - bottom;
             }
-            const padX = 32;
-            const padY = 64;
-            const sx = (availW - padX) / designWidth;
-            const sy = (availH - padY) / designHeight;
-            const s = Math.min(1, sx, sy);
-            setScale(Math.max(0.2, Number.isFinite(s) ? s : 1));
+            availW = Math.max(40, availW);
+            availH = Math.max(40, availH);
+            const sx = availW / designWidth;
+            const sy = availH / designHeight;
+            const s = Math.min(1, sx, sy) * 0.99;
+            setScale(Math.max(0.08, Number.isFinite(s) ? s : 1));
         };
 
         read();
@@ -39,11 +41,14 @@ export function useViewportUniformScale(designWidth: number, designHeight: numbe
         const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(read) : null;
         if (root && ro) ro.observe(root);
         window.addEventListener('resize', read);
-        window.visualViewport?.addEventListener('resize', read);
+        const vv = window.visualViewport;
+        vv?.addEventListener('resize', read);
+        vv?.addEventListener('scroll', read);
         return () => {
             ro?.disconnect();
             window.removeEventListener('resize', read);
-            window.visualViewport?.removeEventListener('resize', read);
+            vv?.removeEventListener('resize', read);
+            vv?.removeEventListener('scroll', read);
         };
     }, [designWidth, designHeight, enabled]);
 

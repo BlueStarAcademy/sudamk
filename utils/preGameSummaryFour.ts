@@ -8,6 +8,8 @@ export type PreGameSpecialHighlight = {
 
 export type PreGameSummaryFour = {
   winGoal: string;
+  /** 승리/패배 조건 패널 아랫줄 */
+  loseGoal: string;
   scoreFactors: string;
   /** 초읽기·피셔 등 시간 규칙만 (놀이 모드 등 해당 없으면 '없음') */
   timeRules: string;
@@ -17,6 +19,12 @@ export type PreGameSummaryFour = {
 };
 
 const NONE = '없음';
+
+const LOSE_TERRITORY = '계가(종합 점수)에서 집이 적거나, 동점·무승부 규칙에 따라 불리하면 패배';
+const LOSE_TERRITORY_AUTO = (auto: string) => `${LOSE_TERRITORY} · ${auto}에 못 이기면 패배`;
+const LOSE_CAPTURE_RACE = (t: number) =>
+  `상대가 ${t}점을 먼저 따내면 패배 · 아니면 계가에서 집이 적으면 패배`;
+const LOSE_MIX = '종료 시 따내기·계가 등에서 상대가 승리 조건을 먼저 충족하거나 불리하면 패배';
 
 /** 바둑판 문양돌과 동일 스프라이트(`GoBoard` 흑 문양) — 게임 설명 모달 하이라이트 */
 const PATTERN_STONE_HIGHLIGHT_IMG = '/images/single/BlackDouble.png';
@@ -169,13 +177,11 @@ function mixSpecialHighlights(settings: GameSettings, mix: GameMode[]): PreGameS
 
 function singlePlayerStageTimeRules(stage: SinglePlayerStageInfo): string {
   const tc = stage.timeControl;
+  /** 싱글/탑 비스피드: 서버에서 제한시간·초읽기 미적용 — 스테이지 JSON의 분/초읽기는 표시하지 않음 */
   if (tc.type === 'fischer') {
     return `피셔 · 본전 ${tc.mainTime}분 + ${tc.increment ?? 0}초/수`;
   }
-  if (tc.mainTime && tc.mainTime > 0) {
-    return `제한 ${tc.mainTime}분 · 초읽기 ${tc.byoyomiTime ?? 30}초×${tc.byoyomiCount ?? 3}회`;
-  }
-  return NONE;
+  return '제한없음';
 }
 
 function singlePlayerStageHighlights(session: LiveGameSession, stage: SinglePlayerStageInfo): PreGameSpecialHighlight[] {
@@ -217,7 +223,7 @@ function singlePlayerStageHighlights(session: LiveGameSession, stage: SinglePlay
 }
 
 /**
- * 인게임 시작 전 모달용 요약 (승리 목표 / 점수 요인 / 시간 규칙 / 아이템 + 특수 규칙 행)
+ * 인게임 시작 전 모달용 요약 (승리·패배 조건 / 점수 요인 / 시간 규칙 / 아이템 + 특수 규칙 행)
  */
 export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePlayerStageInfo): PreGameSummaryFour {
   const { mode, settings } = session;
@@ -231,6 +237,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
   if (mode === GameMode.Mix) {
     return {
       winGoal: mixWinGoal(settings, mix),
+      loseGoal: LOSE_MIX,
       scoreFactors: mixScoreFactors(settings, mix),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: mixSpecialHighlights(settings, mix),
@@ -243,6 +250,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     const auto = autoScoringLine(settings, mode, mix);
     return {
       winGoal: auto ? `상대 돌 ${t}점 먼저 따내기 · ${auto}` : `상대 돌 ${t}점 먼저 따내기`,
+      loseGoal: LOSE_CAPTURE_RACE(t),
       scoreFactors: '따내기 점수(집 계산 없음)',
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [{ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' }],
@@ -254,6 +262,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     const auto = autoScoringLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 종합 점수가 높은 쪽 승리',
+      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : '계가 후 종합 점수가 낮으면 패배',
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [
@@ -267,6 +276,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     const auto = autoScoringLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
+      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY,
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [
@@ -283,6 +293,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     const auto = autoScoringLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
+      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY,
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [{ img: '/images/button/hidden.png', text: '히든 착수 · 스캔으로 탐색' }],
@@ -294,6 +305,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     const auto = autoScoringLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
+      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY,
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [{ img: '/images/button/missile.png', text: '미사일로 돌 직선 이동' }],
@@ -305,6 +317,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     const auto = autoScoringLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
+      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY,
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: auto ? [{ img: '/images/simbols/simbol7.png', text: auto }] : [],
@@ -317,6 +330,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     const fo = settings.hasOverlineForbidden ? '장목 금지' : '장목 허용';
     return {
       winGoal: '가로·세로·대각 5목 먼저 완성',
+      loseGoal: '상대가 먼저 5목을 완성하면 패배',
       scoreFactors: '목(승부) — 집 계산 없음',
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp2.png', text: `${f33} · ${fo}` }],
@@ -330,6 +344,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     const fo = settings.hasOverlineForbidden ? '장목 금지' : '장목 허용';
     return {
       winGoal: `5목 선완성 또는 따내기 ${cap}점 선달성`,
+      loseGoal: `상대가 먼저 5목을 완성하거나 따내기 ${cap}점을 먼저 달성하면 패배`,
       scoreFactors: '목 승리 또는 따내기 점수',
       timeRules: NONE,
       specialHighlights: [
@@ -344,6 +359,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     const r = settings.diceGoRounds ?? 3;
     return {
       winGoal: `${r}라운드 후 누적 점수가 높은 쪽 승리`,
+      loseGoal: `${r}라운드 종료 후 누적 점수가 낮으면 패배`,
       scoreFactors: '라운드별 백돌 따내기 점수 · 마지막 따내기 보너스',
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp1.png', text: '주사위 눈만큼 흑 착수 · 백은 활로에만 배치' }],
@@ -354,6 +370,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
   if (mode === GameMode.Thief) {
     return {
       winGoal: '5턴×라운드 진행 후 총점이 높은 쪽 승리',
+      loseGoal: '라운드 종료 후 총점이 낮으면 패배',
       scoreFactors: '라운드별 획득 점수 합산',
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp4.png', text: '도둑(흑)·경찰(백) 역할 교대' }],
@@ -364,6 +381,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
   if (mode === GameMode.Alkkagi) {
     return {
       winGoal: '라운드별로 상대 돌을 판 밖으로 더 많이 밀어낸 쪽 승',
+      loseGoal: '라운드에서 상대보다 적게 밀어내면 패배',
       scoreFactors: '판 밖으로 나간 상대 돌 수',
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp5.png', text: '게이지로 힘 조절 · 벽 반사' }],
@@ -374,6 +392,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
   if (mode === GameMode.Curling) {
     return {
       winGoal: '라운드 합산 점수가 높은 쪽 승리',
+      loseGoal: '합산 점수가 낮으면 패배',
       scoreFactors: '하우스(목표)에 가까운 스톤 점수',
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp6.png', text: '스톤 미끄러뜨리기 · 라운드제' }],
@@ -383,6 +402,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
 
   return {
     winGoal: '대국 진행에 따라 승패 결정',
+    loseGoal: '대국 진행에 따라 패배가 결정되면 패배',
     scoreFactors: '모드 안내 참고',
     timeRules: NONE,
     specialHighlights: [],
@@ -397,40 +417,62 @@ function getSinglePlayerStageSummary(session: LiveGameSession, stage: SinglePlay
   const isCaptureMode = stage.blackTurnLimit !== undefined || session.mode === GameMode.Capture;
   const isSpeedMode = !isCaptureMode && stage.timeControl.type === 'fischer';
 
-  let winGoal = '스테이지 조건에 따라 승패 결정';
+  /** 싱글/탑: 플레이어는 항상 흑 — 짧은 문구 + 유저(흑) 시점 */
+  let winGoal = '스테이지 조건 충족 시 승리';
+  let loseGoal = '조건 미달 시 패배';
   if (stage.survivalTurns) {
     const tgt = stage.targetScore.black;
-    winGoal = `백이 ${stage.survivalTurns}턴 내 목표 ${tgt}점 못 달성 → 흑 승`;
+    winGoal = `${stage.survivalTurns}턴 내 백 ${tgt}점 미달성`;
+    loseGoal = `${stage.survivalTurns}턴 내 백 ${tgt}점 달성`;
   } else if (isCaptureMode) {
     if (stage.blackTurnLimit && typeof blackTarget === 'number' && blackTarget !== 999) {
-      winGoal =
-        typeof whiteTarget === 'number' && whiteTarget !== 999
-          ? `${stage.blackTurnLimit}턴 내 흑 ${blackTarget}점+ · 백은 ${whiteTarget}점 달성 시 승`
-          : `${stage.blackTurnLimit}턴 내 흑 ${blackTarget}점 이상 따내기`;
+      if (typeof whiteTarget === 'number' && whiteTarget !== 999) {
+        winGoal = `${stage.blackTurnLimit}턴 내 ${blackTarget}점 획득`;
+        loseGoal = `${stage.blackTurnLimit}턴 초과 / 백 ${whiteTarget}점 획득`;
+      } else {
+        winGoal = `${stage.blackTurnLimit}턴 내 ${blackTarget}점 획득`;
+        loseGoal = `${stage.blackTurnLimit}턴 내 목표 미달`;
+      }
     } else if (typeof blackTarget === 'number' && blackTarget !== 999 && typeof whiteTarget === 'number' && whiteTarget !== 999) {
-      winGoal = `흑 ${blackTarget}점 · 백 ${whiteTarget}점 선달성 경쟁`;
+      winGoal = `${blackTarget}점 먼저 획득`;
+      loseGoal = `백 ${whiteTarget}점 먼저 획득`;
     } else if (typeof session.settings.captureTarget === 'number') {
-      winGoal = `흑이 ${session.settings.captureTarget}점 먼저 따내기`;
+      const cap = session.settings.captureTarget;
+      winGoal = `${cap}점 먼저 획득`;
+      loseGoal = `백이 ${cap}점 먼저 획득 · 또는 계가 열세`;
     } else {
-      winGoal = '따내기 목표 달성 시 승리';
+      winGoal = '따내기 목표 달성';
+      loseGoal = '백이 목표 먼저 달성';
     }
   } else if (isSpeedMode) {
-    winGoal = '계가 후 종합 점수(시간 보너스 포함)로 승부';
+    winGoal = '계가 종합점수에서 승리';
+    loseGoal = '계가에서 패배';
   } else if (stage.autoScoringTurns && stage.autoScoringTurns > 0) {
-    winGoal = `${stage.autoScoringTurns}수 후 자동 계가에서 승리하기`;
+    winGoal = `${stage.autoScoringTurns}수 계가 후 승리`;
+    loseGoal = `${stage.autoScoringTurns}수 계가 후 패배`;
   } else if (stage.blackTurnLimit && stage.targetScore.black > 0) {
     winGoal = `${stage.blackTurnLimit}턴 내 ${stage.targetScore.black}점 이상`;
+    loseGoal = `${stage.blackTurnLimit}턴 내 목표 미달`;
   } else if (stage.targetScore.black > 0 && stage.targetScore.white > 0) {
-    winGoal = `계가 시 흑 ${stage.targetScore.black}집+ · 백 ${stage.targetScore.white}집+ 목표`;
+    winGoal = `계가 흑 ${stage.targetScore.black}집+ · 백 ${stage.targetScore.white}집+`;
+    loseGoal = '목표 집수 미달';
   } else {
-    winGoal = '계가 후 집이 많은 쪽 승리';
+    winGoal = '계가 시 집이 더 많으면 승';
+    loseGoal = '계가에서 열세';
   }
 
   let scoreFactors = '스테이지·모드에 따름';
-  if (isCaptureMode) scoreFactors = '따내기 점수 · 문양돌은 2점';
-  else if (isSpeedMode) scoreFactors = '영토 · 따낸 돌 · 사석 · 덤 · 시간 보너스';
-  else if (session.mode === GameMode.Capture) scoreFactors = '따내기 점수';
-  else scoreFactors = '영토 · 따낸 돌 · 사석 · 덤(백)';
+  if (isCaptureMode) {
+    const hasPatternStone =
+      (stage.placements.blackPattern ?? 0) > 0 || (stage.placements.whitePattern ?? 0) > 0;
+    scoreFactors = hasPatternStone ? '따내기 점수\n문양돌 2점' : '따내기 점수';
+  } else if (isSpeedMode) {
+    scoreFactors = '영토 · 따낸 돌 · 사석 · 덤\n시간 보너스';
+  } else if (session.mode === GameMode.Capture) {
+    scoreFactors = '따내기 점수';
+  } else {
+    scoreFactors = '영토 · 따낸 돌 · 사석 · 덤(백)';
+  }
 
   const itemBits: string[] = [];
   if ((stage.missileCount ?? 0) > 0) itemBits.push(`미사일 ${stage.missileCount}개`);
@@ -441,6 +483,7 @@ function getSinglePlayerStageSummary(session: LiveGameSession, stage: SinglePlay
 
   return {
     winGoal,
+    loseGoal,
     scoreFactors,
     timeRules: singlePlayerStageTimeRules(stage),
     specialHighlights,

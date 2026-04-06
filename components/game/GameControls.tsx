@@ -14,6 +14,7 @@ import {
     arenaPostGameButtonClass,
     arenaPostGameButtonGridClass,
     arenaPostGamePanelShellClass,
+    formatArenaRetryLabel,
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
 
@@ -1281,16 +1282,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         });
     }, [session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, opponentPlayerEnum]);
     
-    const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral' | 'accent' | 'success' = 'primary') => {
-        const map = {
-            primary: 'primary',
-            danger: 'danger',
-            neutral: 'neutral',
-            accent: 'result',
-            success: 'success',
-        } as const;
-        return arenaPostGameButtonClass(map[variant], isMobile, 'strip');
-    };
+    const getLuxuryButtonClasses = (_variant?: 'primary' | 'danger' | 'neutral' | 'accent' | 'success') =>
+        arenaPostGameButtonClass('neutral', isMobile, 'strip');
 
     // 아이템 설정값 (함수 외부에서 선언하여 재사용)
     const hiddenCountSetting = session.settings.hiddenStoneCount ?? 0;
@@ -1389,8 +1382,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const currentStage = stageId ? SINGLE_PLAYER_STAGES.find(s => s.id === stageId) : undefined;
         const nextStage = currentStageIndex >= 0 ? SINGLE_PLAYER_STAGES[currentStageIndex + 1] : undefined;
         const isWinner = session.winner === Player.Black;
-        // 클리어 직후에는 singlePlayerProgress가 아직 반영되지 않았을 수 있으므로, 이번 게임에서 이겼으면 다음 단계 허용
-        const canTryNextStage = !!nextStage && isWinner;
+        const clearedStages = (currentUser as { clearedSinglePlayerStages?: string[] }).clearedSinglePlayerStages || [];
+        const singlePlayerProgress = (currentUser as { singlePlayerProgress?: number }).singlePlayerProgress ?? 0;
+        const isCurrentStageAlreadyCleared =
+            currentStageIndex >= 0 &&
+            !!stageId &&
+            (clearedStages.includes(stageId) || singlePlayerProgress > currentStageIndex);
+        const canTryNextStage = !!nextStage && (isWinner || isCurrentStageAlreadyCleared);
         
         const retryActionPointCost = currentStage?.actionPointCost ?? 0;
         const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;
@@ -1512,14 +1510,14 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[152px]">
                     <div className={arenaPostGamePanelShellClass}>
                         <div className={arenaPostGameButtonGridClass}>
-                        <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('result', isMobile, 'strip')}>
+                        <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}>
                             결과 보기
                         </Button>
-                        <Button bare onClick={handleNextStage} colorScheme="none" className={`${arenaPostGameButtonClass('primary', isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNextStage}>
+                        <Button bare onClick={handleNextStage} colorScheme="none" className={`${arenaPostGameButtonClass('neutral', isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNextStage}>
                             {formatSinglePlayerNextFooterLabel(nextStage, canTryNextStage, nextStageActionPointCost)}
                         </Button>
-                        <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('retry', isMobile, 'strip')}>
-                            재도전 {retryActionPointCost > 0 && `(⚡${retryActionPointCost})`}
+                        <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}>
+                            {formatArenaRetryLabel(retryActionPointCost)}
                         </Button>
                         {isPvpRematchEligible && (
                             <Button
@@ -1537,7 +1535,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 }}
                                 disabled={rematchRequested}
                                 colorScheme="none"
-                                className={arenaPostGameButtonClass('success', isMobile, 'strip')}
+                                className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}
                             >
                                 {rematchRequested ? '신청중' : '재대결'}
                             </Button>
@@ -1547,13 +1545,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 bare
                                 onClick={onOpenRematchSettings}
                                 colorScheme="none"
-                                className={arenaPostGameButtonClass('success', isMobile, 'strip')}
+                                className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}
                             >
                                 재대결
                             </Button>
                         )}
-                        <Button bare onClick={handleCloseResults} colorScheme="none" className={arenaPostGameButtonClass('danger', isMobile, 'strip')}>
-                            나가기
+                        <Button bare onClick={handleCloseResults} colorScheme="none" className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}>
+                            대기실로
                         </Button>
                         </div>
                     </div>
@@ -1765,7 +1763,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     </Button>
                     {onLeaveOrResign && (
                         <Button bare onClick={onLeaveOrResign} colorScheme="none" className={getLuxuryButtonClasses('danger')}>
-                            {isSpectator ? '관전종료' : '나가기'}
+                            {isSpectator ? '관전종료' : '대기실로'}
                         </Button>
                     )}
                     {isAiLobbyGame && onOpenRematchSettings && (

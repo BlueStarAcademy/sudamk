@@ -296,7 +296,7 @@ const AppContent: React.FC = () => {
                             box-sizing: border-box;
                         }
                     `}</style>
-                    {/* 착수 확정 등 인게임 크롬: 모달(z-30)보다 아래 */}
+                    {/* 착수 확정 등 인게임 크롬: 모달(z-60)보다 아래 — 헤더(z-50)보다 위에 모달이 오도록 루트를 더 높임 */}
                     <div
                         id="sudamr-game-chrome-root"
                         className="pointer-events-none fixed inset-0 z-[25]"
@@ -304,15 +304,20 @@ const AppContent: React.FC = () => {
                     />
                     <div
                         id="sudamr-modal-root"
-                        className="pointer-events-none fixed inset-0 z-[30]"
+                        className="pointer-events-none fixed inset-0 z-[60]"
                         style={{ pointerEvents: 'none' }}
                     />
                     {currentUser ? (
-                        <div
-                            className="mx-auto flex h-full min-h-0 w-full max-h-full min-w-0 flex-1 flex-col overflow-hidden"
-                            style={{ maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH, maxHeight: '100dvh' }}
-                        >
-                            {!isGameView && !hideAppHeader && <Header />}
+                        <>
+                            {!isGameView && !hideAppHeader && (
+                                <div className="w-full min-w-0 shrink-0">
+                                    <Header />
+                                </div>
+                            )}
+                            <div
+                                className="mx-auto flex h-full min-h-0 w-full max-h-full min-w-0 flex-1 flex-col overflow-hidden"
+                                style={{ maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH, maxHeight: '100dvh' }}
+                            >
                             <main
                                 className={`relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden overscroll-y-none ${lockPcMainScroll ? 'overflow-y-hidden' : 'overflow-hidden'} ${showMainBg ? 'bg-transparent' : ''}`}
                             >
@@ -329,7 +334,8 @@ const AppContent: React.FC = () => {
                                     </div>
                                 </>
                             )}
-                        </div>
+                            </div>
+                        </>
                     ) : (
                         <div className="relative flex flex-1 w-full min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain bg-transparent">
                             <MainBackgroundLayer variant="auth" />
@@ -445,7 +451,7 @@ const AppContent: React.FC = () => {
                                 top: 0,
                                 width: DESIGN_W,
                                 height: DESIGN_H,
-                                zIndex: 30,
+                                zIndex: 60,
                                 // 비어 있을 때도 전역을 덮어 main(길드전 등) 클릭을 삼키지 않도록. 포털 자식은 기본 pointer-events:auto로 정상 수신.
                                 pointerEvents: 'none',
                             }}

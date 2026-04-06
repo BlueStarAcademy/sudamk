@@ -11,6 +11,7 @@ import {
     arenaPostGameButtonClass,
     arenaPostGameButtonGridClass,
     arenaPostGamePanelShellClass,
+    formatArenaRetryLabel,
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
 
@@ -220,9 +221,15 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         const currentStageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === session.stageId);
         const currentStage = SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
         const nextStage = SINGLE_PLAYER_STAGES[currentStageIndex + 1];
-        // 클리어 직후에는 singlePlayerProgress가 아직 서버/웹소켓으로 반영되지 않았을 수 있으므로,
-        // 이번 게임에서 이겼으면(isWinner) 다음 단계 버튼을 활성화
-        const canTryNext = isWinner && !!nextStage;
+        const clearedStages = (currentUser as { clearedSinglePlayerStages?: string[] }).clearedSinglePlayerStages || [];
+        const singlePlayerProgress = (currentUser as { singlePlayerProgress?: number }).singlePlayerProgress ?? 0;
+        const sid = session.stageId;
+        const isCurrentStageAlreadyCleared =
+            currentStageIndex >= 0 &&
+            !!sid &&
+            (clearedStages.includes(sid) || singlePlayerProgress > currentStageIndex);
+        // 클리어 직후에는 progress가 아직 반영되지 않았을 수 있으므로 승리 시 허용. 재도전 실패 시에도 이미 클리어한 스테이지면 다음 단계 유지
+        const canTryNext = !!nextStage && (isWinner || isCurrentStageAlreadyCleared);
         
         const retryActionPointCost = currentStage?.actionPointCost ?? 0;
         const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;
@@ -292,17 +299,17 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[164px]">
                 <div className={arenaPostGamePanelShellClass}>
                     <div className={arenaPostGameButtonGridClass}>
-                    <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('result', !!isMobile, 'strip')}>
+                    <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
                         결과 보기
                     </Button>
-                    <Button bare onClick={handleNextStage} colorScheme="none" className={`${arenaPostGameButtonClass('primary', !!isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNext}>
+                    <Button bare onClick={handleNextStage} colorScheme="none" className={`${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNext}>
                         {formatSinglePlayerNextFooterLabel(nextStage, canTryNext, nextStageActionPointCost)}
                     </Button>
-                    <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('retry', !!isMobile, 'strip')}>
-                        재도전 {retryActionPointCost > 0 && `(⚡${retryActionPointCost})`}
+                    <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                        {formatArenaRetryLabel(retryActionPointCost)}
                     </Button>
-                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={arenaPostGameButtonClass('danger', !!isMobile, 'strip')}>
-                        나가기
+                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                        대기실로
                     </Button>
                     </div>
                 </div>

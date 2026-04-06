@@ -152,7 +152,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                         bare
                         onClick={handleShowResults}
                         colorScheme="none"
-                        className={arenaPostGameButtonClass('result', !!isMobile, 'strip')}
+                        className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
                     >
                         결과 보기
                     </Button>
@@ -160,9 +160,9 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                         bare
                         onClick={handleExit}
                         colorScheme="none"
-                        className={arenaPostGameButtonClass('danger', !!isMobile, 'strip')}
+                        className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
                     >
-                        나가기
+                        대기실로
                     </Button>
                     </div>
                 </div>

@@ -19,8 +19,8 @@ export const NATIVE_MOBILE_MODAL_MAX_WIDTH_PX = 720;
 
 /** 네이티브 모바일: 모달 가로·세로 상한(컨텐츠는 그 이하로 맞춤) — DraggableWindow·App.tsx·AppModalLayer와 동일 */
 export const NATIVE_MOBILE_MODAL_MAX_WIDTH_VW = 92;
-/** 하단 독·배너를 두고도 본문 스크롤로 버튼까지 닿기 쉽게 여유 확보 */
-export const NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH = 88;
+/** 하단 독·배너를 두고도 본문 스크롤로 버튼까지 닿기 쉽게 여유 확보 (게임 설명 등 긴 모달) */
+export const NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH = 91;
 
 /** 네이티브 메인 컨텐츠 논리 설계 폭 — NativeMobileScaledContent 가 가로를 셸 폭에 맞출 때 기준 */
 export const NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX = 720;

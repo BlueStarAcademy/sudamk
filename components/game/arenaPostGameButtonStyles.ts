@@ -5,47 +5,51 @@
 
 export type ArenaPostGameActionVariant = 'result' | 'danger' | 'primary' | 'retry' | 'success' | 'neutral';
 
-/** 공통: 동일 높이·패딩·타이포 (모바일/데스크톱 비율만 살짝 조정) */
-const STRIP_SHELL =
-    'relative inline-flex w-full min-w-0 min-h-[2.75rem] sm:min-h-[3rem] items-center justify-center gap-1 ' +
-    'rounded-lg sm:rounded-xl px-3 sm:px-3.5 py-2 sm:py-2.5 ' +
-    'text-[13px] sm:text-sm font-semibold leading-snug tracking-tight text-center tabular-nums ' +
-    'border shadow-[0_8px_24px_-12px_rgba(0,0,0,0.75)] ' +
-    'ring-1 ring-inset ring-white/[0.06] ' +
-    'before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-gradient-to-b before:from-white/[0.08] before:to-transparent ' +
-    'transition-[transform,box-shadow,border-color,background-color] duration-200 ' +
-    'hover:-translate-y-px hover:shadow-[0_12px_28px_-10px_rgba(0,0,0,0.55)] ' +
-    'active:translate-y-0 active:scale-[0.99] ' +
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0c10] ' +
-    'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none disabled:hover:translate-y-0';
-
-const MODAL_SHELL =
+/**
+ * 경기장 하단(strip)·결과 모달(modal·데스크톱) 공통 셸.
+ * 좁은 화면 + strip만 살짝 타이트(행동력 푸터 공간).
+ */
+const POST_GAME_BUTTON_SHELL =
     'relative inline-flex w-full min-w-0 min-h-[2.75rem] sm:min-h-[3rem] items-center justify-center gap-1 ' +
     'rounded-lg sm:rounded-xl px-4 sm:px-5 py-2.5 sm:py-3 ' +
     'text-[13px] sm:text-sm font-semibold leading-snug tracking-tight text-center tabular-nums ' +
-    'border shadow-[0_8px_24px_-12px_rgba(0,0,0,0.75)] ' +
-    'ring-1 ring-inset ring-white/[0.06] ' +
-    'before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-gradient-to-b before:from-white/[0.08] before:to-transparent ' +
+    'border shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_22px_-10px_rgba(0,0,0,0.65)] ' +
+    'ring-1 ring-inset ring-white/[0.05] ' +
+    'before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-gradient-to-b before:from-white/[0.06] before:to-transparent ' +
     'transition-[transform,box-shadow,border-color,background-color] duration-200 ' +
-    'hover:-translate-y-px hover:shadow-[0_12px_28px_-10px_rgba(0,0,0,0.55)] ' +
+    'hover:-translate-y-px hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_26px_-10px_rgba(0,0,0,0.5)] ' +
     'active:translate-y-0 active:scale-[0.99] ' +
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0c10] ' +
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ' +
     'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none disabled:hover:translate-y-0';
 
-/** 어두운 슬레이트 베이스 + 변형별 테두리·살짝 다른 톤 (무지개 그라데이션 지양) */
+/** 결과 모달 + 모바일: 작은 라벨·낮은 높이로 밀도 있게 */
+const POST_GAME_MODAL_MOBILE_SHELL =
+    'relative inline-flex w-full min-w-0 min-h-[2.125rem] items-center justify-center gap-0.5 ' +
+    'rounded-lg px-2 py-1.5 ' +
+    'text-[11px] font-medium leading-tight tracking-[0.02em] text-center tabular-nums ' +
+    'border shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_4px_16px_-8px_rgba(0,0,0,0.55)] ' +
+    'ring-1 ring-inset ring-white/[0.04] ' +
+    'before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-gradient-to-b before:from-white/[0.04] before:to-transparent ' +
+    'transition-[transform,box-shadow,border-color,background-color] duration-200 ' +
+    'hover:-translate-y-px hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_-8px_rgba(0,0,0,0.45)] ' +
+    'active:translate-y-0 active:scale-[0.99] ' +
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ' +
+    'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none disabled:hover:translate-y-0';
+
+const STRIP_MOBILE_TIGHT = ' max-sm:px-2.5 max-sm:py-2 max-sm:text-[12.5px]';
+
+/** 종료/결과 UI: 역할만 다르고 동일 징크 톤 */
+const UNIFIED_POST_GAME_SURFACE =
+    'border-zinc-600/38 bg-gradient-to-b from-zinc-700/48 via-zinc-800/92 to-zinc-950 text-zinc-100/95 ' +
+    'hover:border-zinc-500/48 hover:from-zinc-600/55 hover:via-zinc-800/94';
+
 const VARIANT: Record<ArenaPostGameActionVariant, string> = {
-    result:
-        'border-violet-500/35 bg-gradient-to-b from-slate-600/95 via-slate-800/98 to-slate-950 text-slate-50 hover:border-violet-400/50',
-    primary:
-        'border-sky-500/35 bg-gradient-to-b from-slate-600/95 via-slate-800/98 to-slate-950 text-slate-50 hover:border-sky-400/50',
-    retry:
-        'border-amber-500/40 bg-gradient-to-b from-slate-600/95 via-amber-900/35 to-slate-950 text-amber-50 hover:border-amber-400/55',
-    danger:
-        'border-rose-500/45 bg-gradient-to-b from-slate-600/95 via-rose-950/55 to-slate-950 text-rose-50 hover:border-rose-400/55',
-    success:
-        'border-emerald-500/38 bg-gradient-to-b from-slate-600/95 via-emerald-950/45 to-slate-950 text-emerald-50 hover:border-emerald-400/50',
-    neutral:
-        'border-slate-500/35 bg-gradient-to-b from-slate-600/95 via-slate-800/98 to-slate-950 text-slate-100 hover:border-slate-400/45',
+    result: UNIFIED_POST_GAME_SURFACE,
+    primary: UNIFIED_POST_GAME_SURFACE,
+    retry: UNIFIED_POST_GAME_SURFACE,
+    danger: UNIFIED_POST_GAME_SURFACE,
+    success: UNIFIED_POST_GAME_SURFACE,
+    neutral: UNIFIED_POST_GAME_SURFACE,
 };
 
 export type ArenaPostGameButtonSize = 'strip' | 'modal';
@@ -60,10 +64,14 @@ export function arenaPostGameButtonClass(
     isMobile: boolean,
     size: ArenaPostGameButtonSize = 'strip',
 ): string {
-    const isModal = size === 'modal';
-    const shell = isModal ? MODAL_SHELL : isMobile ? `${STRIP_SHELL} max-sm:px-2.5 max-sm:text-[12.5px]` : STRIP_SHELL;
+    const tightStrip = isMobile && size === 'strip' ? STRIP_MOBILE_TIGHT : '';
+    const shell = size === 'modal' && isMobile ? POST_GAME_MODAL_MOBILE_SHELL : POST_GAME_BUTTON_SHELL;
+    return `${shell}${tightStrip} ${VARIANT[variant]}`;
+}
 
-    return `${shell} ${VARIANT[variant]}`;
+/** 인게임 푸터·결과 모달 공통 재도전 라벨 */
+export function formatArenaRetryLabel(actionPointCost: number): string {
+    return actionPointCost > 0 ? `재도전 (⚡${actionPointCost})` : '재도전';
 }
 
 /** 경기 종료 버튼 묶음: 열 폭 균등 (좁으면 자동으로 줄바꿈) */
@@ -82,7 +90,7 @@ export function formatSinglePlayerNextFooterLabel(
     if (!canTryNext || !nextStage) return '다음 단계(없음)';
     const name = nextStage.name.replace(/^스테이지\s*/i, '').trim();
     const base = `다음 단계(${name})`;
-    return actionPointCost > 0 ? `${base} · ⚡${actionPointCost}` : base;
+    return actionPointCost > 0 ? `${base} (⚡${actionPointCost})` : base;
 }
 
 /** 도전의 탑 종료 패널 — `다음 단계(N층)` + 소모 행동력 */
@@ -93,5 +101,5 @@ export function formatTowerNextFooterLabel(
 ): string {
     if (!canTryNext || nextFloor == null) return '다음 단계(없음)';
     const base = `다음 단계(${nextFloor}층)`;
-    return actionPointCost > 0 ? `${base} · ⚡${actionPointCost}` : base;
+    return actionPointCost > 0 ? `${base} (⚡${actionPointCost})` : base;
 }

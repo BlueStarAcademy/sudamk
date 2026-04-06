@@ -3,6 +3,8 @@ import { LiveGameSession, User, Player, WinReason, StatChange, AnalysisResult, G
 import Avatar from './Avatar.js';
 import { audioService } from '../services/audioService.js';
 import DraggableWindow from './DraggableWindow.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
 import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
@@ -19,6 +21,7 @@ import {
 } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
 import { arenaPostGameButtonClass, arenaPostGameButtonGridClass } from './game/arenaPostGameButtonStyles.js';
+import { useAppContext } from '../hooks/useAppContext.js';
 
 interface GameSummaryModalProps {
     session: LiveGameSession;
@@ -83,8 +86,8 @@ const XpBar: React.FC<{ initial: number; final: number; max: number; levelUp: bo
 
     return (
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
-             <span className={`${isMobile ? 'text-xs w-12' : 'text-base w-16'} font-bold text-right`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>Lv.{finalLevel}</span>
-            <div className={`w-full bg-gray-700/50 rounded-full ${isMobile ? 'h-3' : 'h-[18px]'} relative border border-gray-900/50 overflow-hidden`}>
+             <span className={`${isMobile ? 'text-xs w-12' : 'text-base w-16 min-[1024px]:text-lg min-[1024px]:w-[4.5rem]'} font-bold text-right`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>Lv.{finalLevel}</span>
+            <div className={`w-full bg-gray-700/50 rounded-full ${isMobile ? 'h-3' : 'h-[18px] min-[1024px]:h-[22px]'} relative border border-gray-900/50 overflow-hidden`}>
                 <div 
                     className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full transition-all duration-1000 ease-out"
                     style={{ width: `${barWidth}%` }}
@@ -99,18 +102,18 @@ const XpBar: React.FC<{ initial: number; final: number; max: number; levelUp: bo
                     }}
                 ></div>
 
-                <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[9px]' : 'text-sm'} font-bold text-black/80 drop-shadow-sm`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
+                <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[9px]' : 'text-sm min-[1024px]:text-base'} font-bold text-black/80 drop-shadow-sm`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
                    {initial} +{xpGain} / {max} XP
                 </span>
 
                 {levelUp && (
-                    <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[9px]' : 'text-sm'} font-bold text-white animate-pulse`} style={{textShadow: '0 0 5px black', fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined}}>
+                    <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[9px]' : 'text-sm min-[1024px]:text-base'} font-bold text-white animate-pulse`} style={{textShadow: '0 0 5px black', fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined}}>
                         LEVEL UP!
                     </span>
                 )}
             </div>
              {showGainText && xpGain > 0 && (
-                <span key={gainTextKey} className={`${isMobile ? 'text-xs w-14' : 'text-base w-20'} font-bold text-green-400 whitespace-nowrap animate-fade-in-xp`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
+                <span key={gainTextKey} className={`${isMobile ? 'text-xs w-14' : 'text-base w-20 min-[1024px]:text-lg min-[1024px]:w-24'} font-bold text-green-400 whitespace-nowrap animate-fade-in-xp`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
                     +{xpGain} XP
                 </span>
              )}
@@ -138,7 +141,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
 
     return (
-        <div className={`space-y-2 sm:space-y-3 ${isMobile ? 'text-[10px]' : 'text-sm md:text-base'}`}>
+        <div className={`space-y-2 sm:space-y-3 ${isMobile ? 'text-[10px]' : 'text-sm md:text-base lg:text-lg'}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <div className={`space-y-0.5 sm:space-y-1 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-md`}>
                     <h3 className={`font-bold text-center mb-0.5 sm:mb-1 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>흑</h3>
@@ -185,14 +188,14 @@ const PlayfulScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
     if (!hasBonus) {
         return (
             <div className="text-center">
-                <p className={`text-gray-300 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>최종 점수</p>
-                <p className={`${isMobile ? 'text-3xl' : 'text-5xl'} font-mono my-2`} style={{ fontSize: isMobile ? `${28 * mobileTextScale}px` : undefined }}>{p1TotalScore} : {p2TotalScore}</p>
+                <p className={`text-gray-300 ${isMobile ? 'text-xs' : 'text-base lg:text-lg'}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>최종 점수</p>
+                <p className={`${isMobile ? 'text-3xl' : 'text-5xl lg:text-6xl xl:text-7xl'} font-mono my-2`} style={{ fontSize: isMobile ? `${28 * mobileTextScale}px` : undefined }}>{p1TotalScore} : {p2TotalScore}</p>
             </div>
         );
     }
     
     return (
-        <div className={`space-y-2 sm:space-y-3 ${isMobile ? 'text-[10px]' : 'text-sm md:text-base'}`}>
+        <div className={`space-y-2 sm:space-y-3 ${isMobile ? 'text-[10px]' : 'text-sm md:text-base lg:text-lg'}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <div className={`space-y-0.5 sm:space-y-1 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-md`}>
                     <h3 className={`font-bold text-center mb-0.5 sm:mb-1 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{player1.nickname}</h3>
@@ -264,21 +267,21 @@ const CaptureScoreDetailsComponent: React.FC<{ session: LiveGameSession, isMobil
                 <div className="flex items-center gap-2 sm:gap-4 flex-grow justify-center">
                     <span
                         className={`font-mono font-bold ${
-                            isMobile ? 'text-3xl' : 'text-5xl'
+                            isMobile ? 'text-3xl' : 'text-5xl lg:text-6xl xl:text-7xl'
                         } ${blackWon ? 'text-green-400' : 'text-white'}`}
                         style={{ fontSize: isMobile ? `${26 * mobileTextScale}px` : undefined }}
                     >
                         {blackCaptures}
                     </span>
                     <span
-                        className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-gray-400`}
+                        className={`${isMobile ? 'text-2xl' : 'text-4xl lg:text-5xl'} font-bold text-gray-400`}
                         style={{ fontSize: isMobile ? `${22 * mobileTextScale}px` : undefined }}
                     >
                         :
                     </span>
                     <span
                         className={`font-mono font-bold ${
-                            isMobile ? 'text-3xl' : 'text-5xl'
+                            isMobile ? 'text-3xl' : 'text-5xl lg:text-6xl xl:text-7xl'
                         } ${whiteWon ? 'text-green-400' : 'text-white'}`}
                         style={{ fontSize: isMobile ? `${26 * mobileTextScale}px` : undefined }}
                     >
@@ -354,7 +357,7 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                     <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={isMobile ? Math.round(40 * mobileImageScale) : 64} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
                     <span className={`font-bold mt-0.5 sm:mt-1 w-full truncate ${isMobile ? 'text-[10px]' : 'text-base'}`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{blackPlayer.nickname} (흑)</span>
                 </div>
-                <div className={`flex-shrink-0 ${isMobile ? 'text-2xl' : 'text-4xl'} font-mono font-bold whitespace-nowrap`} style={{ fontSize: isMobile ? `${24 * mobileTextScale}px` : `${36 * mobileTextScale}px` }}>
+                <div className={`flex-shrink-0 ${isMobile ? 'text-2xl' : 'text-4xl lg:text-5xl xl:text-6xl'} font-mono font-bold whitespace-nowrap`} style={{ fontSize: isMobile ? `${24 * mobileTextScale}px` : undefined }}>
                     <span className="text-white">{blackScore}</span>
                     <span className="mx-2 text-gray-400">:</span>
                     <span className="text-white">{whiteScore}</span>
@@ -367,8 +370,8 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
             
             {/* 상세 점수 내역 표 */}
             <div className={`mt-4 bg-gray-800/50 ${isMobile ? 'p-2' : 'p-4'} rounded-lg`}>
-                <h3 className={`font-bold mb-3 ${isMobile ? 'text-xs' : 'text-base'} text-left`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>상세 점수 내역</h3>
-                <div className={`overflow-x-auto ${isMobile ? 'text-[9px]' : 'text-xs'}`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
+                <h3 className={`font-bold mb-3 ${isMobile ? 'text-xs' : 'text-base lg:text-lg'} text-left`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>상세 점수 내역</h3>
+                <div className={`overflow-x-auto ${isMobile ? 'text-[9px]' : 'text-xs lg:text-sm'}`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
                     <table className="w-full border-collapse">
                         <thead>
                             <tr className="border-b-2 border-gray-600">
@@ -448,7 +451,7 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
 
     return (
         <div className="text-center space-y-2 sm:space-y-3">
-            <div className={`overflow-x-auto ${isMobile ? 'text-[9px]' : 'text-xs'}`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
+            <div className={`overflow-x-auto ${isMobile ? 'text-[9px]' : 'text-xs lg:text-sm'}`} style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}>
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="border-b-2 border-gray-600">
@@ -520,7 +523,7 @@ const MatchPlayersRoster: React.FC<{
     const blackLv = isPlayful ? blackPlayer.playfulLevel : blackPlayer.strategyLevel;
     const whiteLv = isPlayful ? whitePlayer.playfulLevel : whitePlayer.strategyLevel;
     const modeTag = isPlayful ? '놀이' : '전략';
-    const avatarPx = isMobile ? Math.round(44 * mobileImageScale) : 56;
+    const avatarPx = isMobile ? Math.round(44 * mobileImageScale) : 64;
 
     return (
         <div className="mb-3 grid grid-cols-2 gap-2.5 sm:gap-3">
@@ -539,14 +542,14 @@ const MatchPlayersRoster: React.FC<{
                             흑
                         </span>
                         <p
-                            className={`mt-1 truncate font-bold text-white ${!isMobile ? 'text-base' : ''}`}
+                            className={`mt-1 truncate font-bold text-white ${!isMobile ? 'text-lg lg:text-xl' : ''}`}
                             style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}
                             title={blackPlayer.nickname}
                         >
                             {blackPlayer.nickname}
                         </p>
                         <p
-                            className="text-[0.7rem] font-medium text-stone-400 sm:text-xs"
+                            className={`font-medium text-stone-400 ${!isMobile ? 'text-sm lg:text-base' : 'text-[0.7rem] sm:text-xs'}`}
                             style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
                         >
                             {modeTag} Lv.{blackLv}
@@ -569,14 +572,14 @@ const MatchPlayersRoster: React.FC<{
                             백
                         </span>
                         <p
-                            className={`mt-1 truncate font-bold text-white ${!isMobile ? 'text-base' : ''}`}
+                            className={`mt-1 truncate font-bold text-white ${!isMobile ? 'text-lg lg:text-xl' : ''}`}
                             style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}
                             title={whitePlayer.nickname}
                         >
                             {whitePlayer.nickname}
                         </p>
                         <p
-                            className="text-[0.7rem] font-medium text-slate-300/90 sm:text-xs"
+                            className={`font-medium text-slate-300/90 ${!isMobile ? 'text-sm lg:text-base' : 'text-[0.7rem] sm:text-xs'}`}
                             style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
                         >
                             {modeTag} Lv.{whiteLv}
@@ -592,8 +595,13 @@ const MatchPlayersRoster: React.FC<{
 const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUser, onConfirm, onAction, onOpenGameRecordList, isSpectator = false }) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
     const soundPlayed = useRef(false);
-    /** PC/설계 캔버스에서만 균일 축소. 네이티브 폰 세로 셸은 DraggableWindow가 뷰포트 반응형으로 전환 */
-    const isMobile = false;
+    const isCompactViewport = useIsHandheldDevice(1025);
+    const { isNativeMobile } = useNativeMobileShell();
+    /** 좁은 뷰포트·네이티브 앱에서만 컴팩트 타이포(한 화면 우선). PC·캔버스 넓은 창은 큰 글자 유지 */
+    const isMobile = isCompactViewport || isNativeMobile;
+    const { modalLayerUsesDesignPixels } = useAppContext();
+    /** DraggableWindow `mobileViewportFit` 본문 스크롤 시: 루트를 뷰 높이에 늘리지 않고 콘텐츠만큼 키워 하단 버튼·푸터가 잘리지 않게 함 */
+    const useBodyScrollSizing = modalLayerUsesDesignPixels || isMobile;
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
@@ -702,21 +710,21 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         const timeLabel = isAiOrPve ? '소요 시간' : '경기 시간';
         if (isPlayful && winReason === 'resign') {
             const message = isWinner ? "상대방의 기권으로 승리했습니다." : "기권 패배했습니다.";
-            return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'}`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>{message}</p>;
+            return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'}`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>{message}</p>;
         }
 
         if (winReason === 'capture_limit' && isGuildWarCaptureTurnLimitLoss) {
             if (isWinner) {
-                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 제한 턴이 모두 소진되어 승리했습니다.</p>;
+                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 제한 턴이 모두 소진되어 승리했습니다.</p>;
             }
-            return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
+            return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
         }
         
         // 시간 패배/승리 처리
         if (winReason === 'timeout') {
             if (!isWinner) {
                 if (isGuildWarCaptureTurnLimitLoss) {
-                    return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
+                    return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
                 }
                 // 패배한 경우
                 if (session.stageId) {
@@ -726,7 +734,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         try {
                             const currentStage = TOWER_STAGES.find((s: any) => s.id === session.stageId);
                             if (currentStage?.blackTurnLimit) {
-                                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
+                                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
                             }
                         } catch (e) {
                             console.error('[GameSummaryModal] Error loading TOWER_STAGES:', e);
@@ -735,7 +743,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         try {
                             const currentStage = SINGLE_PLAYER_STAGES.find((s: any) => s.id === session.stageId);
                             if (currentStage?.blackTurnLimit) {
-                                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
+                                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
                             }
                         } catch (e) {
                             console.error('[GameSummaryModal] Error loading SINGLE_PLAYER_STAGES:', e);
@@ -743,13 +751,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     }
                 }
                 // 일반 게임에서 시간 패배한 경우
-                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>시간이 다 되어 패배했습니다.</p>;
+                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>시간이 다 되어 패배했습니다.</p>;
             } else {
                 if (isGuildWarCaptureTurnLimitLoss) {
-                    return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 제한 턴이 모두 소진되어 승리했습니다.</p>;
+                    return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 제한 턴이 모두 소진되어 승리했습니다.</p>;
                 }
                 // 승리한 경우
-                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg'} text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 시간이 다 되어 승리했습니다.</p>;
+                return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-green-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>상대방의 시간이 다 되어 승리했습니다.</p>;
             }
         }
         
@@ -800,7 +808,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                 message = isWinner ? '목표 따내기 완료' : '상대방 목표 따내기 완료';
             }
             if (message) {
-                return <p className={`text-center ${isMobile ? 'text-lg' : 'text-2xl'} font-bold`} style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}>{message}</p>;
+                return <p className={`text-center ${isMobile ? 'text-lg' : 'text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl'} font-bold`} style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}>{message}</p>;
             }
         }
         if (session.mode === GameMode.Alkkagi) {
@@ -808,7 +816,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
         }
         return (
             <div className="flex flex-col gap-2 sm:gap-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 text-sm sm:text-base">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 text-sm sm:text-base min-[1024px]:text-lg min-[1024px]:gap-3">
                     <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center">
                         <span className="text-gray-300" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>흑</span>
                         <span className="font-semibold" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}>{blackPlayer.nickname}</span>
@@ -859,11 +867,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                 ];
 
         return (
-            <div className="mt-2 rounded-md border border-amber-500/35 bg-amber-900/10 p-2">
-                <p className="mb-1 text-sm font-semibold text-amber-200/90">별 달성 조건</p>
+            <div className="mt-2 rounded-md border border-amber-500/35 bg-amber-900/10 p-2 lg:p-3">
+                <p className="mb-1 text-sm font-semibold text-amber-200/90 lg:text-base">별 달성 조건</p>
                 <div className="space-y-1">
                     {rows.map((row) => (
-                        <div key={row.label} className="flex items-center justify-between text-sm">
+                        <div key={row.label} className="flex items-center justify-between text-sm lg:text-base">
                             <span className="text-gray-200">{row.label}</span>
                             <span className={row.ok ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
                                 {row.ok ? '성공' : '실패'}
@@ -879,23 +887,27 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const finalMannerRank = mySummary ? getMannerRank(mySummary.manner.final) : '';
 
     const statCardClass =
-        'rounded-xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-[#13141c] to-[#0a0a0f] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.04]';
-    const statLabelClass = 'text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-400';
+        'rounded-xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-[#13141c] to-[#0a0a0f] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.04] lg:p-3.5';
+    const statLabelClass =
+        'text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-400 min-[1024px]:text-xs lg:tracking-[0.12em]';
 
     return (
         <DraggableWindow
             title={isGuildWar ? '길드 전쟁 결과' : '대국 결과'}
             onClose={onConfirm}
-            initialWidth={1000}
-            initialHeight={900}
-            uniformPcScale
+            initialWidth={1120}
+            initialHeight={940}
+            uniformPcScale={false}
+            mobileViewportFit
             windowId="game-summary"
         >
             <div
-                className="flex min-h-0 flex-1 flex-col text-[clamp(1rem,2.75vw,1.1875rem)] text-white antialiased"
+                className={`flex min-h-0 flex-col text-white antialiased ${
+                    useBodyScrollSizing ? 'w-full overflow-x-hidden' : 'flex-1 overflow-hidden'
+                } ${isMobile ? 'text-xs sm:text-sm' : 'text-base lg:text-[1.0625rem] xl:text-lg'}`}
             >
                 <h1
-                    className={`${isMobile ? 'text-lg mb-1.5' : 'text-3xl mb-2'} flex-shrink-0 text-center font-black tracking-widest sm:mb-3 ${color}`}
+                    className={`${isMobile ? 'text-lg mb-1.5' : 'text-3xl mb-2 min-[1024px]:text-4xl min-[1280px]:text-5xl'} flex-shrink-0 text-center font-black tracking-widest sm:mb-3 ${color}`}
                     style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}
                 >
                     {title}
@@ -931,7 +943,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         className="flex min-h-0 w-1/2 min-w-0 flex-col rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5"
                     >
                         <h2
-                            className={`mb-2 flex-shrink-0 border-b border-amber-500/20 pb-2 text-center text-[0.7rem] font-bold uppercase tracking-[0.18em] text-amber-200/75 sm:text-xs ${isMobile ? 'text-xs' : ''}`}
+                            className={`mb-2 flex-shrink-0 border-b border-amber-500/20 pb-2 text-center font-bold uppercase tracking-[0.18em] text-amber-200/75 ${
+                                isMobile ? 'text-xs' : 'text-xs sm:text-sm min-[1024px]:text-base'
+                            }`}
                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                         >
                             경기 내용
@@ -956,7 +970,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                             className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5"
                         >
                             <h2
-                                className="mb-0.5 border-b border-violet-500/25 pb-2 text-center text-[0.7rem] font-bold uppercase tracking-[0.18em] text-violet-200/85 sm:text-xs"
+                                className={`mb-0.5 border-b border-violet-500/25 pb-2 text-center font-bold uppercase tracking-[0.18em] text-violet-200/85 ${
+                                    isMobile ? 'text-xs' : 'text-xs sm:text-sm min-[1024px]:text-base'
+                                }`}
                                 style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             >
                                 {isGuildWar ? '보상·기록' : '대국 결과'}
@@ -972,13 +988,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     />
                                     <div className="min-w-0 flex-1">
                                         <p
-                                            className={`truncate font-bold text-white ${!isMobile ? 'text-lg' : ''}`}
+                                            className={`truncate font-bold text-white ${!isMobile ? 'text-lg min-[1024px]:text-xl' : ''}`}
                                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                                         >
                                             {currentUser.nickname}
                                         </p>
                                         <p
-                                            className="text-[0.7rem] font-medium text-slate-400 sm:text-sm"
+                                            className={`font-medium text-slate-400 ${!isMobile ? 'text-sm min-[1024px]:text-base' : 'text-[0.7rem] sm:text-sm'}`}
                                             style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}
                                         >
                                             {isPlayful ? '놀이' : '전략'} Lv.
@@ -1029,7 +1045,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                 </div>
                             )}
                             {isGuildWar ? (
-                                <p className="px-1 text-center text-xs leading-snug text-slate-400 sm:text-sm">
+                                <p className="px-1 text-center text-xs leading-snug text-slate-400 sm:text-sm min-[1024px]:text-base">
                                     길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
                                 </p>
                             ) : mySummary ? (
@@ -1037,7 +1053,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     <div className={`${statCardClass} text-center`}>
                                         <p className={statLabelClass}>랭킹 점수</p>
                                         <p className="mt-2 flex flex-col items-center gap-1.5">
-                                            <span className="text-2xl font-black tabular-nums tracking-tight text-white sm:text-[1.65rem]">
+                                            <span className="text-2xl font-black tabular-nums tracking-tight text-white sm:text-[1.65rem] min-[1024px]:text-3xl min-[1280px]:text-4xl">
                                                 {mySummary.rating.final}
                                             </span>
                                             <span
@@ -1054,9 +1070,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     </div>
                                     <div className={`${statCardClass} text-center`}>
                                         <p className={statLabelClass}>매너 점수</p>
-                                        <p className="mt-2 text-xl font-black tabular-nums text-slate-100 sm:text-2xl">{mySummary.manner.final}</p>
+                                        <p className="mt-2 text-xl font-black tabular-nums text-slate-100 sm:text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl">{mySummary.manner.final}</p>
                                         <p
-                                            className={`mt-1 text-sm font-bold tabular-nums ${
+                                            className={`mt-1 text-sm font-bold tabular-nums min-[1024px]:text-base ${
                                                 mySummary.manner.change === 0
                                                     ? 'text-slate-400'
                                                     : mySummary.manner.change > 0
@@ -1067,14 +1083,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                             {mySummary.manner.change > 0 ? '+' : ''}
                                             {mySummary.manner.change}
                                         </p>
-                                        <p className="mt-1 text-[0.65rem] tabular-nums text-slate-500">
+                                        <p className="mt-1 text-[0.65rem] tabular-nums text-slate-500 min-[1024px]:text-sm">
                                             {mySummary.manner.initial} → {mySummary.manner.final}
                                         </p>
                                     </div>
                                     <div className={`${statCardClass} text-center`}>
                                         <p className={statLabelClass}>통산 전적</p>
                                         {mySummary.overallRecord != null ? (
-                                            <p className="mt-2 flex items-baseline justify-center gap-1 text-xl font-black tabular-nums text-white sm:text-2xl">
+                                            <p className="mt-2 flex items-baseline justify-center gap-1 text-xl font-black tabular-nums text-white sm:text-2xl min-[1024px]:text-3xl">
                                                 <span className="text-amber-200">{mySummary.overallRecord.wins}</span>
                                                 <span className="text-sm font-bold text-slate-500">승</span>
                                                 <span className="text-slate-200">{mySummary.overallRecord.losses}</span>
@@ -1086,7 +1102,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     </div>
                                     <div className={`${statCardClass} text-center`}>
                                         <p className={statLabelClass}>매너 등급</p>
-                                        <p className="mt-3 flex items-center justify-center gap-1.5 text-sm font-bold text-violet-200/95 sm:text-base">
+                                        <p className="mt-3 flex items-center justify-center gap-1.5 text-sm font-bold text-violet-200/95 sm:text-base min-[1024px]:text-lg">
                                             <span className="rounded-md border border-violet-400/25 bg-violet-950/40 px-2 py-1">{initialMannerRank}</span>
                                             <span className="text-slate-500">→</span>
                                             <span className="rounded-md border border-violet-400/35 bg-violet-900/35 px-2 py-1">{finalMannerRank}</span>
@@ -1114,7 +1130,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                             className={`flex-shrink-0 space-y-2 rounded-xl border border-amber-500/20 bg-gradient-to-b from-[#1a1510]/95 via-[#12100c] to-[#0a0908] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/10 sm:p-3.5 ${isMobile ? 'p-2' : ''}`}
                         >
                             <h2
-                                className="mb-1 border-b border-amber-500/25 pb-2 text-center text-[0.7rem] font-bold uppercase tracking-[0.16em] text-amber-200/85 sm:text-xs"
+                                className={`mb-1 border-b border-amber-500/25 pb-2 text-center font-bold uppercase tracking-[0.16em] text-amber-200/85 ${
+                                    isMobile ? 'text-xs' : 'text-xs sm:text-sm min-[1024px]:text-base'
+                                }`}
                                 style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             >
                                 {isGuildWar ? '길드 전쟁 보상' : '획득 보상'}
@@ -1185,7 +1203,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     {canUseGameRecordUi && onAction && (
                         <button
                             type="button"
-                            className={arenaPostGameButtonClass('retry', isMobile, 'modal')}
+                            className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             disabled={savingRecord || recordAlreadySaved}
                             onClick={async () => {
@@ -1224,7 +1242,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     )}
                     <button
                         type="button"
-                        className={arenaPostGameButtonClass('result', isMobile, 'modal')}
+                        className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
                         style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                         onClick={onConfirm}
                     >

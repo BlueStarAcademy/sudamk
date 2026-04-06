@@ -207,9 +207,9 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                 />
             )}
 
-            <div className="flex-1 min-h-0 p-3 overflow-hidden flex flex-col items-center justify-center gap-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3">
                 {/* 첫 번째 행: 하급 강화석 <> 중급 강화석 <> 상급 강화석 */}
-                <div className="flex items-center justify-center gap-2.5 w-full">
+                <div className="flex w-full min-w-0 items-start justify-start gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
                     {['하급 강화석', '중급 강화석', '상급 강화석'].map((materialName, index, row) => {
                         const materialExists = materialCategories[materialName] && materialCategories[materialName].length > 0;
                         const quantity = materialCategories[materialName]
@@ -223,20 +223,20 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                         return (
                             <React.Fragment key={materialName}>
                                 {/* 강화석 카드 */}
-                                <div className="bg-panel-secondary rounded-lg p-2.5 flex flex-col items-center justify-center min-w-[120px]">
-                                    <img src={materialData.image as string | undefined} alt={materialName} className="w-12 h-12 mb-1.5" />
-                                    <h4 className="font-bold text-secondary text-[11px] text-center whitespace-nowrap mb-1">{materialName}</h4>
-                                    <p className="text-[10px] text-tertiary text-center mb-1.5">보유: {quantity.toLocaleString()}개</p>
+                                <div className="bg-panel-secondary flex min-w-[100px] flex-col items-center justify-center rounded-lg p-2 sm:min-w-[120px] sm:p-2.5">
+                                    <img src={materialData.image as string | undefined} alt={materialName} className="mb-1 h-10 w-10 sm:mb-1.5 sm:h-12 sm:w-12" />
+                                    <h4 className="mb-0.5 text-center text-[11px] font-bold text-secondary whitespace-nowrap sm:mb-1 sm:text-xs">{materialName}</h4>
+                                    <p className="mb-1 text-center text-[10px] text-tertiary sm:mb-1.5 sm:text-[11px]">보유: {quantity.toLocaleString()}개</p>
                                 </div>
                                 
                                 {/* 오른쪽 화살표 (합성) - 마지막 강화석이 아닐 때만 표시 */}
                                 {index < row.length - 1 && (
-                                    <div className="flex flex-col gap-1 items-center">
-                                        <span className="text-[10px] text-secondary font-medium">합성</span>
+                                    <div className="flex shrink-0 flex-col items-center gap-1">
+                                        <span className="text-[10px] font-medium text-secondary sm:text-[11px]">합성</span>
                                         <ResourceActionButton
                                             onClick={() => setCraftingDetails({ materialName, craftType: 'upgrade' })}
                                             variant="accent"
-                                            className="!w-auto text-xs !px-3 !py-1.5 whitespace-nowrap"
+                                            className="!w-auto !px-2.5 !py-1 text-[11px] whitespace-nowrap sm:!px-3 sm:!py-1.5 sm:text-xs"
                                             disabled={!materialExists || quantity < 10}
                                             title={`${materialName} 10개 → ${materialTiers[tierIndex + 1]} 합성`}
                                         >
@@ -245,14 +245,14 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                                         <ResourceActionButton
                                             onClick={() => setCraftingDetails({ materialName: materialTiers[tierIndex + 1], craftType: 'downgrade' })}
                                             variant="neutral"
-                                            className="!w-auto text-xs !px-3 !py-1.5 whitespace-nowrap"
+                                            className="!w-auto !px-2.5 !py-1 text-[11px] whitespace-nowrap sm:!px-3 sm:!py-1.5 sm:text-xs"
                                             disabled={!materialCategories[materialTiers[tierIndex + 1]] || 
                                                 (materialCategories[materialTiers[tierIndex + 1]]?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0) < 1}
                                             title={`${materialTiers[tierIndex + 1]} → ${materialName} 분해`}
                                         >
                                             ←
                                         </ResourceActionButton>
-                                        <span className="text-[10px] text-secondary font-medium">분해</span>
+                                        <span className="text-[10px] font-medium text-secondary sm:text-[11px]">분해</span>
                                     </div>
                                 )}
                             </React.Fragment>
@@ -261,7 +261,7 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                 </div>
 
                 {/* 두 번째 행: 상급 강화석 <> 최상급 강화석 <> 신비의 강화석 */}
-                <div className="flex items-center justify-center gap-2.5 w-full">
+                <div className="flex w-full min-w-0 items-start justify-start gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
                     {['상급 강화석', '최상급 강화석', '신비의 강화석'].map((materialName, index, row) => {
                         const materialExists = materialCategories[materialName] && materialCategories[materialName].length > 0;
                         const quantity = materialCategories[materialName]
@@ -275,20 +275,20 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                         return (
                             <React.Fragment key={materialName}>
                                 {/* 강화석 카드 */}
-                                <div className="bg-panel-secondary rounded-lg p-2.5 flex flex-col items-center justify-center min-w-[120px]">
-                                    <img src={materialData.image as string | undefined} alt={materialName} className="w-12 h-12 mb-1.5" />
-                                    <h4 className="font-bold text-secondary text-[11px] text-center whitespace-nowrap mb-1">{materialName}</h4>
-                                    <p className="text-[10px] text-tertiary text-center mb-1.5">보유: {quantity.toLocaleString()}개</p>
+                                <div className="bg-panel-secondary flex min-w-[100px] flex-col items-center justify-center rounded-lg p-2 sm:min-w-[120px] sm:p-2.5">
+                                    <img src={materialData.image as string | undefined} alt={materialName} className="mb-1 h-10 w-10 sm:mb-1.5 sm:h-12 sm:w-12" />
+                                    <h4 className="mb-0.5 text-center text-[11px] font-bold text-secondary whitespace-nowrap sm:mb-1 sm:text-xs">{materialName}</h4>
+                                    <p className="mb-1 text-center text-[10px] text-tertiary sm:mb-1.5 sm:text-[11px]">보유: {quantity.toLocaleString()}개</p>
                                 </div>
                                 
                                 {/* 오른쪽 화살표 (합성) - 마지막 강화석이 아닐 때만 표시 */}
                                 {index < row.length - 1 && (
-                                    <div className="flex flex-col gap-1.5 items-center">
-                                        <span className="text-[10px] text-secondary font-medium">합성</span>
+                                    <div className="flex shrink-0 flex-col items-center gap-1">
+                                        <span className="text-[10px] font-medium text-secondary sm:text-[11px]">합성</span>
                                         <ResourceActionButton
                                             onClick={() => setCraftingDetails({ materialName, craftType: 'upgrade' })}
                                             variant="accent"
-                                            className="!w-auto text-xs !px-3 !py-1.5 whitespace-nowrap"
+                                            className="!w-auto !px-2.5 !py-1 text-[11px] whitespace-nowrap sm:!px-3 sm:!py-1.5 sm:text-xs"
                                             disabled={!materialExists || quantity < 10}
                                             title={`${materialName} 10개 → ${materialTiers[tierIndex + 1]} 합성`}
                                         >
@@ -297,14 +297,14 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                                         <ResourceActionButton
                                             onClick={() => setCraftingDetails({ materialName: materialTiers[tierIndex + 1], craftType: 'downgrade' })}
                                             variant="neutral"
-                                            className="!w-auto text-xs !px-3 !py-1.5 whitespace-nowrap"
+                                            className="!w-auto !px-2.5 !py-1 text-[11px] whitespace-nowrap sm:!px-3 sm:!py-1.5 sm:text-xs"
                                             disabled={!materialCategories[materialTiers[tierIndex + 1]] || 
                                                 (materialCategories[materialTiers[tierIndex + 1]]?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0) < 1}
                                             title={`${materialTiers[tierIndex + 1]} → ${materialName} 분해`}
                                         >
                                             ←
                                         </ResourceActionButton>
-                                        <span className="text-[10px] text-secondary font-medium">분해</span>
+                                        <span className="text-[10px] font-medium text-secondary sm:text-[11px]">분해</span>
                                     </div>
                                 )}
                             </React.Fragment>

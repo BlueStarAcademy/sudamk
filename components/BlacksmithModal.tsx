@@ -317,7 +317,17 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
             <DraggableWindow 
                 title="대장간" 
                 onClose={onClose} 
-                bodyScrollable={false}
+                bodyScrollable={!isNativeMobile}
+                bodyNoScroll={isNativeMobile}
+                mobileViewportFit={isNativeMobile}
+                mobileViewportMaxHeightVh={88}
+                hideFooter={isNativeMobile}
+                skipSavedPosition={isNativeMobile}
+                bodyPaddingClassName={
+                    isNativeMobile
+                        ? '!px-2 !pt-2 !pb-[max(1rem,env(safe-area-inset-bottom,0px))]'
+                        : undefined
+                }
                 isTopmost={
                     isTopmost &&
                     !modals.isBlacksmithHelpOpen &&
@@ -325,9 +335,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     !modals.disassemblyResult
                 }
                 initialWidth={1100}
-                initialHeight={isNativeMobile ? 980 : 900}
+                initialHeight={isNativeMobile ? 900 : 900}
                 windowId="blacksmith"
-                zIndex={50}
+                zIndex={isNativeMobile ? 120 : 50}
                 variant="store"
                 headerContent={
                     <button
@@ -346,17 +356,17 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     </button>
                 }
             >
-                <div className={`flex h-full min-h-0`}>
+                <div className="flex h-full min-h-0 flex-1 flex-col">
                     {isNativeMobile ? (
-                        <div className="flex h-full min-h-0 w-full flex-col gap-2">
-                            <div className="flex min-h-0 shrink-0 items-stretch gap-2">
+                        <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-2">
+                            <div className="flex shrink-0 items-stretch gap-2">
                                 <div className="w-max max-w-[min(46vw,15rem)] shrink-0 rounded-xl border border-cyan-400/25 bg-gradient-to-b from-stone-900/80 to-cyan-950/30 p-1.5 shadow-inner">
                                     <div className="relative w-max max-w-full overflow-hidden rounded-lg border border-cyan-300/30 bg-gradient-to-b from-stone-900/95 to-black/90 shadow-md">
-                                        <div className="flex w-max max-w-full items-center justify-center px-1 py-2 sm:py-2.5">
+                                        <div className="flex w-max max-w-full items-center justify-center px-1 py-1.5 sm:py-2">
                                             <img
                                                 src="/images/equipments/moru.png"
                                                 alt="Blacksmith"
-                                                className="mx-auto block h-auto max-h-[min(118px,38vw)] w-auto max-w-full object-contain object-center"
+                                                className="mx-auto block h-auto max-h-[min(96px,32vw)] w-auto max-w-full object-contain object-center"
                                                 decoding="async"
                                             />
                                         </div>
@@ -367,13 +377,13 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                             aria-label="대장간 효과 보기"
                                             className="absolute right-1.5 top-1.5 z-[1] max-w-[min(100%,11rem)] rounded-md border border-amber-500/45 bg-black/75 px-2 py-1 text-right shadow-md backdrop-blur-sm transition hover:border-amber-400/70 hover:bg-black/85 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
                                         >
-                                            <span className="block text-[11px] font-bold leading-tight text-white drop-shadow-sm">
+                                            <span className="block text-xs font-bold leading-tight text-white drop-shadow-sm sm:text-sm">
                                                 대장간{' '}
                                                 <span className="text-amber-300">Lv.{blacksmithLevel ?? 1}</span>
                                             </span>
                                         </button>
-                                        <div className="absolute inset-x-0 bottom-0 border-t border-amber-500/20 bg-gradient-to-t from-black/90 via-black/78 to-black/20 px-2 pb-1 pt-3">
-                                            <div className="mb-0.5 flex items-center justify-between text-[9px] font-semibold tabular-nums text-stone-200">
+                                        <div className="absolute inset-x-0 bottom-0 border-t border-amber-500/20 bg-gradient-to-t from-black/90 via-black/78 to-black/20 px-2 pb-1 pt-2.5">
+                                            <div className="mb-0.5 flex items-center justify-between text-[11px] font-semibold tabular-nums text-stone-200">
                                                 <span className="text-stone-400">경험치</span>
                                                 {isMaxLevel ? (
                                                     <span className="text-amber-200/95">{(blacksmithXp ?? 0).toLocaleString()} (Max)</span>
@@ -404,7 +414,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                                 key={tab.id}
                                                 type="button"
                                                 onClick={() => onSetActiveTab(tab.id as 'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine')}
-                                                className={`rounded-lg border px-1.5 py-1.5 text-center text-[9px] font-bold leading-tight shadow-sm transition sm:text-[10px] ${
+                                                className={`rounded-lg border px-1.5 py-1.5 text-center text-[11px] font-bold leading-tight shadow-sm transition sm:text-xs ${
                                                     activeTab === tab.id
                                                         ? 'border-amber-400/70 bg-gradient-to-br from-amber-600/40 via-amber-500/25 to-orange-900/30 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_14px_-6px_rgba(251,191,36,0.55)]'
                                                         : 'border-stone-600/55 bg-stone-800/50 text-stone-300 hover:border-cyan-500/35 hover:bg-stone-700/55 hover:text-stone-100'
@@ -418,19 +428,19 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                             </div>
 
                             <div
-                                className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2"
-                                style={{ minHeight: 'min(46dvh, 320px)' }}
+                                className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2"
+                                style={{ minHeight: 'min(38dvh, 300px)' }}
                             >
                                 {renderContent()}
                             </div>
 
-                            <div className="flex min-h-0 shrink-0 flex-col rounded-xl border border-color/40 bg-primary/40 p-2">
-                                <div className="mb-1.5 flex items-center justify-between">
-                                    <h3 className="text-sm font-bold text-on-panel">{bagHeaderText}</h3>
+                            <div className="flex min-h-0 shrink-0 flex-col rounded-xl border border-color/40 bg-primary/40 p-2 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+                                <div className="mb-1.5 flex items-center justify-between gap-2">
+                                    <h3 className="text-base font-bold text-on-panel">{bagHeaderText}</h3>
                                     <select
                                         value={sortOption}
                                         onChange={(e) => setSortOption(e.target.value as SortOption)}
-                                        className="rounded border border-color bg-secondary px-2 py-1 text-[10px] text-on-panel"
+                                        className="rounded border border-color bg-secondary px-2 py-1 text-xs text-on-panel"
                                     >
                                         <option value="grade">등급순</option>
                                         <option value="stars">강화순</option>
@@ -438,7 +448,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                         <option value="date">최신순</option>
                                     </select>
                                 </div>
-                                <div className="h-[188px] overflow-y-auto overflow-x-hidden pr-1">
+                                <div className="min-h-[10rem] max-h-[min(250px,32vh)] flex-shrink-0 overflow-y-auto overflow-x-hidden pr-1 pb-2 sm:min-h-[11rem]">
                                     <InventoryGrid
                                         inventory={filteredInventory}
                                         inventorySlots={inventorySlotsToDisplay}

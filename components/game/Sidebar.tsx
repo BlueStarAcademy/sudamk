@@ -654,7 +654,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
     const isPauseButtonDisabled = (isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0) || pauseDisabledBecauseAiTurn;
 
-    const leaveButtonText = isNoContestLeaveAvailable ? '무효처리' : (isGameEnded ? '나가기' : (isSpectator ? '관전종료' : '기권하기'));
+    const leaveButtonText = isNoContestLeaveAvailable ? '무효처리' : (isGameEnded ? '대기실로' : (isSpectator ? '관전종료' : '기권하기'));
     const leaveButtonColor = isNoContestLeaveAvailable ? 'yellow' : 'red';
     
     return (

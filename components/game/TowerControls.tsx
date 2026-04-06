@@ -19,6 +19,7 @@ import {
     arenaPostGameButtonClass,
     arenaPostGameButtonGridClass,
     arenaPostGamePanelShellClass,
+    formatArenaRetryLabel,
     formatTowerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
 
@@ -189,17 +190,17 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[164px]">
                 <div className={arenaPostGamePanelShellClass}>
                     <div className={arenaPostGameButtonGridClass}>
-                    <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('result', !!isMobile, 'strip')}>
+                    <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
                         결과 보기
                     </Button>
-                    <Button bare onClick={handleNextFloor} colorScheme="none" className={`${arenaPostGameButtonClass('primary', !!isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNext}>
+                    <Button bare onClick={handleNextFloor} colorScheme="none" className={`${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNext}>
                         {formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorApCost)}
                     </Button>
-                    <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('retry', !!isMobile, 'strip')}>
-                        재도전 {effectiveRetryApCost > 0 && `(⚡${effectiveRetryApCost})`}
+                    <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                        {formatArenaRetryLabel(effectiveRetryApCost)}
                     </Button>
-                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={arenaPostGameButtonClass('danger', !!isMobile, 'strip')}>
-                        나가기
+                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                        대기실로
                     </Button>
                     </div>
                 </div>

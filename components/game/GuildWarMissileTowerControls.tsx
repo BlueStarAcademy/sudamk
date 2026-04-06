@@ -106,7 +106,7 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                         bare
                         onClick={handleShowResults}
                         colorScheme="none"
-                        className={arenaPostGameButtonClass('result', !!isMobile, 'strip')}
+                        className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
                     >
                         결과 보기
                     </Button>
@@ -114,9 +114,9 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                         bare
                         onClick={handleExit}
                         colorScheme="none"
-                        className={arenaPostGameButtonClass('danger', !!isMobile, 'strip')}
+                        className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
                     >
-                        나가기
+                        대기실로
                     </Button>
                     </div>
                 </div>

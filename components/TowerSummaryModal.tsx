@@ -10,8 +10,10 @@ import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { replaceAppHash } from '../utils/appUtils.js';
-import { formatTowerNextFooterLabel } from './game/arenaPostGameButtonStyles.js';
+import { arenaPostGameButtonClass, formatArenaRetryLabel, formatTowerNextFooterLabel } from './game/arenaPostGameButtonStyles.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -85,28 +87,28 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
 
     return (
-        <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50 rounded-lg`}>
+        <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50 rounded-lg ${!isMobile ? 'text-sm min-[1024px]:text-base' : ''}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
                 <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1' : 'p-1.5'} rounded-md`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '13px' }}>흑</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>영토:</span> <span>{scoreDetails.black.territory.toFixed(0)}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>따낸 돌:</span> <span>{scoreDetails.black.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>사석:</span> <span>{scoreDetails.black.deadStones ?? 0}</span></div>
-                    {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>베이스 보너스:</span> <span>{scoreDetails.black.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>히든 보너스:</span> <span>{scoreDetails.black.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>시간 보너스:</span> <span>{scoreDetails.black.timeBonus.toFixed(1)}</span></div>}
-                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}><span>총점:</span> <span className="text-yellow-300">{scoreDetails.black.total.toFixed(1)}</span></div>
+                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}>흑</h3>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{scoreDetails.black.territory.toFixed(0)}</span></div>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>따낸 돌:</span> <span>{scoreDetails.black.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>사석:</span> <span>{scoreDetails.black.deadStones ?? 0}</span></div>
+                    {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.black.baseStoneBonus}</span></div>}
+                    {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.black.hiddenStoneBonus}</span></div>}
+                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{scoreDetails.black.timeBonus.toFixed(1)}</span></div>}
+                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-yellow-300">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1' : 'p-1.5'} rounded-md`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '13px' }}>백</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>영토:</span> <span>{scoreDetails.white.territory.toFixed(0)}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>따낸 돌:</span> <span>{scoreDetails.white.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>사석:</span> <span>{scoreDetails.white.deadStones ?? 0}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>덤:</span> <span>{scoreDetails.white.komi}</span></div>
-                    {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>베이스 보너스:</span> <span>{scoreDetails.white.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>히든 보너스:</span> <span>{scoreDetails.white.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '11px' }}><span>시간 보너스:</span> <span>{scoreDetails.white.timeBonus.toFixed(1)}</span></div>}
-                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}><span>총점:</span> <span className="text-yellow-300">{scoreDetails.white.total.toFixed(1)}</span></div>
+                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}>백</h3>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{scoreDetails.white.territory.toFixed(0)}</span></div>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>따낸 돌:</span> <span>{scoreDetails.white.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>사석:</span> <span>{scoreDetails.white.deadStones ?? 0}</span></div>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>덤:</span> <span>{scoreDetails.white.komi}</span></div>
+                    {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.white.baseStoneBonus}</span></div>}
+                    {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.white.hiddenStoneBonus}</span></div>}
+                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{scoreDetails.white.timeBonus.toFixed(1)}</span></div>}
+                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-yellow-300">{scoreDetails.white.total.toFixed(1)}</span></div>
                 </div>
             </div>
         </div>
@@ -119,8 +121,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const [xpGaugePercent, setXpGaugePercent] = useState<number | null>(null);
 
     const { modalLayerUsesDesignPixels } = useAppContext();
-    /** uniformPcScale: PC/16:9 캔버스 전용. 네이티브 모바일은 뷰포트 맞춤 */
-    const isMobile = false;
+    const isCompactViewport = useIsHandheldDevice(1025);
+    const { isNativeMobile } = useNativeMobileShell();
+    const isMobile = isCompactViewport || isNativeMobile;
+    const useBodyScrollSizing = modalLayerUsesDesignPixels || isMobile;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];
@@ -350,23 +354,34 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="tower-summary-redesigned"
-            initialWidth={900}
-            initialHeight={760}
-            uniformPcScale
-            bodyPaddingClassName="p-4"
+            initialWidth={960}
+            initialHeight={820}
+            uniformPcScale={false}
+            mobileViewportFit
+            mobileViewportMaxHeightVh={97}
+            bodyNoScroll={isMobile}
+            bodyPaddingClassName={isMobile ? 'p-2 sm:p-3' : 'p-4'}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
             defaultPosition={modalLayerUsesDesignPixels ? { x: 400, y: 0 } : { x: 0, y: 0 }}
         >
-            <div className="flex h-full min-h-0 w-full flex-col overflow-hidden text-[clamp(0.875rem,2.5vw,1.125rem)] text-white">
+            <div
+                className={`flex w-full min-h-0 flex-col text-white ${
+                    isMobile
+                        ? 'h-full min-h-0 flex-1 overflow-hidden'
+                        : useBodyScrollSizing
+                          ? 'overflow-x-hidden'
+                          : 'h-full overflow-hidden'
+                } ${isMobile ? 'text-xs sm:text-sm' : 'text-base min-[1024px]:text-[1.0625rem] min-[1280px]:text-lg'}`}
+            >
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
-                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
+                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
                         {isWinner ? '도전 성공' : '도전 실패'}
                     </h1>
                 )}
                 {!isScoring && !isEnded && !analysisResult && session.winner === null && (
-                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-gray-300`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
+                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl min-[1024px]:text-3xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-gray-300`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
                         게임 결과
                     </h1>
                 )}
@@ -396,7 +411,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             {/* 계가 결과 — 전략바둑과 동일한 22초 진행 연출 */}
                             {isScoring && !analysisResult && (
                                 <div
-                                    className={`flex flex-col items-center justify-center ${isMobile ? 'min-h-[132px]' : 'min-h-[200px] flex-1'}`}
+                                    className={`flex flex-col items-center justify-center ${isMobile ? 'min-h-[100px] flex-shrink-0' : 'min-h-[200px] flex-1'}`}
                                 >
                                     <ScoringOverlay variant="inline" />
                                 </div>
@@ -459,7 +474,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             )}
                             
                             {/* 보상 박스들 — 최소 높이로 영역 고정해 모달 크기 흔들림 방지 */}
-                            <div className="min-h-[140px] sm:min-h-[160px] flex flex-col flex-1 min-w-0">
+                            <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${isMobile ? 'min-h-0' : 'min-h-[140px] sm:min-h-[160px]'}`}>
                             {displaySummary ? (
                                 <>
                                     {((displaySummary.gold ?? 0) > 0 || (displaySummary.xp?.change ?? 0) > 0 || (displaySummary.items && displaySummary.items.length > 0)) ? (
@@ -541,41 +556,45 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                 </div>
                  
                 {/* Buttons */}
-                <div className={`mt-1.5 sm:mt-2 flex-shrink-0 grid ${isMobile ? 'grid-cols-2 gap-1.5' : 'grid-cols-4 gap-1.5'}`}>
+                <div className={`mt-1.5 sm:mt-2 flex-shrink-0 grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5`}>
                     <Button
                         onClick={() => {
                             if (isScoring) return;
                             handleClose(session, onClose);
                         }}
+                        bare
                         colorScheme="none"
                         disabled={isScoring}
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${isScoring ? 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed' : 'border-blue-400/50 bg-gradient-to-r from-blue-500/90 via-cyan-500/90 to-teal-500/90 text-white shadow-[0_12px_32px_-18px_rgba(59,130,246,0.85)] hover:from-blue-400 hover:to-teal-400'}`}
+                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
                     >
                         확인
                     </Button>
                     <Button
                         onClick={handleNextFloor}
+                        bare
                         colorScheme="none"
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${canTryNext && !isProcessing ? 'border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
+                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${!canTryNext || isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
                         disabled={!canTryNext || isProcessing}
                     >
                         {formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorActionPointCost)}
                     </Button>
                     <Button
                         onClick={handleRetry}
+                        bare
                         colorScheme="none"
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${!isProcessing ? 'border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-orange-500/90 to-red-500/90 text-white shadow-[0_12px_32px_-18px_rgba(245,158,11,0.85)] hover:from-amber-400 hover:to-red-400' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
+                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
                         disabled={isProcessing}
                     >
-                        재도전 {effectiveRetryActionPointCost > 0 && `⚡${effectiveRetryActionPointCost}`}
+                        {formatArenaRetryLabel(effectiveRetryActionPointCost)}
                     </Button>
                     <Button
                         onClick={handleExitToLobby}
+                        bare
                         colorScheme="none"
-                        className={`w-full justify-center ${isMobile ? '!py-1.5 !text-xs' : '!py-2 !text-sm'} rounded-xl border ${!isProcessing ? 'border-red-400/50 bg-gradient-to-r from-red-500/90 via-red-600/90 to-rose-600/90 text-white shadow-[0_12px_32px_-18px_rgba(239,68,68,0.85)] hover:from-red-400 hover:to-rose-500' : 'border-gray-500/50 bg-gray-700/50 text-gray-400 cursor-not-allowed'}`}
+                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
                         disabled={isProcessing}
                     >
-                        나가기
+                        대기실로
                     </Button>
                 </div>
             </div>

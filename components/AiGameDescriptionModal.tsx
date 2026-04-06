@@ -30,7 +30,7 @@ const formatColor = (color?: Player.Black | Player.White) => {
   return '랜덤';
 };
 
-const AI_GAME_DESC_DESIGN_W = 736;
+const AI_GAME_DESC_DESIGN_W = 920;
 const AI_GAME_DESC_DESIGN_H_FALLBACK = 820;
 const AI_GAME_DESC_DESIGN_H_MIN = 520;
 const AI_GAME_DESC_DESIGN_H_MAX = 1200;
@@ -129,16 +129,15 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
 };
 
 const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
-  const { modalLayerUsesDesignPixels, isNativeMobile } = useAppContext();
+  const { modalLayerUsesDesignPixels } = useAppContext();
   const meta = useMemo(() => getModeMeta(session.mode), [session.mode]);
   const summaryFour = useMemo(() => getPreGameSummaryFour(session), [session]);
   const settingsRows = useMemo(() => getSettingsRows(session), [session]);
   const isGuildWarAi = String(session.gameCategory ?? '') === 'guildwar';
   const shellRef = useRef<HTMLDivElement>(null);
   const [designH, setDesignH] = useState(AI_GAME_DESC_DESIGN_H_FALLBACK);
-  /** 네이티브 폰 세로 셸에서는 전체 scale 축소 대신 레이아웃·스크롤로 맞춤 */
-  const useUniformScale = !isNativeMobile || modalLayerUsesDesignPixels;
-  const uniformScale = useViewportUniformScale(AI_GAME_DESC_DESIGN_W, designH, useUniformScale);
+  /** 모바일·네이티브 포함: PC 레이아웃 유지 + visual viewport에 맞게 균일 scale(스크롤 없이 시작 버튼까지) */
+  const uniformScale = useViewportUniformScale(AI_GAME_DESC_DESIGN_W, designH, true);
 
   useLayoutEffect(() => {
     const el = shellRef.current;
@@ -153,7 +152,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
     const ro = new ResizeObserver(() => requestAnimationFrame(update));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [session, summaryFour]);
+  }, [session, summaryFour, settingsRows]);
 
   const handleStart = () => {
     onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
@@ -204,7 +203,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
                   {isGuildWarAi ? '길드 전쟁' : 'AI 대전'}
                 </span>
               </div>
-              <p className="mt-2.5 text-xs leading-relaxed text-zinc-300 sm:text-sm">
+              <p className="mt-2.5 text-xs leading-relaxed text-zinc-300 sm:text-sm lg:text-base">
                 네 가지 요약을 확인한 뒤{' '}
                 <span className="font-semibold text-violet-300">경기 시작</span>을 눌러주세요.
               </p>
@@ -216,14 +215,14 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
           <PreGameSummaryGrid session={session} summary={summaryFour} />
 
           <div className="mb-4 mt-6 rounded-xl border border-amber-500/22 bg-zinc-950/50 p-3.5 shadow-inner ring-1 ring-inset ring-white/[0.05]">
-            <h3 className="mb-3 flex items-center gap-2 border-b border-amber-500/18 pb-2.5 text-base font-bold text-amber-100/95">
+            <h3 className="mb-3 flex items-center gap-2 border-b border-amber-500/18 pb-2.5 text-base font-bold text-amber-100/95 lg:text-lg">
               {meta?.image ? (
                 <img src={meta.image} alt="" className="h-7 w-7 object-contain opacity-95 drop-shadow" />
               ) : null}
               이번 대국 설정
             </h3>
             <div className="overflow-hidden rounded-lg border border-amber-500/15 bg-black/30">
-              <table className="w-full text-sm sm:text-base">
+              <table className="w-full text-sm sm:text-base lg:text-[1.05rem]">
                 <tbody className="[&>tr:nth-child(odd)]:bg-zinc-900/55">
                   {settingsRows.map((row) => (
                     <tr key={row.label} className="border-b border-amber-500/10 last:border-b-0">
@@ -244,7 +243,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
               colorScheme="gray"
               className={`!w-auto shrink-0 px-8 py-3 text-base font-bold tracking-wide ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS}`}
             >
-              나가기
+              대기실로
             </Button>
           )}
           <Button

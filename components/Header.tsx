@@ -23,20 +23,39 @@ const SPECIAL_RESOURCE_LABEL: Record<SpecialResourceIconKey, string> = {
 /** 네이티브 모바일 특수재화 팝오버: 전면 광고·모달 루트(z-180)·인터스티셜(z-99999) 위에 표시 */
 const SPECIAL_RESOURCES_POPOVER_Z = 200_000;
 
-const ResourceDisplay = memo<{ icon: ResourceIconKey; value: number; className?: string; dense?: boolean }>(({ icon, value, className, dense }) => {
+const ResourceDisplay = memo<{
+    icon: ResourceIconKey;
+    value: number;
+    className?: string;
+    dense?: boolean;
+    /** 모바일 헤더: 가로를 채우며 숫자만 clamp로 반응형 */
+    fluid?: boolean;
+}>(({ icon, value, className, dense, fluid }) => {
     const formattedValue = useMemo(() => value.toLocaleString(), [value]);
+    const shell = fluid
+        ? 'min-w-0 flex-1'
+        : 'flex-shrink-0';
+    const valueClass = fluid
+        ? 'min-w-0 flex-1 tabular-nums leading-none tracking-tight text-[clamp(0.4rem,calc(0.02rem+2.55vw),0.8rem)]'
+        : dense
+          ? 'min-w-0 tabular-nums leading-none text-[clamp(0.5625rem,calc(0.42rem+1.1vw),0.8125rem)] sm:text-[11px]'
+          : 'text-[9px] sm:text-sm';
     return (
-        <div className={`flex items-center bg-tertiary/50 rounded-full shadow-inner flex-shrink-0 ${dense ? 'gap-0.5 py-0.5 pl-0.5 pr-1.5' : 'gap-1 sm:gap-2 py-1 pl-1 pr-2 sm:pr-3'} ${className ?? ''}`}>
+        <div
+            className={`flex items-center bg-tertiary/50 rounded-full shadow-inner ${shell} ${dense ? 'gap-0.5 py-0.5 pl-0.5 pr-1.5' : 'gap-1 sm:gap-2 py-1 pl-1 pr-2 sm:pr-3'} ${className ?? ''}`}
+        >
             <div className={`bg-primary flex items-center justify-center rounded-full flex-shrink-0 ${dense ? 'h-6 w-6' : 'w-7 h-7 text-lg'}`}>
                 <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className={`object-contain ${dense ? 'h-4 w-4' : 'w-5 h-5'}`} loading="lazy" decoding="async" />
             </div>
-            <span className={`font-bold text-primary whitespace-nowrap ${dense ? 'max-w-[5.25rem] truncate text-[11px] tabular-nums' : 'text-[9px] sm:text-sm'}`}>{formattedValue}</span>
+            <span className={`font-bold text-primary whitespace-nowrap ${valueClass}`}>
+                {formattedValue}
+            </span>
         </div>
     );
 });
 ResourceDisplay.displayName = 'ResourceDisplay';
 
-export const ActionPointTimer: React.FC<{ user: UserWithStatus }> = ({ user }) => {
+export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean }> = ({ user, mobile = false }) => {
     const { actionPoints, lastActionPointUpdate } = user;
     const [timeLeft, setTimeLeft] = useState('');
     
@@ -70,7 +89,17 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus }> = ({ user }) =
 
     if (!timeLeft) return null;
 
-    return <span className="text-[10px] text-tertiary sm:text-xs font-mono text-center whitespace-nowrap">({timeLeft})</span>;
+    return (
+        <span
+            className={`font-mono text-tertiary text-center whitespace-nowrap ${
+                mobile
+                    ? 'text-[clamp(0.5625rem,calc(0.45rem+1.8vw),0.6875rem)]'
+                    : 'text-[10px] sm:text-xs'
+            }`}
+        >
+            ({timeLeft})
+        </span>
+    );
 };
 
 
@@ -153,15 +182,18 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     return (
         <>
         <header
-            className={`relative z-50 w-full min-w-0 flex-shrink-0 overflow-x-hidden bg-primary/80 shadow-lg backdrop-blur-sm ${isMobile ? 'pt-[max(6px,env(safe-area-inset-top,0px))]' : ''}`}
+            className={`relative z-50 w-full min-w-0 flex-shrink-0 bg-primary/80 shadow-lg backdrop-blur-sm ${isMobile ? 'overflow-x-visible pt-[max(6px,env(safe-area-inset-top,0px))]' : 'overflow-x-hidden'}`}
         >
             <div
-                className={`flex min-w-0 items-center gap-1 sm:gap-2 sm:items-center sm:gap-3 ${
-                    dense
-                        ? 'min-h-[58px] flex-nowrap items-center gap-x-2 gap-y-0 px-2 py-2 sm:min-h-[58px] sm:gap-2 sm:px-2 sm:py-2'
-                        : 'min-h-[70px] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:min-h-[75px] sm:p-3'
+                className={`flex min-w-0 w-full items-center ${
+                    isMobile
+                        ? 'h-[52px] min-h-[52px] max-h-[52px] flex-nowrap justify-end gap-x-1 overflow-hidden px-2 py-0'
+                        : dense
+                          ? 'min-h-[58px] flex-nowrap gap-x-2 gap-y-0 px-2 py-2 sm:min-h-[58px] sm:gap-x-2 sm:px-2 sm:py-2'
+                          : 'min-h-[70px] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:min-h-[75px] sm:gap-3 sm:p-3'
                 }`}
             >
+                {!isMobile && (
                 <div
                     className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-1.5 sm:gap-3 ${dense ? 'max-w-[min(40%,10.5rem)]' : ''} relative`}
                     onClick={openProfileEditModal}
@@ -177,20 +209,35 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
                      )}
                 </div>
+                )}
 
-                    <div className={`flex min-w-0 flex-1 items-center justify-end gap-0.5 sm:w-auto sm:gap-2 ${dense ? 'flex-nowrap overflow-hidden' : 'flex-wrap sm:flex-nowrap'}`}>
+                    <div
+                        className={`flex min-w-0 items-center justify-end gap-0.5 sm:w-auto sm:gap-2 ${
+                            isMobile
+                                ? 'min-w-0 flex-1 flex-nowrap overflow-hidden'
+                                : dense
+                                  ? 'min-w-0 flex-1 flex-nowrap overflow-hidden'
+                                  : 'min-w-0 flex-1 flex-wrap sm:flex-nowrap'
+                        }`}
+                    >
                     <div
                         className={`flex flex-shrink-0 items-center gap-0.5 rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner sm:gap-1 ${
                             dense ? 'py-1 pl-1.5 pr-1' : 'pl-2 pr-1 py-1'
                         }`}
                     >
                         <span
-                            className={`flex items-center gap-0.5 font-bold whitespace-nowrap text-primary sm:gap-1 ${dense ? 'text-[11px]' : 'text-[9px] sm:text-xs'}`}
+                            className={`flex min-w-0 items-center gap-0.5 font-bold whitespace-nowrap text-primary sm:gap-1 ${
+                                isMobile
+                                    ? 'text-[clamp(0.625rem,calc(0.48rem+2.2vw),0.8125rem)]'
+                                    : dense
+                                      ? 'text-[11px]'
+                                      : 'text-[9px] sm:text-xs'
+                            }`}
                         >
                             <span className="text-base leading-none">⚡</span>
                             {`${safeActionPoints.current}/${safeActionPoints.max}`}
                         </span>
-                        <ActionPointTimer user={currentUserWithStatus} />
+                        <ActionPointTimer user={currentUserWithStatus} mobile={isMobile} />
                         <button
                             onClick={handlers.openActionPointModal}
                             className={`flex flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary ${
@@ -207,10 +254,12 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             />
                         </button>
                     </div>
-                    <ResourceDisplay icon="gold" value={safeGold} className="flex-shrink-0" dense={dense} />
-                    <div className="relative flex-shrink-0" ref={specialResourcesRef}>
-                        <div className="flex items-center gap-0.5 sm:gap-1">
-                            <ResourceDisplay icon="diamonds" value={safeDiamonds} className="flex-shrink-0" dense={dense} />
+                    <ResourceDisplay icon="gold" value={safeGold} dense={dense} fluid={isMobile} />
+                    <div className={`relative ${isMobile ? 'flex min-w-0 flex-1 items-center' : 'flex-shrink-0'}`} ref={specialResourcesRef}>
+                        <div className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
+                            <div className="min-w-0 flex-1">
+                                <ResourceDisplay icon="diamonds" value={safeDiamonds} dense={dense} fluid={isMobile} />
+                            </div>
                             <button
                                 onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
                                 className={`flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 ${
@@ -286,20 +335,32 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     <button
                         type="button"
                         onClick={() => setShowLogoutConfirm(true)}
-                        className={
-                            dense
-                                ? 'box-border flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 border-red-500/65 bg-red-950/30 leading-none transition-colors hover:bg-red-950/50'
-                                : 'box-border rounded-lg border-2 border-red-500/55 p-2 leading-none transition-colors hover:bg-secondary hover:border-red-500/70'
-                        }
+                        className={`flex shrink-0 items-center justify-center rounded-full border-2 border-red-800/85 bg-red-500 text-black shadow-sm transition-colors hover:bg-red-600 ${
+                            dense ? 'h-9 w-9' : 'h-10 w-10'
+                        }`}
                         title="로그아웃"
                         aria-label="로그아웃"
                     >
-                        <span
-                            className={`select-none font-normal leading-none text-red-500 [font-variant-emoji:text] ${dense ? 'text-lg' : 'text-2xl'}`}
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            className={`text-black ${dense ? 'h-[1.125rem] w-[1.125rem]' : 'h-5 w-5'}`}
                             aria-hidden
                         >
-                            ⏻
-                        </span>
+                            <path
+                                d="M12 3v9"
+                                stroke="currentColor"
+                                strokeWidth={2.8}
+                                strokeLinecap="round"
+                            />
+                            <path
+                                d="M5.636 5.636a9 9 0 1012.728 0"
+                                stroke="currentColor"
+                                strokeWidth={2.8}
+                                strokeLinecap="round"
+                            />
+                        </svg>
                     </button>
                     </div>
                 </div>

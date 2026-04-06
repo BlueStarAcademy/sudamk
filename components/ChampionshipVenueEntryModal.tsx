@@ -519,11 +519,11 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
             modal
             isTopmost={isTopmost}
             mobileViewportFit
-            bodyScrollable
+            bodyNoScroll
             hideFooter
             bodyPaddingClassName="!p-0"
         >
-            <div className="relative flex max-h-[min(80dvh,680px)] flex-col overflow-hidden bg-[#07080c] text-zinc-100 sm:max-h-[min(85vh,700px)]">
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#07080c] text-zinc-100">
                 <div
                     className="pointer-events-none absolute inset-0 opacity-[0.07]"
                     style={{
@@ -535,8 +535,8 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                 <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-purple-600/15 blur-3xl" aria-hidden />
                 <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-amber-600/10 blur-3xl" aria-hidden />
 
-                <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-3.5">
-                    <div className="relative flex h-[5rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[5.5rem]">
+                <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 p-2.5 sm:gap-3 sm:p-3.5">
+                    <div className="relative flex h-[4.25rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[5.5rem]">
                         <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/55 to-black/25" />
                         <div className="relative z-[1] flex flex-1 flex-col justify-center px-3.5 py-2">
@@ -635,8 +635,8 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                         </div>
                     </div>
 
-                    <div className="flex min-h-[10rem] max-h-[min(44vh,400px)] flex-1 flex-col overflow-hidden rounded-xl border border-zinc-600/35 bg-zinc-950/55 ring-1 ring-inset ring-white/[0.06] sm:min-h-[11rem] sm:max-h-[min(46vh,420px)]">
-                        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto p-3 [scrollbar-width:thin] [scrollbar-color:rgba(52,211,153,0.35)_transparent] sm:p-3.5">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-600/35 bg-zinc-950/55 ring-1 ring-inset ring-white/[0.06]">
+                        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain p-2.5 [scrollbar-width:thin] [scrollbar-color:rgba(52,211,153,0.35)_transparent] sm:p-3.5">
                             <div className="flex min-w-max items-stretch gap-0">
                                 <div className="flex shrink-0 flex-col gap-2.5 pr-4">
                                     <span className="whitespace-nowrap text-sm font-bold text-emerald-400 sm:text-base">기본 보상 (경기 보상)</span>
@@ -686,7 +686,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                     </div>
 
                     {!showContinueFlow && (
-                        <div className="flex shrink-0 flex-col items-center gap-2 border-t border-white/10 pt-3">
+                        <div className="relative z-10 flex shrink-0 flex-col items-center gap-1.5 border-t border-white/10 bg-[#07080c]/95 pt-2.5 pb-[max(0.35rem,env(safe-area-inset-bottom,0px))] backdrop-blur-[2px] sm:gap-2 sm:pt-3">
                             <button
                                 type="button"
                                 onClick={() => {
