@@ -383,6 +383,15 @@ export const useApp = () => {
         settings.graphics.pcLikeMobileLayout,
     ]);
 
+    /** App.tsx와 동일: 세로형 풀뷰포트 셸(모달 루트가 화면 픽셀 기준). PC 16:9 캔버스에서는 false */
+    const usePortraitFirstShell = useMemo(
+        () => isNativeMobile || (!currentUser && isNarrowViewport && !isLargeTouchTablet),
+        [isNativeMobile, currentUser, isNarrowViewport, isLargeTouchTablet],
+    );
+
+    /** `#sudamr-modal-root`가 1920×1080 설계 좌표계 안에 있을 때 true (변환 scale 적용) */
+    const modalLayerUsesDesignPixels = !usePortraitFirstShell;
+
     const showPcLikeMobileLayoutSetting = !isPhoneHandheldTouch && !isLargeTouchTablet;
 
     useEffect(() => {
@@ -6037,6 +6046,8 @@ export const useApp = () => {
         settings,
         isNarrowViewport,
         isNativeMobile,
+        usePortraitFirstShell,
+        modalLayerUsesDesignPixels,
         isPhoneHandheldTouch,
         isLargeTouchTablet,
         showPcLikeMobileLayoutSetting,

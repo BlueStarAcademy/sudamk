@@ -11,6 +11,7 @@ import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 import { formatTowerNextFooterLabel } from './game/arenaPostGameButtonStyles.js';
+import { useAppContext } from '../hooks/useAppContext.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -117,8 +118,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     // 게이지 애니메이션: 처음엔 이전 퍼센트로 고정 후, 다음 프레임에 최종 퍼센트로 전환해 CSS transition으로 차오르게 함
     const [xpGaugePercent, setXpGaugePercent] = useState<number | null>(null);
 
-    const isInsideScaledCanvas = typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
-    /** PC 레이아웃 고정 — 모바일은 uniformPcScale로 축소 */
+    const { modalLayerUsesDesignPixels } = useAppContext();
+    /** uniformPcScale: PC/16:9 캔버스 전용. 네이티브 모바일은 뷰포트 맞춤 */
     const isMobile = false;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
@@ -352,11 +353,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             initialWidth={900}
             initialHeight={760}
             uniformPcScale
-            bodyScrollable={false}
             bodyPaddingClassName="p-4"
-            modal={!isInsideScaledCanvas}
-            closeOnOutsideClick={!isInsideScaledCanvas}
-            defaultPosition={isInsideScaledCanvas ? { x: 400, y: 0 } : { x: 0, y: 0 }}
+            modal={!modalLayerUsesDesignPixels}
+            closeOnOutsideClick={!modalLayerUsesDesignPixels}
+            defaultPosition={modalLayerUsesDesignPixels ? { x: 400, y: 0 } : { x: 0, y: 0 }}
         >
             <div className="flex h-full min-h-0 w-full flex-col overflow-hidden text-[clamp(0.875rem,2.5vw,1.125rem)] text-white">
                 {/* Title */}

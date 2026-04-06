@@ -135,6 +135,17 @@ class AudioService {
         }
     }
 
+    /** Web Audio가 잠긴 경우(iOS 등)에만 사용 — master·카테고리 반영된 최종 볼륨(0~1) */
+    private playHtml5Fallback(soundName: string, category: keyof SoundSettings['categoryMuted'], effectiveVolume: number, loop: boolean): void {
+        if (this.settings.masterMuted || this.settings.categoryMuted[category]) return;
+        const el = new Audio(`${this.soundsPath}${soundName}.mp3`);
+        el.volume = Math.max(0, Math.min(1, effectiveVolume));
+        el.loop = loop;
+        void el.play().catch((e) => {
+            console.warn('[AudioService] HTML5 fallback play failed:', soundName, e);
+        });
+    }
+
     private async playSound(buffer: AudioBuffer, volume = 1, loop = false): Promise<AudioBufferSourceNode | null> {
         await this.initialize();
         if (!this.audioContext || this.audioContext.state === 'closed') return null;
@@ -146,7 +157,7 @@ class AudioService {
         }
 
         if (this.audioContext.state !== 'running') {
-            console.warn('[AudioService] context not running, skip playback:', this.audioContext.state);
+            console.warn('[AudioService] context not running, skip WebAudio playback:', this.audioContext.state);
             return null;
         }
         
@@ -165,7 +176,13 @@ class AudioService {
         if (this.settings.masterMuted || this.settings.categoryMuted[category]) return null;
         try {
             const buffer = await this.loadSound(`${this.soundsPath}${soundName}.mp3`);
-            if (buffer) return await this.playSound(buffer, volume * this.settings.masterVolume, loop);
+            if (buffer) {
+                const effectiveVolume = volume * this.settings.masterVolume;
+                const node = await this.playSound(buffer, effectiveVolume, loop);
+                if (node) return node;
+                this.playHtml5Fallback(soundName, category, effectiveVolume, loop);
+                return null;
+            }
         } catch (e) {
             console.error(`Could not play sound ${soundName}`, e);
         }

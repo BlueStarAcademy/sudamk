@@ -172,7 +172,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
             bodyPaddingClassName="p-2 sm:p-4"
         >
             <div
-                className={`relative flex h-full min-h-0 flex-col bg-gradient-to-b ${backdropClass} rounded-b-xl px-0.5 pb-1 pt-0 sm:px-2 sm:pb-2 sm:pt-1`}
+                className={`relative flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain bg-gradient-to-b ${backdropClass} rounded-b-xl px-0.5 pb-1 pt-0 sm:px-2 sm:pb-2 sm:pt-1`}
             >
                 <div
                     className="pointer-events-none absolute -left-24 top-0 hidden h-48 w-48 rounded-full bg-gradient-to-br from-white/5 to-transparent blur-2xl sm:block"

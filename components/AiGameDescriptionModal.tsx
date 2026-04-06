@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Button from './Button.js';
 import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
+import { useAppContext } from '../hooks/useAppContext.js';
 import { LiveGameSession, GameMode, Player, ServerAction } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_KOMI, ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS } from '../constants.js';
 import { getPreGameSummaryFour } from '../utils/preGameSummaryFour.js';
@@ -128,13 +129,16 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
 };
 
 const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
+  const { modalLayerUsesDesignPixels, isNativeMobile } = useAppContext();
   const meta = useMemo(() => getModeMeta(session.mode), [session.mode]);
   const summaryFour = useMemo(() => getPreGameSummaryFour(session), [session]);
   const settingsRows = useMemo(() => getSettingsRows(session), [session]);
   const isGuildWarAi = String(session.gameCategory ?? '') === 'guildwar';
   const shellRef = useRef<HTMLDivElement>(null);
   const [designH, setDesignH] = useState(AI_GAME_DESC_DESIGN_H_FALLBACK);
-  const uniformScale = useViewportUniformScale(AI_GAME_DESC_DESIGN_W, designH, true);
+  /** 네이티브 폰 세로 셸에서는 전체 scale 축소 대신 레이아웃·스크롤로 맞춤 */
+  const useUniformScale = !isNativeMobile || modalLayerUsesDesignPixels;
+  const uniformScale = useViewportUniformScale(AI_GAME_DESC_DESIGN_W, designH, useUniformScale);
 
   useLayoutEffect(() => {
     const el = shellRef.current;
@@ -165,12 +169,10 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
       : null;
   if (!portalTarget) return null;
 
-  const inScaledCanvas = portalTarget.id === 'sudamr-modal-root';
-
   const layer = (
     <div
       className={`${
-        inScaledCanvas ? 'absolute inset-0 z-[1]' : 'fixed inset-0 z-[60000]'
+        modalLayerUsesDesignPixels ? 'absolute inset-0 z-[1]' : 'fixed inset-0 z-[60000]'
       } flex items-center justify-center bg-transparent p-4 text-base antialiased pointer-events-auto`}
     >
       <div

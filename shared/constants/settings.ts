@@ -27,6 +27,7 @@ export const defaultSettings: AppSettings = {
         },
     },
     features: {
+        moveConfirmButtonBox: true,
         mobileConfirm: true,
         stonePreview: true,
         lastMoveMarker: true,

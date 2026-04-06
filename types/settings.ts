@@ -20,6 +20,7 @@ export interface SoundSettings {
 }
 
 export interface FeatureSettings {
+    moveConfirmButtonBox: boolean;
     mobileConfirm: boolean;
     stonePreview: boolean;
     lastMoveMarker: boolean;

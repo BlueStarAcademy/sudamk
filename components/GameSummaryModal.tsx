@@ -592,7 +592,7 @@ const MatchPlayersRoster: React.FC<{
 const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUser, onConfirm, onAction, onOpenGameRecordList, isSpectator = false }) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
     const soundPlayed = useRef(false);
-    /** 모바일에서도 PC와 동일 레이아웃 — DraggableWindow `uniformPcScale`로만 축소 */
+    /** PC/설계 캔버스에서만 균일 축소. 네이티브 폰 세로 셸은 DraggableWindow가 뷰포트 반응형으로 전환 */
     const isMobile = false;
 
     const isWinner = getIsWinner(session, currentUser);
@@ -889,7 +889,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
             initialWidth={1000}
             initialHeight={900}
             uniformPcScale
-            bodyScrollable={false}
             windowId="game-summary"
         >
             <div

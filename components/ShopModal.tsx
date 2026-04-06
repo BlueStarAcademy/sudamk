@@ -99,14 +99,15 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
                     onClick={handlePurchase}
                     disabled={!canPurchase}
                     colorScheme="none"
-                    className={`w-full justify-center rounded-xl border border-cyan-400/60 bg-gradient-to-r from-cyan-400/90 via-sky-400/90 to-blue-500/90 text-slate-900 font-semibold tracking-wide shadow-[0_10px_30px_-12px_rgba(14,165,233,0.65)] hover:from-cyan-300 hover:to-blue-400 ${canPurchase ? '' : 'opacity-50 cursor-not-allowed'}`}
+                    bare
+                    className="flex min-h-[3.5rem] w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-cyan-400/60 bg-gradient-to-r from-cyan-400/90 via-sky-400/90 to-blue-500/90 px-3 py-2 text-center font-semibold tracking-wide text-slate-900 shadow-[0_10px_30px_-12px_rgba(14,165,233,0.65)] transition-all duration-150 hover:from-cyan-300 hover:to-blue-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                    <div className="flex flex-col items-center justify-center gap-0.5">
+                    <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5">
                         <div className="flex items-center justify-center gap-2 text-sm sm:text-base">
-                            <img src="/images/icon/Zem.png" alt="다이아" className="w-5 h-5 drop-shadow-md" />
-                            <span>{cost.toLocaleString()}</span>
+                            <img src="/images/icon/Zem.png" alt="다이아" className="h-5 w-5 shrink-0 drop-shadow-md" />
+                            <span className="tabular-nums">{cost.toLocaleString()}</span>
                         </div>
-                        <span className="text-[10px] text-slate-700/90 tracking-wide">
+                        <span className="px-1 text-center text-[10px] leading-tight text-slate-800/95 tracking-wide">
                             오늘 구매 {purchasesToday}/{MAX_ACTION_POINT_PURCHASES_PER_DAY}
                         </span>
                     </div>
@@ -127,7 +128,11 @@ const ShopItemCard: React.FC<{
     const { name, description, price, image, dailyLimit, weeklyLimit, badge } = item;
     const isGold = !!price.gold;
     const priceAmount = price.gold || price.diamonds || 0;
-    const PriceIcon = isGold ? <img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5 drop-shadow-md" /> : <img src="/images/icon/Zem.png" alt="다이아" className="w-5 h-5 drop-shadow-md" />;
+    const PriceIcon = isGold ? (
+        <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 shrink-0 drop-shadow-md sm:h-5 sm:w-5" />
+    ) : (
+        <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 shrink-0 drop-shadow-md sm:h-5 sm:w-5" />
+    );
     const refinedDescription = formatDescription(description);
     const [showDescription, setShowDescription] = useState(false);
 
@@ -175,7 +180,7 @@ const ShopItemCard: React.FC<{
                     </span>
                 )}
             </div>
-            <h3 className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] line-clamp-1">
+            <h3 className="min-h-[2.5rem] w-full min-w-0 break-keep px-0.5 text-center text-[11px] font-semibold leading-snug tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] sm:min-h-0 sm:text-sm">
                 {name}
             </h3>
             {showDescription && (
@@ -185,20 +190,27 @@ const ShopItemCard: React.FC<{
                     </p>
                 </div>
             )}
-            <div className="flex flex-col items-stretch justify-center gap-1.5 mt-2 w-full">
+            <div className="mt-2 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1.5">
                 <Button
                     onClick={handleBuyClick}
                     disabled={remaining === 0}
                     colorScheme="none"
-                    className={`w-full justify-center rounded-lg border py-1.5 ${isGold ? 'border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500' : 'border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-sky-300 hover:to-indigo-500'} ${remaining === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    bare
+                    className={`flex min-h-[3.5rem] w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-1.5 py-2 text-center font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${
+                        isGold
+                            ? 'border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500'
+                            : 'border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-sky-300 hover:to-indigo-500'
+                    }`}
                 >
-                    <div className="flex flex-col items-center justify-center gap-0.5">
-                        <div className="flex items-center justify-center gap-1.5 text-xs font-semibold tracking-wide">
+                    <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5">
+                        <div className="flex min-w-0 items-center justify-center gap-1 text-[11px] font-semibold tracking-wide sm:text-xs">
                             {PriceIcon}
-                            <span>{priceAmount.toLocaleString()}</span>
+                            <span className="min-w-0 tabular-nums">{priceAmount.toLocaleString()}</span>
                         </div>
                         {limit > 0 && (
-                            <span className={`text-[9px] ${isGold ? 'text-slate-700/90' : 'text-white/70'} tracking-wide`}>
+                            <span
+                                className={`max-w-full px-0.5 text-center text-[9px] leading-tight ${isGold ? 'text-slate-800/95' : 'text-white/85'} tracking-wide`}
+                            >
                                 {limitText} 한도 {remaining}/{limit}
                             </span>
                         )}
@@ -350,7 +362,15 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     onConfirm={handleConfirmPurchase}
                 />
             )}
-            <DraggableWindow title="상점" onClose={onClose} windowId="shop" initialWidth={900} initialHeight={750} isTopmost={isTopmost && !purchasingItem}>
+            <DraggableWindow
+                title="상점"
+                onClose={onClose}
+                windowId="shop"
+                initialWidth={900}
+                initialHeight={750}
+                isTopmost={isTopmost && !purchasingItem}
+                bodyScrollable={false}
+            >
                 <div className="h-full min-h-0 flex flex-col relative">
                     <div className="flex bg-gray-900/70 p-1 rounded-lg mb-4 flex-shrink-0">
                         <button onClick={() => setActiveTab('equipment')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'equipment' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>장비</button>

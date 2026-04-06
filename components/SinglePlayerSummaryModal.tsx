@@ -7,6 +7,7 @@ import { SINGLE_PLAYER_STAGES, AVATAR_POOL, BORDER_POOL } from '../constants';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 import { formatSinglePlayerNextFooterLabel } from './game/arenaPostGameButtonStyles.js';
+import { useAppContext } from '../hooks/useAppContext.js';
 import {
     PRE_GAME_MODAL_FOOTER_CLASS,
     PRE_GAME_MODAL_LAYER_CLASS,
@@ -124,7 +125,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 
 const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
     const [isProcessing, setIsProcessing] = useState(false);
-    const isInsideScaledCanvas = typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
+    const { modalLayerUsesDesignPixels } = useAppContext();
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];
@@ -400,7 +401,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             ? (isWinner ? "미션 클리어" : "미션 실패")
             : "게임 결과";
 
-    /** PC 레이아웃 고정 — 모바일은 DraggableWindow uniformPcScale로 축소 */
+    /** uniformPcScale: PC/16:9 캔버스 전용. 네이티브 모바일은 뷰포트 맞춤 */
     const isMobile = false;
     const mobileTextScale = 1;
 
@@ -412,12 +413,11 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             initialWidth={736}
             initialHeight={820}
             uniformPcScale
-            modal={!isInsideScaledCanvas}
-            closeOnOutsideClick={!isInsideScaledCanvas}
-            defaultPosition={isInsideScaledCanvas ? { x: 400, y: 0 } : { x: 0, y: 0 }}
+            modal={!modalLayerUsesDesignPixels}
+            closeOnOutsideClick={!modalLayerUsesDesignPixels}
+            defaultPosition={modalLayerUsesDesignPixels ? { x: 400, y: 0 } : { x: 0, y: 0 }}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
             bodyPaddingClassName="p-4 pb-0"
-            bodyScrollable={false}
             footerClassName="border-t border-amber-500/35 bg-gradient-to-t from-[#0c0a10] via-[#14111c] to-[#1c1828] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] text-zinc-200/90"
         >
             <div className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex min-h-0 flex-1 flex-col overflow-hidden text-[clamp(0.875rem,2.5vw,1.125rem)]`}>

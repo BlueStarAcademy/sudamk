@@ -317,6 +317,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
             <DraggableWindow 
                 title="대장간" 
                 onClose={onClose} 
+                bodyScrollable={false}
                 isTopmost={
                     isTopmost &&
                     !modals.isBlacksmithHelpOpen &&

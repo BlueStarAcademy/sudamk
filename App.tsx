@@ -7,11 +7,7 @@ import { preloadImages, ALL_IMAGE_URLS } from './services/assetService.js';
 import { audioService } from './services/audioService.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import AppModalLayer from './components/AppModalLayer.js';
-import {
-    useIsHandheldDevice,
-    VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT,
-    computeTouchLayoutProfile,
-} from './hooks/useIsMobileLayout.js';
+import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT, computeTouchLayoutProfile } from './hooks/useIsMobileLayout.js';
 import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
@@ -70,6 +66,8 @@ const AppContent: React.FC = () => {
         settings,
         isNativeMobile,
         isLargeTouchTablet,
+        usePortraitFirstShell,
+        isNarrowViewport,
     } = useAppContext();
     
     // 에셋 프리로딩은 UX를 위해 백그라운드로 돌리고, 화면을 막지 않도록 함
@@ -95,27 +93,28 @@ const AppContent: React.FC = () => {
 
 
     useEffect(() => {
-        const initAudio = () => {
-            // 모바일(iOS Safari 등): resume은 반드시 제스처 동기 구간에서 — unlock 후 비동기 초기화
+        const unlockAudio = () => {
             audioService.unlockFromUserGesture();
             void audioService.initialize();
-            window.removeEventListener('pointerdown', initAudio, true);
-            window.removeEventListener('touchstart', initAudio, true);
-            document.removeEventListener('click', initAudio);
-            document.removeEventListener('touchend', initAudio);
         };
-
-        const captureOpts = { capture: true, passive: true } as const;
-        window.addEventListener('pointerdown', initAudio, captureOpts);
-        window.addEventListener('touchstart', initAudio, captureOpts);
-        document.addEventListener('click', initAudio);
-        document.addEventListener('touchend', initAudio);
+        /** iOS/WebView: passive 터치만으로는 활성화가 안 되는 경우가 있어 capture + non-passive */
+        const capNonPassive = { capture: true, passive: false } as const;
+        const capPassive = { capture: true, passive: true } as const;
+        window.addEventListener('pointerdown', unlockAudio, capNonPassive);
+        window.addEventListener('touchstart', unlockAudio, capNonPassive);
+        document.addEventListener('touchend', unlockAudio, capNonPassive);
+        document.addEventListener('click', unlockAudio, capPassive);
+        const onPageShow = () => {
+            unlockAudio();
+        };
+        window.addEventListener('pageshow', onPageShow);
 
         return () => {
-            window.removeEventListener('pointerdown', initAudio, true);
-            window.removeEventListener('touchstart', initAudio, true);
-            document.removeEventListener('click', initAudio);
-            document.removeEventListener('touchend', initAudio);
+            window.removeEventListener('pointerdown', unlockAudio, capNonPassive);
+            window.removeEventListener('touchstart', unlockAudio, capNonPassive);
+            document.removeEventListener('touchend', unlockAudio, capNonPassive);
+            document.removeEventListener('click', unlockAudio, capPassive);
+            window.removeEventListener('pageshow', onPageShow);
         };
     }, []);
 
@@ -219,15 +218,9 @@ const AppContent: React.FC = () => {
         currentRoute.view === 'kakao-callback';
     const backgroundClass = !currentUser ? 'bg-login-background' : showMainBg ? 'bg-zinc-950' : 'bg-primary';
 
-    const isHandheld = useIsHandheldDevice(1025);
     const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout === true;
     /** 8인치+ 태블릿(PC 셸)은 세로 스크롤 여유를 PC 화면 보기와 동일하게 둔다 */
     const pcShellUsesScrollLayout = pcLikeMobileLayout || isLargeTouchTablet;
-    /**
-     * 터치 폰: 항상 세로형 셸. 대형 태블릿은 PC 로그인 셸.
-     */
-    const usePortraitFirstShell =
-        isNativeMobile || (!currentUser && isHandheld && !isLargeTouchTablet);
     /** 스케일 셸 전용: 네이티브 모드에서는 좌우 레일·하단 배너로 대체 */
     const showLobbySideAds = Boolean(currentUser && !isGameView && !isNativeMobile);
     /** 닉네임 설정: PC main 세로 스크롤로 빈 영역·이중 스크롤 방지 */
@@ -265,7 +258,7 @@ const AppContent: React.FC = () => {
             height: '100%',
             width: '100%',
             overflow: 'hidden',
-                                    paddingBottom: isHandheld ? 'env(safe-area-inset-bottom, 0px)' : '0px'
+                                    paddingBottom: isNarrowViewport ? 'env(safe-area-inset-bottom, 0px)' : '0px'
         }}>
             {isPreloading && (
                 <div className="fixed bottom-4 right-4 z-[100] bg-panel border border-color text-on-panel rounded-lg shadow-xl px-3 py-2 flex items-center gap-2">
@@ -464,9 +457,9 @@ const AppContent: React.FC = () => {
                                 style={{
                                     flex: '1 1 0',
                                     minHeight: 0,
-                                    paddingBottom: isHandheld ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
+                                    paddingBottom: isNarrowViewport ? 'max(env(safe-area-inset-bottom, 0px), 20px)' : '0px',
                                     WebkitOverflowScrolling: 'touch',
-                                    marginBottom: isHandheld ? 'env(safe-area-inset-bottom, 0px)' : '0px',
+                                    marginBottom: isNarrowViewport ? 'env(safe-area-inset-bottom, 0px)' : '0px',
                                 }}
                             >
                                 {showMainBg && <MainBackgroundLayer variant="app" />}

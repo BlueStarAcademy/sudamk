@@ -339,6 +339,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                         <SettingsSection title="게임 플레이">
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
+                                    <span className="text-sm text-text-secondary">착수 버튼 사용</span>
+                                    <ToggleSwitch
+                                        checked={settings.features.moveConfirmButtonBox}
+                                        onChange={(checked) => updateFeatureSetting('moveConfirmButtonBox', checked)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
                                     <span className="text-sm text-text-secondary">돌 미리보기 (마우스 호버)</span>
                                     <ToggleSwitch
                                         checked={settings.features.stonePreview}

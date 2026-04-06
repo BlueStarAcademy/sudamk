@@ -746,7 +746,7 @@ const findConsumableItem = (itemName: string) => {
 };
 
 const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, onStartEnhance, enhancementAnimationTarget, onAnimationComplete, isTopmost }) => {
-    const { presets, handlers, currentUserWithStatus, updateTrigger } = useAppContext();
+    const { presets, handlers, currentUserWithStatus, updateTrigger, modalLayerUsesDesignPixels } = useAppContext();
     
     // useAppContext의 currentUserWithStatus를 우선 사용 (최신 상태 보장)
     const currentUser = currentUserWithStatus || propCurrentUser;
@@ -798,12 +798,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     // 좁은 가로 화면에서는 PC 인벤토리 UI를 축소해서 유지한다.
     const isCompactViewport = useMemo(() => windowWidth < 1025, [windowWidth]);
 
-    // App.tsx에서 1920x1080 캔버스를 scale로 통째로 줄이는 환경에서는
-    // InventoryModal 내부 scaleFactor까지 중복 적용되지 않게 비활성화합니다.
-    const isInsideScaledCanvas =
-        typeof document !== 'undefined' && !!document.getElementById('sudamr-modal-root');
-
-    const effectiveIsCompactViewport = isInsideScaledCanvas ? false : isCompactViewport;
+    // PC 16:9 설계 캔버스 안이면 내부 scaleFactor를 뷰포트 compact와 중복 적용하지 않음
+    const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
     /** 실제 창 너비 기준. 스케일 캔버스 안 모바일에서도 좁은 레이아웃(50/50·8열)에 사용 */
     const narrowInventoryLayout = isCompactViewport;
 
@@ -817,13 +813,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             return Math.max(0.35, Math.min(0.5, rawScale));
         }
         // 스케일 캔버스 안 + 실제 좁은 뷰포트: 전체 캔버스 스케일과 별도로 슬롯·패딩만 약간 축소
-        if (isInsideScaledCanvas && narrowInventoryLayout) {
+        if (modalLayerUsesDesignPixels && narrowInventoryLayout) {
             const raw = windowWidth / baseWidth;
             return Math.max(0.42, Math.min(0.72, raw));
         }
         const rawScale = calculatedWidth / baseWidth;
         return Math.max(0.4, Math.min(1.0, rawScale));
-    }, [calculatedWidth, effectiveIsCompactViewport, isInsideScaledCanvas, narrowInventoryLayout, windowWidth]);
+    }, [calculatedWidth, effectiveIsCompactViewport, modalLayerUsesDesignPixels, narrowInventoryLayout, windowWidth]);
 
     // 모바일 텍스트 크기 조정 팩터 (모바일에서는 텍스트를 약간 더 크게)
     const mobileTextScale = useMemo(() => {
@@ -1119,7 +1115,16 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     }, [selectedItem, currentUser]);
 
     return (
-        <DraggableWindow title="가방" onClose={onClose} windowId="inventory" isTopmost={isTopmost} initialWidth={calculatedWidth} initialHeight={calculatedHeight} variant="store">
+        <DraggableWindow
+            title="가방"
+            onClose={onClose}
+            windowId="inventory"
+            isTopmost={isTopmost}
+            initialWidth={calculatedWidth}
+            initialHeight={calculatedHeight}
+            variant="store"
+            bodyScrollable={false}
+        >
             <div 
                 className="flex min-h-0 h-full w-full flex-col overflow-hidden"
                 style={{ margin: 0, padding: 0 }}

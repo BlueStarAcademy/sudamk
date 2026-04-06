@@ -1,6 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 // FIX: Import types from the new centralized types barrel file
-import { Player, GameMode, GameStatus, Point, GameProps, LiveGameSession, ServerAction } from './types/index.js';
+import {
+    Player,
+    GameMode,
+    GameStatus,
+    Point,
+    GameProps,
+    LiveGameSession,
+    ServerAction,
+    FeatureSettings,
+} from './types/index.js';
 import GameArena from './components/GameArena.js';
 import Header from './components/Header.js';
 import Sidebar from './components/game/Sidebar.js';
@@ -45,7 +54,7 @@ interface MoveConfirmDraggableProps {
     pendingMove: Point | null;
     handleConfirmMove: () => void;
     mobileConfirm: boolean;
-    updateFeatureSetting: (key: 'mobileConfirm', checked: boolean) => void;
+    updateFeatureSetting: <K extends keyof FeatureSettings>(key: K, value: FeatureSettings[K]) => void;
     setPendingMove: (p: Point | null) => void;
 }
 
@@ -154,6 +163,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [showFinalTerritory, setShowFinalTerritory] = useState(false);
     const [justScanned, setJustScanned] = useState(false);
     const [pendingMove, setPendingMove] = useState<Point | null>(null);
+    useEffect(() => {
+        if (!settings.features.moveConfirmButtonBox) setPendingMove(null);
+    }, [settings.features.moveConfirmButtonBox]);
     const [isAnalysisActive, setIsAnalysisActive] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [resumeCountdown, setResumeCountdown] = useState(0);
@@ -221,7 +233,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isGuildWarTowerStyleUi =
         isGuildWarGame && (mode === GameMode.Missile || mode === GameMode.Hidden);
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
-    const showMoveConfirmPanel = !isPlayfulMode;
+    const showMoveConfirmPanel = !isPlayfulMode && settings.features.moveConfirmButtonBox;
     const aiHiddenTurnsFromSession = (session as any).aiHiddenItemTurns;
     const plannedAiHiddenTurns = Array.isArray(aiHiddenTurnsFromSession)
         ? aiHiddenTurnsFromSession
@@ -653,10 +665,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [currentUser.id, blackPlayerId, whitePlayerId, isSpectator, mode, gameStatus, player1.id, player2.id, session.settings.mixedModes]);
 
     const pendingMoveForBoard = useMemo(() => {
-        if (!settings.features.mobileConfirm || !pendingMove) return null;
+        if (!settings.features.moveConfirmButtonBox || !settings.features.mobileConfirm || !pendingMove) return null;
         if (myPlayerEnum === Player.None) return null;
         return { x: pendingMove.x, y: pendingMove.y, player: myPlayerEnum };
-    }, [settings.features.mobileConfirm, pendingMove, myPlayerEnum]);
+    }, [settings.features.moveConfirmButtonBox, settings.features.mobileConfirm, pendingMove, myPlayerEnum]);
     
     const isMyTurn = useMemo(() => {
         if (isSpectator) return false;
@@ -1090,7 +1102,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         // 착수 버튼 모드(ON)면 PC/모바일 모두 pendingMove로 확정 처리
-        if (settings.features.mobileConfirm && isMyTurn && !isItemModeActive) {
+        if (
+            settings.features.moveConfirmButtonBox &&
+            settings.features.mobileConfirm &&
+            isMyTurn &&
+            !isItemModeActive
+        ) {
             if (
                 mode === GameMode.Dice &&
                 gameStatus === 'dice_placing' &&
@@ -1448,7 +1465,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 currentUser: currentUser.id
             });
         }
-    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, session.stonesToPlace, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame, showKoRuleFlash]);
+    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.moveConfirmButtonBox, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, session.stonesToPlace, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame, showKoRuleFlash]);
 
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
@@ -2697,14 +2714,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 isGuildWarTowerStyleUi &&
                                                 (gameStatus === 'hidden_placing' || isAiHiddenPresentationActive)
                                             }
-                                            diceGoPlaceUi={{
-                                                mobileConfirm: settings.features.mobileConfirm,
-                                                onToggleMobileConfirm: (checked) => {
-                                                    updateFeatureSetting('mobileConfirm', checked);
-                                                    if (!checked) setPendingMove(null);
-                                                },
-                                                onConfirmMove: handleConfirmMove,
-                                            }}
+                                            diceGoPlaceUi={
+                                                settings.features.moveConfirmButtonBox
+                                                    ? {
+                                                          mobileConfirm: settings.features.mobileConfirm,
+                                                          onToggleMobileConfirm: (checked) => {
+                                                              updateFeatureSetting('mobileConfirm', checked);
+                                                              if (!checked) setPendingMove(null);
+                                                          },
+                                                          onConfirmMove: handleConfirmMove,
+                                                      }
+                                                    : undefined
+                                            }
                                         />
                                     </div>
                                     {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
