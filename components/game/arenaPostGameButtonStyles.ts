@@ -74,9 +74,20 @@ export function formatArenaRetryLabel(actionPointCost: number): string {
     return actionPointCost > 0 ? `재도전 (⚡${actionPointCost})` : '재도전';
 }
 
-/** 경기 종료 버튼 묶음: 열 폭 균등 (좁으면 자동으로 줄바꿈) */
+/** 경기 종료 버튼 묶음: 열 폭 균등 (좁으면 자동으로 줄바꿈) — 결과 모달·넓은 푸터용 */
 export const arenaPostGameButtonGridClass =
     'grid w-full gap-2 sm:gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,9.25rem),1fr))]';
+
+/** 인게임 경기장 종료 푸터: 한 줄 가로 (버튼 많으면 가로 스크롤) */
+export const arenaPostGameIngameEndedRowClass =
+    'flex w-full min-w-0 flex-row flex-nowrap items-stretch justify-center gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 sm:gap-2 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]';
+
+/**
+ * `arenaPostGameButtonClass` 기본 셸에 `w-full`이 있어 그리드에 맞춘 것임.
+ * 가로 한 줄 행 안에서는 균등 분배 + 최소 폭만 유지.
+ */
+export const arenaPostGameButtonInRowModifier =
+    '!w-auto min-w-0 flex-1 basis-0 sm:min-w-[5.75rem] md:min-w-[6.5rem]';
 
 export const arenaPostGamePanelShellClass =
     'min-w-0 rounded-xl border border-slate-600/40 bg-gradient-to-b from-slate-900/95 via-[#0f1218] to-[#06080c] px-2 py-3 sm:px-4 sm:py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-white/[0.03]';

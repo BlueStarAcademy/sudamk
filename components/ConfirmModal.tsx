@@ -47,7 +47,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
         >
             <div className="space-y-5 p-5 sm:p-6">
                 <div className="sudamr-modal-message-panel">
-                    <p className="whitespace-pre-line text-center text-sm leading-relaxed text-secondary">{message}</p>
+                    <p className="whitespace-pre-line text-center text-base leading-relaxed text-secondary">{message}</p>
                 </div>
                 <div className="flex gap-3 sm:gap-4">
                     <Button onClick={onCancel} colorScheme="gray" className="flex-1">

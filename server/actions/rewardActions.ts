@@ -663,8 +663,6 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 if (accumulatedWorldEquipment.length > 0) {
                     console.log(`[CLAIM_TOURNAMENT_REWARD] Added world equipment drops:`, accumulatedWorldEquipment.map(b => `${b.name} x${b.quantity ?? 1}`).join(', '));
                 }
-                updateQuestProgress(freshUser, 'tournament_complete');
-                
                 // 보상 수령 후 경기장 JSON 삭제 (대용량 데이터 누적 방지)
                 (freshUser as any)[tourneyKey] = null;
                 
@@ -778,8 +776,6 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             freshUser.diamonds += (resolvedItemReward?.diamonds || 0);
             freshUser.inventory = updatedInventory;
             
-            updateQuestProgress(freshUser, 'tournament_complete');
-
             // 보상 수령 후 경기장 JSON 삭제 (대용량 데이터 누적 방지)
             (freshUser as any)[tourneyKey] = null;
             

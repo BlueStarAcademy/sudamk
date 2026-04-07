@@ -17,15 +17,15 @@ export const PRE_GAME_MODAL_FOOTER_CLASS =
 
 /** 보라 CTA — AI 대국 시작 등 */
 export const PRE_GAME_MODAL_PRIMARY_BTN_CLASS =
-  'min-h-[3.25rem] !rounded-xl !border-2 !border-amber-400/55 !bg-gradient-to-r !from-violet-600 !via-purple-600 !to-indigo-700 !text-white !shadow-[0_14px_40px_-12px_rgba(139,92,246,0.6)] hover:!from-violet-500 hover:!via-purple-500 hover:!to-indigo-600 focus:!ring-amber-400/45 focus:!ring-offset-2 focus:!ring-offset-zinc-950';
+  'min-h-[3.1rem] !rounded-[0.65rem] !border !border-violet-300/40 !bg-gradient-to-br !from-violet-500 !via-fuchsia-600 !to-indigo-700 !text-white !font-semibold !tracking-wide !shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_0_0_rgba(49,46,129,0.55),0_14px_40px_-10px_rgba(139,92,246,0.55)] hover:!brightness-[1.08] hover:!border-violet-200/50 active:!translate-y-px active:!shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_2px_0_0_rgba(49,46,129,0.5)] !transition-all !duration-200 focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-violet-400/50 focus-visible:!ring-offset-2 focus-visible:!ring-offset-zinc-950';
 
 /** 보조 — 나가기·취소 */
 export const PRE_GAME_MODAL_SECONDARY_BTN_CLASS =
-  'min-h-[3.25rem] !rounded-xl !border-2 !border-zinc-500/50 !bg-gradient-to-b !from-zinc-600 !to-zinc-900 !text-white !shadow-[0_10px_28px_-14px_rgba(0,0,0,0.75)] hover:!from-zinc-500 hover:!to-zinc-800 focus:!ring-zinc-400/35 focus:!ring-offset-2 focus:!ring-offset-zinc-950';
+  'min-h-[3.1rem] !rounded-[0.65rem] !border !border-white/[0.14] !bg-gradient-to-b !from-zinc-600/95 !via-zinc-800 !to-zinc-950 !text-white/95 !font-semibold !tracking-wide !shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_4px_0_0_rgba(0,0,0,0.45),0_10px_28px_-8px_rgba(0,0,0,0.5)] hover:!from-zinc-500 hover:!brightness-105 active:!translate-y-px active:!shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_0_0_rgba(0,0,0,0.4)] !transition-all !duration-200 focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-zinc-400/45 focus-visible:!ring-offset-2 focus-visible:!ring-offset-zinc-950';
 
 /** 앰버 CTA — 싱글 시작하기 · 수정 제안 */
 export const PRE_GAME_MODAL_ACCENT_BTN_CLASS =
-  'min-h-[3.25rem] !rounded-xl !border-2 !border-amber-300/60 !bg-gradient-to-r !from-amber-500 !via-amber-400 !to-yellow-500 !text-zinc-950 !shadow-[0_14px_40px_-12px_rgba(245,158,11,0.42)] hover:!from-amber-400 hover:!via-amber-300 hover:!to-yellow-400 focus:!ring-amber-400/50 focus:!ring-offset-2 focus:!ring-offset-zinc-950';
+  'min-h-[3.1rem] !rounded-[0.65rem] !border !border-amber-200/45 !bg-gradient-to-br !from-amber-400 !via-amber-500 !to-yellow-600 !text-zinc-950 !font-semibold !tracking-wide !shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_0_0_rgba(180,83,9,0.45),0_14px_40px_-10px_rgba(245,158,11,0.4)] hover:!brightness-105 hover:!border-amber-100/55 active:!translate-y-px active:!shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_2px_0_0_rgba(180,83,9,0.4)] !transition-all !duration-200 focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-amber-400/55 focus-visible:!ring-offset-2 focus-visible:!ring-offset-zinc-950';
 
 /** 수락·긍정 확정 */
 export const PRE_GAME_MODAL_SUCCESS_BTN_CLASS =
@@ -119,7 +119,16 @@ function preGameItemsBoxImage(summary: PreGameSummaryFour): string {
 }
 
 /** 시작 전 모달용 요약: 2×2(승리/패배·점수·시간·아이템) + 특수 규칙 전체 행 */
-export function PreGameSummaryGrid({ session, summary }: { session: LiveGameSession; summary: PreGameSummaryFour }) {
+export function PreGameSummaryGrid({
+  session,
+  summary,
+  singleColumn = false,
+}: {
+  session: LiveGameSession;
+  summary: PreGameSummaryFour;
+  /** 모바일 풀폭: 한 줄에 한 카드씩 세로 스택 */
+  singleColumn?: boolean;
+}) {
   const topCells: (
     | { key: string; title: string; kind: 'win'; winLine: string; loseLine: string }
     | { key: string; title: string; kind: 'img'; body: string; img: string }
@@ -153,25 +162,28 @@ export function PreGameSummaryGrid({ session, summary }: { session: LiveGameSess
       {/*
         모바일에서도 PC와 동일하게 2×2(승리·점수 / 시간·아이템). 부모 모달의 균일 scale로 한 화면에 맞춤.
       */}
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 lg:gap-4">
-        {topCells.map((c) => (
-          <div
-            key={c.key}
-            className="group relative flex min-w-0 gap-2 sm:gap-3.5 lg:gap-4 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-2.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/22 sm:p-3.5 lg:p-4"
-          >
+      <div
+        className={
+          singleColumn
+            ? 'grid grid-cols-1 gap-3'
+            : 'grid grid-cols-2 gap-2.5 sm:gap-3.5 lg:gap-4'
+        }
+      >
+        {topCells.map((c) =>
+          c.kind === 'win' ? (
             <div
-              className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
-              aria-hidden
-            />
-            <div
-              className={
-                c.kind === 'win'
-                  ? 'flex h-[3.25rem] w-[3.25rem] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-amber-400/30 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 px-0.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-[4rem] sm:w-[4rem] sm:gap-1 sm:py-1.5 lg:h-[4.5rem] lg:w-[4.5rem]'
-                  : 'flex h-[3.25rem] w-[3.25rem] flex-shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-[3.85rem] sm:w-[3.85rem] sm:p-1.5 lg:h-[4.35rem] lg:w-[4.35rem]'
-              }
+              key={c.key}
+              className="group relative flex min-w-0 flex-col gap-2 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-2.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/22 sm:gap-2.5 sm:p-3.5 lg:p-4"
             >
-              {c.kind === 'win' ? (
-                <>
+              <div
+                className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
+                aria-hidden
+              />
+              <div className="text-[0.72rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 max-[480px]:text-[0.78rem] sm:text-xs sm:tracking-[0.12em] md:text-[0.8rem] lg:text-sm">
+                {c.title}
+              </div>
+              <div className="flex min-w-0 flex-row items-center gap-2 sm:gap-3.5 lg:gap-4">
+                <div className="flex h-[3.25rem] w-[3.25rem] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-amber-400/30 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 px-0.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-[4rem] sm:w-[4rem] sm:gap-1 sm:py-1.5 lg:h-[4.5rem] lg:w-[4.5rem]">
                   <span
                     className="select-none text-center text-sm font-black italic leading-none tracking-tight text-amber-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] sm:text-base md:text-lg lg:text-xl"
                     aria-hidden
@@ -184,26 +196,38 @@ export function PreGameSummaryGrid({ session, summary }: { session: LiveGameSess
                   >
                     LOSE
                   </span>
-                </>
-              ) : (
-                <img src={c.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" />
-              )}
-            </div>
-            <div className="relative min-w-0 flex-1">
-              <div className="text-[0.72rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 max-[480px]:text-[0.78rem] sm:text-xs sm:tracking-[0.12em] md:text-[0.8rem] lg:text-sm">
-                {c.title}
-              </div>
-              {c.kind === 'win' ? (
-                <div className="mt-1 space-y-1.5 sm:mt-1.5 sm:space-y-1.5 lg:space-y-2">
-                  <p className="text-[0.95rem] font-semibold leading-snug text-white/95 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]">{c.winLine}</p>
-                  <p className="text-[0.95rem] font-semibold leading-snug text-rose-100/88 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]">{c.loseLine}</p>
                 </div>
-              ) : (
-                <PreGameSummaryCellBody text={c.body} />
-              )}
+                <div className="relative min-w-0 flex-1 space-y-1.5 sm:space-y-1.5 lg:space-y-2">
+                  <p className="text-[0.95rem] font-semibold leading-snug text-white/95 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]">
+                    {c.winLine}
+                  </p>
+                  <p className="text-[0.95rem] font-semibold leading-snug text-rose-100/88 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]">
+                    {c.loseLine}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          ) : (
+            <div
+              key={c.key}
+              className="group relative flex min-w-0 items-start gap-2 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-2.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/22 sm:gap-3.5 sm:p-3.5 lg:gap-4 lg:p-4"
+            >
+              <div
+                className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
+                aria-hidden
+              />
+              <div className="flex h-[3.25rem] w-[3.25rem] flex-shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-[3.85rem] sm:w-[3.85rem] sm:p-1.5 lg:h-[4.35rem] lg:w-[4.35rem]">
+                <img src={c.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" />
+              </div>
+              <div className="relative min-w-0 flex-1">
+                <div className="text-[0.72rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 max-[480px]:text-[0.78rem] sm:text-xs sm:tracking-[0.12em] md:text-[0.8rem] lg:text-sm">
+                  {c.title}
+                </div>
+                <PreGameSummaryCellBody text={c.body} />
+              </div>
+            </div>
+          )
+        )}
       </div>
 
       <div className="group relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-3.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 sm:col-span-2 lg:p-4">

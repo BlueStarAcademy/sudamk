@@ -129,7 +129,6 @@ export const rowToUser = (row: any): types.User | null => {
             weeklyCompetitors: safeParse(row.weeklyCompetitors, [], row.id, 'weeklyCompetitors'),
             lastWeeklyCompetitorsUpdate: row.lastWeeklyCompetitorsUpdate,
             lastLeagueUpdate: row.lastLeagueUpdate,
-            monthlyGoldBuffExpiresAt: row.monthlyGoldBuffExpiresAt ?? null,
             mbti: row.mbti,
             isMbtiPublic: !!row.isMbtiPublic,
             singlePlayerProgress: row.singlePlayerProgress ?? 0,

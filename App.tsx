@@ -18,7 +18,6 @@ import {
     NATIVE_MOBILE_SHELL_MAX_WIDTH,
     NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
     NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
-    NATIVE_MOBILE_MODAL_MAX_WIDTH_PX,
 } from './constants/ads.js';
 
 function usePrevious<T>(value: T): T | undefined {
@@ -308,7 +307,7 @@ const AppContent: React.FC = () => {
                     <style>{`
                         /* PC 설계 크기 + transform scale( uniformPcScale ) 창은 상한을 쓰면 본문이 잘리고 버튼이 사라짐 → 제외 */
                         #sudamr-modal-root [data-draggable-window]:not([data-uniform-pc-scale="1"]) {
-                            max-width: min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px) !important;
+                            max-width: min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - max(8px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 8px))) !important;
                             max-height: min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px)) !important;
                             box-sizing: border-box;
                         }

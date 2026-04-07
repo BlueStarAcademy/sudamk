@@ -361,7 +361,6 @@ export type User = {
   weeklyCompetitorsBotScores?: Record<string, { score: number; lastUpdate: number; yesterdayScore: number }>;
   lastWeeklyCompetitorsUpdate?: number | null;
   lastLeagueUpdate?: number | null; // league는 유지 (다른 곳에서 사용 가능)
-  monthlyGoldBuffExpiresAt?: number | null;
   // 던전 진행 상태
   dungeonProgress?: Record<TournamentType, {
     currentStage: number; // 현재 클리어한 최고 단계 (1~10)

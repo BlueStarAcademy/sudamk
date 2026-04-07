@@ -111,7 +111,6 @@ export const createDefaultUser = (id: string, username: string, nickname: string
             national: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
             world: { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} },
         },
-        monthlyGoldBuffExpiresAt: 0,
         mbti: null,
         isMbtiPublic: false,
         singlePlayerProgress: 0,

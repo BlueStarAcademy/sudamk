@@ -12,7 +12,8 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { ArenaControlStrip, ArenaFixedColsGrid } from './ArenaControlStrip.js';
 import {
     arenaPostGameButtonClass,
-    arenaPostGameButtonGridClass,
+    arenaPostGameButtonInRowModifier,
+    arenaPostGameIngameEndedRowClass,
     arenaPostGamePanelShellClass,
     formatArenaRetryLabel,
     formatSinglePlayerNextFooterLabel,
@@ -1284,6 +1285,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     
     const getLuxuryButtonClasses = (_variant?: 'primary' | 'danger' | 'neutral' | 'accent' | 'success') =>
         arenaPostGameButtonClass('neutral', isMobile, 'strip');
+    const endedIngameRowBtn = (extra?: string) =>
+        `${getLuxuryButtonClasses()} ${arenaPostGameButtonInRowModifier}${extra ? ` ${extra}` : ''}`;
 
     // 아이템 설정값 (함수 외부에서 선언하여 재사용)
     const hiddenCountSetting = session.settings.hiddenStoneCount ?? 0;
@@ -1507,16 +1510,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
             return (
                 <>
-                <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[152px]">
+                <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-0 sm:min-h-[120px]">
                     <div className={arenaPostGamePanelShellClass}>
-                        <div className={arenaPostGameButtonGridClass}>
-                        <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}>
+                        <div className={arenaPostGameIngameEndedRowClass}>
+                        <Button bare onClick={handleShowResults} colorScheme="none" className={endedIngameRowBtn()}>
                             결과 보기
                         </Button>
-                        <Button bare onClick={handleNextStage} colorScheme="none" className={`${arenaPostGameButtonClass('neutral', isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNextStage}>
+                        <Button bare onClick={handleNextStage} colorScheme="none" className={endedIngameRowBtn('min-w-0 truncate')} disabled={!canTryNextStage}>
                             {formatSinglePlayerNextFooterLabel(nextStage, canTryNextStage, nextStageActionPointCost)}
                         </Button>
-                        <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}>
+                        <Button bare onClick={handleRetry} colorScheme="none" className={endedIngameRowBtn()}>
                             {formatArenaRetryLabel(retryActionPointCost)}
                         </Button>
                         {isPvpRematchEligible && (
@@ -1535,7 +1538,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 }}
                                 disabled={rematchRequested}
                                 colorScheme="none"
-                                className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}
+                                className={endedIngameRowBtn()}
                             >
                                 {rematchRequested ? '신청중' : '재대결'}
                             </Button>
@@ -1545,12 +1548,12 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 bare
                                 onClick={onOpenRematchSettings}
                                 colorScheme="none"
-                                className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}
+                                className={endedIngameRowBtn()}
                             >
                                 재대결
                             </Button>
                         )}
-                        <Button bare onClick={handleCloseResults} colorScheme="none" className={arenaPostGameButtonClass('neutral', isMobile, 'strip')}>
+                        <Button bare onClick={handleCloseResults} colorScheme="none" className={endedIngameRowBtn()}>
                             대기실로
                         </Button>
                         </div>
@@ -1758,16 +1761,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         <>
             {isGameEnded ? (
                 <>
-                    <Button bare onClick={() => setShowResultModal(true)} colorScheme="none" className={getLuxuryButtonClasses('accent')}>
+                    <Button bare onClick={() => setShowResultModal(true)} colorScheme="none" className={endedIngameRowBtn()}>
                         결과 보기
                     </Button>
                     {onLeaveOrResign && (
-                        <Button bare onClick={onLeaveOrResign} colorScheme="none" className={getLuxuryButtonClasses('danger')}>
+                        <Button bare onClick={onLeaveOrResign} colorScheme="none" className={endedIngameRowBtn()}>
                             {isSpectator ? '관전종료' : '대기실로'}
                         </Button>
                     )}
                     {isAiLobbyGame && onOpenRematchSettings && (
-                        <Button bare onClick={onOpenRematchSettings} colorScheme="none" className={getLuxuryButtonClasses('success')}>
+                        <Button bare onClick={onOpenRematchSettings} colorScheme="none" className={endedIngameRowBtn()}>
                             재대결
                         </Button>
                     )}
@@ -1795,13 +1798,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                     }}
                                     disabled={savingGameRecord || recordAlreadySaved}
                                     colorScheme="none"
-                                    className={`${getLuxuryButtonClasses('accent')} ${recordAlreadySaved ? 'opacity-50' : ''}`}
+                                    className={`${endedIngameRowBtn()} ${recordAlreadySaved ? 'opacity-50' : ''}`}
                                 >
                                     {savingGameRecord ? '저장 중...' : recordAlreadySaved ? '이미 저장됨' : '기보 저장'}
                                 </Button>
                             )}
                             {onOpenGameRecordList && (
-                                <Button bare onClick={() => onOpenGameRecordList()} colorScheme="none" className={getLuxuryButtonClasses('neutral')}>
+                                <Button bare onClick={() => onOpenGameRecordList()} colorScheme="none" className={endedIngameRowBtn()}>
                                     기보 관리
                                 </Button>
                             )}
@@ -1838,26 +1841,32 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         </>
     );
 
-    const specialControlsInner = isStrategic ? (
-        (() => {
-            if (isGameEnded || !hasItems) return null;
-            const itemButtons = renderItemButtons();
-            if (itemButtons.length === 0) {
-                return <span className={`text-gray-400 ${isMobile ? 'text-[9px] shrink-0' : 'text-[10px]'}`}>사용 가능한 기능 없음</span>;
-            }
-            return itemButtons;
-        })()
-    ) : mode === GameMode.Dice ? (
-        <DicePanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" footerCompact={isMobile} />
-    ) : mode === GameMode.Thief ? (
-        <ThiefPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" footerCompact={isMobile} />
-    ) : mode === GameMode.Curling ? (
-        <CurlingItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} compact={isMobile} />
-    ) : mode === GameMode.Alkkagi ? (
-        <AlkkagiItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} compact={isMobile} />
-    ) : (
-        <PlayfulStonesPanel session={session} currentUser={currentUser} />
-    );
+    const specialControlsInner = isGameEnded
+        ? null
+        : isStrategic
+          ? (() => {
+                if (!hasItems) return null;
+                const itemButtons = renderItemButtons();
+                if (itemButtons.length === 0) {
+                    return <span className={`text-gray-400 ${isMobile ? 'text-[9px] shrink-0' : 'text-[10px]'}`}>사용 가능한 기능 없음</span>;
+                }
+                return itemButtons;
+            })()
+          : mode === GameMode.Dice
+            ? (
+                  <DicePanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" footerCompact={isMobile} />
+              )
+            : mode === GameMode.Thief
+              ? (
+                    <ThiefPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} variant="itemsOnly" footerCompact={isMobile} />
+                )
+              : mode === GameMode.Curling
+                ? <CurlingItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} compact={isMobile} />
+                : mode === GameMode.Alkkagi
+                  ? <AlkkagiItemPanel session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} compact={isMobile} />
+                  : (
+                        <PlayfulStonesPanel session={session} currentUser={currentUser} />
+                    );
 
     return (
         <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-1.5 flex flex-col items-stretch justify-center gap-1.5 w-full">
@@ -1883,42 +1892,44 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
             {/* Row 2: Game and Special/Playful Functions */}
             {isMobile ? (
-                <div className="flex w-full min-w-0 gap-3">
-                    <div className="flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
-                        <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-                            {isGameEnded ? (
-                                <div className={`${arenaPostGameButtonGridClass} max-w-full`}>{primaryControlsInner}</div>
-                            ) : (
+                isGameEnded ? (
+                    <div className="flex w-full min-w-0 rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
+                        <div className={`${arenaPostGameIngameEndedRowClass} max-w-full`}>{primaryControlsInner}</div>
+                    </div>
+                ) : (
+                    <div className="flex w-full min-w-0 gap-3">
+                        <div className="flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/45 bg-gray-900/55 p-2">
+                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
                                 <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-4">
                                     {primaryControlsInner}
                                 </ArenaControlStrip>
-                            )}
+                            </div>
+                        </div>
+                        <div
+                            className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-500/15 via-stone-500/50 to-stone-500/15"
+                            aria-hidden
+                        />
+                        <div className="flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-gray-900/55 p-2">
+                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-4">
+                                    {specialControlsInner}
+                                </ArenaControlStrip>
+                            </div>
                         </div>
                     </div>
-                    <div
-                        className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-500/15 via-stone-500/50 to-stone-500/15"
-                        aria-hidden
-                    />
-                    <div className="flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-gray-900/55 p-2">
-                        <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-4">
-                                {specialControlsInner}
-                            </ArenaControlStrip>
-                        </div>
-                    </div>
+                )
+            ) : isGameEnded ? (
+                <div className="w-full min-w-0 rounded-md bg-gray-900/50 p-2">
+                    <div className={`${arenaPostGameIngameEndedRowClass} max-w-full`}>{primaryControlsInner}</div>
                 </div>
             ) : (
                 <div className="flex w-full min-w-0 flex-row gap-3">
                     <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-md bg-gray-900/50 p-2">
                         <h3 className="text-center text-xs font-bold text-gray-300">대국 기능</h3>
                         <div className="flex min-h-[4rem] w-full min-w-0 flex-1 items-center justify-center">
-                            {isGameEnded ? (
-                                <div className={`${arenaPostGameButtonGridClass} max-w-full`}>{primaryControlsInner}</div>
-                            ) : (
-                                <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-5">
-                                    {primaryControlsInner}
-                                </ArenaControlStrip>
-                            )}
+                            <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-5">
+                                {primaryControlsInner}
+                            </ArenaControlStrip>
                         </div>
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-md bg-gray-900/50 p-2">

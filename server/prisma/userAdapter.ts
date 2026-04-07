@@ -86,7 +86,6 @@ type SerializedUserStatus = {
     clearedSinglePlayerStages?: string[];
     bonusStatPoints?: number;
     singlePlayerMissions?: Record<string, any>;
-    monthlyGoldBuffExpiresAt?: number | null;
     blacksmithLevel?: number;
     blacksmithXp?: number;
   };
@@ -363,7 +362,6 @@ const applyDefaults = (
     lastWeeklyCompetitorsUpdate: user.lastWeeklyCompetitorsUpdate ?? null,
     lastLeagueUpdate: user.lastLeagueUpdate ?? null,
     weeklyCompetitorsBotScores: user.weeklyCompetitorsBotScores ?? {},
-    monthlyGoldBuffExpiresAt: user.monthlyGoldBuffExpiresAt ?? null,
     mbti: user.mbti ?? null,
     rejectedGameModes: user.rejectedGameModes ?? [],
     isMbtiPublic: user.isMbtiPublic ?? false,
@@ -678,9 +676,6 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
       status.leagueMetadata?.lastWorldTournament ?? legacy.lastWorldTournament,
       null
     ),
-    monthlyGoldBuffExpiresAt:
-      status.personalProgress?.monthlyGoldBuffExpiresAt ??
-      safeNumber(legacy.monthlyGoldBuffExpiresAt, null),
     mbti:
       status.identity?.mbti ??
       (legacy.mbti as string | null | undefined),
@@ -806,7 +801,6 @@ export function serializeUser(user: User): SerializedUserStatus {
       clearedSinglePlayerStages: user.clearedSinglePlayerStages ?? [],
       bonusStatPoints: user.bonusStatPoints ?? 0,
       singlePlayerMissions: user.singlePlayerMissions ?? {},
-      monthlyGoldBuffExpiresAt: user.monthlyGoldBuffExpiresAt ?? null,
       blacksmithLevel: user.blacksmithLevel ?? 1,
       blacksmithXp: user.blacksmithXp ?? 0
     },

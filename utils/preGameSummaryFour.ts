@@ -91,27 +91,45 @@ function territoryScoreParts(settings: GameSettings, mode: GameMode, mix: GameMo
   return parts;
 }
 
+/**
+ * 아이템 줄: 실제 대국 모드에만 해당하는 항목만 표시.
+ * 단일 모드(컬링 등)일 때는 `settings.mixedModes`에 남은 기본값(Hidden 등)을 따르지 않음 — Mix일 때만 mixedModes 사용.
+ * 개수 0인 종류는 문구에서 제외.
+ */
 function itemLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): string {
   const chunks: string[] = [];
-  if (mode === GameMode.Hidden || hasMix(mix, GameMode.Hidden)) {
-    chunks.push(`히든 ${settings.hiddenStoneCount ?? 0}개`);
-    chunks.push(`스캔 ${settings.scanCount ?? 0}개`);
+  const effectiveModes = mode === GameMode.Mix ? mix : [mode];
+
+  if (effectiveModes.includes(GameMode.Hidden)) {
+    const h = settings.hiddenStoneCount ?? 0;
+    const s = settings.scanCount ?? 0;
+    if (h > 0) chunks.push(`히든 ${h}개`);
+    if (s > 0) chunks.push(`스캔 ${s}개`);
   }
-  if (mode === GameMode.Missile || hasMix(mix, GameMode.Missile)) {
-    chunks.push(`미사일 ${settings.missileCount ?? 0}개`);
+  if (effectiveModes.includes(GameMode.Missile)) {
+    const n = settings.missileCount ?? 0;
+    if (n > 0) chunks.push(`미사일 ${n}개`);
   }
-  if (mode === GameMode.Dice) {
+  if (effectiveModes.includes(GameMode.Dice)) {
     const o = settings.oddDiceCount ?? 0;
     const e = settings.evenDiceCount ?? 0;
     const l = settings.lowDiceCount ?? 0;
     const h = settings.highDiceCount ?? 0;
     if (o + e + l + h > 0) chunks.push(`주사위 아이템 홀${o}·짝${e}·저${l}·고${h}`);
   }
-  if (mode === GameMode.Alkkagi) {
-    chunks.push(`슬로우 ${settings.alkkagiSlowItemCount ?? 0} · 조준 ${settings.alkkagiAimingLineItemCount ?? 0}`);
+  if (effectiveModes.includes(GameMode.Alkkagi)) {
+    const slow = settings.alkkagiSlowItemCount ?? 0;
+    const aim = settings.alkkagiAimingLineItemCount ?? 0;
+    if (slow > 0 || aim > 0) {
+      chunks.push(`슬로우 ${slow} · 조준 ${aim}`);
+    }
   }
-  if (mode === GameMode.Curling) {
-    chunks.push(`슬로우 ${settings.curlingSlowItemCount ?? 0} · 조준 ${settings.curlingAimingLineItemCount ?? 0}`);
+  if (effectiveModes.includes(GameMode.Curling)) {
+    const slow = settings.curlingSlowItemCount ?? 0;
+    const aim = settings.curlingAimingLineItemCount ?? 0;
+    if (slow > 0 || aim > 0) {
+      chunks.push(`슬로우 ${slow} · 조준 ${aim}`);
+    }
   }
   return chunks.length ? chunks.join(' · ') : NONE;
 }

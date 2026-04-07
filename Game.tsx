@@ -44,6 +44,7 @@ import ToggleSwitch from './components/ui/ToggleSwitch.js';
 import { DraggableMoveConfirmPanel } from './components/game/DraggableMoveConfirmPanel.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { useAdContext } from './components/ads/AdProvider.js';
+import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
@@ -2351,6 +2352,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     if (isSinglePlayer) {
         return (
+            <InGameModalLayoutProvider>
             <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full bg-single-player-background text-stone-200 min-h-0`} style={{ height: '100%', maxHeight: '100%', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
                 {showGameDescription && (
                     <SinglePlayerGameDescriptionModal 
@@ -2480,11 +2482,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     onOpenGameRecordList={handlers.openGameRecordList}
                 />
             </div>
+            </InGameModalLayoutProvider>
         );
     }
 
     if (isTower) {
         return (
+            <InGameModalLayoutProvider>
             <div 
                 className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full text-stone-200 min-h-0`}
                 style={{
@@ -2625,6 +2629,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     onOpenGameRecordList={handlers.openGameRecordList}
                 />
             </div>
+            </InGameModalLayoutProvider>
         );
     }
 
@@ -2647,6 +2652,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame) ? isPaused : false;
 
     return (
+        <InGameModalLayoutProvider>
         <div
             className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full min-h-0 ${pvpBackgroundClass}`}
             style={{
@@ -2892,6 +2898,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 onOpenGameRecordList={handlers.openGameRecordList}
             />
         </div>
+        </InGameModalLayoutProvider>
     );
 };
 

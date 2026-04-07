@@ -2,6 +2,8 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Button from './Button.js';
 import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { LiveGameSession, GameMode, Player, ServerAction } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_KOMI, ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS } from '../constants.js';
@@ -14,6 +16,7 @@ import {
   PRE_GAME_MODAL_PRIMARY_BTN_CLASS,
   PRE_GAME_MODAL_SECONDARY_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
+import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
 
 interface Props {
   session: LiveGameSession;
@@ -30,7 +33,8 @@ const formatColor = (color?: Player.Black | Player.White) => {
   return '랜덤';
 };
 
-const AI_GAME_DESC_DESIGN_W = 920;
+/** 인게임 AI 대국 시작 모달: 넓은 캔버스로 요약·설정 표가 더 크게 보이도록 */
+const AI_GAME_DESC_DESIGN_W = 1120;
 const AI_GAME_DESC_DESIGN_H_FALLBACK = 820;
 const AI_GAME_DESC_DESIGN_H_MIN = 520;
 const AI_GAME_DESC_DESIGN_H_MAX = 1200;
@@ -130,16 +134,21 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
 
 const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
   const { modalLayerUsesDesignPixels } = useAppContext();
+  const isHandheld = useIsHandheldDevice(1025);
+  const { isNativeMobile } = useNativeMobileShell();
+  /** 스케일 캔버스 밖에서도 보이도록: 터치 기기·네이티브는 풀폭 시트 + 본문 스크롤 */
+  const isMobileSheet = isHandheld || isNativeMobile;
   const meta = useMemo(() => getModeMeta(session.mode), [session.mode]);
   const summaryFour = useMemo(() => getPreGameSummaryFour(session), [session]);
   const settingsRows = useMemo(() => getSettingsRows(session), [session]);
   const isGuildWarAi = String(session.gameCategory ?? '') === 'guildwar';
   const shellRef = useRef<HTMLDivElement>(null);
   const [designH, setDesignH] = useState(AI_GAME_DESC_DESIGN_H_FALLBACK);
-  /** 모바일·네이티브 포함: PC 레이아웃 유지 + visual viewport에 맞게 균일 scale(스크롤 없이 시작 버튼까지) */
-  const uniformScale = useViewportUniformScale(AI_GAME_DESC_DESIGN_W, designH, true);
+  /** PC만 균일 scale — 모바일은 width 100% + 내부 스크롤로 잘림·미시청 방지 */
+  const uniformScale = useViewportUniformScale(AI_GAME_DESC_DESIGN_W, designH, !isMobileSheet);
 
   useLayoutEffect(() => {
+    if (isMobileSheet) return;
     const el = shellRef.current;
     if (!el) return;
     const update = () => {
@@ -152,7 +161,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
     const ro = new ResizeObserver(() => requestAnimationFrame(update));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [session, summaryFour, settingsRows]);
+  }, [session, summaryFour, settingsRows, isMobileSheet]);
 
   const handleStart = () => {
     onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
@@ -164,96 +173,187 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
 
   const portalTarget =
     typeof document !== 'undefined'
-      ? document.getElementById('sudamr-modal-root') ?? document.body
+      ? isMobileSheet
+        ? document.body
+        : document.getElementById('sudamr-modal-root') ?? document.body
       : null;
   if (!portalTarget) return null;
 
+  const overlayPositionClass = isMobileSheet
+    ? 'fixed inset-0 z-[60000]'
+    : modalLayerUsesDesignPixels
+      ? 'absolute inset-0 z-[1]'
+      : 'fixed inset-0 z-[60000]';
+
+  const headerBlock = (
+    <div
+      className={`${PRE_GAME_MODAL_LAYER_CLASS} flex-shrink-0 border-b border-amber-500/25 bg-gradient-to-r from-amber-950/45 via-zinc-900/88 to-zinc-950/95 p-3 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] sm:p-4`}
+    >
+      <div
+        className={
+          isMobileSheet
+            ? 'flex flex-row items-start gap-3 sm:gap-5'
+            : 'flex gap-5'
+        }
+      >
+        <div
+          className={
+            isMobileSheet
+              ? 'relative h-[4.5rem] w-[4.5rem] flex-shrink-0 overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_36px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-500/20 sm:h-[8.75rem] sm:w-[8.75rem] md:h-[9.25rem] md:w-[9.25rem]'
+              : 'relative h-[8.75rem] w-[8.75rem] flex-shrink-0 overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_36px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-500/20 sm:h-[9.25rem] sm:w-[9.25rem]'
+          }
+        >
+          {meta?.image ? (
+            <img src={meta.image} alt="" className="h-full w-full object-contain p-1.5 drop-shadow-md sm:p-2" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm font-bold text-amber-200/50 sm:text-xl">{session.mode}</div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <h2
+              className={
+                isMobileSheet
+                  ? 'text-xl font-black tracking-tight text-white drop-shadow-sm sm:text-3xl md:text-4xl'
+                  : 'text-3xl font-black tracking-tight text-white drop-shadow-sm sm:text-4xl'
+              }
+            >
+              {meta?.name ?? session.mode}
+            </h2>
+            <span className="rounded-full border border-amber-400/45 bg-gradient-to-r from-amber-950/80 to-zinc-900/90 px-2.5 py-1 text-xs font-bold tracking-wide text-amber-100/95 shadow-sm ring-1 ring-amber-500/25 sm:px-3.5 sm:py-1.5 sm:text-sm">
+              {isGuildWarAi ? '길드 전쟁' : 'AI 대전'}
+            </span>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-zinc-300 sm:mt-2.5 sm:text-sm md:text-base lg:text-lg">
+            네 가지 요약을 확인한 뒤{' '}
+            <span className="font-semibold text-violet-300">경기 시작</span>을 눌러주세요.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const settingsTableBlock = (
+    <div className="mb-3 mt-5 rounded-xl border border-amber-500/22 bg-zinc-950/50 p-3 shadow-inner ring-1 ring-inset ring-white/[0.05] sm:mb-4 sm:mt-7 sm:p-4 md:p-5">
+      <h3 className="mb-2.5 flex items-center gap-2 border-b border-amber-500/18 pb-2 text-base font-bold text-amber-100/95 sm:mb-3.5 sm:gap-2.5 sm:pb-3 sm:text-lg md:text-xl">
+        {meta?.image ? (
+          <img src={meta.image} alt="" className="h-7 w-7 object-contain opacity-95 drop-shadow sm:h-8 sm:w-8 md:h-9 md:w-9" />
+        ) : null}
+        이번 대국 설정
+      </h3>
+      <div className="overflow-hidden rounded-lg border border-amber-500/15 bg-black/30">
+        {isMobileSheet ? (
+          <div className="divide-y divide-amber-500/10">
+            {settingsRows.map((row) => (
+              <div
+                key={row.label}
+                className="space-y-1 px-3 py-2.5 odd:bg-zinc-900/55 even:bg-zinc-900/40"
+              >
+                <div className="text-xs font-bold text-amber-200/85">{row.label}</div>
+                <div className="text-sm font-semibold leading-snug text-zinc-100">{row.value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <table className="w-full text-sm sm:text-base md:text-lg lg:text-[1.12rem]">
+            <tbody className="[&>tr:nth-child(odd)]:bg-zinc-900/55">
+              {settingsRows.map((row) => (
+                <tr key={row.label} className="border-b border-amber-500/10 last:border-b-0">
+                  <td className="w-[34%] px-3.5 py-3 text-amber-200/70 sm:px-4 sm:py-3.5">{row.label}</td>
+                  <td className="px-3.5 py-3 font-semibold text-zinc-100 sm:px-4 sm:py-3.5">{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+
+  const footerBlock = (
+    <div className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap gap-3 px-4 py-4 sm:gap-4`}>
+      {!isGuildWarAi && (
+        <Button
+          onClick={handleLeave}
+          colorScheme="gray"
+          className={`min-w-0 px-6 py-3 text-base sm:px-8 ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} ${
+            isMobileSheet ? '!flex-1 basis-0' : '!w-auto shrink-0'
+          }`}
+        >
+          대기실로
+        </Button>
+      )}
+      <Button
+        onClick={handleStart}
+        colorScheme="purple"
+        className={`min-w-0 px-6 py-3 text-base sm:px-8 ${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} ${
+          isMobileSheet
+            ? isGuildWarAi
+              ? '!w-auto shrink-0 !min-w-[11rem] sm:!min-w-[12rem]'
+              : '!flex-1 basis-0'
+            : '!w-auto shrink-0'
+        }`}
+      >
+        경기 시작
+      </Button>
+    </div>
+  );
+
+  const mainBody = (
+    <div className={`${PRE_GAME_MODAL_LAYER_CLASS} px-3 pb-2 pt-3 sm:px-5 sm:pt-5 md:px-6`}>
+      <PreGameSummaryGrid session={session} summary={summaryFour} singleColumn={isMobileSheet} />
+      {settingsTableBlock}
+    </div>
+  );
+
+  const mobileShellMaxW = `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - max(8px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 8px)))`;
+  const mobileShellMaxH = `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 80svh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px))`;
+
   const layer = (
     <div
-      className={`${
-        modalLayerUsesDesignPixels ? 'absolute inset-0 z-[1]' : 'fixed inset-0 z-[60000]'
-      } flex items-center justify-center bg-transparent p-4 text-base antialiased pointer-events-auto`}
+      className={`${overlayPositionClass} flex text-base antialiased pointer-events-auto ${
+        isMobileSheet
+          ? 'items-center justify-center bg-black/40 px-3 py-4 sm:px-4 sm:py-6'
+          : 'items-center justify-center bg-transparent p-4'
+      }`}
+      style={
+        isMobileSheet
+          ? {
+              paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
+              paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))',
+              paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+              paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))',
+            }
+          : undefined
+      }
     >
       <div
         ref={shellRef}
-        className={PRE_GAME_MODAL_SHELL_CLASS}
-        style={{
-          width: AI_GAME_DESC_DESIGN_W,
-          maxWidth: '100%',
-          transform: `scale(${uniformScale})`,
-          transformOrigin: 'center center',
-        }}
+        className={`${PRE_GAME_MODAL_SHELL_CLASS} mx-auto flex flex-col ${isMobileSheet ? 'min-h-0 w-full overflow-hidden' : ''}`}
+        style={
+          isMobileSheet
+            ? {
+                width: mobileShellMaxW,
+                maxWidth: mobileShellMaxW,
+                maxHeight: mobileShellMaxH,
+              }
+            : {
+                width: AI_GAME_DESC_DESIGN_W,
+                maxWidth: '100%',
+                transform: `scale(${uniformScale})`,
+                transformOrigin: 'center center',
+              }
+        }
       >
-        {/* 헤더: 모드 이미지 + 제목 */}
-        <div
-          className={`${PRE_GAME_MODAL_LAYER_CLASS} flex-shrink-0 border-b border-amber-500/25 bg-gradient-to-r from-amber-950/45 via-zinc-900/88 to-zinc-950/95 p-4 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]`}
-        >
-          <div className="flex gap-4">
-            <div className="relative h-[7.5rem] w-[7.5rem] flex-shrink-0 overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_36px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-500/20">
-              {meta?.image ? (
-                <img src={meta.image} alt="" className="h-full w-full object-contain p-2 drop-shadow-md" />
-              ) : (
-                <div className="flex h-full items-center justify-center text-lg font-bold text-amber-200/50">{session.mode}</div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl font-black tracking-tight text-white drop-shadow-sm sm:text-3xl">{meta?.name ?? session.mode}</h2>
-                <span className="rounded-full border border-amber-400/45 bg-gradient-to-r from-amber-950/80 to-zinc-900/90 px-3 py-1 text-xs font-bold tracking-wide text-amber-100/95 shadow-sm ring-1 ring-amber-500/25">
-                  {isGuildWarAi ? '길드 전쟁' : 'AI 대전'}
-                </span>
-              </div>
-              <p className="mt-2.5 text-xs leading-relaxed text-zinc-300 sm:text-sm lg:text-base">
-                네 가지 요약을 확인한 뒤{' '}
-                <span className="font-semibold text-violet-300">경기 시작</span>을 눌러주세요.
-              </p>
-            </div>
+        {headerBlock}
+        {isMobileSheet ? (
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:stable]">
+            {mainBody}
           </div>
-        </div>
-
-        <div className={`${PRE_GAME_MODAL_LAYER_CLASS} flex-shrink-0 px-4 pb-2 pt-4`}>
-          <PreGameSummaryGrid session={session} summary={summaryFour} />
-
-          <div className="mb-4 mt-6 rounded-xl border border-amber-500/22 bg-zinc-950/50 p-3.5 shadow-inner ring-1 ring-inset ring-white/[0.05]">
-            <h3 className="mb-3 flex items-center gap-2 border-b border-amber-500/18 pb-2.5 text-base font-bold text-amber-100/95 lg:text-lg">
-              {meta?.image ? (
-                <img src={meta.image} alt="" className="h-7 w-7 object-contain opacity-95 drop-shadow" />
-              ) : null}
-              이번 대국 설정
-            </h3>
-            <div className="overflow-hidden rounded-lg border border-amber-500/15 bg-black/30">
-              <table className="w-full text-sm sm:text-base lg:text-[1.05rem]">
-                <tbody className="[&>tr:nth-child(odd)]:bg-zinc-900/55">
-                  {settingsRows.map((row) => (
-                    <tr key={row.label} className="border-b border-amber-500/10 last:border-b-0">
-                      <td className="w-[40%] px-3 py-2.5 text-amber-200/70">{row.label}</td>
-                      <td className="px-3 py-2.5 font-semibold text-zinc-100">{row.value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div className={PRE_GAME_MODAL_FOOTER_CLASS}>
-          {!isGuildWarAi && (
-            <Button
-              onClick={handleLeave}
-              colorScheme="gray"
-              className={`!w-auto shrink-0 px-8 py-3 text-base font-bold tracking-wide ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS}`}
-            >
-              대기실로
-            </Button>
-          )}
-          <Button
-            onClick={handleStart}
-            colorScheme="purple"
-            className={`!w-auto shrink-0 px-8 py-3 text-base font-bold tracking-wide ${PRE_GAME_MODAL_PRIMARY_BTN_CLASS}`}
-          >
-            경기 시작
-          </Button>
-        </div>
+        ) : (
+          mainBody
+        )}
+        {footerBlock}
       </div>
     </div>
   );

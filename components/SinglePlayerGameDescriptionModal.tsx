@@ -112,7 +112,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     </p>
                 </div>
             </div>
-            <PreGameSummaryGrid session={session} summary={summaryFour} />
+            <PreGameSummaryGrid session={session} summary={summaryFour} singleColumn={isCompactUi} />
             {stage.rewards && (
                 <div className="rounded-xl border border-amber-500/22 bg-zinc-950/45 p-3.5 ring-1 ring-inset ring-white/[0.05]">
                     <h3 className="mb-3 flex items-center gap-2 border-b border-amber-500/18 pb-2.5 text-base font-bold text-amber-100/95">
@@ -160,8 +160,8 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     colorScheme="gray"
                     className={
                         compact
-                            ? `!w-auto min-h-[2.75rem] shrink-0 px-6 py-2.5 text-base font-bold tracking-wide max-[480px]:min-h-[3rem] max-[480px]:px-5 max-[480px]:text-[1rem] ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS}`
-                            : `!w-auto shrink-0 px-8 py-3 text-base font-bold tracking-wide ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS}`
+                            ? `!flex-1 basis-0 min-w-0 min-h-[3rem] px-5 py-2.5 text-base max-[480px]:px-4 ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS}`
+                            : `!w-auto shrink-0 px-8 py-3 text-base ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS}`
                     }
                 >
                     취소
@@ -172,8 +172,10 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 colorScheme="accent"
                 className={
                     compact
-                        ? `!w-auto min-h-[2.75rem] shrink-0 px-6 py-2.5 text-base font-bold tracking-wide max-[480px]:min-h-[3rem] max-[480px]:px-5 max-[480px]:text-[1rem] ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`
-                        : `!w-auto shrink-0 px-8 py-3 text-base font-bold tracking-wide ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`
+                        ? onClose
+                            ? `!flex-1 basis-0 min-w-0 min-h-[3rem] px-5 py-2.5 text-base max-[480px]:px-4 ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`
+                            : `mx-auto !w-full max-w-[min(20rem,92vw)] min-h-[3rem] px-8 py-2.5 text-base ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`
+                        : `!w-auto shrink-0 px-8 py-3 text-base ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`
                 }
             >
                 시작하기
@@ -214,7 +216,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 ) : (
                     <div ref={contentMeasureRef} className={`flex min-h-0 flex-col ${PRE_GAME_MODAL_LAYER_CLASS}`}>
                         {mainBlocks}
-                        <div className={`${PRE_GAME_MODAL_FOOTER_CLASS} -mx-5 -mb-5 mt-6 shrink-0 rounded-b-2xl`}>
+                        <div className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap -mx-5 -mb-5 mt-6 shrink-0 rounded-b-2xl`}>
                             {footerButtons(false)}
                         </div>
                     </div>
@@ -222,7 +224,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
 
                 {isCompactUi ? (
                     <div
-                        className={`${PRE_GAME_MODAL_FOOTER_CLASS} shrink-0 mt-4 rounded-b-2xl border-t border-amber-500/35 px-2 py-3 sm:px-3`}
+                        className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap shrink-0 mt-4 rounded-b-2xl border-t border-amber-500/35 px-2 py-3 sm:px-3`}
                     >
                         {footerButtons(true)}
                     </div>

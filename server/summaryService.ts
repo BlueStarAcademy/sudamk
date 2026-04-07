@@ -24,6 +24,15 @@ import {
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
 import * as guildService from './guildService.js';
 
+/** 챔피언십 던전 대국(상대 id가 dungeon-bot-) — 퀘스트 「챔피언십 경기 진행하기」용 */
+function liveSessionHasChampionshipDungeonBot(game: LiveGameSession): boolean {
+    const pid = (p: { id?: string } | null | undefined) => (p?.id ? String(p.id) : '');
+    if (game.isSinglePlayer || game.gameCategory === 'tower' || (game.gameCategory as string) === 'singleplayer') {
+        return false;
+    }
+    return pid(game.player1).startsWith('dungeon-bot-') || pid(game.player2).startsWith('dungeon-bot-');
+}
+
 const getXpForLevel = (level: number): number => {
     if (level < 1) return 0;
     if (level > 100) return Infinity; // Max level
@@ -782,12 +791,7 @@ const calculateGameRewards = (
     // Determine gold multiplier
     const outcomeMultiplier = isWinner ? 1.0 : isDraw ? 0 : 0.25;
     let goldReward = Math.round(baseGold * outcomeMultiplier);
-    
-    // Apply monthly gold buff
-    if (player.monthlyGoldBuffExpiresAt && player.monthlyGoldBuffExpiresAt > Date.now()) {
-        goldReward = Math.round(goldReward * 1.5);
-    }
-    
+
     // Apply AI game penalty
     if (isAiGame) {
         goldReward = Math.round(goldReward * 0.2);
@@ -1134,21 +1138,38 @@ const processPlayerSummary = async (
         }
     }
     
-    // Update Quests
-    if (!isNoContest && !isAiGame) {
-        updateQuestProgress(updatedPlayer, 'participate', mode, 1);
-        if (isWinner) {
-            updateQuestProgress(updatedPlayer, 'win', mode, 1);
-            
-            // Update Guild Mission Progress for wins
-            if (updatedPlayer.guildId) {
-                const guilds = await db.getKV<Record<string, any>>('guilds') || {};
-                if (isStrategic) {
-                    await guildService.updateGuildMissionProgress(updatedPlayer.guildId, 'strategicWins', 1, guilds);
-                } else if (isPlayful) {
-                    await guildService.updateGuildMissionProgress(updatedPlayer.guildId, 'playfulWins', 1, guilds);
-                }
+    // Update Quests: 대기실 AI 대국도 전략/놀이 플레이·승리 퀘스트에 반영 (싱글·타워·싱글플레이 카테고리는 제외)
+    if (!isNoContest) {
+        const isPveQuestExempt =
+            !!game.isSinglePlayer ||
+            game.gameCategory === 'tower' ||
+            (game.gameCategory as string) === 'singleplayer';
+
+        if (!isPveQuestExempt) {
+            updateQuestProgress(updatedPlayer, 'participate', mode, 1);
+            if (isWinner) {
+                updateQuestProgress(updatedPlayer, 'win', mode, 1);
             }
+        }
+
+        if (liveSessionHasChampionshipDungeonBot(game)) {
+            updateQuestProgress(updatedPlayer, 'championship_play', undefined, 1);
+        }
+    }
+
+    // 길드 주간 임무: 휴먼 간 PVP 승리만 (대기실 AI·챔피언십 던전 봇전 제외)
+    if (
+        !isNoContest &&
+        !isAiGame &&
+        isWinner &&
+        updatedPlayer.guildId &&
+        !liveSessionHasChampionshipDungeonBot(game)
+    ) {
+        const guilds = await db.getKV<Record<string, any>>('guilds') || {};
+        if (isStrategic) {
+            await guildService.updateGuildMissionProgress(updatedPlayer.guildId, 'strategicWins', 1, guilds);
+        } else if (isPlayful) {
+            await guildService.updateGuildMissionProgress(updatedPlayer.guildId, 'playfulWins', 1, guilds);
         }
     }
 

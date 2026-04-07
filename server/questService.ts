@@ -3,7 +3,7 @@
 import * as types from '../types/index.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 
-export const updateQuestProgress = (user: types.User, type: 'win' | 'participate' | 'action_button' | 'tournament_participate' | 'enhancement_attempt' | 'craft_attempt' | 'chat_greeting' | 'tournament_complete' | 'login' | 'claim_daily_milestone_100' | 'claim_weekly_milestone_100', mode?: types.GameMode, amount: number = 1) => {
+export const updateQuestProgress = (user: types.User, type: 'win' | 'participate' | 'action_button' | 'tournament_participate' | 'enhancement_attempt' | 'craft_attempt' | 'chat_greeting' | 'championship_play' | 'login' | 'claim_daily_milestone_100' | 'claim_weekly_milestone_100', mode?: types.GameMode, amount: number = 1) => {
     if (!user.quests) return;
     const isStrategic = mode ? SPECIAL_GAME_MODES.some(m => m.mode === mode) : false;
     const isPlayful = mode ? PLAYFUL_GAME_MODES.some((m: { mode: types.GameMode; }) => m.mode === mode) : false;
@@ -26,7 +26,7 @@ export const updateQuestProgress = (user: types.User, type: 'win' | 'participate
             case '전략바둑 승리하기': if (type === 'win' && isStrategic) shouldUpdate = true; break;
             case '놀이바둑 승리하기': if (type === 'win' && isPlayful) shouldUpdate = true; break;
             case '액션버튼 사용하기': if (type === 'action_button') shouldUpdate = true; break;
-            case '자동대국 토너먼트 완료하기': if (type === 'tournament_complete') shouldUpdate = true; break;
+            case '챔피언십 경기 진행하기': if (type === 'championship_play') shouldUpdate = true; break;
             case '자동대국 토너먼트 참여하기': if (type === 'tournament_participate') shouldUpdate = true; break;
             case '장비 강화시도': if (type === 'enhancement_attempt') shouldUpdate = true; break;
             case '재료 합성시도': if (type === 'craft_attempt') shouldUpdate = true; break;

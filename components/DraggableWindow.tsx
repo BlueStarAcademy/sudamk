@@ -5,11 +5,14 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
+import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
 import {
-    NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
-    NATIVE_MOBILE_MODAL_MAX_WIDTH_PX,
-    NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
-} from '../constants/ads.js';
+    INGAME_BOARD_FRAME_MAX_HEIGHT_PX,
+    INGAME_BOARD_FRAME_MAX_WIDTH_PX,
+    INGAME_MODAL_DEFAULT_OFFSET_X,
+    INGAME_MODAL_DEFAULT_OFFSET_Y,
+} from '../constants/ingameModalFrame.js';
+import { useInGameModalLayout } from '../contexts/InGameModalLayoutContext.js';
 import { getModalScaleFitPaddingPx } from '../utils/modalViewportPadding.js';
 
 interface DraggableWindowProps {
@@ -257,6 +260,25 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // PC 16:9 캔버스 안의 모달 루트(설계 픽셀)일 때만 true. 세로형 네이티브 셸에서는 false라 뷰포트·균일축소 분기가 동작함.
     const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
 
+    /** 대국 화면(Game)에서만 true — 모달을 바둑판 패널 크기·위치에 맞춤 */
+    const ingameBoardFrame = useInGameModalLayout();
+
+    const designInitialWidth = useMemo(() => {
+        const w = initialWidth ?? 800;
+        if (modalLayerUsesDesignPixels && ingameBoardFrame) {
+            return Math.min(w, INGAME_BOARD_FRAME_MAX_WIDTH_PX);
+        }
+        return w;
+    }, [initialWidth, modalLayerUsesDesignPixels, ingameBoardFrame]);
+
+    const effectiveDefaultPosition = useMemo(() => {
+        if (!modalLayerUsesDesignPixels || !ingameBoardFrame) return defaultPosition;
+        return {
+            x: (defaultPosition?.x ?? 0) + INGAME_MODAL_DEFAULT_OFFSET_X,
+            y: (defaultPosition?.y ?? 0) + INGAME_MODAL_DEFAULT_OFFSET_Y,
+        };
+    }, [defaultPosition, modalLayerUsesDesignPixels, ingameBoardFrame]);
+
     const [rememberPosition, setRememberPosition] = useState(true);
 
     
@@ -349,22 +371,22 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         if (!initialWidth) return undefined;
         
         // 스케일 캔버스 내부에서는 App.tsx의 scale로만 줄이기 위해 viewport 기반 보정 로직을 끕니다.
-        if (modalLayerUsesDesignPixels) return initialWidth;
+        if (modalLayerUsesDesignPixels) return designInitialWidth;
 
         // 모바일이 아닐 때는 initialWidth를 최소값으로 보장 (데스크톱에서는 고정 크기 사용)
         if (!effectiveIsCompactViewport) {
             // 데스크톱: initialWidth를 최대한 보장하되, 화면이 너무 작으면 화면 크기에 맞춤
-            const minWidth = Math.min(initialWidth, windowWidth - 40); // 화면에서 40px 여유 공간
+            const minWidth = Math.min(designInitialWidth, windowWidth - 40); // 화면에서 40px 여유 공간
             // initialWidth를 최소한 95% 이상 보장 (90%에서 95%로 증가)
-            return Math.max(initialWidth * 0.95, minWidth);
+            return Math.max(designInitialWidth * 0.95, minWidth);
         }
         
         // 모바일: 화면 크기에 맞춤
-        const baseWidth = initialWidth;
+        const baseWidth = designInitialWidth;
         const viewportRatio = windowWidth / 1920; // 기준 해상도 1920px
         const adjustedWidth = Math.max(400, Math.min(baseWidth, baseWidth * viewportRatio));
         return adjustedWidth;
-    }, [initialWidth, windowWidth, effectiveIsCompactViewport, modalLayerUsesDesignPixels]);
+    }, [initialWidth, designInitialWidth, windowWidth, effectiveIsCompactViewport, modalLayerUsesDesignPixels]);
 
     /**
      * 전체 모달 공통: 내용량에 따라 세로 길이가 과도하게 변하지 않도록
@@ -372,20 +394,30 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
      * 작은 확인/알림 모달은 기존 동작(콘텐츠 기반) 유지.
      */
     const resolvedInitialHeight = useMemo(() => {
-        if (typeof initialHeight === 'number') return initialHeight;
-        const baseWidth = initialWidth ?? 800;
+        if (typeof initialHeight === 'number') {
+            if (modalLayerUsesDesignPixels && ingameBoardFrame) {
+                return Math.min(initialHeight, INGAME_BOARD_FRAME_MAX_HEIGHT_PX);
+            }
+            return initialHeight;
+        }
+        const baseWidth = designInitialWidth;
         if (baseWidth < 700) return undefined;
         const derived = Math.round(baseWidth * 0.72);
-        return Math.max(520, Math.min(920, derived));
-    }, [initialHeight, initialWidth]);
+        let h = Math.max(520, Math.min(920, derived));
+        if (modalLayerUsesDesignPixels && ingameBoardFrame) {
+            h = Math.min(h, INGAME_BOARD_FRAME_MAX_HEIGHT_PX);
+        }
+        return h;
+    }, [initialHeight, designInitialWidth, modalLayerUsesDesignPixels, ingameBoardFrame]);
 
     const nativeClampedWidthPx = useMemo(() => {
         if (!isNativeMobile) return undefined;
-        const base = calculatedWidth ?? initialWidth;
+        const base = calculatedWidth ?? designInitialWidth;
         if (base === undefined) return undefined;
-        const vwCap = windowWidth * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100);
-        return Math.min(base, vwCap, NATIVE_MOBILE_MODAL_MAX_WIDTH_PX);
-    }, [isNativeMobile, calculatedWidth, initialWidth, windowWidth]);
+        const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
+        const vwCap = (vv?.width ?? windowWidth) * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100);
+        return Math.min(base, vwCap);
+    }, [isNativeMobile, calculatedWidth, designInitialWidth, windowWidth]);
 
     const nativeMaxHeightPx = useMemo(() => {
         if (!isNativeMobile) return undefined;
@@ -420,7 +452,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         return Math.min(raw, nativeMaxHeightPx);
     }, [isNativeMobile, nativeMaxHeightPx, calculatedHeight, resolvedInitialHeight]);
 
-    const uniformDesignW = initialWidth ?? 800;
+    const uniformDesignW = designInitialWidth;
     const uniformDesignH = resolvedInitialHeight ?? 720;
     const effectiveMobileMaxHeightVh = mobileViewportMaxHeightVh ?? NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH;
 
@@ -448,7 +480,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const ro = new ResizeObserver(() => requestAnimationFrame(sync));
         ro.observe(el);
         return () => ro.disconnect();
-    }, [isInitialized, useUniformPcScaleLayout, hideFooter, windowId, resolvedInitialHeight, initialWidth]);
+    }, [isInitialized, useUniformPcScaleLayout, hideFooter, windowId, resolvedInitialHeight, designInitialWidth]);
 
     const uniformHeightForViewportScale = useMemo(() => {
         if (!useUniformPcScaleLayout) return uniformDesignH;
@@ -470,7 +502,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const compactFitScaleEstimate = useMemo(() => {
         if (!useCompactScaleToFitLayout) return 1;
-        const baseWidth = initialWidth || 800;
+        const baseWidth = designInitialWidth || 800;
         const baseHeight = resolvedInitialHeight || uniformDesignH;
         const { horizontal, top, bottom } = getModalScaleFitPaddingPx();
         const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
@@ -480,7 +512,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const scaleY = availableHeight / baseHeight;
         const scale = Math.min(scaleX, scaleY) * 0.99;
         return Math.max(0.1, Math.min(0.98, scale));
-    }, [useCompactScaleToFitLayout, initialWidth, resolvedInitialHeight, uniformDesignH, windowWidth, windowHeight]);
+    }, [useCompactScaleToFitLayout, designInitialWidth, resolvedInitialHeight, uniformDesignH, windowWidth, windowHeight]);
 
     const [measuredCompactFitScale, setMeasuredCompactFitScale] = useState<number | null>(null);
     const compactFitScale = measuredCompactFitScale ?? compactFitScaleEstimate;
@@ -489,10 +521,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const mobileViewportFitWidthPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
-        const iw = initialWidth ?? 800;
-        const capW = isNativeMobile ? windowWidth * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100) : windowWidth - 16;
-        return Math.max(280, Math.min(iw, capW));
-    }, [useMobileViewportFitLayout, initialWidth, windowWidth, isNativeMobile]);
+        const iw = designInitialWidth;
+        const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
+        const vw = vv?.width ?? windowWidth;
+        const capW = isNativeMobile ? vw * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100) : vw - 8;
+        return Math.max(300, Math.min(iw, capW));
+    }, [useMobileViewportFitLayout, designInitialWidth, windowWidth, isNativeMobile]);
 
     const mobileViewportFitHeightPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
@@ -560,7 +594,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             setRememberPosition(shouldRemember);
 
             if (skipSavedPosition) {
-                setPosition({ ...defaultPosition });
+                setPosition({ ...effectiveDefaultPosition });
                 try {
                     const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
                     delete savedPositions[windowId];
@@ -578,7 +612,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
                 } else {
 
-                    setPosition({ ...defaultPosition });
+                    setPosition({ ...effectiveDefaultPosition });
 
                 }
 
@@ -592,13 +626,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
             console.error("Failed to load window settings from localStorage", e);
 
-            setPosition({ ...defaultPosition });
+            setPosition({ ...effectiveDefaultPosition });
 
         }
 
         setIsInitialized(true);
 
-    }, [windowId, effectiveIsCompactViewport, defaultPosition.x, defaultPosition.y, skipSavedPosition]);
+    }, [windowId, effectiveIsCompactViewport, effectiveDefaultPosition.x, effectiveDefaultPosition.y, skipSavedPosition]);
 
 
 
@@ -863,8 +897,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const footerVariantClass = isStoreVariant
         ? 'bg-[#111a32] border-t border-cyan-300/30 text-cyan-200'
         : 'border-t border-white/[0.09] bg-gradient-to-t from-tertiary/40 via-secondary/35 to-secondary/45 text-tertiary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+    /** 좁은 뷰포트·네이티브: 본문 글자·여백을 키워 가독성 확보 */
+    const isMobileModalShell = effectiveIsCompactViewport || isNativeMobile;
     const bodyPaddingClass =
-        bodyPaddingClassName ?? (isStoreVariant ? 'p-5' : uniformLayout ? 'p-5' : 'p-4');
+        bodyPaddingClassName ??
+        (isStoreVariant ? 'p-5' : uniformLayout ? 'p-5' : isMobileModalShell ? 'p-5' : 'p-4');
     const viewportMaxWidthCss = '95vw';
     const viewportMaxHeightCss = '80dvh';
     const mobileViewportFitMaxHeightCss = mobileViewportMaxHeightCss ?? viewportMaxHeightCss;
@@ -911,31 +948,31 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         : useMobileViewportFitLayout
                           ? `${mobileViewportFitWidthPx}px`
                           : useCompactScaleToFitLayout
-                            ? (initialWidth ? `${initialWidth}px` : '800px')
+                            ? `${designInitialWidth}px`
                             : effectiveIsCompactViewport
-                              ? (initialWidth ? `${initialWidth}px` : '800px')
+                              ? `${designInitialWidth}px`
                               : isNativeMobile && nativeClampedWidthPx !== undefined
                                 ? `${nativeClampedWidthPx}px`
-                                : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${initialWidth}px` : undefined)),
+                                : (calculatedWidth ? `${calculatedWidth}px` : `${designInitialWidth}px`),
                     minWidth: uniformLayout
                         ? `${uniformDesignW}px`
                         : useMobileViewportFitLayout
                           ? `${mobileViewportFitWidthPx}px`
                           : useCompactScaleToFitLayout
-                            ? (initialWidth ? `${initialWidth}px` : '800px')
+                            ? `${designInitialWidth}px`
                             : effectiveIsCompactViewport
-                              ? (initialWidth ? `${initialWidth}px` : '800px')
+                              ? `${designInitialWidth}px`
                               : isNativeMobile && nativeClampedWidthPx !== undefined
                                 ? `${nativeClampedWidthPx}px`
-                                : (calculatedWidth ? `${calculatedWidth}px` : (initialWidth ? `${Math.max(600, initialWidth)}px` : '600px')),
+                                : (calculatedWidth ? `${calculatedWidth}px` : `${Math.max(600, designInitialWidth)}px`),
                     maxWidth: uniformLayout
                         ? `${uniformDesignW}px`
                         : useMobileViewportFitLayout
                           ? isNativeMobile
-                            ? `min(${viewportMaxWidthCss}, min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 16px)))`
-                            : `min(${viewportMaxWidthCss}, calc(100vw - 16px))`
+                            ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - max(8px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 8px)))`
+                            : `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 8px))`
                           : isNativeMobile
-                            ? `min(${viewportMaxWidthCss}, min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, 100%))`
+                            ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - max(8px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 8px)))`
                             : modalLayerUsesDesignPixels
                               ? undefined
                               : (effectiveIsCompactViewport ? viewportMaxWidthCss : `min(${viewportMaxWidthCss}, calc(100vw - 40px))`),
@@ -989,7 +1026,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 >
                     <h2
                         className={`select-none font-bold tracking-tight text-primary ${
-                            uniformLayout ? 'text-xl' : 'text-lg'
+                            uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-xl' : 'text-lg'
                         }`}
                     >
                         {title}
@@ -1020,7 +1057,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                             bodyScaleToFitNaturalLayout
                                 ? 'flex w-full min-h-0 flex-shrink-0 flex-col'
                                 : 'flex min-h-0 flex-1 flex-col'
-                        } ${bodyScrollOverflowClass} ${bodyPaddingClass} ${uniformLayout ? 'antialiased' : ''}`}
+                        } ${bodyScrollOverflowClass} ${bodyPaddingClass} ${uniformLayout ? 'antialiased' : ''}${
+                            isMobileModalShell ? ' sudamr-mobile-modal-body' : ''
+                        }`}
                     >
                         {children}
                     </div>
@@ -1034,7 +1073,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         >
                             <label
                                 className={`flex cursor-pointer select-none items-center gap-2 ${
-                                    uniformLayout ? 'text-sm' : 'text-xs'
+                                    uniformLayout ? 'text-sm' : isMobileModalShell ? 'text-sm' : 'text-xs'
                                 }`}
                             >
                                 <input

@@ -183,6 +183,30 @@ html[data-theme="green"] {
     padding: 1rem 1.25rem;
   }
 
+  /**
+   * DraggableWindow 본문: 좁은 뷰포트·네이티브에서 기본 글자·자간을 키움.
+   * 자식의 text-sm/text-xs는 본문 가독성을 해치지 않도록 한 단계 보정.
+   */
+  .sudamr-mobile-modal-body {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sudamr-mobile-modal-body .sudamr-modal-message-panel {
+    padding: 1.125rem 1.375rem;
+  }
+
+  .sudamr-mobile-modal-body .text-sm {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  .sudamr-mobile-modal-body .text-xs {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
   .panel-surface,
   .bg-panel,
   .bg-panel-secondary,
@@ -263,14 +287,54 @@ html[data-theme="green"] {
   }
 }
 
-html {
-  /* 고정 폰트 크기로 일관성 유지 (로컬과 배포 환경 동일하게) */
-  font-size: 16px; /* Base font size - fixed for consistency */
+/* 고정 오버레이 모달(드래그 창 외): 태블릿·폭 좁은 브라우저 가독성 — @layer 밖(미니파이어 호환) */
+@media (max-width: 1024px) {
+  .sudamr-modal-overlay {
+    padding: max(0.75rem, env(safe-area-inset-top, 0px)) max(0.75rem, env(safe-area-inset-right, 0px))
+      max(0.75rem, env(safe-area-inset-bottom, 0px)) max(0.75rem, env(safe-area-inset-left, 0px));
+  }
+
+  .sudamr-modal-panel {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  .sudamr-modal-panel .text-sm {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  .sudamr-modal-panel .text-xs {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .sudamr-modal-message-panel {
+    padding: 1.125rem 1.375rem;
+  }
 }
 
-@media (orientation: portrait) {
+html {
+  /* PC 기본: Tailwind rem( text-base=1rem ) 기준 */
+  font-size: 16px;
+  /* iOS 등에서 임의 축소 방지 */
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+/*
+ * 좁은 뷰포트·모바일: 루트 rem을 키워 text-sm/text-xs 등 전역 UI 가독성 향상.
+ * (네이티브 세로 셸의 scale 콘텐츠도 동일 rem을 쓰므로 시각 크기에 함께 반영됨)
+ */
+@media (max-width: 1024px) {
   html {
-    font-size: 16px; /* Fixed font size for mobile */
+    font-size: 17px;
+  }
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 18px;
   }
 }
 

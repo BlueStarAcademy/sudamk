@@ -1,11 +1,7 @@
 import React, { useMemo, Suspense, lazy } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import {
-    NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
-    NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
-    NATIVE_MOBILE_MODAL_MAX_WIDTH_PX,
-} from '../constants/ads.js';
+import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
 import NegotiationModal from './NegotiationModal.js';
 import ChallengeReceivedModal from './ChallengeReceivedModal.js';
 
@@ -243,7 +239,7 @@ const AppModalLayer: React.FC = () => {
                         style={
                             isNativeMobile
                                 ? {
-                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px)`,
+                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - max(8px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 8px)))`,
                                       maxHeight: `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px))`,
                                   }
                                 : undefined
@@ -262,7 +258,7 @@ const AppModalLayer: React.FC = () => {
                         style={
                             isNativeMobile
                                 ? {
-                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - 24px), ${NATIVE_MOBILE_MODAL_MAX_WIDTH_PX}px)`,
+                                      maxWidth: `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - max(8px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 8px)))`,
                                       maxHeight: `min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px))`,
                                   }
                                 : undefined

@@ -9,7 +9,8 @@ import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
 import {
     arenaPostGameButtonClass,
-    arenaPostGameButtonGridClass,
+    arenaPostGameButtonInRowModifier,
+    arenaPostGameIngameEndedRowClass,
     arenaPostGamePanelShellClass,
     formatArenaRetryLabel,
     formatSinglePlayerNextFooterLabel,
@@ -295,20 +296,23 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             }
         };
 
+        const endedRowBtn = (extra?: string) =>
+            `${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} ${arenaPostGameButtonInRowModifier}${extra ? ` ${extra}` : ''}`;
+
         return (
-            <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-[164px]">
+            <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-0 sm:min-h-[120px]">
                 <div className={arenaPostGamePanelShellClass}>
-                    <div className={arenaPostGameButtonGridClass}>
-                    <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                    <div className={arenaPostGameIngameEndedRowClass}>
+                    <Button bare onClick={handleShowResults} colorScheme="none" className={endedRowBtn()}>
                         결과 보기
                     </Button>
-                    <Button bare onClick={handleNextStage} colorScheme="none" className={`${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNext}>
+                    <Button bare onClick={handleNextStage} colorScheme="none" className={endedRowBtn('min-w-0 truncate')} disabled={!canTryNext}>
                         {formatSinglePlayerNextFooterLabel(nextStage, canTryNext, nextStageActionPointCost)}
                     </Button>
-                    <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                    <Button bare onClick={handleRetry} colorScheme="none" className={endedRowBtn()}>
                         {formatArenaRetryLabel(retryActionPointCost)}
                     </Button>
-                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={endedRowBtn()}>
                         대기실로
                     </Button>
                     </div>

@@ -1,8 +1,14 @@
 /// <reference lib="dom" />
 
-import { ItemGrade } from '../types.js';
 import type { SoundSettings } from '../types.js';
 import { defaultSettings } from '../hooks/useAppSettings.js';
+
+/** `public/sound`에 있는 파일명과 일치 (첫 사용자 제스처 직후 백그라운드 프리로드) */
+const SOUND_BASE_NAMES = [
+    'move', 'dice', 'failure', 'hidden', 'scanbgm', 'find', 'hit', 'rocket', 'lose', 'win',
+    'levelup', 'jackpot2', 'jackpot', 'gamestart', 'myturn', 'scanfail', 'timer10', 'bip',
+    'success', 'fall', 'reward',
+] as const;
 
 class AudioService {
     private audioContext: AudioContext | null = null;
@@ -12,6 +18,9 @@ class AudioService {
     private scanBgmSourceNode: AudioBufferSourceNode | null = null;
     private timerWarningSourceNode: AudioBufferSourceNode | null = null;
     private audioBuffers = new Map<string, AudioBuffer>();
+    /** 동일 URL 동시 디코드 방지 */
+    private bufferLoads = new Map<string, Promise<AudioBuffer | null>>();
+    private preloadStarted = false;
     /** Express/Vite 정적 경로와 일치: `server.ts`의 `app.use('/sounds', ... public/sounds)` */
     private soundsPath = '/sounds/';
     private settings: SoundSettings = defaultSettings.sound;
@@ -78,8 +87,19 @@ class AudioService {
             // Android WebView/Samsung Internet 대응:
             // WebAudio 잠금과 별개로 HTML5 Audio autoplay gate를 사용자 제스처에서 함께 해제한다.
             this.tryUnlockHtml5Audio();
+            this.kickPreloadAfterUnlock();
         } catch (e) {
             console.warn('[AudioService] unlockFromUserGesture:', e);
+        }
+    }
+
+    /** 제스처 직후 네트워크·디코드를 시작해, 이후 play()가 await 체인 밖에서 너무 늦지 않게 함 */
+    private kickPreloadAfterUnlock(): void {
+        if (this.preloadStarted) return;
+        this.preloadStarted = true;
+        for (const name of SOUND_BASE_NAMES) {
+            const url = `${this.soundsPath}${name}.mp3`;
+            void this.loadSound(url).catch(() => {});
         }
     }
 
@@ -119,7 +139,9 @@ class AudioService {
                 if (!this.audioContext) {
                     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
                 }
-                await this.resumeContextIfNeeded(this.audioContext);
+                // await resume()는 대부분 제스처 스택 밖에서 호출되므로 iOS에서 무의미·지연만 유발.
+                // unlockFromUserGesture()에서 이미 void resume() + 무음 버퍼로 잠금 해제함.
+                void this.resumeContextIfNeeded(this.audioContext);
             } catch (error) {
                 console.error('Audio context initialization failed:', error);
             }
@@ -148,19 +170,31 @@ class AudioService {
         if (this.audioBuffers.has(url)) {
             return this.audioBuffers.get(url)!;
         }
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+        const inflight = this.bufferLoads.get(url);
+        if (inflight) return inflight;
+
+        const p = (async (): Promise<AudioBuffer | null> => {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                const ctx = this.audioContext;
+                if (!ctx || ctx.state === 'closed') return null;
+                // 일부 WebKit에서 전달된 ArrayBuffer가 detach 되는 경우 방지
+                const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+                this.audioBuffers.set(url, audioBuffer);
+                return audioBuffer;
+            } catch (error) {
+                console.error(`Failed to load sound: ${url}`, error);
+                return null;
+            } finally {
+                this.bufferLoads.delete(url);
             }
-            const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-            this.audioBuffers.set(url, audioBuffer);
-            return audioBuffer;
-        } catch (error) {
-            console.error(`Failed to load sound: ${url}`, error);
-            return null;
-        }
+        })();
+        this.bufferLoads.set(url, p);
+        return p;
     }
 
     /** Web Audio가 잠긴 경우(iOS 등)에만 사용 — master·카테고리 반영된 최종 볼륨(0~1) */
@@ -182,24 +216,35 @@ class AudioService {
         await this.initialize();
         if (!this.audioContext || this.audioContext.state === 'closed') return null;
 
-        await this.resumeContextIfNeeded(this.audioContext);
-        if (this.needsResume(this.audioContext)) {
+        const ctx = this.audioContext;
+        void ctx.resume();
+        await this.resumeContextIfNeeded(ctx);
+        if (this.needsResume(ctx)) {
             await new Promise((r) => setTimeout(r, 0));
-            await this.resumeContextIfNeeded(this.audioContext);
+            void ctx.resume();
+            await this.resumeContextIfNeeded(ctx);
+        }
+        // 모바일 WebKit: resume 직후 state 갱신이 한 프레임 미뤄지는 경우
+        if (ctx.state !== 'running' && this.needsResume(ctx)) {
+            await new Promise<void>((resolve) => {
+                requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+            });
+            void ctx.resume();
+            await this.resumeContextIfNeeded(ctx);
         }
 
-        if (this.audioContext.state !== 'running') {
-            console.warn('[AudioService] context not running, skip WebAudio playback:', this.audioContext.state);
+        if (ctx.state !== 'running') {
+            console.warn('[AudioService] context not running, skip WebAudio playback:', ctx.state);
             return null;
         }
         
-        const source = this.audioContext.createBufferSource();
+        const source = ctx.createBufferSource();
         source.buffer = buffer;
         source.loop = loop;
-        const gainNode = this.audioContext.createGain();
-        gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(volume, ctx.currentTime);
         source.connect(gainNode);
-        gainNode.connect(this.audioContext.destination);
+        gainNode.connect(ctx.destination);
         source.start(0);
         return source;
     }
@@ -208,17 +253,17 @@ class AudioService {
         if (this.settings.masterMuted || this.settings.categoryMuted[category]) return null;
         // 일부 모바일 브라우저에서 초기 unlock이 누락돼도, 실제 재생 시도 순간에 다시 열어준다.
         this.unlockFromUserGesture();
+        const effectiveVolume = volume * this.settings.masterVolume;
         try {
             const buffer = await this.loadSound(`${this.soundsPath}${soundName}.mp3`);
             if (buffer) {
-                const effectiveVolume = volume * this.settings.masterVolume;
                 const node = await this.playSound(buffer, effectiveVolume, loop);
                 if (node) return node;
-                this.playHtml5Fallback(soundName, category, effectiveVolume, loop);
-                return null;
             }
+            this.playHtml5Fallback(soundName, category, effectiveVolume, loop);
         } catch (e) {
             console.error(`Could not play sound ${soundName}`, e);
+            this.playHtml5Fallback(soundName, category, effectiveVolume, loop);
         }
         return null;
     }
