@@ -7,13 +7,19 @@ interface InfoModalProps {
     isTopmost?: boolean;
 }
 
-type InfoTab = 'game' | 'level' | 'ranking' | 'equipment' | 'manner';
+type InfoTab = 'game' | 'home' | 'waiting' | 'tower' | 'championship' | 'blacksmith' | 'guild' | 'level' | 'ranking' | 'equipment' | 'manner';
 
 const InfoModal: React.FC<InfoModalProps> = ({ onClose, isTopmost }) => {
     const [activeTab, setActiveTab] = useState<InfoTab>('game');
 
     const tabs: { id: InfoTab; label: string }[] = [
         { id: 'game', label: '게임방법' },
+        { id: 'home', label: '홈화면' },
+        { id: 'waiting', label: '대기실' },
+        { id: 'tower', label: '도전의탑' },
+        { id: 'championship', label: '챔피언십' },
+        { id: 'blacksmith', label: '대장간' },
+        { id: 'guild', label: '길드' },
         { id: 'level', label: '레벨' },
         { id: 'ranking', label: '랭킹시스템' },
         { id: 'equipment', label: '장비' },
@@ -50,6 +56,56 @@ const InfoModal: React.FC<InfoModalProps> = ({ onClose, isTopmost }) => {
                             <h3 className="font-bold text-lg text-green-300">스탯 포인트</h3>
                             <p className="text-sm">전략 레벨과 놀이 레벨이 오를 때마다 각각 2포인트씩 보너스 스탯 포인트를 획득합니다. 프로필 화면의 '포인트 분배' 버튼을 눌러 6가지 핵심 능력치에 투자하고, 챔피언십에서 더 좋은 성적을 거두세요.</p>
                         </div>
+                    </div>
+                );
+            case 'home':
+                return (
+                    <div className="space-y-3 text-sm">
+                        <h3 className="font-bold text-lg text-amber-200">홈 화면 안내</h3>
+                        <p>프로필, 바둑능력, 대국실 입장카드, 우측 퀵메뉴로 구성됩니다.</p>
+                        <p>입장카드는 이미지+정보 패널 결합형으로 경기장 핵심 정보가 함께 표시됩니다.</p>
+                        <p>퀵메뉴의 도움말 버튼에서 전체 화면 도움말 탭을 바로 확인할 수 있습니다.</p>
+                    </div>
+                );
+            case 'waiting':
+                return (
+                    <div className="space-y-3 text-sm">
+                        <h3 className="font-bold text-lg text-cyan-200">대기실 안내</h3>
+                        <p>플레이어 목록, 진행중 대국, 채팅, 랭킹 및 매칭 패널을 확인할 수 있습니다.</p>
+                        <p>대기실에서도 우측 퀵메뉴를 통해 퀘스트/가방/상점/도움말 등을 빠르게 이용합니다.</p>
+                        <p>도움말은 이 창에서 탭으로 통합 제공됩니다.</p>
+                    </div>
+                );
+            case 'tower':
+                return (
+                    <div className="space-y-3 text-sm">
+                        <h3 className="font-bold text-lg text-violet-200">도전의 탑</h3>
+                        <p>현재 층, 남은 시간, 순위를 기준으로 월간 진행 상태를 관리합니다.</p>
+                        <p>층이 올라갈수록 난이도와 보상이 함께 상승합니다.</p>
+                    </div>
+                );
+            case 'championship':
+                return (
+                    <div className="space-y-3 text-sm">
+                        <h3 className="font-bold text-lg text-fuchsia-200">챔피언십</h3>
+                        <p>시즌 점수와 현재 순위가 핵심 지표입니다.</p>
+                        <p>동네/전국/월드 경기장별 최종 단계 진행도를 통해 장기 성장 상태를 확인합니다.</p>
+                    </div>
+                );
+            case 'blacksmith':
+                return (
+                    <div className="space-y-3 text-sm">
+                        <h3 className="font-bold text-lg text-orange-200">대장간</h3>
+                        <p>강화, 조합, 분해, 전환, 정련 탭으로 장비를 성장시킵니다.</p>
+                        <p>강화 실패/성공 결과는 즉시 반영되며 상세 옵션 변화도 확인할 수 있습니다.</p>
+                    </div>
+                );
+            case 'guild':
+                return (
+                    <div className="space-y-3 text-sm">
+                        <h3 className="font-bold text-lg text-emerald-200">길드</h3>
+                        <p>길드 기부, 연구, 보스전, 전쟁 콘텐츠를 통해 협동 성장합니다.</p>
+                        <p>길드 보스전은 주간 콘텐츠이며 참여/기여도에 따라 보상이 달라집니다.</p>
                     </div>
                 );
             case 'ranking':

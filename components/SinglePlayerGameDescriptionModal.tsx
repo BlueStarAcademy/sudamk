@@ -47,7 +47,10 @@ const getGameModeName = (mode: GameMode): string => {
     return mode;
 };
 
-const DRAG_FRAME_CHROME_PX = 96;
+/** DraggableWindow 헤더 + 본문 p-5 등(과소 추정 시 하단 버튼이 잘림) */
+const DRAG_WINDOW_CHROME_PX = 140;
+/** 모달 내부 하단 시작/취소 바 */
+const IN_MODAL_FOOTER_RESERVE_PX = 104;
 const DRAG_FRAME_H_MIN = 560;
 const DRAG_FRAME_H_MAX = 1200;
 
@@ -73,7 +76,10 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         const update = () => {
             const raw = Math.max(el.offsetHeight, el.scrollHeight);
             if (raw < 8) return;
-            const next = Math.min(DRAG_FRAME_H_MAX, Math.max(DRAG_FRAME_H_MIN, Math.ceil(raw + DRAG_FRAME_CHROME_PX)));
+            const next = Math.min(
+                DRAG_FRAME_H_MAX,
+                Math.max(DRAG_FRAME_H_MIN, Math.ceil(raw + DRAG_WINDOW_CHROME_PX + IN_MODAL_FOOTER_RESERVE_PX)),
+            );
             setFrameHeight((prev) => (prev === next ? prev : next));
         };
         update();
@@ -192,31 +198,37 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             initialHeight={isCompactUi ? 2400 : frameHeight}
             modal={true}
             closeOnOutsideClick={!!onClose}
+            headerShowTitle={!isCompactUi}
             uniformPcScale={!isCompactUi}
             mobileViewportFit={isCompactUi}
             bodyNoScroll={isCompactUi}
             bodyPaddingClassName={
                 isCompactUi
                     ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3 sm:p-4'
-                    : undefined
+                    : 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-5'
             }
             hideFooter
             skipSavedPosition={isCompactUi}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
         >
-            <div
-                className={`flex min-h-0 flex-col text-white ${isCompactUi ? 'h-full min-h-0' : ''}`}
-            >
+            <div className={`flex min-h-0 flex-col text-white ${isCompactUi ? 'h-full min-h-0' : 'min-h-0 flex-1'}`}>
                 {isCompactUi ? (
                     <div
-                        className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 ${PRE_GAME_MODAL_LAYER_CLASS}`}
+                        className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [zoom:0.5] ${PRE_GAME_MODAL_LAYER_CLASS}`}
                     >
                         {mainBlocks}
                     </div>
                 ) : (
-                    <div ref={contentMeasureRef} className={`flex min-h-0 flex-col ${PRE_GAME_MODAL_LAYER_CLASS}`}>
-                        {mainBlocks}
-                        <div className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap -mx-5 -mb-5 mt-6 shrink-0 rounded-b-2xl`}>
+                    <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${PRE_GAME_MODAL_LAYER_CLASS}`}>
+                        <div
+                            ref={contentMeasureRef}
+                            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5"
+                        >
+                            {mainBlocks}
+                        </div>
+                        <div
+                            className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap mt-4 shrink-0 rounded-b-xl`}
+                        >
                             {footerButtons(false)}
                         </div>
                     </div>

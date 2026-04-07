@@ -1,11 +1,11 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat, ItemGrade } from '../types.js';
 import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LEVEL_REQUIREMENTS, emptySlotImages } from '../constants';
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import LeagueTierInfoModal from './LeagueTierInfoModal.js';
-import QuickAccessSidebar from './QuickAccessSidebar.js';
+import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import ChatWindow from './waiting-room/ChatWindow.js';
 import PointsInfoPanel from './PointsInfoPanel.js';
 import Button from './Button.js';
@@ -698,30 +698,6 @@ const TournamentLobby: React.FC = () => {
     const venueHeaderChrome =
         'rounded-b-2xl border-b border-color/60 bg-secondary/92 shadow-[0_10px_36px_rgba(0,0,0,0.42)] backdrop-blur-[4px] pb-2';
 
-    /** 네이티브 상단 행(입장카드·장비·퀵메뉴) 높이: 퀵메뉴 고유 높이에 맞춤 — 퀵메뉴 버튼이 세로로 늘어나지 않도록 */
-    const nativeQuickMenuMeasureRef = useRef<HTMLDivElement>(null);
-    const [nativeTopRowHeightPx, setNativeTopRowHeightPx] = useState<number | null>(null);
-
-    useLayoutEffect(() => {
-        if (!isNativeMobile || !currentUserWithStatus) return;
-        const outer = nativeQuickMenuMeasureRef.current;
-        if (!outer) return;
-        const update = () => {
-            const inner = outer.querySelector<HTMLElement>('[data-quick-access-sidebar-root]');
-            if (!inner) return;
-            const boxH = Math.ceil(
-                Math.max(outer.getBoundingClientRect().height, outer.scrollHeight, outer.offsetHeight)
-            );
-            if (boxH > 0) setNativeTopRowHeightPx(boxH);
-        };
-        update();
-        const ro = new ResizeObserver(update);
-        ro.observe(outer);
-        const innerRoot = outer.querySelector('[data-quick-access-sidebar-root]');
-        if (innerRoot) ro.observe(innerRoot);
-        return () => ro.disconnect();
-    }, [isNativeMobile, currentUserWithStatus]);
-    
     const [viewingTournament, setViewingTournament] = useState<TournamentState | null>(null);
     const [hasRankChanged, setHasRankChanged] = useState(false);
     const [enrollingIn, setEnrollingIn] = useState<TournamentType | null>(null);
@@ -851,14 +827,7 @@ const TournamentLobby: React.FC = () => {
             {isNativeMobile ? (
                 <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
                     {/* 상단: 일일 획득 점수 · 장착 장비 · 퀵메뉴 */}
-                    <div
-                        className="grid min-h-0 shrink-0 grid-cols-[minmax(0,0.96fr)_minmax(0,1.04fr)_5.5rem] items-stretch gap-0.5 overflow-hidden"
-                        style={
-                            nativeTopRowHeightPx != null
-                                ? { height: `${nativeTopRowHeightPx}px`, minHeight: 0 }
-                                : { minHeight: 0, maxHeight: 'min(44dvh, 90vh)' }
-                        }
-                    >
+                    <div className="grid min-h-0 shrink-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-0.5 overflow-hidden min-h-0 max-h-[min(44dvh,90vh)]">
                         <div
                             className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color/40 p-0.5 ${CHAMPIONSHIP_PANEL_GLASS} bg-gray-900/35`}
                         >
@@ -906,12 +875,6 @@ const TournamentLobby: React.FC = () => {
                                     <StatsDisplayPanel currentUser={currentUserWithStatus} isMobile tight />
                                 </div>
                             </div>
-                        </div>
-                        <div
-                            ref={nativeQuickMenuMeasureRef}
-                            className="box-border flex h-fit min-h-0 min-w-0 flex-col self-start overflow-hidden rounded-md border border-color/50 p-0.5"
-                        >
-                            <QuickAccessSidebar nativeHomeColumn className={CHAMPIONSHIP_PANEL_GLASS} />
                         </div>
                     </div>
 
@@ -1035,8 +998,8 @@ const TournamentLobby: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="w-24 min-w-[96px] flex-shrink-0 ml-auto overflow-hidden">
-                            <QuickAccessSidebar fillHeight={true} compact={true} className={CHAMPIONSHIP_PANEL_GLASS} />
+                        <div className={`${PC_QUICK_RAIL_COLUMN_CLASS} ml-auto overflow-hidden`}>
+                            <QuickAccessSidebar fillHeight={true} compact={false} className={CHAMPIONSHIP_PANEL_GLASS} />
                         </div>
                     </div>
                     

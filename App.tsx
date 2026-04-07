@@ -13,6 +13,7 @@ import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
 import NativeMobileDock from './components/mobile/NativeMobileDock.js';
 import NativeMobileScaledContent from './components/mobile/NativeMobileScaledContent.js';
+import QuickAccessSidebar from './components/QuickAccessSidebar.js';
 import MainBackgroundLayer from './components/MainBackgroundLayer.js';
 import {
     NATIVE_MOBILE_SHELL_MAX_WIDTH,
@@ -326,9 +327,16 @@ const AppContent: React.FC = () => {
                     {currentUser ? (
                         <>
                             {!isGameView && !hideAppHeader && (
-                                <div className="w-full min-w-0 shrink-0">
-                                    <Header />
-                                </div>
+                                <>
+                                    <div className="w-full min-w-0 shrink-0">
+                                        <Header />
+                                    </div>
+                                    {isNativeMobile && (
+                                        <div className="relative z-[45] w-full min-w-0 shrink-0">
+                                            <QuickAccessSidebar mobileHeaderStrip />
+                                        </div>
+                                    )}
+                                </>
                             )}
                             <div
                                 className="mx-auto flex h-full min-h-0 w-full max-h-full min-w-0 flex-1 flex-col overflow-hidden"

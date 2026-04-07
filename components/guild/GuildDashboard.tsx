@@ -15,7 +15,7 @@ import NineSlicePanel from '../ui/NineSlicePanel.js';
 import GuildShopModal from './GuildShopModal.js';
 import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
 import HelpModal from '../HelpModal.js';
-import QuickAccessSidebar, { NATIVE_QUICK_RAIL_WIDTH_CLASS } from '../QuickAccessSidebar.js';
+import QuickAccessSidebar, { NATIVE_QUICK_RAIL_WIDTH_CLASS, PC_QUICK_RAIL_COLUMN_CLASS } from '../QuickAccessSidebar.js';
 import GuildWarRewardModal from './GuildWarRewardModal.js';
 import GuildWarMatchingModal from './GuildWarMatchingModal.js';
 import GuildWarCancelConfirmModal from './GuildWarCancelConfirmModal.js';
@@ -2464,9 +2464,6 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
      *  nativeHomeColumn 버튼 5개는 열 너비(5.5rem)만큼 정사각이라 세로로 ~27rem — 고정 max-height+overflow-hidden이면 하단이 잘림. Profile 홈과 같이 h-fit 후 레일 전체에서 스크롤. */
     const guildHomeQuickRail = (
         <div className={`flex h-full min-h-0 shrink-0 flex-col gap-1 self-stretch overflow-y-auto overflow-x-hidden overscroll-y-contain ${NATIVE_QUICK_RAIL_WIDTH_CLASS}`}>
-            <div className="box-border flex w-full shrink-0 flex-col rounded-lg border border-color bg-panel p-0.5">
-                <QuickAccessSidebar nativeHomeColumn />
-            </div>
             <button
                 type="button"
                 onClick={() => setIsGuildContentDrawerOpen(true)}
@@ -2618,7 +2615,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                                         onOpenBossGuide={() => setIsBossGuideOpen(true)} 
                                     />
                                 </div>
-                                <div className="w-24 min-w-[96px] flex-shrink-0 flex flex-col">
+                                <div className={`${PC_QUICK_RAIL_COLUMN_CLASS} flex flex-col`}>
                                     <QuickAccessSidebar compact={true} fillHeight={true} />
                                 </div>
                             </div>

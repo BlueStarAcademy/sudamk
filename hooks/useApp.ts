@@ -31,6 +31,7 @@ import { aiUserId } from '../constants/auth.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { getWasmGnuGoMove, isAvailable as isWasmGnuGoAvailable } from '../services/wasmGnuGo.js';
 import { processMoveClient } from '../client/goLogicClient.js';
+import { isDiceGoLibertyPlacement } from '../client/logic/goLogic.js';
 import { mapNormalizeInventoryList } from '../shared/utils/inventoryLegacyNormalize.js';
 
 /** 도전의 탑 PVE: 일반 수는 클라이언트만 반영되어 서버 game의 판·수순이 뒤처질 수 있음. 히든/스캔/미사일 선택 진입 시 응답으로 덮어쓰면 판이 초기화되는 버그 방지. */
@@ -462,6 +463,9 @@ export const useApp = () => {
     const [claimAllSummary, setClaimAllSummary] = useState<{ gold: number; diamonds: number; actionPoints: number } | null>(null);
     const [viewingUser, setViewingUser] = useState<UserWithStatus | null>(null);
     const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+    const [isAnnouncementsModalOpen, setIsAnnouncementsModalOpen] = useState(false);
+    const [isRankingQuickModalOpen, setIsRankingQuickModalOpen] = useState(false);
+    const [isChatQuickModalOpen, setIsChatQuickModalOpen] = useState(false);
     const [isEncyclopediaOpen, setIsEncyclopediaOpen] = useState(false);
     const [isStatAllocationModalOpen, setIsStatAllocationModalOpen] = useState(false);
     const [enhancementResult, setEnhancementResult] = useState<{ message: string; success: boolean } | null>(null);
@@ -2052,6 +2056,7 @@ export const useApp = () => {
                         }
                         if ((g.stonesToPlace ?? 0) <= 0) return currentGames;
                         const { x, y } = action.payload as { x: number; y: number };
+                        if (!isDiceGoLibertyPlacement(g, x, y)) return currentGames;
                         const snap = JSON.parse(JSON.stringify(g)) as LiveGameSession;
                         // 주사위 턴 내 착수는 서버 moveHistory에 수마다 push되지만, 클라 낙관은 moveHistory를 늘리지 않아
                         // ko 판정용 길이는 moveHistory + 이번 턴에 이미 둔 수(stonesPlacedThisTurn)와 맞춰야 한다.
@@ -6086,7 +6091,7 @@ export const useApp = () => {
         aggregatedMythicStats,
         modals: {
             isSettingsModalOpen, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, shopInitialTab, lastUsedItemResult,
-            disassemblyResult, craftResult, rewardSummary, viewingUser, isInfoModalOpen, isEncyclopediaOpen, isStatAllocationModalOpen, enhancementAnimationTarget,
+            disassemblyResult, craftResult, rewardSummary, viewingUser, isInfoModalOpen, isAnnouncementsModalOpen, isRankingQuickModalOpen, isChatQuickModalOpen, isEncyclopediaOpen, isStatAllocationModalOpen, enhancementAnimationTarget,
             isGameRecordListOpen, viewingGameRecord,
             pastRankingsInfo, viewingItem, isProfileEditModalOpen, moderatingUser,
             isClaimAllSummaryOpen,
@@ -6148,6 +6153,12 @@ export const useApp = () => {
             closeViewingUser: () => setViewingUser(null),
             openInfoModal: () => setIsInfoModalOpen(true),
             closeInfoModal: () => setIsInfoModalOpen(false),
+            openAnnouncementsModal: () => setIsAnnouncementsModalOpen(true),
+            closeAnnouncementsModal: () => setIsAnnouncementsModalOpen(false),
+            openRankingQuickModal: () => setIsRankingQuickModalOpen(true),
+            closeRankingQuickModal: () => setIsRankingQuickModalOpen(false),
+            openChatQuickModal: () => setIsChatQuickModalOpen(true),
+            closeChatQuickModal: () => setIsChatQuickModalOpen(false),
             openEncyclopedia: () => setIsEncyclopediaOpen(true),
             closeEncyclopedia: () => setIsEncyclopediaOpen(false),
             openStatAllocationModal: () => setIsStatAllocationModalOpen(true),

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, ServerAction, LeagueTier, CoreStat, SpecialStat, MythicStat, ItemOptionType, TournamentState, User } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, GRADE_LEVEL_REQUIREMENTS, RANKING_TIERS, SINGLE_PLAYER_STAGES, SINGLE_PLAYER_MISSIONS } from '../constants';
 import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
@@ -10,28 +10,18 @@ import ProfileEditModal from './ProfileEditModal.js';
 import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manner.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-import QuickAccessSidebar, { NATIVE_QUICK_RAIL_WIDTH_CLASS } from './QuickAccessSidebar.js';
-import ChatWindow from './waiting-room/ChatWindow.js';
+import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
+import CoreStatsHexagonChart from './CoreStatsHexagonChart.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
-import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
 import { useRanking } from '../hooks/useRanking.js';
 import MannerRankModal from './MannerRankModal.js';
-import HomeBoardPanel from './HomeBoardPanel.js';
 import GuildCreateModal from './guild/GuildCreateModal.js';
 import GuildJoinModal from './guild/GuildJoinModal.js';
 import type { Guild } from '../types/entities.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface ProfileProps {
-}
-
-function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T | undefined>(undefined);
-  useEffect(() => {
-    ref.current = value;
-  }, [value]);
-  return ref.current;
 }
 
 const getXpRequirementForLevel = (level: number): number => {
@@ -191,7 +181,9 @@ const LobbyCard: React.FC<{
     arenaMobile?: boolean;
     /** 경기장 탭: 해당 경기장 통합 랭킹 점수(모드 평균) */
     integratedRankingScore?: number;
-}> = ({ type, stats, onEnter, onViewStats, level, title, imageUrl, tier, compact, arenaMobile, integratedRankingScore }) => {
+    hideOverlayText?: boolean;
+    hideOverlayFooter?: boolean;
+}> = ({ type, stats, onEnter, onViewStats, level, title, imageUrl, tier, compact, arenaMobile, integratedRankingScore, hideOverlayText = false, hideOverlayFooter = false }) => {
     const isStrategic = type === 'strategic';
     const shadowColor = isStrategic ? "hover:shadow-blue-500/30" : "hover:shadow-yellow-500/30";
 
@@ -246,31 +238,32 @@ const LobbyCard: React.FC<{
     return (
         <div
             onClick={onEnter}
-            className={`bg-panel border border-color rounded-lg flex flex-col text-center transition-all transform shadow-lg ${shadowColor} cursor-pointer text-on-panel ${compactMode ? 'min-h-0 p-0.5' : 'h-full p-1.5 hover:-translate-y-1 lg:p-2.5'}`}
+            className={`group relative overflow-hidden rounded-xl border border-amber-400/40 text-center transition-all transform shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 ${shadowColor} cursor-pointer text-on-panel ${compactMode ? 'h-full min-h-0 p-0.5' : 'h-full p-1.5 hover:-translate-y-1 lg:p-2.5'}`}
         >
-             <h2 className={`font-bold flex items-center justify-center gap-0.5 ${compactMode ? 'mb-0 text-[8px] leading-tight' : 'mb-0.5 h-4 text-xs lg:mb-1 lg:h-6 lg:gap-1 lg:text-base'}`}>
-                {title}
-                {tier && <img src={tier.icon} alt={tier.name} className={compactMode ? 'h-2.5 w-2.5' : 'h-3 w-3 lg:h-5 lg:w-5'} title={tier.name} />}
-                <span className={`text-highlight font-normal ${compactMode ? 'text-[8px]' : 'text-[10px] lg:text-sm'}`}>Lv.{level}</span>
-            </h2>
-            <div
-                className={`w-full overflow-hidden rounded-md bg-tertiary ${compactMode ? 'h-[3.5rem] flex-none' : 'min-h-0 flex-1'}`}
-            >
-                <img src={imageUrl} alt={title} className="h-full w-full object-cover object-center" />
-            </div>
-            <div
-                onClick={(e) => { e.stopPropagation(); onViewStats(); }}
-                className={`mt-0.5 flex w-full cursor-pointer items-center justify-between rounded-md bg-tertiary/50 hover:bg-tertiary ${compactMode ? 'px-0.5 py-px text-[7px]' : 'mt-1 p-0.5 text-[10px] transition-colors lg:mt-2 lg:p-1 lg:text-xs'}`}
-                title="상세 전적 보기"
-            >
-                <span className="min-w-0 truncate">{compactMode ? `${stats.wins}승${stats.losses}패 ${winRate}%` : `총 전적: ${stats.wins}승 ${stats.losses}패 (${winRate}%)`}</span>
-                <span className="flex-shrink-0 text-accent font-semibold">&rarr;</span>
-            </div>
+            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-amber-200/25" aria-hidden />
+            <img src={imageUrl} alt={title} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+            <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+            <h2 className={`relative z-[1] font-bold flex items-center justify-center gap-0.5 text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.85)] ${hideOverlayText ? 'hidden' : ''} ${compactMode ? 'mb-0 text-[8px] leading-tight' : 'mb-0.5 h-4 text-xs lg:mb-1 lg:h-6 lg:gap-1 lg:text-base'}`}>
+               {title}
+               {tier && <img src={tier.icon} alt={tier.name} className={compactMode ? 'h-2.5 w-2.5' : 'h-3 w-3 lg:h-5 lg:w-5'} title={tier.name} />}
+               <span className={`text-amber-200 font-semibold ${compactMode ? 'text-[8px]' : 'text-[10px] lg:text-sm'}`}>Lv.{level}</span>
+           </h2>
+            <div className="min-h-0 w-full flex-1 overflow-hidden rounded-md" />
+            {!hideOverlayFooter && (
+                <div
+                    onClick={(e) => { e.stopPropagation(); onViewStats(); }}
+                    className={`relative z-[1] mt-0.5 flex w-full cursor-pointer items-center justify-between rounded-md bg-black/50 text-white backdrop-blur-[1px] hover:bg-black/65 ${compactMode ? 'px-0.5 py-px text-[7px]' : 'mt-1 p-0.5 text-[10px] transition-colors lg:mt-2 lg:p-1 lg:text-xs'}`}
+                    title="상세 전적 보기"
+                >
+                    <span className="min-w-0 truncate">{compactMode ? `${stats.wins}승${stats.losses}패 ${winRate}%` : `총 전적: ${stats.wins}승 ${stats.losses}패 (${winRate}%)`}</span>
+                    <span className="flex-shrink-0 text-accent font-semibold">&rarr;</span>
+                </div>
+            )}
         </div>
     );
 };
 
-const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile }) => {
+const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false }) => {
     const shadowColor = "hover:shadow-purple-500/30";
     const compactMode = Boolean(compact && !arenaMobile);
 
@@ -328,21 +321,20 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
     return (
         <div
             onClick={onClick}
-            className={`${isComingSoon ? 'bg-panel border border-color opacity-60 grayscale' : 'bg-panel border border-color'} relative flex flex-col overflow-hidden rounded-lg text-center shadow-lg text-on-panel ${compactMode ? 'min-h-0 p-0.5' : 'h-full p-1.5 transform transition-all lg:p-2.5'} ${isComingSoon ? 'cursor-not-allowed' : onClick ? `cursor-pointer ${compactMode ? '' : `hover:-translate-y-1 ${shadowColor}`}` : 'cursor-not-allowed'} group`}
+            className={`${isComingSoon ? 'border border-amber-500/35 opacity-60 grayscale' : 'border border-amber-400/45'} relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 text-on-panel ${compactMode ? 'p-0.5' : 'h-full p-1.5 transform transition-all lg:p-2.5'} ${isComingSoon ? 'cursor-not-allowed' : onClick ? `cursor-pointer ${compactMode ? '' : `hover:-translate-y-1 ${shadowColor}`}` : 'cursor-not-allowed'} group`}
         >
+            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-amber-200/25" aria-hidden />
             {isComingSoon && (
                 <div className={`absolute z-10 -right-6 rotate-45 bg-purple-600 font-bold text-white ${compactMode ? 'top-0 px-6 py-px text-[6px]' : 'top-1 px-8 py-0.5 text-[8px] lg:top-2 lg:-right-10 lg:px-10 lg:text-[10px]'}`}>
                     Coming Soon
                 </div>
             )}
-            <h2 className={`font-bold ${compactMode ? 'mb-0 mt-0 text-[8px]' : 'mb-0.5 mt-0.5 h-4 text-xs lg:mb-1 lg:mt-1 lg:h-6 lg:text-base'} ${isComingSoon ? 'text-gray-400' : ''}`}>{title}</h2>
-            <div
-                className={`w-full overflow-hidden rounded-md bg-tertiary ${compactMode ? 'h-[3.35rem] flex-none' : 'min-h-0 flex-1'} flex items-center justify-center text-tertiary transition-transform duration-300 ${!isComingSoon && !compactMode && 'group-hover:scale-105'}`}
-            >
-                <img src={imageUrl} alt={title} className="h-full w-full object-cover object-center" />
-            </div>
-            {footerContent && (
-                <div className={`mt-0.5 w-full rounded-md bg-tertiary/50 ${compactMode ? 'p-px text-[7px]' : 'mt-1 p-0.5 text-[10px] lg:mt-2 lg:p-1 lg:text-xs'}`}>
+            <img src={imageUrl} alt={title} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+            <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-violet-950/20 to-black/75" />
+            <h2 className={`relative z-[1] font-bold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.85)] ${hideOverlayText ? 'hidden' : ''} ${compactMode ? 'mb-0 mt-0 text-[8px]' : 'mb-0.5 mt-0.5 h-4 text-xs lg:mb-1 lg:mt-1 lg:h-6 lg:text-base'} ${isComingSoon ? 'text-gray-300' : ''}`}>{title}</h2>
+            <div className="flex w-full min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md" />
+            {footerContent && !hideOverlayText && (
+                <div className={`relative z-[1] mt-0.5 w-full rounded-md bg-black/50 text-white backdrop-blur-[1px] ${compactMode ? 'p-px text-[7px]' : 'mt-1 p-0.5 text-[10px] lg:mt-2 lg:p-1 lg:text-xs'}`}>
                     {footerContent}
                 </div>
             )}
@@ -503,7 +495,7 @@ const ArenaMobilePvpStatStrip: React.FC = () => (
 
 
 const Profile: React.FC<ProfileProps> = () => {
-    const { currentUserWithStatus, allUsers, handlers, waitingRoomChats, hasClaimableQuest, presets, homeBoardPosts, guilds, currentRoute } = useAppContext();
+    const { currentUserWithStatus, allUsers, handlers, hasClaimableQuest, presets, guilds, currentRoute } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
     const { rankings: championshipRankings } = useRanking('championship', 100, 0);
@@ -514,41 +506,11 @@ const Profile: React.FC<ProfileProps> = () => {
     const championshipScore = championshipMyEntry?.score ?? currentUserWithStatus?.cumulativeTournamentScore ?? 0;
     const championshipRank = championshipMyEntry?.rank ?? null;
     const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | null>(null);
-    const [hasNewMessage, setHasNewMessage] = useState(false);
     const [towerTimeLeft, setTowerTimeLeft] = useState('');
     const [selectedPreset, setSelectedPreset] = useState(0);
     const [showMannerRankModal, setShowMannerRankModal] = useState(false);
     const [isGuildCreateModalOpen, setIsGuildCreateModalOpen] = useState(false);
     const [isGuildJoinModalOpen, setIsGuildJoinModalOpen] = useState(false);
-
-    /** 홈 상단 행 높이 = 퀵메뉴(정사각 버튼 누적) 고유 높이 — 프로필·장비 패널과 하단 정렬 */
-    const nativeHomeQuickMeasureRef = useRef<HTMLDivElement>(null);
-    const [nativeHomeTopRowHeightPx, setNativeHomeTopRowHeightPx] = useState<number | null>(null);
-
-    useLayoutEffect(() => {
-        if (!isNativeMobile || profileTab !== 'home' || !currentUserWithStatus) {
-            setNativeHomeTopRowHeightPx(null);
-            return;
-        }
-        const outer = nativeHomeQuickMeasureRef.current;
-        if (!outer) return;
-        const update = () => {
-            const inner = outer.querySelector<HTMLElement>('[data-quick-access-sidebar-root]');
-            if (!inner) return;
-            // 전체 래퍼(테두리·패딩·퀵 루트) 기준 — inner만 더하면 누락/반올림으로 하단이 잘릴 수 있음
-            const boxH = Math.ceil(
-                Math.max(outer.getBoundingClientRect().height, outer.scrollHeight, outer.offsetHeight)
-            );
-            const h = boxH > 0 ? boxH : 0;
-            if (h > 0) setNativeHomeTopRowHeightPx(h);
-        };
-        update();
-        const ro = new ResizeObserver(update);
-        ro.observe(outer);
-        const innerRoot = outer.querySelector('[data-quick-access-sidebar-root]');
-        if (innerRoot) ro.observe(innerRoot);
-        return () => ro.disconnect();
-    }, [isNativeMobile, profileTab, currentUserWithStatus]);
 
     useEffect(() => {
         const calculateTime = () => {
@@ -560,7 +522,7 @@ const Profile: React.FC<ProfileProps> = () => {
 
             const days = Math.floor(diff / (1000 * 60 * 60 * 24));
             const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            setTowerTimeLeft(`${days}일 ${hours}시간 남음`);
+            setTowerTimeLeft(`${days}일 ${hours}시간`);
         };
         calculateTime();
         const interval = setInterval(calculateTime, 60 * 60 * 1000); // Update every hour
@@ -696,25 +658,12 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const { inventory, stats, nickname, avatarId, borderId } = currentUserWithStatus;
     
-    const globalChat = useMemo(() => waitingRoomChats['global'] || [], [waitingRoomChats]);
-    const prevChatLength = usePrevious(globalChat.length);
-
-    useEffect(() => {
-        if (prevChatLength !== undefined && globalChat.length > prevChatLength) {
-            setHasNewMessage(true);
-        }
-    }, [globalChat.length, prevChatLength]);
-    
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
 
     const equippedItems = useMemo(() => {
         return (inventory || []).filter(item => item.isEquipped);
     }, [inventory]);
-
-    const getItemForSlot = (slot: EquipmentSlot) => {
-        return equippedItems.find(item => item.slot === slot);
-    };
 
     const aggregatedStats = useMemo(() => {
         const strategic = { wins: 0, losses: 0 };
@@ -921,17 +870,65 @@ const Profile: React.FC<ProfileProps> = () => {
         return bonuses;
     }, [equippedItems]);
     
+    /** 장착 그리드·프리셋 행 공통 너비 (약 220px × 1.25) */
+    const EQUIPMENT_BAND_MAX_CLASS = 'max-w-[275px]';
+
+    const EquipmentPanelContent = useMemo(() => {
+        const nh = isNativeMobile;
+        return (
+            <div className={`mx-auto flex w-full min-w-0 flex-col ${EQUIPMENT_BAND_MAX_CLASS}`}>
+                <div className="flex w-full shrink-0 flex-col justify-center px-0.5 py-0.5">
+                    <div className="grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-1 [&>*]:min-w-0">
+                        {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
+                            const item = equippedItems.find(it => it.slot === slot);
+                            return (
+                                <div key={slot} className="aspect-square w-full min-w-0">
+                                    <EquipmentSlotDisplay
+                                        slot={slot}
+                                        item={item}
+                                        onClick={() => item && handlers.openViewingItem(item, true)}
+                                        compact
+                                        scaleFactor={1.21}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className={`flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 ${nh ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'}`}>
+                        <select
+                            value={selectedPreset}
+                            onChange={handlePresetChange}
+                            className={`min-h-[24px] min-w-0 flex-1 rounded border border-color bg-secondary px-1 py-0.5 text-[10px] focus:border-accent focus:ring-accent ${nh ? '' : 'sm:text-xs'}`}
+                            title={presets?.[selectedPreset]?.name}
+                        >
+                            {presets && presets.map((preset, index) => (
+                                <option key={index} value={index}>{preset.name}</option>
+                            ))}
+                        </select>
+                        <Button
+                            onClick={handlers.openEquipmentEffectsModal}
+                            colorScheme="none"
+                            className="!shrink-0 !whitespace-nowrap !px-2 !py-0.5 !text-[9px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
+                        >
+                            효과
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }, [equippedItems, selectedPreset, presets, handlers, isNativeMobile, handlePresetChange]);
+
     const ProfilePanelContent = useMemo(() => {
         const nh = isNativeMobile;
         return (
         <>
-            <div className="flex min-w-0 flex-row items-center gap-1.5">
-                <div className="flex w-20 flex-shrink-0 flex-col items-center gap-0.5">
+            <div className={`flex min-w-0 flex-row items-center pl-0.5 ${nh ? 'gap-2' : 'gap-1.5 sm:gap-2'}`}>
+                <div className="flex w-[9rem] min-w-[8.25rem] max-w-[10rem] flex-shrink-0 flex-col items-center gap-0.5">
                     <div className="relative">
-                        <Avatar userId={currentUserWithStatus.id} userName={nickname} size={64} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                        <Avatar userId={currentUserWithStatus.id} userName={nickname} size={72} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                         <button 
                             onClick={handlers.openProfileEditModal}
-                            className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-secondary hover:bg-tertiary rounded-full p-1 border-2 border-primary transition-transform hover:scale-110 active:scale-95"
+                            className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-primary bg-secondary p-1 transition-transform hover:scale-110 hover:bg-tertiary active:scale-95"
                             title="프로필 수정"
                         >
                             <span className="text-sm">✏️</span>
@@ -940,52 +937,78 @@ const Profile: React.FC<ProfileProps> = () => {
                             )}
                         </button>
                     </div>
-                    <div className="flex w-full min-w-0 flex-col items-center">
-                        <div className="flex w-full min-w-0 justify-center">
-                            <h2 className="max-w-full truncate text-sm font-bold" style={{ fontSize: nh ? 'clamp(0.8125rem, 2.15vw, 0.9375rem)' : 'clamp(0.75rem, 2vw, 0.875rem)' }} title={nickname}>{nickname}</h2>
+                    <div className="mt-1 w-full min-w-0 px-0.5">
+                        <div className="w-full min-w-[6.25em] rounded-xl border border-amber-500/40 bg-gradient-to-b from-zinc-800 to-zinc-900 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_20px_rgba(0,0,0,0.5)]">
+                            <h2
+                                className="w-full min-w-0 truncate text-center text-base font-extrabold leading-snug tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] sm:text-lg"
+                                style={{ fontSize: nh ? 'clamp(0.9rem, 2.35vw, 1.05rem)' : undefined }}
+                                title={nickname}
+                            >
+                                {nickname}
+                            </h2>
+                            <div className="mt-1.5 flex justify-center">
+                                <span
+                                    className="inline-flex max-w-full items-center justify-center rounded-lg border border-indigo-400/45 bg-indigo-950 px-2 py-0.5 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:text-[11px]"
+                                    title={currentUserWithStatus.mbti ? `MBTI: ${currentUserWithStatus.mbti}` : 'MBTI: 미설정'}
+                                >
+                                    MBTI · {currentUserWithStatus.mbti ? currentUserWithStatus.mbti : '미설정'}
+                                </span>
+                            </div>
                         </div>
-                         <p className="mt-0.5 max-w-full truncate text-tertiary" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.75rem)' : 'clamp(0.625rem, 1.5vw, 0.625rem)' }} title={currentUserWithStatus.mbti ? `MBTI: ${currentUserWithStatus.mbti}` : 'MBTI: 미설정'}>
-                            MBTI: {currentUserWithStatus.mbti ? currentUserWithStatus.mbti : '미설정'}
-                        </p>
                     </div>
                 </div>
                 
-                <div className="min-w-0 flex-1 rounded-md bg-tertiary/30 p-1.5 flex flex-col gap-1">
-                    <div className="flex min-w-0 items-center gap-1.5">
+                <div className={`min-w-0 flex-1 rounded-lg border border-zinc-600/90 bg-gradient-to-br from-zinc-800 to-zinc-950 p-1.5 pl-2 flex flex-col gap-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${nh ? '' : 'sm:p-1 sm:gap-0.5'}`}>
+                    <div className="flex min-w-0 items-center gap-2">
                         <CombinedLevelBadge level={combinedLevel} compact={nh} />
                         <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
                             <XpBar bumpText={nh} level={currentUserWithStatus.strategyLevel} currentXp={currentUserWithStatus.strategyXp} label="전략" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
                             <XpBar bumpText={nh} level={currentUserWithStatus.playfulLevel} currentXp={currentUserWithStatus.playfulXp} label="놀이" colorClass="bg-gradient-to-r from-yellow-500 to-orange-400" />
                         </div>
                     </div>
-                    <button
-                        onClick={() => setShowMannerRankModal(true)}
-                        className="w-full min-w-0 text-left hover:bg-tertiary/50 rounded-md p-1 transition-all"
-                        title="매너 등급 정보 보기"
-                    >
-                        <div className="mb-0.5 flex min-w-0 items-baseline justify-between gap-1 text-xs">
-                            <span className="min-w-0 shrink-0 font-semibold" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>매너 등급</span>
-                            <span className={`min-w-0 truncate text-right text-xs font-semibold ${mannerRank.color} cursor-pointer transition-all`} style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={`${totalMannerScore}점 (${mannerRank.rank})`}>
-                                {totalMannerScore}점 ({mannerRank.rank})
-                            </span>
-                        </div>
-                        <div className="w-full bg-tertiary/50 rounded-full h-2 border border-color">
-                            <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }}></div>
-                        </div>
-                    </button>
                 </div>
             </div>        
 
-            <div className="flex-grow flex flex-col min-h-0 border-t border-color mt-1 pt-1">
-                <div className="bg-tertiary/30 p-1.5 rounded-md mb-1 min-h-[52px]">
+            {/* 매너 등급은 레벨/XP와 별개의 섹션으로 분리 */}
+            <div className={`mt-1 w-full min-w-0 overflow-hidden rounded-lg border border-amber-500/35 bg-gradient-to-b from-zinc-800/90 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_30px_-18px_rgba(0,0,0,0.65)] ${nh ? '' : 'sm:p-2.5'}`}>
+                <div className="mb-1 flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-1">
+                    <span
+                        className="shrink-0 font-bold text-amber-100/95"
+                        style={{ fontSize: nh ? 'clamp(0.8125rem, 1.85vw, 0.9375rem)' : 'clamp(0.8125rem, 1.6vw, 0.9375rem)' }}
+                    >
+                        매너 등급
+                    </span>
+                    <span
+                        className={`min-w-0 shrink truncate font-bold tabular-nums ${mannerRank.color}`}
+                        style={{ fontSize: nh ? 'clamp(0.8125rem, 1.85vw, 0.9375rem)' : 'clamp(0.8125rem, 1.6vw, 0.9375rem)' }}
+                        title={`${totalMannerScore}점 (${mannerRank.rank})`}
+                    >
+                        {totalMannerScore}점 ({mannerRank.rank})
+                    </span>
+                    <Button
+                        type="button"
+                        onClick={() => setShowMannerRankModal(true)}
+                        colorScheme="none"
+                        className="!ml-auto !shrink-0 !whitespace-nowrap rounded-lg border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 px-2 py-0.5 !text-[10px] !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white sm:!px-2.5 sm:!py-1 sm:!text-[11px]"
+                        title="매너 등급 정보"
+                    >
+                        등급 정보
+                    </Button>
+                </div>
+                <div className="h-2 w-full rounded-full border border-color bg-tertiary/50">
+                    <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }} />
+                </div>
+            </div>
+
+            <div className={`flex flex-col border-t border-zinc-700/80 ${nh ? 'mt-1 pt-1' : 'mt-0.5 pt-0.5'}`}>
+                <div className="overflow-hidden rounded-lg border border-zinc-600/80 bg-gradient-to-b from-zinc-800 to-zinc-900 shadow-inner">
+                    <div className={`min-h-[52px] ${nh ? 'p-1.5' : 'p-1 sm:p-1.5'}`}>
                     {!guildCheckDone ? (
-                        // 길드 확인이 끝나기 전에는 항상 빈칸 (버튼 절대 노출 안 함)
                         <div className="w-full p-2 min-h-[40px]" aria-hidden="true" />
                     ) : guildInfo ? (
-                        // 길드가 있으면 길드 바로가기 버튼
                             <button
                                 onClick={() => window.location.hash = '#/guild'}
-                                className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-tertiary/50 transition-all cursor-pointer border border-color/50 hover:border-accent/50"
+                                className="w-full flex items-center gap-2 rounded-md p-1.5 hover:bg-tertiary/50 transition-all cursor-pointer border border-transparent hover:border-accent/40"
                                 title="길드 홈 보기"
                             >
                                 <div className="flex-shrink-0 w-10 h-10 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
@@ -1008,7 +1031,6 @@ const Profile: React.FC<ProfileProps> = () => {
                                 </div>
                             </button>
                     ) : guildLoadingFailed ? (
-                        // 확인 완료 후, 서버에서 '가입한 길드 없음'일 때만 창설/가입 버튼
                         <div className="flex min-w-0 items-center gap-2">
                             <div className="flex min-w-0 flex-1 flex-nowrap gap-2">
                                 <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}>길드창설</Button>
@@ -1018,232 +1040,289 @@ const Profile: React.FC<ProfileProps> = () => {
                     ) : (
                         <div className="w-full p-2 min-h-[40px]" aria-hidden="true" />
                     )}
-                </div>
-                 <div className="mb-1 flex min-w-0 flex-shrink-0 items-center justify-between gap-1">
-                    <h3 className="min-w-0 shrink-0 text-sm font-semibold text-secondary" style={{ fontSize: nh ? 'clamp(0.8125rem, 2.1vw, 0.9375rem)' : 'clamp(0.75rem, 2vw, 0.875rem)' }}>능력치</h3>
-                    <div className="flex min-w-0 items-center gap-1 text-xs sm:gap-2">
-                        <span className="min-w-0 truncate" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={`보너스: ${availablePoints}P`}>보너스: <span className="font-bold text-green-400">{availablePoints}</span>P</span>
-                        <Button 
-                            onClick={handlers.openStatAllocationModal} 
-                            colorScheme="none" 
-                            className={`!shrink-0 !whitespace-nowrap !px-2 !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : '!text-[9px]'}`}
-                        >
-                            분배
-                        </Button>
                     </div>
-                </div>
-                <div className={`grid grid-cols-2 gap-y-1 ${nh ? 'gap-x-2' : 'gap-x-4'}`}>
-                    {Object.values(CoreStat).map(stat => {
-						const baseStats = currentUserWithStatus.baseStats || {};
-						const spentStatPoints = currentUserWithStatus.spentStatPoints || {};
-						const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
-						// Align with calculateTotalStats: final = floor((base + flat) * (1 + percent/100))
-						const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
-						const finalValue = Math.floor((baseValue + bonusInfo.flat) * (1 + bonusInfo.percent / 100));
-						const bonus = finalValue - baseValue;
-                        return (
-                            <div key={stat} className="flex min-w-0 items-center justify-between gap-0.5 rounded-md bg-tertiary/40 p-1 text-xs">
-                                <span className="min-w-0 truncate font-semibold text-secondary" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={stat}>{stat}</span>
-                                <span className="shrink-0 whitespace-nowrap text-right font-mono font-bold tabular-nums" style={{ fontSize: nh ? 'clamp(0.6875rem, 1.65vw, 0.8125rem)' : 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={`기본: ${baseValue}, 장비: ${bonus}`}>
-                                    {isNaN(finalValue) ? 0 : finalValue}
-                                    {bonus > 0 && <span className="ml-0.5 text-xs text-green-400">(+{bonus})</span>}
-                                </span>
-                            </div>
-                        );
-                    })}
+                    <div className={`border-t border-zinc-700/80 bg-zinc-800/95 ${nh ? 'p-1.5' : 'p-1'}`}>
+                        {EquipmentPanelContent}
+                    </div>
                 </div>
             </div>
         </>
         );
-    }, [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, availablePoints, coreStatBonuses, guildInfo, guilds, guildCheckDone, guildLoadingFailed, combinedLevel, nickname, avatarUrl, borderUrl, isNativeMobile]);
-    
-    const LobbyCards = (
-        <div className="grid grid-cols-12 grid-rows-2 gap-3 lg:gap-5 h-full">
-            <div className="col-span-4 row-span-1">
-                <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} />
-            </div>
-    
-            <div className="col-span-4 row-span-1">
-                <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} />
-            </div>
+    }, [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, guildInfo, guilds, guildCheckDone, guildLoadingFailed, combinedLevel, nickname, avatarUrl, borderUrl, isNativeMobile, EquipmentPanelContent]);
 
-            <div className="col-span-4 row-span-1">
-                <PveCard 
-                    title="바둑능력PVP" 
-                    imageUrl={STRATEGIC_GO_LOBBY_IMG} 
-                    layout="tall" 
-                    isComingSoon={true}
-                />
-            </div>
-
-            <div className="col-span-4 row-span-1">
-                <div onClick={onSelectTournamentLobby} className="bg-panel border border-color rounded-lg p-1.5 lg:p-2.5 flex flex-col text-center transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-purple-500/30 cursor-pointer h-full text-on-panel">
-                    <h2 className="text-xs lg:text-base font-bold flex items-center justify-center gap-0.5 lg:gap-1 h-4 lg:h-6 mb-0.5 lg:mb-1">챔피언십</h2>
-                    <div className="w-full flex-1 bg-tertiary rounded-md flex items-center justify-center text-tertiary overflow-hidden min-h-0">
-                        <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="w-full h-full object-cover object-center" />
-                    </div>
-                    <div className="w-full bg-tertiary/50 rounded-md p-0.5 lg:p-1 text-[10px] lg:text-xs flex justify-between items-center cursor-pointer hover:bg-tertiary transition-colors mt-1 lg:mt-2" title="챔피언십 (던전)">
-                        <span>현재 시즌 {championshipScore.toLocaleString()}점 · {championshipRank != null ? `${championshipRank}위` : '100+위'}</span>
-                        <span className="text-accent font-semibold">&rarr;</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="col-span-4 row-span-1">
-                <div onClick={onSelectSinglePlayerLobby} className="bg-panel border border-color rounded-lg p-1.5 lg:p-2.5 flex flex-col text-center transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-green-500/30 cursor-pointer h-full text-on-panel relative">
-                    {hasFullTrainingQuestReward && (
-                        <div className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full z-10 border-2 border-gray-900"></div>
-                    )}
-                    <h2 className="text-xs lg:text-base font-bold flex items-center justify-center gap-0.5 lg:gap-1 h-4 lg:h-6 mb-0.5 lg:mb-1">싱글플레이</h2>
-                    <div className="w-full flex-1 bg-tertiary rounded-md flex items-center justify-center text-tertiary overflow-hidden min-h-0">
-                        <img src={SINGLE_PLAYER_LOBBY_IMG} alt="싱글플레이" className="w-full h-full object-cover object-center" />
-                    </div>
-                    <div className="w-full bg-tertiary/50 rounded-md p-0.5 lg:p-1 text-[10px] lg:text-xs flex justify-between items-center cursor-pointer hover:bg-tertiary transition-colors mt-1 lg:mt-2" title="싱글플레이 정보">
-                        <span>진행도: {currentUserWithStatus.singlePlayerProgress ?? 0} / {SINGLE_PLAYER_STAGES.length}</span>
-                        <span className="text-accent font-semibold">&rarr;</span>
-                    </div>
-                </div>
-            </div>
-                
-            <div className="col-span-4 row-span-1">
-                <PveCard 
-                    title="도전의 탑" 
-                    imageUrl="/images/tower/Tower1.png" 
-                    layout="tall" 
-                    onClick={() => window.location.hash = '#/tower'}
-                    footerContent={
-                        <div className="flex flex-col items-center">
-                            <span>현재 층: {Math.max(1, (currentUserWithStatus as User)?.towerFloor ?? 0)}층</span>
-                            <span className="text-tertiary">{towerTimeLeft}</span>
+    const AbilityStatsPanelContent = useMemo(() => {
+        const nh = isNativeMobile;
+        const finalByStat = {} as Record<CoreStat, number>;
+        const baseByStat = {} as Record<CoreStat, number>;
+        for (const stat of Object.values(CoreStat)) {
+            const baseStats = currentUserWithStatus.baseStats || {};
+            const spentStatPoints = currentUserWithStatus.spentStatPoints || {};
+            const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
+            const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
+            const finalValue = Math.floor((baseValue + bonusInfo.flat) * (1 + bonusInfo.percent / 100));
+            finalByStat[stat] = isNaN(finalValue) ? 0 : finalValue;
+            baseByStat[stat] = baseValue;
+        }
+        const badukAbilityTotal = Object.values(finalByStat).reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
+        return (
+            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+                <div className="relative flex min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-2.5 py-2 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)] sm:px-3 sm:py-2.5">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
+                    <div className="relative flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                                <span className="bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-base font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)] sm:text-lg">
+                                    바둑능력
+                                </span>
+                                <span
+                                    className="bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono text-[1.35rem] font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] sm:text-2xl"
+                                    title="6개 핵심 능력치 합계"
+                                >
+                                    {badukAbilityTotal}
+                                </span>
+                            </div>
                         </div>
-                    }
-                />
-            </div>
+                        <div className="flex shrink-0 items-center justify-end gap-1.5 border-t border-zinc-700/90 pt-2 sm:border-t-0 sm:pt-0">
+                            <span
+                                className="min-w-0 truncate text-xs font-medium text-amber-100/85 sm:text-sm"
+                                title={`보너스: ${availablePoints}P`}
+                            >
+                                보너스{' '}
+                                <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                                <span className="text-amber-100/55">P</span>
+                            </span>
+                            <Button
+                                onClick={handlers.openStatAllocationModal}
+                                colorScheme="none"
+                                className="!shrink-0 !whitespace-nowrap !rounded-lg !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !px-2.5 !py-1 !text-[10px] !font-semibold !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110 sm:!text-[11px]"
+                            >
+                                분배
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                    <CoreStatsHexagonChart values={finalByStat} baseByStat={baseByStat} className="min-h-0 flex-1" />
+                </div>
             </div>
         );
+    }, [currentUserWithStatus, handlers, availablePoints, coreStatBonuses, isNativeMobile]);
+    
+    const singleProgress = currentUserWithStatus.singlePlayerProgress ?? 0;
+    const singleStageLabel = singleProgress >= 40 ? '유단자'
+        : singleProgress >= 30 ? '고급반'
+        : singleProgress >= 20 ? '중급반'
+        : singleProgress >= 10 ? '초급반'
+        : '입문반';
+    const towerCurrentFloor = Math.max(1, (currentUserWithStatus as User)?.towerFloor ?? 0);
+    const towerCurrentRank = (currentUserWithStatus as any)?.monthlyTowerRank ?? (currentUserWithStatus as any)?.towerRank ?? null;
+    const strategicTotal = aggregatedStats.strategic.wins + aggregatedStats.strategic.losses;
+    const playfulTotal = aggregatedStats.playful.wins + aggregatedStats.playful.losses;
+    const strategicWinRate = strategicTotal > 0 ? Math.round((aggregatedStats.strategic.wins / strategicTotal) * 100) : 0;
+    const playfulWinRate = playfulTotal > 0 ? Math.round((aggregatedStats.playful.wins / playfulTotal) * 100) : 0;
+    const dungeonProgress = (currentUserWithStatus as any)?.dungeonProgress ?? {};
+
+    /** 2×3: 1행 싱글·탑 / 2행 전략·놀이 / 3행 챔피언십·PVP */
+    const lobbyGridShell = isNativeMobile
+        ? (profileTab === 'home'
+            ? 'grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-[repeat(6,minmax(0,10.5rem))] gap-1.5 overflow-y-auto overscroll-y-contain px-0.5 pb-0.5 [&>*]:min-h-0 [&>*]:min-w-0'
+            : 'grid min-h-0 min-w-0 flex-1 grid-cols-2 grid-rows-[repeat(3,minmax(0,1fr))] gap-1.5 overflow-hidden px-0.5 pb-0.5 [&>*]:min-h-0 [&>*]:min-w-0')
+        : 'grid h-full min-h-0 w-full content-center grid-cols-2 grid-rows-[repeat(3,minmax(0,15rem))] gap-2.5 lg:gap-3 lg:grid-rows-[repeat(3,minmax(0,17.5rem))] [&>*]:min-h-0 [&>*]:min-w-0';
+
+    const mergedCardClass = 'flex h-full min-h-0 overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10';
+    const imagePaneClass = 'min-h-0 min-w-0 flex-[1.78] p-0.5';
+    const infoPanelClass = 'min-h-0 min-w-[196px] flex-[0.92] border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] space-y-2';
+    const infoTitleClass = 'mb-1 inline-flex w-full items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2 py-1 text-[15px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]';
+    const infoRowClass = 'grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[12.5px] leading-snug';
+    const infoLabelClass = 'text-center font-semibold text-slate-300/95';
+    const infoValueClass = 'min-w-0 text-center font-semibold text-slate-100/95 whitespace-normal break-keep';
+    const LobbyCards = (
+        <div className={lobbyGridShell}>
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                {isNativeMobile && profileTab !== 'home' ? (
+                    <div
+                        onClick={onSelectSinglePlayerLobby}
+                        className="group border border-emerald-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden p-1"
+                    >
+                        <img src={SINGLE_PLAYER_LOBBY_IMG} alt="싱글플레이" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                        <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">싱글플레이</h2>
+                        <div className="flex min-h-0 w-full flex-1 rounded-md" />
+                    </div>
+                ) : (
+                    <div className={mergedCardClass}>
+                        <div className={imagePaneClass}>
+                            <div
+                                onClick={onSelectSinglePlayerLobby}
+                                className="group flex h-full min-h-0 w-full flex-col rounded-xl text-center transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden"
+                            >
+                                <img src={SINGLE_PLAYER_LOBBY_IMG} alt="싱글플레이" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                                <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                                <div className="flex min-h-0 w-full flex-1 rounded-md" />
+                            </div>
+                        </div>
+                        <div className={infoPanelClass}>
+                            <div className={infoTitleClass}>싱글플레이</div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>현재 위치</span><span className={infoValueClass}>{singleStageLabel}</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>진행도</span><span className={infoValueClass}>{singleProgress} / {SINGLE_PLAYER_STAGES.length}</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>클리어</span><span className={infoValueClass}>{Math.max(0, singleProgress)}</span></div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                {isNativeMobile && profileTab !== 'home' ? (
+                    <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => window.location.hash = '#/tower'} compact={true} />
+                ) : (
+                    <div className={mergedCardClass}>
+                        <div className={imagePaneClass}>
+                            <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => window.location.hash = '#/tower'} compact={false} hideOverlayText={true} />
+                        </div>
+                        <div className={infoPanelClass}>
+                            <div className={infoTitleClass}>도전의 탑</div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>현재 층</span><span className={infoValueClass}>{towerCurrentFloor}층</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>남은 시간</span><span className={infoValueClass}>{towerTimeLeft}</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>현재 순위</span><span className={infoValueClass}>{towerCurrentRank ? `${towerCurrentRank}위` : '집계중'}</span></div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                {isNativeMobile && profileTab !== 'home' ? (
+                    <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={true} />
+                ) : (
+                    <div className={mergedCardClass}>
+                        <div className={imagePaneClass}>
+                            <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} />
+                        </div>
+                        <div className={`${infoPanelClass} border-cyan-300/20`}>
+                            <div className={`${infoTitleClass} text-cyan-100`}>전략 바둑</div>
+                            <div className="flex items-center gap-2 rounded-lg border border-cyan-300/20 bg-cyan-950/30 px-2.5 py-2">
+                                {overallTiers.strategicTier?.icon && <img src={overallTiers.strategicTier.icon} alt={overallTiers.strategicTier.name} className="h-7 w-7 rounded-md object-contain ring-1 ring-white/20" />}
+                                <div className="min-w-0">
+                                    <div className="truncate text-[12px] font-semibold text-cyan-100/90">{overallTiers.strategicTier.name}</div>
+                                    <div className="text-sm font-bold text-cyan-50">Lv.{currentUserWithStatus.strategyLevel}</div>
+                                </div>
+                            </div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-cyan-200`}>{overallTiers.strategicIntegratedScore}점</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>전적</span><span className={`${infoValueClass} font-mono whitespace-nowrap`}>{aggregatedStats.strategic.wins}승{aggregatedStats.strategic.losses}패({strategicWinRate}%)</span></div>
+                            <Button onClick={() => setDetailedStatsType('strategic')} colorScheme="none" className="!mt-0.5 !w-full !justify-center rounded-lg border border-cyan-300/35 bg-cyan-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-cyan-50 hover:bg-cyan-900/55">
+                                상세보기
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                {isNativeMobile && profileTab !== 'home' ? (
+                    <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={true} />
+                ) : (
+                    <div className={mergedCardClass}>
+                        <div className={imagePaneClass}>
+                            <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} />
+                        </div>
+                        <div className={`${infoPanelClass} border-amber-300/20`}>
+                            <div className={`${infoTitleClass} text-amber-100`}>놀이 바둑</div>
+                            <div className="flex items-center gap-2 rounded-lg border border-amber-300/20 bg-amber-950/30 px-2.5 py-2">
+                                {overallTiers.playfulTier?.icon && <img src={overallTiers.playfulTier.icon} alt={overallTiers.playfulTier.name} className="h-7 w-7 rounded-md object-contain ring-1 ring-white/20" />}
+                                <div className="min-w-0">
+                                    <div className="truncate text-[12px] font-semibold text-amber-100/90">{overallTiers.playfulTier.name}</div>
+                                    <div className="text-sm font-bold text-amber-50">Lv.{currentUserWithStatus.playfulLevel}</div>
+                                </div>
+                            </div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-amber-200`}>{overallTiers.playfulIntegratedScore}점</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>전적</span><span className={`${infoValueClass} font-mono whitespace-nowrap`}>{aggregatedStats.playful.wins}승{aggregatedStats.playful.losses}패({playfulWinRate}%)</span></div>
+                            <Button onClick={() => setDetailedStatsType('playful')} colorScheme="none" className="!mt-0.5 !w-full !justify-center rounded-lg border border-amber-300/35 bg-amber-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-amber-50 hover:bg-amber-900/55">
+                                상세보기
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                {isNativeMobile && profileTab !== 'home' ? (
+                    <div onClick={onSelectTournamentLobby} className="group border border-fuchsia-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform hover:-translate-y-1 hover:shadow-purple-500/30 cursor-pointer text-on-panel p-1 relative overflow-hidden">
+                        <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                        <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">챔피언십</h2>
+                        <div className="flex min-h-0 w-full flex-1 rounded-md" />
+                    </div>
+                ) : (
+                    <div className={mergedCardClass}>
+                        <div className={imagePaneClass}>
+                            <div onClick={onSelectTournamentLobby} className="group flex h-full min-h-0 w-full flex-col text-center transition-all transform hover:-translate-y-1 hover:shadow-purple-500/30 cursor-pointer text-on-panel relative overflow-hidden rounded-xl">
+                                <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                                <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                                <div className="flex min-h-0 w-full flex-1 rounded-md" />
+                            </div>
+                        </div>
+                        <div className={infoPanelClass}>
+                            <div className={infoTitleClass}>챔피언십</div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>시즌 점수</span><span className={infoValueClass}>{championshipScore}점</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>현재 순위</span><span className={infoValueClass}>{championshipRank != null ? `${championshipRank}위` : '100+위'}</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>동네리그</span><span className={infoValueClass}>{dungeonProgress.neighborhood?.currentStage ?? 0}단계</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>전국대회</span><span className={infoValueClass}>{dungeonProgress.national?.currentStage ?? 0}단계</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>월드전</span><span className={infoValueClass}>{dungeonProgress.world?.currentStage ?? 0}단계</span></div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                {isNativeMobile && profileTab !== 'home' ? (
+                    <PveCard title="바둑능력PVP" imageUrl={STRATEGIC_GO_LOBBY_IMG} layout="tall" isComingSoon={true} compact={true} />
+                ) : (
+                    <div className={mergedCardClass}>
+                        <div className={imagePaneClass}>
+                            <PveCard title="바둑능력PVP" imageUrl={STRATEGIC_GO_LOBBY_IMG} layout="tall" isComingSoon={true} compact={false} hideOverlayText={true} />
+                        </div>
+                        <div className={infoPanelClass}>
+                            <div className={infoTitleClass}>바둑능력PVP</div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>상태</span><span className={infoValueClass}>오픈 예정</span></div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
     return (
         <div
             className={`bg-transparent text-primary flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root h-full max-h-full min-h-0' : 'h-full p-2 sm:p-4 lg:p-2'}`}
         >
-            <header className={`flex min-w-0 flex-shrink-0 items-center justify-between ${isNativeMobile ? 'mb-0 gap-1.5 px-1 py-1.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
-                <h1 className={`min-w-0 truncate font-bold text-primary ${isNativeMobile ? 'text-sm sm:text-base' : 'text-base lg:text-2xl'}`}>
-                    {isNativeMobile ? (profileTab === 'ranking' ? '랭킹' : profileTab === 'arena' ? '경기장' : '홈') : '홈'}
-                </h1>
-                <div className={`flex shrink-0 items-center ${isNativeMobile ? 'gap-1' : 'gap-1 lg:gap-2'}`}>
-                    <button
-                        onClick={handlers.openEncyclopedia}
-                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
-                        title="도감"
-                    >
-                        <img src="/images/button/itembook.png" alt="도감" className="h-full w-full object-contain" />
-                    </button>
-                    <button
-                        onClick={handlers.openInfoModal}
-                        className={`flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-7 w-7' : 'h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10'}`}
-                        title="도움말"
-                    >
-                        <img src="/images/button/help.webp" alt="도움말" className="h-full w-full object-contain" />
-                    </button>
-                </div>
-            </header>
+            {(isNativeMobile ? profileTab !== 'home' : false) && (
+                <header className={`flex min-w-0 flex-shrink-0 items-center ${isNativeMobile ? 'mb-0 px-1 py-1.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
+                    <h1 className={`min-w-0 truncate font-bold text-primary ${isNativeMobile ? 'text-sm sm:text-base' : 'text-base lg:text-2xl'}`}>
+                        {profileTab === 'ranking' ? '랭킹' : '경기장'}
+                    </h1>
+                </header>
+            )}
             <main
                 className="flex min-h-0 flex-1 flex-col overflow-hidden"
             >
                 {isNativeMobile ? (
                     <>
                         {profileTab === 'home' && (
-                            <div className="grid h-full w-full min-h-0 min-w-0 max-w-full flex-1 grid-rows-[auto_minmax(0,1fr)] gap-y-0.5 overflow-hidden px-0.5 pb-0">
-                                {/* 상단: 프로필·장비·퀵 동일 행 높이(stretch), 퀵은 fillHeight로 하단 정렬 */}
-                                <div
-                                    className="grid min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1.08fr)_minmax(0,0.94fr)_5.5rem] items-stretch gap-0.5 overflow-hidden"
-                                    style={
-                                        nativeHomeTopRowHeightPx != null
-                                            ? {
-                                                  height: `${nativeHomeTopRowHeightPx}px`,
-                                                  minHeight: 0,
-                                                  // 측정값이 퀵 메뉴 전체 높이 — maxHeight로 잘리면 하단 버튼이 잘림
-                                              }
-                                            : { minHeight: 0, maxHeight: 'min(54dvh, 90vh)' }
-                                    }
-                                >
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden rounded-md border border-color bg-panel p-1.5 text-[clamp(8px,2.4vw,10px)] leading-snug antialiased [&_button]:max-w-full">
-                                        {ProfilePanelContent}
+                            <div className="flex h-full w-full min-h-0 min-w-0 max-w-full flex-1 flex-col gap-1 overflow-hidden px-0.5 pb-0">
+                                {/* 상단: 프로필 → 길드 → 장착 / 능력치 — 스크롤 없이 flex 분배 / 하단: 입장 카드 */}
+                                <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-1 overflow-hidden">
+                                    <div className="relative flex min-h-0 flex-[1.25] flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 p-2 text-[clamp(8px,2.4vw,10px)] leading-snug antialiased shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_48px_-24px_rgba(0,0,0,0.8)] ring-1 ring-amber-100/15 [&_button]:max-w-full sm:p-2.5">
+                                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
+                                        <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
+                                        <div className="min-h-0 flex-1 overflow-hidden">{ProfilePanelContent}</div>
                                     </div>
-
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel px-1 py-1.5">
-                                        <h3 className="mb-1 w-full shrink-0 whitespace-nowrap text-center text-xs font-bold leading-tight tracking-tight text-secondary">
-                                            장착 장비
-                                        </h3>
-                                        <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden px-0.5 py-0.5">
-                                            <div className="flex w-full min-w-0 shrink-0 flex-col">
-                                                <div className="grid w-full min-w-0 shrink-0 grid-cols-3 grid-rows-2 gap-1 [&>*]:min-w-0">
-                                                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                                        const item = getItemForSlot(slot);
-                                                        return (
-                                                            <div key={slot} className="aspect-square w-full min-w-0">
-                                                                <EquipmentSlotDisplay
-                                                                    slot={slot}
-                                                                    item={item}
-                                                                    onClick={() => item && handlers.openViewingItem(item, true)}
-                                                                    scaleFactor={0.97}
-                                                                />
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                                <div className="mt-2 flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-2">
-                                                    <select
-                                                        value={selectedPreset}
-                                                        onChange={handlePresetChange}
-                                                        className="min-h-[24px] min-w-0 flex-1 basis-0 rounded border border-color bg-secondary px-1 py-0.5 text-[10px] focus:border-accent focus:ring-accent"
-                                                        title={presets?.[selectedPreset]?.name}
-                                                    >
-                                                        {presets && presets.map((preset, index) => (
-                                                            <option key={index} value={index}>{preset.name}</option>
-                                                        ))}
-                                                    </select>
-                                                    <Button
-                                                        onClick={handlers.openEquipmentEffectsModal}
-                                                        colorScheme="none"
-                                                        className="!shrink-0 !whitespace-nowrap !px-2 !py-0.5 !text-[9px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
-                                                    >
-                                                        효과
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className={`relative z-10 flex h-full min-h-0 flex-col overflow-hidden ${NATIVE_QUICK_RAIL_WIDTH_CLASS}`}>
-                                        <div
-                                            ref={nativeHomeQuickMeasureRef}
-                                            className="box-border flex h-fit min-h-0 w-full shrink-0 flex-col self-start overflow-hidden rounded-md border border-color/50 bg-panel/95 p-0.5"
-                                        >
-                                            <QuickAccessSidebar nativeHomeColumn />
-                                        </div>
+                                    <div className="relative flex min-h-0 flex-[0.85] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_16px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-amber-100/10 sm:p-2.5">
+                                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+                                        <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
+                                        {AbilityStatsPanelContent}
                                     </div>
                                 </div>
-
-                                <div className="grid h-full min-h-0 min-w-0 max-w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1 overflow-hidden pt-px">
-                                    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden rounded-md border border-color bg-panel shadow-sm">
-                                        <ChatWindow
-                                            messages={globalChat}
-                                            mode="global"
-                                            onAction={handlers.handleAction}
-                                            onViewUser={handlers.openViewingUser}
-                                            locationPrefix="[홈]"
-                                            compactHome
-                                        />
-                                    </div>
-                                    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden rounded-md border border-color/80 bg-panel/95 shadow-sm">
-                                        <div className="flex h-full min-h-0 max-w-full min-w-0 flex-1 flex-col overflow-hidden">
-                                        <HomeBoardPanel
-                                            posts={homeBoardPosts || []}
-                                            isAdmin={currentUserWithStatus.isAdmin}
-                                            onAction={handlers.handleAction}
-                                            fitViewport
-                                        />
-                                        </div>
+                                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain rounded-md border border-zinc-600/80 bg-panel p-1 shadow-inner">
+                                    <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,560px)] flex-col">
+                                        {LobbyCards}
                                     </div>
                                 </div>
                             </div>
@@ -1330,79 +1409,33 @@ const Profile: React.FC<ProfileProps> = () => {
                         )}
                     </>
                 ) : (
-                <div className="flex flex-col h-full gap-1 min-w-0 overflow-hidden">
-                    <div className="flex flex-row gap-1 min-w-0 flex-shrink-0 max-h-[380px]">
-                        <div className="w-[30%] min-w-[240px] max-w-[360px] bg-panel border border-color text-on-panel rounded-lg p-1.5 flex flex-col gap-0.5 overflow-hidden">{ProfilePanelContent}</div>
-                        {/* New structure for equipped items, ranking boards, and quick access */}
-                        <div className="flex-1 flex flex-row gap-1 min-w-0 overflow-hidden">
-                            <div className="flex h-full min-h-0 w-[280px] min-w-[200px] max-w-[280px] flex-shrink-0 flex-col overflow-hidden rounded-md border border-color bg-panel px-1 py-1.5 text-on-panel">
-                                <h3 className="mb-1 w-full shrink-0 whitespace-nowrap text-center text-xs font-bold leading-tight tracking-tight text-secondary">
-                                    장착 장비
-                                </h3>
-                                <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden px-0.5 py-0.5">
-                                    <div className="flex w-full min-w-0 shrink-0 flex-col">
-                                        <div className="grid w-full min-w-0 shrink-0 grid-cols-3 grid-rows-2 gap-1 [&>*]:min-w-0">
-                                            {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                                const item = getItemForSlot(slot);
-                                                return (
-                                                    <div key={slot} className="aspect-square w-full min-w-0">
-                                                        <EquipmentSlotDisplay
-                                                            slot={slot}
-                                                            item={item}
-                                                            onClick={() => item && handlers.openViewingItem(item, true)}
-                                                            scaleFactor={0.97}
-                                                        />
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="mt-2 flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-2">
-                                            <select
-                                                value={selectedPreset}
-                                                onChange={handlePresetChange}
-                                                className="min-h-[24px] min-w-0 flex-1 basis-0 rounded border border-color bg-secondary px-1 py-0.5 text-[10px] focus:border-accent focus:ring-accent sm:text-xs"
-                                                title={presets?.[selectedPreset]?.name}
-                                            >
-                                                {presets && presets.map((preset, index) => (
-                                                    <option key={index} value={index}>{preset.name}</option>
-                                                ))}
-                                            </select>
-                                            <Button
-                                                onClick={handlers.openEquipmentEffectsModal}
-                                                colorScheme="none"
-                                                className="!shrink-0 !whitespace-nowrap !px-2 !py-0.5 !text-[9px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
-                                            >
-                                                효과
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
+                <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
+                    {/* 좌측: 프로필 패널(스크롤 없음) + 능력치 / 중앙: 입장 카드 / 우측: 퀵 메뉴 */}
+                    <div className="flex h-full min-h-0 w-[min(42%,480px)] min-w-[288px] max-w-[480px] shrink-0 flex-col gap-1.5 overflow-hidden">
+                        <div className="relative flex min-h-0 flex-[1.2] flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
+                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2.5 text-on-panel">
+                                <div className="min-h-0 flex-1 overflow-hidden">{ProfilePanelContent}</div>
                             </div>
-                            <div className="flex-1 flex flex-row gap-1 min-w-0 overflow-hidden">
-                                <div className="flex-1 min-w-0 overflow-hidden">
-                                    <GameRankingBoard />
-                                </div>
-                                <div className="flex-1 min-w-0 overflow-hidden">
-                                    <BadukRankingBoard />
-                                </div>
-                                <div className="flex-1 min-w-0 overflow-hidden min-w-[200px]">
-                                    <ChampionshipRankingPanel compact />
-                                </div>
-                            </div>
-                            <div className="w-24 min-w-[96px] flex-shrink-0 overflow-hidden">
-                                <QuickAccessSidebar />
-                            </div>
+                        </div>
+                        <div className="relative flex min-h-0 flex-[0.88] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
+                            {AbilityStatsPanelContent}
                         </div>
                     </div>
-                    <div className="flex-1 grid grid-cols-12 gap-3 min-h-0 overflow-hidden">
-                        <div className="col-span-3 min-w-0 bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col overflow-hidden">
-                            <ChatWindow messages={globalChat} mode="global" onAction={handlers.handleAction} onViewUser={handlers.openViewingUser} locationPrefix="[홈]" />
-                        </div>
-                        <div className="col-span-3 min-w-0 bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col overflow-hidden">
-                            <HomeBoardPanel posts={homeBoardPosts || []} isAdmin={currentUserWithStatus.isAdmin} onAction={handlers.handleAction} />
-                        </div>
-                        <div className="col-span-6 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">
+                        <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,1040px)] flex-col justify-center">
                             {LobbyCards}
+                        </div>
+                    </div>
+                    <div
+                        className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
+                        aria-label="퀵 메뉴"
+                    >
+                        <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                            <QuickAccessSidebar fillHeight={true} />
                         </div>
                     </div>
                 </div>

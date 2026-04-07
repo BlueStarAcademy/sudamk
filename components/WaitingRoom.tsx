@@ -11,7 +11,7 @@ import GameList from './waiting-room/GameList.js';
 import ChatWindow from './waiting-room/ChatWindow.js';
 import TierInfoModal from './TierInfoModal.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, aiUserId } from './../constants';
-import QuickAccessSidebar from './QuickAccessSidebar.js';
+import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import Button from './Button.js';
 import GameApplicationModal from './GameApplicationModal.js';
 import AiChallengeModal from './waiting-room/AiChallengeModal.js';
@@ -231,7 +231,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     <div className="flex-1 min-w-0">
                         <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
                     </div>
-                    <div className="flex w-24 min-w-[96px] flex-shrink-0 flex-col min-h-0">
+                    <div className={`flex flex-col min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS}`}>
                         <QuickAccessSidebar />
                     </div>
                 </div>
@@ -266,7 +266,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             <div className={`fixed top-0 right-0 h-full w-[320px] bg-primary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
                 <button onClick={() => setIsMobileSidebarOpen(false)} className="self-end text-2xl p-2 text-tertiary hover:text-primary">×</button>
                 <div className="flex-shrink-0 border-b border-color p-2">
-                    <div className="mx-auto flex h-52 w-24 min-w-[96px] flex-col min-h-0">
+                    <div className={`mx-auto flex h-52 flex-col min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS}`}>
                         <QuickAccessSidebar />
                     </div>
                 </div>
@@ -301,7 +301,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0">
                   <PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} negotiations={Object.values(negotiations)} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} />
                 </div>
-                <div className="w-24 flex-shrink-0">
+                <div className={PC_QUICK_RAIL_COLUMN_CLASS}>
                   <QuickAccessSidebar />
                 </div>
               </div>

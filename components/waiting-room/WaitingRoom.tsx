@@ -11,7 +11,7 @@ import GameList from './GameList.js';
 import ChatWindow from './ChatWindow.js';
 import TierInfoModal from '../TierInfoModal.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, aiUserId } from '../../constants';
-import QuickAccessSidebar, { NATIVE_QUICK_RAIL_WIDTH_CLASS } from '../QuickAccessSidebar.js';
+import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from '../QuickAccessSidebar.js';
 import Button from '../Button.js';
 import AiChallengeModal from './AiChallengeModal.js';
 import RankedMatchPanel from './RankedMatchPanel.js';
@@ -491,7 +491,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           {isNativeMobile && isStrategicPlayfulLobby ? (
             <div className="relative flex h-full min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5">
               {/* 상단 flex-[0.68]: 좌(전광판+랭킹전|유저) · 우 6rem(퀵 flex-1 + 사이드 버튼) */}
-              <div className="flex min-h-0 flex-[0.68] gap-1 overflow-hidden">
+              <div className="flex min-h-0 flex-[0.68] flex-col gap-1 overflow-hidden">
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1 overflow-hidden">
                   <div className="shrink-0 overflow-hidden rounded-lg">
                     <AnnouncementBoard mode={mode} />
@@ -530,20 +530,15 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     </div>
                   </div>
                 </div>
-                <div className={`flex min-h-0 shrink-0 flex-col gap-1 self-stretch ${NATIVE_QUICK_RAIL_WIDTH_CLASS}`}>
-                  <div className="box-border flex h-fit min-h-0 shrink-0 flex-col justify-start overflow-hidden rounded-lg border border-color p-0.5">
-                    <QuickAccessSidebar nativeHomeColumn className={waitingLobbyGlass} />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsNativeAuxDrawerOpen(true)}
-                    title="진행 중인 대국"
-                    className="flex h-[3rem] w-full shrink-0 flex-row items-center justify-center gap-1 rounded-lg border border-indigo-400/40 bg-gradient-to-b from-indigo-900/70 via-slate-900/85 to-purple-900/70 px-1 text-[8px] font-bold leading-none text-indigo-100 shadow-md active:scale-[0.98]"
-                  >
-                    <span className="shrink-0 text-base leading-none">☰</span>
-                    <span className="whitespace-nowrap leading-tight">진행 대국</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNativeAuxDrawerOpen(true)}
+                  title="진행 중인 대국"
+                  className="flex h-[2.75rem] w-full shrink-0 flex-row items-center justify-center gap-1 rounded-lg border border-indigo-400/40 bg-gradient-to-b from-indigo-900/70 via-slate-900/85 to-purple-900/70 px-2 text-[9px] font-bold leading-none text-indigo-100 shadow-md active:scale-[0.98]"
+                >
+                  <span className="shrink-0 text-base leading-none">☰</span>
+                  <span className="whitespace-nowrap leading-tight">진행 대국</span>
+                </button>
               </div>
 
               {/* 홈과 동일 flex-[0.72]: 채팅 50% · 랭킹 정보 50% */}
@@ -666,7 +661,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
                     />
                   </div>
-                  <div className="w-24 flex-shrink-0">
+                  <div className={PC_QUICK_RAIL_COLUMN_CLASS}>
                     <QuickAccessSidebar className={waitingLobbyGlass} />
                   </div>
                 </div>

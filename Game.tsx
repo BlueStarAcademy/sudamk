@@ -39,6 +39,7 @@ import { useClientTimer } from './hooks/useClientTimer.js';
 import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
+import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
 import Button from './components/Button.js';
 import ToggleSwitch from './components/ui/ToggleSwitch.js';
 import { DraggableMoveConfirmPanel } from './components/game/DraggableMoveConfirmPanel.js';
@@ -283,6 +284,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (storedState) {
                 const parsed = JSON.parse(storedState);
                     if (parsed.gameId === gameId && parsed.boardState && Array.isArray(parsed.boardState) && parsed.boardState.length > 0) {
+                    const serverRound = session.round ?? 1;
+                    const storedRound = typeof parsed.round === 'number' ? parsed.round : 1;
+                    // 라운드가 바뀌면 sessionStorage의 온 판·수순은 무효. 서버가 클리어 후 새 백돌 배치를 내도
+                    // moveHistory 길이 비교만으로는 서버를 택하지 못해 2라운드에서 1라운드 판에 멈춘다.
+                    if (
+                        serverRound !== storedRound &&
+                        session.boardState &&
+                        Array.isArray(session.boardState) &&
+                        session.boardState.length > 0
+                    ) {
+                        return session.boardState;
+                    }
                     // 서버 moveHistory가 더 길면 서버가 최신(AI 수 등) → 서버 boardState 또는 moveHistory 복원 (AI가 둔 수가 사라지는 버그 방지)
                     const serverMoveCount = session.moveHistory?.length ?? 0;
                     const storedMoveCount = parsed.moveHistory?.length ?? 0;
@@ -385,6 +398,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.settings.boardSize,
         gameId,
         gameStatus,
+        session.round,
         session.stonesPlacedThisTurn?.length,
         session.stonesToPlace,
     ]);
@@ -413,6 +427,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
                 const gameStateToSave = {
                     gameId,
+                    round: session.round ?? 1,
                     isBoardRotated,
                     boardState: restoredBoardState,
                     moveHistory: session.moveHistory || [],
@@ -450,7 +465,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 console.error(`[Game] Failed to save game state to sessionStorage:`, e);
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
@@ -1123,6 +1138,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             ) {
                 return;
             }
+            if (mode === GameMode.Dice && gameStatus === 'dice_placing' && (session.stonesToPlace ?? 0) > 0) {
+                if (!isDiceGoLibertyPlacement(session, x, y)) return;
+            }
+            if (mode === GameMode.Thief && gameStatus === 'thief_placing' && (session.stonesToPlace ?? 0) > 0) {
+                if (!isThiefGoValidPlacement(session, x, y, currentUser.id)) return;
+            }
             if (pendingMove && pendingMove.x === x && pendingMove.y === y) return;
             setPendingMove({ x, y });
             return;
@@ -1140,9 +1161,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const myStones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
             if ((myStones?.length || 0) < (session.settings.baseStones || 4)) actionType = 'PLACE_BASE_STONE';
         } else if (mode === GameMode.Dice && gameStatus === 'dice_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
+            if (!isDiceGoLibertyPlacement(session, x, y)) return;
             actionType = 'DICE_PLACE_STONE';
             payload = { gameId, x, y };
         } else if (mode === GameMode.Thief && gameStatus === 'thief_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
+            if (!isThiefGoValidPlacement(session, x, y, currentUser.id)) return;
             actionType = 'THIEF_PLACE_STONE';
             payload = { gameId, x, y };
         } else if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn) {
@@ -1489,9 +1512,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if ((mode === GameMode.Omok || mode === GameMode.Ttamok) && gameStatus === 'playing' && isMyTurn) {
             actionType = 'OMOK_PLACE_STONE';
         } else if (mode === GameMode.Dice && gameStatus === 'dice_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
+            if (!isDiceGoLibertyPlacement(session, x, y)) {
+                setPendingMove(null);
+                return;
+            }
             actionType = 'DICE_PLACE_STONE';
             payload = { gameId, x, y };
         } else if (mode === GameMode.Thief && gameStatus === 'thief_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
+            if (!isThiefGoValidPlacement(session, x, y, currentUser.id)) {
+                setPendingMove(null);
+                return;
+            }
             actionType = 'THIEF_PLACE_STONE';
             payload = { gameId, x, y };
         } else if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn) {

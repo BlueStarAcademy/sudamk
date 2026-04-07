@@ -889,24 +889,25 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const statCardClass =
         'rounded-xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-[#13141c] to-[#0a0a0f] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.04] lg:p-3.5';
     const statLabelClass =
-        'text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-400 min-[1024px]:text-xs lg:tracking-[0.12em]';
+        'text-[0.72rem] font-bold uppercase tracking-[0.14em] text-slate-400 min-[1024px]:text-[0.8rem] min-[1280px]:text-xs lg:tracking-[0.12em]';
 
     return (
         <DraggableWindow
             title={isGuildWar ? '길드 전쟁 결과' : '대국 결과'}
             onClose={onConfirm}
-            initialWidth={1120}
-            initialHeight={isMobile ? 700 : 820}
-            pcViewportMaxHeightCss="min(88vh, 860px)"
+            initialWidth={1000}
+            initialHeight={isMobile ? 700 : 740}
+            pcViewportMaxHeightCss="min(92vh, 900px)"
             uniformPcScale={false}
             mobileViewportFit
             mobileViewportMaxHeightVh={78}
             windowId="game-summary"
+            hideFooter
         >
             <div
                 className={`flex min-h-0 flex-col text-white antialiased ${
-                    useBodyScrollSizing ? 'w-full overflow-x-hidden' : 'flex-1 overflow-hidden'
-                } ${isMobile ? 'text-xs sm:text-sm' : 'text-base lg:text-[1.0625rem] xl:text-lg'}`}
+                    useBodyScrollSizing ? 'w-full overflow-x-hidden' : 'w-full overflow-x-hidden overflow-y-visible'
+                } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
             >
                 <h1
                     className={`${isMobile ? 'text-lg mb-1.5' : 'text-3xl mb-2 min-[1024px]:text-4xl min-[1280px]:text-5xl'} flex-shrink-0 text-center font-black tracking-widest sm:mb-3 ${color}`}
@@ -939,10 +940,16 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     </div>
                 )}
                 
-                <div className="flex min-h-0 flex-1 flex-row gap-2 sm:gap-3">
+                <div
+                    className={`flex min-h-0 flex-row gap-2 sm:gap-3 ${
+                        isMobile ? 'min-h-0 flex-1' : 'items-start overflow-visible'
+                    }`}
+                >
                     {/* Left Panel: Game Content */}
                     <div
-                        className="flex min-h-0 w-1/2 min-w-0 flex-col rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5"
+                        className={`flex min-w-0 flex-col rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5 ${
+                            isMobile ? 'min-h-0 w-1/2 flex-1' : 'w-1/2 shrink-0 overflow-visible'
+                        }`}
                     >
                         <h2
                             className={`mb-2 flex-shrink-0 border-b border-amber-500/20 pb-2 text-center font-bold uppercase tracking-[0.18em] text-amber-200/75 ${
@@ -960,16 +967,28 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                             mobileTextScale={mobileTextScale}
                             mobileImageScale={mobileImageScale}
                         />
-                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <div
+                            className={
+                                isMobile
+                                    ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+                                    : 'flex flex-col overflow-visible'
+                            }
+                        >
                             {renderGameContent()}
                             {renderGuildWarStarConditions()}
                         </div>
                     </div>
                     
                     {/* Right: 대국 결과(내 기록) & 획득 보상 — 통계는 세로 스크롤로 잘림 방지 */}
-                    <div className="flex min-h-0 w-1/2 min-w-0 flex-1 flex-col gap-2.5 sm:gap-3">
+                    <div
+                        className={`flex min-w-0 flex-col gap-2.5 sm:gap-3 ${
+                            isMobile ? 'min-h-0 w-1/2 flex-1' : 'w-1/2 flex-1 overflow-visible'
+                        }`}
+                    >
                         <div
-                            className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5"
+                            className={`flex min-w-0 flex-col gap-2.5 rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5 ${
+                                isMobile ? 'min-h-0 flex-1 overflow-hidden' : 'overflow-visible'
+                            }`}
                         >
                             <h2
                                 className={`mb-0.5 flex-shrink-0 border-b border-violet-500/25 pb-2 text-center font-bold uppercase tracking-[0.18em] text-violet-200/85 ${
@@ -1051,7 +1070,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
                                 </p>
                             ) : mySummary ? (
-                                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.35)_transparent]">
+                                <div
+                                    className={
+                                        isMobile
+                                            ? 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.35)_transparent]'
+                                            : 'overflow-visible'
+                                    }
+                                >
                                 <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
                                     <div className={`${statCardClass} text-center`}>
                                         <p className={statLabelClass}>랭킹 점수</p>
@@ -1114,7 +1139,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                 </div>
                                 </div>
                             ) : (
-                                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin]">
+                                <div
+                                    className={
+                                        isMobile
+                                            ? 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin]'
+                                            : 'overflow-visible'
+                                    }
+                                >
                                 <div className="grid grid-cols-2 gap-2 sm:gap-2.5 opacity-80">
                                     <div className={`${statCardClass} text-center`}>
                                         <p className={statLabelClass}>랭킹 점수</p>

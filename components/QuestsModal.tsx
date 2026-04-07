@@ -20,9 +20,6 @@ type QuestData = NonNullable<QuestLog['daily' | 'weekly' | 'monthly']>;
 /** 퀘스트 진행 막대: 카드 내에서 늘어나되 상한만 둠 */
 const QUEST_ITEM_BAR_MAX_CLASS = 'max-w-[14rem]';
 
-/** 주간·월간 활약도 트랙 (좁게) — 일일은 전체 폭 */
-const ACTIVITY_TRACK_NARROW_MAX_CLASS = 'max-w-[12rem]';
-
 const questTextScrollRowClass =
     'max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.45)_transparent]';
 
@@ -247,13 +244,19 @@ const ActivityPanel: React.FC<{
     questType: 'daily' | 'weekly' | 'monthly';
     onClaim: (index: number, type: 'daily' | 'weekly' | 'monthly') => void;
     isMobile: boolean;
-    /** 일일(오늘의 활약도)만 전체 너비 바 */
-    fullWidthTrack: boolean;
-}> = ({ title, questData, thresholds, rewards, questType, onClaim, isMobile, fullWidthTrack }) => {
+}> = ({ title, questData, thresholds, rewards, questType, onClaim, isMobile }) => {
     if (!questData) return null;
 
     const { activityProgress, claimedMilestones } = questData;
     const maxProgress = thresholds[thresholds.length - 1];
+
+    /** 마일스톤 N 보상은 구간 (이전~N]의 중앙에 둠 — 예: 20보상 → 0~20의 중앙(10/최대) */
+    const rewardCenterLeftPct = (index: number, milestone: number): number => {
+        if (maxProgress <= 0) return 0;
+        const prev = index === 0 ? 0 : thresholds[index - 1]!;
+        const segmentMid = (prev + milestone) / 2;
+        return (segmentMid / maxProgress) * 100;
+    };
 
     const getItemImage = (reward: QuestReward): string => {
         if (!reward.items || reward.items.length === 0) return '/images/Box/box.png';
@@ -263,10 +266,10 @@ const ActivityPanel: React.FC<{
         return itemTemplate?.image ?? '/images/Box/box.png';
     };
 
-    const trackWrap = fullWidthTrack ? 'mb-2 w-full' : `mx-auto mb-2 w-full ${ACTIVITY_TRACK_NARROW_MAX_CLASS}`;
-    const barHeight = fullWidthTrack ? 'h-3.5' : 'h-2.5';
-    const milestoneIcon = fullWidthTrack ? 'h-8 w-8' : 'h-7 w-7';
-    const milestoneMinH = fullWidthTrack ? (isMobile ? '4rem' : '4.25rem') : isMobile ? '3.75rem' : '4rem';
+    const trackWrap = 'mb-2 w-full';
+    const barHeight = 'h-3.5';
+    const milestoneIcon = 'h-8 w-8';
+    const milestoneMinH = isMobile ? '4rem' : '4.25rem';
     const fillPct = maxProgress > 0 ? Math.min(100, (activityProgress / maxProgress) * 100) : 0;
 
     return (
@@ -340,7 +343,7 @@ const ActivityPanel: React.FC<{
                     const canClaim = progressMet && !isClaimed;
                     const reward = rewards[index];
                     const itemImage = getItemImage(reward);
-                    const leftPct = (milestone / maxProgress) * 100;
+                    const leftPct = rewardCenterLeftPct(index, milestone);
                     const iconClass = milestoneIcon;
 
                     return (
@@ -455,7 +458,6 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                     rewards={DAILY_MILESTONE_REWARDS}
                     questType="daily"
                     isMobile={isMobile}
-                    fullWidthTrack
                     onClaim={(index, type) => onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType: type } })}
                 />
             );
@@ -469,7 +471,6 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                     rewards={WEEKLY_MILESTONE_REWARDS}
                     questType="weekly"
                     isMobile={isMobile}
-                    fullWidthTrack={false}
                     onClaim={(index, type) => onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType: type } })}
                 />
             );
@@ -483,7 +484,6 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                     rewards={MONTHLY_MILESTONE_REWARDS}
                     questType="monthly"
                     isMobile={isMobile}
-                    fullWidthTrack={false}
                     onClaim={(index, type) => onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType: type } })}
                 />
             );

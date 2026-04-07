@@ -917,6 +917,17 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 console.error(`[GoBoard] CRITICAL BUG PREVENTION: Attempted to place stone on occupied position at (${boardPos.x}, ${boardPos.y}), stoneAtPos=${stoneAtPos}`);
                 return;
             }
+
+            // 주사위 바둑·도둑과 경찰: 하이라이트된 유효 착점 외 클릭 무시 (잘못된 수 전송·오류 멈춤 방지)
+            if (
+                (mode === GameMode.Dice && gameStatus === 'dice_placing') ||
+                (mode === GameMode.Thief && gameStatus === 'thief_placing')
+            ) {
+                if (!isBoardDisabled) {
+                    const allowed = highlightedPoints ?? [];
+                    if (!allowed.some((p) => p.x === boardPos.x && p.y === boardPos.y)) return;
+                }
+            }
             
             onBoardClick(boardPos.x, boardPos.y);
         }

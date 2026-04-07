@@ -20,6 +20,9 @@ const BlacksmithEffectsModal = lazy(() => import('./blacksmith/BlacksmithEffects
 const GameRecordListModal = lazy(() => import('./GameRecordListModal.js'));
 const GameRecordViewerModal = lazy(() => import('./GameRecordViewerModal.js'));
 import InfoModal from './InfoModal.js';
+import AnnouncementsModal from './AnnouncementsModal.js';
+import RankingQuickModal from './RankingQuickModal.js';
+import ChatQuickModal from './ChatQuickModal.js';
 import DisassemblyResultModal from './DisassemblyResultModal.js';
 import StatAllocationModal from './StatAllocationModal.js';
 import ItemDetailModal from './ItemDetailModal.js';
@@ -52,6 +55,9 @@ const AppModalLayer: React.FC = () => {
         combatSubOptionBonuses,
         specialStatBonuses,
         aggregatedMythicStats,
+        announcements,
+        globalOverrideAnnouncement,
+        waitingRoomChats,
     } = useAppContext();
 
     const activeModalIds = useMemo(() => {
@@ -67,6 +73,9 @@ const AppModalLayer: React.FC = () => {
         if (modals.isActionPointModalOpen) ids.push('actionPoint');
         if (modals.viewingUser) ids.push('viewingUser');
         if (modals.isInfoModalOpen) ids.push('infoModal');
+        if (modals.isAnnouncementsModalOpen) ids.push('announcementsModal');
+        if (modals.isRankingQuickModalOpen) ids.push('rankingQuickModal');
+        if (modals.isChatQuickModalOpen) ids.push('chatQuickModal');
         if (modals.isEncyclopediaOpen) ids.push('encyclopedia');
         if (modals.isStatAllocationModalOpen) ids.push('statAllocation');
         if (modals.isProfileEditModalOpen) ids.push('profileEdit');
@@ -142,6 +151,26 @@ const AppModalLayer: React.FC = () => {
                 </Suspense>
             )}
             {modals.isInfoModalOpen && <InfoModal onClose={handlers.closeInfoModal} isTopmost={topmostModalId === 'infoModal'} />}
+            {modals.isAnnouncementsModalOpen && (
+                <AnnouncementsModal
+                    announcements={announcements}
+                    globalOverrideAnnouncement={globalOverrideAnnouncement}
+                    onClose={handlers.closeAnnouncementsModal}
+                    isTopmost={topmostModalId === 'announcementsModal'}
+                />
+            )}
+            {modals.isRankingQuickModalOpen && (
+                <RankingQuickModal onClose={handlers.closeRankingQuickModal} isTopmost={topmostModalId === 'rankingQuickModal'} />
+            )}
+            {modals.isChatQuickModalOpen && (
+                <ChatQuickModal
+                    messages={waitingRoomChats?.global ?? []}
+                    onAction={handlers.handleAction}
+                    onViewUser={handlers.openViewingUser}
+                    onClose={handlers.closeChatQuickModal}
+                    isTopmost={topmostModalId === 'chatQuickModal'}
+                />
+            )}
             {modals.isInsufficientActionPointsModalOpen && (
                 <InsufficientActionPointsModal
                     onClose={handlers.closeInsufficientActionPointsModal}

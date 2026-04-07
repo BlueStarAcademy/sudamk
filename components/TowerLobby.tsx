@@ -8,7 +8,7 @@ import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { loadWasmGnuGo, shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
-import QuickAccessSidebar from './QuickAccessSidebar.js';
+import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import TowerItemShopModal from './TowerItemShopModal.js';
 import DraggableWindow from './DraggableWindow.js';
 import {
@@ -104,30 +104,6 @@ const TowerLobby: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    /** 네이티브 상단 행(탑 이미지·랭킹·퀵메뉴) 높이: 퀵메뉴 고유 높이에 맞춤 */
-    const nativeQuickMenuMeasureRef = useRef<HTMLDivElement>(null);
-    const [nativeTopRowHeightPx, setNativeTopRowHeightPx] = useState<number | null>(null);
-
-    useLayoutEffect(() => {
-        if (!isNativeMobile || !currentUser) return;
-        const outer = nativeQuickMenuMeasureRef.current;
-        if (!outer) return;
-        const update = () => {
-            const inner = outer.querySelector<HTMLElement>('[data-quick-access-sidebar-root]');
-            if (!inner) return;
-            const boxH = Math.ceil(
-                Math.max(outer.getBoundingClientRect().height, outer.scrollHeight, outer.offsetHeight)
-            );
-            if (boxH > 0) setNativeTopRowHeightPx(boxH);
-        };
-        update();
-        const ro = new ResizeObserver(update);
-        ro.observe(outer);
-        const innerRoot = outer.querySelector('[data-quick-access-sidebar-root]');
-        if (innerRoot) ro.observe(innerRoot);
-        return () => ro.disconnect();
-    }, [isNativeMobile, currentUser]);
-
     const onBackToProfile = () => window.location.hash = '#/profile';
 
     if (!currentUser || !currentUserWithStatus) {
@@ -202,8 +178,8 @@ const TowerLobby: React.FC = () => {
         ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 p-1 shadow-lg shadow-amber-900/40 backdrop-blur-md sm:p-2'
         : 'flex-[0_0_35%] max-w-[35%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50';
     const quickColClass = isNativeMobile
-        ? 'flex h-[min(30dvh,280px)] min-h-[200px] w-24 min-w-[96px] max-w-[96px] flex-shrink-0 flex-col overflow-hidden self-center'
-        : 'flex-shrink-0 w-24 min-w-[96px] overflow-hidden';
+        ? `flex h-[min(30dvh,280px)] min-h-[200px] flex-col overflow-hidden self-center ${PC_QUICK_RAIL_COLUMN_CLASS}`
+        : `overflow-hidden ${PC_QUICK_RAIL_COLUMN_CLASS}`;
 
     const towerNativeGlass =
         'rounded-xl border border-amber-500/40 bg-gray-950/50 backdrop-blur-md shadow-lg shadow-black/30';
@@ -518,14 +494,7 @@ const TowerLobby: React.FC = () => {
             return (
                 <>
                     <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-                        <div
-                            className="grid min-h-0 shrink-0 grid-cols-[minmax(0,2.5fr)_minmax(0,6.5fr)_5.5rem] items-stretch gap-1 overflow-hidden"
-                            style={
-                                nativeTopRowHeightPx != null
-                                    ? { height: `${nativeTopRowHeightPx}px`, minHeight: 0 }
-                                    : { minHeight: 0, maxHeight: 'min(44dvh, 90vh)' }
-                            }
-                        >
+                        <div className="grid min-h-0 shrink-0 grid-cols-[minmax(0,2.5fr)_minmax(0,7.5fr)] items-stretch gap-1 overflow-hidden min-h-0 max-h-[min(44dvh,90vh)]">
                             <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden p-0.5 ${towerNativeGlass}`}>
                                 <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg">
                                     <img
@@ -636,12 +605,6 @@ const TowerLobby: React.FC = () => {
                         )}
                     </div>
                                 </div>
-                            <div
-                                ref={nativeQuickMenuMeasureRef}
-                                className={`box-border flex h-fit min-h-0 w-full min-w-0 shrink-0 flex-col self-start overflow-hidden p-0.5 ${towerNativeGlass}`}
-                            >
-                                <QuickAccessSidebar nativeHomeColumn />
-                            </div>
                         </div>
                         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_5.5rem] gap-1 overflow-hidden">
                             <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1 sm:p-2 ${towerNativeGlass}`}>

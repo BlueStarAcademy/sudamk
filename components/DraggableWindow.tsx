@@ -83,6 +83,12 @@ interface DraggableWindowProps {
      */
     uniformPcScale?: boolean;
 
+    /**
+     * false: 헤더에 제목(h2)을 렌더하지 않음(닫기·드래그 영역만 유지). 본문 상단 박스가 제목 역할을 할 때 사용.
+     * 접근성: 이 경우 `title` 문자열이 루트에 aria-label로 전달됩니다.
+     */
+    headerShowTitle?: boolean;
+
     /** 창 루트 div에 추가 클래스 (게임 설명 등 전용 크롬) */
     containerExtraClassName?: string;
 
@@ -216,6 +222,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     skipSavedPosition = false,
     bodyPaddingClassName,
     uniformPcScale = false,
+    headerShowTitle = true,
     containerExtraClassName,
     footerClassName,
     pcViewportMaxHeightCss,
@@ -939,6 +946,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 ref={windowRef}
                 data-draggable-window={windowId}
                 data-uniform-pc-scale={useUniformPcScaleLayout ? '1' : undefined}
+                aria-label={!headerShowTitle ? title : undefined}
                 className={`${containerBaseClass} ${containerVariantClass} min-h-0 ${
                     relaxOuterMaxHeight ? 'max-h-none' : 'max-h-[min(100dvh,100vh)]'
                 }${containerExtraClassName ? ` ${containerExtraClassName}` : ''}`}
@@ -1024,13 +1032,17 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     onMouseDown={handleMouseDown}
                     onTouchStart={handleTouchStart}
                 >
-                    <h2
-                        className={`select-none font-bold tracking-tight text-primary ${
-                            uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-xl' : 'text-lg'
-                        }`}
-                    >
-                        {title}
-                    </h2>
+                    {headerShowTitle ? (
+                        <h2
+                            className={`select-none font-bold tracking-tight text-primary ${
+                                uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-xl' : 'text-lg'
+                            }`}
+                        >
+                            {title}
+                        </h2>
+                    ) : (
+                        <div className="min-h-[2.5rem] min-w-0 flex-1 self-stretch" aria-hidden />
+                    )}
                     <div className="flex items-center gap-2">
                         {headerContent}
                         {onClose && (

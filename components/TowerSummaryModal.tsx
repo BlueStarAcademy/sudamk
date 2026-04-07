@@ -36,7 +36,8 @@ const SP_SUMMARY_PANEL_CLASS =
     'relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12';
 const SP_SUMMARY_INSET_CLASS =
     'rounded-lg border border-amber-500/15 bg-black/35 ring-1 ring-inset ring-white/[0.05]';
-const SP_SUMMARY_SECTION_LABEL = 'text-[0.65rem] font-bold uppercase tracking-[0.12em] text-amber-200/85';
+const SP_SUMMARY_SECTION_LABEL =
+    'text-[0.72rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs min-[1024px]:text-sm';
 
 const RewardItemDisplay: React.FC<{ item: any; isMobile: boolean }> = ({ item, isMobile }) => (
     <div
@@ -98,7 +99,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
 
     return (
-        <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-sm min-[1024px]:text-base' : ''}`}>
+        <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
                     <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}>흑</h3>
@@ -357,26 +358,25 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
 
     const mobileTextScale = 1;
 
-    // 좌/우 패널 균등 분할, 오른쪽 불필요한 여백 제거
-    const panelSizing = 'min-w-0 flex-1 basis-0';
+    const panelSizing = isMobile ? 'min-w-0 flex-1 basis-0' : 'min-w-0 w-1/2 shrink-0';
 
     return (
         <DraggableWindow 
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="tower-summary-redesigned"
-            initialWidth={960}
-            initialHeight={820}
+            initialWidth={840}
+            initialHeight={700}
             uniformPcScale={false}
             mobileViewportFit
             mobileViewportMaxHeightVh={97}
             bodyNoScroll={isMobile}
-            bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-4 pb-0'}
+            bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
             defaultPosition={modalLayerUsesDesignPixels ? { x: 400, y: 0 } : { x: 0, y: 0 }}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
-            footerClassName="border-t border-amber-500/35 bg-gradient-to-t from-[#0c0a10] via-[#14111c] to-[#1c1828] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] text-zinc-200/90"
+            hideFooter
         >
             <div
                 className={`flex w-full min-h-0 flex-col text-white ${
@@ -384,8 +384,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         ? 'h-full min-h-0 flex-1 overflow-hidden'
                         : useBodyScrollSizing
                           ? 'overflow-x-hidden'
-                          : 'h-full overflow-hidden'
-                } ${PRE_GAME_MODAL_LAYER_CLASS} ${isMobile ? 'text-xs sm:text-sm' : 'text-base min-[1024px]:text-[1.0625rem] min-[1280px]:text-lg'}`}
+                          : 'overflow-x-hidden overflow-y-visible'
+                } ${PRE_GAME_MODAL_LAYER_CLASS} ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
             >
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
@@ -399,20 +399,34 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </h1>
                 )}
                 
-                <div className="flex min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden sm:gap-2">
+                <div
+                    className={`flex min-w-0 flex-row gap-1.5 sm:gap-2 ${
+                        isMobile ? 'min-h-0 flex-1 overflow-hidden' : 'items-start overflow-visible'
+                    }`}
+                >
                     {/* Left Panel: 경기 결과 */}
-                    <div className={`${panelSizing} flex min-h-0 flex-col overflow-hidden ${SP_SUMMARY_PANEL_CLASS} p-2 sp-summary-left-panel`}>
+                    <div
+                        className={`${panelSizing} flex flex-col ${SP_SUMMARY_PANEL_CLASS} p-2 sp-summary-left-panel ${
+                            isMobile ? 'min-h-0 overflow-hidden' : 'overflow-visible'
+                        }`}
+                    >
                         <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 sm:mb-2 border-b border-amber-500/25 pb-0.5 sm:pb-1 text-center`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>경기 결과</h2>
-                        <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+                        <div
+                            className={
+                                isMobile
+                                    ? 'flex min-h-0 flex-1 flex-col gap-1.5'
+                                    : 'flex flex-col gap-1.5 overflow-visible'
+                            }
+                        >
                             {/* 경기 정보 */}
                             {(analysisResult || (isEnded && session.winner !== null)) && (
                                 <div className={`${isMobile ? 'p-1' : 'p-1.5'} ${SP_SUMMARY_INSET_CLASS} space-y-0.5 flex-shrink-0`}>
-                                    <div className="flex justify-between items-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
+                                    <div className="flex justify-between items-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '15px' }}>
                                         <span className="text-amber-200/65">총 걸린 시간:</span>
                                         <span className="text-zinc-100 font-semibold">{gameDuration}</span>
                                     </div>
                                     {(winReasonText || failureReason) && (
-                                        <div className="flex flex-col gap-0.5" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
+                                        <div className="flex flex-col gap-0.5" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '15px' }}>
                                             <span className="text-amber-200/65">{isWinner ? '승리 이유:' : '패배 이유:'}</span>
                                             <span className={`font-semibold ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
                                                 {winReasonText || failureReason}
@@ -443,9 +457,19 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </div>
                     
                     {/* Right Panel: 획득 보상 */}
-                    <div className={`${panelSizing} flex min-h-0 min-w-0 flex-col overflow-hidden ${SP_SUMMARY_PANEL_CLASS} p-2`}>
+                    <div
+                        className={`${panelSizing} flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} p-2 ${
+                            isMobile ? 'min-h-0 overflow-hidden' : 'overflow-visible'
+                        }`}
+                    >
                         <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 sm:mb-2 border-b border-amber-500/25 pb-0.5 sm:pb-1 text-center`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>획득 보상</h2>
-                        <div className="flex-1 min-h-0 min-w-0 flex flex-col gap-1.5">
+                        <div
+                            className={
+                                isMobile
+                                    ? 'flex min-h-0 min-w-0 flex-1 flex-col gap-1.5'
+                                    : 'flex min-w-0 flex-col gap-1.5 overflow-visible'
+                            }
+                        >
                             {/* 유저 프로필 */}
                             <div className={`${isMobile ? 'p-1' : 'p-1.5'} ${SP_SUMMARY_INSET_CLASS} flex items-center gap-1.5 flex-shrink-0`}>
                                 <Avatar
@@ -456,8 +480,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                     size={isMobile ? 24 : 32}
                                 />
                                 <div>
-                                    <p className="font-bold text-zinc-100" style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}>{currentUser.nickname}</p>
-                                    <p className="text-amber-200/60" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
+                                    <p className="font-bold text-zinc-100" style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>{currentUser.nickname}</p>
+                                    <p className="text-amber-200/60" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
                                         전략 Lv.{currentUser.strategyLevel}
                                     </p>
                                 </div>
@@ -473,7 +497,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                             style={{ width: `${xpGaugePercent !== null ? xpGaugePercent : xpPercent}%` }}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
+                                    <div className="flex items-center justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
                                         <span className="font-mono text-zinc-300/95">
                                             {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
                                         </span>
@@ -487,7 +511,13 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             )}
                             
                             {/* 보상 박스들 — 최소 높이로 영역 고정해 모달 크기 흔들림 방지 */}
-                            <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${isMobile ? 'min-h-0' : 'min-h-[140px] sm:min-h-[160px]'}`}>
+                            <div
+                                className={
+                                    isMobile
+                                        ? 'flex min-h-0 min-w-0 flex-1 flex-col'
+                                        : 'flex min-w-0 flex-col overflow-visible'
+                                }
+                            >
                             {displaySummary ? (
                                 <>
                                     {((displaySummary.gold ?? 0) > 0 || (displaySummary.xp?.change ?? 0) > 0 || (displaySummary.items && displaySummary.items.length > 0)) ? (
@@ -496,7 +526,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                             {(displaySummary.gold ?? 0) > 0 && (
                                                 <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
                                                     <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-6 h-6' : 'w-10 h-10'} mb-0.5`} />
-                                                    <p className="font-bold text-yellow-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
+                                                    <p className="font-bold text-yellow-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
                                                         {(displaySummary.gold ?? 0).toLocaleString()}
                                                     </p>
                                                 </div>
@@ -504,8 +534,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                             {/* XP Reward (박스 형태) */}
                                             {displaySummary.xp && displaySummary.xp.change > 0 && (
                                                 <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-green-600/30 to-green-800/30 border-2 border-green-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
-                                                    <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold text-green-300 mb-0.5`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>전략</p>
-                                                    <p className="font-bold text-green-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}>
+                                                    <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold text-green-300 mb-0.5`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '13px' }}>전략</p>
+                                                    <p className="font-bold text-green-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
                                                         +{displaySummary.xp.change} XP
                                                     </p>
                                                 </div>
@@ -540,7 +570,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                                 <span className="text-xs text-gray-300 text-center px-1 line-clamp-2">{displayName}</span>
                                                             </div>
                                                         )}
-                                                        <p className="font-semibold text-purple-300 text-center leading-tight" style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : '10px' }}>
+                                                        <p className="font-semibold text-purple-300 text-center leading-tight" style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : '12px' }}>
                                                             {displayName}
                                                             {item.quantity && item.quantity > 1 ? ` x${item.quantity}` : ''}
                                                         </p>
@@ -550,15 +580,15 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-center py-4">
-                                            <p className="text-gray-400 text-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
+                                            <p className="text-gray-400 text-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}>
                                                 보상이 없습니다.
                                             </p>
                                         </div>
                                     )}
                                 </>
                             ) : (
-                                <div className="flex items-center justify-center py-4 flex-1">
-                                    <p className="text-gray-400 text-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>
+                                <div className={`flex items-center justify-center py-4 ${isMobile ? 'flex-1' : ''}`}>
+                                    <p className="text-gray-400 text-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}>
                                         {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
                                     </p>
                                 </div>
@@ -569,7 +599,13 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                 </div>
                  
                 {/* Buttons */}
-                <div className={`${PRE_GAME_MODAL_FOOTER_CLASS} ${isMobile ? '!mt-2 !gap-1.5 !p-2.5 -mx-2 -mb-2 sm:!mt-3 sm:!gap-2 sm:!p-3 sm:-mx-3 sm:-mb-3' : '!mt-3 !flex-col !gap-2 !p-3 sm:!gap-3 sm:!p-4 -mx-4 -mb-4'} !flex-col rounded-b-2xl flex-shrink-0`}>
+                <div
+                    className={`${PRE_GAME_MODAL_FOOTER_CLASS} flex-shrink-0 !flex-col rounded-b-2xl ${
+                        isMobile
+                            ? 'mt-2 !gap-1.5 !p-2.5 -mx-2 -mb-2 sm:mt-3 sm:!gap-2 sm:!p-3 sm:-mx-3 sm:-mb-3'
+                            : 'mt-2 !gap-2 !p-3 sm:!gap-3 sm:!p-3.5'
+                    }`}
+                >
                     <div className={`grid w-full min-w-0 flex-shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5`}>
                     <Button
                         onClick={() => {

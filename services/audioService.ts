@@ -17,6 +17,9 @@ class AudioService {
     private visibilityResumeHooked = false;
     private scanBgmSourceNode: AudioBufferSourceNode | null = null;
     private timerWarningSourceNode: AudioBufferSourceNode | null = null;
+    /** WebAudio 대신 HTML5로 재생 중일 때 정지용(scanbgm 루프 등) */
+    private scanBgmHtml5: HTMLAudioElement | null = null;
+    private timerWarningHtml5: HTMLAudioElement | null = null;
     private audioBuffers = new Map<string, AudioBuffer>();
     /** 동일 URL 동시 디코드 방지 */
     private bufferLoads = new Map<string, Promise<AudioBuffer | null>>();
@@ -197,19 +200,47 @@ class AudioService {
         return p;
     }
 
-    /** Web Audio가 잠긴 경우(iOS 등)에만 사용 — master·카테고리 반영된 최종 볼륨(0~1) */
+    /**
+     * HTML5 재생. 반환 요소는 scanbgm·timer 전용 정지에 사용.
+     * master·카테고리 반영된 최종 볼륨(0~1).
+     */
+    private startHtml5Playback(
+        soundName: string,
+        category: keyof SoundSettings['categoryMuted'],
+        effectiveVolume: number,
+        loop: boolean,
+    ): HTMLAudioElement | null {
+        if (this.settings.masterMuted || this.settings.categoryMuted[category]) return null;
+        try {
+            const el = new Audio(`${this.soundsPath}${soundName}.mp3`);
+            el.volume = Math.max(0, Math.min(1, effectiveVolume));
+            el.loop = loop;
+            el.preload = 'auto';
+            el.playsInline = true;
+            el.setAttribute('playsinline', 'true');
+            el.setAttribute('webkit-playsinline', 'true');
+            void el.play().catch((e) => {
+                console.warn('[AudioService] HTML5 play failed:', soundName, e);
+            });
+            return el;
+        } catch {
+            return null;
+        }
+    }
+
+    private trackLongRunningHtml5(soundName: string, el: HTMLAudioElement | null, loop: boolean): void {
+        if (!el) return;
+        if (soundName === 'scanbgm' && loop) {
+            this.scanBgmHtml5 = el;
+        } else if (soundName === 'timer10' && !loop) {
+            this.timerWarningHtml5 = el;
+        }
+    }
+
+    /** Web Audio가 잠긴 경우(iOS 등)에만 사용 */
     private playHtml5Fallback(soundName: string, category: keyof SoundSettings['categoryMuted'], effectiveVolume: number, loop: boolean): void {
-        if (this.settings.masterMuted || this.settings.categoryMuted[category]) return;
-        const el = new Audio(`${this.soundsPath}${soundName}.mp3`);
-        el.volume = Math.max(0, Math.min(1, effectiveVolume));
-        el.loop = loop;
-        el.preload = 'auto';
-        el.playsInline = true;
-        el.setAttribute('playsinline', 'true');
-        el.setAttribute('webkit-playsinline', 'true');
-        void el.play().catch((e) => {
-            console.warn('[AudioService] HTML5 fallback play failed:', soundName, e);
-        });
+        const el = this.startHtml5Playback(soundName, category, effectiveVolume, loop);
+        this.trackLongRunningHtml5(soundName, el, loop);
     }
 
     private async playSound(buffer: AudioBuffer, volume = 1, loop = false): Promise<AudioBufferSourceNode | null> {
@@ -254,17 +285,27 @@ class AudioService {
         // 일부 모바일 브라우저에서 초기 unlock이 누락돼도, 실제 재생 시도 순간에 다시 열어준다.
         this.unlockFromUserGesture();
         const effectiveVolume = volume * this.settings.masterVolume;
-        try {
-            const buffer = await this.loadSound(`${this.soundsPath}${soundName}.mp3`);
-            if (buffer) {
-                const node = await this.playSound(buffer, effectiveVolume, loop);
+        const url = `${this.soundsPath}${soundName}.mp3`;
+
+        const cached = this.audioBuffers.get(url);
+        if (cached) {
+            try {
+                const node = await this.playSound(cached, effectiveVolume, loop);
                 if (node) return node;
+            } catch (e) {
+                console.error(`Could not play sound ${soundName}`, e);
             }
             this.playHtml5Fallback(soundName, category, effectiveVolume, loop);
-        } catch (e) {
-            console.error(`Could not play sound ${soundName}`, e);
-            this.playHtml5Fallback(soundName, category, effectiveVolume, loop);
+            return null;
         }
+
+        /**
+         * 앱 플레이어·iOS WebView 등: await fetch/decode 후에는 사용자 제스처가 끊겨 WebAudio·HTML5 play가 거절되는 경우가 많다.
+         * 버퍼가 아직 없을 때(첫 재생·프리로드 진행 중)는 같은 동기 스택에서 HTML5 play를 먼저 건다. 디코드는 백그라운드만.
+         */
+        const html5El = this.startHtml5Playback(soundName, category, effectiveVolume, loop);
+        this.trackLongRunningHtml5(soundName, html5El, loop);
+        void this.loadSound(url).catch(() => {});
         return null;
     }
 
@@ -274,7 +315,26 @@ class AudioService {
     public enhancementFail() { this.play('failure', 'notification', 0.7).catch(() => {}); }
     public revealHiddenStone() { this.play('hidden', 'item', 0.8).catch(() => {}); }
     public async playScanBgm() { this.stopScanBgm(); this.scanBgmSourceNode = await this.play('scanbgm', 'item', 0.4, true); }
-    public stopScanBgm() { if (this.scanBgmSourceNode) { try { this.scanBgmSourceNode.stop(); } catch(e) {} this.scanBgmSourceNode = null; } }
+    public stopScanBgm() {
+        if (this.scanBgmSourceNode) {
+            try {
+                this.scanBgmSourceNode.stop();
+            } catch (e) {
+                /* ignore */
+            }
+            this.scanBgmSourceNode = null;
+        }
+        if (this.scanBgmHtml5) {
+            try {
+                this.scanBgmHtml5.pause();
+                this.scanBgmHtml5.currentTime = 0;
+                this.scanBgmHtml5.src = '';
+            } catch {
+                /* ignore */
+            }
+            this.scanBgmHtml5 = null;
+        }
+    }
     public scanSuccess() { this.play('find', 'item', 0.7).catch(() => {}); }
     public stoneCollision() { this.play('hit', 'stone', 0.4).catch(() => {}); }
     public launchMissile() { this.play('rocket', 'item', 0.7).catch(() => {}); }
@@ -296,10 +356,19 @@ class AudioService {
         if (this.timerWarningSourceNode) {
             try {
                 this.timerWarningSourceNode.stop();
-            } catch(e) {
+            } catch (e) {
                 // Ignore error, e.g. if sound has already finished
             }
             this.timerWarningSourceNode = null;
+        }
+        if (this.timerWarningHtml5) {
+            try {
+                this.timerWarningHtml5.pause();
+                this.timerWarningHtml5.currentTime = 0;
+            } catch {
+                /* ignore */
+            }
+            this.timerWarningHtml5 = null;
         }
     }
 

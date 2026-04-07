@@ -5,6 +5,56 @@
 import * as types from '../../shared/types/index.js';
 import type { LiveGameSession, Point, BoardState, Player as PlayerType } from '../../shared/types/index.js';
 
+/**
+ * 주사위 바둑 흑 착수: 빈 점이어야 하며, 판에 백이 있으면 백의 활로에만 둘 수 있음.
+ * 서버 `server/modes/diceGo.ts` DICE_PLACE_STONE 활로 검사와 동일 조건.
+ */
+export function isDiceGoLibertyPlacement(game: LiveGameSession, x: number, y: number): boolean {
+    const boardState = game.boardState;
+    if (!boardState?.length) return false;
+    const row = boardState[y];
+    if (!row || x < 0 || x >= row.length || y < 0 || y >= boardState.length) return false;
+    if (row[x] !== types.Player.None) return false;
+
+    const anyWhiteStones = boardState.flat().some((s) => s === types.Player.White);
+    if (!anyWhiteStones) return true;
+
+    const liberties = getGoLogic(game).getAllLibertiesOfPlayer(types.Player.White, boardState);
+    if (liberties.length > 0 && !liberties.some((p) => p.x === x && p.y === y)) return false;
+    return true;
+}
+
+/**
+ * 도둑과 경찰 착수: 빈 점이어야 하며, 역할·턴에 따라 흑(도둑) 활로 규칙 적용.
+ * 서버 `server/modes/thief.ts` THIEF_PLACE_STONE 활로 검사와 동일 조건.
+ */
+export function isThiefGoValidPlacement(game: LiveGameSession, x: number, y: number, actingUserId: string): boolean {
+    const boardState = game.boardState;
+    if (!boardState?.length || !game.thiefPlayerId) return false;
+    const row = boardState[y];
+    if (!row || x < 0 || x >= row.length || y < 0 || y >= boardState.length) return false;
+    if (row[x] !== types.Player.None) return false;
+
+    const logic = getGoLogic(game);
+    const isThief = actingUserId === game.thiefPlayerId;
+
+    if (isThief) {
+        const noBlackStonesOnBoard = !boardState.flat().some((s) => s === types.Player.Black);
+        const canPlaceFreely = game.turnInRound === 1 || noBlackStonesOnBoard;
+        if (!canPlaceFreely) {
+            const liberties = logic.getAllLibertiesOfPlayer(types.Player.Black, boardState);
+            if (liberties.length > 0 && !liberties.some((p) => p.x === x && p.y === y)) return false;
+        }
+    } else {
+        const blackStonesOnBoard = boardState.flat().some((s) => s === types.Player.Black);
+        if (blackStonesOnBoard) {
+            const liberties = logic.getAllLibertiesOfPlayer(types.Player.Black, boardState);
+            if (liberties.length > 0 && !liberties.some((p) => p.x === x && p.y === y)) return false;
+        }
+    }
+    return true;
+}
+
 export const getGoLogic = (game: LiveGameSession) => {
     const { boardState, settings: { boardSize } } = game;
 

@@ -1115,8 +1115,10 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
             if (game.gameStatus !== 'dice_round_end') return { error: "Not in round end confirmation phase." };
             if (!game.roundEndConfirmations) game.roundEndConfirmations = {};
             game.roundEndConfirmations[user.id] = now;
+            // 양쪽 확인(또는 revealEndTime 경과) 시 즉시 다음 라운드로 전환 — 메인 루프 틱만 기다리면 클라가 오래 멈춘 것처럼 보임
+            updateDiceGoState(game, now);
             await db.saveGame(game);
-            return {};
+            return { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
         }
     }
 };
