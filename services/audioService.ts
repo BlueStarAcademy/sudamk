@@ -2,6 +2,7 @@
 
 import type { SoundSettings } from '../types.js';
 import { defaultSettings } from '../hooks/useAppSettings.js';
+import { getApiUrl } from '../utils/apiConfig.js';
 
 /** `public/sound`에 있는 파일명과 일치 (첫 사용자 제스처 직후 백그라운드 프리로드) */
 const SOUND_BASE_NAMES = [
@@ -167,6 +168,11 @@ class AudioService {
         };
     }
 
+    /** 앱(WebView 포함)에서도 올바른 백엔드 origin으로 사운드 경로를 계산 */
+    private getSoundUrl(soundName: string): string {
+        return getApiUrl(`${this.soundsPath}${soundName}.mp3`);
+    }
+
     private async loadSound(url: string): Promise<AudioBuffer | null> {
         await this.initialize();
         if (!this.audioContext) return null;
@@ -212,7 +218,7 @@ class AudioService {
     ): HTMLAudioElement | null {
         if (this.settings.masterMuted || this.settings.categoryMuted[category]) return null;
         try {
-            const el = new Audio(`${this.soundsPath}${soundName}.mp3`);
+            const el = new Audio(this.getSoundUrl(soundName));
             el.volume = Math.max(0, Math.min(1, effectiveVolume));
             el.loop = loop;
             el.preload = 'auto';
@@ -285,7 +291,7 @@ class AudioService {
         // 일부 모바일 브라우저에서 초기 unlock이 누락돼도, 실제 재생 시도 순간에 다시 열어준다.
         this.unlockFromUserGesture();
         const effectiveVolume = volume * this.settings.masterVolume;
-        const url = `${this.soundsPath}${soundName}.mp3`;
+        const url = this.getSoundUrl(soundName);
 
         const cached = this.audioBuffers.get(url);
         if (cached) {
